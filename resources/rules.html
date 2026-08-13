@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules & Engineering Standards · Takoriya Technology LLP</title>
+<style>
+:root{
+  --ink:#16232b; --ink-soft:#42545f; --paper:#fbfcfc; --panel:#ffffff;
+  --teal:#0e6e6a; --teal-deep:#0a4f4c; --teal-tint:#e3f0ef; --line:#d7e0e2;
+  --amber:#8a5a12; --amber-tint:#faf1de; --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;font-size:15px;}
+a{color:var(--teal-deep);}
+.shell{display:flex;max-width:1200px;margin:0 auto;}
+aside{width:270px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:24px 16px 60px;background:var(--panel);}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;}
+aside h1{font-family:'IBM Plex Serif',serif;font-size:15.5px;line-height:1.3;margin-bottom:18px;}
+aside .navgroup{margin-bottom:12px;}
+aside .navgroup-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:5px 6px 3px;}
+aside ul{list-style:none;}
+aside a{display:block;padding:3px 6px;border-radius:4px;font-size:12px;color:var(--ink-soft);text-decoration:none;border-left:2px solid transparent;}
+aside a:hover{background:var(--teal-tint);color:var(--teal-deep);}
+main{flex:1;min-width:0;padding:38px 46px 100px;max-width:880px;}
+header.cover{border-bottom:3px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+h1.title{font-family:'IBM Plex Serif',serif;font-size:clamp(24px,3.6vw,32px);font-weight:700;margin-bottom:10px;}
+.meta{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);font-size:12.5px;}
+.meta div{padding:8px 12px;border-right:1px solid var(--line);}
+.meta div:last-child{border-right:none;}
+.meta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+.meta dd{font-weight:600;}
+.crossref{background:var(--teal-tint);border:1px solid var(--teal);border-radius:5px;padding:10px 16px;font-size:13px;margin-bottom:26px;color:var(--teal-deep);}
+.crossref strong{color:var(--teal-deep);}
+.partdivider{margin:38px 0 14px;}
+.partdivider h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);border-bottom:2px solid var(--teal);padding-bottom:6px;}
+section{margin-bottom:30px;scroll-margin-top:20px;}
+h3{font-family:'IBM Plex Serif',serif;font-size:17px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+h4{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:12px 0 5px;}
+p{margin-bottom:9px;font-size:14.5px;}
+p.lead{color:var(--ink-soft);}
+ul{list-style:none;padding-left:0;margin-bottom:6px;}
+ul li{position:relative;padding:2.5px 0 2.5px 20px;font-size:14.5px;}
+ul li::before{content:"";position:absolute;left:3px;top:11px;width:6px;height:6px;border:1.5px solid var(--teal);border-radius:1px;}
+code{font-family:var(--mono);font-size:12px;background:var(--teal-tint);color:var(--teal-deep);padding:1px 5px;border-radius:3px;}
+.callout{border-left:4px solid var(--amber);background:var(--amber-tint);padding:12px 16px;margin:12px 0;font-size:13px;}
+.callout.teal{border-left-color:var(--teal);background:var(--teal-tint);}
+.callout .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;font-weight:600;color:var(--amber);}
+.callout.teal .tag{color:var(--teal-deep);}
+.milestone{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;padding:14px 18px;margin-bottom:14px;background:var(--panel);}
+.milestone-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.milestone-head h3{border:none;padding:0;margin:0;font-size:15px;}
+.milestone-num{font-family:var(--mono);font-size:11px;color:var(--teal-deep);background:var(--teal-tint);padding:2px 8px;border-radius:3px;}
+.dep-line{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono);}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:var(--teal-tint);color:var(--teal-deep);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;}
+tr:nth-child(even) td{background:#fafcfc;}
+footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+@media (max-width:880px){.shell{flex-direction:column;}aside{position:static;width:auto;height:auto;max-height:260px;}main{padding:22px 16px 70px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Rules & Engineering Standards</h1><nav><div class="navgroup"><div class="navgroup-label">Engineering Standards</div><ul><li><a href="#s1-1">Design System & UI Consistency</a></li><li><a href="#s1-2">Standard DataTable</a></li><li><a href="#s1-3">Light & Dark Theme</a></li><li><a href="#s1-4">Branding & Multi-Tenant Customization</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Development Rules</div><ul><li><a href="#s2-1">Architecture Rules</a></li><li><a href="#s2-2">Authorization Rules</a></li><li><a href="#s2-3">Tenancy Rules</a></li><li><a href="#s2-4">Database Rules</a></li><li><a href="#s2-5">API Rules</a></li><li><a href="#s2-6">UI / UX Rules</a></li><li><a href="#s2-7">Security Rules</a></li><li><a href="#s2-8">Audit Rules</a></li><li><a href="#s2-9">Testing Rules</a></li><li><a href="#s2-10">Documentation Rules</a></li><li><a href="#s2-11">Dependency Rules</a></li><li><a href="#s2-12">Git Rules</a></li><li><a href="#s2-13">Prohibited Patterns</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Documentation System</div><ul><li><a href="#s3-1">Documentation & AI-Agent Knowledge System</a></li><li><a href="#s3-2">Architecture Decision Records (DECISIONS.md)</a></li></ul></div></nav></aside>
+<main>
+<header class="cover">
+  <div class="eyebrow">RULES · Version 1.0</div>
+  <h1 class="title">Rules & Engineering Standards</h1>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Takoriya Technology LLP</dd></div>
+    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Last Updated</dt><dd>August 2026</dd></div>
+    <div><dt>File</dt><dd>rules.html</dd></div>
+  </dl>
+</header>
+<div class="crossref">This document states rules only. For the architecture each rule is derived from, see **Architecture Document**. For when each rule applies during the build, see **Development Phases & Roadmap**.</div>
+<div class="partdivider"><h2>Engineering Standards</h2></div><section id="s1-1"><h3>Design System & UI Consistency</h3><h3>Design System &amp; UI Consistency</h3><ul>
+    <li>One shared design-token set — font family, sizes, weights, line-height, spacing, radius, colors, shadows — defined once in packages/ui and consumed everywhere; no component hardcodes a raw value</li>
+    <li>One canonical implementation per UI pattern — buttons, forms, tables, cards, modals, dropdowns, alerts, empty/loading/error states — built once and reused; a module needing a variant extends or configures the shared component, never forks it</li>
+    <li>Before building any new UI pattern: check packages/ui first. If the capability is missing, extend the shared component rather than building a module-local one</li>
+  </ul></section><section id="s1-2"><h3>Standard DataTable</h3><h3>Standard DataTable Component</h3><ul>
+    <li>One reusable DataTable in packages/ui covering pagination, rows-per-page, single/multi-column sorting, search, filtering, column visibility, row selection, and loading/empty/error states</li>
+    <li>Server-side pagination/sorting/filtering as a mode for large datasets (patient lists, MIS reports); client-side for small ones</li>
+    <li>Modules supply only data and column configuration — no module implements its own table, pagination, or sorting logic</li>
+    <li>Missing DataTable functionality is added to the shared component, never worked around locally</li>
+  </ul></section><section id="s1-3"><h3>Light & Dark Theme</h3><h3>Light &amp; Dark Theme Support</h3><ul>
+    <li>Centralized theme tokens for background, text, border, primary/secondary, status, card, input, table, modal, hover, focus, and disabled states — no component reads a hardcoded color</li>
+    <li>Light is the default theme; switching to Dark is available from the Portal UI</li>
+    <li>Every component is verified in both themes before being considered complete — a component that's unreadable in Dark mode is a defect, not a follow-up task</li>
+  </ul></section><section id="s1-4"><h3>Branding & Multi-Tenant Customization</h3><h3>Branding &amp; Multi-Tenant Customization</h3><ul>
+    <li>Brand colors, logos, and typography are tenant-configurable values consumed from the centralized branding system, never hardcoded into a component</li>
+    <li>A new UI component works correctly for any tenant's branding without a module-specific redesign — this is what makes the tenant-level branding requirement in §4 hold at the component level, not just the page level</li>
+  </ul></section><div class="partdivider"><h2>Development Rules</h2></div><section id="s2-1"><h3>Architecture Rules</h3>
+<ul>
+<li>All module code deploys as a single modular-monolith application. Do not introduce microservices, Kubernetes, or a service mesh without an explicit decision recorded in DECISIONS.md.</li>
+<li>Every module's routes are gated by a <code>requireModule()</code> check, evaluated before any permission check.</li>
+<li>Business modules do not directly depend on another module's internals. Cross-module interaction goes through Domain Events or a defined service interface, never a direct import of another module's internal code.</li>
+<li>Financial Transaction Infrastructure (Platform Core) is the only place invoice/payment/tax/receipt/ledger primitives are implemented. Billing &amp; Payments and any other billing-capable module consume it; none reimplement it.</li>
+<li>New specialties are added via the configurable specialty form-template mechanism. The core Patient/Provider/Encounter schema is never modified to accommodate a single specialty.</li>
+</ul></section><section id="s2-2"><h3>Authorization Rules</h3>
+<ul>
+<li>Every protected backend endpoint independently validates, in order: Authenticated → Tenant entitled to module → User permitted the action → Business logic. Frontend visibility is never treated as security.</li>
+<li>A route or action's required permission key is declared explicitly in code, never inferred from context.</li>
+<li>Explicit DENY always overrides GRANT, at both the role-permission and user-override level.</li>
+<li>Temporary permission overrides include <code>valid_from</code>/<code>valid_until</code>; permanent overrides have <code>valid_until = NULL</code>.</li>
+<li>Permission cache TTL must never exceed the earliest <code>valid_until</code> among the temporary overrides it contains. Setting <code>revoked_at</code> triggers immediate, targeted cache invalidation — never a wait for natural expiry. (See Architecture Document, RBAC &amp; User-Level Overrides.)</li>
+<li>Break-glass access, when implemented, never modifies a user's permanent role, and post-event review never modifies RBAC as a side effect of the review itself.</li>
+<li>No module implements its own authorization check outside the shared requireAuth → requireModule → requirePermission chain.</li>
+</ul></section><section id="s2-3"><h3>Tenancy Rules</h3>
+<ul>
+<li>Every table holding tenant-scoped data has a <code>tenant_id</code> column and a PostgreSQL Row-Level Security policy. No new table ships without one.</li>
+<li>The tenant context is set server-side from the authenticated session. Never trust a <code>tenant_id</code> supplied by the client.</li>
+<li>Every module's automated test suite includes a tenant-isolation test proving Tenant A cannot read Tenant B's data.</li>
+<li>Branch-scoping uses a nullable <code>branch_id</code> (NULL = organization-wide). Do not introduce a second, parallel branch-scoping mechanism.</li>
+</ul></section><section id="s2-4"><h3>Database Rules</h3>
+<ul>
+<li>Migrations are additive and reversible. No destructive schema change ships without an explicit data-migration plan.</li>
+<li>Optimistic locking/versioning is required on any record multiple users may edit concurrently — clinical notes, prescriptions, inventory counts, billing line items, admission records.</li>
+<li>Entitlement and permission-override records are never physically deleted. State changes (revoked, expired, cancelled, deactivated) are represented as data, not row removal.</li>
+<li>No EAV (entity-attribute-value) modeling for core clinical entities — Patient, Provider, Encounter, Diagnosis, Prescription, Invoice stay strongly typed. Only genuinely specialty-varying fields use the configurable form-template mechanism.</li>
+</ul></section><section id="s2-5"><h3>API Rules</h3>
+<ul>
+<li>All endpoints are versioned under <code>/api/v1</code>. Breaking changes require a new version, not an in-place change.</li>
+<li>Every request is validated (Zod or equivalent) before it reaches business logic.</li>
+<li>Payments, invoices, appointment bookings, notifications, and external integration calls are idempotent via an idempotency key.</li>
+<li>API error responses use one consistent shape across every module.</li>
+<li>OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately.</li>
+</ul></section><section id="s2-6"><h3>UI / UX Rules</h3>
+<ul>
+<li>All tabular data uses the shared DataTable component (packages/ui). No module implements its own pagination, sorting, or filtering.</li>
+<li>No component hardcodes a color, spacing, radius, or typography value outside the shared design tokens.</li>
+<li>Every component renders correctly in both Light and Dark themes, and under a non-default tenant's branding, before being considered complete.</li>
+<li>Unauthorized sidebar items, tabs, buttons, and routes are hidden client-side, and a manually entered unauthorized URL renders a 403/forbidden state — never a blank screen or silent redirect.</li>
+</ul></section><section id="s2-7"><h3>Security Rules</h3>
+<ul>
+<li>Encryption in transit and at rest is mandatory for all PHI-bearing data.</li>
+<li>File uploads are validated server-side for type and size before acceptance, regardless of client-side validation.</li>
+<li>PHI-bearing files use default-private storage with short-lived signed URLs. Nothing is served as a permanent public object URL.</li>
+<li>MFA and SSO hooks exist in the authentication layer from Phase 0, even where not enforced for every tenant at MVP.</li>
+</ul></section><section id="s2-8"><h3>Audit Rules</h3>
+<ul>
+<li>Every mutating action, permission grant/deny, and entitlement change produces an audit-log entry.</li>
+<li>Audit-log entries are immutable and are never deleted, including when the record they reference is later deleted or anonymized.</li>
+<li>Break-glass access, when implemented, produces an enhanced-severity audit event distinct from routine access logging.</li>
+</ul></section><section id="s2-9"><h3>Testing Rules</h3>
+<ul>
+<li>A milestone is not complete until its full automated regression suite passes — not just its own new tests.</li>
+<li>Every milestone's Definition of Done includes explicit entitlement, RBAC, override, and temporary-permission checks in both directions (access works / access denied). See Development Phases &amp; Roadmap.</li>
+<li>Direct URL access to an unauthorized route is tested explicitly, never assumed safe because navigation is hidden.</li>
+</ul></section><section id="s2-10"><h3>Documentation Rules</h3>
+<ul>
+<li>Every app and package maintains KNOWLEDGE.md (current state) and DONE.md (append-only implementation log). A feature is not done until both are updated.</li>
+<li>Architecturally significant decisions are recorded in DECISIONS.md as a numbered ADR. DECISIONS.md is appended to, never rewritten.</li>
+<li>A root CLAUDE.md indexes the whole monorepo and links to every app/package's own KNOWLEDGE.md and DONE.md.</li>
+</ul></section><section id="s2-11"><h3>Dependency Rules</h3>
+<ul>
+<li>A business module's hard dependencies (Module Capability Matrix, Project Requirements Document) are enforced by the entitlement engine at activation time. The system refuses to activate a module whose hard dependency is not already entitled.</li>
+<li>New third-party dependencies sit behind a provider abstraction (SmsService, EmailService, FileStorageService). Module code never makes a direct SDK call to an external vendor.</li>
+</ul></section><section id="s2-12"><h3>Git Rules</h3>
+<ul>
+<li>One feature branch per module/milestone, merged to a staging branch that auto-deploys to the staging environment.</li>
+<li>CI runs lint, tests, and build on every push. A push that fails CI does not merge.</li>
+<li>Commit messages and pull requests reference the milestone/module they implement, so DONE.md entries stay traceable back to source control.</li>
+</ul></section><section id="s2-13"><h3>Prohibited Patterns</h3>
+<ul>
+<li>Do not check authorization in the frontend only.</li>
+<li>Do not create a module-specific table/pagination/sorting implementation when the shared DataTable exists.</li>
+<li>Do not hardcode brand colors, logos, or theme values in a component.</li>
+<li>Do not build a new authorization/permission engine for a specific feature (temporary access, break-glass, or otherwise) instead of extending the existing one.</li>
+<li>Do not physically delete entitlement, permission-override, or audit records.</li>
+<li>Do not silently convert a "Pending verification" regulatory assumption into a stated compliance requirement.</li>
+<li>Do not introduce Kubernetes, Kafka, a service mesh, or multi-region deployment without an explicit, documented Phase 2+ decision.</li>
+</ul></section><div class="partdivider"><h2>Documentation System</h2></div><section id="s3-1"><h3>Documentation & AI-Agent Knowledge System</h3><h3>Documentation &amp; AI-Agent Knowledge System</h3><ul>
+    <li>Every major app and package maintains two living documents: <strong>KNOWLEDGE.md</strong> — current state (purpose, architecture, key files, components, services, APIs, database models, business rules, permissions, dependencies, integration points, known constraints, troubleshooting notes) — and <strong>DONE.md</strong> — an append-only chronological implementation log (date/time, feature, what was implemented, API/DB/frontend/integration changes, testing status, decisions, known limitations)</li>
+    <li>One root CLAUDE.md indexes the whole monorepo — architecture, stack, coding/UI/theming/branding conventions, auth/RBAC/entitlement architecture, API and database conventions, testing and deployment conventions — and links to every app and package's own KNOWLEDGE.md and DONE.md</li>
+    <li>Reading order for both human and AI-assisted development: root CLAUDE.md → the relevant module's KNOWLEDGE.md → DONE.md for historical context → source code — so architecture and past decisions are never rediscovered from scratch</li>
+    <li>KNOWLEDGE.md is updated whenever a module's architecture or behavior changes; DONE.md is appended, never rewritten, whenever a feature is completed</li>
+  </ul>
+
+  <div class="callout teal">
+    <span class="tag">Definition of Done, extended</span>
+    Documentation is not a follow-up task. On top of every milestone's own testing criteria (see "How This Roadmap Works"), a feature is not complete until KNOWLEDGE.md reflects it, DONE.md records it, and it has been verified in both themes and under a non-default tenant's branding.
+  </div></section><section id="s3-2"><h3>Architecture Decision Records (DECISIONS.md)</h3><p class="lead">A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording <em>why</em>, not <em>what</em> or <em>when</em>.</p>
+<ul>
+  <li><strong>CLAUDE.md</strong> — what the AI/developer must follow (conventions, standards)</li>
+  <li><strong>KNOWLEDGE.md</strong> — how the system currently works</li>
+  <li><strong>DONE.md</strong> — what was completed and when (append-only log)</li>
+  <li><strong>DECISIONS.md</strong> — why an important architectural decision was made, as a numbered Architecture Decision Record (ADR) per entry</li>
+</ul>
+<p>Seed entries for this platform's own foundational decisions:</p>
+<ul>
+  <li>ADR-001 — Modular monolith over microservices for MVP</li>
+  <li>ADR-002 — PostgreSQL with Row-Level Security for multi-tenancy, over database-per-tenant</li>
+  <li>ADR-003 — RBAC with user-level overrides, over pure role-based or full ABAC</li>
+  <li>ADR-004 — Module entitlements as a runtime check, not a deployment decision</li>
+  <li>ADR-005 — E2E Networks as primary hosting provider</li>
+  <li>ADR-006 — India-resident object storage as the default for PHI (pending formal legal verification, see File Storage Architecture, Part VI)</li>
+  <li>ADR-007 — Provider abstraction (SmsService/EmailService/FileStorageService) over direct SDK dependencies</li>
+  <li>ADR-008 — FHIR-aligned Provider/PractitionerRole model for specialty-agnostic core</li>
+  <li>ADR-009 — Vertical-slice, module-by-module MVP delivery order over horizontal layer-by-layer delivery</li>
+</ul>
+<p>New architectural decisions of similar weight are appended here as they are made, with the same rigor as DONE.md is append-only for implementation history.</p></section>
+<footer>
+  <span>Takoriya Technology LLP · Kadi, Gujarat</span>
+  <span>Rules & Engineering Standards v1.0 · August 2026</span>
+</footer>
+</main>
+</div>
+</body></html>

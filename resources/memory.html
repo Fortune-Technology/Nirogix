@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Memory / Knowledge Base · Takoriya Technology LLP</title>
+<style>
+:root{
+  --ink:#16232b; --ink-soft:#42545f; --paper:#fbfcfc; --panel:#ffffff;
+  --teal:#0e6e6a; --teal-deep:#0a4f4c; --teal-tint:#e3f0ef; --line:#d7e0e2;
+  --amber:#8a5a12; --amber-tint:#faf1de; --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;font-size:15px;}
+a{color:var(--teal-deep);}
+.shell{display:flex;max-width:1200px;margin:0 auto;}
+aside{width:270px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:24px 16px 60px;background:var(--panel);}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;}
+aside h1{font-family:'IBM Plex Serif',serif;font-size:15.5px;line-height:1.3;margin-bottom:18px;}
+aside .navgroup{margin-bottom:12px;}
+aside .navgroup-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:5px 6px 3px;}
+aside ul{list-style:none;}
+aside a{display:block;padding:3px 6px;border-radius:4px;font-size:12px;color:var(--ink-soft);text-decoration:none;border-left:2px solid transparent;}
+aside a:hover{background:var(--teal-tint);color:var(--teal-deep);}
+main{flex:1;min-width:0;padding:38px 46px 100px;max-width:880px;}
+header.cover{border-bottom:3px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+h1.title{font-family:'IBM Plex Serif',serif;font-size:clamp(24px,3.6vw,32px);font-weight:700;margin-bottom:10px;}
+.meta{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);font-size:12.5px;}
+.meta div{padding:8px 12px;border-right:1px solid var(--line);}
+.meta div:last-child{border-right:none;}
+.meta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+.meta dd{font-weight:600;}
+.crossref{background:var(--teal-tint);border:1px solid var(--teal);border-radius:5px;padding:10px 16px;font-size:13px;margin-bottom:26px;color:var(--teal-deep);}
+.crossref strong{color:var(--teal-deep);}
+.partdivider{margin:38px 0 14px;}
+.partdivider h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);border-bottom:2px solid var(--teal);padding-bottom:6px;}
+section{margin-bottom:30px;scroll-margin-top:20px;}
+h3{font-family:'IBM Plex Serif',serif;font-size:17px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+h4{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:12px 0 5px;}
+p{margin-bottom:9px;font-size:14.5px;}
+p.lead{color:var(--ink-soft);}
+ul{list-style:none;padding-left:0;margin-bottom:6px;}
+ul li{position:relative;padding:2.5px 0 2.5px 20px;font-size:14.5px;}
+ul li::before{content:"";position:absolute;left:3px;top:11px;width:6px;height:6px;border:1.5px solid var(--teal);border-radius:1px;}
+code{font-family:var(--mono);font-size:12px;background:var(--teal-tint);color:var(--teal-deep);padding:1px 5px;border-radius:3px;}
+.callout{border-left:4px solid var(--amber);background:var(--amber-tint);padding:12px 16px;margin:12px 0;font-size:13px;}
+.callout.teal{border-left-color:var(--teal);background:var(--teal-tint);}
+.callout .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;font-weight:600;color:var(--amber);}
+.callout.teal .tag{color:var(--teal-deep);}
+.milestone{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;padding:14px 18px;margin-bottom:14px;background:var(--panel);}
+.milestone-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.milestone-head h3{border:none;padding:0;margin:0;font-size:15px;}
+.milestone-num{font-family:var(--mono);font-size:11px;color:var(--teal-deep);background:var(--teal-tint);padding:2px 8px;border-radius:3px;}
+.dep-line{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono);}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:var(--teal-tint);color:var(--teal-deep);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;}
+tr:nth-child(even) td{background:#fafcfc;}
+footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+@media (max-width:880px){.shell{flex-direction:column;}aside{position:static;width:auto;height:auto;max-height:260px;}main{padding:22px 16px 70px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Project Memory / Knowledge Base</h1><nav><div class="navgroup"><div class="navgroup-label">How to Use This Document</div><ul><li><a href="#s1-1">Purpose</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Terminology</div><ul><li><a href="#s2-1">Glossary</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Architectural Invariants</div><ul><li><a href="#s3-1">Never Violate These</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Key Decisions</div><ul><li><a href="#s4-1">Architecture Decision Records (from DECISIONS.md)</a></li><li><a href="#s4-2">v2.2 Review Corrections</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Module Relationships</div><ul><li><a href="#s5-1">Module Capability Matrix (condensed reference)</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Resolved Issues & Lessons Learned</div><ul><li><a href="#s6-1">What Went Wrong Before, and the Fix</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Pending Decisions & Open Items</div><ul><li><a href="#s7-1">Not Yet Settled</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Implementation Context</div><ul><li><a href="#s8-1">Where Things Stand</a></li></ul></div></nav></aside>
+<main>
+<header class="cover">
+  <div class="eyebrow">MEMORY · Version 1.0</div>
+  <h1 class="title">Project Memory / Knowledge Base</h1>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Takoriya Technology LLP</dd></div>
+    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Last Updated</dt><dd>August 2026</dd></div>
+    <div><dt>File</dt><dd>memory.html</dd></div>
+  </dl>
+</header>
+<div class="crossref">This document is a distilled index, not a replacement for the other four. Always confirm against **Architecture Document** or **Project Requirements Document** before making a change that contradicts an entry here.</div>
+<div class="partdivider"><h2>How to Use This Document</h2></div><section id="s1-1"><h3>Purpose</h3><p class="lead">Persistent knowledge for AI-assisted development on this project. Read this before making a change that touches authorization, entitlements, billing, or module boundaries — it exists specifically to stop a future agent (human or AI) from re-deriving, or worse, re-litigating, decisions already made.</p></section><div class="partdivider"><h2>Terminology</h2></div><section id="s2-1"><h3>Glossary</h3><table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Platform Core</td><td>Foundational capabilities every tenant gets by default; never sold as a line item</td></tr>
+<tr><td>Business Module</td><td>Independently sellable clinical/operational capability (see Module Capability Matrix)</td></tr>
+<tr><td>Add-On</td><td>Extends a module or connects an external system; little standalone value alone</td></tr>
+<tr><td>Feature Configuration</td><td>Same module, different behavior per tenant, no code branch</td></tr>
+<tr><td>Entitlement</td><td>Whether an <em>organization</em> has purchased/activated a module</td></tr>
+<tr><td>Permission</td><td>Whether a specific <em>user</em> can perform a specific action</td></tr>
+<tr><td>Hard Dependency</td><td>A module cannot technically activate without another entitled module</td></tr>
+<tr><td>Optional Integration</td><td>A module works alone, and gains capability if another module is present</td></tr>
+<tr><td>Commercial independence</td><td>A module can be purchased separately as its own line item</td></tr>
+<tr><td>Technical independence</td><td>A module can operate without another module being entitled (stricter than commercial independence)</td></tr>
+<tr><td>MVP 0 — Clinic Pilot</td><td>Patient → Appointment → OPD+Billing Core → EMR</td></tr>
+<tr><td>MVP 1 — Clinic Expansion</td><td>Pharmacy → Laboratory → Basic Reports</td></tr>
+<tr><td>Break-Glass</td><td>Reserved emergency-access architecture; not built for MVP, insertion point only</td></tr>
+<tr><td>Financial Transaction Infrastructure</td><td>Platform Core primitives (invoice/payment/tax/receipt/ledger) underneath the Billing &amp; Payments module</td></tr>
+</table></section><div class="partdivider"><h2>Architectural Invariants</h2></div><section id="s3-1"><h3>Never Violate These</h3><ul>
+<li>Tenant isolation is enforced by PostgreSQL Row-Level Security. Tenant A must never access Tenant B's data — this is tested, not assumed, on every milestone.</li>
+<li>Frontend visibility is never security. Every backend endpoint independently re-checks entitlement and permission regardless of what the UI already hid.</li>
+<li>Modular monolith for MVP. No microservices split happens without a recorded decision in DECISIONS.md.</li>
+<li>Core clinical entities — Patient, Provider, Encounter, Diagnosis, Prescription, Invoice — stay strongly typed. Never modeled as EAV, even for specialty variation.</li>
+<li>Entitlement and permission-override records are never physically deleted.</li>
+<li>Explicit DENY always overrides GRANT, at every level of the authorization model.</li>
+<li>A cached permission set is never allowed to outlive the earliest <code>valid_until</code> among the temporary overrides it contains.</li>
+</ul></section><div class="partdivider"><h2>Key Decisions</h2></div><section id="s4-1"><h3>Architecture Decision Records (from DECISIONS.md)</h3><p class="lead">A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording <em>why</em>, not <em>what</em> or <em>when</em>.</p>
+<ul>
+  <li><strong>CLAUDE.md</strong> — what the AI/developer must follow (conventions, standards)</li>
+  <li><strong>KNOWLEDGE.md</strong> — how the system currently works</li>
+  <li><strong>DONE.md</strong> — what was completed and when (append-only log)</li>
+  <li><strong>DECISIONS.md</strong> — why an important architectural decision was made, as a numbered Architecture Decision Record (ADR) per entry</li>
+</ul>
+<p>Seed entries for this platform's own foundational decisions:</p>
+<ul>
+  <li>ADR-001 — Modular monolith over microservices for MVP</li>
+  <li>ADR-002 — PostgreSQL with Row-Level Security for multi-tenancy, over database-per-tenant</li>
+  <li>ADR-003 — RBAC with user-level overrides, over pure role-based or full ABAC</li>
+  <li>ADR-004 — Module entitlements as a runtime check, not a deployment decision</li>
+  <li>ADR-005 — E2E Networks as primary hosting provider</li>
+  <li>ADR-006 — India-resident object storage as the default for PHI (pending formal legal verification, see File Storage Architecture, Part VI)</li>
+  <li>ADR-007 — Provider abstraction (SmsService/EmailService/FileStorageService) over direct SDK dependencies</li>
+  <li>ADR-008 — FHIR-aligned Provider/PractitionerRole model for specialty-agnostic core</li>
+  <li>ADR-009 — Vertical-slice, module-by-module MVP delivery order over horizontal layer-by-layer delivery</li>
+</ul>
+<p>New architectural decisions of similar weight are appended here as they are made, with the same rigor as DONE.md is append-only for implementation history.</p></section><section id="s4-2"><h3>v2.2 Review Corrections</h3><ul>
+<li>ADR-010 — Permission cache TTL is bounded by the earliest temporary override's <code>valid_until</code>; <code>revoked_at</code> triggers immediate targeted cache invalidation</li>
+<li>ADR-011 — Break-glass notification is tenant-configurable; post-event review is a review-only workflow and never modifies RBAC</li>
+</ul></section><div class="partdivider"><h2>Module Relationships</h2></div><section id="s5-1"><h3>Module Capability Matrix (condensed reference)</h3><p class="lead">Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.</p>
+<table>
+<tr><th>Module</th><th>Standalone</th><th>Hard Dependencies</th><th>Optional Integrations</th></tr>
+<tr><td>Patient Management</td><td>Yes</td><td>None</td><td>Appointment, EMR, Billing</td></tr>
+<tr><td>Appointment Management</td><td>Yes</td><td>Patient Management</td><td>EMR, Notifications</td></tr>
+<tr><td>OPD &amp; Check-in</td><td>Partial</td><td>Patient, Appointment</td><td>EMR, Billing</td></tr>
+<tr><td>Clinical Workflow (EMR)</td><td>Partial/No</td><td>Patient, Encounter (OPD/IPD)</td><td>Lab, Pharmacy, Radiology</td></tr>
+<tr><td>Nursing</td><td>No</td><td>IPD</td><td>EMR</td></tr>
+<tr><td>Laboratory</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing</td></tr>
+<tr><td>Radiology &amp; Imaging</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, PACS (add-on)</td></tr>
+<tr><td>Admission (IPD)</td><td>Partial</td><td>Patient</td><td>Billing, Nursing, Insurance</td></tr>
+<tr><td>Emergency (ER)</td><td>Yes</td><td>Patient</td><td>EMR, Billing, IPD</td></tr>
+<tr><td>Operation Theatre (OT)</td><td>No</td><td>IPD</td><td>EMR, Billing, Inventory</td></tr>
+<tr><td>CSSD</td><td>No</td><td>OT</td><td>Inventory</td></tr>
+<tr><td>Blood Bank</td><td>Yes/Partial</td><td>None</td><td>Patient, Billing</td></tr>
+<tr><td>Specialty Clinical Modules</td><td>No</td><td>EMR</td><td>Billing</td></tr>
+<tr><td>Pharmacy</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, Inventory</td></tr>
+<tr><td>Inventory, Stores &amp; Procurement</td><td>Yes</td><td>None</td><td>Pharmacy, OT, Billing</td></tr>
+<tr><td>Billing &amp; Payments</td><td>Yes</td><td>None</td><td>Patient, Pharmacy, Lab, IPD</td></tr>
+<tr><td>Insurance, TPA &amp; Govt. Schemes</td><td>No</td><td>Billing</td><td>Patient, IPD</td></tr>
+<tr><td>Financial Management</td><td>Partial</td><td>Billing</td><td>Inventory, HR</td></tr>
+<tr><td>Dietary &amp; Kitchen</td><td>Yes</td><td>None</td><td>IPD (diet-chart linkage)</td></tr>
+<tr><td>Housekeeping &amp; Laundry</td><td>Yes</td><td>None</td><td>IPD (ward/bed linkage)</td></tr>
+<tr><td>Ambulance &amp; Fleet</td><td>Yes</td><td>None</td><td>Patient, ER, Billing</td></tr>
+<tr><td>Biomedical Equipment &amp; Asset Mgmt</td><td>Yes</td><td>None</td><td>OT, Laboratory, Radiology</td></tr>
+<tr><td>Biomedical Waste Management</td><td>Yes</td><td>None</td><td>None required</td></tr>
+<tr><td>HR, Payroll &amp; Doctor Scheduling</td><td>Yes</td><td>None</td><td>Appointment, Financial Management</td></tr>
+<tr><td>CRM &amp; Patient Engagement</td><td>Yes</td><td>None</td><td>Patient, Appointment, Notifications</td></tr>
+</table>
+<p>All 25 modules list <strong>Platform Core</strong> as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.</p>
+<p>"Standalone" in this matrix means <em>technically</em> standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.</p></section><div class="partdivider"><h2>Resolved Issues & Lessons Learned</h2></div><section id="s6-1"><h3>What Went Wrong Before, and the Fix</h3><ul>
+<li><strong>ABDM / India-storage claim overstated (resolved in v2.0 → v2.1).</strong> An earlier draft stated as settled fact that "ABDM-integrated health data must be stored in India," sourced from a single secondary blog rather than a primary ABDM/MeitY document. Corrected to: India-resident storage is a conservative design decision; the legal justification is Pending Verification. <strong>Lesson:</strong> a secondary source is never sufficient to convert a design decision into a stated legal requirement in this document.</li>
+<li><strong>Temporary-permission cache/evaluation inconsistency (resolved in this revision).</strong> Earlier text said permission validity is "evaluated on every check" while also stating permission sets are cached (not recomputed per request) — these were in tension for temporary grants. Resolved: cache TTL is bounded by the earliest relevant <code>valid_until</code>, and <code>revoked_at</code> triggers immediate targeted invalidation.</li>
+<li><strong>Break-glass notification was under-specified (resolved in this revision).</strong> Clarified that admin/compliance notification is tenant-configurable, and that post-event review must never modify RBAC as a side effect.</li>
+</ul></section><div class="partdivider"><h2>Pending Decisions & Open Items</h2></div><section id="s7-1"><h3>Not Yet Settled</h3><ul>
+<li>Regulatory Verification &amp; Compliance Source Register — every row currently Pending Verification; no compliance owner yet assigned.</li>
+<li>ORM choice (Prisma vs. Drizzle) — not yet locked in; relevant to how PostgreSQL RLS policies are authored and maintained.</li>
+<li>Self-serve plan management / payment-integrated billing — explicitly deferred; MVP uses manual, operator-driven entitlement provisioning.</li>
+<li>Branch-scoped entitlement management UI — the schema supports it (nullable <code>branch_id</code>) from day one; the admin UI to manage it does not exist yet.</li>
+<li>Break-glass full implementation — architecture and insertion point defined; UI and enforcement not built for MVP.</li>
+</ul></section><div class="partdivider"><h2>Implementation Context</h2></div><section id="s8-1"><h3>Where Things Stand</h3><ul>
+<li>As of this document: architecture and roadmap are finalized through v2.1 (plus the two corrections in this documentation set); no application code has been written yet.</li>
+<li>Target segment for MVP: single/multi-doctor OPD clinics and small nursing homes without inpatient beds — not full hospitals with OT/ICU/Blood Bank from day one.</li>
+<li>Existing operational pattern to reuse for deployment: Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner — already proven in production on other Takoriya/Fortune Technology projects (StoreVeu, Rapid Runner).</li>
+</ul></section>
+<footer>
+  <span>Takoriya Technology LLP · Kadi, Gujarat</span>
+  <span>Project Memory / Knowledge Base v1.0 · August 2026</span>
+</footer>
+</main>
+</div>
+</body></html>

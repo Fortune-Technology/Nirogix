@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Development Phases & Roadmap · Takoriya Technology LLP</title>
+<style>
+:root{
+  --ink:#16232b; --ink-soft:#42545f; --paper:#fbfcfc; --panel:#ffffff;
+  --teal:#0e6e6a; --teal-deep:#0a4f4c; --teal-tint:#e3f0ef; --line:#d7e0e2;
+  --amber:#8a5a12; --amber-tint:#faf1de; --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;font-size:15px;}
+a{color:var(--teal-deep);}
+.shell{display:flex;max-width:1200px;margin:0 auto;}
+aside{width:270px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:24px 16px 60px;background:var(--panel);}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;}
+aside h1{font-family:'IBM Plex Serif',serif;font-size:15.5px;line-height:1.3;margin-bottom:18px;}
+aside .navgroup{margin-bottom:12px;}
+aside .navgroup-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:5px 6px 3px;}
+aside ul{list-style:none;}
+aside a{display:block;padding:3px 6px;border-radius:4px;font-size:12px;color:var(--ink-soft);text-decoration:none;border-left:2px solid transparent;}
+aside a:hover{background:var(--teal-tint);color:var(--teal-deep);}
+main{flex:1;min-width:0;padding:38px 46px 100px;max-width:880px;}
+header.cover{border-bottom:3px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+h1.title{font-family:'IBM Plex Serif',serif;font-size:clamp(24px,3.6vw,32px);font-weight:700;margin-bottom:10px;}
+.meta{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);font-size:12.5px;}
+.meta div{padding:8px 12px;border-right:1px solid var(--line);}
+.meta div:last-child{border-right:none;}
+.meta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+.meta dd{font-weight:600;}
+.crossref{background:var(--teal-tint);border:1px solid var(--teal);border-radius:5px;padding:10px 16px;font-size:13px;margin-bottom:26px;color:var(--teal-deep);}
+.crossref strong{color:var(--teal-deep);}
+.partdivider{margin:38px 0 14px;}
+.partdivider h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);border-bottom:2px solid var(--teal);padding-bottom:6px;}
+section{margin-bottom:30px;scroll-margin-top:20px;}
+h3{font-family:'IBM Plex Serif',serif;font-size:17px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+h4{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:12px 0 5px;}
+p{margin-bottom:9px;font-size:14.5px;}
+p.lead{color:var(--ink-soft);}
+ul{list-style:none;padding-left:0;margin-bottom:6px;}
+ul li{position:relative;padding:2.5px 0 2.5px 20px;font-size:14.5px;}
+ul li::before{content:"";position:absolute;left:3px;top:11px;width:6px;height:6px;border:1.5px solid var(--teal);border-radius:1px;}
+code{font-family:var(--mono);font-size:12px;background:var(--teal-tint);color:var(--teal-deep);padding:1px 5px;border-radius:3px;}
+.callout{border-left:4px solid var(--amber);background:var(--amber-tint);padding:12px 16px;margin:12px 0;font-size:13px;}
+.callout.teal{border-left-color:var(--teal);background:var(--teal-tint);}
+.callout .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;font-weight:600;color:var(--amber);}
+.callout.teal .tag{color:var(--teal-deep);}
+.milestone{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;padding:14px 18px;margin-bottom:14px;background:var(--panel);}
+.milestone-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.milestone-head h3{border:none;padding:0;margin:0;font-size:15px;}
+.milestone-num{font-family:var(--mono);font-size:11px;color:var(--teal-deep);background:var(--teal-tint);padding:2px 8px;border-radius:3px;}
+.dep-line{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono);}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:var(--teal-tint);color:var(--teal-deep);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;}
+tr:nth-child(even) td{background:#fafcfc;}
+footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+@media (max-width:880px){.shell{flex-direction:column;}aside{position:static;width:auto;height:auto;max-height:260px;}main{padding:22px 16px 70px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Development Phases & Roadmap</h1><nav><div class="navgroup"><div class="navgroup-label">How Development Proceeds</div><ul><li><a href="#s1-1">How This Roadmap Works (six-step loop)</a></li><li><a href="#s1-2">MVP Target Segment & Scope</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Roadmap</div><ul><li><a href="#s2-1">Phase 0 — Platform Foundation</a></li><li><a href="#s2-2">MVP 0 — Clinic Pilot</a></li><li><a href="#s2-3">MVP 1 — Clinic Expansion</a></li><li><a href="#s2-4">Phase 2 — Small Hospital / Nursing Home Edition</a></li><li><a href="#s2-5">Phase 3 — Compliance & Interoperability</a></li><li><a href="#s2-6">Phase 4 — Hospital-Grade / Enterprise Expansion</a></li><li><a href="#s2-7">Postponed / Build-as-Sold</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Reference</div><ul><li><a href="#s3-1">Dependency Map</a></li><li><a href="#s3-2">Definition of Done</a></li></ul></div></nav></aside>
+<main>
+<header class="cover">
+  <div class="eyebrow">PHASES · Version 1.0</div>
+  <h1 class="title">Development Phases & Roadmap</h1>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Takoriya Technology LLP</dd></div>
+    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Last Updated</dt><dd>August 2026</dd></div>
+    <div><dt>File</dt><dd>phases.html</dd></div>
+  </dl>
+</header>
+<div class="crossref">For full functional scope of each module referenced below, see **Project Requirements Document**. For the technical architecture each milestone builds against, see **Architecture Document**.</div>
+<div class="partdivider"><h2>How Development Proceeds</h2></div><section id="s1-1"><h3>How This Roadmap Works (six-step loop)</h3><p class="lead">Every milestone below follows the same six-step loop, and is not considered complete until all six are done for that milestone:</p>
+  <ol style="padding-left:20px;margin-bottom:14px;">
+    <li style="padding:3px 0;"><strong>Backend</strong> — schema, migrations, business logic, services, API endpoints</li>
+    <li style="padding:3px 0;"><strong>Frontend</strong> — UI/UX for every role that touches this milestone</li>
+    <li style="padding:3px 0;"><strong>Integration</strong> — frontend wired to real APIs, with loading/error/empty states, validation, and permission-based rendering</li>
+    <li style="padding:3px 0;"><strong>Testing</strong> — automated + manual verification before moving on</li>
+    <li style="padding:3px 0;"><strong>Documentation</strong> — KNOWLEDGE.md updated and DONE.md appended for every app/package touched</li>
+    <li style="padding:3px 0;"><strong>Staging Verification</strong> — deployed to staging and demoable end-to-end before the milestone is considered complete</li>
+  </ol>
+  <p>See <strong>Definition of Done</strong>, below, for the full checklist every milestone must additionally satisfy.</p>
+  <p>Phases 0–1 below are specified in full detail — this is the next 2–3 months of real work. Phases 2–4 are specified as a directional roadmap (modules, dependencies, rationale) rather than full backend/frontend/testing detail, since that level of planning is more useful done just before each phase starts, once Phase 1 has taught you your actual team velocity and customer priorities. This is intentional — a rolling-wave plan, not a gap.</p></section><section id="s1-2"><h3>MVP Target Segment & Scope</h3><div class="callout"><span class="tag">Target segment assumption</span>This roadmap assumes the MVP targets <strong>single/multi-doctor OPD clinics and small nursing homes without inpatient beds</strong> — the fastest path to a sellable, revenue-generating product, and the customer segment your own competitive review flagged as needing the least of this document's full business-module scope (Part II). Inpatient (IPD), OT, Blood Bank, and the other hospital-grade modules are sequenced into Phase 2 and Phase 4, not excluded — reorder them earlier if you already have a hospital pilot lined up that needs beds from day one.</div></section><div class="partdivider"><h2>Roadmap</h2></div><section id="s2-1"><h3>Phase 0 — Platform Foundation</h3><p class="lead">Not a customer-facing module — the one-time investment every later milestone depends on. Build it as its own end-to-end slice: a real login, a real (empty) role-based dashboard, deployed to staging, provably tenant-isolated. Nothing in Phase 1 starts until this is done.</p>
+
+  <h4>Backend</h4>
+  <ul>
+    <li>Tenant model + provisioning; tenant_id and RLS policy template applied to every future table</li>
+    <li>Users &amp; auth — password hashing, login endpoint, JWT access + refresh token issuance, logout/session revocation</li>
+    <li>RBAC engine — roles, permissions, role_permissions tables, permission-check middleware; seed a reduced MVP role set: Super Admin, Org Admin, Branch Admin, Doctor, Receptionist, Pharmacist, Lab Technician, Cashier</li>
+    <li>Audit log service — generic audit_log table + a writeAudit() helper wired into shared middleware</li>
+    <li>Notification service skeleton — notification_log table, send() abstraction, template storage; SMS/WhatsApp via MSG91 (DLT entity + template registration completed in Phase 0 — 24–48hr operator approval), transactional email via AWS SES in ap-south-1 (Mumbai) or ap-south-2 (Hyderabad), with SES production access requested early, not at launch</li>
+    <li>FileStorageService abstraction — E2E Object Storage (EOS, India-resident) as the primary store for PHI-bearing files; default-private buckets with short-lived signed URLs, server-side file-type/size validation, database stores metadata and references only, never file content</li>
+    <li>API conventions — Express scaffold, consistent error-response shape, Zod request validation, pagination helper, /api/v1 versioning, OpenAPI/Swagger auto-doc</li>
+    <li>Minimal hospital/clinic + branch setup tables, used by every module downstream</li>
+    <li>Module entitlement system — module catalog with dependency graph, tenant_entitlements table (tenant, module, optional branch), requireModule() middleware checked before permission checks</li>
+    <li>RBAC engine extended with user_permission_overrides (grant/deny) on top of role defaults; dot-hierarchy permission keys shared with the frontend via a packages/permissions package</li>
+    <li>Provider/specialty core tables aligned to FHIR Practitioner/PractitionerRole, plus a specialty_form_templates table for specialty-varying structured data</li>
+  </ul>
+
+  <h4>Frontend (Portal)</h4>
+  <ul>
+    <li>Auth screens — login, forgot/reset password, MFA prompt scaffold (enforcement can be off for MVP, screen exists)</li>
+    <li>App shell — sidebar/topbar navigation, menu items driven by RBAC permissions rather than hardcoded per role</li>
+    <li>Empty-state dashboard per role — real widgets arrive as their modules are built</li>
+    <li>Shared component library bootstrap in packages/ui — buttons, inputs, tables, modals, toasts — every later module reuses these instead of reinventing UI patterns</li>
+    <li>Design tokens (font family/size/weight/line-height, spacing scale, radius, palette, shadows) defined once in packages/ui, with Light and Dark variants — no component hardcodes a raw value; Light is the default theme</li>
+    <li>Standard DataTable component — pagination, rows-per-page, single/multi-column sorting, search, filtering, column visibility, row selection, server-side mode for large datasets, and loading/empty/error states; modules supply only data + column config</li>
+    <li>Branding token layer — tenant logo, colors, and typography consumed from the centralized branding system, never hardcoded into a component</li>
+    <li>Client-side capabilities context (entitled modules + effective permissions) fetched once at login; a reusable Can guard component/hook drives menus, tabs, buttons, and route access; a proper 403/forbidden page for manually entered unauthorized URLs — never a blank screen</li>
+  </ul>
+
+  <h4>Marketing Site</h4>
+  <ul><li>Minimal scaffold with the single Login action wired to the Portal's /login route, as decided in the architecture section</li></ul>
+
+  <h4>Integration</h4>
+  <ul><li>Portal auth flow — token storage (httpOnly refresh cookie + in-memory access token), 401 → refresh → retry handling, unauthenticated redirect to /login</li></ul>
+
+  <h4>Deployment / Ops</h4>
+  <ul>
+    <li>Hosting on E2E Networks — MeitY-empanelled, India data-sovereignty positioning; managed PostgreSQL (E2E DBaaS) provisioned as a separate service from day one, not co-located with the application server</li>
+    <li>Automated daily database backups with point-in-time recovery configured and restore-tested before the first paying customer goes live</li>
+    <li>Redis co-located on the application VM for MVP (permission-set cache, BullMQ queue); Cloudflare retained in front of all public traffic for CDN/WAF/DDoS protection only — not as the store of record for any data</li>
+    <li>Staging environment stood up — subdomain, Nginx, PM2 under the existing service user, GitHub Actions pipeline auto-deploying a staging branch</li>
+    <li>Structured logging (e.g. pino) + error tracking wired in from day one</li>
+    <li>Seed script creating 2+ demo tenants with a handful of users per role — used for manual QA and automated tenant-isolation tests</li>
+    <li>All seed/demo data reflects a genuinely Indian healthcare context — patient/doctor/staff names, hospital and clinic names, addresses, cities, states, and PIN codes drawn from across India, spanning small clinics, multi-specialty hospitals, diagnostic centers, and standalone pharmacies; no generic placeholder names in any environment a stakeholder or pilot customer might see</li>
+  </ul>
+
+  <h4>Documentation Scaffolding</h4>
+  <ul>
+    <li>Root CLAUDE.md created — architecture, monorepo structure, tech stack, coding/UI/theming/branding conventions, auth/RBAC/entitlement architecture, API and database conventions, testing and deployment conventions, cross-referenced to every app and package</li>
+    <li>Every app (backend, portal, marketing) and package (ui, types, config, utils, permissions) scaffolded with its own KNOWLEDGE.md (current architecture and state) and DONE.md (append-only implementation log)</li>
+  </ul>
+
+  <h4>Definition of Done</h4>
+  <ul class="checklist">
+    <li>Can log in as each seeded role and see a role-appropriate dashboard</li>
+    <li>Unauthenticated requests return 401; authorized-but-forbidden requests return 403</li>
+    <li>Automated test proves tenant A's API calls never return tenant B's data</li>
+    <li>A login attempt produces an audit_log row</li>
+    <li>A test notification sends successfully through the real provider in staging</li>
+    <li>CI runs lint + tests + build on every push and auto-deploys staging on merge</li>
+    <li>Swagger/OpenAPI docs render and reflect the auth endpoints</li>
+    <li>A tenant without a given module’s entitlement receives a proper 403/404 on that module’s routes, and the corresponding UI entry is hidden</li>
+    <li>A user-specific permission override (both grant and deny) is provably enforced, and itself produces an audit-log entry</li>
+    <li>Root CLAUDE.md and KNOWLEDGE.md/DONE.md stubs exist for every app and package, cross-referenced from the root</li>
+    <li>A sample shared component (e.g. a button) renders correctly in both Light and Dark themes and under a second demo tenant’s branding</li>
+  </ul></section><section id="s2-2"><h3>MVP 0 — Clinic Pilot</h3><p class="lead"><strong>Goal:</strong> a real clinic can run the basic patient journey — registration → appointment → consultation → payment — entirely on what this sub-phase delivers.</p>
+
+<div class="milestone" id="p1-1">
+    <div class="milestone-head"><h3>1.1 — Patient Management</h3><span class="milestone-num">§9 · Size: M</span></div>
+    <div class="dep-line">Depends on: Phase 0 only</div>
+    <h4>Backend</h4>
+    <ul><li>Tenant-scoped patients table, UHID generation, demographics, family/dependent linking, photo-capture endpoint, search API (name/phone/UHID)</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Registration form, patient search/list screen, patient profile view</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Photo upload flow; duplicate-patient warning triggered on search-before-create</li></ul>
+    <h4>Testing</h4>
+    <ul><li>UHID uniqueness within tenant · search performance at realistic seed volume (thousands of records) · Receptionist can create/edit, Doctor can view only</li></ul>
+  </div>
+
+<div class="milestone" id="p1-2">
+    <div class="milestone-head"><h3>1.2 — Appointment Management</h3><span class="milestone-num">§10 · Size: M</span></div>
+    <div class="dep-line">Depends on: 1.1 Patient Management</div>
+    <h4>Backend</h4>
+    <ul><li>Appointment table, doctor availability/slot model, booking/cancel/reschedule logic, conflict prevention</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Calendar/slot-picker UI, doctor's day view, receptionist booking screen</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Booking triggers a reminder notification via the Phase 0 notification service</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Double-booking prevention · cancellation frees the slot · reminder actually sends in staging</li></ul>
+  </div>
+
+<div class="milestone" id="p1-3">
+    <div class="milestone-head"><h3>1.3 — OPD &amp; Check-in + Billing Core</h3><span class="milestone-num">§11, §24 (core) · Size: L</span></div>
+    <div class="dep-line">Depends on: 1.2 Appointment Management</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin:-2px 0 10px;">Billing is not a single later module — it's a small core engine built now, extended by every revenue-generating milestone after this one (each adds a new line-item type rather than rebuilding billing).</p>
+    <h4>Backend</h4>
+    <ul><li>Visit/encounter table (the record everything in a visit hangs off), token/queue logic, invoice + invoice_line_item + payment tables, payment collection endpoint (cash + UPI for MVP; full gateway integration can follow)</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Front-desk queue/token board, check-in action, billing/receipt screen for the consultation fee</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Check-in automatically creates a visit and a draft consultation-fee invoice line</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Queue ordering correctness · invoice totals correct · receipt printable/downloadable</li></ul>
+  </div>
+
+<div class="milestone" id="p1-4">
+    <div class="milestone-head"><h3>1.4 — Clinical Workflow / EMR</h3><span class="milestone-num">§12 · Size: L</span></div>
+    <div class="dep-line">Depends on: 1.3 OPD &amp; Check-in (needs an active visit context)</div>
+    <h4>Backend</h4>
+    <ul><li>Consultation notes, vitals, diagnosis (ICD-10 lookup), prescription table, doctor's orders referencing pharmacy/lab</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Doctor's consultation screen — vitals entry, notes, diagnosis picker, prescription writer</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Prescriptions and lab orders created here are the input queue for 1.5 and 1.6 — those two can be built in parallel once this milestone lands</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Prescription/order records correctly reference visit + patient · a doctor cannot edit another doctor's notes unless explicitly permitted</li></ul>
+  </div></section><section id="s2-3"><h3>MVP 1 — Clinic Expansion</h3><p class="lead"><strong>Goal:</strong> the same clinic can now dispense medication, order and report lab tests, and see its own basic operational numbers — without leaving the platform for any of it.</p>
+
+<div class="milestone" id="p1-5">
+    <div class="milestone-head"><h3>1.5 — Pharmacy Management (MVP subset)</h3><span class="milestone-num">§22 · Size: M</span></div>
+    <div class="dep-line">Depends on: 1.4 EMR (prescriptions), 1.3 Billing Core</div>
+    <h4>Backend</h4>
+    <ul><li>Drug master, batch/stock table, dispense-against-prescription logic with stock deduction, low-stock flag; simple manual stock-adjustment screen stands in for full procurement (deferred to Phase 2)</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Pharmacist dispensing screen pulling pending prescriptions, stock list, manual stock adjustment</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Dispensing adds a Pharmacy line item to the visit's invoice, extending Billing Core</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Stock correctly decremented · cannot dispense beyond available stock · dispensed items appear correctly on the patient's bill</li></ul>
+  </div>
+
+<div class="milestone" id="p1-6">
+    <div class="milestone-head"><h3>1.6 — Laboratory Management (MVP subset)</h3><span class="milestone-num">§14 · Size: M</span></div>
+    <div class="dep-line">Depends on: 1.4 EMR (orders), 1.3 Billing Core</div>
+    <h4>Backend</h4>
+    <ul><li>Test master, order table, sample status tracking (ordered → collected → resulted), result entry, PDF report generation</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Lab technician worklist, result entry screen, report view/download for doctor and patient</li></ul>
+    <h4>Integration</h4>
+    <ul><li>Report-ready triggers a notification; lab charges added as invoice line items</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Results correctly attached to the right order/patient · report PDF generates correctly · abnormal-value flag visible to the ordering doctor</li></ul>
+  </div>
+
+<div class="milestone" id="p1-7">
+    <div class="milestone-head"><h3>1.7 — Basic Reports</h3><span class="milestone-num">§53 (MVP subset) · Size: S</span></div>
+    <div class="dep-line">Depends on: 1.1 – 1.6 (aggregates their data)</div>
+    <h4>Backend</h4>
+    <ul><li>Query-based reports — OPD register, daily collection/revenue, patient list, pending-lab-results list</li></ul>
+    <h4>Frontend</h4>
+    <ul><li>Report screens with date-range filters and CSV/PDF export</li></ul>
+    <h4>Testing</h4>
+    <ul><li>Report totals reconcile against underlying transaction data</li></ul>
+  </div></section><section id="s2-4"><h3>Phase 2 — Small Hospital / Nursing Home Edition</h3><table>
+    <tr><th>Module</th><th>Depends on</th><th>Rationale</th></tr>
+    <tr><td>Admission (IPD) Management — §16</td><td>Patient, Billing Core</td><td>Adds bed/ward as a new invoice line-item type, same pattern as Pharmacy/Lab</td></tr>
+    <tr><td>Nursing Module — §13</td><td>IPD</td><td>Bedside charting needs an admission to chart against</td></tr>
+    <tr><td>Inventory, Stores &amp; Procurement — §23</td><td>Pharmacy (MVP)</td><td>Deepens the MVP's manual stock-adjustment into a full indent→PO→GRN cycle</td></tr>
+    <tr><td>Radiology, Imaging &amp; PACS/RIS — §15</td><td>EMR, Billing Core</td><td>Same data-model pattern as Laboratory — reuses most of its UI</td></tr>
+    <tr><td>Insurance, TPA &amp; Govt. Schemes — §25</td><td>Billing Core</td><td>Needed once mid-size hospital customers with cashless patients arrive</td></tr>
+    <tr><td>Financial Management — §26</td><td>Billing Core, Inventory</td><td>P&amp;L reporting needs both revenue and cost data flowing</td></tr>
+    <tr><td>Emergency Department — §17</td><td>Patient, Billing Core</td><td>Optional — only if target customers run a casualty department</td></tr>
+  </table></section><section id="s2-5"><h3>Phase 3 — Compliance & Interoperability</h3><table>
+    <tr><th>Module</th><th>Depends on</th><th>Rationale</th></tr>
+    <tr><td>ABDM Integration (M1 first, M2/M3 after) — §36</td><td>Patient Management</td><td>M1 (ABHA) is a light lift; M2/M3 (HIP/HIU) needs legal/compliance review before build starts</td></tr>
+    <tr><td>Formal DPDP/Security hardening, VAPT — §55</td><td>All prior phases</td><td>Formalized ahead of any customer-driven compliance audit, not built from scratch here — the architecture already assumes this from Phase 0</td></tr>
+    <tr><td>Full Reports &amp; BI suite — §53</td><td>All transactional modules</td><td>The 300+ report catalog only makes sense once the underlying modules exist</td></tr>
+    <tr><td>CRM &amp; Patient Engagement — §33</td><td>Patient, Notification service</td><td>Recall/preventive-care campaigns reuse the Phase 0 notification engine</td></tr>
+    <tr><td>Notification Engine — depth — §49</td><td>Phase 0 skeleton</td><td>WhatsApp Business API and broadcast campaigns added on top of the existing Email/SMS skeleton</td></tr>
+    <tr><td>Portals &amp; Mobile Apps — depth — §6</td><td>Portal (web)</td><td>Dedicated native apps only if the web Portal proves insufficient for a given role</td></tr>
+  </table></section><section id="s2-6"><h3>Phase 4 — Hospital-Grade / Enterprise Expansion</h3><p class="lead">Build opportunistically — ideally pre-sold to a specific customer before committing engineering time, since sequencing here is driven by demand more than technical dependency.</p>
+  <table>
+    <tr><th>Module</th><th>Depends on</th><th>Note</th></tr>
+    <tr><td>Operation Theatre — §18</td><td>IPD</td><td>—</td></tr>
+    <tr><td>CSSD — §19</td><td>OT</td><td>—</td></tr>
+    <tr><td>Blood Bank — §20</td><td>Patient, Billing Core</td><td>Largely independent of the clinical modules above it</td></tr>
+    <tr><td>Specialty Clinical Modules — §21</td><td>EMR</td><td>Build only the specific specialty a paying customer needs, not all ten at once</td></tr>
+    <tr><td>Ambulance &amp; Fleet — §29</td><td>Patient</td><td>Sequence by customer demand</td></tr>
+    <tr><td>Biomedical Equipment &amp; Asset Mgmt — §30</td><td>—</td><td>Sequence by customer demand</td></tr>
+    <tr><td>Biomedical Waste Management — §31</td><td>—</td><td>Sequence by customer demand</td></tr>
+    <tr><td>Housekeeping &amp; Laundry — §28</td><td>IPD (ward context)</td><td>Sequence by customer demand</td></tr>
+    <tr><td>Dietary &amp; Kitchen — §27</td><td>IPD</td><td>Sequence by customer demand</td></tr>
+    <tr><td>HR, Payroll &amp; Doctor Scheduling — §32</td><td>—</td><td>Significant statutory-compliance lift (PF/ESIC/TDS) — confirm hospital customers actually want this from you, not their existing HR software, before committing time</td></tr>
+  </table></section><section id="s2-7"><h3>Postponed / Build-as-Sold</h3><p class="lead">Not assigned to a fixed phase — build only when a specific customer or requirement makes it necessary.</p>
+  <ul>
+    <li>GeM registration readiness — relevant only once pursuing government hospital contracts</li>
+    <li>Multi-region / horizontal auto-scaling infrastructure (§57) — until a single VPS actually can't keep up</li>
+    <li>AI-assisted predictive analytics or clinical decision support — requires a CDSCO classification check before any diagnostic-support feature is built</li>
+    <li>Deep HL7 equipment interfacing — build per specific lab/imaging device a customer actually owns, not speculatively</li>
+  </ul></section><div class="partdivider"><h2>Reference</h2></div><section id="s3-1"><h3>Dependency Map</h3><p class="lead">The critical path through the MVP, and how later phases attach to it.</p>
+  <table>
+    <tr><th>Chain</th><th>Notes</th></tr>
+    <tr><td>Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports</td><td>The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists</td></tr>
+    <tr><td>Patient + Billing Core → IPD → Nursing</td><td>Phase 2 branch</td></tr>
+    <tr><td>IPD → OT → CSSD</td><td>Phase 4 branch, gated behind IPD</td></tr>
+    <tr><td>Patient → Blood Bank</td><td>Mostly independent — can be pulled forward if a customer needs it early</td></tr>
+    <tr><td>Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns</td><td>One shared service, reused by every later module — never rebuilt</td></tr>
+    <tr><td>Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management</td><td>Every future revenue-generating module extends this same engine with a new line-item type</td></tr>
+  </table></section><section id="s3-2"><h3>Definition of Done</h3><p>A milestone's <strong>Definition of Done</strong> also always includes, on top of its own testing bullets:</p>
+  <ul class="checklist">
+    <li>Deployed to staging and demoable end-to-end by a non-developer</li>
+    <li>Migrations are additive and reversible; no destructive schema changes</li>
+    <li>Full automated regression suite passes — not just this milestone's new tests</li>
+    <li>Tenant isolation — Tenant A must never access Tenant B's records</li>
+    <li>Module entitlement, both directions — an entitled tenant's access works; a non-entitled tenant's access is denied with a proper 403/404, not partial access</li>
+    <li>RBAC, both directions — an authorized role's access works; an unauthorized role's access is denied</li>
+    <li>User override, both directions — an explicit GRANT works; an explicit DENY is denied, even against an otherwise-permitting role</li>
+    <li>Temporary permission, across the full validity window — denied before valid_from; allowed during the window; denied again after valid_until</li>
+    <li>Direct URL access is independently denied by the backend — if frontend navigation to, e.g., <code>/hms/ot/surgery</code> is hidden for an unauthorized role, manually entering that URL must still be rejected server-side, not merely hidden client-side</li>
+    <li>Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry</li>
+    <li>Verified in both Light and Dark themes, and under a non-default tenant’s branding</li>
+    <li>KNOWLEDGE.md updated and DONE.md appended for every app/package touched</li>
+    <li>No open P0/P1 defects</li>
+  </ul></section>
+<footer>
+  <span>Takoriya Technology LLP · Kadi, Gujarat</span>
+  <span>Development Phases & Roadmap v1.0 · August 2026</span>
+</footer>
+</main>
+</div>
+</body></html>

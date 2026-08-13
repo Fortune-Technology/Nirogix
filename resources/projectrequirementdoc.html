@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Requirements Document · Takoriya Technology LLP</title>
+<style>
+:root{
+  --ink:#16232b; --ink-soft:#42545f; --paper:#fbfcfc; --panel:#ffffff;
+  --teal:#0e6e6a; --teal-deep:#0a4f4c; --teal-tint:#e3f0ef; --line:#d7e0e2;
+  --amber:#8a5a12; --amber-tint:#faf1de; --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;font-size:15px;}
+a{color:var(--teal-deep);}
+.shell{display:flex;max-width:1200px;margin:0 auto;}
+aside{width:270px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:24px 16px 60px;background:var(--panel);}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;}
+aside h1{font-family:'IBM Plex Serif',serif;font-size:15.5px;line-height:1.3;margin-bottom:18px;}
+aside .navgroup{margin-bottom:12px;}
+aside .navgroup-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:5px 6px 3px;}
+aside ul{list-style:none;}
+aside a{display:block;padding:3px 6px;border-radius:4px;font-size:12px;color:var(--ink-soft);text-decoration:none;border-left:2px solid transparent;}
+aside a:hover{background:var(--teal-tint);color:var(--teal-deep);}
+main{flex:1;min-width:0;padding:38px 46px 100px;max-width:880px;}
+header.cover{border-bottom:3px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+h1.title{font-family:'IBM Plex Serif',serif;font-size:clamp(24px,3.6vw,32px);font-weight:700;margin-bottom:10px;}
+.meta{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);font-size:12.5px;}
+.meta div{padding:8px 12px;border-right:1px solid var(--line);}
+.meta div:last-child{border-right:none;}
+.meta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+.meta dd{font-weight:600;}
+.crossref{background:var(--teal-tint);border:1px solid var(--teal);border-radius:5px;padding:10px 16px;font-size:13px;margin-bottom:26px;color:var(--teal-deep);}
+.crossref strong{color:var(--teal-deep);}
+.partdivider{margin:38px 0 14px;}
+.partdivider h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);border-bottom:2px solid var(--teal);padding-bottom:6px;}
+section{margin-bottom:30px;scroll-margin-top:20px;}
+h3{font-family:'IBM Plex Serif',serif;font-size:17px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+h4{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:12px 0 5px;}
+p{margin-bottom:9px;font-size:14.5px;}
+p.lead{color:var(--ink-soft);}
+ul{list-style:none;padding-left:0;margin-bottom:6px;}
+ul li{position:relative;padding:2.5px 0 2.5px 20px;font-size:14.5px;}
+ul li::before{content:"";position:absolute;left:3px;top:11px;width:6px;height:6px;border:1.5px solid var(--teal);border-radius:1px;}
+code{font-family:var(--mono);font-size:12px;background:var(--teal-tint);color:var(--teal-deep);padding:1px 5px;border-radius:3px;}
+.callout{border-left:4px solid var(--amber);background:var(--amber-tint);padding:12px 16px;margin:12px 0;font-size:13px;}
+.callout.teal{border-left-color:var(--teal);background:var(--teal-tint);}
+.callout .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;font-weight:600;color:var(--amber);}
+.callout.teal .tag{color:var(--teal-deep);}
+.milestone{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;padding:14px 18px;margin-bottom:14px;background:var(--panel);}
+.milestone-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.milestone-head h3{border:none;padding:0;margin:0;font-size:15px;}
+.milestone-num{font-family:var(--mono);font-size:11px;color:var(--teal-deep);background:var(--teal-tint);padding:2px 8px;border-radius:3px;}
+.dep-line{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono);}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:var(--teal-tint);color:var(--teal-deep);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;}
+tr:nth-child(even) td{background:#fafcfc;}
+footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+@media (max-width:880px){.shell{flex-direction:column;}aside{position:static;width:auto;height:auto;max-height:260px;}main{padding:22px 16px 70px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Project Requirements Document</h1><nav><div class="navgroup"><div class="navgroup-label">Purpose & Scope</div><ul><li><a href="#s1-1">Product Vision</a></li><li><a href="#s1-2">Architecture Principle (summary)</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Platform Capabilities (Requirements View)</div><ul><li><a href="#s2-1">Platform Architecture</a></li><li><a href="#s2-2">Platform Core — Required Foundational Capabilities</a></li><li><a href="#s2-3">Portals & Access Channels</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Business Modules — Functional Scope</div><ul><li><a href="#s3-1">Overview & Dependency Model</a></li><li><a href="#s3-2">Module Capability Matrix</a></li><li><a href="#s3-3">Patient Management</a></li><li><a href="#s3-4">Appointment Management</a></li><li><a href="#s3-5">OPD & Check-in</a></li><li><a href="#s3-6">Clinical Workflow (EMR)</a></li><li><a href="#s3-7">Nursing Module</a></li><li><a href="#s3-8">Laboratory Management</a></li><li><a href="#s3-9">Radiology, Medical Imaging & PACS/RIS</a></li><li><a href="#s3-10">Admission (IPD) Management</a></li><li><a href="#s3-11">Emergency Department (ER)</a></li><li><a href="#s3-12">Operation Theatre (OT) Management</a></li><li><a href="#s3-13">CSSD Management</a></li><li><a href="#s3-14">Blood Bank Management</a></li><li><a href="#s3-15">Specialty Clinical Modules</a></li><li><a href="#s3-16">Pharmacy Management</a></li><li><a href="#s3-17">Inventory, General Stores & Procurement</a></li><li><a href="#s3-18">Billing & Payments</a></li><li><a href="#s3-19">Insurance, TPA & Government Schemes</a></li><li><a href="#s3-20">Financial Management</a></li><li><a href="#s3-21">Dietary & Kitchen Management</a></li><li><a href="#s3-22">Housekeeping & Laundry Management</a></li><li><a href="#s3-23">Ambulance & Fleet Management</a></li><li><a href="#s3-24">Biomedical Equipment & Asset Management</a></li><li><a href="#s3-25">Biomedical Waste Management</a></li><li><a href="#s3-26">HR, Payroll & Doctor Scheduling</a></li><li><a href="#s3-27">CRM & Patient Engagement</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Add-Ons & Optional Capabilities</div><ul><li><a href="#s4-1">Overview</a></li><li><a href="#s4-2">Telemedicine & Video Consultation</a></li><li><a href="#s4-3">ABDM Integration & Cross-Hospital Health Records</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Users & Access (Requirements View)</div><ul><li><a href="#s5-1">RBAC & User-Level Overrides</a></li><li><a href="#s5-2">Feature Configuration</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Non-Functional Requirements</div><ul><li><a href="#s6-1">Multi-Tenancy Requirements</a></li><li><a href="#s6-2">Multi-Branch Requirements</a></li><li><a href="#s6-3">Data Lifecycle & Retention Requirements</a></li><li><a href="#s6-4">Security & Compliance Requirements</a></li><li><a href="#s6-5">Performance & Scalability Requirements</a></li><li><a href="#s6-6">Indian Healthcare Seed Data Requirements</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Compliance Considerations</div><ul><li><a href="#s7-1">Regulatory Verification & Compliance Source Register</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Acceptance Criteria</div><ul><li><a href="#s8-1">Module & Milestone Acceptance Criteria</a></li></ul></div></nav></aside>
+<main>
+<header class="cover">
+  <div class="eyebrow">PRD · Version 1.0</div>
+  <h1 class="title">Project Requirements Document</h1>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Takoriya Technology LLP</dd></div>
+    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Last Updated</dt><dd>August 2026</dd></div>
+    <div><dt>File</dt><dd>projectrequirementdoc.html</dd></div>
+  </dl>
+</header>
+<div class="crossref">For technical implementation detail, see **Architecture Document**. For build sequencing, see **Development Phases & Roadmap**.</div>
+<div class="partdivider"><h2>Purpose & Scope</h2></div><section id="s1-1"><h3>Product Vision</h3><p>One unified healthcare platform that manages the complete patient journey while remaining compliant with Indian healthcare standards and capable of future global expansion. Organizations purchase and provision only the capabilities they need &mdash; from a single business module to the full platform &mdash; per the Module Capability Matrix in Part II.</p>
+<div class="journey"><span>Registration</span><span>Appointment</span><span>Consultation</span><span>Diagnosis</span><span>Laboratory</span><span>Pharmacy</span><span>Admission</span><span>Billing</span><span>Insurance</span><span>Discharge</span><span>Follow-up</span><span>Engagement</span></div></section><section id="s1-2"><h3>Architecture Principle (summary)</h3><p class="lead">The single sentence every other decision in this document should trace back to:</p>
+<div class="callout teal">
+  <span class="tag">Architecture Principle</span>
+  Build the platform core once. Build business modules independently. Sell and provision modules independently. Connect modules through optional integrations, not hard-coded assumptions. Control user access through centralized authorization. Configure tenant-specific behavior without forking code.
+</div>
+<p>Five layers implement this, each covered in its own part of this document:</p>
+<ul>
+  <li><strong>Platform Core</strong> — foundational technical capabilities every tenant gets, never sold as a line item (Part I)</li>
+  <li><strong>Business Modules</strong> — independently sellable clinical/operational capabilities (Part II)</li>
+  <li><strong>Add-Ons &amp; Optional Integrations</strong> — capabilities that extend a module or connect an external system, opted into separately (Part III)</li>
+  <li><strong>Feature Configuration</strong> — same module, different behavior per tenant, without a code branch (Part IV)</li>
+  <li><strong>User Authorization</strong> — who, within an entitled organization, can actually do what (Part IV)</li>
+</ul></section><div class="partdivider"><h2>Platform Capabilities (Requirements View)</h2></div><section id="s2-1"><h3>Platform Architecture</h3><h3>Multi-tenant</h3>
+  <ul>
+    <li>Complete tenant-level data isolation between hospitals/organizations</li>
+    <li>Tenant-level branding (logo, letterheads, themes)</li>
+    <li>Tenant-specific settings, independent billing plans and subscription management</li>
+    <li>Independent storage and independent integrations per tenant</li>
+  </ul>
+  <h3>Multi-branch</h3>
+  <ul>
+    <li>Unlimited branches per tenant</li>
+    <li>Branch-independent doctors, staff, inventory, pharmacy, laboratory, billing, rooms, wards, and operation theatres</li>
+    <li>Branch-level reports with centralized visibility for corporate administrators</li>
+  </ul>
+  <h3>Modular &amp; configurable</h3>
+  <ul>
+    <li>Every module independently installable and configurable per tenant (feature flags)</li>
+    <li>Organizations pay for and enable only the modules they need</li>
+    <li>Individual modules purchasable standalone or as part of a bundle/package — not limited to a single all-in-one plan (see §39 Pricing & Packaging Architecture)</li>
+    <li>Clear architectural separation between module availability (entitlements) and user-level permissions (RBAC) — a tenant can be entitled to a module with only some users granted access to it (see §38 Module Entitlements and §40 RBAC & User-Level Overrides)</li>
+    <li>Super Admin (SaaS) panel — tenant onboarding, plans, module provisioning, usage metering, tenant billing</li>
+    <li>Configuration engine — custom fields, custom forms, letterheads, tax settings, numbering series per tenant/branch</li>
+    <li>Custom workflow designer and low-code form builder for tenant-specific processes</li>
+  </ul>
+  <h3>Interoperability &amp; reach</h3>
+  <ul>
+    <li>HL7 FHIR R4 APIs, ICD-10/ICD-11 coding, SNOMED CT (where licensed and applicable), LOINC lab codes, DICOM for imaging</li>
+    <li>Offline-tolerant design for low-connectivity clinics with sync-on-reconnect for selected workflows</li>
+    <li>Multi-language UI and localization — English, Hindi, Gujarati; extensible to other Indian and global languages</li>
+  </ul></section><section id="s2-2"><h3>Platform Core — Required Foundational Capabilities</h3><p class="lead">Foundational technical capabilities that ship with every tenant by default. These are never sold as a separate line item, never individually entitled, and never absent — a hospital buying only Pharmacy still gets all of Platform Core underneath it.</p>
+<ul>
+  <li><strong>Authentication</strong> — login, session, MFA, SSO (Part VI)</li>
+  <li><strong>Tenant Management</strong> — tenant provisioning, plan/subscription state (Part V, Part IV)</li>
+  <li><strong>Organization / Branch Management</strong> — multi-branch structure, branch-scoped configuration (Part V)</li>
+  <li><strong>User Management</strong> — accounts, profiles, staff records (Part IV)</li>
+  <li><strong>RBAC / Authorization Engine</strong> — roles, permissions, user-level overrides, policy readiness (Part IV)</li>
+  <li><strong>Permission Management</strong> — the administrative surface for granting/revoking access (Part IV)</li>
+  <li><strong>Module Entitlement Engine</strong> — which modules a tenant has purchased (Part IV)</li>
+  <li><strong>Feature Configuration</strong> — how an entitled module behaves for a given tenant (Part IV)</li>
+  <li><strong>Audit Logging</strong> — immutable, tamper-evident security/compliance trail (Part VII)</li>
+  <li><strong>Notification Infrastructure</strong> — the send() abstraction behind SMS, WhatsApp, and email (Part VI)</li>
+  <li><strong>File Storage Abstraction</strong> — the FileStorageService behind every document upload (Part VI)</li>
+  <li><strong>Branding</strong> — tenant logo, colors, typography (Part VIII)</li>
+  <li><strong>Settings</strong> — tenant and branch-level configuration surface</li>
+  <li><strong>Financial Transaction Infrastructure</strong> — invoice, payment, tax, receipt, and ledger/transaction primitives shared by every billing-capable module (Part II)</li>
+  <li><strong>API Infrastructure</strong> — versioning, validation, error shape, reliability guarantees (Part VI)</li>
+  <li><strong>Background Jobs</strong> — the queue infrastructure every async workflow runs on (Part VI)</li>
+  <li><strong>Event Infrastructure</strong> — internal domain events connecting modules without direct coupling (Part VI)</li>
+  <li><strong>Observability</strong> — structured logging, error tracking, monitoring (Part VII)</li>
+  <li><strong>Security Infrastructure</strong> — encryption, RLS-based tenant isolation, VAPT posture (Part V, Part VII)</li>
+</ul>
+<p>Everything in this list is built once, in Phase 0, and every business module in Part II is written against it — no module re-implements authentication, its own table pagination, or its own notification sending.</p>
+<div class="callout teal">
+  <span class="tag">Billing Core boundary</span>
+  Financial Transaction Infrastructure (Platform Core) is not the same thing as the Billing &amp; Payments business module (Part II). The former is foundational — invoice, payment, tax, receipt, and ledger primitives with no clinical or workflow logic attached. The latter is business-facing — OPD billing, IPD billing, Pharmacy billing, Laboratory billing, Radiology billing, OT billing, and package/corporate billing, all built on top of the shared primitives. This boundary is what lets future modules add new billing line-item types without rebuilding the underlying financial transaction engine — matching this document's own Billing Core &rarr; Pharmacy &rarr; Lab &rarr; IPD &rarr; Insurance &rarr; Financial Management roadmap sequencing.
+</div></section><section id="s2-3"><h3>Portals & Access Channels</h3><h3>Patient portal / app</h3>
+  <ul>
+    <li>View, book, and cancel appointments; join teleconsultations</li>
+    <li>Download prescriptions and reports; view medical history</li>
+    <li>View billing, make payments, track admissions</li>
+    <li>Notifications, secure chat, family member profiles, ABHA linking and consent management</li>
+    <li>Feedback and ratings</li>
+  </ul>
+  <h3>Doctor portal / app</h3>
+  <ul>
+    <li>Schedule and appointment management; patient history and reports</li>
+    <li>Write prescriptions; review lab results; admit patients</li>
+    <li>Digital document signing; conduct teleconsultations</li>
+  </ul>
+  <h3>Staff portals</h3>
+  <ul>
+    <li>Department-specific dashboards — reception, pharmacy, laboratory, nursing, housekeeping, billing, HR, administration</li>
+    <li>Nursing tablet app — vitals, MAR, rounds, task lists</li>
+    <li>Administrator app — dashboards, approvals, alerts</li>
+    <li>Field staff app — home healthcare visits and ambulance crews</li>
+  </ul></section><div class="partdivider"><h2>Business Modules — Functional Scope</h2></div><section id="s3-1"><h3>Overview & Dependency Model</h3><p class="lead">Every business module is independently commercially sellable unless one of its explicitly defined hard dependencies prevents technical activation. Hard dependencies are documented in the Module Capability Matrix and enforced by the entitlement engine.</p>
+<h3>Four Distinct Concepts</h3>
+<ul>
+  <li><strong>Commercial independence</strong> — a customer can purchase a module separately, as its own line item</li>
+  <li><strong>Technical independence</strong> — the module can operate without another business module being entitled</li>
+  <li><strong>Hard dependency</strong> — the module cannot technically operate without another entitled module</li>
+  <li><strong>Optional integration</strong> — the module works independently but becomes more capable when another module is enabled</li>
+</ul>
+<p>Commercial independence is the default for every module in this Part. Technical independence is <em>not</em> universal — some modules are commercially sellable on their own but only technically activate once a hard dependency is already entitled. Example: <strong>OT</strong> can be purchased on its own, but will not activate for a tenant that has not also entitled <strong>IPD</strong>; <strong>CSSD</strong> likewise requires <strong>OT</strong>. By contrast, <strong>Pharmacy</strong> is both commercially and technically standalone, and simply gains deeper prescription integration if <strong>EMR</strong> is also entitled.</p>
+<h3>Hard Dependency</h3>
+<ul>
+  <li>The module cannot technically function without the dependency present and entitled</li>
+  <li>Example: <strong>OT → IPD</strong>. A surgery cannot be scheduled without a bed/admission context to schedule it against</li>
+  <li>Hard dependencies are enforced at entitlement-grant time (§ Module Entitlements) — the system will not activate a module whose hard dependency is not already active</li>
+  <li>Kept deliberately sparse. A dependency is only encoded as "hard" when the module is genuinely inoperable without it — not merely more useful with it</li>
+</ul>
+<h3>Optional Integration</h3>
+<ul>
+  <li>The module functions independently, and becomes more capable when another module is also enabled</li>
+  <li>Example: <strong>Pharmacy ↕ EMR.</strong> If EMR is entitled, a doctor's prescription flows directly into Pharmacy dispensing. If EMR is not entitled, Pharmacy operates as manual sale / walk-in customer order — fully functional, just without the prescription feed</li>
+  <li>The same pattern applies to Laboratory and Radiology (function as walk-in order desks without EMR, or as EMR-fed order queues with it), and to Billing (functions as a standalone invoicing tool, or aggregates charges automatically from Pharmacy/Lab/IPD when those are present)</li>
+  <li>No module is designed so that its absence breaks another module's core function — only its depth</li>
+</ul>
+<p>The Module Capability Matrix below applies this classification to every module in the platform, and is the reference other parts of this document (pricing, entitlements, onboarding, feature visibility) point back to.</p></section><section id="s3-2"><h3>Module Capability Matrix</h3><p class="lead">Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.</p>
+<table>
+<tr><th>Module</th><th>Standalone</th><th>Hard Dependencies</th><th>Optional Integrations</th></tr>
+<tr><td>Patient Management</td><td>Yes</td><td>None</td><td>Appointment, EMR, Billing</td></tr>
+<tr><td>Appointment Management</td><td>Yes</td><td>Patient Management</td><td>EMR, Notifications</td></tr>
+<tr><td>OPD &amp; Check-in</td><td>Partial</td><td>Patient, Appointment</td><td>EMR, Billing</td></tr>
+<tr><td>Clinical Workflow (EMR)</td><td>Partial/No</td><td>Patient, Encounter (OPD/IPD)</td><td>Lab, Pharmacy, Radiology</td></tr>
+<tr><td>Nursing</td><td>No</td><td>IPD</td><td>EMR</td></tr>
+<tr><td>Laboratory</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing</td></tr>
+<tr><td>Radiology &amp; Imaging</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, PACS (add-on)</td></tr>
+<tr><td>Admission (IPD)</td><td>Partial</td><td>Patient</td><td>Billing, Nursing, Insurance</td></tr>
+<tr><td>Emergency (ER)</td><td>Yes</td><td>Patient</td><td>EMR, Billing, IPD</td></tr>
+<tr><td>Operation Theatre (OT)</td><td>No</td><td>IPD</td><td>EMR, Billing, Inventory</td></tr>
+<tr><td>CSSD</td><td>No</td><td>OT</td><td>Inventory</td></tr>
+<tr><td>Blood Bank</td><td>Yes/Partial</td><td>None</td><td>Patient, Billing</td></tr>
+<tr><td>Specialty Clinical Modules</td><td>No</td><td>EMR</td><td>Billing</td></tr>
+<tr><td>Pharmacy</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, Inventory</td></tr>
+<tr><td>Inventory, Stores &amp; Procurement</td><td>Yes</td><td>None</td><td>Pharmacy, OT, Billing</td></tr>
+<tr><td>Billing &amp; Payments</td><td>Yes</td><td>None</td><td>Patient, Pharmacy, Lab, IPD</td></tr>
+<tr><td>Insurance, TPA &amp; Govt. Schemes</td><td>No</td><td>Billing</td><td>Patient, IPD</td></tr>
+<tr><td>Financial Management</td><td>Partial</td><td>Billing</td><td>Inventory, HR</td></tr>
+<tr><td>Dietary &amp; Kitchen</td><td>Yes</td><td>None</td><td>IPD (diet-chart linkage)</td></tr>
+<tr><td>Housekeeping &amp; Laundry</td><td>Yes</td><td>None</td><td>IPD (ward/bed linkage)</td></tr>
+<tr><td>Ambulance &amp; Fleet</td><td>Yes</td><td>None</td><td>Patient, ER, Billing</td></tr>
+<tr><td>Biomedical Equipment &amp; Asset Mgmt</td><td>Yes</td><td>None</td><td>OT, Laboratory, Radiology</td></tr>
+<tr><td>Biomedical Waste Management</td><td>Yes</td><td>None</td><td>None required</td></tr>
+<tr><td>HR, Payroll &amp; Doctor Scheduling</td><td>Yes</td><td>None</td><td>Appointment, Financial Management</td></tr>
+<tr><td>CRM &amp; Patient Engagement</td><td>Yes</td><td>None</td><td>Patient, Appointment, Notifications</td></tr>
+</table>
+<p>All 25 modules list <strong>Platform Core</strong> as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.</p>
+<p>"Standalone" in this matrix means <em>technically</em> standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.</p></section><section id="s3-3"><h3>Patient Management</h3><h3>Registration</h3>
+  <ul>
+    <li>Walk-in, online, mobile, and QR-code registration</li>
+    <li>Aadhaar-based registration (only where legally permitted, with explicit consent)</li>
+    <li>ABHA (Ayushman Bharat Health Account) creation and linking at registration</li>
+    <li>Existing patient search with duplicate detection</li>
+    <li>Family linking; corporate and insurance patient categories</li>
+    <li>Unique Patient ID (UHID) with barcode/QR for wristbands and case files</li>
+  </ul>
+  <h3>Patient profile</h3>
+  <ul>
+    <li>Demographics, contact details, and emergency contacts</li>
+    <li>Allergies, chronic diseases, past surgeries, family history, lifestyle information</li>
+    <li>Vaccination history, documents, and images</li>
+  </ul>
+  <h3>Records &amp; lifecycle</h3>
+  <ul>
+    <li>Patient timeline, previous visits, and complete medical history</li>
+    <li>Cross-branch access (permission-based)</li>
+    <li>Attachments — PDFs, images, scanned documents, consent forms</li>
+    <li>Digital signatures on consent and clinical documents</li>
+    <li>Allergy and alert flags visible across all workflows</li>
+    <li>Birth and death record management with certificate generation</li>
+    <li>Medico-Legal Case (MLC) flagging and register</li>
+  </ul></section><section id="s3-4"><h3>Appointment Management</h3><ul>
+    <li>Booking channels — walk-in, online (web), mobile app, WhatsApp, call center</li>
+    <li>Doctor availability, slot management, and dynamic scheduling</li>
+    <li>Appointment reminders, rescheduling, and cancellation</li>
+    <li>Waiting list management and queue estimation</li>
+    <li>No-show tracking and follow-up appointments</li>
+  </ul></section><section id="s3-5"><h3>OPD & Check-in</h3><ul>
+    <li>Self-service kiosk, mobile check-in, and reception-assisted check-in</li>
+    <li>Token generation and queue management with live waiting time</li>
+    <li>Department queues and doctor-wise queues with queue transfer</li>
+    <li>Priority handling — emergency, priority, and VIP patients</li>
+    <li>Display boards / digital signage and voice announcements in waiting areas</li>
+    <li>Notifications — SMS (TRAI DLT-compliant), Email, Push, WhatsApp</li>
+  </ul></section><section id="s3-6"><h3>Clinical Workflow (EMR)</h3><ul>
+    <li>SOAP-format consultation notes with specialty-specific templates</li>
+    <li>Symptoms, complaints, diagnosis, and procedure recording</li>
+    <li>ICD-10 / ICD-11 coding; SNOMED CT support (where licensed and applicable)</li>
+    <li>Vital signs entry with trend charts</li>
+    <li>Allergies, medical history, and family history in consultation view</li>
+    <li>Attach reports and prior records; ABDM-fetched records with patient consent</li>
+    <li>Voice dictation for clinical notes</li>
+    <li>Digital prescription / e-Prescription with drug database and dosage templates</li>
+    <li>Drug–drug interaction and allergy alerts</li>
+    <li>AI-assisted features — diagnosis suggestions, medical documentation, voice transcription, ICD coding assistance (reference-only aids)</li>
+    <li>Follow-up planning and recall reminders</li>
+    <li>Immunization/vaccination schedules; pediatric growth charts; ANC/PNC workflows</li>
+    <li>Electronic Health Records (EHR) as the longitudinal clinical backbone across all modules</li>
+  </ul>
+  <div class="caution">
+    <span class="tag">Regulatory Caution — CDSCO</span>
+    Any diagnosis-suggestion, clinical decision support, or AI-assisted clinical feature must be evaluated for CDSCO Software-as-a-Medical-Device (SaMD) classification before release. These features launch as <strong>reference-only aids</strong>, with the treating clinician making all clinical decisions, until classification is confirmed.
+  </div></section><section id="s3-7"><h3>Nursing Module</h3><ul>
+    <li>Nursing dashboard with assigned-patient view</li>
+    <li>Vital charting and clinical monitoring</li>
+    <li>Medication administration (MAR) against doctor's orders</li>
+    <li>Nursing notes and care plans</li>
+    <li>Intake/output charting</li>
+    <li>Shift handover workflow</li>
+    <li>Escalation alerts for critical values and overdue tasks</li>
+  </ul></section><section id="s3-8"><h3>Laboratory Management</h3><ul>
+    <li>Test catalog and packages with LOINC mapping and rate lists</li>
+    <li>Sample collection workflow with barcode generation and sample tracking</li>
+    <li>Test processing, result entry with reference ranges, and abnormal-value flagging</li>
+    <li>Result verification and pathologist sign-off</li>
+    <li>Digital reports shared with patients via portal, WhatsApp, and email, with notifications</li>
+    <li>Integrations — LIS, external laboratories, analyzer machines (bidirectional API interfaces)</li>
+  </ul></section><section id="s3-9"><h3>Radiology, Medical Imaging & PACS/RIS</h3><ul>
+    <li>Order management — X-ray, CT, MRI, Ultrasound, Mammography, ECG, and other imaging</li>
+    <li>Report templating and radiologist sign-off workflow</li>
+    <li>PACS/RIS integration with DICOM viewer — image storage, retrieval, and access</li>
+    <li>Modality worklist integration with imaging equipment</li>
+    <li>Image sharing with referring doctors and patients (consent-based)</li>
+    <li>PC-PNDT compliance support for ultrasound workflows (Form F records and registers)</li>
+  </ul></section><section id="s3-10"><h3>Admission (IPD) Management</h3><ul>
+    <li>Complete admission workflow with advance deposit collection</li>
+    <li>Bed allocation, bed/room transfer, ward, ICU, and isolation room management with visual bed-board</li>
+    <li>Doctor and nursing assignment; treatment plans and procedures</li>
+    <li>Daily notes, medication charts, and clinical monitoring</li>
+    <li>Doctor's orders (CPOE) — medications, diet, investigations</li>
+    <li>Allied services — housekeeping, dietician, physiotherapy</li>
+    <li>Transfer between wards and branches</li>
+    <li>Discharge — clearance workflow, final bill, discharge summary, prescriptions, follow-up</li>
+    <li>Discharge types — normal, DAMA (against medical advice), referral, death</li>
+    <li>Daycare procedure management; complete admission history</li>
+  </ul></section><section id="s3-11"><h3>Emergency Department (ER)</h3><ul>
+    <li>Rapid emergency registration with unknown-patient support</li>
+    <li>Triage with priority codes</li>
+    <li>Emergency admissions with ER-to-IPD/OT conversion workflow</li>
+    <li>Critical alerts to on-call teams</li>
+    <li>Ambulance integration for inbound patients</li>
+    <li>MLC handling and police intimation records; emergency billing and deposits</li>
+  </ul></section><section id="s3-12"><h3>Operation Theatre (OT) Management</h3><ul>
+    <li>Surgery scheduling with OT availability view</li>
+    <li>Surgeon, anesthetist, staff, and equipment assignment</li>
+    <li>Pre-operative checklists and digital consent forms</li>
+    <li>Surgery notes and anesthesia records</li>
+    <li>Implant and OT consumables tracking with billing linkage</li>
+    <li>Post-operative handover to IPD/ICU; OT utilization reporting</li>
+  </ul></section><section id="s3-13"><h3>CSSD Management</h3><ul>
+    <li>Instrument and tray master with barcode/RFID tagging for full lifecycle traceability</li>
+    <li>Receipt, cleaning, packing, and sterilization cycle tracking — steam, ETO, plasma</li>
+    <li>Sterilization load register — cycle parameters, biological and chemical indicator results</li>
+    <li>Set assembly checklist with missing-instrument and expiry alerts</li>
+    <li>Cycle-to-case traceability — sterilized sets linked to the surgery register (OT module)</li>
+    <li>Rejection and recall workflow for failed loads or recalled instrument sets</li>
+    <li>NABH-aligned CSSD documentation, audit trail, and turnaround-time reporting</li>
+  </ul></section><section id="s3-14"><h3>Blood Bank Management</h3><ul>
+    <li>Donor registration, screening, and donation records</li>
+    <li>Blood unit inventory by group and component (whole blood, PRBC, FFP, platelets)</li>
+    <li>Cross-match and issue workflow with full traceability</li>
+    <li>Expiry tracking and discard records</li>
+    <li>Statutory registers per Drugs &amp; Cosmetics Rules blood bank requirements</li>
+    <li>Organ donation registry linkage (consent-based, per applicable law)</li>
+  </ul></section><section id="s3-15"><h3>Specialty Clinical Modules</h3><p class="lead">Configurable specialty modules built on the shared EMR backbone — enabled per tenant as needed.</p>
+  <ul class="cols2">
+    <li>Dialysis management (schedules, machine allocation, session records)</li>
+    <li>Oncology management (chemotherapy cycles, protocols)</li>
+    <li>Maternity &amp; neonatal care (labour room, delivery records, NICU)</li>
+    <li>Dental management (tooth charting, procedures)</li>
+    <li>Ophthalmology (vision records, optical workflows)</li>
+    <li>Dermatology (photo documentation, procedures)</li>
+    <li>Physiotherapy (session plans, progress tracking)</li>
+    <li>Mental health (counselling records with enhanced confidentiality controls)</li>
+    <li>Home healthcare (field visits, home care plans)</li>
+    <li>Remote patient monitoring &amp; wearable device integration</li>
+    <li>Additional specialties added via the configurable specialty form-template mechanism (§46 Specialty-Agnostic Architecture), without core platform changes</li>
+  </ul></section><section id="s3-16"><h3>Pharmacy Management</h3><ul>
+    <li>In-house pharmacy with prescription dispensing</li>
+    <li>Multi-store inventory with batch, expiry, and rack management</li>
+    <li>Purchase orders, vendors, GRN, and supplier management</li>
+    <li>Expiry alerts and low-stock alerts; stock transfers between stores/branches</li>
+    <li>Controlled medicines — Narcotic / Schedule H, H1, X registers per Drugs &amp; Cosmetics Rules</li>
+    <li>Generic alternative suggestions at dispensing</li>
+    <li>GST-compliant pharmacy billing; sales and purchase returns with audit trail</li>
+  </ul></section><section id="s3-17"><h3>Inventory, General Stores & Procurement</h3><ul>
+    <li>Medical and non-medical inventory; central and department sub-stores</li>
+    <li>Item masters for consumables, surgical items, linen, and general supplies</li>
+    <li>Indent → approval → purchase order → GRN → issue workflow</li>
+    <li>Vendor management and rate contracts</li>
+    <li>Consumption tracking, stock valuation, reorder levels, and expiry tracking</li>
+    <li>Inter-store and inter-branch stock transfers</li>
+    <li>Asset tagging integration with the biomedical/asset module</li>
+  </ul></section><section id="s3-18"><h3>Billing & Payments</h3><p class="lead">Built on the Financial Transaction Infrastructure in Platform Core (invoice/payment/tax/receipt/ledger primitives) — this module provides the business-facing billing workflows themselves.</p>
+<ul>
+    <li>Unified billing — OPD, IPD, laboratory, radiology, pharmacy, procedures, OT, packages, and corporate billing</li>
+    <li>GST-compliant invoicing with e-invoice readiness; HSN/SAC mapping</li>
+    <li>Payment methods — cash, card, UPI, net banking, bank transfer, cheque, wallets</li>
+    <li>Payment gateway integration with shareable payment links (PCI DSS-aligned)</li>
+    <li>Advance payments, deposit management, interim bills, and final settlement</li>
+    <li>Discounts with approval workflow, refunds, credit notes, and outstanding tracking</li>
+    <li>Rate lists per payer type — cash, insurance, corporate, government scheme</li>
+  </ul></section><section id="s3-19"><h3>Insurance, TPA & Government Schemes</h3><ul>
+    <li>Policy management and eligibility capture</li>
+    <li>Pre-authorization and cashless admission workflow</li>
+    <li>Claim submission, tracking, settlement, and rejection/shortfall management</li>
+    <li>TPA master and corporate tie-up management</li>
+    <li>Government schemes — PM-JAY (Ayushman Bharat), state schemes (e.g., MA Yojana): package mapping, beneficiary verification, claim workflows</li>
+    <li>Payer-wise documentation checklists</li>
+  </ul></section><section id="s3-20"><h3>Financial Management</h3><ul>
+    <li>Revenue reports and expense management</li>
+    <li>Profit &amp; Loss dashboards</li>
+    <li>Department-wise and branch-wise profitability</li>
+    <li>Tax reports (GST, TDS summaries)</li>
+    <li>Audit reports and day-end closing</li>
+    <li>Accounting/ERP export (Tally and others) — voucher and ledger level</li>
+  </ul></section><section id="s3-21"><h3>Dietary & Kitchen Management</h3><ul>
+    <li>Diet plans mapped to doctor's orders (normal, diabetic, renal, liquid, etc.)</li>
+    <li>Ward-wise meal scheduling and delivery tracking</li>
+    <li>Kitchen indent and raw material consumption</li>
+    <li>Dietician consultation notes</li>
+  </ul></section><section id="s3-22"><h3>Housekeeping & Laundry Management</h3><ul>
+    <li>Housekeeping task scheduling — ward, room, OT, and common-area cleaning rotas with checklist sign-off</li>
+    <li>Terminal cleaning workflow triggered on discharge/transfer, gating bed re-allocation until cleared</li>
+    <li>Infection-control cleaning protocols for isolation rooms and OT with compliance logging</li>
+    <li>Linen and laundry cycle tracking — issue, wash, return, damage and loss recording</li>
+    <li>Housekeeping consumables (detergents, disinfectants) inventory linkage with stores</li>
+    <li>Complaint and service-request management integrated with the helpdesk</li>
+    <li>Support for outsourced/vendor-managed housekeeping and laundry contracts</li>
+  </ul></section><section id="s3-23"><h3>Ambulance & Fleet Management</h3><ul>
+    <li>Fleet and driver/paramedic management</li>
+    <li>Dispatch with emergency routing and GPS tracking integration</li>
+    <li>Trip history and trip billing (distance/fixed) linked to the patient bill</li>
+    <li>Vehicle maintenance, insurance, and document expiry tracking</li>
+    <li>ER integration for inbound emergency patients</li>
+  </ul></section><section id="s3-24"><h3>Biomedical Equipment & Asset Management</h3><ul>
+    <li>Equipment/asset register with department mapping</li>
+    <li>AMC/CMC contract tracking and renewal alerts</li>
+    <li>Calibration and preventive maintenance schedules</li>
+    <li>Breakdown logging and service history</li>
+    <li>Warranty and vendor records; depreciation data for accounts</li>
+    <li>IoT-enabled medical device integration readiness</li>
+  </ul></section><section id="s3-25"><h3>Biomedical Waste Management</h3><ul>
+    <li>Colour-coded segregation at source per Bio-Medical Waste Management Rules, 2016 (yellow, red, white, blue)</li>
+    <li>Barcode-tagged waste bags/containers for chain-of-custody tracking from ward to disposal</li>
+    <li>Category-wise weighing and generation log by department and shift</li>
+    <li>Common Biomedical Waste Treatment Facility (CBWTF) handover manifest and pickup tracking</li>
+    <li>Occupational safety records — sharps injury log, staff PPE and immunization compliance</li>
+    <li>State Pollution Control Board (SPCB) authorization renewal tracking and statutory report generation</li>
+    <li>Deviation and incident logging for segregation lapses or spillage</li>
+  </ul></section><section id="s3-26"><h3>HR, Payroll & Doctor Scheduling</h3><ul>
+    <li>Employee master — doctors, nurses, technicians, admin, support and field staff</li>
+    <li>Shift rosters and duty scheduling (doctor and nursing rosters)</li>
+    <li>Attendance and leave management (biometric integration)</li>
+    <li>Payroll with statutory compliance — PF, ESIC, Professional Tax, TDS</li>
+    <li>Doctor payout computation (salary / fee-for-service / revenue share as contracted)</li>
+    <li>Credential tracking — medical council registration and expiry alerts</li>
+  </ul></section><section id="s3-27"><h3>CRM & Patient Engagement</h3><ul>
+    <li>Lead and enquiry management (calls, walk-ins, website, campaigns)</li>
+    <li>Health checkup package promotion and camp management (opt-in based)</li>
+    <li>Patient feedback, ratings, and complaint/grievance tracking</li>
+    <li>Recall and preventive-care reminder campaigns (vaccination, follow-ups, screenings)</li>
+    <li>Loyalty/corporate wellness program support</li>
+    <li>Patient communication history in one view</li>
+  </ul></section><div class="partdivider"><h2>Add-Ons & Optional Capabilities</h2></div><section id="s4-1"><h3>Overview</h3><p class="lead">Add-ons extend a business module or connect an external system. Unlike business modules, most add-ons have no standalone value — they only matter once the module or workflow they attach to exists.</p>
+<ul>
+  <li><strong>Telemedicine &amp; Video Consultation</strong> — extends Appointment/EMR with remote visits</li>
+  <li><strong>ABDM Integration</strong> — extends Patient Management and EMR with national health-record interoperability</li>
+  <li><strong>WhatsApp Business Messaging</strong> — an additional channel on top of the Platform Core notification infrastructure, beyond basic transactional SMS/email</li>
+  <li><strong>Advanced BI &amp; AI-Assisted Features</strong> — extends the Reporting Architecture; any AI feature touching diagnosis/decision-support requires a CDSCO classification check before build (see Postponed / Build-as-Sold, Part IX)</li>
+  <li><strong>Payment Gateway Integration</strong> — extends Billing beyond cash/UPI collection</li>
+  <li><strong>PACS Integration</strong> — extends Radiology with film-less imaging archives</li>
+  <li><strong>External LIS Integration</strong> — extends Laboratory for hospitals with an existing third-party lab system</li>
+  <li><strong>Custom Workflow Builder</strong> — low-code configuration layer for tenant-specific process variations</li>
+</ul>
+<p>Two of these — Telemedicine and ABDM — are detailed in this Part because they are committed, specified capabilities. The remainder are built opportunistically, per the Postponed / Build-as-Sold guidance in Part IX.</p></section><section id="s4-2"><h3>Telemedicine & Video Consultation</h3><ul>
+    <li>Video consultation with in-call prescription and notes</li>
+    <li>Tele-appointment booking, virtual queue, and pre-consult online payment</li>
+    <li>Screen/report sharing during consultation; secure patient chat</li>
+    <li>e-Prescription delivery to portal, WhatsApp, and email after consult</li>
+    <li>Consultation recording consent and audit trail</li>
+    <li>Compliance with the Telemedicine Practice Guidelines, 2020 (identity verification, consent, drug-schedule prescription restrictions)</li>
+  </ul></section><section id="s4-3"><h3>ABDM Integration & Cross-Hospital Health Records</h3><ul>
+    <li>ABHA ID creation, verification, and linking — <strong>Milestone M1</strong></li>
+    <li>Health record linking and sharing as HIP (Health Information Provider) — <strong>Milestone M2</strong></li>
+    <li>Fetching patient records as HIU (Health Information User) with patient consent via the ABDM Consent Manager — <strong>Milestone M3</strong></li>
+    <li>Scan-and-share OPD registration via ABHA QR</li>
+    <li>UHI (Unified Health Interface) integration readiness</li>
+    <li>FHIR-compliant record bundles — OPConsultRecord, DischargeSummary, Prescription, DiagnosticReport</li>
+    <li>Cross-provider access strictly where legally permitted, consent-driven, and fully audit-logged</li>
+  </ul></section><div class="partdivider"><h2>Users & Access (Requirements View)</h2></div><section id="s5-1"><h3>RBAC & User-Level Overrides</h3><p class="lead">Unlimited users with enterprise-grade permission management.</p>
+  <h3>Standard roles</h3>
+  <ul class="cols2">
+    <li>Super Admin</li>
+    <li>Organization Admin</li>
+    <li>Branch Admin</li>
+    <li>Receptionist</li>
+    <li>Doctor</li>
+    <li>Nurse</li>
+    <li>Pharmacist</li>
+    <li>Laboratory Technician</li>
+    <li>Radiologist</li>
+    <li>Cashier</li>
+    <li>Billing Executive</li>
+    <li>Insurance Executive</li>
+    <li>HR</li>
+    <li>Store Manager</li>
+    <li>Housekeeping</li>
+    <li>Security</li>
+    <li>Ambulance Staff</li>
+    <li>OT Staff</li>
+    <li>Patients</li>
+    <li>External / Visiting Doctors</li>
+  </ul>
+  <h3>Permission granularity</h3>
+  <ul>
+    <li>Module level · Screen level · Action level · Field level · Record level · Branch level · Department level</li>
+    <li>Custom roles and permission templates</li>
+    <li>Per-user permission overrides — grant or deny a specific capability to an individual user beyond their role’s defaults, without creating a new role</li>
+    <li>Approval workflows for sensitive actions (discounts, refunds, record corrections)</li>
+    <li>Full audit history of permission changes</li>
+  </ul>
+<h3>Role-Based Access Control with User-Level Overrides</h3><ul>
+    <li>Three independent concepts, each enforced separately — module entitlement (does the organization have this module), role permissions (what a role can do by default), and user-specific overrides (grants or denies for one individual beyond their role)</li>
+    <li>Permission keys use a dot-hierarchy (module.submodule.page.action) — one mechanism gates modules, sub-modules, pages, tabs, and individual CRUD or sensitive actions without a different schema per granularity level</li>
+    <li>Effective permission for a user = the union of all assigned roles' permissions, plus explicit grants, minus explicit denies; an explicit deny always overrides a grant</li>
+    <li>Tenant-level custom roles supported by cloning a system default role and editing its permission set, keeping the total role count bounded rather than growing per customer</li>
+    <li>Resolved permission sets are cached, not recomputed per request, and invalidated on any role, override, or entitlement change</li>
+    <li>Every permission grant or revoke is itself an audited action, restricted to users holding an explicit rbac-management permission</li>
+  </ul></section><section id="s5-2"><h3>Feature Configuration</h3><p class="lead">Distinct from entitlement. Entitlement decides <em>whether</em> a tenant has a module; Feature Configuration decides <em>how</em> that module behaves for them — without a code branch per tenant.</p>
+<div class="callout">
+  <span class="tag">Example</span>
+  Pharmacy = ENABLED (entitlement) → Batch Tracking = ON, Barcode = ON, Multi-Store = ON, Generic Substitution = OFF, Purchase Workflow = OFF (feature configuration)
+</div>
+<ul>
+  <li>Feature flags stored per (tenant, module, feature_key), read by the same module code regardless of which flags are set</li>
+  <li>Lets a single-doctor clinic's Pharmacy stay simple (no multi-store, no purchase-approval workflow) while a hospital chain's Pharmacy runs the full configuration, from the same deployed code</li>
+  <li>Feature configuration changes do not require an entitlement change, a deployment, or a support ticket to engineering</li>
+</ul></section><div class="partdivider"><h2>Non-Functional Requirements</h2></div><section id="s6-1"><h3>Multi-Tenancy Requirements</h3><h3>Multi-Tenancy Strategy</h3><ul>
+    <li>Default isolation model — shared database, shared schema, a tenant_id column on every table, enforced by PostgreSQL Row-Level Security (RLS) policies at the database layer</li>
+    <li>Request-scoped database client sets the tenant context for RLS on every query; tenant identity is never trusted from client-supplied input</li>
+    <li>Dedicated schema-per-tenant or database-per-tenant offered as a premium isolation tier for large hospital chains with contractual data-isolation requirements</li>
+    <li>Tenant resolution at launch — organization code / email-domain match at login; subdomain-per-tenant routing (with wildcard DNS/SSL and Next.js middleware) planned as a later-stage enhancement once the tenant base grows</li>
+  </ul></section><section id="s6-2"><h3>Multi-Branch Requirements</h3><h3>Multi-branch</h3><ul>
+    <li>Unlimited branches per tenant</li>
+    <li>Branch-independent doctors, staff, inventory, pharmacy, laboratory, billing, rooms, wards, and operation theatres</li>
+    <li>Branch-level reports with centralized visibility for corporate administrators</li>
+  </ul></section><section id="s6-3"><h3>Data Lifecycle & Retention Requirements</h3><h3>Record Lifecycle States</h3>
+<ul>
+  <li>Healthcare records move through defined states rather than existing or being deleted: <strong>Active → Archived → Deactivated → Retention-Locked → Anonymized → Deleted</strong></li>
+  <li>Unrestricted hard deletion of healthcare records is not permitted at any point in this lifecycle — deletion is only reachable after retention obligations are satisfied, and is itself an audited action</li>
+  <li>Retention-Locked records cannot be edited or deleted regardless of role, including by administrators, until the lock condition (statutory period, active MLC, litigation hold) clears</li>
+  <li>Anonymization is available as a lifecycle step for records that have satisfied identifiable-data retention requirements but retain research/analytics value</li>
+  <li>Retention durations follow applicable medical-record norms (3+ years OPD; longer for IPD/MLC, per Security & Compliance, Part VII) — the state machine is the mechanism that enforces those durations technically, not just documents them</li>
+</ul></section><section id="s6-4"><h3>Security & Compliance Requirements</h3><p class="lead">Security by Design and Privacy by Design. The platform stores sensitive patient health information and processes financial transactions; these are core architectural requirements.</p>
+  <ul class="cols2">
+    <li>Encryption at rest (AES-256) and in transit (TLS 1.2+)</li>
+    <li>Fine-grained RBAC and Multi-Factor Authentication (MFA)</li>
+    <li>SSO — SAML / OAuth 2.0 / OIDC</li>
+    <li>Comprehensive, immutable, tamper-evident audit trails</li>
+    <li>Secure API architecture with rate limiting and input validation</li>
+    <li>Secure file storage with access controls</li>
+    <li>Digital signatures on clinical and consent documents</li>
+    <li>Consent management for all health-information sharing</li>
+    <li>Session management, password policies, device/session controls, account lockout</li>
+    <li>Automated backups and disaster recovery with defined RPO/RTO</li>
+    <li>Data retention and archival per medical record norms (3+ years OPD; longer for IPD/MLC)</li>
+    <li>DPDP Act 2023 — consent artefacts, purpose limitation, data principal rights, breach notification</li>
+    <li>CERT-In directions — 180-day log retention, 6-hour incident reporting readiness</li>
+    <li>Data residency within India</li>
+    <li>ABDM certification requirements — WASA audit by CERT-In empanelled auditor</li>
+    <li>PCI DSS-aligned payment practices — no card data stored on platform</li>
+    <li>OWASP Top 10 protections; periodic VAPT</li>
+    <li>Privacy-first, least-privilege architecture; PII masking in logs and non-production environments</li>
+  </ul>
+<h3>Regulatory Claim Discipline</h3>
+<p>Every regulatory statement in this document falls into exactly one of three categories:</p>
+<ul>
+  <li><strong>Confirmed requirement</strong> — supported by an authoritative primary source (the Act, Rule, or official policy document itself)</li>
+  <li><strong>Design decision</strong> — a conservative architectural choice made by the HMS team, not a claim of legal obligation</li>
+  <li><strong>Pending verification</strong> — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement</li>
+</ul>
+<div class="callout">
+  <span class="tag">General rule</span>
+  Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.
+</div></section><section id="s6-5"><h3>Performance & Scalability Requirements</h3><ul>
+    <li>Millions of patient records; thousands of concurrent users</li>
+    <li>Horizontal scaling, auto-scaling, and high availability (99.5%+ uptime SLA target)</li>
+    <li>Page/API response under 2 seconds for standard operations</li>
+    <li>Multi-region deployment capability and CDN support</li>
+    <li>Background job processing and event-driven architecture for asynchronous workflows</li>
+    <li>Offline-first capability for selected workflows in low-connectivity settings</li>
+    <li>Disaster recovery with defined RPO/RTO objectives</li>
+  </ul></section><section id="s6-6"><h3>Indian Healthcare Seed Data Requirements</h3><h3>Indian Healthcare Seed &amp; Demonstration Data</h3><ul>
+    <li>All seed, demo, and test data reflects a genuinely Indian healthcare context — patient, doctor, and staff names, hospital/clinic names, addresses, cities, states, and PIN codes drawn from across India rather than a single region</li>
+    <li>Demo data spans the platform's actual target segments — small clinics, multi-specialty hospitals, diagnostic centers, and standalone pharmacies — rather than one hospital archetype repeated with different names</li>
+    <li>Generic placeholder data is not used in any environment a stakeholder, investor, or pilot customer might see</li>
+  </ul></section><div class="partdivider"><h2>Compliance Considerations</h2></div><section id="s7-1"><h3>Regulatory Verification & Compliance Source Register</h3><p class="lead">Every regulatory area this platform touches, with its verification status tracked explicitly rather than assumed. Fields not yet confirmed are marked Pending verification rather than guessed.</p>
+<table>
+<tr><th>Requirement</th><th>Area</th><th>Source</th><th>Verification Status</th><th>Owner</th><th>Last Verified</th><th>Notes</th></tr>
+<tr><td>Data localization for general personal data</td><td>DPDP Act</td><td>Digital Personal Data Protection Act, 2023</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text</td></tr>
+<tr><td>Breach/incident reporting obligations</td><td>CERT-In directions</td><td>CERT-In cybersecurity directions</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Referenced in Security &amp; Compliance; specific timelines not independently verified</td></tr>
+<tr><td>Health record storage/localization for ABDM-integrated data</td><td>ABDM</td><td>Health Data Management Policy (ABDM)</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI)</td></tr>
+<tr><td>Remote consultation requirements</td><td>Telemedicine Practice Guidelines</td><td>Telemedicine Practice Guidelines, 2020</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Telemedicine &amp; Video Consultation, Part III</td></tr>
+<tr><td>Diagnostic technique restrictions (sex-determination)</td><td>PC-PNDT</td><td>Pre-Conception and Pre-Natal Diagnostic Techniques Act</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology</td></tr>
+<tr><td>Segregation, handling, and disposal of clinical waste</td><td>Biomedical Waste</td><td>Bio-Medical Waste Management Rules, 2016</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Biomedical Waste Management, Part II</td></tr>
+<tr><td>Pharmacy licensing, storage, and dispensing rules</td><td>Drugs &amp; Cosmetics Rules</td><td>Drugs and Cosmetics Act &amp; Rules</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Pharmacy Management, Part II</td></tr>
+<tr><td>Blood bank licensing and operational requirements</td><td>Blood Bank requirements</td><td>Drugs and Cosmetics Rules (Blood Bank provisions)</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Blood Bank Management, Part II</td></tr>
+<tr><td>Tax invoicing, HSN/SAC, and filing requirements</td><td>GST</td><td>Goods and Services Tax Act</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Billing &amp; Payments and Financial Management, Part II</td></tr>
+<tr><td>Payment card data handling</td><td>PCI DSS</td><td>PCI Security Standards Council</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to the Payment Gateway add-on and Billing &amp; Payments, Part II/III</td></tr>
+<tr><td>Medical device / software classification for AI-assisted features</td><td>CDSCO / SaMD</td><td>Central Drugs Standard Control Organisation</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX</td></tr>
+</table></section><div class="partdivider"><h2>Acceptance Criteria</h2></div><section id="s8-1"><h3>Module & Milestone Acceptance Criteria</h3><p class="lead">A module or milestone is accepted as functionally complete only when all of the following hold. Full engineering-process detail lives in the Development Phases &amp; Roadmap document; this is the product-facing reading of the same bar.</p>
+<ul>
+<li>The feature works end-to-end for every role that should have access, and is provably denied for every role and tenant that should not.</li>
+<li>A tenant that has not purchased/activated the relevant module cannot use it, and sees an appropriate "not available" state rather than a broken page.</li>
+<li>A user granted a time-bound (temporary) permission has access only within its validity window, automatically, with no administrator action required to turn it off.</li>
+<li>No tenant can, under any circumstance, see or affect another tenant's data.</li>
+<li>The feature behaves correctly and legibly in both Light and Dark theme, and under a customer's own branding.</li>
+<li>Every meaningful action a user takes against the feature (create, change, deny, grant) is recorded and retrievable in an audit trail.</li>
+<li>The feature is demonstrable, by a non-developer, on the staging environment — not only provable by an engineer reading code.</li>
+</ul></section>
+<footer>
+  <span>Takoriya Technology LLP · Kadi, Gujarat</span>
+  <span>Project Requirements Document v1.0 · August 2026</span>
+</footer>
+</main>
+</div>
+</body></html>

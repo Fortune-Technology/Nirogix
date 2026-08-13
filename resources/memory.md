@@ -1,0 +1,171 @@
+# Project Memory / Knowledge Base
+
+**Document:** `memory.md`  
+**Version:** 1.0  
+**Last Updated:** August 2026  
+**Prepared for:** Takoriya Technology LLP  
+**Source of Truth:** Enterprise HMS — Architecture and Development Roadmap v2.1, plus two corrections identified in subsequent review (permission-cache expiry bound; break-glass notification/review boundary).
+
+---
+
+This document is a distilled index, not a replacement for the other four. Always confirm against **Architecture Document** or **Project Requirements Document** before making a change that contradicts an entry here.
+
+---
+
+## Contents
+
+- **How to Use This Document**
+  - [Purpose](#purpose)
+- **Terminology**
+  - [Glossary](#glossary)
+- **Architectural Invariants**
+  - [Never Violate These](#never-violate-these)
+- **Key Decisions**
+  - [Architecture Decision Records (from DECISIONS.md)](#architecture-decision-records-from-decisionsmd)
+  - [v2.2 Review Corrections](#v22-review-corrections)
+- **Module Relationships**
+  - [Module Capability Matrix (condensed reference)](#module-capability-matrix-condensed-reference)
+- **Resolved Issues & Lessons Learned**
+  - [What Went Wrong Before, and the Fix](#what-went-wrong-before-and-the-fix)
+- **Pending Decisions & Open Items**
+  - [Not Yet Settled](#not-yet-settled)
+- **Implementation Context**
+  - [Where Things Stand](#where-things-stand)
+
+---
+
+## How to Use This Document
+
+### Purpose
+
+Persistent knowledge for AI-assisted development on this project. Read this before making a change that touches authorization, entitlements, billing, or module boundaries — it exists specifically to stop a future agent (human or AI) from re-deriving, or worse, re-litigating, decisions already made.
+
+## Terminology
+
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| Platform Core | Foundational capabilities every tenant gets by default; never sold as a line item |
+| Business Module | Independently sellable clinical/operational capability (see Module Capability Matrix) |
+| Add-On | Extends a module or connects an external system; little standalone value alone |
+| Feature Configuration | Same module, different behavior per tenant, no code branch |
+| Entitlement | Whether an *organization* has purchased/activated a module |
+| Permission | Whether a specific *user* can perform a specific action |
+| Hard Dependency | A module cannot technically activate without another entitled module |
+| Optional Integration | A module works alone, and gains capability if another module is present |
+| Commercial independence | A module can be purchased separately as its own line item |
+| Technical independence | A module can operate without another module being entitled (stricter than commercial independence) |
+| MVP 0 — Clinic Pilot | Patient → Appointment → OPD+Billing Core → EMR |
+| MVP 1 — Clinic Expansion | Pharmacy → Laboratory → Basic Reports |
+| Break-Glass | Reserved emergency-access architecture; not built for MVP, insertion point only |
+| Financial Transaction Infrastructure | Platform Core primitives (invoice/payment/tax/receipt/ledger) underneath the Billing & Payments module |
+
+## Architectural Invariants
+
+### Never Violate These
+
+- Tenant isolation is enforced by PostgreSQL Row-Level Security. Tenant A must never access Tenant B's data — this is tested, not assumed, on every milestone.
+- Frontend visibility is never security. Every backend endpoint independently re-checks entitlement and permission regardless of what the UI already hid.
+- Modular monolith for MVP. No microservices split happens without a recorded decision in DECISIONS.md.
+- Core clinical entities — Patient, Provider, Encounter, Diagnosis, Prescription, Invoice — stay strongly typed. Never modeled as EAV, even for specialty variation.
+- Entitlement and permission-override records are never physically deleted.
+- Explicit DENY always overrides GRANT, at every level of the authorization model.
+- A cached permission set is never allowed to outlive the earliest `valid_until` among the temporary overrides it contains.
+
+## Key Decisions
+
+### Architecture Decision Records (from DECISIONS.md)
+
+A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording *why*, not *what* or *when*.
+
+- **CLAUDE.md** — what the AI/developer must follow (conventions, standards)
+- **KNOWLEDGE.md** — how the system currently works
+- **DONE.md** — what was completed and when (append-only log)
+- **DECISIONS.md** — why an important architectural decision was made, as a numbered Architecture Decision Record (ADR) per entry
+
+Seed entries for this platform's own foundational decisions:
+
+- ADR-001 — Modular monolith over microservices for MVP
+- ADR-002 — PostgreSQL with Row-Level Security for multi-tenancy, over database-per-tenant
+- ADR-003 — RBAC with user-level overrides, over pure role-based or full ABAC
+- ADR-004 — Module entitlements as a runtime check, not a deployment decision
+- ADR-005 — E2E Networks as primary hosting provider
+- ADR-006 — India-resident object storage as the default for PHI (pending formal legal verification, see File Storage Architecture, Part VI)
+- ADR-007 — Provider abstraction (SmsService/EmailService/FileStorageService) over direct SDK dependencies
+- ADR-008 — FHIR-aligned Provider/PractitionerRole model for specialty-agnostic core
+- ADR-009 — Vertical-slice, module-by-module MVP delivery order over horizontal layer-by-layer delivery
+
+New architectural decisions of similar weight are appended here as they are made, with the same rigor as DONE.md is append-only for implementation history.
+
+### v2.2 Review Corrections
+
+- ADR-010 — Permission cache TTL is bounded by the earliest temporary override's `valid_until`; `revoked_at` triggers immediate targeted cache invalidation
+- ADR-011 — Break-glass notification is tenant-configurable; post-event review is a review-only workflow and never modifies RBAC
+
+## Module Relationships
+
+### Module Capability Matrix (condensed reference)
+
+Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.
+
+| Module | Standalone | Hard Dependencies | Optional Integrations |
+|---|---|---|---|
+| Patient Management | Yes | None | Appointment, EMR, Billing |
+| Appointment Management | Yes | Patient Management | EMR, Notifications |
+| OPD & Check-in | Partial | Patient, Appointment | EMR, Billing |
+| Clinical Workflow (EMR) | Partial/No | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology |
+| Nursing | No | IPD | EMR |
+| Laboratory | Yes | None | Patient, EMR, Billing |
+| Radiology & Imaging | Yes | None | Patient, EMR, Billing, PACS (add-on) |
+| Admission (IPD) | Partial | Patient | Billing, Nursing, Insurance |
+| Emergency (ER) | Yes | Patient | EMR, Billing, IPD |
+| Operation Theatre (OT) | No | IPD | EMR, Billing, Inventory |
+| CSSD | No | OT | Inventory |
+| Blood Bank | Yes/Partial | None | Patient, Billing |
+| Specialty Clinical Modules | No | EMR | Billing |
+| Pharmacy | Yes | None | Patient, EMR, Billing, Inventory |
+| Inventory, Stores & Procurement | Yes | None | Pharmacy, OT, Billing |
+| Billing & Payments | Yes | None | Patient, Pharmacy, Lab, IPD |
+| Insurance, TPA & Govt. Schemes | No | Billing | Patient, IPD |
+| Financial Management | Partial | Billing | Inventory, HR |
+| Dietary & Kitchen | Yes | None | IPD (diet-chart linkage) |
+| Housekeeping & Laundry | Yes | None | IPD (ward/bed linkage) |
+| Ambulance & Fleet | Yes | None | Patient, ER, Billing |
+| Biomedical Equipment & Asset Mgmt | Yes | None | OT, Laboratory, Radiology |
+| Biomedical Waste Management | Yes | None | None required |
+| HR, Payroll & Doctor Scheduling | Yes | None | Appointment, Financial Management |
+| CRM & Patient Engagement | Yes | None | Patient, Appointment, Notifications |
+
+All 25 modules list **Platform Core** as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.
+
+"Standalone" in this matrix means *technically* standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
+
+## Resolved Issues & Lessons Learned
+
+### What Went Wrong Before, and the Fix
+
+- **ABDM / India-storage claim overstated (resolved in v2.0 → v2.1).** An earlier draft stated as settled fact that "ABDM-integrated health data must be stored in India," sourced from a single secondary blog rather than a primary ABDM/MeitY document. Corrected to: India-resident storage is a conservative design decision; the legal justification is Pending Verification. **Lesson:** a secondary source is never sufficient to convert a design decision into a stated legal requirement in this document.
+- **Temporary-permission cache/evaluation inconsistency (resolved in this revision).** Earlier text said permission validity is "evaluated on every check" while also stating permission sets are cached (not recomputed per request) — these were in tension for temporary grants. Resolved: cache TTL is bounded by the earliest relevant `valid_until`, and `revoked_at` triggers immediate targeted invalidation.
+- **Break-glass notification was under-specified (resolved in this revision).** Clarified that admin/compliance notification is tenant-configurable, and that post-event review must never modify RBAC as a side effect.
+
+## Pending Decisions & Open Items
+
+### Not Yet Settled
+
+- Regulatory Verification & Compliance Source Register — every row currently Pending Verification; no compliance owner yet assigned.
+- ORM choice (Prisma vs. Drizzle) — not yet locked in; relevant to how PostgreSQL RLS policies are authored and maintained.
+- Self-serve plan management / payment-integrated billing — explicitly deferred; MVP uses manual, operator-driven entitlement provisioning.
+- Branch-scoped entitlement management UI — the schema supports it (nullable `branch_id`) from day one; the admin UI to manage it does not exist yet.
+- Break-glass full implementation — architecture and insertion point defined; UI and enforcement not built for MVP.
+
+## Implementation Context
+
+### Where Things Stand
+
+- As of this document: architecture and roadmap are finalized through v2.1 (plus the two corrections in this documentation set); no application code has been written yet.
+- Target segment for MVP: single/multi-doctor OPD clinics and small nursing homes without inpatient beds — not full hospitals with OT/ICU/Blood Bank from day one.
+- Existing operational pattern to reuse for deployment: Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner — already proven in production on other Takoriya/Fortune Technology projects (StoreVeu, Rapid Runner).
+
+---
+*Project Memory / Knowledge Base — v1.0 — Takoriya Technology LLP — August 2026*

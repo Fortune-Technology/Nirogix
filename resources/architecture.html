@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture Document · Takoriya Technology LLP</title>
+<style>
+:root{
+  --ink:#16232b; --ink-soft:#42545f; --paper:#fbfcfc; --panel:#ffffff;
+  --teal:#0e6e6a; --teal-deep:#0a4f4c; --teal-tint:#e3f0ef; --line:#d7e0e2;
+  --amber:#8a5a12; --amber-tint:#faf1de; --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;font-size:15px;}
+a{color:var(--teal-deep);}
+.shell{display:flex;max-width:1200px;margin:0 auto;}
+aside{width:270px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:24px 16px 60px;background:var(--panel);}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;}
+aside h1{font-family:'IBM Plex Serif',serif;font-size:15.5px;line-height:1.3;margin-bottom:18px;}
+aside .navgroup{margin-bottom:12px;}
+aside .navgroup-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:5px 6px 3px;}
+aside ul{list-style:none;}
+aside a{display:block;padding:3px 6px;border-radius:4px;font-size:12px;color:var(--ink-soft);text-decoration:none;border-left:2px solid transparent;}
+aside a:hover{background:var(--teal-tint);color:var(--teal-deep);}
+main{flex:1;min-width:0;padding:38px 46px 100px;max-width:880px;}
+header.cover{border-bottom:3px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+h1.title{font-family:'IBM Plex Serif',serif;font-size:clamp(24px,3.6vw,32px);font-weight:700;margin-bottom:10px;}
+.meta{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);font-size:12.5px;}
+.meta div{padding:8px 12px;border-right:1px solid var(--line);}
+.meta div:last-child{border-right:none;}
+.meta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+.meta dd{font-weight:600;}
+.crossref{background:var(--teal-tint);border:1px solid var(--teal);border-radius:5px;padding:10px 16px;font-size:13px;margin-bottom:26px;color:var(--teal-deep);}
+.crossref strong{color:var(--teal-deep);}
+.partdivider{margin:38px 0 14px;}
+.partdivider h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);border-bottom:2px solid var(--teal);padding-bottom:6px;}
+section{margin-bottom:30px;scroll-margin-top:20px;}
+h3{font-family:'IBM Plex Serif',serif;font-size:17px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+h4{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:12px 0 5px;}
+p{margin-bottom:9px;font-size:14.5px;}
+p.lead{color:var(--ink-soft);}
+ul{list-style:none;padding-left:0;margin-bottom:6px;}
+ul li{position:relative;padding:2.5px 0 2.5px 20px;font-size:14.5px;}
+ul li::before{content:"";position:absolute;left:3px;top:11px;width:6px;height:6px;border:1.5px solid var(--teal);border-radius:1px;}
+code{font-family:var(--mono);font-size:12px;background:var(--teal-tint);color:var(--teal-deep);padding:1px 5px;border-radius:3px;}
+.callout{border-left:4px solid var(--amber);background:var(--amber-tint);padding:12px 16px;margin:12px 0;font-size:13px;}
+.callout.teal{border-left-color:var(--teal);background:var(--teal-tint);}
+.callout .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;font-weight:600;color:var(--amber);}
+.callout.teal .tag{color:var(--teal-deep);}
+.milestone{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;padding:14px 18px;margin-bottom:14px;background:var(--panel);}
+.milestone-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.milestone-head h3{border:none;padding:0;margin:0;font-size:15px;}
+.milestone-num{font-family:var(--mono);font-size:11px;color:var(--teal-deep);background:var(--teal-tint);padding:2px 8px;border-radius:3px;}
+.dep-line{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono);}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:var(--teal-tint);color:var(--teal-deep);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;}
+tr:nth-child(even) td{background:#fafcfc;}
+footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+@media (max-width:880px){.shell{flex-direction:column;}aside{position:static;width:auto;height:auto;max-height:260px;}main{padding:22px 16px 70px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Architecture Document</h1><nav><div class="navgroup"><div class="navgroup-label">Architecture Foundations</div><ul><li><a href="#s1-1">Architecture Principle</a></li><li><a href="#s1-2">Platform Architecture</a></li><li><a href="#s1-3">Platform Core</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Tenancy & Specialty Architecture</div><ul><li><a href="#s2-1">Multi-Tenancy Architecture</a></li><li><a href="#s2-2">Multi-Branch Architecture</a></li><li><a href="#s2-3">Specialty-Agnostic Architecture</a></li><li><a href="#s2-4">Data Lifecycle & Retention</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Entitlements, Pricing & Authorization</div><ul><li><a href="#s3-1">Module Entitlements (incl. Entitlement Lifecycle)</a></li><li><a href="#s3-2">Pricing & Packaging Architecture</a></li><li><a href="#s3-3">RBAC & User-Level Overrides</a></li><li><a href="#s3-4">Advanced Authorization — Policy-Based, Temporary & Break-Glass (corrected)</a></li><li><a href="#s3-5">Frontend + Backend Authorization Flow</a></li><li><a href="#s3-6">Feature Configuration</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Billing Architecture</div><ul><li><a href="#s4-1">Billing Core Boundary (Financial Transaction Infrastructure vs. Billing & Payments)</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Platform Core Technical Capabilities</div><ul><li><a href="#s5-1">Authentication</a></li><li><a href="#s5-2">Notification Architecture</a></li><li><a href="#s5-3">File Storage Architecture</a></li><li><a href="#s5-4">Domain Events & Background Jobs</a></li><li><a href="#s5-5">Global Search & Activity Timeline</a></li><li><a href="#s5-6">Reporting Architecture</a></li><li><a href="#s5-7">API Architecture & Reliability</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Security, Compliance & Infrastructure</div><ul><li><a href="#s6-1">Security & Compliance</a></li><li><a href="#s6-2">Regulatory Verification & Compliance Source Register</a></li><li><a href="#s6-3">Performance & Scalability</a></li><li><a href="#s6-4">Infrastructure & Hosting</a></li><li><a href="#s6-5">External Provider Abstractions</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Technology Stack</div><ul><li><a href="#s7-1">Technology Stack & Monorepo Structure</a></li><li><a href="#s7-2">Technical Expectations</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Reference</div><ul><li><a href="#s8-1">Module Capability Matrix</a></li><li><a href="#s8-2">Dependency Map</a></li></ul></div></nav></aside>
+<main>
+<header class="cover">
+  <div class="eyebrow">ARCH · Version 1.0</div>
+  <h1 class="title">Architecture Document</h1>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Takoriya Technology LLP</dd></div>
+    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Last Updated</dt><dd>August 2026</dd></div>
+    <div><dt>File</dt><dd>architecture.html</dd></div>
+  </dl>
+</header>
+<div class="crossref">For functional/product scope, see **Project Requirements Document**. For build sequencing, see **Development Phases & Roadmap**. For engineering rules derived from this architecture, see **Rules & Engineering Standards**.</div>
+<div class="partdivider"><h2>Architecture Foundations</h2></div><section id="s1-1"><h3>Architecture Principle</h3><p class="lead">The single sentence every other decision in this document should trace back to:</p>
+<div class="callout teal">
+  <span class="tag">Architecture Principle</span>
+  Build the platform core once. Build business modules independently. Sell and provision modules independently. Connect modules through optional integrations, not hard-coded assumptions. Control user access through centralized authorization. Configure tenant-specific behavior without forking code.
+</div>
+<p>Five layers implement this, each covered in its own part of this document:</p>
+<ul>
+  <li><strong>Platform Core</strong> — foundational technical capabilities every tenant gets, never sold as a line item (Part I)</li>
+  <li><strong>Business Modules</strong> — independently sellable clinical/operational capabilities (Part II)</li>
+  <li><strong>Add-Ons &amp; Optional Integrations</strong> — capabilities that extend a module or connect an external system, opted into separately (Part III)</li>
+  <li><strong>Feature Configuration</strong> — same module, different behavior per tenant, without a code branch (Part IV)</li>
+  <li><strong>User Authorization</strong> — who, within an entitled organization, can actually do what (Part IV)</li>
+</ul></section><section id="s1-2"><h3>Platform Architecture</h3><h3>Multi-tenant</h3>
+  <ul>
+    <li>Complete tenant-level data isolation between hospitals/organizations</li>
+    <li>Tenant-level branding (logo, letterheads, themes)</li>
+    <li>Tenant-specific settings, independent billing plans and subscription management</li>
+    <li>Independent storage and independent integrations per tenant</li>
+  </ul>
+  <h3>Multi-branch</h3>
+  <ul>
+    <li>Unlimited branches per tenant</li>
+    <li>Branch-independent doctors, staff, inventory, pharmacy, laboratory, billing, rooms, wards, and operation theatres</li>
+    <li>Branch-level reports with centralized visibility for corporate administrators</li>
+  </ul>
+  <h3>Modular &amp; configurable</h3>
+  <ul>
+    <li>Every module independently installable and configurable per tenant (feature flags)</li>
+    <li>Organizations pay for and enable only the modules they need</li>
+    <li>Individual modules purchasable standalone or as part of a bundle/package — not limited to a single all-in-one plan (see §39 Pricing & Packaging Architecture)</li>
+    <li>Clear architectural separation between module availability (entitlements) and user-level permissions (RBAC) — a tenant can be entitled to a module with only some users granted access to it (see §38 Module Entitlements and §40 RBAC & User-Level Overrides)</li>
+    <li>Super Admin (SaaS) panel — tenant onboarding, plans, module provisioning, usage metering, tenant billing</li>
+    <li>Configuration engine — custom fields, custom forms, letterheads, tax settings, numbering series per tenant/branch</li>
+    <li>Custom workflow designer and low-code form builder for tenant-specific processes</li>
+  </ul>
+  <h3>Interoperability &amp; reach</h3>
+  <ul>
+    <li>HL7 FHIR R4 APIs, ICD-10/ICD-11 coding, SNOMED CT (where licensed and applicable), LOINC lab codes, DICOM for imaging</li>
+    <li>Offline-tolerant design for low-connectivity clinics with sync-on-reconnect for selected workflows</li>
+    <li>Multi-language UI and localization — English, Hindi, Gujarati; extensible to other Indian and global languages</li>
+  </ul></section><section id="s1-3"><h3>Platform Core</h3><p class="lead">Foundational technical capabilities that ship with every tenant by default. These are never sold as a separate line item, never individually entitled, and never absent — a hospital buying only Pharmacy still gets all of Platform Core underneath it.</p>
+<ul>
+  <li><strong>Authentication</strong> — login, session, MFA, SSO (Part VI)</li>
+  <li><strong>Tenant Management</strong> — tenant provisioning, plan/subscription state (Part V, Part IV)</li>
+  <li><strong>Organization / Branch Management</strong> — multi-branch structure, branch-scoped configuration (Part V)</li>
+  <li><strong>User Management</strong> — accounts, profiles, staff records (Part IV)</li>
+  <li><strong>RBAC / Authorization Engine</strong> — roles, permissions, user-level overrides, policy readiness (Part IV)</li>
+  <li><strong>Permission Management</strong> — the administrative surface for granting/revoking access (Part IV)</li>
+  <li><strong>Module Entitlement Engine</strong> — which modules a tenant has purchased (Part IV)</li>
+  <li><strong>Feature Configuration</strong> — how an entitled module behaves for a given tenant (Part IV)</li>
+  <li><strong>Audit Logging</strong> — immutable, tamper-evident security/compliance trail (Part VII)</li>
+  <li><strong>Notification Infrastructure</strong> — the send() abstraction behind SMS, WhatsApp, and email (Part VI)</li>
+  <li><strong>File Storage Abstraction</strong> — the FileStorageService behind every document upload (Part VI)</li>
+  <li><strong>Branding</strong> — tenant logo, colors, typography (Part VIII)</li>
+  <li><strong>Settings</strong> — tenant and branch-level configuration surface</li>
+  <li><strong>Financial Transaction Infrastructure</strong> — invoice, payment, tax, receipt, and ledger/transaction primitives shared by every billing-capable module (Part II)</li>
+  <li><strong>API Infrastructure</strong> — versioning, validation, error shape, reliability guarantees (Part VI)</li>
+  <li><strong>Background Jobs</strong> — the queue infrastructure every async workflow runs on (Part VI)</li>
+  <li><strong>Event Infrastructure</strong> — internal domain events connecting modules without direct coupling (Part VI)</li>
+  <li><strong>Observability</strong> — structured logging, error tracking, monitoring (Part VII)</li>
+  <li><strong>Security Infrastructure</strong> — encryption, RLS-based tenant isolation, VAPT posture (Part V, Part VII)</li>
+</ul>
+<p>Everything in this list is built once, in Phase 0, and every business module in Part II is written against it — no module re-implements authentication, its own table pagination, or its own notification sending.</p>
+<div class="callout teal">
+  <span class="tag">Billing Core boundary</span>
+  Financial Transaction Infrastructure (Platform Core) is not the same thing as the Billing &amp; Payments business module (Part II). The former is foundational — invoice, payment, tax, receipt, and ledger primitives with no clinical or workflow logic attached. The latter is business-facing — OPD billing, IPD billing, Pharmacy billing, Laboratory billing, Radiology billing, OT billing, and package/corporate billing, all built on top of the shared primitives. This boundary is what lets future modules add new billing line-item types without rebuilding the underlying financial transaction engine — matching this document's own Billing Core &rarr; Pharmacy &rarr; Lab &rarr; IPD &rarr; Insurance &rarr; Financial Management roadmap sequencing.
+</div></section><div class="partdivider"><h2>Tenancy & Specialty Architecture</h2></div><section id="s2-1"><h3>Multi-Tenancy Architecture</h3><h3>Multi-Tenancy Strategy</h3><ul>
+    <li>Default isolation model — shared database, shared schema, a tenant_id column on every table, enforced by PostgreSQL Row-Level Security (RLS) policies at the database layer</li>
+    <li>Request-scoped database client sets the tenant context for RLS on every query; tenant identity is never trusted from client-supplied input</li>
+    <li>Dedicated schema-per-tenant or database-per-tenant offered as a premium isolation tier for large hospital chains with contractual data-isolation requirements</li>
+    <li>Tenant resolution at launch — organization code / email-domain match at login; subdomain-per-tenant routing (with wildcard DNS/SSL and Next.js middleware) planned as a later-stage enhancement once the tenant base grows</li>
+  </ul></section><section id="s2-2"><h3>Multi-Branch Architecture</h3><h3>Multi-branch</h3><ul>
+    <li>Unlimited branches per tenant</li>
+    <li>Branch-independent doctors, staff, inventory, pharmacy, laboratory, billing, rooms, wards, and operation theatres</li>
+    <li>Branch-level reports with centralized visibility for corporate administrators</li>
+  </ul></section><section id="s2-3"><h3>Specialty-Agnostic Architecture</h3><h3>Specialty-Agnostic Core Design</h3><ul>
+    <li>Core clinical entities — Patient, Provider, Encounter, Appointment, Prescription, Diagnosis, Billing — are fixed, strongly-typed schema shared across every specialty and facility type; not dynamic, for reporting performance and data integrity</li>
+    <li>Provider and specialty modeled in alignment with HL7 FHIR's Practitioner and PractitionerRole resources — a provider record and their specialty/role/location assignments are separate and independently extensible, so adding a new specialty is a data change, not a schema migration</li>
+    <li>Specialty catalog maintained as data, linked to providers via a join table</li>
+    <li>Structured data that genuinely varies by specialty (dental charting, dialysis session parameters, maternity records, dermatology documentation, etc.) captured via admin-configurable form templates rather than bespoke schema per specialty — new specialty-specific fields are configuration, not code</li>
+    <li>Specialty-specific fields map to SNOMED CT/LOINC coding where applicable, preserving the FHIR interoperability path already committed to for ABDM without requiring full FHIR resource modeling for every field on day one</li>
+    <li>A facility with no clinical modules entitled at all (a standalone pharmacy, for example) requires no special-casing in the core — the entitlement model above already produces that outcome naturally</li>
+  </ul></section><section id="s2-4"><h3>Data Lifecycle & Retention</h3><h3>Record Lifecycle States</h3>
+<ul>
+  <li>Healthcare records move through defined states rather than existing or being deleted: <strong>Active → Archived → Deactivated → Retention-Locked → Anonymized → Deleted</strong></li>
+  <li>Unrestricted hard deletion of healthcare records is not permitted at any point in this lifecycle — deletion is only reachable after retention obligations are satisfied, and is itself an audited action</li>
+  <li>Retention-Locked records cannot be edited or deleted regardless of role, including by administrators, until the lock condition (statutory period, active MLC, litigation hold) clears</li>
+  <li>Anonymization is available as a lifecycle step for records that have satisfied identifiable-data retention requirements but retain research/analytics value</li>
+  <li>Retention durations follow applicable medical-record norms (3+ years OPD; longer for IPD/MLC, per Security & Compliance, Part VII) — the state machine is the mechanism that enforces those durations technically, not just documents them</li>
+</ul></section><div class="partdivider"><h2>Entitlements, Pricing & Authorization</h2></div><section id="s3-1"><h3>Module Entitlements (incl. Entitlement Lifecycle)</h3><h3>Module Entitlements Architecture</h3><ul>
+    <li>Modular monolith retained — modules are sold and provisioned independently, but all module code deploys as a single application; entitlement is a runtime database check, not a deployment or infrastructure decision</li>
+    <li>Module catalog with an explicit dependency graph (e.g., CSSD requires OT), resolved at entitlement-grant time and kept deliberately sparse — only genuine hard dependencies are encoded</li>
+    <li>A fixed set of core modules (organization/user setup, Patient Management, Appointment, Billing Core, Notifications, Audit, Basic Reports) ship with every tenant and are never sold as a separate line item; every other module is individually entitled</li>
+    <li>Tenant entitlements materialized per (tenant, module, branch) rather than computed by joining through a plan at request time — a later plan or bundle change never silently alters an already-provisioned customer's access</li>
+    <li>Optional branch-level entitlement scope from day one (null = organization-wide, set = branch-specific) so multi-branch chains with per-branch module needs — e.g. only one branch has an OT — are supported without a later schema change</li>
+    <li>Every module's routes are gated by a single requireModule() check, evaluated before any permission check</li>
+    <li>Module deactivation is always soft — access is suspended, underlying data is retained per the statutory retention requirements in §55, enabling painless reactivation</li>
+    <li>Self-serve plan management and payment-integrated billing are explicitly out of MVP scope — entitlement provisioning is a manual, operator-driven action initially; the enforcement mechanism itself is fully automatic from day one</li>
+  </ul>
+<h3>Entitlement Lifecycle</h3>
+<p>Every entitlement record moves through a defined state machine rather than a simple on/off flag.</p>
+<table>
+<tr><th>State</th><th>Meaning</th></tr>
+<tr><td>TRIAL</td><td>Module temporarily available during a trial period</td></tr>
+<tr><td>ACTIVE</td><td>Module is available</td></tr>
+<tr><td>SUSPENDED</td><td>Temporarily unavailable but not commercially cancelled</td></tr>
+<tr><td>EXPIRED</td><td>Entitlement reached its validity end</td></tr>
+<tr><td>CANCELLED</td><td>Commercial entitlement has been cancelled</td></tr>
+<tr><td>DEACTIVATED</td><td>Access intentionally disabled while preserving data</td></tr>
+</table>
+<h4>Metadata</h4>
+<ul>
+  <li><code>effective_from</code>, <code>effective_until</code> — the entitlement's validity window</li>
+  <li><code>suspended_at</code>, <code>cancelled_at</code>, <code>deactivated_at</code> — timestamps for the corresponding state transitions</li>
+  <li><code>reason</code> — why the state changed</li>
+  <li><code>created_by</code>, <code>updated_by</code> — accountability for who changed the entitlement</li>
+</ul>
+<h4>Evaluation</h4>
+<p>Before allowing access, the entitlement engine always evaluates <strong>Tenant + Module + optional Branch + Status + Effective Date + Expiration Date</strong> together — never status in isolation.</p>
+<p>Entitlement records are never physically deleted. Historical entitlement changes remain fully auditable, consistent with Security &amp; Compliance.</p></section><section id="s3-2"><h3>Pricing & Packaging Architecture</h3><p class="lead">Three distinct layers, deliberately kept separate so that changing one never silently changes another.</p>
+<div class="callout teal">
+  <span class="tag">Layering</span>
+  Commercial Subscription / Purchase &rarr; Module Entitlement &rarr; User Authorization. A customer purchasing Pharmacy does not mean every user at that hospital can use Pharmacy — it means the <em>organization</em> is entitled to it; which <em>individual users</em> can act within it is a separate RBAC decision (Part IV).
+</div>
+<ul>
+  <li>Individual modules purchasable standalone, per the Module Capability Matrix</li>
+  <li>Bundles/packages composed of individual modules at a package price, without requiring separate code paths per bundle</li>
+  <li>Module activation/deactivation per organization, and optionally per branch, without redeployment</li>
+  <li>Branch-level entitlements supported from the schema level on day one (nullable — null means organization-wide, set means branch-specific), even though branch-scoped entitlement <em>management UI</em> is a later-phase build, not an MVP one</li>
+  <li>Future usage-based pricing (e.g. per-transaction billing add-ons) is not precluded — entitlement records carry status and validity independent of how the commercial terms behind them are structured</li>
+  <li>Self-serve plan management and payment-integrated billing remain explicitly out of MVP scope; entitlement provisioning is operator-driven at launch, while the enforcement mechanism is fully automatic from day one</li>
+</ul></section><section id="s3-3"><h3>RBAC & User-Level Overrides</h3><p class="lead">Unlimited users with enterprise-grade permission management.</p>
+  <h3>Standard roles</h3>
+  <ul class="cols2">
+    <li>Super Admin</li>
+    <li>Organization Admin</li>
+    <li>Branch Admin</li>
+    <li>Receptionist</li>
+    <li>Doctor</li>
+    <li>Nurse</li>
+    <li>Pharmacist</li>
+    <li>Laboratory Technician</li>
+    <li>Radiologist</li>
+    <li>Cashier</li>
+    <li>Billing Executive</li>
+    <li>Insurance Executive</li>
+    <li>HR</li>
+    <li>Store Manager</li>
+    <li>Housekeeping</li>
+    <li>Security</li>
+    <li>Ambulance Staff</li>
+    <li>OT Staff</li>
+    <li>Patients</li>
+    <li>External / Visiting Doctors</li>
+  </ul>
+  <h3>Permission granularity</h3>
+  <ul>
+    <li>Module level · Screen level · Action level · Field level · Record level · Branch level · Department level</li>
+    <li>Custom roles and permission templates</li>
+    <li>Per-user permission overrides — grant or deny a specific capability to an individual user beyond their role’s defaults, without creating a new role</li>
+    <li>Approval workflows for sensitive actions (discounts, refunds, record corrections)</li>
+    <li>Full audit history of permission changes</li>
+  </ul>
+<h3>Role-Based Access Control with User-Level Overrides</h3><ul>
+    <li>Three independent concepts, each enforced separately — module entitlement (does the organization have this module), role permissions (what a role can do by default), and user-specific overrides (grants or denies for one individual beyond their role)</li>
+    <li>Permission keys use a dot-hierarchy (module.submodule.page.action) — one mechanism gates modules, sub-modules, pages, tabs, and individual CRUD or sensitive actions without a different schema per granularity level</li>
+    <li>Effective permission for a user = the union of all assigned roles' permissions, plus explicit grants, minus explicit denies; an explicit deny always overrides a grant</li>
+    <li>Tenant-level custom roles supported by cloning a system default role and editing its permission set, keeping the total role count bounded rather than growing per customer</li>
+    <li>Resolved permission sets are cached, not recomputed per request, and invalidated on any role, override, or entitlement change</li>
+    <li>Every permission grant or revoke is itself an audited action, restricted to users holding an explicit rbac-management permission</li>
+  </ul></section><section id="s3-4"><h3>Advanced Authorization — Policy-Based, Temporary & Break-Glass (corrected)</h3><p class="lead">The RBAC and user-override model already defined is deliberately not the ceiling — the data model below allows these three capabilities to be added without a security-system redesign, without requiring all three to be built for MVP.</p>
+
+<h3>Policy / Attribute-Based Readiness</h3>
+<ul>
+  <li>Authorization ultimately answers five questions: <strong>WHO</strong> (user/role), <strong>WHAT</strong> (permission), <strong>WHERE</strong> (branch/department/ward/store), <strong>WHICH DATA</strong> (record ownership/assignment), <strong>WHEN</strong> (shift/validity window)</li>
+  <li>WHO and WHAT are fully implemented for MVP (role + permission resolution, Part IV). WHERE is partially implemented via branch-scoped entitlements and roles. WHICH DATA and WHEN are architecturally reserved, not built, for MVP</li>
+  <li>No MVP-stage decision blocks adding record-scoped or time-scoped rules later — the permission-check interface accepts a context object today even though most fields go unused until a later phase requires them</li>
+  <li>A full attribute-based access control (ABAC) engine is explicitly not built for MVP — this is a forward-compatibility guarantee, not a roadmap commitment</li>
+</ul>
+
+<h3>Temporary &amp; Time-Bound Permissions</h3>
+<p>Extends the existing user_permission_overrides mechanism (Part IV) with an explicit validity window — not a separate temporary-access engine.</p>
+<h4>user_permission_overrides — fields</h4>
+<table>
+<tr><th>Field</th><th>Purpose</th></tr>
+<tr><td>id</td><td>Unique override record identifier</td></tr>
+<tr><td>user_id</td><td>The user this override applies to</td></tr>
+<tr><td>permission</td><td>The permission key being granted or denied</td></tr>
+<tr><td>effect</td><td>GRANT or DENY</td></tr>
+<tr><td>valid_from</td><td>When the override becomes effective</td></tr>
+<tr><td>valid_until</td><td>When the override stops being effective</td></tr>
+<tr><td>reason</td><td>Why the override was granted</td></tr>
+<tr><td>created_by</td><td>Administrator who created the override</td></tr>
+<tr><td>created_at</td><td>Creation timestamp</td></tr>
+<tr><td>updated_at</td><td>Last modification timestamp</td></tr>
+<tr><td>revoked_at</td><td>When the override was manually revoked, if applicable</td></tr>
+</table>
+<h4>Behavior</h4>
+<ul>
+  <li>Permanent permissions have <code>valid_until = NULL</code>; temporary permissions have both <code>valid_from</code> and <code>valid_until</code> set</li>
+  <li>An expired permission automatically becomes ineffective — the permission-check engine evaluates validity dates on every check; no scheduled cleanup job is required for correctness</li>
+  <li>Expired permission records are never deleted — they remain available for audit and historical accountability</li>
+  <li>A manually revoked permission is marked via <code>revoked_at</code> rather than deleted, and also remains in the audit history</li>
+  <li>Explicit DENY overrides GRANT, whether either is permanent or temporary</li>
+  <li>Temporary permissions work with the existing RBAC and user-level override model already defined — they are evaluated by the same resolution logic, not a parallel one</li>
+  <li>No separate permission engine is created for temporary access</li>
+</ul>
+<div class="callout teal">
+  <span class="tag">Example</span>
+  Nurse &rarr; normal role permissions &rarr; temporary additional permission: <code>OT.view</code> &rarr; Valid: 12 Aug 2026 08:00, Until: 12 Aug 2026 20:00 &rarr; automatically expires at end of shift, no administrator action required.
+</div>
+<p>Supports: covering nurse, visiting doctor, temporary pharmacist, cross-department staff, emergency staffing, shift-based access.</p>
+<h4>Correction — Cache Expiry Bound (v2.2 review)</h4>
+<ul>
+  <li>Because resolved permission sets are cached rather than recomputed on every request (RBAC &amp; User-Level Overrides), a cached permission set containing one or more temporary overrides must carry a cache expiry no later than the <strong>earliest <code>valid_until</code></strong> among those overrides — the cache is never allowed to outlive the shortest-lived temporary grant it contains</li>
+  <li>A cache with no temporary overrides in it follows the standard cache policy (TTL plus invalidation-on-change) with no additional bound</li>
+  <li>Setting <code>revoked_at</code> on an override must <strong>immediately</strong> invalidate the affected user's permission cache — a targeted invalidation, not a wait for the cache's natural expiry or next scheduled refresh</li>
+  <li>Net effect: a temporary or revoked permission must never remain effective in a stale cache entry, under any circumstances</li>
+</ul>
+<h3>Break-Glass Emergency Access</h3>
+<p>Not required for MVP — the authorization architecture reserves a clean insertion point for it, so adding it later is an extension, not a redesign.</p>
+<h4>Intended flow</h4>
+<p>Normal Authorization &rarr; Access Denied &rarr; Is Break-Glass Applicable? &rarr; User Confirmation &rarr; Mandatory Emergency Reason &rarr; Temporary Emergency Access &rarr; Enhanced Audit Event &rarr; Automatic Expiration &rarr; Post-Event Review</p>
+<h4>Must</h4>
+<ul>
+  <li>Require explicit user confirmation before access is granted</li>
+  <li>Require a mandatory reason captured at the point of access</li>
+  <li>Require an authenticated user — never available to an unauthenticated request</li>
+  <li>Be gated by a defined emergency-access permission, not implicitly available to every role</li>
+  <li>Grant time-limited access only</li>
+  <li>Produce enhanced audit logging capturing: timestamp, user identity, patient/record accessed, reason, permissions temporarily bypassed/granted, and expiration time</li>
+</ul>
+<h4>Must Not</h4>
+<ul>
+  <li>Silently bypass authorization</li>
+  <li>Create permanent permissions</li>
+  <li>Modify the user's normal role</li>
+  <li>Delete audit records</li>
+  <li>Remain active indefinitely</li>
+</ul>
+<p>The authorization request flow (Part IV) already has a defined insertion point for a break-glass check between Permission and Business Logic, consistent with the flow above — implementing this later touches only that insertion point, not the flow's structure.</p>
+<h4>Correction — Notification &amp; Review Boundary (v2.2 review)</h4>
+<ul>
+  <li>Administrator/compliance notification on break-glass use must be <strong>configurable per tenant</strong> — who is notified, and whether notification is synchronous or digested — rather than hardcoded to a single fixed recipient or channel</li>
+  <li>Post-event review (confirming, escalating, or closing a break-glass access event) is a review/audit workflow only. It must never, as a side effect, alter the user's permanent role or permission assignments</li>
+  <li>Any permanent access change identified as necessary during post-event review must go through the standard RBAC/override administration path (RBAC &amp; User-Level Overrides), never through the break-glass mechanism itself</li>
+  <li>This extends, and does not relax, the existing Must-Not requirement that break-glass never modifies the user's normal role</li>
+</ul></section><section id="s3-5"><h3>Frontend + Backend Authorization Flow</h3><h3>Authorization Request Flow</h3><ul>
+    <li>Every protected request is evaluated in a fixed order — authenticated, then tenant entitled to the module, then user permitted the specific action, then business logic executes</li>
+    <li>Frontend enforcement (hidden menus/tabs/buttons, route guards returning a proper forbidden state for a manually entered URL) is a usability layer only</li>
+    <li>Backend enforcement is independent and non-negotiable — every protected endpoint re-validates both entitlement and permission regardless of what the frontend already hid; frontend visibility is never treated as security</li>
+    <li>Multi-tenant row-level isolation (§44 Multi-Tenancy Architecture) operates as a separate, lower layer beneath both checks — it controls which rows within an already-authorized module and action are visible, not whether the module or action itself is available</li>
+  </ul></section><section id="s3-6"><h3>Feature Configuration</h3><p class="lead">Distinct from entitlement. Entitlement decides <em>whether</em> a tenant has a module; Feature Configuration decides <em>how</em> that module behaves for them — without a code branch per tenant.</p>
+<div class="callout">
+  <span class="tag">Example</span>
+  Pharmacy = ENABLED (entitlement) → Batch Tracking = ON, Barcode = ON, Multi-Store = ON, Generic Substitution = OFF, Purchase Workflow = OFF (feature configuration)
+</div>
+<ul>
+  <li>Feature flags stored per (tenant, module, feature_key), read by the same module code regardless of which flags are set</li>
+  <li>Lets a single-doctor clinic's Pharmacy stay simple (no multi-store, no purchase-approval workflow) while a hospital chain's Pharmacy runs the full configuration, from the same deployed code</li>
+  <li>Feature configuration changes do not require an entitlement change, a deployment, or a support ticket to engineering</li>
+</ul></section><div class="partdivider"><h2>Billing Architecture</h2></div><section id="s4-1"><h3>Billing Core Boundary (Financial Transaction Infrastructure vs. Billing & Payments)</h3><p class="lead">Built on the Financial Transaction Infrastructure in Platform Core (invoice/payment/tax/receipt/ledger primitives) — this module provides the business-facing billing workflows themselves.</p>
+<ul>
+    <li>Unified billing — OPD, IPD, laboratory, radiology, pharmacy, procedures, OT, packages, and corporate billing</li>
+    <li>GST-compliant invoicing with e-invoice readiness; HSN/SAC mapping</li>
+    <li>Payment methods — cash, card, UPI, net banking, bank transfer, cheque, wallets</li>
+    <li>Payment gateway integration with shareable payment links (PCI DSS-aligned)</li>
+    <li>Advance payments, deposit management, interim bills, and final settlement</li>
+    <li>Discounts with approval workflow, refunds, credit notes, and outstanding tracking</li>
+    <li>Rate lists per payer type — cash, insurance, corporate, government scheme</li>
+  </ul></section><div class="partdivider"><h2>Platform Core Technical Capabilities</h2></div><section id="s5-1"><h3>Authentication</h3><h3>Marketing Site &rarr; Portal Authentication Flow</h3><ul>
+    <li>Marketing site carries no authentication logic — a single Login action links directly to the Portal's login route, with an optional redirect parameter for deep-linking</li>
+    <li>All authentication, session issuance, MFA, SSO, and role-based dashboard routing is handled entirely within the Portal application</li>
+    <li>Session model — short-lived JWT access token plus an httpOnly, secure refresh-token cookie scoped to the Portal's own domain; no shared session state with the Marketing Site</li>
+    <li>Post-login routing determined by the authenticated user's role, served from the single Portal application rather than separate apps per role</li>
+  </ul></section><section id="s5-2"><h3>Notification Architecture</h3><ul>
+    <li>Channels — SMS (DLT-registered templates), Email, Push, WhatsApp Business API, In-App, Voice Calls (optional)</li>
+    <li>Triggers — appointment reminders, queue updates, report availability, payment reminders, admission updates, prescription/medication reminders, discharge and follow-up</li>
+    <li>Per-patient communication logs; per-tenant template management</li>
+    <li>Broadcast messaging for camps and announcements (opt-in based)</li>
+  </ul>
+<h3>SMS &amp; WhatsApp Notification Service</h3><ul>
+    <li>MSG91 as the SMS/WhatsApp provider — a Meta-approved WhatsApp Business Solution Provider with built-in DLT template registration support, required for any commercial SMS to Indian numbers under TRAI regulation</li>
+    <li>Delivered entirely through the centralized NotificationService (§71 Phase 0 — Platform Foundation) — no module calls MSG91 directly, so the provider can be replaced without touching Pharmacy, Appointment, Laboratory, or any other module</li>
+    <li>DLT entity, sender ID, and template registration treated as a build prerequisite, not a mid-build discovery — operator approval takes 24–48 hours and gates any SMS-dependent feature (appointment reminders, OTP) in staging</li>
+  </ul>
+<h3>Transactional Email Service</h3><ul>
+    <li>AWS SES, using the ap-south-1 (Mumbai) or ap-south-2 (Hyderabad) region specifically — not a default or unspecified region — for the same data-residency reasoning applied to storage and hosting</li>
+    <li>Selected primarily for cost at scale and for an India-resident region with an official, well-documented Node.js SDK</li>
+    <li>Requires AWS production-access approval before go-live (SES starts in a sandbox restricted to verified addresses) — requested early, not the week before launch</li>
+    <li>Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place</li>
+  </ul></section><section id="s5-3"><h3>File Storage Architecture</h3><h3>File, Image, PDF &amp; Invoice Storage</h3><ul>
+    <li>Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is India-resident storage (E2E Object Storage, S3-compatible), consistent with the Health Data Management Policy's India-storage requirement for ABDM-integrated health data</li>
+    <li>If Cloudflare R2 is used for any bucket, it must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident</li>
+    <li>Files sit behind a FileStorageService abstraction; the database stores only file metadata and references (path, size, MIME type, checksum, uploader, access-control tags) — never file content</li>
+    <li>Default-private buckets with short-lived signed URLs generated per request; nothing served as a permanently public object URL</li>
+    <li>File-type and size validation enforced server-side before any upload is accepted, never left to frontend validation alone</li>
+    <li>Every file access enforced by the same entitlement and RBAC checks defined in §38 and §40 — file storage does not carry its own separate authorization model</li>
+    <li>Access to and deletion of sensitive healthcare documents is audit-logged, consistent with §55; versioning retained for clinical documents subject to correction (e.g. amended reports)</li>
+  </ul>
+<div class="callout">
+  <span class="tag">Regulatory language — verify before external use</span>
+  India-resident storage is adopted here as a deliberate, conservative <em>design decision</em>, not a claim of settled law. The DPDP Act does not currently impose blanket localization for general health data, and no country is currently restricted for cross-border transfer. Secondary sources describe an India-storage expectation for ABDM-integrated health data under the Health Data Management Policy; this has not been independently verified against a primary ABDM/MeitY source. Given healthcare is a plausible candidate for tighter future rules, and given the low cost of applying one storage policy platform-wide, India-resident storage remains the recommended default — pending formal legal/compliance verification before this is repeated in a customer-facing or regulatory context.
+</div></section><section id="s5-4"><h3>Domain Events & Background Jobs</h3><h3>Domain Events</h3>
+<ul>
+  <li>An internal event bus inside the modular monolith — not Kafka, not a message broker, not external infrastructure — connecting modules without direct coupling</li>
+  <li>Representative events: <code>PatientRegistered</code>, <code>AppointmentBooked</code>, <code>AppointmentCancelled</code>, <code>EncounterCreated</code>, <code>PrescriptionCreated</code>, <code>LabResultReady</code>, <code>InvoiceCreated</code>, <code>PaymentReceived</code>, <code>AdmissionCreated</code>, <code>DischargeCompleted</code></li>
+  <li>Events feed Notifications, Audit, the Activity Timeline, Reporting, and Analytics — a module publishes an event once, and any number of downstream concerns subscribe, instead of the module calling each of them directly</li>
+  <li>This is also what keeps future module/service extraction realistic — a module already communicating by event rather than direct function call is most of the way to being extractable into its own service without a rewrite</li>
+</ul>
+<h3>Background Job Categories</h3>
+<ul>
+  <li>Every async workflow is categorized, not ad hoc: <strong>Synchronous</strong> (blocks the request — used sparingly), <strong>Async</strong> (fire-and-forget via the queue), <strong>Scheduled</strong> (cron-like, time-triggered), <strong>Long-running</strong> (progress-tracked), <strong>Retryable</strong> (idempotent, safe to re-run on failure)</li>
+  <li>Examples: SMS/Email → Async; PDF generation → Async; large MIS reports → Async/Long-running; ABDM synchronization → Async/Retryable; appointment reminders → Scheduled; bulk file processing → Worker/Long-running</li>
+  <li>All of the above run on the same Redis + BullMQ infrastructure (Part VI) — no module creates its own cron process or ad hoc scheduler</li>
+</ul></section><section id="s5-5"><h3>Global Search & Activity Timeline</h3><h3>Global Search</h3>
+<ul>
+  <li>A platform-level search capability, not a separate implementation per module — searching a patient name returns matches across Patient, Appointment, Prescription, Invoice, Lab Report, and Admission in one query</li>
+  <li>Results are filtered through the same entitlement and permission checks as any other data access — global search never surfaces a record the searching user could not otherwise see</li>
+</ul>
+<h3>Activity Timeline</h3>
+<p>Distinct from the Audit Log (Security & Compliance, Part VII), which exists for security and compliance:</p>
+<ul>
+  <li><strong>Audit Log</strong> — "User X viewed Patient Y", "User X changed a permission", "User X downloaded a report" — a compliance and security record</li>
+  <li><strong>Activity Timeline</strong> — "Appointment booked", "Patient checked in", "Consultation completed", "Prescription created", "Lab ordered", "Payment received" — a clinical/business narrative of what happened to a patient or a case</li>
+  <li>Built from the same Domain Events stream above — modules contribute timeline entries by publishing the event they already publish for other purposes, not by writing to a timeline table directly</li>
+</ul></section><section id="s5-6"><h3>Reporting Architecture</h3><ul>
+    <li>Operational dashboards — revenue, OPD/IPD statistics, bed occupancy, doctor productivity, pharmacy sales, lab revenue</li>
+    <li>Patient analytics — demographics, no-show analysis, wait times</li>
+    <li>Clinical and operational KPIs; disease trends, lab TAT, mortality/morbidity</li>
+    <li>NABH-aligned quality indicator reports</li>
+    <li>Custom dashboard builder with drill-down</li>
+    <li>Predictive analytics — occupancy forecasting, revenue trends, inventory demand</li>
+    <li>Scheduled report exports (Excel/PDF, email delivery); role-based report access</li>
+  </ul></section><section id="s5-7"><h3>API Architecture & Reliability</h3><h3>Backend Architecture</h3><ul>
+    <li>Modular monolith to start — each business module (patient, appointment, billing, pharmacy, lab, etc.) owns its own routes, controller, service, and repository layers</li>
+    <li>Module boundaries designed for clean extraction into independent services later — Laboratory and the Notification Engine are the most likely first candidates given their distinct scaling and latency profiles</li>
+    <li>Asynchronous workflows (notifications, ABDM sync, report generation, insurance claim batches) processed via a Redis-backed job queue rather than inline in request handlers</li>
+  </ul>
+
+<h3>Idempotency</h3>
+<ul>
+  <li>Required for payments, invoices, appointment bookings, notifications, and external integration calls — any operation a network retry could duplicate</li>
+  <li>Enforced via an idempotency key on the request, checked before the operation executes, so a retried request returns the original result rather than creating a duplicate</li>
+</ul>
+<h3>Concurrency Control</h3>
+<ul>
+  <li>Optimistic locking/versioning on records multiple users may edit simultaneously — clinical notes, prescriptions, patient information, inventory counts, billing line items, admission records</li>
+  <li>A stale write is rejected with a clear conflict response rather than silently overwriting another user's concurrent edit</li>
+</ul></section><div class="partdivider"><h2>Security, Compliance & Infrastructure</h2></div><section id="s6-1"><h3>Security & Compliance</h3><p class="lead">Security by Design and Privacy by Design. The platform stores sensitive patient health information and processes financial transactions; these are core architectural requirements.</p>
+  <ul class="cols2">
+    <li>Encryption at rest (AES-256) and in transit (TLS 1.2+)</li>
+    <li>Fine-grained RBAC and Multi-Factor Authentication (MFA)</li>
+    <li>SSO — SAML / OAuth 2.0 / OIDC</li>
+    <li>Comprehensive, immutable, tamper-evident audit trails</li>
+    <li>Secure API architecture with rate limiting and input validation</li>
+    <li>Secure file storage with access controls</li>
+    <li>Digital signatures on clinical and consent documents</li>
+    <li>Consent management for all health-information sharing</li>
+    <li>Session management, password policies, device/session controls, account lockout</li>
+    <li>Automated backups and disaster recovery with defined RPO/RTO</li>
+    <li>Data retention and archival per medical record norms (3+ years OPD; longer for IPD/MLC)</li>
+    <li>DPDP Act 2023 — consent artefacts, purpose limitation, data principal rights, breach notification</li>
+    <li>CERT-In directions — 180-day log retention, 6-hour incident reporting readiness</li>
+    <li>Data residency within India</li>
+    <li>ABDM certification requirements — WASA audit by CERT-In empanelled auditor</li>
+    <li>PCI DSS-aligned payment practices — no card data stored on platform</li>
+    <li>OWASP Top 10 protections; periodic VAPT</li>
+    <li>Privacy-first, least-privilege architecture; PII masking in logs and non-production environments</li>
+  </ul>
+<h3>Regulatory Claim Discipline</h3>
+<p>Every regulatory statement in this document falls into exactly one of three categories:</p>
+<ul>
+  <li><strong>Confirmed requirement</strong> — supported by an authoritative primary source (the Act, Rule, or official policy document itself)</li>
+  <li><strong>Design decision</strong> — a conservative architectural choice made by the HMS team, not a claim of legal obligation</li>
+  <li><strong>Pending verification</strong> — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement</li>
+</ul>
+<div class="callout">
+  <span class="tag">General rule</span>
+  Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.
+</div></section><section id="s6-2"><h3>Regulatory Verification & Compliance Source Register</h3><p class="lead">Every regulatory area this platform touches, with its verification status tracked explicitly rather than assumed. Fields not yet confirmed are marked Pending verification rather than guessed.</p>
+<table>
+<tr><th>Requirement</th><th>Area</th><th>Source</th><th>Verification Status</th><th>Owner</th><th>Last Verified</th><th>Notes</th></tr>
+<tr><td>Data localization for general personal data</td><td>DPDP Act</td><td>Digital Personal Data Protection Act, 2023</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text</td></tr>
+<tr><td>Breach/incident reporting obligations</td><td>CERT-In directions</td><td>CERT-In cybersecurity directions</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Referenced in Security &amp; Compliance; specific timelines not independently verified</td></tr>
+<tr><td>Health record storage/localization for ABDM-integrated data</td><td>ABDM</td><td>Health Data Management Policy (ABDM)</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI)</td></tr>
+<tr><td>Remote consultation requirements</td><td>Telemedicine Practice Guidelines</td><td>Telemedicine Practice Guidelines, 2020</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Telemedicine &amp; Video Consultation, Part III</td></tr>
+<tr><td>Diagnostic technique restrictions (sex-determination)</td><td>PC-PNDT</td><td>Pre-Conception and Pre-Natal Diagnostic Techniques Act</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology</td></tr>
+<tr><td>Segregation, handling, and disposal of clinical waste</td><td>Biomedical Waste</td><td>Bio-Medical Waste Management Rules, 2016</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Biomedical Waste Management, Part II</td></tr>
+<tr><td>Pharmacy licensing, storage, and dispensing rules</td><td>Drugs &amp; Cosmetics Rules</td><td>Drugs and Cosmetics Act &amp; Rules</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Pharmacy Management, Part II</td></tr>
+<tr><td>Blood bank licensing and operational requirements</td><td>Blood Bank requirements</td><td>Drugs and Cosmetics Rules (Blood Bank provisions)</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Blood Bank Management, Part II</td></tr>
+<tr><td>Tax invoicing, HSN/SAC, and filing requirements</td><td>GST</td><td>Goods and Services Tax Act</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to Billing &amp; Payments and Financial Management, Part II</td></tr>
+<tr><td>Payment card data handling</td><td>PCI DSS</td><td>PCI Security Standards Council</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Applies to the Payment Gateway add-on and Billing &amp; Payments, Part II/III</td></tr>
+<tr><td>Medical device / software classification for AI-assisted features</td><td>CDSCO / SaMD</td><td>Central Drugs Standard Control Organisation</td><td>Pending verification</td><td>Pending verification</td><td>Pending verification</td><td>Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX</td></tr>
+</table></section><section id="s6-3"><h3>Performance & Scalability</h3><ul>
+    <li>Millions of patient records; thousands of concurrent users</li>
+    <li>Horizontal scaling, auto-scaling, and high availability (99.5%+ uptime SLA target)</li>
+    <li>Page/API response under 2 seconds for standard operations</li>
+    <li>Multi-region deployment capability and CDN support</li>
+    <li>Background job processing and event-driven architecture for asynchronous workflows</li>
+    <li>Offline-first capability for selected workflows in low-connectivity settings</li>
+    <li>Disaster recovery with defined RPO/RTO objectives</li>
+  </ul></section><section id="s6-4"><h3>Infrastructure & Hosting</h3><h3>Hosting Infrastructure</h3><ul>
+    <li>Primary hosting on E2E Networks — an India-headquartered, MeitY-empanelled cloud provider with an explicit data-sovereignty proposition, selected over global hyperscalers specifically for the residency posture required by ABDM-integrated health data</li>
+    <li>Managed PostgreSQL (E2E DBaaS) provisioned as a dedicated service from day one, not co-located with the application server — automated backups and point-in-time recovery are a day-one requirement for medical-record data, not a later hardening step</li>
+    <li>Application compute (backend, portal, marketing) on a single right-sized VM under the existing Nginx + PM2 pattern; a load balancer and horizontally-scaled compute are added once traffic actually requires it, below</li>
+    <li>Redis co-located on the application VM for MVP (permission-set cache, background job queue); migrated to a managed instance once cache size or queue volume justifies it</li>
+    <li>Cloudflare retained in front of all public-facing traffic — CDN, WAF, DDoS protection, DNS — kept for what it is strongest at, independent of where data is stored at rest</li>
+    <li>Automated daily database backups with point-in-time recovery, with restore drilled — not just configured — before the first paying customer goes live</li>
+  
+    <li>Application code is not tightly coupled to PM2 or a single VM — process management and deployment target are an operational choice, not an architectural assumption, so migrating to Docker containers, a load balancer, and horizontally-scaled compute later is an infrastructure change, not an application rewrite</li>
+  </ul>
+<h3>Deployment Topology</h3><ul>
+    <li>Reuses the existing Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner pattern already in production for the StoreVeu platform</li>
+    <li>Subdomain-per-application convention — Marketing Site on the root domain, HMS Portal on a portal subdomain, backend API on an api subdomain</li>
+    <li>CI/CD builds and deploys only the application(s) affected by a given push, using Turborepo's affected-package detection</li>
+    <li>This topology is right-sized for pilot customers and early revenue; meeting the horizontal auto-scaling, multi-region, and 99.5%+ uptime targets in §57 will require a later migration to managed PostgreSQL (with read replicas) and containerized horizontal scaling — a deliberate future-stage step, not a day-one requirement</li>
+  </ul></section><section id="s6-5"><h3>External Provider Abstractions</h3><h3>Provider Abstraction Principle</h3><ul>
+    <li>Every external provider — MSG91, AWS SES, E2E Object Storage/Cloudflare R2, E2E DBaaS — sits behind an internal service (NotificationService wrapping SmsService and EmailService; FileStorageService) that individual modules call; no module holds a direct SDK dependency on an external vendor</li>
+    <li>The same principle already applied to multi-tenancy, entitlements, and RBAC in §38, §40, and §44: infrastructure decisions are swappable configuration behind a stable internal interface, not load-bearing assumptions baked into business logic</li>
+  </ul>
+<h3>Governance &amp; Audit</h3><ul>
+    <li>All entitlement changes (activation, deactivation, plan changes) and all permission changes (role edits, user overrides) are written to the immutable audit trail required in §55</li>
+    <li>Entitlement and permission resolution logic is versioned application code; only the data they operate on (module catalog, role definitions, override records) is runtime-configurable — hospital administrators configure who has which of the permissions the platform defines, not new enforcement points themselves</li>
+  </ul></section><div class="partdivider"><h2>Technology Stack</h2></div><section id="s7-1"><h3>Technology Stack & Monorepo Structure</h3><h3>Technology Stack</h3><ul>
+    <li>Frontend — Next.js (App Router), TypeScript; used for both the HMS Portal and the Marketing Site</li>
+    <li>Backend — Node.js + Express.js, TypeScript; versioned REST API (/api/v1) with OpenAPI/Swagger documentation</li>
+    <li>Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)</li>
+    <li>Package manager / build system — pnpm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds</li>
+  </ul>
+<h3>Monorepo Structure</h3><ul>
+    <li>apps/backend — Node.js/Express API, authentication, business logic, database integration</li>
+    <li>apps/portal — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards</li>
+    <li>apps/marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content</li>
+    <li>packages/types — shared TypeScript types and API contracts consumed by both backend and portal</li>
+    <li>packages/ui — shared design-system components used by portal and marketing</li>
+    <li>packages/config, packages/utils — shared lint/build configuration and common utilities</li>
+    <li>Room reserved for a future apps/mobile package (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6</li>
+  </ul></section><section id="s7-2"><h3>Technical Expectations</h3><ul>
+    <li>Cloud-native microservices or well-modularized architecture (depending on deployment scale)</li>
+    <li>API-first design — versioned REST APIs with backward compatibility; optional GraphQL</li>
+    <li>Event-driven messaging for asynchronous workflows</li>
+    <li>Comprehensive API documentation (OpenAPI/Swagger)</li>
+    <li>Automated testing — unit, integration, end-to-end</li>
+    <li>CI/CD pipelines and Infrastructure as Code (IaC)</li>
+    <li>Centralized logging, monitoring, and full observability (logs, metrics, traces)</li>
+    <li>Feature flags and tenant-specific configuration</li>
+    <li>Deployment targets — public cloud, private cloud, and on-premises</li>
+    <li>Browser support — latest Chrome, Edge, Firefox; responsive tablet UI</li>
+    <li>Accessibility basics (WCAG 2.1 AA where feasible)</li>
+    <li>Complete technical and user documentation with in-app help</li>
+  </ul></section><div class="partdivider"><h2>Reference</h2></div><section id="s8-1"><h3>Module Capability Matrix</h3><p class="lead">Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.</p>
+<table>
+<tr><th>Module</th><th>Standalone</th><th>Hard Dependencies</th><th>Optional Integrations</th></tr>
+<tr><td>Patient Management</td><td>Yes</td><td>None</td><td>Appointment, EMR, Billing</td></tr>
+<tr><td>Appointment Management</td><td>Yes</td><td>Patient Management</td><td>EMR, Notifications</td></tr>
+<tr><td>OPD &amp; Check-in</td><td>Partial</td><td>Patient, Appointment</td><td>EMR, Billing</td></tr>
+<tr><td>Clinical Workflow (EMR)</td><td>Partial/No</td><td>Patient, Encounter (OPD/IPD)</td><td>Lab, Pharmacy, Radiology</td></tr>
+<tr><td>Nursing</td><td>No</td><td>IPD</td><td>EMR</td></tr>
+<tr><td>Laboratory</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing</td></tr>
+<tr><td>Radiology &amp; Imaging</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, PACS (add-on)</td></tr>
+<tr><td>Admission (IPD)</td><td>Partial</td><td>Patient</td><td>Billing, Nursing, Insurance</td></tr>
+<tr><td>Emergency (ER)</td><td>Yes</td><td>Patient</td><td>EMR, Billing, IPD</td></tr>
+<tr><td>Operation Theatre (OT)</td><td>No</td><td>IPD</td><td>EMR, Billing, Inventory</td></tr>
+<tr><td>CSSD</td><td>No</td><td>OT</td><td>Inventory</td></tr>
+<tr><td>Blood Bank</td><td>Yes/Partial</td><td>None</td><td>Patient, Billing</td></tr>
+<tr><td>Specialty Clinical Modules</td><td>No</td><td>EMR</td><td>Billing</td></tr>
+<tr><td>Pharmacy</td><td>Yes</td><td>None</td><td>Patient, EMR, Billing, Inventory</td></tr>
+<tr><td>Inventory, Stores &amp; Procurement</td><td>Yes</td><td>None</td><td>Pharmacy, OT, Billing</td></tr>
+<tr><td>Billing &amp; Payments</td><td>Yes</td><td>None</td><td>Patient, Pharmacy, Lab, IPD</td></tr>
+<tr><td>Insurance, TPA &amp; Govt. Schemes</td><td>No</td><td>Billing</td><td>Patient, IPD</td></tr>
+<tr><td>Financial Management</td><td>Partial</td><td>Billing</td><td>Inventory, HR</td></tr>
+<tr><td>Dietary &amp; Kitchen</td><td>Yes</td><td>None</td><td>IPD (diet-chart linkage)</td></tr>
+<tr><td>Housekeeping &amp; Laundry</td><td>Yes</td><td>None</td><td>IPD (ward/bed linkage)</td></tr>
+<tr><td>Ambulance &amp; Fleet</td><td>Yes</td><td>None</td><td>Patient, ER, Billing</td></tr>
+<tr><td>Biomedical Equipment &amp; Asset Mgmt</td><td>Yes</td><td>None</td><td>OT, Laboratory, Radiology</td></tr>
+<tr><td>Biomedical Waste Management</td><td>Yes</td><td>None</td><td>None required</td></tr>
+<tr><td>HR, Payroll &amp; Doctor Scheduling</td><td>Yes</td><td>None</td><td>Appointment, Financial Management</td></tr>
+<tr><td>CRM &amp; Patient Engagement</td><td>Yes</td><td>None</td><td>Patient, Appointment, Notifications</td></tr>
+</table>
+<p>All 25 modules list <strong>Platform Core</strong> as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.</p>
+<p>"Standalone" in this matrix means <em>technically</em> standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.</p></section><section id="s8-2"><h3>Dependency Map</h3><p class="lead">The critical path through the MVP, and how later phases attach to it.</p>
+  <table>
+    <tr><th>Chain</th><th>Notes</th></tr>
+    <tr><td>Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports</td><td>The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists</td></tr>
+    <tr><td>Patient + Billing Core → IPD → Nursing</td><td>Phase 2 branch</td></tr>
+    <tr><td>IPD → OT → CSSD</td><td>Phase 4 branch, gated behind IPD</td></tr>
+    <tr><td>Patient → Blood Bank</td><td>Mostly independent — can be pulled forward if a customer needs it early</td></tr>
+    <tr><td>Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns</td><td>One shared service, reused by every later module — never rebuilt</td></tr>
+    <tr><td>Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management</td><td>Every future revenue-generating module extends this same engine with a new line-item type</td></tr>
+  </table></section>
+<footer>
+  <span>Takoriya Technology LLP · Kadi, Gujarat</span>
+  <span>Architecture Document v1.0 · August 2026</span>
+</footer>
+</main>
+</div>
+</body></html>
