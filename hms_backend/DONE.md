@@ -114,3 +114,25 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **Decisions:** Org-code tenant resolution at login (RLS-clean: resolve tenant first, then scope). Server-side sessions for refresh rotation + revocation. Access token carries `tid` so RLS context is always from the authenticated session. MFA hook via `users.mfaEnabled`; SSO reserved at the token layer.
 
 **Known limitations:** `roles` is empty until RBAC (#5). MFA challenge returns a state but no second-factor verification yet. No password-reset/forgot flow yet (Phase 0 scaffolds the screen; endpoints later).
+
+---
+
+## 2026-08-13 — RBAC engine + overrides + temporary permissions (Task #5)
+
+**What:** Role-based access control with per-user overrides and time-bound permissions.
+
+**Added:**
+- `@hms/permissions` (shared): dot-hierarchy `PERMISSIONS` catalog, `WILDCARD`, `SYSTEM_ROLES` (8 MVP roles + their defaults). Backend now depends on it.
+- Schema: `permissions` (global catalog) + `roles`, `role_permissions`, `user_roles`, `user_permission_overrides` (tenant-scoped, RLS). Migration `drizzle/0002_silly_sumo.sql`.
+- `modules/rbac/`: `rbac.service.ts` (seed catalog, provision tenant roles, assign role, **resolvePermissions**, setOverride/revokeOverride), `permissionCache.ts` (ADR-010 bounded cache + targeted invalidation), `rbac.schema.ts`, `rbac.controller.ts`, `rbac.routes.ts`, `rbac.openapi.ts`.
+- `http/requirePermission.ts` — the 3rd authz link.
+- Seed extended: provision roles per tenant + a demo `org_admin` and `receptionist` user.
+- Tests: `modules/rbac/__tests__/rbac.test.ts` (role perms, DENY-over-GRANT, temporary window, cache invalidation).
+
+**API:** `GET /api/v1/rbac/permissions`, `GET /api/v1/rbac/roles` — both documented (OpenAPI gate passes).
+
+**Testing status:** typecheck green · openapi:validate green · full suite **11/11** (2 RLS + 4 RBAC + 5 auth). **Live-verified:** org_admin `GET /rbac/roles` → 200 (8 roles); receptionist → **403** (lacks `platform.roles.view`); effective permissions correct (org_admin 10, receptionist 5).
+
+**Decisions:** DENY always wins; effective = union(roles) + grants − denies. Resolution cached, bounded by earliest temporary `valid_until` (ADR-010), invalidated on any change. requirePermission resolves server-side (cached) rather than trusting the JWT `roles` claim, so a permission change takes effect without re-login. Roles are tenant-scoped (seeded per tenant, cloneable).
+
+**Known limitations:** Admin CRUD endpoints for granting roles/overrides not yet exposed (service functions exist; UI/endpoints later). Permission grant/revoke audit deferred to Task #7 (TODO in `setOverride`). requireModule (entitlement) is Task #6.

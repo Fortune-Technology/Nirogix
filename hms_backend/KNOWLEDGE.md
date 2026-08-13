@@ -71,9 +71,19 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **MFA hook:** `users.mfaEnabled` → when true, login returns `{ mfaRequired: true }` instead of tokens (second-factor verification is a later phase). **SSO** (SAML/OAuth2/OIDC) is a reserved provider that plugs into the same `issueSession()`/token layer.
 - **Demo:** `npm run db:seed` → tenant `CITYCARE` + `admin@citycare.example` / `ChangeMe#123`.
 
-## Permissions / RBAC / entitlement
+## Authorization — RBAC
 
-`req.auth.roles` is populated (empty for now). RBAC (`requirePermission`) + module entitlement (`requireModule`) are the next tasks (#5, #6); the authorization chain is `authenticated → tenant entitled → user permitted → business logic`. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+- **Catalog:** permission keys live in `@hms/permissions` (dot-hierarchy `module.submodule.action`) + `SYSTEM_ROLES` (the 8 MVP roles). Backend `permissions` table (global, seeded) is the catalog.
+- **Tables (tenant-scoped, RLS):** `roles`, `role_permissions`, `user_roles`, `user_permission_overrides`.
+- **Resolver** (`modules/rbac/rbac.service.ts` → `resolvePermissions`): effective = union(role perms) + GRANT overrides − DENY overrides; **explicit DENY always wins**; temporary overrides honoured by `valid_from`/`valid_until`; `WILDCARD ('*')` = all (super_admin).
+- **Cache** (`modules/rbac/permissionCache.ts`): resolved sets cached; **TTL bounded by the earliest temporary `valid_until` (ADR-010)**; any role/override change → targeted `invalidateUser`.
+- **`requirePermission(key)`** (`http/requirePermission.ts`): the 3rd authz link (`requireAuth → requireModule → requirePermission → logic`). Resolves (cached) + enforces; 403 on miss. A route's key is declared explicitly, never inferred.
+- **Provisioning:** `provisionTenantRbac(tenantId)` seeds the system roles per tenant (idempotent); `assignRoleByKey` / `setOverride` / `revokeOverride` mutate + invalidate.
+- Verified live: org_admin → `GET /rbac/roles` 200; receptionist → 403.
+
+## Module entitlement
+
+Not yet implemented — Task #6 adds `requireModule` (gates a module before the permission check): `requireAuth → requireModule → requirePermission → business logic`. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 
@@ -82,6 +92,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/openapi.json` — OpenAPI 3 spec (always served)
 - `GET /api/v1/docs` — Swagger UI (when `OPENAPI_UI_ENABLED=true`)
 - `POST /api/v1/auth/login` · `POST /api/v1/auth/refresh` · `POST /api/v1/auth/logout` · `GET /api/v1/auth/me`
+- `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 
 ## API documentation (OpenAPI) — MANDATORY
 

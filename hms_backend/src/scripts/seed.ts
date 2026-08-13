@@ -4,16 +4,40 @@ import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
 import { tenants, users } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
+import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 
-// Minimal demo seed so login can be exercised end-to-end. Idempotent. Indian healthcare
-// context per resources/rules.md (seed data). Expand into the full multi-tenant demo set in
-// the Ops/seed task (#14). NOT production data — the password here is a known default.
+// Minimal demo seed so login + RBAC can be exercised end-to-end. Idempotent. Indian healthcare
+// context per resources/rules.md. Expand into the full multi-tenant demo in the Ops task (#14).
+// NOT production data — passwords here are known defaults.
 const DEMO = {
   tenant: { code: 'CITYCARE', name: 'CityCare Multispeciality Hospital' },
-  admin: { email: 'admin@citycare.example', password: 'ChangeMe#123', fullName: 'Dr. Ananya Sharma' },
+  users: [
+    { email: 'admin@citycare.example', password: 'ChangeMe#123', fullName: 'Dr. Ananya Sharma', role: 'org_admin' },
+    { email: 'reception@citycare.example', password: 'ChangeMe#123', fullName: 'Rahul Verma', role: 'receptionist' },
+  ],
 };
 
+async function upsertUser(
+  tenantId: string,
+  u: { email: string; password: string; fullName: string },
+): Promise<string> {
+  return runWithTenant(tenantId, async (tx) => {
+    const existing = (await tx.select().from(users).where(eq(users.email, u.email)).limit(1))[0];
+    if (existing) return existing.id;
+    const passwordHash = await hashPassword(u.password);
+    const inserted = (
+      await tx
+        .insert(users)
+        .values({ tenantId, email: u.email, passwordHash, fullName: u.fullName, status: 'active' })
+        .returning()
+    )[0]!;
+    return inserted.id;
+  });
+}
+
 async function main(): Promise<void> {
+  await seedPermissionCatalog();
+
   let tenant = (await db.select().from(tenants).where(eq(tenants.code, DEMO.tenant.code)).limit(1))[0];
   if (!tenant) {
     tenant = (await db.insert(tenants).values(DEMO.tenant).returning())[0]!;
@@ -24,28 +48,16 @@ async function main(): Promise<void> {
     console.log(`Tenant "${DEMO.tenant.code}" already exists`);
   }
 
-  await runWithTenant(tenant.id, async (tx) => {
-    const existing = (
-      await tx.select().from(users).where(eq(users.email, DEMO.admin.email)).limit(1)
-    )[0];
-    if (existing) {
-      // eslint-disable-next-line no-console
-      console.log(`User ${DEMO.admin.email} already exists`);
-      return;
-    }
-    const passwordHash = await hashPassword(DEMO.admin.password);
-    await tx.insert(users).values({
-      tenantId: tenant!.id,
-      email: DEMO.admin.email,
-      passwordHash,
-      fullName: DEMO.admin.fullName,
-      status: 'active',
-    });
+  await provisionTenantRbac(tenant.id);
+  // eslint-disable-next-line no-console
+  console.log('Provisioned system roles + permissions');
+
+  for (const u of DEMO.users) {
+    const userId = await upsertUser(tenant.id, u);
+    await assignRoleByKey(tenant.id, userId, u.role);
     // eslint-disable-next-line no-console
-    console.log(
-      `Created user ${DEMO.admin.email} (org ${DEMO.tenant.code}, password ${DEMO.admin.password})`,
-    );
-  });
+    console.log(`User ${u.email} (${u.role}) ready — org ${DEMO.tenant.code}, password ${u.password}`);
+  }
 
   await pool.end();
   process.exit(0);

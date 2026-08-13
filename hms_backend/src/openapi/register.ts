@@ -4,3 +4,4 @@
 // as undocumented and fail the build.
 import '../modules/health/health.openapi';
 import '../modules/auth/auth.openapi';
+import '../modules/rbac/rbac.openapi';
