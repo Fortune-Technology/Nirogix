@@ -136,3 +136,26 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **Decisions:** DENY always wins; effective = union(roles) + grants − denies. Resolution cached, bounded by earliest temporary `valid_until` (ADR-010), invalidated on any change. requirePermission resolves server-side (cached) rather than trusting the JWT `roles` claim, so a permission change takes effect without re-login. Roles are tenant-scoped (seeded per tenant, cloneable).
 
 **Known limitations:** Admin CRUD endpoints for granting roles/overrides not yet exposed (service functions exist; UI/endpoints later). Permission grant/revoke audit deferred to Task #7 (TODO in `setOverride`). requireModule (entitlement) is Task #6.
+
+---
+
+## 2026-08-13 — Module entitlements + requireModule (Task #6)
+
+**What:** The 2nd authorization link — tenant module entitlements gating business modules before permission checks. Completes the chain `auth → module → permission → logic`.
+
+**Added:**
+- `modules/entitlement/moduleCatalog.ts` (module keys + hard-dependency graph).
+- Schema `tenant_entitlements` (tenant-scoped, RLS) — state machine + effective dates + soft-transition timestamps. Migration `drizzle/0003_talented_clea.sql`.
+- `entitlement.service.ts`: isModuleEntitled, listEntitledModules, **grantModule (hard-dep enforcement)**, setModuleStatus.
+- `http/requireModule.ts` (403 MODULE_NOT_ENTITLED); `entitlement.{schema,controller,routes,openapi}.ts`.
+- Routes: `GET /entitlements` + demonstrators `GET /patients` (auth→module→permission) and `GET /ipd/beds` (requireModule only). Documented.
+- Seed grants the 7 MVP modules to CITYCARE (dependency order). vitest `allowExitOnIdle` on the pool so the suite exits cleanly.
+- Test `entitlement.test.ts` (grant/eval, hard-dep refusal, suspend, expired).
+
+**Defense-in-depth fix (ADR-015):** a failing test exposed that services relied purely on RLS, which the dev **superuser** connection bypasses — leaking rows matched by non-tenant-unique columns (module/role key, email). Added explicit `tenant_id` filters to those queries (entitlement; rbac role-by-key + listRoles; auth login-by-email). RLS remains primary; app-layer filter is the backstop.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **15/15** (2 RLS + 4 RBAC + 4 entitlement + 5 auth). **Live-verified:** `/entitlements` lists 7 modules; `/patients` → 200 (full chain); `/ipd/beds` → **403 MODULE_NOT_ENTITLED**.
+
+**Decisions:** ADR-015 (defense-in-depth tenant scoping). A fresh grant is permanent unless an expiry is given. `tenant_entitlements` never deleted (state as data).
+
+**Known limitations:** Branch-scoped entitlement evaluation (nullable `branch_id`) is schema-ready but `requireModule` checks org-wide only. Admin CRUD endpoints for granting entitlements not exposed (service functions exist). Entitlement changes not yet audited (Task #7). Demonstrator `/patients` + `/ipd/beds` are placeholders for the real modules.

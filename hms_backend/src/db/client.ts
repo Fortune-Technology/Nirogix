@@ -5,7 +5,9 @@ import * as schema from './schema';
 
 // Shared connection pool. The pool connects lazily on first query, so importing this
 // module does not require a reachable database (useful for boot/health before migrations).
-export const pool = new Pool({ connectionString: env.DATABASE_URL });
+// allowExitOnIdle lets short-lived processes (tests, scripts) exit once the pool is idle without
+// an explicit end(); the long-running server is kept alive by its HTTP listener regardless.
+export const pool = new Pool({ connectionString: env.DATABASE_URL, allowExitOnIdle: true });
 
 // Base Drizzle instance. NOTE: for tenant-scoped reads/writes, use runWithTenant()
 // (../tenantContext.ts) rather than this instance directly — RLS needs the per-request

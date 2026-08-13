@@ -5,6 +5,7 @@ import { runWithTenant } from '../db/tenantContext';
 import { tenants, users } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
+import { grantModule } from '../modules/entitlement/entitlement.service';
 
 // Minimal demo seed so login + RBAC can be exercised end-to-end. Idempotent. Indian healthcare
 // context per resources/rules.md. Expand into the full multi-tenant demo in the Ops task (#14).
@@ -51,6 +52,12 @@ async function main(): Promise<void> {
   await provisionTenantRbac(tenant.id);
   // eslint-disable-next-line no-console
   console.log('Provisioned system roles + permissions');
+
+  // Grant the MVP modules (dependency order matters — grantModule enforces hard deps).
+  const MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
+  for (const m of MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
+  // eslint-disable-next-line no-console
+  console.log(`Granted modules: ${MODULES.join(', ')}`);
 
   for (const u of DEMO.users) {
     const userId = await upsertUser(tenant.id, u);

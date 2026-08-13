@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, sessions, type User } from '../../db/schema';
@@ -70,7 +70,11 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
   if (!tenant || tenant.status !== 'active') throw Errors.unauthorized('Invalid credentials');
 
   const user = await runWithTenant(tenant.id, async (tx) => {
-    const rows = await tx.select().from(users).where(eq(users.email, input.email)).limit(1);
+    const rows = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.tenantId, tenant.id), eq(users.email, input.email)))
+      .limit(1);
     return rows[0] ?? null;
   });
   if (!user || user.status !== 'active') throw Errors.unauthorized('Invalid credentials');

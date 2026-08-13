@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { SYSTEM_ROLES, ALL_PERMISSIONS, WILDCARD, permissionModule } from '@hms/permissions';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
@@ -29,7 +29,13 @@ export async function seedPermissionCatalog(): Promise<void> {
 export async function provisionTenantRbac(tenantId: string): Promise<void> {
   await runWithTenant(tenantId, async (tx) => {
     for (const def of SYSTEM_ROLES) {
-      const existing = (await tx.select().from(roles).where(eq(roles.key, def.key)).limit(1))[0];
+      const existing = (
+        await tx
+          .select()
+          .from(roles)
+          .where(and(eq(roles.tenantId, tenantId), eq(roles.key, def.key)))
+          .limit(1)
+      )[0];
       const roleId =
         existing?.id ??
         (
@@ -62,7 +68,13 @@ export async function assignRoleByKey(
   roleKey: string,
 ): Promise<void> {
   await runWithTenant(tenantId, async (tx) => {
-    const role = (await tx.select().from(roles).where(eq(roles.key, roleKey)).limit(1))[0];
+    const role = (
+      await tx
+        .select()
+        .from(roles)
+        .where(and(eq(roles.tenantId, tenantId), eq(roles.key, roleKey)))
+        .limit(1)
+    )[0];
     if (!role) throw new Error(`Role not found: ${roleKey}`);
     await tx
       .insert(userRoles)

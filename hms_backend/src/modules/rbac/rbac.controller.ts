@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { eq } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { roles } from '../../db/schema';
 import { resolvePermissions } from './rbac.service';
@@ -14,7 +15,9 @@ export async function getMyPermissions(req: Request, res: Response): Promise<voi
 
 export async function listRoles(req: Request, res: Response): Promise<void> {
   const { tenantId } = req.auth!;
-  const rows = await runWithTenant(tenantId, (tx) => tx.select().from(roles));
+  const rows = await runWithTenant(tenantId, (tx) =>
+    tx.select().from(roles).where(eq(roles.tenantId, tenantId)),
+  );
   res.json({
     roles: rows.map((r) => ({
       id: r.id,

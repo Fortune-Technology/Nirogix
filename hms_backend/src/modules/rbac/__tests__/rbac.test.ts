@@ -56,11 +56,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  try {
-    if (ready) await cleanup();
-  } finally {
-    await pool.end();
-  }
+  if (ready) await cleanup();
 });
 
 describe('RBAC effective-permission resolution', () => {

@@ -56,6 +56,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Isolation mechanism:** PostgreSQL Row-Level Security. `rls.ts` finds every `public` table with a `tenant_id` column and applies `ENABLE` + **`FORCE`** RLS + a `tenant_isolation` policy reading `current_setting('app.tenant_id')`. `db:migrate` runs Drizzle migrations then `applyRls()` — so RLS coverage is automatic, not remembered per table.
 - **Per-request context:** `runWithTenant(tenantId, fn, pool?)` opens a transaction, sets `app.tenant_id` (transaction-local), and runs `fn` against a Drizzle tx. All queries inside are auto-scoped. `tenantId` comes only from the authenticated session.
 - **⚠ Superuser caveat:** superusers bypass RLS even with FORCE. The app **must** connect as a NON-superuser role in every environment, or isolation is silently off. `DATABASE_URL` must not be a superuser in staging/production.
+- **Defense-in-depth (ADR-015):** queries that match by a non-tenant-unique column (module key, role key, email) ALSO filter by `tenant_id` explicitly, so correctness doesn't depend solely on RLS (which a superuser connection bypasses). RLS stays the primary DB-layer guarantee; id-based queries (user_id, role_id, session_id) rely on it.
 - **Migrations:** `npm run db:generate` (drizzle-kit, no DB) → SQL in `drizzle/`; `npm run db:migrate` applies them + RLS. Additive/reversible only.
 
 ## Testing
@@ -83,7 +84,12 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 
 ## Module entitlement
 
-Not yet implemented — Task #6 adds `requireModule` (gates a module before the permission check): `requireAuth → requireModule → requirePermission → business logic`. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+- **Catalog:** `modules/entitlement/moduleCatalog.ts` — module keys + hard-dependency graph (e.g. `ot→ipd`, `cssd→ot`, `insurance→billing`), deliberately sparse.
+- **Table (tenant-scoped, RLS):** `tenant_entitlements` — per (tenant, module, nullable branch) with a state machine (TRIAL/ACTIVE/SUSPENDED/EXPIRED/CANCELLED/DEACTIVATED) + `effective_from`/`until`. Never physically deleted.
+- **Evaluation** always combines status **+** effective dates (never status alone): `isModuleEntitled`, `listEntitledModules`.
+- **`grantModule`** enforces hard dependencies at grant time (refuses to activate a module whose hard dep isn't entitled); `setModuleStatus` for soft transitions. Provisioning is operator-driven; enforcement automatic. A fresh grant is permanent unless an expiry is given.
+- **`requireModule(key)`** (`http/requireModule.ts`) — the **2nd authz link**: `requireAuth → requireModule → requirePermission → logic`. Returns 403 `MODULE_NOT_ENTITLED` before any permission check.
+- Verified live: `/patients` (patient entitled + PATIENT_VIEW) → 200; `/ipd/beds` (ipd not entitled) → 403. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 
@@ -93,6 +99,7 @@ Not yet implemented — Task #6 adds `requireModule` (gates a module before the 
 - `GET /api/v1/docs` — Swagger UI (when `OPENAPI_UI_ENABLED=true`)
 - `POST /api/v1/auth/login` · `POST /api/v1/auth/refresh` · `POST /api/v1/auth/logout` · `GET /api/v1/auth/me`
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
+- `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/patients` + `GET /api/v1/ipd/beds` (authz-chain demonstrators)
 
 ## API documentation (OpenAPI) — MANDATORY
 

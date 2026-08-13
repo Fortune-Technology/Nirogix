@@ -85,5 +85,11 @@ See `resources/rules.md` (Architecture Decision Records) and `resources/developm
 **Rationale:** Zero extra tooling to onboard; `npm install` at root installs every workspace; Turborepo still gives concurrent `dev`, per-package labelled logs, caching, and affected-detection. Workspace package refs use `"*"` (npm does not support the `workspace:*` protocol).
 **Consequence:** Deleted `pnpm-workspace.yaml`; removed per-app npm lockfiles in favour of one root lock; `resources/architecture.md`/`.html`, `resources/development-plan.md`, `CLAUDE.md`, and the root `README.md` reference npm. Verified: `npm run install:all` + `npm run dev` start backend (4000) + portal (3000) + marketing (3001) together.
 
+## ADR-015 — Defense-in-depth tenant scoping (app-layer filter + RLS)
+**Status:** Accepted (this project)
+**Context:** The architecture relies on PostgreSQL RLS for tenant isolation, so queries inside `runWithTenant` need not filter by `tenant_id`. But a query that matches by a **non-tenant-unique** column (module key, role key, email) leaks across tenants if RLS is ever bypassed — and a **superuser** connection bypasses RLS entirely, which is the default local/dev connection (`DATABASE_URL=postgres`). An entitlement test surfaced this by seeing another tenant's row.
+**Decision:** Queries that select/update by a non-tenant-unique column ALSO filter by `tenant_id` explicitly (belt-and-suspenders). RLS remains the primary DB-layer guarantee; the app-layer filter is defense-in-depth and makes correctness independent of the connection role. Queries matched by a globally-unique id (user_id, role_id, session_id) don't need it.
+**Consequence:** Entitlement, RBAC (role-by-key, listRoles) and auth (login-by-email) service queries carry explicit `tenant_id` filters. Production must still connect as a non-superuser so RLS backstops id-based queries too.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*
