@@ -10,11 +10,13 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"[hms_backend] eslint added in the husky/lint step (Task 0.0)\"",
-    "test": "echo \"[hms_backend] vitest added in the testing increment\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "openapi:generate": "tsx src/scripts/openapi-generate.ts",
     "openapi:validate": "tsx src/scripts/openapi-validate.ts",
+    "db:create": "tsx src/scripts/create-database.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "express-list-endpoints": "^6.0.0",
     "pino-pretty": "^13.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   }
 }

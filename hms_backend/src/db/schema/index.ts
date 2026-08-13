@@ -1,10 +1,8 @@
 // Drizzle schema barrel.
 //
-// Tables are added here per module as Phase 0 and later milestones land
-// (tenants, organizations, branches, users, roles, permissions, entitlements,
-// audit_log, notification_log, ...).
-//
-// Every tenant-scoped table MUST carry a `tenant_id` column and a PostgreSQL
-// Row-Level Security policy that reads current_setting('app.tenant_id') — see
-// runWithTenant() in ../tenantContext.ts and resources/rules.md (Tenancy Rules).
-export {};
+// Every tenant-scoped table (one that carries `tenant_id`) automatically receives the
+// Row-Level Security policy from ../rls.ts when migrations run — see resources/rules.md
+// (Tenancy Rules). The `tenants` table itself is platform-managed and intentionally not
+// tenant-scoped (see ./tenants.ts).
+export * from './tenants';
+export * from './branches';

@@ -12,13 +12,33 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # Real PostgreSQL so the tenant-isolation RLS test runs for real (needs Docker on the
+    # runner; GitHub-hosted runners have it).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hms_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
-      # Non-secret placeholders so the app can boot for typecheck + OpenAPI validation.
-      # Real secrets are injected by the deployment environment, never committed.
       NODE_ENV: test
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/hms_ci
+      # Points at the postgres service above. The tenant-isolation test uses this (as a
+      # superuser) to create a throwaway NON-superuser role and prove RLS. Non-secret CI
+      # placeholders only — real secrets are injected by the deployment environment.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hms_ci
       JWT_ACCESS_SECRET: ci-access-secret-at-least-16-chars
       JWT_REFRESH_SECRET: ci-refresh-secret-at-least-16-chars
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +56,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Mandatory API-docs gate: fails the build if any /api/v1 route is undocumented or the
-      # generated OpenAPI spec is invalid (bad $refs, duplicate operationIds, missing
-      # responses/tags/security). See resources/rules.md → API Documentation Rules.
+      # Mandatory API-docs gate — fails on any undocumented/invalid API.
+      # See resources/rules.md → API Documentation Rules.
       - name: Validate OpenAPI (no undocumented APIs)
         run: npm run openapi:validate
+
+      # Tenant-isolation RLS test + any other suites, against the real PostgreSQL above.
+      - name: Test (incl. tenant-isolation RLS)
+        run: npm run test
 
       - name: Build
         run: npm run build

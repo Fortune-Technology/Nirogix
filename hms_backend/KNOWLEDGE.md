@@ -28,8 +28,13 @@ src/
     respond.ts        paginate() — shared pagination envelope
   db/
     client.ts         pg Pool + base Drizzle instance (tenant-agnostic bootstrap only)
-    tenantContext.ts  runWithTenant() — the RLS invariant helper
-    schema/index.ts   Drizzle schema barrel (tables added per module)
+    tenantContext.ts  runWithTenant(tenantId, fn, pool?) — the RLS invariant helper
+    rls.ts            RLS policy template; applyRls() auto-applies to every tenant_id table
+    migrate.ts        runs Drizzle migrations + applyRls (the `db:migrate` script)
+    schema/
+      tenants.ts      tenants (platform-managed; no RLS) · branches.ts (tenant-scoped; RLS)
+      index.ts        barrel
+    __tests__/tenant-isolation.test.ts   RLS isolation test (skips if no DB reachable)
   modules/
     health/health.routes.ts   /health (liveness) + /health/ready (DB readiness)
   api/v1/index.ts     the /api/v1 router; module routers mount here
@@ -44,6 +49,19 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **One error shape:** throw `AppError` (or a canonical `Errors.*`); `errorHandler` renders `{ error: { code, message, details? } }`. The authz chain maps to `UNAUTHORIZED` → `MODULE_NOT_ENTITLED` → `FORBIDDEN`.
 - **Validation:** every request body/query/params validated with Zod via `validate(...)` before business logic.
 - **Env:** add new config to `EnvSchema` in `config/env.ts` and to `.env.example`.
+
+## Tenancy & RLS
+
+- **Tables:** `tenants` (the tenant/hospital — platform-managed, provisioned by an operator, **no** `tenant_id`/RLS) and `branches` (tenant-scoped: has `tenant_id` + RLS). Every future tenant-scoped table follows the `branches` shape.
+- **Isolation mechanism:** PostgreSQL Row-Level Security. `rls.ts` finds every `public` table with a `tenant_id` column and applies `ENABLE` + **`FORCE`** RLS + a `tenant_isolation` policy reading `current_setting('app.tenant_id')`. `db:migrate` runs Drizzle migrations then `applyRls()` — so RLS coverage is automatic, not remembered per table.
+- **Per-request context:** `runWithTenant(tenantId, fn, pool?)` opens a transaction, sets `app.tenant_id` (transaction-local), and runs `fn` against a Drizzle tx. All queries inside are auto-scoped. `tenantId` comes only from the authenticated session.
+- **⚠ Superuser caveat:** superusers bypass RLS even with FORCE. The app **must** connect as a NON-superuser role in every environment, or isolation is silently off. `DATABASE_URL` must not be a superuser in staging/production.
+- **Migrations:** `npm run db:generate` (drizzle-kit, no DB) → SQL in `drizzle/`; `npm run db:migrate` applies them + RLS. Additive/reversible only.
+
+## Testing
+
+- `npm run test` → vitest. `db/__tests__/tenant-isolation.test.ts` provisions a throwaway non-superuser role, seeds two tenants, and asserts Tenant A can neither read nor write Tenant B's rows.
+- Needs a reachable PostgreSQL via `TEST_DATABASE_URL` (else `DATABASE_URL`) whose role can create a role + tables. **Skips cleanly** (green) if none is reachable; **CI runs it for real** against a Postgres service (`.github/workflows/ci.yml`).
 
 ## Permissions / RBAC / entitlement
 
