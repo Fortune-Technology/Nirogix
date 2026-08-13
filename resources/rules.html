@@ -125,7 +125,18 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <li>Every request is validated (Zod or equivalent) before it reaches business logic.</li>
 <li>Payments, invoices, appointment bookings, notifications, and external integration calls are idempotent via an idempotency key.</li>
 <li>API error responses use one consistent shape across every module.</li>
-<li>OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately.</li>
+<li>OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately, and is part of the Definition of Done for every endpoint (see API Documentation Rules).</li>
+</ul></section><section id="s2-5b"><h3>API Documentation Rules</h3>
+<p>OpenAPI/Swagger documentation is part of backend implementation — not an optional or final-stage task — and is <strong>mandatory for the entire HMS lifecycle</strong>, from the first endpoint to the final production release.</p>
+<ul>
+<li><strong>No undocumented production API.</strong> Every backend route under <code>/api/v1</code> has a corresponding OpenAPI operation before the change is complete. Automated coverage (<code>npm run openapi:validate</code>) fails the build on any undocumented route.</li>
+<li><strong>Docs change with the code, in the same change.</strong> New route → add its operation; controller/request DTO/response DTO changed → update the schema; authentication changed → update <code>security</code>; permission changed → update the authorization note; endpoint deprecated → mark <code>deprecated</code>; endpoint removed → remove its operation; API version changed → document under the new version.</li>
+<li><strong>Single source of truth.</strong> The spec is generated from route/schema definitions (Zod + zod-to-openapi), never hand-written separately; the same Zod schema powers validation and documentation.</li>
+<li><strong>Environment-aware, never hard-coded.</strong> Server URL, environment name, and auth config come from configuration per environment (Local / Testing-Staging / Production).</li>
+<li><strong>Every documented operation includes, where applicable:</strong> HTTP method, path, summary/description, module tag, authentication + required roles/permissions, path/query/header parameters, request body + validation rules, success and error response schemas with status codes, pagination/filter/sort/search parameters, and at least one example.</li>
+<li><strong>Versioning is explicit</strong> (<code>/api/v1</code>, <code>/api/v2</code>); incompatible versions are never merged into one undocumented contract.</li>
+<li><strong>Accessible in development.</strong> Swagger UI at <code>/api/v1/docs</code> and the raw spec at <code>/api/v1/openapi.json</code> (spec always served; UI toggled per environment via <code>OPENAPI_UI_ENABLED</code>).</li>
+<li><strong>Validated automatically.</strong> <code>npm run openapi:validate</code> checks spec validity, duplicate operationIds, missing responses/tags/security, and route coverage; CI runs it on every push/PR, and production never publishes an invalid spec.</li>
 </ul></section><section id="s2-6"><h3>UI / UX Rules</h3>
 <ul>
 <li>All tabular data uses the shared DataTable component (packages/ui). No module implements its own pagination, sorting, or filtering.</li>
@@ -169,6 +180,7 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <li>Do not hardcode brand colors, logos, or theme values in a component.</li>
 <li>Do not build a new authorization/permission engine for a specific feature (temporary access, break-glass, or otherwise) instead of extending the existing one.</li>
 <li>Do not physically delete entitlement, permission-override, or audit records.</li>
+<li>Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by <code>npm run openapi:validate</code> in CI).</li>
 <li>Do not silently convert a "Pending verification" regulatory assumption into a stated compliance requirement.</li>
 <li>Do not introduce Kubernetes, Kafka, a service mesh, or multi-region deployment without an explicit, documented Phase 2+ decision.</li>
 </ul></section><div class="partdivider"><h2>Documentation System</h2></div><section id="s3-1"><h3>Documentation & AI-Agent Knowledge System</h3><h3>Documentation &amp; AI-Agent Knowledge System</h3><ul>

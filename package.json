@@ -3,20 +3,32 @@
   "version": "0.0.0",
   "private": true,
   "description": "Enterprise HMS monorepo — Takoriya Technology LLP",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "npm@10.9.2",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "npm": ">=10"
   },
+  "workspaces": [
+    "hms_backend",
+    "hms_frontend",
+    "marketing",
+    "packages/*"
+  ],
   "scripts": {
+    "install:all": "npm install",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "openapi:generate": "turbo run openapi:generate",
+    "openapi:validate": "turbo run openapi:validate",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore"
   },
   "devDependencies": {
-    "prettier": "^3",
+    "prettier": "^3.4.2",
     "turbo": "^2.5.0",
-    "typescript": "^5"
+    "typescript": "^5.7.3"
   }
 }

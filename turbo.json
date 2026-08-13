@@ -12,6 +12,12 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "openapi:generate": {
+      "cache": false
+    },
+    "openapi:validate": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true

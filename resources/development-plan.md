@@ -128,6 +128,7 @@ Every milestone follows the **six-step loop** defined in the Development Phases 
 - Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry.
 - Verified in both **Light and Dark** themes and under a **non-default tenant's branding**.
 - KNOWLEDGE.md updated and DONE.md appended for every app/package touched.
+- Every new/changed backend endpoint has synchronized OpenAPI/Swagger documentation; `npm run openapi:validate` passes (no undocumented `/api/v1` route, valid spec).
 - No open **P0/P1** defects.
 
 **Definition of Ready (entry gate, added by this plan).** A milestone is ready to start only when: its upstream dependencies (per the Dependency Map) are `Done`; the permission keys it introduces are named; its acceptance criteria and test matrix are written; and any external prerequisite (e.g. DLT template, SES production access) is either satisfied or explicitly scheduled ahead of the dependent step.
@@ -151,7 +152,7 @@ Per Rules → Git Rules:
 
 ### 6.1 Layout — decided and scaffolded
 
-Per **ADR-013**, the repository is a **pnpm workspaces + Turborepo** monorepo that **keeps the existing app folder names** (`hms_backend`, `hms_frontend`, `marketing`) rather than renaming them to `apps/*`. This leaves the folders already committed to GitHub untouched while still delivering the shared-package benefits the design depends on (`packages/ui`, `packages/permissions` shared front-end/back-end). The Architecture Document's Monorepo Structure section is aligned to these same names.
+Per **ADR-013** (kept folder names) and **ADR-014** (npm over pnpm), the repository is an **npm workspaces + Turborepo** monorepo that **keeps the existing app folder names** (`hms_backend`, `hms_frontend`, `marketing`) rather than renaming them to `apps/*`. This leaves the folders already committed to GitHub untouched while still delivering the shared-package benefits the design depends on (`packages/ui`, `packages/permissions` shared front-end/back-end). The Architecture Document's Monorepo Structure section is aligned to these same names. The whole monorepo is driven from the root: `npm run install:all` and `npm run dev`.
 
 ```
 hms_backend            Node.js/Express API (the backend)
@@ -167,7 +168,7 @@ packages/permissions   dot-hierarchy permission keys shared front-end/back-end
 
 **Now in place** (scaffolded alongside this plan):
 
-- Root `package.json` (private workspace root, `packageManager: pnpm@9`, turbo-driven `dev/build/lint/test/typecheck` scripts), `pnpm-workspace.yaml` (members: `hms_backend`, `hms_frontend`, `marketing`, `packages/*`), and `turbo.json` (task pipeline with caching).
+- Root `package.json` (private npm-workspaces root — `"workspaces": ["hms_backend","hms_frontend","marketing","packages/*"]`, `packageManager: npm@10.9.2`, turbo-driven `install:all/dev/build/lint/test/typecheck/format` scripts) and `turbo.json` (task pipeline with caching). No `pnpm-workspace.yaml` — npm reads the `workspaces` field.
 - Root `.gitignore` covering `node_modules/`, build outputs, `.turbo/`, and env files.
 - All five `packages/*` scaffolded — `@hms/types`, `@hms/ui`, `@hms/config` (exports `tsconfig.base.json`), `@hms/utils`, `@hms/permissions` — each with `package.json`, a `tsconfig.json` extending the shared base, and a stub `src/index.ts` documenting what lives there.
 - `hms_backend/package.json` normalized as a workspace member (private; placeholder `dev/build/lint/typecheck/test` scripts that no longer fail the turbo pipeline).
@@ -176,13 +177,13 @@ packages/permissions   dot-hierarchy permission keys shared front-end/back-end
 
 The structure exists; the following execution steps remain and run **before** any feature code:
 
-1. Run `pnpm install` at the root to materialize the workspace — generates a single root `pnpm-lock.yaml` and hoists `node_modules`. The apps' existing npm `package-lock.json` files are **not** deleted by this plan (pnpm harmlessly ignores them); remove them in this step once the pnpm install is verified green. *(Keep the `next@16.3.0` / `react@19.2.8` pins so the install matches the already-working `node_modules`.)*
+1. **Done & verified.** `npm run install:all` (= `npm install`) at the root materialized the workspace — one root `package-lock.json`, hoisted `node_modules`, 516 packages. Stale per-app npm lockfiles removed; `next@16.3.0` / `react@19.2.8` pins kept. `npm run dev` starts backend (4000) + portal (3000) + marketing (3001) together (verified 200/200/200).
 2. Wire the first real cross-package import — a `@hms/types` type consumed by both `hms_backend` and `hms_frontend` — to prove workspace resolution end-to-end.
 3. Enable Turborepo **affected-package detection** for selective CI/CD deploys (used in §18).
 4. Add `husky` + `lint-staged` + `commitlint` for pre-commit hygiene; centralize ESLint/Prettier config in `@hms/config`.
 5. Add TypeScript project references across packages for incremental builds.
 
-**Deliverable / acceptance:** `pnpm install` at root resolves all workspaces; `pnpm turbo run build lint test typecheck` runs green across every app/package; a shared type exported from `packages/types` is consumed by both `hms_backend` and `hms_frontend`; a shared component from `packages/ui` renders in both `hms_frontend` and `marketing`.
+**Deliverable / acceptance:** `npm run install:all` at root resolves all workspaces; `npm run build|lint|test|typecheck` (turbo) runs green across every app/package; a shared type exported from `packages/types` is consumed by both `hms_backend` and `hms_frontend`; a shared component from `packages/ui` renders in both `hms_frontend` and `marketing`.
 
 ## 7. Environments & Infrastructure
 
@@ -190,7 +191,7 @@ Per Architecture → Infrastructure & Hosting and Phases → Deployment/Ops.
 
 | Environment | Purpose | Topology |
 |---|---|---|
-| **Local** | Dev | Dockerized Postgres + Redis; app processes via pnpm/turbo; seeded demo tenants |
+| **Local** | Dev | Dockerized Postgres + Redis; all app processes via `npm run dev` (turbo); seeded demo tenants |
 | **CI** | Verify every push | GitHub Actions (self-hosted runner, per StoreVeu pattern); ephemeral Postgres/Redis services |
 | **Staging** | Milestone demos + tenant-isolation tests | E2E VM, Nginx + PM2 (dedicated service user), auto-deploy on merge to `staging` |
 | **Production** | Paying customers | E2E VM, managed PostgreSQL (E2E DBaaS) as a **separate service from day one**, Redis on app VM (MVP), Cloudflare in front |
@@ -254,7 +255,7 @@ Per Rules → API Rules.
 - **Zod (or equivalent) validation** on every request before business logic.
 - **One consistent error-response shape** across every module (documented once, reused).
 - **Idempotency keys** on all duplication-sensitive operations (see §9).
-- **OpenAPI/Swagger generated from route definitions**, not hand-maintained; the doc renders in staging and reflects live endpoints.
+- **OpenAPI/Swagger generated from route definitions** (Zod + zod-to-openapi), never hand-maintained; served at `/api/v1/openapi.json` with Swagger UI at `/api/v1/docs`, and environment-aware servers from config (Local / Staging / Production). **Mandatory & enforced** — documentation ships in the same change as the endpoint, and `npm run openapi:validate` fails CI on any undocumented `/api/v1` route or invalid spec (see Rules → API Documentation Rules, and §17/§18).
 - **Pagination helper** shared across modules; server-side pagination/sorting/filtering is the default for large datasets and pairs with the shared DataTable's server-side mode.
 - **Concurrency:** optimistic-locking conflicts surface as a documented `409`-style conflict response.
 
@@ -641,7 +642,7 @@ Each item is an explicit, documented decision (ADR) — none is a day-one assump
 
 | # | Item | Type | Status / Action |
 |---|---|---|---|
-| R1 | **Monorepo structure** | Resolved (scaffolded) | Root pnpm+Turborepo tooling + `packages/*` added, keeping folder names (ADR-013). Remaining: `pnpm install` lockfile consolidation, still the first Stage 0 step (§6.2). |
+| R1 | **Monorepo structure** | Resolved & verified | npm workspaces + Turborepo (ADR-013 names, ADR-014 npm). `npm run install:all` + `npm run dev` verified — backend/portal/marketing start together (200/200/200). |
 | R2 | **ORM choice (Prisma vs Drizzle)** | Open decision | ADR-012 required before the first migration; matters for RLS authoring (§8). |
 | R3 | **No compliance owner; entire Source Register Pending Verification** | Open (from memory.md) | Assign owner as the Stage 3 entry gate; verify high-impact rows vs. primary sources (§16, §23). |
 | R4 | **MSG91 DLT + AWS SES production access lead times (24–48h / sandbox exit)** | External dependency | Request in Stage 0 entry gate, not near launch; gates SMS/OTP/email features in staging. |

@@ -10,6 +10,9 @@ build/
 # Turborepo
 .turbo/
 
+# Generated OpenAPI artifacts (the live spec is served at /api/v1/openapi.json)
+generated/
+
 # Environment (keep .env.example)
 .env
 .env.*

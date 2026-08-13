@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Non-secret placeholders so the app can boot for typecheck + OpenAPI validation.
+      # Real secrets are injected by the deployment environment, never committed.
+      NODE_ENV: test
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/hms_ci
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-16-chars
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-16-chars
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install (all workspaces)
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Mandatory API-docs gate: fails the build if any /api/v1 route is undocumented or the
+      # generated OpenAPI spec is invalid (bad $refs, duplicate operationIds, missing
+      # responses/tags/security). See resources/rules.md → API Documentation Rules.
+      - name: Validate OpenAPI (no undocumented APIs)
+        run: npm run openapi:validate
+
+      - name: Build
+        run: npm run build

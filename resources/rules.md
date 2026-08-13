@@ -113,7 +113,20 @@ This document states rules only. For the architecture each rule is derived from,
 - Every request is validated (Zod or equivalent) before it reaches business logic.
 - Payments, invoices, appointment bookings, notifications, and external integration calls are idempotent via an idempotency key.
 - API error responses use one consistent shape across every module.
-- OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately.
+- OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately, and is part of the Definition of Done for every endpoint (see API Documentation Rules).
+
+### API Documentation Rules
+
+OpenAPI/Swagger documentation is part of backend implementation — not an optional or final-stage task — and is **mandatory for the entire HMS lifecycle**, from the first endpoint to the final production release.
+
+- **No undocumented production API.** Every backend route under `/api/v1` has a corresponding OpenAPI operation before the change is complete. Automated coverage (`npm run openapi:validate`) fails the build on any undocumented route.
+- **Docs change with the code, in the same change.** New route → add its operation; controller/request DTO/response DTO changed → update the corresponding schema; authentication changed → update `security`; permission changed → update the authorization note; endpoint deprecated → mark `deprecated`; endpoint removed → remove its operation; API version changed → document it under the new version.
+- **Single source of truth.** The spec is generated from route/schema definitions (Zod + zod-to-openapi), never hand-written in a separate file. The same Zod schema powers both request validation and documentation.
+- **Environment-aware, never hard-coded.** Server URL, environment name, and auth configuration come from configuration per environment (Local / Testing-Staging / Production). The running instance advertises its own server from config; additional environment servers are surfaced only when their env vars are set.
+- **Every documented operation includes, where applicable:** HTTP method, path, summary/description, module tag, authentication requirement + required roles/permissions, path/query/header parameters, request body + validation rules, success and error response schemas with HTTP status codes, pagination/filter/sort/search parameters, and at least one example.
+- **Versioning is explicit.** Versions are distinguishable (`/api/v1`, `/api/v2`); incompatible versions are never merged into a single undocumented contract.
+- **Accessible in development.** Swagger UI at `/api/v1/docs` and the raw spec at `/api/v1/openapi.json`. The JSON spec is always served; the interactive UI is toggled per environment via `OPENAPI_UI_ENABLED`.
+- **Validated automatically.** `npm run openapi:validate` checks spec validity (schemas, `$ref`s, parameters), duplicate operationIds, missing responses, missing tags, and missing security definitions, plus route coverage. CI runs it on every push/PR; a production deploy never publishes an invalid specification.
 
 ### UI / UX Rules
 
@@ -165,6 +178,7 @@ This document states rules only. For the architecture each rule is derived from,
 - Do not hardcode brand colors, logos, or theme values in a component.
 - Do not build a new authorization/permission engine for a specific feature (temporary access, break-glass, or otherwise) instead of extending the existing one.
 - Do not physically delete entitlement, permission-override, or audit records.
+- Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by `npm run openapi:validate` in CI).
 - Do not silently convert a "Pending verification" regulatory assumption into a stated compliance requirement.
 - Do not introduce Kubernetes, Kafka, a service mesh, or multi-region deployment without an explicit, documented Phase 2+ decision.
 

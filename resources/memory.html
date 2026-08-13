@@ -99,6 +99,7 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <li>Entitlement and permission-override records are never physically deleted.</li>
 <li>Explicit DENY always overrides GRANT, at every level of the authorization model.</li>
 <li>A cached permission set is never allowed to outlive the earliest <code>valid_until</code> among the temporary overrides it contains.</li>
+<li>Every backend <code>/api/v1</code> route ships with synchronized, valid OpenAPI/Swagger documentation — the spec is generated from route definitions (Zod + zod-to-openapi), and CI (<code>npm run openapi:validate</code>) rejects undocumented or invalid APIs. No undocumented production endpoints.</li>
 </ul></section><div class="partdivider"><h2>Key Decisions</h2></div><section id="s4-1"><h3>Architecture Decision Records (from DECISIONS.md)</h3><p class="lead">A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording <em>why</em>, not <em>what</em> or <em>when</em>.</p>
 <ul>
   <li><strong>CLAUDE.md</strong> — what the AI/developer must follow (conventions, standards)</li>

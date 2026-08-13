@@ -490,6 +490,13 @@ Distinct from the Audit Log (Security & Compliance, Part VII), which exists for 
 - Optimistic locking/versioning on records multiple users may edit simultaneously — clinical notes, prescriptions, patient information, inventory counts, billing line items, admission records
 - A stale write is rejected with a clear conflict response rather than silently overwriting another user's concurrent edit
 
+### API Documentation (OpenAPI/Swagger)
+
+- The OpenAPI 3 specification is generated from route/schema definitions (Zod + zod-to-openapi) — never hand-maintained. The same Zod schema drives request validation and documentation, so the contract cannot drift from the implementation.
+- Environment-aware: server URLs, environment name, and authentication config come from configuration per environment (Local / Testing-Staging / Production), never hard-coded. The running instance advertises its own server from config.
+- Served at `/api/v1/openapi.json` (raw spec, always) and `/api/v1/docs` (Swagger UI, toggleable per environment via `OPENAPI_UI_ENABLED`). Bearer-JWT security scheme; operations tagged by module.
+- Mandatory and enforced: no `/api/v1` route ships without a corresponding documented operation. `npm run openapi:validate` validates the spec (schemas, `$ref`s, operationIds, responses, security) and route coverage; CI fails a PR that introduces an undocumented or invalid API, and a production deploy never publishes an invalid specification. See Rules & Engineering Standards → API Documentation Rules.
+
 ## Security, Compliance & Infrastructure
 
 ### Security & Compliance
@@ -593,7 +600,7 @@ Every regulatory area this platform touches, with its verification status tracke
 - Frontend — Next.js (App Router), TypeScript; used for both the HMS Portal and the Marketing Site
 - Backend — Node.js + Express.js, TypeScript; versioned REST API (/api/v1) with OpenAPI/Swagger documentation
 - Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)
-- Package manager / build system — pnpm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds
+- Package manager / build system — npm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds (ADR-014 — npm chosen over pnpm; Turborepo retained)
 
 ### Monorepo Structure
 

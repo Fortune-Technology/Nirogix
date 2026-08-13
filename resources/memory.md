@@ -72,6 +72,7 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 - Entitlement and permission-override records are never physically deleted.
 - Explicit DENY always overrides GRANT, at every level of the authorization model.
 - A cached permission set is never allowed to outlive the earliest `valid_until` among the temporary overrides it contains.
+- Every backend `/api/v1` route ships with synchronized, valid OpenAPI/Swagger documentation — the spec is generated from route definitions (Zod + zod-to-openapi), and CI (`npm run openapi:validate`) rejects undocumented or invalid APIs. No undocumented production endpoints.
 
 ## Key Decisions
 

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@hms/config": "*",
     "typescript": "^5"
   }
 }

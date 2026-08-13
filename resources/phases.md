@@ -344,6 +344,7 @@ A milestone's **Definition of Done** also always includes, on top of its own tes
 - Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry
 - Verified in both Light and Dark themes, and under a non-default tenant’s branding
 - KNOWLEDGE.md updated and DONE.md appended for every app/package touched
+- Every new or modified backend endpoint has synchronized OpenAPI/Swagger documentation, and `npm run openapi:validate` passes (no undocumented `/api/v1` routes; valid spec)
 - No open P0/P1 defects
 
 ---

@@ -424,6 +424,12 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <ul>
   <li>Optimistic locking/versioning on records multiple users may edit simultaneously — clinical notes, prescriptions, patient information, inventory counts, billing line items, admission records</li>
   <li>A stale write is rejected with a clear conflict response rather than silently overwriting another user's concurrent edit</li>
+</ul></section><section id="s5-8"><h3>API Documentation (OpenAPI/Swagger)</h3>
+<ul>
+<li>The OpenAPI 3 specification is generated from route/schema definitions (Zod + zod-to-openapi) — never hand-maintained. The same Zod schema drives request validation and documentation, so the contract cannot drift from the implementation.</li>
+<li>Environment-aware: server URLs, environment name, and authentication config come from configuration per environment (Local / Testing-Staging / Production), never hard-coded.</li>
+<li>Served at <code>/api/v1/openapi.json</code> (raw spec, always) and <code>/api/v1/docs</code> (Swagger UI, toggleable per environment via <code>OPENAPI_UI_ENABLED</code>). Bearer-JWT security scheme; operations tagged by module.</li>
+<li>Mandatory and enforced: no <code>/api/v1</code> route ships without a documented operation. <code>npm run openapi:validate</code> validates the spec and route coverage; CI fails a PR that introduces an undocumented or invalid API. See Rules &amp; Engineering Standards → API Documentation Rules.</li>
 </ul></section><div class="partdivider"><h2>Security, Compliance & Infrastructure</h2></div><section id="s6-1"><h3>Security & Compliance</h3><p class="lead">Security by Design and Privacy by Design. The platform stores sensitive patient health information and processes financial transactions; these are core architectural requirements.</p>
   <ul class="cols2">
     <li>Encryption at rest (AES-256) and in transit (TLS 1.2+)</li>
@@ -503,7 +509,7 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>Frontend — Next.js (App Router), TypeScript; used for both the HMS Portal and the Marketing Site</li>
     <li>Backend — Node.js + Express.js, TypeScript; versioned REST API (/api/v1) with OpenAPI/Swagger documentation</li>
     <li>Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)</li>
-    <li>Package manager / build system — pnpm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds</li>
+    <li>Package manager / build system — npm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds (ADR-014 — npm chosen over pnpm; Turborepo retained)</li>
   </ul>
 <h3>Monorepo Structure</h3><ul>
     <li>hms_backend — Node.js/Express API, authentication, business logic, database integration</li>
