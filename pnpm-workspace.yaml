@@ -1,0 +1,8 @@
+# Workspace members. App folder names are kept (hms_backend / hms_frontend / marketing)
+# per ADR-013; shared libraries live under packages/*.
+# See resources/development-plan.md §6 and resources/architecture.md (Monorepo Structure).
+packages:
+  - "hms_backend"
+  - "hms_frontend"
+  - "marketing"
+  - "packages/*"

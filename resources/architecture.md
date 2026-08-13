@@ -597,13 +597,14 @@ Every regulatory area this platform touches, with its verification status tracke
 
 ### Monorepo Structure
 
-- apps/backend — Node.js/Express API, authentication, business logic, database integration
-- apps/portal — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
-- apps/marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content
+- hms_backend — Node.js/Express API, authentication, business logic, database integration
+- hms_frontend — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
+- marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content
 - packages/types — shared TypeScript types and API contracts consumed by both backend and portal
 - packages/ui — shared design-system components used by portal and marketing
 - packages/config, packages/utils — shared lint/build configuration and common utilities
-- Room reserved for a future apps/mobile package (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
+- packages/permissions — dot-hierarchy permission keys shared front-end/back-end
+- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
 
 ### Technical Expectations
 

@@ -506,13 +506,14 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>Package manager / build system — pnpm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds</li>
   </ul>
 <h3>Monorepo Structure</h3><ul>
-    <li>apps/backend — Node.js/Express API, authentication, business logic, database integration</li>
-    <li>apps/portal — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards</li>
-    <li>apps/marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content</li>
+    <li>hms_backend — Node.js/Express API, authentication, business logic, database integration</li>
+    <li>hms_frontend — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards</li>
+    <li>marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content</li>
     <li>packages/types — shared TypeScript types and API contracts consumed by both backend and portal</li>
     <li>packages/ui — shared design-system components used by portal and marketing</li>
     <li>packages/config, packages/utils — shared lint/build configuration and common utilities</li>
-    <li>Room reserved for a future apps/mobile package (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6</li>
+    <li>packages/permissions — dot-hierarchy permission keys shared front-end/back-end</li>
+    <li>App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6</li>
   </ul></section><section id="s7-2"><h3>Technical Expectations</h3><ul>
     <li>Cloud-native microservices or well-modularized architecture (depending on deployment scale)</li>
     <li>API-first design — versioned REST APIs with backward compatibility; optional GraphQL</li>

@@ -1,12 +1,17 @@
 {
   "name": "hms_backend",
   "version": "1.0.0",
+  "private": true,
   "main": "index.js",
+  "description": "HMS backend API (Node.js + Express + TypeScript). See resources/development-plan.md §9.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "echo \"[hms_backend] dev script not yet implemented (Stage 0)\"",
+    "build": "echo \"[hms_backend] build script not yet implemented (Stage 0)\"",
+    "lint": "echo \"[hms_backend] lint script not yet implemented (Stage 0)\"",
+    "typecheck": "echo \"[hms_backend] typecheck not yet implemented (Stage 0)\"",
+    "test": "echo \"[hms_backend] no tests yet (Stage 0)\""
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "description": ""
+  "license": "ISC"
 }
