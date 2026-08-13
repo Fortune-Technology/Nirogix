@@ -92,3 +92,25 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-13 (later) — RLS test verified live ✓
 
 Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation test **2/2 passing** — Tenant A reads only its own branch, and RLS `WITH CHECK` blocks A from inserting a row for Tenant B. Added a `db:create` utility (`npm run db:create`) that creates the DB named in `DATABASE_URL` if missing (idempotent) + a vitest `test-setup.ts` that loads `.env` so `npm run test` picks up `DATABASE_URL` locally. **Task #3 acceptance criterion met.**
+
+---
+
+## 2026-08-13 — Authentication (Task #4)
+
+**What:** JWT auth on top of the tenancy core.
+
+**Added:**
+- Schema: `users` + `sessions` (both tenant-scoped → RLS auto-applied). Migration `drizzle/0001_ordinary_power_pack.sql`.
+- `modules/auth/`: `password.ts` (bcrypt), `tokens.ts` (access/refresh JWT sign+verify, SHA-256 hash, expiry), `auth.service.ts` (org-code login, session issue, refresh rotation, logout, getUserById), `auth.schema.ts` (Zod = validation + OpenAPI), `auth.controller.ts` (+ httpOnly refresh cookie), `auth.routes.ts`, `auth.openapi.ts`.
+- `http/requireAuth.ts` (Bearer middleware → `req.auth`), `http/asyncHandler.ts`, `types/express.d.ts` (Request.auth augmentation).
+- Wiring: cookie-parser in `app.ts`; authRouter mounted at `/api/v1`; auth openapi registered.
+- `db:seed` (demo tenant CITYCARE + admin user); `db:create` from #3.
+- Tests: `modules/auth/__tests__/auth.test.ts` (password/token primitives, 5 tests).
+
+**API:** `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` — all documented in OpenAPI (mandatory gate passes).
+
+**Testing status:** `typecheck` green · `openapi:validate` green (all auth routes documented + covered) · full suite **7/7 passing** (2 RLS + 5 auth). **Live-verified** against the running backend + real DB: login → 200 (access JWT + HttpOnly refresh cookie); `/me` with token → 200, without → 401; refresh → 200 (rotated); wrong password → 401; logout → 200.
+
+**Decisions:** Org-code tenant resolution at login (RLS-clean: resolve tenant first, then scope). Server-side sessions for refresh rotation + revocation. Access token carries `tid` so RLS context is always from the authenticated session. MFA hook via `users.mfaEnabled`; SSO reserved at the token layer.
+
+**Known limitations:** `roles` is empty until RBAC (#5). MFA challenge returns a state but no second-factor verification yet. No password-reset/forgot flow yet (Phase 0 scaffolds the screen; endpoints later).

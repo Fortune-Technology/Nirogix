@@ -8,6 +8,13 @@
       "when": 1786612105311,
       "tag": "0000_silent_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786627065810,
+      "tag": "0001_ordinary_power_pack",
+      "breakpoints": true
     }
   ]
 }

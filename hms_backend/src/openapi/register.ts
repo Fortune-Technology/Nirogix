@@ -3,3 +3,4 @@
 // to its routes and import it here — otherwise the coverage validator will flag its routes
 // as undocumented and fail the build.
 import '../modules/health/health.openapi';
+import '../modules/auth/auth.openapi';

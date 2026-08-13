@@ -6,3 +6,5 @@
 // tenant-scoped (see ./tenants.ts).
 export * from './tenants';
 export * from './branches';
+export * from './users';
+export * from './sessions';

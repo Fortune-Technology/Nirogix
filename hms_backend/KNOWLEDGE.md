@@ -63,9 +63,17 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `npm run test` → vitest. `db/__tests__/tenant-isolation.test.ts` provisions a throwaway non-superuser role, seeds two tenants, and asserts Tenant A can neither read nor write Tenant B's rows.
 - Needs a reachable PostgreSQL via `TEST_DATABASE_URL` (else `DATABASE_URL`) whose role can create a role + tables. **Skips cleanly** (green) if none is reachable; **CI runs it for real** against a Postgres service (`.github/workflows/ci.yml`).
 
+## Authentication
+
+- **Org-scoped login:** `POST /auth/login { orgCode, email, password }` → resolve tenant by code → find user within tenant (RLS) → verify bcrypt hash → issue tokens. Generic error on any failure (no user/org enumeration).
+- **Tokens:** short-lived JWT **access** token (`Authorization: Bearer`, claims `{ sub, tid, roles }`); long-lived **refresh** token in an **httpOnly** cookie (`hms_refresh`, path `/api/v1/auth`, `secure` in prod). Refresh is backed by a server-side `sessions` row (SHA-256 hash) → **rotation + revocation** on refresh/logout.
+- **`requireAuth`** (`http/requireAuth.ts`) verifies the access token and sets `req.auth = { userId, tenantId, roles }`. Downstream scopes RLS from `req.auth.tenantId` — tenant comes from the token, never the client. `http/asyncHandler.ts` routes async errors to the error middleware.
+- **MFA hook:** `users.mfaEnabled` → when true, login returns `{ mfaRequired: true }` instead of tokens (second-factor verification is a later phase). **SSO** (SAML/OAuth2/OIDC) is a reserved provider that plugs into the same `issueSession()`/token layer.
+- **Demo:** `npm run db:seed` → tenant `CITYCARE` + `admin@citycare.example` / `ChangeMe#123`.
+
 ## Permissions / RBAC / entitlement
 
-Not yet implemented (Tasks #4–#6). The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+`req.auth.roles` is populated (empty for now). RBAC (`requirePermission`) + module entitlement (`requireModule`) are the next tasks (#5, #6); the authorization chain is `authenticated → tenant entitled → user permitted → business logic`. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 
@@ -73,6 +81,7 @@ Not yet implemented (Tasks #4–#6). The `/api/v1` router and error codes alread
 - `GET /api/v1/health/ready` — DB readiness (503 if PostgreSQL unreachable)
 - `GET /api/v1/openapi.json` — OpenAPI 3 spec (always served)
 - `GET /api/v1/docs` — Swagger UI (when `OPENAPI_UI_ENABLED=true`)
+- `POST /api/v1/auth/login` · `POST /api/v1/auth/refresh` · `POST /api/v1/auth/logout` · `GET /api/v1/auth/me`
 
 ## API documentation (OpenAPI) — MANDATORY
 
