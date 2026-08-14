@@ -14,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", perm: null },
   { label: "Tenants", href: "/admin/tenants", perm: PERMISSIONS.TENANTS_MANAGE },
   { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW },
+  { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW },
   { label: "Providers", href: "/providers", perm: PERMISSIONS.PROVIDER_VIEW },
   { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW },
   { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW },

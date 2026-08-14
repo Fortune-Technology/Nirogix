@@ -16,3 +16,4 @@ import '../modules/provider/provider.openapi';
 import '../modules/branding/branding.openapi';
 import '../modules/dashboard/dashboard.openapi';
 import '../modules/patient/patient.openapi';
+import '../modules/appointment/appointment.openapi';

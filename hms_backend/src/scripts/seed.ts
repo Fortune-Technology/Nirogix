@@ -2,12 +2,13 @@ import 'dotenv/config';
 import { and, eq } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
-import { tenants, branches, users, providers } from '../db/schema';
+import { tenants, branches, users, providers, patients as patientsTable } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 import { createPatient, countPatients, type PatientInput } from '../modules/patient/patient.service';
+import { bookAppointment, countAppointments } from '../modules/appointment/appointment.service';
 
 // Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
 // Takoriya Technology LLP — home of the System Super Admin who onboards hospitals; ADR-022) plus 2+
@@ -223,6 +224,30 @@ async function seedTenant(t: SeedTenant): Promise<void> {
     for (const p of t.patients) await createPatient(tenant.id, p);
     // eslint-disable-next-line no-console
     console.log(`  ${t.patients.length} patients seeded`);
+  }
+
+  // One demo appointment (first patient with first provider, tomorrow 10:00) — idempotent.
+  const modules = t.modules ?? MVP_MODULES;
+  if (modules.includes('appointment') && (await countAppointments(tenant.id)) === 0) {
+    const firstPatient = (
+      await runWithTenant(tenant.id, (tx) => tx.select({ id: patientsTable.id }).from(patientsTable).where(eq(patientsTable.tenantId, tenant.id)).limit(1))
+    )[0];
+    const firstProvider = (
+      await runWithTenant(tenant.id, (tx) => tx.select({ id: providers.id }).from(providers).where(eq(providers.tenantId, tenant.id)).limit(1))
+    )[0];
+    if (firstPatient && firstProvider) {
+      const at = new Date();
+      at.setDate(at.getDate() + 1);
+      at.setHours(10, 0, 0, 0);
+      await bookAppointment(tenant.id, {
+        patientId: firstPatient.id,
+        providerId: firstProvider.id,
+        scheduledAt: at.toISOString(),
+        reason: 'Follow-up consultation',
+      });
+      // eslint-disable-next-line no-console
+      console.log('  1 appointment seeded');
+    }
   }
 }
 

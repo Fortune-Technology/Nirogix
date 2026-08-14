@@ -146,6 +146,15 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Permissions:** `patient.record.view` (list/get) · `create` (register) · `update` (edit) — receptionist creates + views, doctor also updates. The old `/patients` stub (from the entitlement demonstrator) was replaced by this module.
 - Verified live: receptionist registers a patient (UHID assigned) + searches; a receptionist **cannot** update (403 — no `patient.record.update`); a doctor can; the dashboard patient count updates.
 
+## Appointment Management (MVP 0 — second clinical module)
+
+- **`appointments`** (tenant-scoped, RLS; migration `drizzle/0010_*`) — FK to `patients` + `providers`; `scheduled_at` + `duration_minutes`, `status` (booked/cancelled/completed/no_show), reason, cancel fields. Module-gated (`requireModule('appointment')`, which hard-depends on `patient`).
+- **Double-booking prevention** (phases.md MVP 0 acceptance): `bookAppointment` rejects a slot that **overlaps another `booked` appointment for the same provider** → 409 CONFLICT. **Cancelling frees the slot** (status → cancelled), so the time can be re-booked. Verified live both ways.
+- **`appointment.service`:** `bookAppointment` (validate patient+provider exist, overlap check, publish `appointment.booked`, audit), `listAppointments` (paginated + filter by date range / provider / patient / status; **enriched** with patient + provider names via join), `cancelAppointment` (publishes `appointment.cancelled`), `countAppointments` (dashboard).
+- **Events:** publishes `appointment.booked` / `appointment.cancelled` on the in-process bus; `patient.registered` is now published by the patient module too. A booking-reminder subscriber (via `NotificationService`) is a **staging** item (real MSG91 send — phases.md).
+- **Permissions:** `appointment.booking.view|create|cancel` — receptionist has all three; doctor view+create; org_admin view.
+- Verified live: book → 201; overlapping slot → **409**; cancel → 200; re-book freed slot → **201**; the wildcard super-admin is blocked by **MODULE_NOT_ENTITLED** (PLATFORM not entitled); the dashboard appointment count updates.
+
 ## Endpoints (current)
 
 - `GET /api/v1/health` — liveness
@@ -161,6 +170,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/ipd/beds` (requireModule demonstrator — IPD is Phase 2)
 - `GET /api/v1/patients` (list/search, paginated) · `POST /api/v1/patients` · `GET|PATCH /api/v1/patients/{id}` — Patient Management, module-gated (`requireModule('patient')` → `patient.record.view|create|update`)
+- `GET /api/v1/appointments` (filter date/provider/patient/status, paginated) · `POST /api/v1/appointments` (book) · `POST /api/v1/appointments/{id}/cancel` — Appointments, module-gated (`requireModule('appointment')` → `appointment.booking.view|create|cancel`)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`

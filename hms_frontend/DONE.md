@@ -116,3 +116,20 @@ Append-only implementation log. Newest at the bottom.
 **Decisions:** Role-gated CRUD via `<Can>`/`<RequirePermission>` on the same shared permission keys the backend enforces — a receptionist can register but not edit, a doctor can do both (verified). Search is debounced (300ms) and server-side through the paginated list endpoint.
 
 **Known limitations:** No document attachments / photo, no ABHA verify, no merge/dedup, no encounter/appointment history on the profile yet (arrive with those modules). Branch selection on registration is not surfaced (branch_id supported by the API).
+
+---
+
+## 2026-08-14 — Appointment screens: list, booking, cancel (Phase 1 / MVP 0 / Task AP2)
+
+**What:** The Portal side of Appointments — the schedule list, a booking form, and cancellation — completing the clinic spine *register patient → book → cancel* (development-plan §21).
+
+**Added:**
+- `app/(app)/appointments/page.tsx` — schedule (DataTable: when, patient→profile link, provider, duration, status) with a **status filter**, pagination, and a per-row **Cancel** (`<Can appointment.booking.cancel>`, booked rows only) + "Book appointment" (`<Can appointment.booking.create>`).
+- `app/(app)/appointments/new/page.tsx` — booking form: **patient picker** (debounced search → pick), provider select, `datetime-local`, duration, reason; supports `?patientId=` prefill; surfaces the **double-booking 409** as an inline error. Wrapped in `<Suspense>` (uses `useSearchParams`).
+- Nav "Appointments" (`appointment.booking.view`); `lib/api` + `@hms/types` appointment contracts. **`@hms/permissions`: receptionist granted `providers.view`** so the front desk can pick a provider when booking (re-seed applies it to existing tenants).
+
+**Testing status:** typecheck green (7 workspaces) · `next build` green (18 routes). **Live-verified (receptionist):** the seeded appointment lists with patient+provider names; booking a **free slot** succeeds → appears in the list; booking the **already-booked provider slot** shows *"The provider already has an appointment in this time slot"* (409); **Cancel** flips the row to `cancelled` and removes its Cancel action. Test appointment removed afterward.
+
+**Decisions:** Reception needs provider visibility to book, so `providers.view` was added to the receptionist role (domain-correct front-desk capability) rather than exposing a parallel endpoint. Patient picker reuses the paginated patient search. Booking converts the local `datetime-local` to ISO before sending.
+
+**Known limitations:** No calendar/day view (list only), no reschedule (cancel + re-book), no reminder send (staging), no provider working-hours constraint. Duration is a fixed set of options.

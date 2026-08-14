@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { count, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { tenants, users, branches, providers, patients, type Tenant } from '../../db/schema';
+import { tenants, users, branches, providers, patients, appointments, type Tenant } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { hashPassword } from '../auth/password';
 import { provisionTenantRbac, assignRoleByKey } from '../rbac/rbac.service';
@@ -222,6 +222,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   let branchTotal = 0;
   let branchActive = 0;
   let patientTotal = 0;
+  let appointmentTotal = 0;
   const moduleUsage = new Map<string, number>();
 
   for (const t of all) {
@@ -232,6 +233,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       doctorTotal += Number(p?.c ?? 0);
       const pt = (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, t.id)))[0];
       patientTotal += Number(pt?.c ?? 0);
+      const ap = (await tx.select({ c: count() }).from(appointments).where(eq(appointments.tenantId, t.id)))[0];
+      appointmentTotal += Number(ap?.c ?? 0);
       const brs = await tx.select().from(branches).where(eq(branches.tenantId, t.id));
       branchTotal += brs.length;
       branchActive += brs.filter((b) => b.isActive).length;
@@ -261,7 +264,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       tenants: moduleUsage.get(m.key) ?? 0,
     })),
     patients: patientTotal,
-    appointments: null, // Stage 1 (Appointment module)
+    appointments: appointmentTotal,
   };
 }
 

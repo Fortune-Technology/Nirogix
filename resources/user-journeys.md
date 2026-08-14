@@ -163,7 +163,7 @@ Enforced at the DB by **PostgreSQL RLS** (every tenant-scoped table) + app-layer
 
 1. **Platform Core + Platform Admin** (Tier 0 onboarding + Tier 1 admin) — ✅ done (Phase 0 + §20A).
 2. **Platform & Org dashboards** — ✅ done (§20B; this doc's §1.3 / §2.5).
-3. **Clinical modules, in journey order** (Patient → Appointment → OPD/EMR → Pharmacy → Lab → Billing) — ⏳ Stage 1 (development-plan §21), each shipped as a vertical slice (backend + Portal screen + tests + staging demo).
+3. **Clinical modules, in journey order** (Patient → Appointment → OPD/EMR → Pharmacy → Lab → Billing) — 🟡 Stage 1 in progress (development-plan §21): **Patient ✅**, **Appointment ✅** (book with double-booking prevention + cancel); OPD/EMR → Pharmacy → Lab → Billing ⏳. Each ships as a vertical slice (backend + Portal screen + tests + staging demo).
 4. **Patient-facing track** — ⏳ Stage 1+.
 5. **Config engine, feature flags, self-serve billing, advanced analytics** — ⏳ later stages / Enterprise track.
 

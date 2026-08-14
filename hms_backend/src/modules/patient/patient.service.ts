@@ -3,6 +3,7 @@ import { runWithTenant } from '../../db/tenantContext';
 import { patients, type Patient } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
+import { eventBus } from '../../events/eventBus';
 
 export type PatientInput = {
   firstName: string;
@@ -63,6 +64,7 @@ export async function createPatient(
     }
     throw Errors.conflict('Could not allocate a UHID — please retry');
   });
+  eventBus.publish('patient.registered', { tenantId, patientId: patient.id });
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,

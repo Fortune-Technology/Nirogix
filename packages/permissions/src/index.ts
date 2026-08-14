@@ -116,6 +116,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Front desk',
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
+      P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.FILE_VIEW, P.FILE_UPLOAD,
     ],
   },

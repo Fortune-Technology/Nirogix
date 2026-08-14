@@ -401,3 +401,22 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** UHID is a per-tenant sequential MRN allocated server-side (retry-on-conflict); patients are a strongly-typed core entity (specialty extras ride form templates, not columns). `requireModule` now guards a real module for the first time — proving the entitlement layer end-to-end.
 
 **Known limitations:** No merge/dedup of patients, no ABHA verification/linking (field only), no document attachments on the profile yet, no soft-delete/archive UI flow beyond the `status` field. Appointment/encounter links arrive with those modules.
+
+---
+
+## 2026-08-14 — Appointment Management, the second clinical module (Phase 1 / MVP 0 / Task AP1)
+
+**What:** Booking + scheduling, the second MVP-0 vertical slice, with the two phases.md acceptance criteria: **double-booking prevented** and **cancellation frees the slot**.
+
+**Added:**
+- Schema `db/schema/appointments.ts` (tenant-scoped, RLS; migration `drizzle/0010_colorful_deathbird.sql`) — FK to `patients` + `providers`; `scheduled_at` + `duration_minutes`, `status`, reason, cancel fields.
+- `modules/appointment/`: `bookAppointment` (validates patient+provider in-tenant, **overlap check** → 409 on a double-booked provider slot, publishes `appointment.booked`), `listAppointments` (paginated + filter date/provider/patient/status, **join-enriched** with patient/provider names), `cancelAppointment` (frees slot, publishes `appointment.cancelled`), `countAppointments`. Schema/controller/routes/openapi; module-gated + permission-gated. Wired into `api/v1` + `openapi/register`.
+- Wired **appointment counts into both dashboards**; the patient module now publishes `patient.registered`. Seed books 1 demo appointment per hospital.
+
+**API:** `GET /appointments` (filter + paginate), `POST /appointments` (book), `POST /appointments/:id/cancel` — `appointment.booking.view|create|cancel`. Documented.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **49/49** (16 files; +3 appointment). **Live-verified (CITYCARE receptionist):** the seeded appointment lists with patient+provider names; booking succeeds; an **overlapping slot for the same provider → 409 CONFLICT**; cancel → 200; **re-booking the freed slot → 201**; a doctor/receptionist path works; the wildcard super-admin is blocked by **MODULE_NOT_ENTITLED** (PLATFORM not entitled); dashboard appointment count updates. Test appointments removed afterward.
+
+**Decisions:** Double-booking checked in the service by scanning the provider's `booked` appointments for overlap (simple + correct at MVP scale; a DB exclusion constraint / index is the scale path). Cancellation is a soft status change (never deleted). The booking-reminder notification (event → NotificationService) is deferred to **staging** (needs real MSG91) — the `appointment.booked` event is already published for it to hook onto.
+
+**Known limitations:** No recurring appointments, no provider working-hours/slots model (any time is bookable if free), no reschedule endpoint (cancel + re-book), no reminder send yet (staging). Overlap scan is O(provider's booked appointments) — fine at MVP; add a time-range index / exclusion constraint at scale.

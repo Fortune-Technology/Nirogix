@@ -251,6 +251,30 @@ export interface CreatePatientRequest {
   branchId?: string | null;
 }
 
+// ---- Appointments (hms_backend/src/modules/appointment) --------------------
+
+export interface Appointment {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  status: string;
+  reason: string | null;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  providerId: string;
+  providerName: string;
+}
+
+export interface BookAppointmentRequest {
+  patientId: string;
+  providerId: string;
+  scheduledAt: string;
+  durationMinutes?: number;
+  reason?: string | null;
+  branchId?: string | null;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

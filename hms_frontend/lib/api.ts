@@ -34,6 +34,8 @@ import type {
   OrgSummary,
   Patient,
   CreatePatientRequest,
+  Appointment,
+  BookAppointmentRequest,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -245,6 +247,29 @@ export async function getPatient(id: string): Promise<Patient> {
 
 export async function updatePatient(id: string, patch: Partial<CreatePatientRequest> & { status?: string }): Promise<Patient> {
   return request<Patient>(`/patients/${id}`, { method: "PATCH", body: patch });
+}
+
+// ---- Appointments ----------------------------------------------------------
+
+export async function listAppointments(
+  opts: { page?: number; pageSize?: number; from?: string; to?: string; status?: string; patientId?: string } = {},
+): Promise<Paginated<Appointment>> {
+  const q = new URLSearchParams();
+  q.set("page", String(opts.page ?? 1));
+  q.set("pageSize", String(opts.pageSize ?? 20));
+  if (opts.from) q.set("from", opts.from);
+  if (opts.to) q.set("to", opts.to);
+  if (opts.status) q.set("status", opts.status);
+  if (opts.patientId) q.set("patientId", opts.patientId);
+  return request<Paginated<Appointment>>(`/appointments?${q.toString()}`);
+}
+
+export async function bookAppointment(body: BookAppointmentRequest): Promise<{ id: string; status: string }> {
+  return request<{ id: string; status: string }>("/appointments", { method: "POST", body });
+}
+
+export async function cancelAppointment(id: string, reason?: string): Promise<{ id: string; status: string }> {
+  return request<{ id: string; status: string }>(`/appointments/${id}/cancel`, { method: "POST", body: { reason } });
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------
