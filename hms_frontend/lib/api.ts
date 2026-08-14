@@ -45,6 +45,9 @@ import type {
   Invoice,
   InvoiceListItem,
   RecordPaymentRequest,
+  Encounter,
+  SaveEncounterRequest,
+  Icd10Code,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -326,6 +329,24 @@ export async function getInvoice(id: string): Promise<Invoice> {
 
 export async function recordPayment(id: string, body: RecordPaymentRequest): Promise<Invoice> {
   return request<Invoice>(`/invoices/${id}/payments`, { method: "POST", body });
+}
+
+// ---- EMR / Clinical Workflow (hms_backend/src/modules/emr) ------------------
+
+export async function openEncounter(visitId: string): Promise<Encounter> {
+  return request<Encounter>("/encounters/open", { method: "POST", body: { visitId } });
+}
+
+export async function saveEncounter(id: string, body: SaveEncounterRequest): Promise<Encounter> {
+  return request<Encounter>(`/encounters/${id}`, { method: "PUT", body });
+}
+
+export async function signEncounter(id: string): Promise<Encounter> {
+  return request<Encounter>(`/encounters/${id}/sign`, { method: "POST" });
+}
+
+export async function searchIcd10(q: string): Promise<Icd10Code[]> {
+  return request<Icd10Code[]>(`/icd10?q=${encodeURIComponent(q)}`);
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

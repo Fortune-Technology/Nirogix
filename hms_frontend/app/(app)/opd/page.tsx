@@ -41,6 +41,7 @@ function OpdQueue() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canUpdate = useCan(PERMISSIONS.OPD_UPDATE);
+  const canConsult = useCan(PERMISSIONS.EMR_VIEW);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,21 +111,27 @@ function OpdQueue() {
     {
       key: "actions",
       header: "",
-      cell: (v) =>
-        canUpdate ? (
-          <div className="flex justify-end gap-2">
-            {v.status === "checked_in" && (
-              <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "in_consultation")}>
-                Start consult
+      cell: (v) => (
+        <div className="flex justify-end gap-2">
+          {canConsult && v.status !== "cancelled" && (
+            <Link href={`/opd/${v.id}`}>
+              <Button variant="secondary" size="sm">
+                {v.status === "completed" ? "View" : "Open"}
               </Button>
-            )}
-            {v.status === "in_consultation" && (
-              <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "completed")}>
-                Complete
-              </Button>
-            )}
-          </div>
-        ) : null,
+            </Link>
+          )}
+          {canUpdate && v.status === "checked_in" && (
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "in_consultation")}>
+              Start consult
+            </Button>
+          )}
+          {canUpdate && v.status === "in_consultation" && (
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "completed")}>
+              Complete
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 

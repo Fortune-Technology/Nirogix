@@ -198,3 +198,13 @@ Append-only implementation log. Newest at the bottom.
 - `lib/money.ts` (`formatPaise` / `rupeesToPaise`), `lib/api.ts` OPD + billing functions, `lib/nav.ts` OPD Queue + Billing items (permission-filtered), and an appointments-row **Check in** action.
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green (22 routes). **Live-verified in the Portal:** as the receptionist, the OPD queue renders the real visit (**#1 · Vivaan Patil · Dr. Ananya Sharma · Checked in · paid**), the sidebar shows OPD Queue but **not** Billing, and `/billing` returns **403** (receptionist lacks BILLING_VIEW). The cashier billing UI (list / receipt / collect) is API-verified (see backend DONE) and best eyeballed via a cashier login.
+
+---
+
+## 2026-08-14 — MVP-0 slice 1.4 screen: doctor consultation
+
+**Added:**
+- `app/(app)/opd/[id]/page.tsx` — the consultation screen: vitals grid, SOAP notes, **ICD-10 diagnosis picker** (debounced search + primary toggle + remove), prescription writer + lab-order rows (add/remove), **Save** + **Sign & complete** (optimistic `version`; the whole screen goes read-only once signed).
+- OPD queue gains a clinician-only **Open / View** consultation link; `lib/api` EMR functions (open / save / sign / ICD-10 search).
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green. **Live-verified in the Portal:** after the doctor signed the encounter (via API), the OPD queue shows the visit as **Completed**, the **Open** link is hidden from the receptionist, and `/opd/[id]` → **403** for the receptionist (EMR_VIEW gate). The doctor consultation UI is API-verified (see backend DONE) + best eyeballed via a doctor login.

@@ -411,6 +411,94 @@ export interface RecordPaymentRequest {
   idempotencyKey: string;
 }
 
+// ---- EMR / Clinical Workflow (hms_backend/src/modules/emr) ------------------
+
+export interface Vitals {
+  systolic: number | null;
+  diastolic: number | null;
+  pulse: number | null;
+  spo2: number | null;
+  respRate: number | null;
+  tempC: number | null;
+  weightKg: number | null;
+  heightCm: number | null;
+}
+
+export interface Diagnosis {
+  id: string;
+  icd10Code: string;
+  icd10Term: string;
+  isPrimary: boolean;
+  notes: string | null;
+}
+
+export interface Prescription {
+  id: string;
+  drugName: string;
+  dose: string | null;
+  frequency: string | null;
+  duration: string | null;
+  route: string | null;
+  instructions: string | null;
+  status: string;
+}
+
+export interface LabOrder {
+  id: string;
+  testName: string;
+  testCode: string | null;
+  priority: string;
+  status: string;
+  notes: string | null;
+}
+
+export interface Encounter {
+  id: string;
+  visitId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  providerId: string | null;
+  providerName: string | null;
+  status: string; // draft | signed
+  version: number;
+  signedAt: string | null;
+  chiefComplaint: string | null;
+  subjective: string | null;
+  objective: string | null;
+  assessment: string | null;
+  plan: string | null;
+  vitals: Vitals;
+  diagnoses: Diagnosis[];
+  prescriptions: Prescription[];
+  labOrders: LabOrder[];
+}
+
+export interface Icd10Code {
+  code: string;
+  term: string;
+}
+
+export interface SaveEncounterRequest {
+  version: number;
+  chiefComplaint?: string | null;
+  subjective?: string | null;
+  objective?: string | null;
+  assessment?: string | null;
+  plan?: string | null;
+  vitals?: Partial<Vitals>;
+  diagnoses: Array<{ icd10Code: string; icd10Term: string; isPrimary?: boolean; notes?: string | null }>;
+  prescriptions: Array<{
+    drugName: string;
+    dose?: string | null;
+    frequency?: string | null;
+    duration?: string | null;
+    route?: string | null;
+    instructions?: string | null;
+  }>;
+  labOrders: Array<{ testName: string; testCode?: string | null; priority?: string | null; notes?: string | null }>;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

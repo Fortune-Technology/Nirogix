@@ -17,6 +17,7 @@ import '../modules/branding/branding.openapi';
 import '../modules/platform-branding/platformBranding.openapi';
 import '../modules/opd/opd.openapi';
 import '../modules/billing/billing.openapi';
+import '../modules/emr/emr.openapi';
 import '../modules/dashboard/dashboard.openapi';
 import '../modules/patient/patient.openapi';
 import '../modules/appointment/appointment.openapi';

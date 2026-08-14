@@ -447,3 +447,16 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - `@hms/permissions`: `OPD_VIEW/CHECKIN/UPDATE` (receptionist checks in, doctor advances, cashier + admins view). `@hms/types`: Visit/Invoice/Payment + request contracts. Event `visit.checked_in` (+ now-published `invoice.created`/`payment.received`). Routers mounted; OpenAPI registered; `db:seed` re-run to grant the new perms.
 
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (CITYCARE):** receptionist check-in → visit `V-000001`, token #1, auto invoice `INV-000001` (₹500 draft) → queue lists it → cashier reads the receipt (1 consultation line, totals correct) → collect ₹500 cash → **paid, balance ₹0** → **re-post same idempotencyKey ⇒ still 1 payment, balance ₹0 (no double-charge)**.
+
+---
+
+## 2026-08-14 — MVP-0 slice 1.4: Clinical Workflow / EMR
+
+**What:** The consultation — one encounter per visit (SOAP notes + typed vitals + ICD-10 diagnoses + prescriptions + lab orders), draft → signed.
+
+**Added:**
+- `db/schema/emr.ts` — `encounters` (visit-linked, SOAP `text` + **typed integer vitals**, status, `authored_by`, `version`), `diagnoses`, `prescriptions`, `lab_orders` (tenant-scoped, migration `0013`, RLS auto-applied). Vitals use integer units (temp tenths-°C, weight grams) converted at the edge — strongly typed, no EAV (invariant #5).
+- `modules/emr/` — service: `getEncounterByVisit` (get-or-create draft), `saveEncounter` (whole-encounter save — **optimistic `version`** + **author-only** + **draft-only**; replaces the diagnoses/rx/lab collections), `signEncounter` (locks the encounter + **completes the visit**), ICD-10 search (curated in-memory `icd10.data.ts`). Routes gated `requireModule('emr')` + `EMR_VIEW/WRITE`. Event `encounter.signed`.
+- `@hms/types`: Encounter / Vitals / Diagnosis / Prescription / LabOrder / Icd10Code + SaveEncounterRequest. Router mounted; OpenAPI registered.
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (doctor):** open (draft v1) → ICD-10 search 'fever' → save (**vitals round-trip** temp 38.5 / wt 72.5, dx/rx/lab reference the visit) v1→v2 → **stale-version save → 409** → sign (signed; **visit auto-completed**) → **save-after-sign → 409**. Prescriptions/lab-orders are now the input queue for Pharmacy (1.5) ∥ Lab (1.6).

@@ -11,6 +11,7 @@ export type DomainEventPayload = {
   'appointment.booked': { tenantId: string; appointmentId: string; patientId: string };
   'appointment.cancelled': { tenantId: string; appointmentId: string };
   'visit.checked_in': { tenantId: string; visitId: string; patientId: string };
+  'encounter.signed': { tenantId: string; encounterId: string; visitId: string };
   'invoice.created': { tenantId: string; invoiceId: string };
   'payment.received': { tenantId: string; paymentId: string; invoiceId: string };
 };
