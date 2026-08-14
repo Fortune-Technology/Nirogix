@@ -270,3 +270,21 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** FHIR Practitioner/PractitionerRole (ADR-008) — a specialty is a *role assignment* (data), never a new table. `specialties` is a global reference table (no RLS), like `permissions`. Specialty variation via configurable `specialty_form_templates` (JSON Schema), never EAV (invariant #5). Unknown specialty is a client validation error (422), not a 500.
 
 **Known limitations:** Specialty `snomed_code`s unset (need a verified source before terminology binding). No provider↔branch scheduling/availability yet (a later clinical phase). Form-template *rendering/validation* engine (applying a template's JSON Schema to captured data) is not built — templates are stored, not yet enforced. PractitionerRole deactivation flow (`is_active`) exposed in reads but no endpoint to toggle it.
+
+---
+
+## 2026-08-14 — Ops baseline: seed, logging/error-tracking, deploy config (Task #14)
+
+**What:** The Phase 0 operational baseline — a multi-tenant demo seed, error tracking on top of the existing structured logging, and a versioned deploy/CI-CD/backup baseline (IaC posture, even if lightweight, per development-plan §16/§18).
+
+**Added / changed:**
+- **Seed** (`scripts/seed.ts`) rewritten data-driven: **2 Indian-context demo tenants** (CITYCARE — Pune; SUNRISE — Ahmedabad), each with a branch layout and **one user per role** (super_admin/org_admin/branch_admin/doctor/receptionist/pharmacist/lab_technician/cashier), plus per-tenant FHIR providers. Idempotent; keeps the existing `admin@`/`reception@citycare.example` stable. All names/hospitals/cities are genuine Indian context (§17 Test Data).
+- **Error tracking** (`observability/errorTracker.ts`): a thin abstraction that logs `error.captured` events by default and accepts a `SENTRY_DSN` (Sentry/GlitchTip) without call-site changes. Wired into `http/errorHandler.ts` for every unexpected 5xx, with request-id + tenant/user/method/path correlation. New `SENTRY_DSN` env (optional).
+- **Deploy baseline** (`deploy/`): `pm2.ecosystem.cjs` (3 apps), `nginx/hms.conf.template` (api/portal/marketing reverse proxy + Cloudflare real-ip), `backup/backup.sh` (nightly pg_dump + verify + off-box to R2 + retention), `backup/restore-drill.sh` (**restore drilled, not just configured** — restores to a scratch DB and checks row counts), `README.md` (ops runbook: provisioning, deploy flow, rollback, RPO/RTO table).
+- **CI/CD:** added `.github/workflows/deploy-staging.yml` — auto-deploy on merge to `staging` (build → SSH → `db:migrate` before rollout → PM2 zero-downtime reload). Existing `ci.yml` (typecheck/lint/openapi/test/build + Postgres) unchanged.
+
+**Testing status:** typecheck green · full suite **31/31** (10 files, unchanged) · seed runs idempotently. **Live-verified tenant isolation:** logged in as CITYCARE admin (sees its 3 providers) and SUNRISE admin (sees only Dr. Sanjay Desai) via the API — **disjoint sets, isolation holds**; a new per-role user (`doctor@citycare.example`) logs in. Deploy/backup scripts are versioned baseline (require real VM/DB to execute — validated at deploy time; RPO/RTO validated in Stage 3).
+
+**Decisions:** ADR-019 (ops/deploy baseline). Error tracking behind an abstraction (swap in Sentry via env, no code change). Restore is drilled via a runnable script, not just assumed. Seed reflects genuine Indian healthcare context and is staging-only.
+
+**Known limitations:** Deploy pipeline/Nginx/PM2/backup are templates — not executed here (no VM/managed DB in this environment); real hosts + secrets are substituted at deploy time. Turborepo affected-only deploys, alerting, and metrics/traces are Stage-3 items. RPO/RTO defined + validated in Stage 3's backup/DR drill.

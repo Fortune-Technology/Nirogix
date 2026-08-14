@@ -1,0 +1,57 @@
+name: Deploy (staging)
+
+# Auto-deploy on merge to `staging` (resources/development-plan.md §18). CI (ci.yml) must be
+# green first — this workflow assumes the branch already passed typecheck/lint/openapi/test/build.
+# It builds, then over SSH: installs, migrates the DB (migrations apply BEFORE app rollout), and
+# PM2-reloads for zero-downtime restart. All connection details are GitHub Environment secrets;
+# nothing here is hard-coded.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch: # allow manual redeploy
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false # never interrupt a deploy mid-flight
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging # secrets + protection rules live on the GitHub "staging" environment
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Turborepo builds everything; unchanged packages are restored from cache (affected-only
+      # deploys are a later optimization — §18). A failed build blocks the deploy.
+      - name: Build
+        run: npm run build
+
+      # Deploy over SSH: sync code, install, run migrations, reload PM2. The VM already holds the
+      # per-app .env files (never committed). Requires secrets: STAGING_HOST, STAGING_USER,
+      # STAGING_SSH_KEY, STAGING_PATH.
+      - name: Deploy to staging VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.STAGING_PATH }}"
+            git fetch --all
+            git reset --hard origin/staging
+            npm ci
+            npm run build
+            # Migrations apply before the app rollout (additive/reversible only).
+            npm run db:migrate -w hms_backend
+            pm2 reload deploy/pm2.ecosystem.cjs --env staging
+            pm2 save

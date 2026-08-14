@@ -70,7 +70,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Tokens:** short-lived JWT **access** token (`Authorization: Bearer`, claims `{ sub, tid, roles }`); long-lived **refresh** token in an **httpOnly** cookie (`hms_refresh`, path `/api/v1/auth`, `secure` in prod). Refresh is backed by a server-side `sessions` row (SHA-256 hash) → **rotation + revocation** on refresh/logout.
 - **`requireAuth`** (`http/requireAuth.ts`) verifies the access token and sets `req.auth = { userId, tenantId, roles }`. Downstream scopes RLS from `req.auth.tenantId` — tenant comes from the token, never the client. `http/asyncHandler.ts` routes async errors to the error middleware.
 - **MFA hook:** `users.mfaEnabled` → when true, login returns `{ mfaRequired: true }` instead of tokens (second-factor verification is a later phase). **SSO** (SAML/OAuth2/OIDC) is a reserved provider that plugs into the same `issueSession()`/token layer.
-- **Demo:** `npm run db:seed` → tenant `CITYCARE` + `admin@citycare.example` / `ChangeMe#123`.
+- **Demo:** `npm run db:seed` → **2 Indian-context tenants** (`CITYCARE` — CityCare Multispeciality Hospital, Pune; `SUNRISE` — Sunrise Diagnostics & Polyclinic, Ahmedabad), each with a branch layout and **one user per role**. Login with org code + email + `ChangeMe#123` (e.g. `CITYCARE`/`admin@citycare.example`, `SUNRISE`/`admin@sunrise.example`). Idempotent; staging only (never production).
 
 ## Authorization — RBAC
 
@@ -149,6 +149,13 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`
 - `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `providers.view|manage`
+
+## Observability & Ops
+
+- **Structured logging:** pino (`config/logger.ts`) with **PII/secret redaction** (authorization headers, cookies, passwords, tokens) — JSON in staging/production, pretty in dev. `pino-http` adds a per-request correlation id.
+- **Error tracking:** `observability/errorTracker.ts` — a thin abstraction (ADR-007 pattern). By default it logs an `error.captured` event (with request id + tenant/user/method/path) for every unexpected 5xx from the error handler; set **`SENTRY_DSN`** to forward to Sentry/GlitchTip later without touching call sites.
+- **Health:** `GET /health` (liveness) + `/health/ready` (DB readiness, 503 until PostgreSQL reachable) — for uptime checks and PM2/Nginx.
+- **Deploy baseline (versioned, `deploy/`):** PM2 ecosystem (`deploy/pm2.ecosystem.cjs`), Nginx template (`deploy/nginx/hms.conf.template`), backup + **restore-drill** scripts (`deploy/backup/`), and the ops runbook (`deploy/README.md`). CI/CD: `.github/workflows/ci.yml` (every push) + `deploy-staging.yml` (auto-deploy on merge to `staging` — migrate before rollout, PM2 zero-downtime reload). See ADR-019.
 
 ## API documentation (OpenAPI) — MANDATORY
 

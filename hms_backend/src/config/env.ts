@@ -12,6 +12,9 @@ const EnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // Error tracking (Sentry/GlitchTip). Optional: when unset, unexpected errors are captured
+  // to the structured log as `error.captured` events. See observability/errorTracker.ts.
+  SENTRY_DSN: z.string().url().optional(),
 
   // OpenAPI / Swagger — environment-aware, never hard-coded (see resources/rules.md
   // API Documentation Rules). Server URLs come from config per environment.

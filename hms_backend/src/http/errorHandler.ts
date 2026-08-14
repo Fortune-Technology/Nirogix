@@ -1,13 +1,13 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError, type ErrorShape } from './error';
-import { logger } from '../config/logger';
+import { errorTracker } from '../observability/errorTracker';
 
 // Terminal Express error middleware. Turns AppError / ZodError / anything else into the
 // single canonical error shape. Never leaks internals on a 500.
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
@@ -28,7 +28,15 @@ export function errorHandler(
     return;
   }
 
-  logger.error({ err }, 'Unhandled error');
+  // Unexpected (5xx): send to the error tracker with request correlation, never leak internals.
+  const requestId = (req as { id?: unknown }).id; // pino-http sets a per-request id
+  errorTracker.captureException(err, {
+    requestId: requestId != null ? String(requestId) : undefined,
+    tenantId: req.auth?.tenantId,
+    userId: req.auth?.userId,
+    method: req.method,
+    path: req.originalUrl,
+  });
   const body: ErrorShape = {
     error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
   };

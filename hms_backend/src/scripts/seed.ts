@@ -2,31 +2,116 @@ import 'dotenv/config';
 import { and, eq } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
-import { tenants, users, providers } from '../db/schema';
+import { tenants, branches, users, providers } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 
-// Minimal demo seed so login + RBAC can be exercised end-to-end. Idempotent. Indian healthcare
-// context per resources/rules.md. Expand into the full multi-tenant demo in the Ops task (#14).
-// NOT production data — passwords here are known defaults.
-const DEMO = {
-  tenant: { code: 'CITYCARE', name: 'CityCare Multispeciality Hospital' },
-  users: [
-    { email: 'admin@citycare.example', password: 'ChangeMe#123', fullName: 'Dr. Ananya Sharma', role: 'org_admin' },
-    { email: 'reception@citycare.example', password: 'ChangeMe#123', fullName: 'Rahul Verma', role: 'receptionist' },
-  ],
-};
+// Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Provides 2+ demo tenants, each
+// with a branch layout and one user per role, so login + RBAC + tenant isolation can be
+// exercised and demoed end-to-end. All data reflects a genuine Indian healthcare context
+// (resources/development-plan.md §17 Test Data). NOT production data — passwords are known
+// dev defaults. The full production-grade demo dataset expands here later.
+
+const DEFAULT_PASSWORD = 'ChangeMe#123';
+
+// The MVP modules, in hard-dependency order (grantModule enforces deps).
+const MVP_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
+
+interface SeedProvider {
+  fullName: string;
+  qualification: string;
+  registrationNumber: string;
+  specialty: string;
+  /** Email of the seeded user to link this provider to (optional). */
+  userEmail?: string;
+}
+
+interface SeedTenant {
+  code: string;
+  name: string;
+  branches: Array<{ code: string; name: string }>;
+  /** One user per role — email, display name, and the system role key. */
+  users: Array<{ email: string; fullName: string; role: string }>;
+  providers: SeedProvider[];
+}
+
+// Two demo tenants across different Indian states, each with users for every role.
+const SEED_TENANTS: SeedTenant[] = [
+  {
+    code: 'CITYCARE',
+    name: 'CityCare Multispeciality Hospital',
+    // Pune, Maharashtra.
+    branches: [
+      { code: 'KTD', name: 'Kothrud (Main)' },
+      { code: 'BNR', name: 'Baner' },
+    ],
+    users: [
+      { email: 'superadmin@citycare.example', fullName: 'Vikram Rao', role: 'super_admin' },
+      // admin@ / reception@ are kept stable — existing manual QA + docs reference them.
+      { email: 'admin@citycare.example', fullName: 'Dr. Ananya Sharma', role: 'org_admin' },
+      { email: 'branchadmin@citycare.example', fullName: 'Suresh Iyer', role: 'branch_admin' },
+      { email: 'doctor@citycare.example', fullName: 'Dr. Rajesh Gupta', role: 'doctor' },
+      { email: 'reception@citycare.example', fullName: 'Rahul Verma', role: 'receptionist' },
+      { email: 'pharmacist@citycare.example', fullName: 'Meena Nair', role: 'pharmacist' },
+      { email: 'lab@citycare.example', fullName: 'Karthik Menon', role: 'lab_technician' },
+      { email: 'cashier@citycare.example', fullName: 'Pooja Deshmukh', role: 'cashier' },
+    ],
+    providers: [
+      {
+        fullName: 'Dr. Ananya Sharma',
+        qualification: 'MBBS, MD',
+        registrationNumber: 'MMC-2011-04821',
+        specialty: 'cardiology',
+        userEmail: 'admin@citycare.example',
+      },
+      {
+        fullName: 'Dr. Rajesh Gupta',
+        qualification: 'MBBS, MD (General Medicine)',
+        registrationNumber: 'MMC-2014-11733',
+        specialty: 'general_medicine',
+        userEmail: 'doctor@citycare.example',
+      },
+    ],
+  },
+  {
+    code: 'SUNRISE',
+    name: 'Sunrise Diagnostics & Polyclinic',
+    // Ahmedabad, Gujarat.
+    branches: [
+      { code: 'STL', name: 'Satellite (Main)' },
+      { code: 'MNG', name: 'Maninagar' },
+    ],
+    users: [
+      { email: 'admin@sunrise.example', fullName: 'Dr. Priya Patel', role: 'org_admin' },
+      { email: 'branchadmin@sunrise.example', fullName: 'Amit Shah', role: 'branch_admin' },
+      { email: 'doctor@sunrise.example', fullName: 'Dr. Sanjay Desai', role: 'doctor' },
+      { email: 'reception@sunrise.example', fullName: 'Neha Joshi', role: 'receptionist' },
+      { email: 'pharmacist@sunrise.example', fullName: 'Kiran Modi', role: 'pharmacist' },
+      { email: 'lab@sunrise.example', fullName: 'Harish Trivedi', role: 'lab_technician' },
+      { email: 'cashier@sunrise.example', fullName: 'Divya Mehta', role: 'cashier' },
+    ],
+    providers: [
+      {
+        fullName: 'Dr. Sanjay Desai',
+        qualification: 'MBBS, MD (Radiodiagnosis)',
+        registrationNumber: 'GMC-2012-07655',
+        specialty: 'radiology',
+        userEmail: 'doctor@sunrise.example',
+      },
+    ],
+  },
+];
 
 async function upsertUser(
   tenantId: string,
-  u: { email: string; password: string; fullName: string },
+  u: { email: string; fullName: string },
 ): Promise<string> {
   return runWithTenant(tenantId, async (tx) => {
     const existing = (await tx.select().from(users).where(eq(users.email, u.email)).limit(1))[0];
     if (existing) return existing.id;
-    const passwordHash = await hashPassword(u.password);
+    const passwordHash = await hashPassword(DEFAULT_PASSWORD);
     const inserted = (
       await tx
         .insert(users)
@@ -37,60 +122,91 @@ async function upsertUser(
   });
 }
 
-async function main(): Promise<void> {
-  await seedPermissionCatalog();
+async function upsertBranch(
+  tenantId: string,
+  b: { code: string; name: string },
+): Promise<void> {
+  await runWithTenant(tenantId, async (tx) => {
+    const existing = (
+      await tx
+        .select()
+        .from(branches)
+        .where(and(eq(branches.tenantId, tenantId), eq(branches.code, b.code)))
+        .limit(1)
+    )[0];
+    if (!existing) {
+      await tx.insert(branches).values({ tenantId, code: b.code, name: b.name });
+    }
+  });
+}
 
-  let tenant = (await db.select().from(tenants).where(eq(tenants.code, DEMO.tenant.code)).limit(1))[0];
+async function seedTenant(t: SeedTenant): Promise<void> {
+  // Tenant (platform-managed; no RLS).
+  let tenant = (await db.select().from(tenants).where(eq(tenants.code, t.code)).limit(1))[0];
   if (!tenant) {
-    tenant = (await db.insert(tenants).values(DEMO.tenant).returning())[0]!;
+    tenant = (await db.insert(tenants).values({ code: t.code, name: t.name }).returning())[0]!;
     // eslint-disable-next-line no-console
-    console.log(`Created tenant "${tenant.name}" (code ${DEMO.tenant.code})`);
+    console.log(`Created tenant "${tenant.name}" (${t.code})`);
   } else {
     // eslint-disable-next-line no-console
-    console.log(`Tenant "${DEMO.tenant.code}" already exists`);
+    console.log(`Tenant "${t.code}" already exists`);
   }
 
   await provisionTenantRbac(tenant.id);
-  // eslint-disable-next-line no-console
-  console.log('Provisioned system roles + permissions');
 
-  // Grant the MVP modules (dependency order matters — grantModule enforces hard deps).
-  const MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
-  for (const m of MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
-  // eslint-disable-next-line no-console
-  console.log(`Granted modules: ${MODULES.join(', ')}`);
+  for (const b of t.branches) await upsertBranch(tenant.id, b);
 
-  for (const u of DEMO.users) {
+  for (const m of MVP_MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
+
+  const userIdByEmail = new Map<string, string>();
+  for (const u of t.users) {
     const userId = await upsertUser(tenant.id, u);
     await assignRoleByKey(tenant.id, userId, u.role);
-    // eslint-disable-next-line no-console
-    console.log(`User ${u.email} (${u.role}) ready — org ${DEMO.tenant.code}, password ${u.password}`);
+    userIdByEmail.set(u.email, userId);
   }
+  // eslint-disable-next-line no-console
+  console.log(`  ${t.users.length} users (one per role), ${t.branches.length} branches, modules granted`);
 
-  // Provider/specialty demo (FHIR): a Practitioner for the admin, with a Cardiology role.
-  await seedSpecialtyCatalog();
-  const adminUserId = await upsertUser(tenant.id, DEMO.users[0]!);
-  const existingProv = await runWithTenant(tenant.id, (tx) =>
-    tx
-      .select()
-      .from(providers)
-      .where(and(eq(providers.tenantId, tenant.id), eq(providers.userId, adminUserId)))
-      .limit(1),
-  );
-  if (existingProv.length === 0) {
-    const prov = await createProvider(tenant.id, {
-      fullName: DEMO.users[0]!.fullName,
-      userId: adminUserId,
-      qualification: 'MBBS, MD',
-      registrationNumber: 'MCI-DEMO-001',
-    });
-    await assignSpecialty(tenant.id, prov.id, { specialtyCode: 'cardiology', isPrimary: true });
-    // eslint-disable-next-line no-console
-    console.log(`Created provider ${prov.fullName} (cardiology)`);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log('Demo provider already exists');
+  // Providers (FHIR Practitioner + a PractitionerRole specialty).
+  for (const p of t.providers) {
+    const linkedUserId = p.userEmail ? userIdByEmail.get(p.userEmail) : undefined;
+    const existing = linkedUserId
+      ? await runWithTenant(tenant.id, (tx) =>
+          tx
+            .select()
+            .from(providers)
+            .where(and(eq(providers.tenantId, tenant.id), eq(providers.userId, linkedUserId)))
+            .limit(1),
+        )
+      : [];
+    if (existing.length === 0) {
+      const prov = await createProvider(tenant.id, {
+        fullName: p.fullName,
+        userId: linkedUserId,
+        qualification: p.qualification,
+        registrationNumber: p.registrationNumber,
+      });
+      await assignSpecialty(tenant.id, prov.id, { specialtyCode: p.specialty, isPrimary: true });
+    }
   }
+  // eslint-disable-next-line no-console
+  console.log(`  ${t.providers.length} providers seeded`);
+}
+
+async function main(): Promise<void> {
+  await seedPermissionCatalog();
+  await seedSpecialtyCatalog();
+  // eslint-disable-next-line no-console
+  console.log('Seeded permission + specialty catalogs');
+
+  for (const t of SEED_TENANTS) await seedTenant(t);
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `\nDone. ${SEED_TENANTS.length} demo tenants. Login with org code + email + password "${DEFAULT_PASSWORD}".`,
+  );
+  // eslint-disable-next-line no-console
+  console.log('e.g. CITYCARE / admin@citycare.example  ·  SUNRISE / admin@sunrise.example');
 
   await pool.end();
   process.exit(0);
