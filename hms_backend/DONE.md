@@ -364,3 +364,19 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** ADR-022 — Tier 0 (platform owner, `PLATFORM` org) vs Tier 1+ (hospitals, `org_admin`→…). No schema change; the super-admin still resolves WILDCARD within the PLATFORM tenant, so cross-tenant onboarding (ADR-020) is unchanged.
 
 **Known limitations:** The `PLATFORM` org appears in the operator's tenant list (it is a `tenants` row); an `is_platform` flag to hide it from the customer-tenant list is a possible later refinement, not needed for correctness.
+
+---
+
+## 2026-08-14 — Dashboard aggregates: platform + org-scoped (§20B-1 / ADR-023)
+
+**What:** The read side of the System-Admin and Org-Admin dashboards (development-plan §20B, user-journeys.md §1.3/§2.5).
+
+**Added:**
+- `admin.service.getPlatformStats()` — platform-wide counts **across all tenants**, **aggregate-only** (ADR-023): organizations (active/inactive), hospitals (excludes the `PLATFORM` org), branches, doctors, users, per-module adoption; `patients`/`appointments` return `null` until Stage 1 (tiles degrade). Read path: the non-RLS `tenants` table + a per-tenant `runWithTenant` COUNT loop (correct under a non-superuser prod role). `GET /admin/stats` (super-admin, `platform.tenants.manage`).
+- `modules/dashboard/`: `getOrgSummary(tenantId)` — the caller's **own tenant** roll-up (users, doctors, branches, modules), RLS-scoped. `GET /dashboard/summary` (any authed user). OpenAPI for both.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **43/43** (14 files; +2 dashboard). **Live-verified:** platform owner `/admin/stats` → 3 orgs (2 hospitals, PLATFORM excluded), 4 branches, 4 doctors, 15 users, module adoption, `patients: null`; a CITYCARE org_admin → **403** on `/admin/stats`; `/dashboard/summary` returns each tenant's own numbers (CityCare 7 users/3 doctors/2 branches, Sunrise 7/1/2 — disjoint).
+
+**Decisions:** ADR-023 — cross-tenant analytics are aggregate-only + super-admin-gated; org roll-up uses the normal RLS path (invariant #2 holds). Never returns another tenant's rows. Snapshot-table optimization deferred to scale.
+
+**Known limitations:** Per-tenant COUNT loop is O(tenants) — fine at MVP scale; a materialized `platform_metrics` snapshot (BullMQ-refreshed) is the scale path. Patient/appointment counts light up when those modules land (Stage 1).

@@ -54,7 +54,7 @@ TIER 3 — PATIENTS (end users of a hospital's services)
 - Change a tenant's **status** (active / suspended / cancelled / deactivated). ✅
 - **Grant / revoke module entitlements** over the tenant's lifetime (never physically deleted — invariant #6). ✅
 
-### 1.3 Platform Dashboard — cross-tenant statistics ⏳ Planned (development-plan §20B)
+### 1.3 Platform Dashboard — cross-tenant statistics ✅ Built (§20B)
 A platform-wide overview the System Admin lands on. Aggregates **across all tenants** (super-admin only):
 
 | Metric | Source |
@@ -95,9 +95,10 @@ First login uses the temp password from onboarding → should change it (forced-
 - Roles & permissions view + overrides. ✅ · custom-role editor ⏳
 - Module behaviour (feature flags per tenant). ⏳ **Feature Configuration** (development-plan §12).
 
-### 2.5 Org Admin dashboard ⏳ Planned (Stage 1)
-Same shape as the platform dashboard but **scoped to this hospital only** (its patients, doctors,
-appointments, revenue, pending lab results). Enforced by RLS — never leaks another tenant.
+### 2.5 Org Admin dashboard ✅ Built (§20B)
+Same shape as the platform dashboard but **scoped to this hospital only** (its users, doctors,
+branches, modules today; patients/appointments/revenue as those modules land). Enforced by RLS —
+never leaks another tenant.
 
 → **Handoff:** staff accounts exist; doctors/receptionists/etc. sign in and do day-to-day work (§3).
 
@@ -161,7 +162,7 @@ Enforced at the DB by **PostgreSQL RLS** (every tenant-scoped table) + app-layer
 ## 6. Build order implied by the journey
 
 1. **Platform Core + Platform Admin** (Tier 0 onboarding + Tier 1 admin) — ✅ done (Phase 0 + §20A).
-2. **Platform & Org dashboards** — ⏳ §20B (this doc's §1.3 / §2.5).
+2. **Platform & Org dashboards** — ✅ done (§20B; this doc's §1.3 / §2.5).
 3. **Clinical modules, in journey order** (Patient → Appointment → OPD/EMR → Pharmacy → Lab → Billing) — ⏳ Stage 1 (development-plan §21), each shipped as a vertical slice (backend + Portal screen + tests + staging demo).
 4. **Patient-facing track** — ⏳ Stage 1+.
 5. **Config engine, feature flags, self-serve billing, advanced analytics** — ⏳ later stages / Enterprise track.

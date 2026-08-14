@@ -14,3 +14,4 @@ import '../modules/notification/notification.openapi';
 import '../modules/file/file.openapi';
 import '../modules/provider/provider.openapi';
 import '../modules/branding/branding.openapi';
+import '../modules/dashboard/dashboard.openapi';

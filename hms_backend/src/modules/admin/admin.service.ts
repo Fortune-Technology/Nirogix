@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { count, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { tenants, users, branches, type Tenant } from '../../db/schema';
+import { tenants, users, branches, providers, type Tenant } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { hashPassword } from '../auth/password';
 import { provisionTenantRbac, assignRoleByKey } from '../rbac/rbac.service';
@@ -191,6 +191,75 @@ export async function revokeTenantModule(
   if (!moduleDef(moduleKey)) throw Errors.validation(undefined, `Unknown module: ${moduleKey}`);
   // Soft transition (never physical delete — invariant #6). setModuleStatus audits the change.
   await setModuleStatus(tenantId, moduleKey, 'CANCELLED', 'admin revoke');
+}
+
+// The vendor's own org code — excluded from "hospital" counts (it is not a hospital, ADR-022).
+const PLATFORM_CODE = 'PLATFORM';
+
+export type PlatformStats = {
+  organizations: { total: number; active: number; inactive: number };
+  hospitals: { total: number; active: number; inactive: number };
+  branches: { total: number; active: number };
+  doctors: number;
+  users: number;
+  modules: Array<{ module: string; name: string; tenants: number }>;
+  // Present once the clinical modules land (Stage 1); null until then so tiles degrade gracefully.
+  patients: number | null;
+  appointments: number | null;
+};
+
+// Platform-wide statistics for the System Admin dashboard. AGGREGATE-ONLY + super-admin-gated
+// (ADR-023) — counts only, never another tenant's row-level data. Read path (MVP): the non-RLS
+// `tenants` table for org counts, plus a per-tenant `runWithTenant` COUNT loop for tenant-scoped
+// entities (correct under a non-superuser prod role). Evolve to a materialized snapshot at scale.
+export async function getPlatformStats(): Promise<PlatformStats> {
+  const all = await db.select().from(tenants);
+  const isActive = (t: Tenant): boolean => t.status === 'active';
+  const hospitals = all.filter((t) => t.code !== PLATFORM_CODE);
+
+  let userTotal = 0;
+  let doctorTotal = 0;
+  let branchTotal = 0;
+  let branchActive = 0;
+  const moduleUsage = new Map<string, number>();
+
+  for (const t of all) {
+    await runWithTenant(t.id, async (tx) => {
+      const u = (await tx.select({ c: count() }).from(users).where(eq(users.tenantId, t.id)))[0];
+      userTotal += Number(u?.c ?? 0);
+      const p = (await tx.select({ c: count() }).from(providers).where(eq(providers.tenantId, t.id)))[0];
+      doctorTotal += Number(p?.c ?? 0);
+      const brs = await tx.select().from(branches).where(eq(branches.tenantId, t.id));
+      branchTotal += brs.length;
+      branchActive += brs.filter((b) => b.isActive).length;
+    });
+    for (const m of await listEntitledModules(t.id)) {
+      moduleUsage.set(m, (moduleUsage.get(m) ?? 0) + 1);
+    }
+  }
+
+  return {
+    organizations: {
+      total: all.length,
+      active: all.filter(isActive).length,
+      inactive: all.filter((t) => !isActive(t)).length,
+    },
+    hospitals: {
+      total: hospitals.length,
+      active: hospitals.filter(isActive).length,
+      inactive: hospitals.filter((t) => !isActive(t)).length,
+    },
+    branches: { total: branchTotal, active: branchActive },
+    doctors: doctorTotal,
+    users: userTotal,
+    modules: MODULE_CATALOG.filter((m) => moduleUsage.has(m.key)).map((m) => ({
+      module: m.key,
+      name: m.name,
+      tenants: moduleUsage.get(m.key) ?? 0,
+    })),
+    patients: null, // Stage 1
+    appointments: null, // Stage 1
+  };
 }
 
 // Guard: does this tenant exist? (base db, no RLS)

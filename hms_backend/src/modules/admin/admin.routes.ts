@@ -15,6 +15,7 @@ export const adminRouter = Router();
 const guard = [requireAuth, requirePermission(PERMISSIONS.TENANTS_MANAGE)] as const;
 
 adminRouter.get('/admin/module-catalog', ...guard, asyncHandler(c.listModuleCatalog));
+adminRouter.get('/admin/stats', ...guard, asyncHandler(c.getStats));
 adminRouter.get('/admin/tenants', ...guard, asyncHandler(c.listTenants));
 adminRouter.post(
   '/admin/tenants',

@@ -23,6 +23,31 @@ const ModuleCatalogSchema = z
   })
   .openapi('ModuleCatalog');
 
+const ActiveInactive = z.object({ total: z.number(), active: z.number(), inactive: z.number() });
+const PlatformStatsSchema = z
+  .object({
+    organizations: ActiveInactive,
+    hospitals: ActiveInactive,
+    branches: z.object({ total: z.number(), active: z.number() }),
+    doctors: z.number(),
+    users: z.number(),
+    modules: z.array(z.object({ module: z.string(), name: z.string(), tenants: z.number() })),
+    patients: z.number().nullable(),
+    appointments: z.number().nullable(),
+  })
+  .openapi('PlatformStats');
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/stats',
+  operationId: 'getPlatformStats',
+  tags: ['Admin'],
+  summary: 'Platform-wide statistics (aggregate-only, across all tenants)',
+  description: 'Super-admin only. Counts/metrics only — never another tenant\'s row-level data (ADR-023).',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Platform stats', ...json(PlatformStatsSchema) }, 401: notAuthed, 403: forbidden },
+});
+
 registry.registerPath({
   method: 'get',
   path: '/api/v1/admin/module-catalog',

@@ -82,3 +82,19 @@ Append-only implementation log. Newest at the bottom.
 **Decisions:** Server is the source of truth; `localStorage` is only a pre-hydration paint cache. Branding applied through the existing `--hms-*` seam (no component changes). The OS file-picker upload wasn't driven in the automated browser (can't script it); the upload endpoint + FormData path were verified via B1's curl flow.
 
 **Known limitations:** `secondaryColor` + typography are stored/edited but not yet consumed by any component (reserved). Logo URLs are short-lived (re-fetched each bootstrap). Per-branch branding override not built.
+
+---
+
+## 2026-08-14 — Role-aware dashboard: platform vs org metric tiles (§20B-2)
+
+**What:** Replaced the placeholder dashboard with real metric tiles that adapt to the signed-in role (development-plan §20B, user-journeys.md §1.3/§2.5).
+
+**Added / changed:**
+- `app/(app)/dashboard/page.tsx`: if the user holds `platform.tenants.manage` → **platform roll-up** (`GET /admin/stats`: organizations/hospitals active-inactive, branches, doctors, staff, module adoption); otherwise → **org roll-up** (`GET /dashboard/summary`: the caller's own tenant). A small `StatTile` (Card-based, token-styled); Stage-1-only metrics (patients/appointments) render "— (Stage 1)" so tiles degrade gracefully. Quick-links row retained.
+- `lib/api` `getPlatformStats`/`getOrgSummary`; `@hms/types` `PlatformStats`/`OrgSummary`.
+
+**Testing status:** typecheck green (7 workspaces) · `next build` green. **Live-verified in-browser:** **Platform Owner** (`owner@takoriya.example`) → "Platform overview" with Orgs 3 / Hospitals 2 / Doctors 4 / Users 15 / Branches 4 + module-adoption tiles; **org_admin** (`admin@citycare.example`) → "Your organization at a glance" scoped to CityCare (7 users, 3 doctors, 2 branches, 7 modules) with **no** platform-only tiles and no Tenants link.
+
+**Decisions:** One dashboard route, role-branched by permission (not two routes). Aggregate-only platform view (ADR-023); org view is RLS-scoped. Tiles built to tolerate not-yet-present modules (null → placeholder).
+
+**Known limitations:** No charts/trends yet (single-value tiles); patient/appointment/revenue tiles fill in as the Stage 1 clinical modules land. No date-range or drill-down.

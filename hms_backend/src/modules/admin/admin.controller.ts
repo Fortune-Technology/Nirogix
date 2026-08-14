@@ -7,6 +7,10 @@ export async function listModuleCatalog(_req: Request, res: Response): Promise<v
   res.json({ modules: MODULE_CATALOG.map((m) => ({ key: m.key, name: m.name, hardDependencies: m.hardDependencies })) });
 }
 
+export async function getStats(_req: Request, res: Response): Promise<void> {
+  res.json(await svc.getPlatformStats());
+}
+
 function toTenant(t: { id: string; code: string; name: string; status: string; createdAt: Date }) {
   return { id: t.id, code: t.code, name: t.name, status: t.status, createdAt: t.createdAt.toISOString() };
 }

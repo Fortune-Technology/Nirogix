@@ -30,7 +30,7 @@ app/
     login/page.tsx      Org-code + email + password sign-in
   (app)/                Authenticated route group
     layout.tsx          CLIENT GUARD: redirects to /login unless authenticated; renders <AppShell>
-    dashboard/page.tsx  Capabilities-aware overview (cards reflect permissions)
+    dashboard/page.tsx  Role-aware roll-up — platform stats (super-admin) or org summary (others)
     providers/page.tsx  Provider directory — Standard DataTable + live API (guarded by providers.view)
     audit/page.tsx      Audit log — paginated DataTable (guarded by audit.log.view)
     settings/page.tsx   Theme + tenant-branding demonstration

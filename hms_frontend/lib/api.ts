@@ -30,6 +30,8 @@ import type {
   Branch,
   Role,
   Branding,
+  PlatformStats,
+  OrgSummary,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -213,6 +215,14 @@ export async function revokeTenantModule(id: string, key: string): Promise<void>
 
 export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
   return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+}
+
+export async function getPlatformStats(): Promise<PlatformStats> {
+  return request<PlatformStats>("/admin/stats");
+}
+
+export async function getOrgSummary(): Promise<OrgSummary> {
+  return request<OrgSummary>("/dashboard/summary");
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

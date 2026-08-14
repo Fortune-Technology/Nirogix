@@ -179,6 +179,36 @@ export interface Branding {
   typography: unknown;
 }
 
+// ---- Dashboards (hms_backend/src/modules/admin, /dashboard) ----------------
+
+export interface ActiveInactive {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+/** `GET /admin/stats` — platform-wide, super-admin only, aggregate-only (ADR-023). */
+export interface PlatformStats {
+  organizations: ActiveInactive;
+  hospitals: ActiveInactive;
+  branches: { total: number; active: number };
+  doctors: number;
+  users: number;
+  modules: Array<{ module: string; name: string; tenants: number }>;
+  patients: number | null;
+  appointments: number | null;
+}
+
+/** `GET /dashboard/summary` — the caller's own tenant, RLS-scoped. */
+export interface OrgSummary {
+  users: number;
+  doctors: number;
+  branches: { total: number; active: number };
+  modules: string[];
+  patients: number | null;
+  appointments: number | null;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {
