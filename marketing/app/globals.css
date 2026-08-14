@@ -1,26 +1,34 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Marketing shares the @hms/ui design tokens (--hms-*, from @hms/ui/styles.css) so
+ * the public site is brand-consistent with the Portal. Maps them into Tailwind's
+ * theme for layout utilities. The site renders in the Light (default) theme.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--hms-bg);
+  --color-surface: var(--hms-surface);
+  --color-surface-2: var(--hms-surface-2);
+  --color-border: var(--hms-border);
+  --color-fg: var(--hms-fg);
+  --color-fg-muted: var(--hms-fg-muted);
+  --color-fg-subtle: var(--hms-fg-subtle);
+  --color-brand: var(--hms-brand);
+  --color-brand-fg: var(--hms-brand-fg);
+  --color-brand-subtle: var(--hms-brand-subtle);
+  --radius-token: var(--hms-radius-md);
+  --radius-token-lg: var(--hms-radius-lg);
+  --font-sans: var(--hms-font-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--hms-bg);
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  -webkit-font-smoothing: antialiased;
 }

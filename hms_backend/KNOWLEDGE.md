@@ -133,7 +133,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Global specialty catalog:** `specialties` (reference table, **no RLS** — global) seeded from `modules/provider/specialtyCatalog.ts` (17 specialties). `snomedCode` intentionally left null until verified codes are sourced. `practitionerRoles.specialtyCode` is validated against this catalog (`assignSpecialty` throws a 422 `VALIDATION` on an unknown code).
 - **No-EAV specialty variation (invariant #5):** `specialty_form_templates` (tenant-scoped, RLS) holds a versioned JSON Schema per specialty/key — specialty-specific fields are configured as form templates, while core clinical entities stay strongly typed.
 - **Tables:** `providers`, `practitioner_roles`, `specialty_form_templates` (tenant-scoped, RLS + explicit `tenant_id` filters per ADR-015); `specialties` (global). Migration `drizzle/0007_clammy_wildside.sql`.
-- **Endpoints:** `GET /specialties` · `GET|POST /providers` · `GET /providers/:id` · `POST /providers/:id/specialties` · `GET|POST /specialty-templates` — read gated by `provider.directory.view`, writes by `provider.directory.manage`. Create/assign/template writes are audited.
+- **Endpoints:** `GET /specialties` · `GET|POST /providers` · `GET /providers/:id` · `POST /providers/:id/specialties` · `GET|POST /specialty-templates` — read gated by `providers.view`, writes by `providers.manage`. Create/assign/template writes are audited.
 - Verified live: 17 specialties listed; seeded "Dr. Ananya Sharma" (cardiology); created a provider + assigned orthopedics (PractitionerRole); unknown specialty → **422**; form template created.
 
 ## Endpoints (current)
@@ -148,7 +148,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`
-- `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `provider.directory.view|manage`
+- `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `providers.view|manage`
 
 ## API documentation (OpenAPI) — MANDATORY
 

@@ -1,0 +1,364 @@
+/*
+ * @hms/ui — the single design-token layer + canonical component styles.
+ *
+ * Everything visual derives from CSS custom properties (`--hms-*`). No component
+ * hardcodes a raw color / radius / spacing / type value (resources/rules.md →
+ * Design System). Light is the default (:root); Dark is applied by toggling
+ * `data-theme="dark"` on <html>. Tenant branding overrides `--hms-brand*` at
+ * runtime (inline style on <html>), so the same build re-skins per tenant.
+ *
+ * Imported once by the consuming app: `import '@hms/ui/styles.css'`.
+ */
+
+:root {
+  /* Brand (overridable per tenant) */
+  --hms-brand: #0e7490;
+  --hms-brand-hover: #0b5c72;
+  --hms-brand-fg: #ffffff;
+  --hms-brand-subtle: #e0f2f7;
+
+  /* Surfaces & text (Light — default) */
+  --hms-bg: #f6f8fa;
+  --hms-surface: #ffffff;
+  --hms-surface-2: #f1f4f7;
+  --hms-border: #e2e7ec;
+  --hms-fg: #1a1f24;
+  --hms-fg-muted: #5c6773;
+  --hms-fg-subtle: #8a95a1;
+
+  /* Status */
+  --hms-success: #157347;
+  --hms-success-subtle: #e3f2ea;
+  --hms-warning: #b7791f;
+  --hms-warning-subtle: #fbf1dd;
+  --hms-danger: #c0392b;
+  --hms-danger-fg: #ffffff;
+  --hms-danger-subtle: #fbe6e4;
+
+  /* Focus ring */
+  --hms-ring: #2563eb;
+
+  /* Radius */
+  --hms-radius-sm: 4px;
+  --hms-radius-md: 8px;
+  --hms-radius-lg: 12px;
+
+  /* Elevation */
+  --hms-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --hms-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.1);
+
+  /* Typography */
+  --hms-font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif);
+  --hms-text-sm: 0.8125rem;
+  --hms-text-base: 0.9375rem;
+  --hms-text-lg: 1.125rem;
+}
+
+[data-theme='dark'] {
+  --hms-brand: #22b8cf;
+  --hms-brand-hover: #3bc9db;
+  --hms-brand-fg: #06232b;
+  --hms-brand-subtle: #0c343d;
+
+  --hms-bg: #0d1117;
+  --hms-surface: #161b22;
+  --hms-surface-2: #1c232c;
+  --hms-border: #2a323c;
+  --hms-fg: #e6edf3;
+  --hms-fg-muted: #9aa7b2;
+  --hms-fg-subtle: #6e7b87;
+
+  --hms-success: #3fb27f;
+  --hms-success-subtle: #10241b;
+  --hms-warning: #d6a04a;
+  --hms-warning-subtle: #2a2113;
+  --hms-danger: #f0776a;
+  --hms-danger-fg: #2b0d0a;
+  --hms-danger-subtle: #2a1512;
+
+  --hms-ring: #58a6ff;
+
+  --hms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --hms-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------ */
+.hms-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.625rem 1rem;
+  border-radius: var(--hms-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+.hms-btn:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+.hms-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hms-btn--sm {
+  padding: 0.375rem 0.625rem;
+  font-size: var(--hms-text-sm);
+}
+.hms-btn--primary {
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+}
+.hms-btn--primary:hover:not(:disabled) {
+  background: var(--hms-brand-hover);
+}
+.hms-btn--secondary {
+  background: var(--hms-surface);
+  color: var(--hms-fg);
+  border-color: var(--hms-border);
+}
+.hms-btn--secondary:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+}
+.hms-btn--ghost {
+  background: transparent;
+  color: var(--hms-fg-muted);
+}
+.hms-btn--ghost:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+.hms-btn--danger {
+  background: var(--hms-danger);
+  color: var(--hms-danger-fg);
+}
+.hms-btn--danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* --------------------------------------------------------------------------
+ * Form fields
+ * ------------------------------------------------------------------------ */
+.hms-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.hms-label {
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  font-weight: 500;
+  color: var(--hms-fg);
+}
+.hms-input {
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  color: var(--hms-fg);
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  padding: 0.5625rem 0.75rem;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.hms-input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+.hms-input:focus {
+  outline: none;
+  border-color: var(--hms-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
+}
+.hms-input:disabled {
+  background: var(--hms-surface-2);
+  cursor: not-allowed;
+}
+.hms-field__error {
+  font-size: var(--hms-text-sm);
+  color: var(--hms-danger);
+}
+
+/* --------------------------------------------------------------------------
+ * Card
+ * ------------------------------------------------------------------------ */
+.hms-card {
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-lg);
+  box-shadow: var(--hms-shadow-sm);
+}
+.hms-card__header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--hms-border);
+  font-weight: 600;
+  color: var(--hms-fg);
+}
+.hms-card__body {
+  padding: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Badge
+ * ------------------------------------------------------------------------ */
+.hms-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--hms-font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  background: var(--hms-surface-2);
+  color: var(--hms-fg-muted);
+}
+.hms-badge--brand {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+}
+.hms-badge--success {
+  background: var(--hms-success-subtle);
+  color: var(--hms-success);
+}
+.hms-badge--warning {
+  background: var(--hms-warning-subtle);
+  color: var(--hms-warning);
+}
+.hms-badge--danger {
+  background: var(--hms-danger-subtle);
+  color: var(--hms-danger);
+}
+
+/* --------------------------------------------------------------------------
+ * Alert
+ * ------------------------------------------------------------------------ */
+.hms-alert {
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  padding: 0.75rem 1rem;
+  border-radius: var(--hms-radius-md);
+  border: 1px solid var(--hms-border);
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+.hms-alert--danger {
+  background: var(--hms-danger-subtle);
+  border-color: color-mix(in srgb, var(--hms-danger) 35%, transparent);
+  color: var(--hms-danger);
+}
+.hms-alert--success {
+  background: var(--hms-success-subtle);
+  border-color: color-mix(in srgb, var(--hms-success) 35%, transparent);
+  color: var(--hms-success);
+}
+
+/* --------------------------------------------------------------------------
+ * Spinner
+ * ------------------------------------------------------------------------ */
+.hms-spinner {
+  display: inline-block;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: hms-spin 0.6s linear infinite;
+}
+@keyframes hms-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Password field (input + show/hide toggle)
+ * ------------------------------------------------------------------------ */
+.hms-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.hms-password .hms-input {
+  padding-right: 2.75rem;
+}
+.hms-password__toggle {
+  position: absolute;
+  right: 0.375rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: transparent;
+  color: var(--hms-fg-subtle);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.hms-password__toggle:hover {
+  color: var(--hms-fg);
+  background: var(--hms-surface-2);
+}
+.hms-password__toggle:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------------------
+ * Standard DataTable
+ * ------------------------------------------------------------------------ */
+.hms-table__wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-lg);
+  background: var(--hms-surface);
+}
+.hms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+}
+.hms-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+  background: var(--hms-surface-2);
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--hms-border);
+  white-space: nowrap;
+}
+.hms-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--hms-border);
+  color: var(--hms-fg);
+  vertical-align: middle;
+}
+.hms-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.hms-table tbody tr:hover td {
+  background: var(--hms-surface-2);
+}
+.hms-table__state {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--hms-fg-muted);
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+}

@@ -259,7 +259,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - Schema `db/schema/providers.ts`: `providers` (Practitioner — tenant-scoped, RLS; optional `user_id`), `practitioner_roles` (PractitionerRole — tenant-scoped, RLS; unique `(provider_id, specialty_code, branch_id)`), `specialty_form_templates` (tenant-scoped, RLS; versioned JSON Schema), `specialties` (**global** reference, no RLS). Migration `drizzle/0007_clammy_wildside.sql` (4 tables).
 - `modules/provider/specialtyCatalog.ts` — 17-specialty seed (SNOMED codes left null until verified).
 - `provider.service.ts`: seedSpecialtyCatalog, listSpecialties, createProvider, **assignSpecialty** (catalog-validated → 422 on unknown code; insert PractitionerRole), listProvidersWithRoles, getProviderWithRoles, createFormTemplate, listFormTemplates — all explicit `tenant_id`-scoped (ADR-015) + audited.
-- `provider.{schema,controller,routes,openapi}.ts`. `@hms/permissions`: `PROVIDER_VIEW`/`PROVIDER_MANAGE` (`provider.directory.view|manage`, + org_admin). Wired into `api/v1/index.ts` + `openapi/register.ts`.
+- `provider.{schema,controller,routes,openapi}.ts`. `@hms/permissions`: `PROVIDER_VIEW`/`PROVIDER_MANAGE` (`providers.view|manage`, + org_admin). Wired into `api/v1/index.ts` + `openapi/register.ts`.
 - Seed: demo provider "Dr. Ananya Sharma" linked to the admin user, cardiology role.
 - Test `provider.test.ts` (create Practitioner, assign specialty = data change, reject unknown specialty, configure form template).
 

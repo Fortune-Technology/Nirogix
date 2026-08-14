@@ -104,4 +104,12 @@ See `resources/rules.md` (Architecture Decision Records) and `resources/developm
 **Consequence:** No AWS dependency or account anywhere (email = MSG91 per ADR-016, storage = R2). **COMPLIANCE:** R2 defaults to global auto-placement; for PHI the bucket MUST be jurisdiction-pinned to India (architecture.md → File Storage flags this) and the metadata/log pipeline kept in-region, or India-residency for health data is not met. E2E Object Storage remains the drop-in alternative if a stricter MeitY-empanelled residency guarantee is needed.
 
 ---
+
+## ADR-018 — Portal session model + RBAC-driven UI (client guards are UX, not security)
+**Status:** Accepted (this project) — Phase 0 Portal foundation (Task #12).
+**Context:** The Portal (`hms_frontend`, Next.js 16) runs on a different origin from the API. It needs a session model and a way to render each role's workspace. Invariant #2 forbids treating frontend visibility as security.
+**Decision:** (1) **Session:** the access token is held **in memory only** (never `localStorage`, to avoid JWT XSS exfiltration); the long-lived refresh token stays in the backend's **httpOnly `SameSite=Lax` cookie**. On load/reload the Portal silently re-establishes the session via `POST /auth/refresh`, then loads `/auth/me` + `/rbac/permissions`. A 401 triggers one silent refresh + retry. (2) **RBAC-driven UI:** the menu and page guards (`useCan`, `<Can>`, `<RequirePermission>`) derive from the user's *effective* permission set, using the **same `@hms/permissions` keys the backend enforces with** — but these are **UX only**; every endpoint independently re-checks `auth → module → permission`. (3) **Design system:** all visual values come from `@hms/ui` tokens (`--hms-*`, Light default + Dark via `data-theme`), mapped into Tailwind's `@theme`; one Standard `DataTable` for all tabular data; tenant branding overrides a single `--hms-brand` token at runtime.
+**Consequence:** No token in web storage; a hard reload costs one refresh round-trip (accepted). Menu/keys never drift from the server because both import `@hms/permissions`. Re-theming (Light/Dark, per-tenant brand) is a token swap, not a rebuild. Backend needed **no change** — existing `cors({origin:true,credentials:true})` + the `SameSite=Lax` refresh cookie already work cross-port. Client-side route guards must never be relied on for authorization; server checks are the boundary.
+
+---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

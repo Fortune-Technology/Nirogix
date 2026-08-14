@@ -5,11 +5,26 @@
   "description": "Shared design system — tokens (Light default + Dark), primitives, and the Standard DataTable. Consumed by hms_frontend and marketing.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./styles.css": "./src/styles.css"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
   "devDependencies": {
     "@hms/config": "*",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "^19",
+    "react-dom": "^19",
     "typescript": "^5"
   }
 }

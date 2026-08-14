@@ -1,11 +1,27 @@
 // @hms/ui — shared design system for the HMS monorepo.
 //
-// Home of: the single design-token set (font/size/weight/line-height, spacing,
-// radius, palette, shadows) with Light (default) + Dark variants; one canonical
-// implementation per UI pattern (buttons, inputs, tables, modals, toasts, cards,
-// dropdowns, alerts, empty/loading/error states); the Standard DataTable; and the
-// branding token layer. No component hardcodes a raw color/spacing/radius/type value.
+// The single design-token set (Light default + Dark, tokens in `styles.css`) plus
+// one canonical implementation per UI primitive and the Standard DataTable. No
+// component hardcodes a raw color / spacing / radius / type value — everything
+// derives from the `--hms-*` custom properties. Consumed by hms_frontend (Portal)
+// and marketing. See resources/rules.md (Design System) and development-plan.md §14.
 //
-// Consumed by hms_frontend (Portal) and marketing. Built in Stage 0.
-// See resources/rules.md (Design System & UI Consistency) and resources/development-plan.md §14.
-export {};
+// Styles ship separately: `import '@hms/ui/styles.css'` once in the consuming app.
+
+export { cn } from './cn';
+export { Button } from './components/Button';
+export type { ButtonProps } from './components/Button';
+export { Field } from './components/Input';
+export type { FieldProps } from './components/Input';
+export { PasswordField } from './components/PasswordField';
+export type { PasswordFieldProps } from './components/PasswordField';
+export { Card } from './components/Card';
+export type { CardProps } from './components/Card';
+export { Badge } from './components/Badge';
+export type { BadgeProps } from './components/Badge';
+export { Alert } from './components/Alert';
+export type { AlertProps } from './components/Alert';
+export { Spinner } from './components/Spinner';
+export type { SpinnerProps } from './components/Spinner';
+export { DataTable } from './components/DataTable';
+export type { Column, DataTableProps } from './components/DataTable';

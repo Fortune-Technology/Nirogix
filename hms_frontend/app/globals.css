@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Map the @hms/ui design tokens (--hms-*, defined in @hms/ui/styles.css) into
+ * Tailwind's theme so app-level layout utilities (bg-surface, text-fg-muted,
+ * border-border, bg-brand, rounded-token …) share the exact same tokens as the
+ * design-system primitives. Nothing here hardcodes a color — the values live in
+ * one place and re-theme for Light/Dark and per-tenant branding automatically.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--hms-bg);
+  --color-surface: var(--hms-surface);
+  --color-surface-2: var(--hms-surface-2);
+  --color-border: var(--hms-border);
+  --color-fg: var(--hms-fg);
+  --color-fg-muted: var(--hms-fg-muted);
+  --color-fg-subtle: var(--hms-fg-subtle);
+  --color-brand: var(--hms-brand);
+  --color-brand-fg: var(--hms-brand-fg);
+  --color-brand-subtle: var(--hms-brand-subtle);
+  --color-danger: var(--hms-danger);
+  --radius-token: var(--hms-radius-md);
+  --radius-token-lg: var(--hms-radius-lg);
+  --font-sans: var(--hms-font-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--hms-bg);
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  -webkit-font-smoothing: antialiased;
 }
