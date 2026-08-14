@@ -465,6 +465,24 @@ Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management  
 - Root `CLAUDE.md` and per-app/package `KNOWLEDGE.md`/`DONE.md` exist and cross-reference.
 - A sample shared component renders in both themes and under a second tenant's branding.
 
+**Live status (2026-08-14) — code-complete; exit criteria met except where infra-blocked:**
+
+| # | Exit criterion | Status |
+|---|---|---|
+| 1 | Log in as each seeded role → role-appropriate dashboard | ✅ verified (Portal, capability-driven shell) |
+| 2 | Unauth → 401; forbidden → 403 | ✅ verified (API + Portal 403 page) |
+| 3 | Automated test: Tenant A never returns Tenant B's data | ✅ RLS isolation test (runs in CI on real Postgres) + live disjoint-provider check |
+| 4 | A login writes an `audit_log` row | ✅ verified |
+| 5 | Test notification through the **real** provider in **staging** | ⏳ **infra-blocked** — skeleton + log provider done; real send needs staging VM + MSG91 DLT (24–48h external) |
+| 6 | CI runs lint+tests+build every push; auto-deploys staging on merge | 🟡 CI ✅ (every push); auto-deploy workflow authored, **needs the staging VM** to exercise |
+| 7 | Swagger/OpenAPI renders + reflects auth endpoints | ✅ verified (`/api/v1/docs`) |
+| 8 | Un-entitled module → 403/404 + UI entry hidden | ✅ verified (`requireModule` + `<Can>`/nav filtering) |
+| 9 | User override (grant **and** deny) enforced + audited | ✅ RBAC tests + audit |
+| 10 | Root `CLAUDE.md` + per-app/package `KNOWLEDGE`/`DONE` exist + cross-reference | ✅ all apps + packages |
+| 11 | Shared component in both themes + second tenant's branding | ✅ verified (Light/Dark + brand override) |
+
+Only #5 and the auto-deploy half of #6 remain, both **blocked on real infrastructure** (staging VM + managed DB + MSG91 DLT), not on code. They are validated at staging bring-up (the deploy/backup baseline is versioned under `deploy/`), with RPO/RTO formally validated in Stage 3.
+
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
 *Maps to MVP 0. Goal: a real clinic runs registration → appointment → consultation → payment entirely on the platform.*
