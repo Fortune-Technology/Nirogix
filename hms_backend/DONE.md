@@ -248,3 +248,25 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** in-process event bus (not a broker) per architecture; one job runner abstraction — BullMQ (Redis) or inline fallback so dev/CI need no Redis; jobs retryable + schedulable; no module creates its own cron.
 
 **Known limitations:** BullMQ path unverified against live Redis (dormant until `REDIS_URL`). Only `notification.send` processor so far (PDF gen, ABDM sync, reminders land with their modules). Inline runner is fire-and-forget (no retry/persistence) — dev only.
+
+---
+
+## 2026-08-14 — Provider/specialty core, FHIR-aligned (Task #11)
+
+**What:** The provider directory + specialty model — FHIR Practitioner / PractitionerRole, a global specialty catalog, and no-EAV specialty form templates. Closes Phase 0's clinical-foundation slice (invariants #5).
+
+**Added:**
+- Schema `db/schema/providers.ts`: `providers` (Practitioner — tenant-scoped, RLS; optional `user_id`), `practitioner_roles` (PractitionerRole — tenant-scoped, RLS; unique `(provider_id, specialty_code, branch_id)`), `specialty_form_templates` (tenant-scoped, RLS; versioned JSON Schema), `specialties` (**global** reference, no RLS). Migration `drizzle/0007_clammy_wildside.sql` (4 tables).
+- `modules/provider/specialtyCatalog.ts` — 17-specialty seed (SNOMED codes left null until verified).
+- `provider.service.ts`: seedSpecialtyCatalog, listSpecialties, createProvider, **assignSpecialty** (catalog-validated → 422 on unknown code; insert PractitionerRole), listProvidersWithRoles, getProviderWithRoles, createFormTemplate, listFormTemplates — all explicit `tenant_id`-scoped (ADR-015) + audited.
+- `provider.{schema,controller,routes,openapi}.ts`. `@hms/permissions`: `PROVIDER_VIEW`/`PROVIDER_MANAGE` (`provider.directory.view|manage`, + org_admin). Wired into `api/v1/index.ts` + `openapi/register.ts`.
+- Seed: demo provider "Dr. Ananya Sharma" linked to the admin user, cardiology role.
+- Test `provider.test.ts` (create Practitioner, assign specialty = data change, reject unknown specialty, configure form template).
+
+**API:** `GET /specialties`, `GET|POST /providers`, `GET /providers/:id`, `POST /providers/:id/specialties`, `GET|POST /specialty-templates` — all documented (OpenAPI gate passes).
+
+**Testing status:** typecheck green · openapi:validate green · full suite **31/31** (10 files). **Live-verified:** 17 specialties listed; seeded "Dr. Ananya Sharma" shows cardiology + registration; created "Dr. Rohit Mehta" then assigned orthopedics (PractitionerRole visible on re-GET); unknown specialty → **422 VALIDATION**; dental form template created.
+
+**Decisions:** FHIR Practitioner/PractitionerRole (ADR-008) — a specialty is a *role assignment* (data), never a new table. `specialties` is a global reference table (no RLS), like `permissions`. Specialty variation via configurable `specialty_form_templates` (JSON Schema), never EAV (invariant #5). Unknown specialty is a client validation error (422), not a 500.
+
+**Known limitations:** Specialty `snomed_code`s unset (need a verified source before terminology binding). No provider↔branch scheduling/availability yet (a later clinical phase). Form-template *rendering/validation* engine (applying a template's JSON Schema to captured data) is not built — templates are stored, not yet enforced. PractitionerRole deactivation flow (`is_active`) exposed in reads but no endpoint to toggle it.

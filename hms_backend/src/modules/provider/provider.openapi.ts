@@ -1,0 +1,122 @@
+import { registry, z } from '../../openapi/registry';
+import { ErrorResponseSchema } from '../../openapi/schemas';
+import {
+  SpecialtiesResponseSchema,
+  CreateProviderBody,
+  ProviderSchema,
+  ProvidersResponseSchema,
+  AssignSpecialtyBody,
+  AssignedRoleSchema,
+  CreateFormTemplateBody,
+  FormTemplateSchema,
+  FormTemplatesResponseSchema,
+} from './provider.schema';
+
+const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
+const idParam = { params: z.object({ id: z.string().uuid() }) };
+const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
+const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/specialties',
+  operationId: 'listSpecialties',
+  tags: ['Doctors'],
+  summary: 'List the specialty catalog (reference data)',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Specialties', ...json(SpecialtiesResponseSchema) }, 401: notAuthed },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/providers',
+  operationId: 'listProviders',
+  tags: ['Doctors'],
+  summary: 'List providers (FHIR Practitioner) with their specialties',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Providers', ...json(ProvidersResponseSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/providers',
+  operationId: 'createProvider',
+  tags: ['Doctors'],
+  summary: 'Create a provider (FHIR Practitioner)',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(CreateProviderBody) },
+  responses: {
+    201: { description: 'Created', ...json(ProviderSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/providers/{id}',
+  operationId: 'getProvider',
+  tags: ['Doctors'],
+  summary: 'Get a provider',
+  security: [{ bearerAuth: [] }],
+  request: idParam,
+  responses: {
+    200: { description: 'Provider', ...json(ProviderSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/providers/{id}/specialties',
+  operationId: 'assignSpecialty',
+  tags: ['Doctors'],
+  summary: 'Assign a specialty to a provider (FHIR PractitionerRole)',
+  description: 'Adding a specialty is a data change (a new PractitionerRole), never a schema change.',
+  security: [{ bearerAuth: [] }],
+  request: { ...idParam, body: json(AssignSpecialtyBody) },
+  responses: {
+    201: { description: 'Role assigned', ...json(AssignedRoleSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Provider not found', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/specialty-templates',
+  operationId: 'listFormTemplates',
+  tags: ['Config'],
+  summary: 'List specialty form templates',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Templates', ...json(FormTemplatesResponseSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/specialty-templates',
+  operationId: 'createFormTemplate',
+  tags: ['Config'],
+  summary: 'Create a specialty form template (configurable structured data — the no-EAV mechanism)',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(CreateFormTemplateBody) },
+  responses: {
+    201: { description: 'Created', ...json(FormTemplateSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});

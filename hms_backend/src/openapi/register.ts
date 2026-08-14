@@ -9,3 +9,4 @@ import '../modules/entitlement/entitlement.openapi';
 import '../modules/audit/audit.openapi';
 import '../modules/notification/notification.openapi';
 import '../modules/file/file.openapi';
+import '../modules/provider/provider.openapi';

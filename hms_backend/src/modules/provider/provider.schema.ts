@@ -1,0 +1,78 @@
+import { z } from '../../openapi/registry';
+
+export const SpecialtySchema = z
+  .object({ code: z.string(), name: z.string(), snomedCode: z.string().nullable() })
+  .openapi('Specialty');
+export const SpecialtiesResponseSchema = z
+  .object({ specialties: z.array(SpecialtySchema) })
+  .openapi('SpecialtiesResponse');
+
+export const CreateProviderBody = z
+  .object({
+    fullName: z.string().min(1).openapi({ example: 'Dr. Ananya Sharma' }),
+    gender: z.string().optional(),
+    registrationNumber: z.string().optional().openapi({ example: 'MCI-12345' }),
+    qualification: z.string().optional().openapi({ example: 'MBBS, MD (Cardiology)' }),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+  })
+  .openapi('CreateProviderRequest');
+
+export const ProviderSchema = z
+  .object({
+    id: z.string().uuid(),
+    fullName: z.string(),
+    gender: z.string().nullable(),
+    registrationNumber: z.string().nullable(),
+    qualification: z.string().nullable(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    isActive: z.boolean(),
+    specialties: z.array(z.string()).openapi({ example: ['cardiology'] }),
+  })
+  .openapi('Provider');
+export const ProvidersResponseSchema = z
+  .object({ providers: z.array(ProviderSchema) })
+  .openapi('ProvidersResponse');
+
+export const AssignSpecialtyBody = z
+  .object({
+    specialtyCode: z.string().openapi({ example: 'cardiology' }),
+    branchId: z.string().uuid().optional(),
+    role: z.string().optional().openapi({ example: 'consultant' }),
+    isPrimary: z.boolean().optional(),
+  })
+  .openapi('AssignSpecialtyRequest');
+
+export const AssignedRoleSchema = z
+  .object({
+    id: z.string().uuid(),
+    providerId: z.string().uuid(),
+    specialtyCode: z.string(),
+    role: z.string(),
+    isPrimary: z.boolean(),
+  })
+  .openapi('PractitionerRole');
+
+export const CreateFormTemplateBody = z
+  .object({
+    specialtyCode: z.string().optional(),
+    key: z.string().min(1).openapi({ example: 'dental_charting' }),
+    name: z.string().min(1).openapi({ example: 'Dental Charting' }),
+    schema: z.record(z.unknown()).openapi({ description: 'Form field definitions (JSON)' }),
+  })
+  .openapi('CreateFormTemplateRequest');
+
+export const FormTemplateSchema = z
+  .object({
+    id: z.string().uuid(),
+    specialtyCode: z.string().nullable(),
+    key: z.string(),
+    name: z.string(),
+    version: z.number().int(),
+    isActive: z.boolean(),
+  })
+  .openapi('FormTemplate');
+export const FormTemplatesResponseSchema = z
+  .object({ templates: z.array(FormTemplateSchema) })
+  .openapi('FormTemplatesResponse');

@@ -1,11 +1,12 @@
 import 'dotenv/config';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
-import { tenants, users } from '../db/schema';
+import { tenants, users, providers } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
+import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 
 // Minimal demo seed so login + RBAC can be exercised end-to-end. Idempotent. Indian healthcare
 // context per resources/rules.md. Expand into the full multi-tenant demo in the Ops task (#14).
@@ -64,6 +65,31 @@ async function main(): Promise<void> {
     await assignRoleByKey(tenant.id, userId, u.role);
     // eslint-disable-next-line no-console
     console.log(`User ${u.email} (${u.role}) ready — org ${DEMO.tenant.code}, password ${u.password}`);
+  }
+
+  // Provider/specialty demo (FHIR): a Practitioner for the admin, with a Cardiology role.
+  await seedSpecialtyCatalog();
+  const adminUserId = await upsertUser(tenant.id, DEMO.users[0]!);
+  const existingProv = await runWithTenant(tenant.id, (tx) =>
+    tx
+      .select()
+      .from(providers)
+      .where(and(eq(providers.tenantId, tenant.id), eq(providers.userId, adminUserId)))
+      .limit(1),
+  );
+  if (existingProv.length === 0) {
+    const prov = await createProvider(tenant.id, {
+      fullName: DEMO.users[0]!.fullName,
+      userId: adminUserId,
+      qualification: 'MBBS, MD',
+      registrationNumber: 'MCI-DEMO-001',
+    });
+    await assignSpecialty(tenant.id, prov.id, { specialtyCode: 'cardiology', isPrimary: true });
+    // eslint-disable-next-line no-console
+    console.log(`Created provider ${prov.fullName} (cardiology)`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('Demo provider already exists');
   }
 
   await pool.end();
