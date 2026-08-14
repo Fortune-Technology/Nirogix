@@ -19,6 +19,17 @@ import type {
   Specialty,
   AuditEntry,
   Paginated,
+  Tenant,
+  TenantDetail,
+  ModuleCatalogItem,
+  OnboardTenantRequest,
+  OnboardTenantResponse,
+  UserListItem,
+  UserDetail,
+  CreateUserRequest,
+  Branch,
+  Role,
+  Branding,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -154,6 +165,10 @@ export async function myPermissions(): Promise<MyPermissionsResponse> {
   return request<MyPermissionsResponse>("/rbac/permissions");
 }
 
+export async function listRoles(): Promise<Role[]> {
+  return (await request<{ roles: Role[] }>("/rbac/roles")).roles;
+}
+
 // ---- Resources -------------------------------------------------------------
 
 export async function listProviders(): Promise<Provider[]> {
@@ -168,4 +183,116 @@ export async function listSpecialties(): Promise<Specialty[]> {
 
 export async function listAudit(page = 1, pageSize = 20): Promise<Paginated<AuditEntry>> {
   return request<Paginated<AuditEntry>>(`/audit?page=${page}&pageSize=${pageSize}`);
+}
+
+// ---- Admin / onboarding (Super-Admin) --------------------------------------
+
+export async function listTenants(): Promise<Tenant[]> {
+  return (await request<{ tenants: Tenant[] }>("/admin/tenants")).tenants;
+}
+
+export async function getTenant(id: string): Promise<TenantDetail> {
+  return request<TenantDetail>(`/admin/tenants/${id}`);
+}
+
+export async function onboardTenant(body: OnboardTenantRequest): Promise<OnboardTenantResponse> {
+  return request<OnboardTenantResponse>("/admin/tenants", { method: "POST", body });
+}
+
+export async function setTenantStatus(id: string, status: string): Promise<Tenant> {
+  return request<Tenant>(`/admin/tenants/${id}/status`, { method: "PATCH", body: { status } });
+}
+
+export async function grantTenantModule(id: string, module: string): Promise<void> {
+  await request(`/admin/tenants/${id}/modules`, { method: "POST", body: { module } });
+}
+
+export async function revokeTenantModule(id: string, key: string): Promise<void> {
+  await request(`/admin/tenants/${id}/modules/${key}`, { method: "DELETE" });
+}
+
+export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
+  return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+}
+
+// ---- Org-Admin: users & branches -------------------------------------------
+
+export async function listUsers(): Promise<UserListItem[]> {
+  return (await request<{ users: UserListItem[] }>("/users")).users;
+}
+
+export async function createUser(body: CreateUserRequest): Promise<{ id: string; tempPassword: string | null }> {
+  return request<{ id: string; tempPassword: string | null }>("/users", { method: "POST", body });
+}
+
+export async function getUser(id: string): Promise<UserDetail> {
+  return request<UserDetail>(`/users/${id}`);
+}
+
+export async function updateUser(id: string, patch: { status?: string; fullName?: string }): Promise<void> {
+  await request(`/users/${id}`, { method: "PATCH", body: patch });
+}
+
+export async function assignUserRole(id: string, roleKey: string): Promise<void> {
+  await request(`/users/${id}/roles`, { method: "POST", body: { roleKey } });
+}
+
+export async function removeUserRole(id: string, roleKey: string): Promise<void> {
+  await request(`/users/${id}/roles/${roleKey}`, { method: "DELETE" });
+}
+
+export async function addUserOverride(
+  id: string,
+  body: { permission: string; effect: "GRANT" | "DENY"; validUntil?: string },
+): Promise<void> {
+  await request(`/users/${id}/overrides`, { method: "POST", body });
+}
+
+export async function revokeUserOverride(id: string, overrideId: string): Promise<void> {
+  await request(`/users/${id}/overrides/${overrideId}`, { method: "DELETE" });
+}
+
+export async function listBranches(): Promise<Branch[]> {
+  return (await request<{ branches: Branch[] }>("/branches")).branches;
+}
+
+export async function createBranch(body: { code: string; name: string }): Promise<Branch> {
+  return request<Branch>("/branches", { method: "POST", body });
+}
+
+export async function updateBranch(id: string, patch: { name?: string; isActive?: boolean }): Promise<Branch> {
+  return request<Branch>(`/branches/${id}`, { method: "PATCH", body: patch });
+}
+
+// ---- Tenant branding -------------------------------------------------------
+
+export async function getCurrentBranding(): Promise<Branding> {
+  return request<Branding>("/branding/current");
+}
+
+export async function updateBranding(patch: {
+  brandColor?: string | null;
+  secondaryColor?: string | null;
+}): Promise<Branding> {
+  return request<Branding>("/branding", { method: "PUT", body: patch });
+}
+
+export async function resetBranding(): Promise<Branding> {
+  return request<Branding>("/branding", { method: "DELETE" });
+}
+
+/** Upload a logo/favicon (multipart). Returns the updated branding (with the new asset URL). */
+export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File): Promise<Branding> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const res = await fetch(`${BASE_URL}/branding/${kind}`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as Branding;
 }

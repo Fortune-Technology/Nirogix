@@ -92,6 +92,67 @@ export async function assignRoleByKey(
   });
 }
 
+// Removes a role from a user (org-admin management). Idempotent. Invalidates the cache + audits.
+export async function removeRoleByKey(
+  tenantId: string,
+  userId: string,
+  roleKey: string,
+): Promise<void> {
+  await runWithTenant(tenantId, async (tx) => {
+    const role = (
+      await tx
+        .select()
+        .from(roles)
+        .where(and(eq(roles.tenantId, tenantId), eq(roles.key, roleKey)))
+        .limit(1)
+    )[0];
+    if (!role) return;
+    await tx
+      .delete(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, role.id)));
+  });
+  cache.invalidateUser(tenantId, userId);
+  await writeAudit({
+    tenantId,
+    action: 'rbac.role.remove',
+    resourceType: 'user',
+    resourceId: userId,
+    metadata: { roleKey },
+  });
+}
+
+// The roles currently assigned to a user (for the admin UI).
+export async function listUserRoles(
+  tenantId: string,
+  userId: string,
+): Promise<Array<{ key: string; name: string }>> {
+  return runWithTenant(tenantId, (tx) =>
+    tx
+      .select({ key: roles.key, name: roles.name })
+      .from(userRoles)
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(and(eq(userRoles.tenantId, tenantId), eq(userRoles.userId, userId))),
+  );
+}
+
+// A user's active (non-revoked) permission overrides, for the admin UI.
+export async function listUserOverrides(
+  tenantId: string,
+  userId: string,
+): Promise<Array<{ id: string; permission: string; effect: string; validUntil: string | null }>> {
+  const rows = await runWithTenant(tenantId, (tx) =>
+    tx.select().from(userPermissionOverrides).where(eq(userPermissionOverrides.userId, userId)),
+  );
+  return rows
+    .filter((o) => !o.revokedAt)
+    .map((o) => ({
+      id: o.id,
+      permission: o.permission,
+      effect: o.effect,
+      validUntil: o.validUntil ? o.validUntil.toISOString() : null,
+    }));
+}
+
 // Effective permissions = union(role permissions) + GRANT overrides − DENY overrides. DENY always
 // wins. Temporary overrides are honoured by their validity window. Result is cached, bounded by
 // the earliest relevant valid_until (ADR-010).

@@ -9,6 +9,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | Doc | Purpose |
 |---|---|
 | `resources/projectrequirementdoc.md` | Functional scope — modules, capabilities, acceptance |
+| `resources/user-journeys.md` | End-to-end user flow & hierarchy — who does what first (Platform Owner → Org → Admin → Staff → Patients); every module serves a journey step |
 | `resources/architecture.md` | Technical architecture — the design every rule derives from |
 | `resources/phases.md` | Build sequencing — Phase 0, MVP 0/1, Phases 2–4 |
 | `resources/rules.md` | Engineering rules & standards (binding) |
@@ -73,3 +74,5 @@ Tooling: **npm workspaces + Turborepo** (ADR-014). Root scripts: `npm run instal
 **Phase 0 (Platform Foundation) — code-complete** on branch `feat/phase-0-platform-foundation`. All Platform Core built and verified locally: tenancy + RLS, auth (JWT access + refresh), RBAC with overrides, module entitlements, audit log, notifications (MSG91 behind an abstraction), file storage (Cloudflare R2/local), domain events + BullMQ jobs, FHIR provider/specialty core, mandatory OpenAPI, the Next 16 Portal (auth + RBAC-driven shell + `@hms/ui` design system + Standard DataTable), the marketing scaffold, and the ops baseline (seed with 2 Indian-context tenants, structured logging + error tracking, versioned deploy/CI-CD/backup config). Every app and package has `KNOWLEDGE.md` + `DONE.md`; `DECISIONS.md` holds ADR-001…ADR-019.
 
 **Stage 0 exit criteria** (see `resources/development-plan.md` §20): met and locally verified — role login → dashboard, 401/403, tenant-isolation test, audit-on-login, OpenAPI/auth docs, entitlement 403 + hidden UI, grant/deny override enforced + audited, shared component in both themes + second-tenant branding. **Blocked on real infrastructure only** (not code): a real notification send in *staging* (needs the staging VM + MSG91 DLT registration, 24–48h external), and the *auto-deploy-to-staging* half of CI/CD (workflow authored, needs the VM). These are validated at staging bring-up / Stage 3.
+
+**Next planned milestone — Platform Administration Surface** (`resources/development-plan.md` §20A; ADR-020, ADR-021): exposes the existing tenancy/RBAC/entitlement/branding-token *mechanisms* through operator + admin **screens** — Super-Admin **tenant onboarding** (create tenant → modules → first org_admin → branches; operator-driven, *not* public self-registration), Org-Admin **user/role/branch management**, and a real **branding admin** (colour picker + logo/favicon upload, persisted per-tenant, replacing the current localStorage preset demo). Self-serve signup + payment-integrated plans stay deferred to the Enterprise/Scale track (§25).

@@ -288,3 +288,79 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** ADR-019 (ops/deploy baseline). Error tracking behind an abstraction (swap in Sentry via env, no code change). Restore is drilled via a runnable script, not just assumed. Seed reflects genuine Indian healthcare context and is staging-only.
 
 **Known limitations:** Deploy pipeline/Nginx/PM2/backup are templates — not executed here (no VM/managed DB in this environment); real hosts + secrets are substituted at deploy time. Turborepo affected-only deploys, alerting, and metrics/traces are Stage-3 items. RPO/RTO defined + validated in Stage 3's backup/DR drill.
+
+---
+
+## 2026-08-14 — Super-Admin onboarding + tenant management (Milestone A / Task A1)
+
+**What:** The operator-facing onboarding surface (development-plan §20A, ADR-020) — a platform Super Admin creates tenants through the API instead of editing `seed.ts`.
+
+**Added (`modules/admin/`):**
+- `admin.service.ts`: `onboardTenant` (transaction — create tenant → `provisionTenantRbac` → grant modules with **hard-dependency closure + catalog ordering** → create first `org_admin` with a one-time temp password → create branches; audited), `listTenants` (platform-level, no-RLS `tenants` table), `getTenantDetail` (modules + branches + user count, fetched in the tenant's own context), `setTenantStatus`, `grantTenantModule`/`revokeTenantModule` (soft, never deleted), `tenantExists`.
+- `admin.{schema,controller,routes,openapi}.ts`. New permission `platform.tenants.manage` in `@hms/permissions` — **not attached to any role**; only `super_admin` (WILDCARD) resolves it.
+- Wired into `api/v1/index.ts` + `openapi/register.ts`.
+
+**API:** `GET|POST /admin/tenants`, `GET /admin/tenants/:id`, `PATCH /admin/tenants/:id/status`, `POST /admin/tenants/:id/modules`, `DELETE /admin/tenants/:id/modules/:key` — all documented (OpenAPI gate passes).
+
+**Cross-tenant model (ADR-020):** the tenant row is created on the no-RLS `tenants` table; all per-tenant provisioning runs in the **new tenant's** `runWithTenant` context, so a Super Admin can set up any tenant while RLS keeps the data isolated from birth. Regular users never resolve `platform.tenants.manage`, so `/admin/*` is Super-Admin-only.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **34/34** (11 files; +3 admin tests). **Live-verified:** super-admin lists tenants (CITYCARE, SUNRISE); **org-admin → 403** on `/admin/tenants`; onboarded a new tenant end-to-end (create → 7 default modules → first org_admin + temp password → branch); the **new org_admin logged in with the temp password (200)**; tenant detail shows modules/branches/userCount; duplicate code → **409**; short name → 422 (validation before conflict). Demo tenant removed afterward (DB back to the 2 seeded tenants).
+
+**Decisions:** ADR-020 (operator-driven onboarding, not public self-registration). Temp password returned once for operator handoff (forced-change-on-first-login is a later hardening). Module grant expands hard dependencies so onboarding never fails on a missing dep.
+
+**Known limitations:** No forced password change on first login yet; no email-invite flow (temp-password handoff now — invite via `NotificationService` is a fast follow, ADR-020). Cross-tenant listing shows tenant rows only (per-tenant counts are fetched on the detail view, one tenant at a time — correct under a non-superuser prod role).
+
+---
+
+## 2026-08-14 — Org-Admin management: users, roles/overrides, branches (Milestone A / Task A2)
+
+**What:** The tenant-scoped admin surface an `org_admin` uses to manage their own staff and branches (development-plan §20A).
+
+**Added:**
+- `modules/user/` — `listUsers` (with role keys), `createUser` (one-time temp password when none supplied), `getUserDetail` (roles + effective permissions + active overrides), `updateUser` (status/name). Controller also wires role assign/remove and override add/revoke to the RBAC service.
+- `rbac.service` additions: `removeRoleByKey`, `listUserRoles`, `listUserOverrides` (active only).
+- `modules/branch/` — `listBranches`, `createBranch` (unique code per tenant), `updateBranch`.
+- Schemas/controllers/routes/OpenAPI for both; wired into `api/v1` + `openapi/register`.
+
+**API:** `GET|POST /users`, `GET|PATCH /users/:id`, `POST/DELETE /users/:id/roles(/:roleKey)`, `POST/DELETE /users/:id/overrides(/:overrideId)`, `GET|POST /branches`, `PATCH /branches/:id`. Reads → `platform.users.view`/`platform.branches.view`; account mutations → `.manage`; role/override mutations → `platform.rbac.manage`. All tenant-scoped (RLS) + audited.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **38/38** (12 files; +4 user/branch tests). **Live-verified (CITYCARE org_admin):** listed 8 users; created a user with a role (temp password); a **DENY override removed a role-granted permission** live (DENY wins); listed + created a branch; a **receptionist got 403** on both `/users` and `/branches`. Test rows removed afterward (audit trail retained).
+
+**Decisions:** Role/override management lives under `/users/:id/...` (what the admin UI needs), reusing the existing RBAC engine (no new authz logic). Overrides never deleted — revoked (soft), matching ADR-010. Temp password returned once only when the operator doesn't supply one.
+
+**Known limitations:** No self-service password change / reset flow yet. No email invite (temp-password handoff). Branch-scoped user assignment (which staff belong to which branch) is not modeled yet — branches exist as org structure; per-branch user membership is a later slice.
+
+---
+
+## 2026-08-14 — Tenant branding, persisted server-side (Milestone B / Task B1)
+
+**What:** Per-tenant branding persisted in the DB and applied through the Phase-0 token seam (development-plan §20A, ADR-021) — replacing the client-only preset demo.
+
+**Added:**
+- Schema `db/schema/branding.ts`: `tenant_branding` (tenant-scoped, RLS; nullable `branch_id`; `brand_color`, `secondary_color`, `logo_file_id`, `favicon_file_id`, `typography` jsonb, `version`). Migration `drizzle/0008_worried_chimera.sql` (RLS auto-applied).
+- `modules/branding/`: `branding.service` (getCurrentBranding — resolves logo/favicon ids to short-lived URLs via the existing `FileStorageService`; updateBranding, setLogo/setFavicon, resetBranding, `version` bump), `branding.{schema,controller,routes,openapi}.ts`. Logo/favicon uploads **reuse** `uploadSingle('file')` + `uploadFile` (no new storage path).
+- New permission `platform.branding.manage` in `@hms/permissions` (+ org_admin — added to the seeded role set; `db:seed` grants it to existing tenants idempotently). Wired into `api/v1` + `openapi/register`.
+
+**API:** `GET /branding/current` (any authed user — bootstrap), `PUT /branding`, `DELETE /branding` (reset), `POST /branding/logo`, `POST /branding/favicon` — editing gated by `platform.branding.manage`. Colours validated `#RRGGBB`.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **41/41** (13 files; +3 branding). **Live-verified (CITYCARE org_admin):** PUT colours (`#0ea5e9`/`#f97316`) persist + read back via `GET /branding/current`; logo upload (PNG) returns a resolved URL; bad hex (`"blue"`) → **422**; reset clears colours + logo; a **receptionist → 403**. (Discovered + fixed during verification: existing tenants' `org_admin` role predated the new permission — `db:seed` re-grants it idempotently, then the backend cache clears on restart.)
+
+**Decisions:** ADR-021 — persist server-side, apply via the `--hms-*` token seam (no component changes). Logo/favicon go through the existing FileStorageService (private + short-lived URLs, re-fetched at each bootstrap). Colours are `#RRGGBB`-validated; branch-level branding reserved (nullable `branch_id`).
+
+**Known limitations:** `secondary_color` + `typography` are stored but not yet consumed by any component (reserved). Logo URLs are short-lived (600s) — re-fetched on reload; a longer branding-asset TTL / public branding bucket is a later refinement. Branch-level branding override not built.
+
+---
+
+## 2026-08-14 — System Super Admin moved to a dedicated PLATFORM org (ADR-022)
+
+**What:** Separated the platform owner from customer hospitals. The System Super Admin previously lived *inside* the CITYCARE hospital (`superadmin@citycare.example`) as a login shortcut; conceptually the vendor should sit above all hospitals, unattached to any.
+
+**Changed:**
+- `scripts/seed.ts`: added a **`PLATFORM`** org (name "Takoriya Technology LLP", `modules: []`, no branches/providers) holding the sole `super_admin` user `owner@takoriya.example`. Removed the `super_admin` user from CITYCARE. `SeedTenant` gained an optional `modules` field (defaults to the MVP set; PLATFORM overrides to none). Existing tenants now top out at `org_admin`.
+- Docs: **ADR-022**; `TESTING_CREDENTIALS.md` (new Tier-0 Platform section, `PLATFORM`/`owner@takoriya.example`); `KNOWLEDGE.md` demo line.
+
+**Testing status:** typecheck green · seed idempotent (1 platform org + 2 hospitals). **Live-verified:** `PLATFORM`/`owner@takoriya.example` → 200 and lists all tenants (CITYCARE, SUNRISE, PLATFORM); the old `superadmin@citycare.example` → **401** (removed); CITYCARE `org_admin` still logs in (200) but **cannot** onboard tenants (**403**). The old super-admin row was purged from the DB.
+
+**Decisions:** ADR-022 — Tier 0 (platform owner, `PLATFORM` org) vs Tier 1+ (hospitals, `org_admin`→…). No schema change; the super-admin still resolves WILDCARD within the PLATFORM tenant, so cross-tenant onboarding (ADR-020) is unchanged.
+
+**Known limitations:** The `PLATFORM` org appears in the operator's tenant list (it is a `tenants` row); an `is_platform` flag to hide it from the customer-tenant list is a possible later refinement, not needed for correctness.

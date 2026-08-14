@@ -4,6 +4,7 @@
 
 export const PERMISSIONS = {
   // Platform / administration
+  TENANTS_MANAGE: 'platform.tenants.manage', // Super-Admin only (cross-tenant onboarding); covered by WILDCARD
   RBAC_MANAGE: 'platform.rbac.manage',
   USERS_VIEW: 'platform.users.view',
   USERS_MANAGE: 'platform.users.manage',
@@ -11,6 +12,7 @@ export const PERMISSIONS = {
   ROLES_MANAGE: 'platform.roles.manage',
   BRANCHES_VIEW: 'platform.branches.view',
   BRANCHES_MANAGE: 'platform.branches.manage',
+  BRANDING_MANAGE: 'platform.branding.manage',
   // Patient
   PATIENT_VIEW: 'patient.record.view',
   PATIENT_CREATE: 'patient.record.create',
@@ -87,7 +89,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Administers the organization',
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
-      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW,
+      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,

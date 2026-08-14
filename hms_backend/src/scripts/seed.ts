@@ -8,11 +8,12 @@ import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 
-// Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Provides 2+ demo tenants, each
-// with a branch layout and one user per role, so login + RBAC + tenant isolation can be
-// exercised and demoed end-to-end. All data reflects a genuine Indian healthcare context
-// (resources/development-plan.md §17 Test Data). NOT production data — passwords are known
-// dev defaults. The full production-grade demo dataset expands here later.
+// Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
+// Takoriya Technology LLP — home of the System Super Admin who onboards hospitals; ADR-022) plus 2+
+// demo hospital tenants, each with a branch layout and one user per role, so login + RBAC + tenant
+// isolation can be exercised and demoed end-to-end. All hospital data reflects a genuine Indian
+// healthcare context (resources/development-plan.md §17 Test Data). NOT production data — passwords
+// are known dev defaults. The full production-grade demo dataset expands here later.
 
 const DEFAULT_PASSWORD = 'ChangeMe#123';
 
@@ -31,14 +32,27 @@ interface SeedProvider {
 interface SeedTenant {
   code: string;
   name: string;
+  /** Initial module entitlements; defaults to the MVP set. The PLATFORM org gets none (not a hospital). */
+  modules?: string[];
   branches: Array<{ code: string; name: string }>;
   /** One user per role — email, display name, and the system role key. */
   users: Array<{ email: string; fullName: string; role: string }>;
   providers: SeedProvider[];
 }
 
-// Two demo tenants across different Indian states, each with users for every role.
+// The PLATFORM org (the vendor) + demo hospital tenants across different Indian states.
 const SEED_TENANTS: SeedTenant[] = [
+  {
+    // Tier 0 — the platform owner (Takoriya Technology LLP). Home of the System Super Admin, who
+    // operates ACROSS all tenants and onboards hospitals. Not a hospital: no modules, branches, or
+    // clinical data (ADR-022).
+    code: 'PLATFORM',
+    name: 'Takoriya Technology LLP',
+    modules: [],
+    branches: [],
+    users: [{ email: 'owner@takoriya.example', fullName: 'Platform Owner', role: 'super_admin' }],
+    providers: [],
+  },
   {
     code: 'CITYCARE',
     name: 'CityCare Multispeciality Hospital',
@@ -48,7 +62,7 @@ const SEED_TENANTS: SeedTenant[] = [
       { code: 'BNR', name: 'Baner' },
     ],
     users: [
-      { email: 'superadmin@citycare.example', fullName: 'Vikram Rao', role: 'super_admin' },
+      // A hospital has no System Super Admin — that role belongs to the PLATFORM org (ADR-022).
       // admin@ / reception@ are kept stable — existing manual QA + docs reference them.
       { email: 'admin@citycare.example', fullName: 'Dr. Ananya Sharma', role: 'org_admin' },
       { email: 'branchadmin@citycare.example', fullName: 'Suresh Iyer', role: 'branch_admin' },
@@ -156,7 +170,7 @@ async function seedTenant(t: SeedTenant): Promise<void> {
 
   for (const b of t.branches) await upsertBranch(tenant.id, b);
 
-  for (const m of MVP_MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
+  for (const m of t.modules ?? MVP_MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
 
   const userIdByEmail = new Map<string, string>();
   for (const u of t.users) {
@@ -203,10 +217,12 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(
-    `\nDone. ${SEED_TENANTS.length} demo tenants. Login with org code + email + password "${DEFAULT_PASSWORD}".`,
+    `\nDone. 1 platform org + ${SEED_TENANTS.length - 1} demo hospitals. Login with org code + email + password "${DEFAULT_PASSWORD}".`,
   );
   // eslint-disable-next-line no-console
-  console.log('e.g. CITYCARE / admin@citycare.example  ·  SUNRISE / admin@sunrise.example');
+  console.log('Platform owner: PLATFORM / owner@takoriya.example');
+  // eslint-disable-next-line no-console
+  console.log('Hospital admin: CITYCARE / admin@citycare.example  ·  SUNRISE / admin@sunrise.example');
 
   await pool.end();
   process.exit(0);

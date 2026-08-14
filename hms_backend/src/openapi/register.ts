@@ -4,9 +4,13 @@
 // as undocumented and fail the build.
 import '../modules/health/health.openapi';
 import '../modules/auth/auth.openapi';
+import '../modules/admin/admin.openapi';
+import '../modules/user/user.openapi';
+import '../modules/branch/branch.openapi';
 import '../modules/rbac/rbac.openapi';
 import '../modules/entitlement/entitlement.openapi';
 import '../modules/audit/audit.openapi';
 import '../modules/notification/notification.openapi';
 import '../modules/file/file.openapi';
 import '../modules/provider/provider.openapi';
+import '../modules/branding/branding.openapi';

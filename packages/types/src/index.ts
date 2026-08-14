@@ -90,6 +90,95 @@ export interface Provider {
   specialties: string[];
 }
 
+// ---- Admin / onboarding (hms_backend/src/modules/admin) --------------------
+
+export interface Tenant {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface TenantDetail extends Tenant {
+  modules: string[];
+  branches: Branch[];
+  userCount: number;
+}
+
+export interface ModuleCatalogItem {
+  key: string;
+  name: string;
+  hardDependencies: string[];
+}
+
+export interface OnboardTenantRequest {
+  code: string;
+  name: string;
+  modules?: string[];
+  admin: { email: string; fullName: string };
+  branches?: Array<{ code: string; name: string }>;
+}
+
+export interface OnboardTenantResponse {
+  tenant: Tenant;
+  admin: { email: string; tempPassword: string };
+}
+
+// ---- Users & branches (hms_backend/src/modules/user, /branch) ---------------
+
+export interface UserListItem {
+  id: string;
+  email: string;
+  fullName: string;
+  status: string;
+  mfaEnabled: boolean;
+  roles: string[];
+}
+
+export interface PermissionOverride {
+  id: string;
+  permission: string;
+  effect: string;
+  validUntil: string | null;
+}
+
+export interface UserDetail {
+  id: string;
+  email: string;
+  fullName: string;
+  status: string;
+  mfaEnabled: boolean;
+  roles: Array<{ key: string; name: string }>;
+  wildcard: boolean;
+  permissions: string[];
+  overrides: PermissionOverride[];
+}
+
+export interface CreateUserRequest {
+  email: string;
+  fullName: string;
+  roleKey?: string;
+  password?: string;
+}
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+// ---- Tenant branding (hms_backend/src/modules/branding) ---------------------
+
+export interface Branding {
+  brandColor: string | null;
+  secondaryColor: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  typography: unknown;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

@@ -58,6 +58,8 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **⚠ Superuser caveat:** superusers bypass RLS even with FORCE. The app **must** connect as a NON-superuser role in every environment, or isolation is silently off. `DATABASE_URL` must not be a superuser in staging/production.
 - **Defense-in-depth (ADR-015):** queries that match by a non-tenant-unique column (module key, role key, email) ALSO filter by `tenant_id` explicitly, so correctness doesn't depend solely on RLS (which a superuser connection bypasses). RLS stays the primary DB-layer guarantee; id-based queries (user_id, role_id, session_id) rely on it.
 - **Migrations:** `npm run db:generate` (drizzle-kit, no DB) → SQL in `drizzle/`; `npm run db:migrate` applies them + RLS. Additive/reversible only.
+- **Onboarding (operator-driven, ADR-020):** the Super-Admin surface (`modules/admin/`) creates tenants via the API — no more editing `seed.ts`. `POST /api/v1/admin/tenants` runs one flow: create tenant → `provisionTenantRbac` → grant modules (with hard-dependency closure) → create the first `org_admin` (one-time temp password, returned once) → create branches; audited. Cross-tenant by nature: the tenant row is created on the no-RLS `tenants` table, everything else runs in the **new tenant's** `runWithTenant` context (so RLS isolates it from birth). Gated by `platform.tenants.manage` — only a `super_admin` (WILDCARD) resolves it; an `org_admin` gets 403. Platform listing reads the no-RLS `tenants` table; per-tenant detail is fetched in that tenant's own context. **Not public self-registration** — self-serve signup stays in the Enterprise track.
+- **Org-Admin surface (A2):** tenant-scoped user + branch management. `modules/user/` — list/create (one-time temp password) / detail (roles + effective permissions + active overrides) / update-status; assign & remove roles; add & revoke permission overrides (GRANT/DENY, time-bound — DENY wins). `modules/branch/` — list/create/update. Reads gated by `platform.users.view`/`platform.branches.view`, account mutations by `.manage`, role/override mutations by `platform.rbac.manage` — all held by `org_admin`. Everything runs under the caller's tenant (RLS); every mutation is audited.
 
 ## Testing
 
@@ -70,7 +72,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Tokens:** short-lived JWT **access** token (`Authorization: Bearer`, claims `{ sub, tid, roles }`); long-lived **refresh** token in an **httpOnly** cookie (`hms_refresh`, path `/api/v1/auth`, `secure` in prod). Refresh is backed by a server-side `sessions` row (SHA-256 hash) → **rotation + revocation** on refresh/logout.
 - **`requireAuth`** (`http/requireAuth.ts`) verifies the access token and sets `req.auth = { userId, tenantId, roles }`. Downstream scopes RLS from `req.auth.tenantId` — tenant comes from the token, never the client. `http/asyncHandler.ts` routes async errors to the error middleware.
 - **MFA hook:** `users.mfaEnabled` → when true, login returns `{ mfaRequired: true }` instead of tokens (second-factor verification is a later phase). **SSO** (SAML/OAuth2/OIDC) is a reserved provider that plugs into the same `issueSession()`/token layer.
-- **Demo:** `npm run db:seed` → **2 Indian-context tenants** (`CITYCARE` — CityCare Multispeciality Hospital, Pune; `SUNRISE` — Sunrise Diagnostics & Polyclinic, Ahmedabad), each with a branch layout and **one user per role**. Login with org code + email + `ChangeMe#123` (e.g. `CITYCARE`/`admin@citycare.example`, `SUNRISE`/`admin@sunrise.example`). Idempotent; staging only (never production).
+- **Demo:** `npm run db:seed` → the **`PLATFORM` org** (Takoriya Technology LLP — the vendor; holds the System Super Admin `owner@takoriya.example`, no clinical data; ADR-022) + **2 Indian-context hospitals** (`CITYCARE` — Pune; `SUNRISE` — Ahmedabad), each with a branch layout and **one user per role** (top role `org_admin` — no super-admin inside a hospital). Login with org code + email + `ChangeMe#123` (platform: `PLATFORM`/`owner@takoriya.example`; hospital: `CITYCARE`/`admin@citycare.example`). Idempotent; staging only (never production).
 
 ## Authorization — RBAC
 
@@ -143,12 +145,24 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/openapi.json` — OpenAPI 3 spec (always served)
 - `GET /api/v1/docs` — Swagger UI (when `OPENAPI_UI_ENABLED=true`)
 - `POST /api/v1/auth/login` · `POST /api/v1/auth/refresh` · `POST /api/v1/auth/logout` · `GET /api/v1/auth/me`
+- `GET|POST /api/v1/admin/tenants` · `GET /api/v1/admin/tenants/{id}` · `PATCH /api/v1/admin/tenants/{id}/status` · `POST /api/v1/admin/tenants/{id}/modules` · `DELETE /api/v1/admin/tenants/{id}/modules/{key}` — Super-Admin onboarding + tenant management (`platform.tenants.manage`)
+- `GET|POST /api/v1/users` · `GET|PATCH /api/v1/users/{id}` · `POST /api/v1/users/{id}/roles` · `DELETE /api/v1/users/{id}/roles/{roleKey}` · `POST /api/v1/users/{id}/overrides` · `DELETE /api/v1/users/{id}/overrides/{overrideId}` — Org-Admin user/role/override management (`platform.users.*` / `platform.rbac.manage`)
+- `GET|POST /api/v1/branches` · `PATCH /api/v1/branches/{id}` — branch management (`platform.branches.*`)
+- `GET /api/v1/branding/current` (any authed — bootstrap) · `PUT|DELETE /api/v1/branding` · `POST /api/v1/branding/logo` · `POST /api/v1/branding/favicon` — tenant branding (`platform.branding.manage`)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/patients` + `GET /api/v1/ipd/beds` (authz-chain demonstrators)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`
 - `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `providers.view|manage`
+
+## Tenant branding (ADR-021)
+
+- **Model:** `tenant_branding` (tenant-scoped, RLS; nullable `branch_id` = org-wide default, branch override reserved) — `brand_color`, `secondary_color`, `logo_file_id`, `favicon_file_id`, `typography` (jsonb), `version` (optimistic lock). Migration `drizzle/0008_worried_chimera.sql`.
+- **`branding.service`:** `getCurrentBranding` (resolves logo/favicon file ids → short-lived URLs via the existing `FileStorageService`; nulls = "use the default `--hms-*` tokens"), `updateBranding` (colours/typography), `setLogo`/`setFavicon`, `resetBranding`. Logos/favicons are uploaded through the **reused** file-upload plumbing (`uploadSingle('file')` + `uploadFile`) — no new storage path.
+- **Endpoints:** `GET /branding/current` (any authenticated user — feeds the Portal's session bootstrap), `PUT /branding` + `DELETE /branding` (reset) + `POST /branding/logo|favicon` — all editing gated by `platform.branding.manage` (org_admin). Colours validated as `#RRGGBB`.
+- The Portal applies branding by setting the `--hms-*` CSS vars from `GET /branding/current` at bootstrap — the same seam the old localStorage demo used, so nothing in the design system changed.
+- Verified live: colour update persists + reads back; logo upload returns a URL; bad hex → 422; reset clears; a receptionist → **403**.
 
 ## Observability & Ops
 

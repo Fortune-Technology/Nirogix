@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "@hms/ui";
 import { useAuth } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
+import { BrandingLoader } from "../../components/BrandingLoader";
 
 // Client-side gate for every authenticated route. Redirects to /login when there is
 // no session. This is UX routing only — each API call is independently authorized
@@ -25,5 +26,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <BrandingLoader />
+      <AppShell>{children}</AppShell>
+    </>
+  );
 }

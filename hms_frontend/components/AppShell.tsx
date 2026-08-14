@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, cn } from "@hms/ui";
 import { useAuth } from "../lib/auth";
+import { useTheme } from "../lib/theme";
 import { NAV_ITEMS } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -22,6 +23,7 @@ function initials(name: string): string {
 // shows items the user's effective permissions allow (UX mirror of server enforcement).
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, can, logout } = useAuth();
+  const { logoUrl } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -36,7 +38,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-5">
-          <span className="inline-block h-6 w-6 rounded-token bg-brand" aria-hidden />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="Logo" className="h-6 w-6 rounded-token object-contain" />
+          ) : (
+            <span className="inline-block h-6 w-6 rounded-token bg-brand" aria-hidden />
+          )}
           <span className="font-semibold text-fg">HMS Portal</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">

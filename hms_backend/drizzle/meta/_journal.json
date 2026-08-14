@@ -57,6 +57,13 @@
       "when": 1786681980552,
       "tag": "0007_clammy_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786692161587,
+      "tag": "0008_worried_chimera",
+      "breakpoints": true
     }
   ]
 }

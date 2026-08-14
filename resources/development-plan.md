@@ -50,6 +50,8 @@ This is the **primary engineering execution roadmap** for the HMS platform. It e
   - [19. Documentation & Knowledge System](#19-documentation--knowledge-system)
 - **Part D — The Delivery Roadmap**
   - [20. Stage 0 — Platform Foundation](#20-stage-0--platform-foundation)
+  - [20A. Platform Administration Surface — operator onboarding, user/permission admin, branding](#20a-platform-administration-surface--operator-onboarding-userpermission-admin-branding)
+  - [20B. Platform & Organization Dashboards](#20b-platform--organization-dashboards)
   - [21. Stage 1 — MVP 0: Clinic Pilot](#21-stage-1--mvp-0-clinic-pilot)
   - [22. Stage 2 — MVP 1: Clinic Expansion](#22-stage-2--mvp-1-clinic-expansion)
   - [23. Stage 3 — Production-Readiness Hardening](#23-stage-3--production-readiness-hardening)
@@ -482,6 +484,51 @@ Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management  
 | 11 | Shared component in both themes + second tenant's branding | ✅ verified (Light/Dark + brand override) |
 
 Only #5 and the auto-deploy half of #6 remain, both **blocked on real infrastructure** (staging VM + managed DB + MSG91 DLT), not on code. They are validated at staging bring-up (the deploy/backup baseline is versioned under `deploy/`), with RPO/RTO formally validated in Stage 3.
+
+## 20A. Platform Administration Surface — operator onboarding, user/permission admin, branding
+
+*Bridges Stage 0 and Stage 1. Stage 0 built the tenancy/RBAC/entitlement/branding-token **mechanisms** as services; this milestone exposes them through **operator- and admin-facing APIs + Portal screens**, so a real operator can onboard the first pilot customer from the UI instead of editing `seed.ts`. Should land at the front of Stage 1 (a clinic can't run until its org exists and its staff have accounts). Decisions: **ADR-020** (onboarding model), **ADR-021** (branding persistence). Public self-serve signup + payment-integrated plans remain out of scope — Enterprise/Scale track (§25).*
+
+**Already built (reused, not rebuilt):** tenant + branches tables and RLS isolation; `provisionTenantRbac`, `grantModule` (hard-dep graph), `assignRoleByKey`, `setOverride`/`revokeOverride`, `resolvePermissions`; the `@hms/permissions` catalog; `NotificationService` (invites), `FileStorageService` (logos/favicons); the `--hms-*` branding token layer + the Portal's session-bootstrap seam; audit log; mandatory OpenAPI. This milestone is **wiring + screens**, not new core.
+
+### Milestone A — Platform Admin & Onboarding (operator / Super Admin + Org Admin)
+
+**Model (ADR-020):** operator-driven. A platform Super Admin creates the tenant; the tenant's Org Admin then self-manages inside it. The Super Admin is the **vendor** and lives in a dedicated **`PLATFORM` org** (Takoriya Technology LLP), *not* inside any customer hospital — Tier 0 (platform owner) vs Tier 1+ (hospitals, `org_admin`→…). See **ADR-022**.
+
+- **Backend — Super-Admin surface (cross-tenant, runs *outside* `runWithTenant`; new `platform.tenants.manage` permission, super_admin/wildcard):**
+  - `POST /api/v1/admin/tenants` — onboarding transaction: create tenant → `provisionTenantRbac` → grant initial module entitlements → create the first `org_admin` user (temporary password now; email invite via `NotificationService` later — ADR-020) → create initial branch(es). Audited; idempotent on tenant code.
+  - `GET /admin/tenants`, `GET /admin/tenants/:id`, `PATCH /admin/tenants/:id` (account status / plan state).
+  - `POST /admin/tenants/:id/modules` + `DELETE …/modules/:key` — entitlement grant/revoke (wraps `grantModule`/`setModuleStatus`; never physical-deletes — ADR/invariant #6).
+- **Backend — Org-Admin surface (tenant-scoped, existing permission keys):**
+  - Users: `GET/POST /users`, `PATCH /users/:id` (status/profile) — `platform.users.view|manage`.
+  - Roles/permissions: `GET /rbac/roles` (exists), role→permission read, and user override grant/deny endpoints exposing `setOverride`/`revokeOverride` — `platform.rbac.manage`.
+  - Branches: `GET/POST /branches`, `PATCH /branches/:id` — `platform.branches.view|manage`.
+  - All routes Zod-validated + **documented in OpenAPI** (mandatory gate).
+- **Frontend (Portal):**
+  - **Super-Admin area** (visible only with `platform.tenants.manage`): Tenants list (Standard DataTable); **Create-Tenant wizard** (org details → modules → first admin → branches); tenant detail (status, entitlements, branches).
+  - **Org-Admin area:** Users list + create/invite + role assignment; Roles & Permissions view (effective set, grant/deny overrides); Branches management. All gated by `<Can>` + the existing capabilities context.
+- **Invitation flow:** phased — temp-password on create first; email invite with a set-password token (via `NotificationService`) as a fast follow.
+- **Exit criteria:** an operator creates a brand-new tenant end-to-end **from the UI** (no seed edit); the new tenant is provably isolated (its data never overlaps another's); its `org_admin` logs in and creates a user, assigns a role, and adds a branch — all audited; every new route appears in Swagger.
+
+### Milestone B — Tenant Branding administration (Org Admin)
+
+**Model (ADR-021):** persist branding server-side; apply it through the existing token seam — additive, no component changes.
+
+- **Backend:** `tenant_branding` table (tenant-scoped + RLS; nullable `branch_id` = org default + optional branch override): `brand_color`, `secondary_color`, `logo_file_id`, `favicon_file_id`, `typography` (jsonb), `updated_at` + optimistic lock. `GET /branding/current` (any authenticated user — feeds session bootstrap) and `GET/PUT /branding` (`platform.branding.manage`). Logo/favicon upload via the existing `FileStorageService`. Documented in OpenAPI.
+- **Frontend:** Settings → **Branding**: colour picker (primary/secondary), logo upload + preview, favicon upload, reset-to-default, live preview. Replaces the current **localStorage** demo with server-persisted branding applied at bootstrap (set `--hms-*` from `GET /branding/current`).
+- **Exit criteria:** an Org Admin sets a custom brand colour + uploads a logo/favicon; it **persists across sessions and devices** and renders for **all** of that tenant's users in **Light + Dark**; a second tenant sees its own; reset restores the default token palette.
+
+**Scope guard:** this milestone deliberately excludes public self-registration, plan/subscription self-service, usage metering, and payment-integrated billing (Enterprise/Scale track, §25). It also excludes letterheads, numbering series, and the custom-field/form/workflow config engine (Configuration Engine, later) — only tenant/user/permission/branch admin + colour/logo branding are in scope here.
+
+## 20B. Platform & Organization Dashboards
+
+*Follows §20A. Gives each actor the "landing overview" their journey needs (`user-journeys.md` §1.3, §2.5). Decision: **ADR-023** (cross-tenant analytics are aggregate-only, super-admin-gated).*
+
+- **System Admin (platform) dashboard** — aggregated statistics **across every tenant**, super-admin only: total organizations/tenants (active vs inactive), hospitals + branches, doctors, patients, staff/users, appointments, per-module entitlement usage, recent onboarding + error/queue health. **Aggregate-only** — counts/metrics, never another tenant's row-level PHI (ADR-023). Read path starts as a per-tenant aggregation loop (`runWithTenant` COUNT) + the non-RLS platform tables; evolves to a materialized `platform_metrics` snapshot (BullMQ-refreshed) at scale.
+- **Org Admin dashboard** — the same shape **scoped to one hospital** (its patients, doctors, appointments, revenue, pending lab results, active branches/users), via the normal RLS-enforced path — never leaks another tenant.
+- **Frontend:** replace the current placeholder dashboard cards with real metric tiles (Standard components), role-aware — the System Admin sees the platform roll-up; an Org Admin sees their tenant roll-up.
+- **Depends on:** the counted entities exist — tenants/branches/users/providers today; patients/appointments/revenue arrive with the Stage 1 clinical modules, so those tiles light up as their modules land (build the dashboard to degrade gracefully for not-yet-present modules).
+- **Exit:** the System Admin lands on a platform roll-up across all tenants (aggregate-only, verified it never returns cross-tenant rows); an Org Admin lands on their own hospital's roll-up; both are permission-gated and audited.
 
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
