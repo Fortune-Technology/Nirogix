@@ -107,7 +107,17 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Tables (tenant-scoped, RLS):** `notification_log` (delivery status) + `notification_templates` (per-tenant, per-channel/locale).
 - **Endpoints:** `POST /notifications/test` (`notifications.send`) · `GET /notifications` (`notifications.log.view`).
 - Verified live: admin sends → `sent` via the `log` provider; receptionist → 403.
-- **Go-live:** set `MSG91_*` env keys + complete DLT/sender registration (24–48h). SES stays a swappable alternative behind the same interface. Async delivery moves onto BullMQ in Task #10. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+- **Go-live:** set `MSG91_*` env keys + complete DLT/sender registration (24–48h). SES stays a swappable alternative behind the same interface. Async delivery moves onto BullMQ in Task #10.
+
+## File storage
+
+- **Provider abstraction (ADR-007):** `modules/file/providers/` — `local` disk provider (dev) + `R2FileStorageProvider` (Cloudflare R2, S3-compatible object storage, via the **MinIO** client — no AWS; ADR-017) selected by `FILE_STORAGE_PROVIDER` (`local`|`r2`). No module touches the storage client.
+- **Metadata only:** `file_metadata` (tenant-scoped, RLS) stores storage key, filename, MIME, size, **sha256 checksum**, uploader, version — never file content.
+- **Server-side validation** (`file.upload.ts`, multer): MIME allow-list + size limit (`FILE_MAX_SIZE_MB`, default 25) before the handler runs.
+- **Downloads:** short-lived signed URLs — a presigned R2 URL (r2 provider) or an app-served tokenized route `/files/content/:id?token=` (local). Default-private; nothing is a permanent public URL.
+- **Endpoints:** `POST /files` (`files.document.upload`) · `GET /files/:id` → URL (`files.document.view`) · `GET /files/content/:id?token=` (token-authorized) · `DELETE /files/:id` (`files.document.delete`).
+- **Audit:** upload, download, and delete are audit-logged. Delete removes the object + soft-deletes metadata (retained for audit); `version` supports amended documents.
+- Verified live: upload → metadata+checksum; download URL → content; delete → 204 then 404; unsupported type → 422. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 
@@ -120,6 +130,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/patients` + `GET /api/v1/ipd/beds` (authz-chain demonstrators)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
+- `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`
 
 ## API documentation (OpenAPI) — MANDATORY
 

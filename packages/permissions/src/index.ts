@@ -37,6 +37,10 @@ export const PERMISSIONS = {
   // Notifications
   NOTIFICATION_SEND: 'notifications.send',
   NOTIFICATION_VIEW: 'notifications.log.view',
+  // Files / documents
+  FILE_UPLOAD: 'files.document.upload',
+  FILE_VIEW: 'files.document.view',
+  FILE_DELETE: 'files.document.delete',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -82,6 +86,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
       P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
+      P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
     ],
   },
   {
@@ -96,14 +101,17 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Clinical provider',
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE,
-      P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW,
+      P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD,
     ],
   },
   {
     key: 'receptionist',
     name: 'Receptionist',
     description: 'Front desk',
-    permissions: [P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL],
+    permissions: [
+      P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
+      P.FILE_VIEW, P.FILE_UPLOAD,
+    ],
   },
   {
     key: 'pharmacist',

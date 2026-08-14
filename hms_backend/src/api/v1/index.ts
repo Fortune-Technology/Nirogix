@@ -5,6 +5,7 @@ import { rbacRouter } from '../../modules/rbac/rbac.routes';
 import { entitlementRouter } from '../../modules/entitlement/entitlement.routes';
 import { auditRouter } from '../../modules/audit/audit.routes';
 import { notificationRouter } from '../../modules/notification/notification.routes';
+import { fileRouter } from '../../modules/file/file.routes';
 
 // The /api/v1 router. Every business-module router mounts here as it is built —
 // each gated by requireModule() then requirePermission() (added with the authz core).
@@ -16,6 +17,7 @@ apiV1.use(rbacRouter);
 apiV1.use(entitlementRouter);
 apiV1.use(auditRouter);
 apiV1.use(notificationRouter);
+apiV1.use(fileRouter);
 
 // Mounted as modules land:
 // apiV1.use('/auth', authRouter);

@@ -14,3 +14,4 @@ export * from './userRoles';
 export * from './entitlements';
 export * from './auditLog';
 export * from './notifications';
+export * from './files';

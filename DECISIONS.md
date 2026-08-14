@@ -97,5 +97,11 @@ See `resources/rules.md` (Architecture Decision Records) and `resources/developm
 **Decision:** Use **MSG91 for email as well as SMS/WhatsApp** at MVP — one India-resident vendor, one contract/dashboard/bill, simpler compliance story. The per-email cost difference is negligible at MVP volume. Everything sits behind the `EmailProvider`/`SmsProvider` abstraction (ADR-007), so this is a config/adapter choice, not a rewrite.
 **Consequence:** `modules/notification/providers/` has MSG91 adapters + a dev log provider selected by config (`MSG91_API_KEY`). Architecture Document's Transactional Email Service section is updated to MSG91. Revisit AWS SES only if email volume grows enough that per-email cost dominates — swapping back is a new adapter behind the same interface.
 
+## ADR-017 — Cloudflare R2 for object storage (no AWS)
+**Status:** Accepted (this project) — refines the architecture's E2E Object Storage default toward Cloudflare R2 per an explicit "no AWS" directive.
+**Context:** File/image storage sits behind the `FileStorageProvider` abstraction. The first adapter used `@aws-sdk/client-s3` — the standard S3-protocol client that Cloudflare R2's own docs recommend, and **not** an AWS service. But the "aws" in the package name conflicts with a firm no-AWS directive, and the team wants Cloudflare across services (Cloudflare is already the edge — CDN/WAF/DNS).
+**Decision:** Use **Cloudflare R2** (S3-compatible object storage) as the object store, accessed via the **MinIO client** (`minio`) — a mature, non-AWS S3-compatible client. Removed all `@aws-sdk/*` packages. `FILE_STORAGE_PROVIDER=r2`, `R2_*` env. The same adapter works with any S3-compatible store (e.g. E2E Object Storage) by endpoint.
+**Consequence:** No AWS dependency or account anywhere (email = MSG91 per ADR-016, storage = R2). **COMPLIANCE:** R2 defaults to global auto-placement; for PHI the bucket MUST be jurisdiction-pinned to India (architecture.md → File Storage flags this) and the metadata/log pipeline kept in-region, or India-residency for health data is not met. E2E Object Storage remains the drop-in alternative if a stricter MeitY-empanelled residency guarantee is needed.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

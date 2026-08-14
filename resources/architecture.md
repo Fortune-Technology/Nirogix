@@ -422,8 +422,8 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 ### File, Image, PDF & Invoice Storage
 
-- Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is India-resident storage (E2E Object Storage, S3-compatible), consistent with the Health Data Management Policy's India-storage requirement for ABDM-integrated health data
-- If Cloudflare R2 is used for any bucket, it must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident
+- Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is Cloudflare R2 (S3-compatible object storage, accessed via a non-AWS client), chosen per ADR-017. E2E Object Storage (India-resident, MeitY-empanelled) remains a drop-in S3-compatible alternative behind the same abstraction if a stricter residency guarantee is required
+- Because Cloudflare R2 is the object store, its bucket must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident, and this is required for ABDM/PHI India-residency
 - Files sit behind a FileStorageService abstraction; the database stores only file metadata and references (path, size, MIME type, checksum, uploader, access-control tags) — never file content
 - Default-private buckets with short-lived signed URLs generated per request; nothing served as a permanently public object URL
 - File-type and size validation enforced server-side before any upload is accepted, never left to frontend validation alone

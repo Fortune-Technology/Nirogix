@@ -202,3 +202,30 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **Testing status:** typecheck green · openapi:validate green · full suite **20/20** (6 files). **Live-verified:** admin `POST /notifications/test` → 201 `sent` via `log` provider; `GET /notifications` → 200 (total=1); receptionist → **403** (no `notifications.send`). The POST was also auto-audited by `auditMiddleware`.
 
 **Known limitations:** MSG91 adapters unverified against live credentials (only run when `MSG91_API_KEY` set — verify HTTP shapes + DLT template mapping at go-live). No WhatsApp adapter yet (channel reserved). Sends are synchronous — async delivery moves onto BullMQ in Task #10. Template CRUD endpoints not exposed (table + render ready).
+
+---
+
+## 2026-08-13 — FileStorageService (Task #9)
+
+**What:** Object storage abstraction (local dev provider + S3/EOS adapter); metadata-only DB; signed URLs; server-side validation.
+
+**Added:**
+- `modules/file/providers/`: `FileStorageProvider` interface, `LocalFileStorageProvider` (disk), `S3FileStorageProvider` (`@aws-sdk/client-s3` + presigner, dormant without creds), config selection.
+- Schema `file_metadata` (tenant-scoped, RLS) — storage key, filename, MIME, size, sha256, uploader, version, soft-delete. Migration `drizzle/0006_old_the_twelve.sql`.
+- `file.service.ts`: upload (checksum + putObject + metadata + audit), getDownloadUrl (presigned S3 or tokenized local), getFileContent (audited read), deleteFile (object removal + soft-delete metadata + audit).
+- `file.upload.ts` (multer memory + size/MIME allow-list → canonical errors), `fileToken.ts` (short-lived signed download token), `file.{schema,controller,routes,openapi}.ts`.
+- Endpoints: `POST /files`, `GET /files/:id`, `GET /files/content/:id` (token), `DELETE /files/:id`.
+- Env: `FILE_STORAGE_PROVIDER`/`LOCAL_DIR`/`MAX_SIZE_MB` + `S3_*` (optional). Permissions `FILE_UPLOAD`/`VIEW`/`DELETE` (+ org_admin, doctor, receptionist). `storage/` gitignored.
+- Deps: `multer` + `@types/multer`, `@aws-sdk/client-s3` + `s3-request-presigner`. Test `file.test.ts`.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **23/23** (7 files). **Live-verified:** upload → 201 (report.pdf, 50 bytes, sha256); GET → tokenized download URL; download → actual PDF content; DELETE → 204; re-GET → 404; unsupported `.exe` → **422** (server-side MIME validation).
+
+**Decisions:** metadata-only DB (never content); short-lived signed URLs (presigned S3 / app-tokenized local); upload/download/delete audited; soft-delete metadata + hard-delete object. S3 adapter uses `forcePathStyle` for EOS compatibility.
+
+**Known limitations:** S3 adapter unverified against live EOS credentials (dormant until `FILE_STORAGE_PROVIDER=s3` + keys). No virus scanning / content inspection. No presigned-PUT (client-direct) upload yet — uploads go through the API. multer 1.x has a known advisory (bump to 2.x later). Versioning column present but amend-flow not built.
+
+---
+
+## 2026-08-13 (later) — Object storage switched to Cloudflare R2 (no AWS) — ADR-017
+
+Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3` / `s3-request-presigner` with the **MinIO client** (`minio`) — a non-AWS S3-compatible client — and renamed the provider `S3FileStorageProvider` → `R2FileStorageProvider` (`s3Provider.ts` → `r2Provider.ts`). Config `FILE_STORAGE_PROVIDER=local|r2`, `R2_*` env (was `S3_*`). **No AWS packages remain installed** (only an unused *optional* peer `@aws-sdk/client-rds-data` that drizzle-kit advertises — not installed, we use `pg`). Note: `@aws-sdk/client-s3` was only ever the S3-protocol client (R2's own docs recommend it), never an AWS service — removed to honor the directive. typecheck green; local provider + full suite unaffected. **For PHI, pin the R2 bucket jurisdiction to India** (architecture.md → File Storage).

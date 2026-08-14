@@ -34,6 +34,18 @@ const EnvSchema = z.object({
   MSG91_SMS_SENDER_ID: z.string().optional(),
   MSG91_EMAIL_FROM: z.string().optional(),
   MSG91_EMAIL_DOMAIN: z.string().optional(),
+
+  // File storage — 'local' (disk, dev default) or 'r2' (Cloudflare R2, S3-compatible object
+  // storage). PHI-bearing files use default-private buckets + short-lived signed URLs. For PHI,
+  // pin the R2 bucket's jurisdiction to India (architecture.md → File Storage). No AWS.
+  FILE_STORAGE_PROVIDER: z.enum(['local', 'r2']).default('local'),
+  FILE_STORAGE_LOCAL_DIR: z.string().default('./storage'),
+  FILE_MAX_SIZE_MB: z.coerce.number().int().positive().default(25),
+  R2_ENDPOINT: z.string().optional(), // e.g. <accountid>.r2.cloudflarestorage.com
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -13,6 +13,9 @@ build/
 # Generated OpenAPI artifacts (the live spec is served at /api/v1/openapi.json)
 generated/
 
+# Local file storage (dev FileStorageService provider)
+storage/
+
 # Environment (keep .env.example)
 .env
 .env.*

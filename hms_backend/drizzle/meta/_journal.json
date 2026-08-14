@@ -43,6 +43,13 @@
       "when": 1786677503597,
       "tag": "0005_rich_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786678183241,
+      "tag": "0006_old_the_twelve",
+      "breakpoints": true
     }
   ]
 }
