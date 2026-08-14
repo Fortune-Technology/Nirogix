@@ -362,10 +362,10 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>DLT entity, sender ID, and template registration treated as a build prerequisite, not a mid-build discovery — operator approval takes 24–48 hours and gates any SMS-dependent feature (appointment reminders, OTP) in staging</li>
   </ul>
 <h3>Transactional Email Service</h3><ul>
-    <li>AWS SES, using the ap-south-1 (Mumbai) or ap-south-2 (Hyderabad) region specifically — not a default or unspecified region — for the same data-residency reasoning applied to storage and hosting</li>
-    <li>Selected primarily for cost at scale and for an India-resident region with an official, well-documented Node.js SDK</li>
-    <li>Requires AWS production-access approval before go-live (SES starts in a sandbox restricted to verified addresses) — requested early, not the week before launch</li>
-    <li>Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place</li>
+    <li>MSG91 for transactional email as well as SMS/WhatsApp (ADR-016) — one India-resident vendor consolidating all notification channels, with a single dashboard, contract, and DLT-aware compliance story</li>
+    <li>Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place; no module calls the provider directly (ADR-007). Until MSG91 credentials are configured, a dev &quot;log&quot; provider is used (messages logged, not sent)</li>
+    <li>MSG91 email/sender registration is a go-live prerequisite (operator approval), requested early — not the week before launch</li>
+    <li>AWS SES (ap-south-1/ap-south-2, India-resident, ~₹8/1k) remains a documented alternative behind the same abstraction — revisit if email volume grows enough that per-email cost dominates; swapping back is a new adapter, not a rewrite</li>
   </ul></section><section id="s5-3"><h3>File Storage Architecture</h3><h3>File, Image, PDF &amp; Invoice Storage</h3><ul>
     <li>Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is India-resident storage (E2E Object Storage, S3-compatible), consistent with the Health Data Management Policy's India-storage requirement for ABDM-integrated health data</li>
     <li>If Cloudflare R2 is used for any bucket, it must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident</li>

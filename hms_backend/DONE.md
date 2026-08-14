@@ -182,3 +182,23 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **Decisions:** DB-trigger append-only (tamper-evident vs the app role); `writeAudit` best-effort (never breaks the request path). `audit_log` FK is `onDelete restrict` — deletion requires disabling the trigger (test-only).
 
 **Known limitations:** No cryptographic hash-chaining yet (future hardening). Break-glass enhanced event not built (severity field ready). Auto-audit covers authenticated mutations; unauthenticated ones audited explicitly where the tenant is known.
+
+---
+
+## 2026-08-13 — Notification service skeleton (Task #8)
+
+**What:** Provider-agnostic notification sending (email/SMS/WhatsApp) behind an abstraction.
+
+**Added:**
+- `modules/notification/providers/`: `EmailProvider`/`SmsProvider` interfaces, dev `LogProvider` (logs, doesn't send), MSG91 adapters (dormant without a key), config selection (`MSG91_API_KEY`).
+- Schema `notification_log` + `notification_templates` (tenant-scoped, RLS). Migration `drizzle/0005_rich_ser_duncan.sql`.
+- `notification.service.ts`: `sendEmail`/`sendSms`, `{{placeholder}}` template render, **idempotency**, log write; `listNotifications`.
+- `notification.{schema,controller,routes,openapi}.ts`: `POST /notifications/test` + `GET /notifications`.
+- Env: `MSG91_API_KEY` / `SMS_SENDER_ID` / `EMAIL_FROM` / `EMAIL_DOMAIN` (all optional). Permissions `NOTIFICATION_SEND`/`NOTIFICATION_VIEW` (+ org_admin).
+- Test `notification.test.ts` (render, send-via-log, idempotency).
+
+**Decision:** ADR-016 — MSG91 for email as well as SMS/WhatsApp (consolidate vendor over SES). Architecture doc updated (.md + .html); SES documented as a swappable alternative.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **20/20** (6 files). **Live-verified:** admin `POST /notifications/test` → 201 `sent` via `log` provider; `GET /notifications` → 200 (total=1); receptionist → **403** (no `notifications.send`). The POST was also auto-audited by `auditMiddleware`.
+
+**Known limitations:** MSG91 adapters unverified against live credentials (only run when `MSG91_API_KEY` set — verify HTTP shapes + DLT template mapping at go-live). No WhatsApp adapter yet (channel reserved). Sends are synchronous — async delivery moves onto BullMQ in Task #10. Template CRUD endpoints not exposed (table + render ready).

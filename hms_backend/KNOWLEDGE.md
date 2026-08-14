@@ -98,7 +98,16 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Auto-audit:** `http/auditMiddleware.ts` audits every authenticated mutating request (method/path/status/actor).
 - **Explicit events:** login success/failure (`auth.login.*`), permission grant/deny/revoke (`rbac.override.*`), role assignment (`rbac.role.assign`), entitlement changes (`entitlement.grant` / `entitlement.status`).
 - **View:** `GET /api/v1/audit` (paginated, newest first) requires `audit.log.view`.
-- Verified live: a login writes an `audit_log` row; `/audit` returns the trail; a user without `audit.log.view` → 403; UPDATE/DELETE blocked (tested). The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+- Verified live: a login writes an `audit_log` row; `/audit` returns the trail; a user without `audit.log.view` → 403; UPDATE/DELETE blocked (tested).
+
+## Notifications
+
+- **Provider abstraction (ADR-007):** `modules/notification/providers/` defines `EmailProvider`/`SmsProvider`. A dev **log** provider (logs, doesn't send) is used when `MSG91_API_KEY` is unset; **MSG91** adapters (SMS/WhatsApp + email, ADR-016) are selected when it's set. No module calls MSG91 directly.
+- **`NotificationService`** (`notification.service.ts`): `sendEmail` / `sendSms` — render a per-tenant `{{template}}`, dispatch via the provider, write `notification_log`. **Idempotent** via `idempotencyKey` (a repeat returns the original entry, no re-send).
+- **Tables (tenant-scoped, RLS):** `notification_log` (delivery status) + `notification_templates` (per-tenant, per-channel/locale).
+- **Endpoints:** `POST /notifications/test` (`notifications.send`) · `GET /notifications` (`notifications.log.view`).
+- Verified live: admin sends → `sent` via the `log` provider; receptionist → 403.
+- **Go-live:** set `MSG91_*` env keys + complete DLT/sender registration (24–48h). SES stays a swappable alternative behind the same interface. Async delivery moves onto BullMQ in Task #10. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 
@@ -110,6 +119,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/patients` + `GET /api/v1/ipd/beds` (authz-chain demonstrators)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
+- `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 
 ## API documentation (OpenAPI) — MANDATORY
 

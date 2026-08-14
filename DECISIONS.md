@@ -91,5 +91,11 @@ See `resources/rules.md` (Architecture Decision Records) and `resources/developm
 **Decision:** Queries that select/update by a non-tenant-unique column ALSO filter by `tenant_id` explicitly (belt-and-suspenders). RLS remains the primary DB-layer guarantee; the app-layer filter is defense-in-depth and makes correctness independent of the connection role. Queries matched by a globally-unique id (user_id, role_id, session_id) don't need it.
 **Consequence:** Entitlement, RBAC (role-by-key, listRoles) and auth (login-by-email) service queries carry explicit `tenant_id` filters. Production must still connect as a non-superuser so RLS backstops id-based queries too.
 
+## ADR-016 — MSG91 for transactional email (consolidating over AWS SES)
+**Status:** Accepted (this project) — supersedes the Architecture Document's original AWS SES choice for email.
+**Context:** The architecture chose AWS SES (ap-south-1) for transactional email and MSG91 for SMS/WhatsApp. SES is the cheapest per email (~₹8/1k) but is a second vendor with its own production-access approval, bare API, and reputation management. MSG91 (India-based, already being onboarded for SMS/WhatsApp with DLT) also offers transactional email.
+**Decision:** Use **MSG91 for email as well as SMS/WhatsApp** at MVP — one India-resident vendor, one contract/dashboard/bill, simpler compliance story. The per-email cost difference is negligible at MVP volume. Everything sits behind the `EmailProvider`/`SmsProvider` abstraction (ADR-007), so this is a config/adapter choice, not a rewrite.
+**Consequence:** `modules/notification/providers/` has MSG91 adapters + a dev log provider selected by config (`MSG91_API_KEY`). Architecture Document's Transactional Email Service section is updated to MSG91. Revisit AWS SES only if email volume grows enough that per-email cost dominates — swapping back is a new adapter behind the same interface.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

@@ -34,6 +34,9 @@ export const PERMISSIONS = {
   BILLING_PAYMENT: 'billing.payment.collect',
   // Audit
   AUDIT_VIEW: 'audit.log.view',
+  // Notifications
+  NOTIFICATION_SEND: 'notifications.send',
+  NOTIFICATION_VIEW: 'notifications.log.view',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -78,7 +81,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
       P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW,
-      P.AUDIT_VIEW,
+      P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
     ],
   },
   {

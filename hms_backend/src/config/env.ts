@@ -27,6 +27,13 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+
+  // Notifications — MSG91 for SMS/WhatsApp AND email (ADR-016). All optional: when unset, the
+  // dev "log" provider is used (messages are logged, not sent). No module calls MSG91 directly.
+  MSG91_API_KEY: z.string().optional(),
+  MSG91_SMS_SENDER_ID: z.string().optional(),
+  MSG91_EMAIL_FROM: z.string().optional(),
+  MSG91_EMAIL_DOMAIN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

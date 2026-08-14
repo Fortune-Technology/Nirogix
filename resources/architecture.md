@@ -413,10 +413,10 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 ### Transactional Email Service
 
-- AWS SES, using the ap-south-1 (Mumbai) or ap-south-2 (Hyderabad) region specifically — not a default or unspecified region — for the same data-residency reasoning applied to storage and hosting
-- Selected primarily for cost at scale and for an India-resident region with an official, well-documented Node.js SDK
-- Requires AWS production-access approval before go-live (SES starts in a sandbox restricted to verified addresses) — requested early, not the week before launch
-- Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place
+- MSG91 for transactional email as well as SMS/WhatsApp (ADR-016) — one India-resident vendor consolidating all notification channels, with a single dashboard, contract, and DLT-aware compliance story
+- Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place; no module calls the provider directly (ADR-007). Until MSG91 credentials are configured, a dev "log" provider is used (messages logged, not sent)
+- MSG91 email/sender registration is a go-live prerequisite (operator approval), requested early — not the week before launch
+- AWS SES (ap-south-1/ap-south-2, India-resident, ~₹8/1k) remains a documented alternative behind the same abstraction — revisit if email volume grows enough that per-email cost dominates; swapping back is a new adapter, not a rewrite
 
 ### File Storage Architecture
 
