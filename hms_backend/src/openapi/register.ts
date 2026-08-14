@@ -6,3 +6,4 @@ import '../modules/health/health.openapi';
 import '../modules/auth/auth.openapi';
 import '../modules/rbac/rbac.openapi';
 import '../modules/entitlement/entitlement.openapi';
+import '../modules/audit/audit.openapi';

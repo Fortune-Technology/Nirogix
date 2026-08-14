@@ -10,6 +10,7 @@ import {
   userPermissionOverrides,
 } from '../../db/schema';
 import * as cache from './permissionCache';
+import { writeAudit } from '../audit/audit.service';
 
 export type ResolvedPermissions = { permissions: Set<string>; wildcard: boolean };
 
@@ -82,6 +83,13 @@ export async function assignRoleByKey(
       .onConflictDoNothing();
   });
   cache.invalidateUser(tenantId, userId);
+  await writeAudit({
+    tenantId,
+    action: 'rbac.role.assign',
+    resourceType: 'user',
+    resourceId: userId,
+    metadata: { roleKey },
+  });
 }
 
 // Effective permissions = union(role permissions) + GRANT overrides − DENY overrides. DENY always
@@ -172,7 +180,18 @@ export async function setOverride(
     }),
   );
   cache.invalidateUser(tenantId, params.userId);
-  // TODO(Task #7 — Audit): every permission grant/revoke is an audited action (rules.md).
+  await writeAudit({
+    tenantId,
+    actorUserId: params.createdBy ?? null,
+    action: `rbac.override.${params.effect.toLowerCase()}`,
+    resourceType: 'user',
+    resourceId: params.userId,
+    metadata: {
+      permission: params.permission,
+      validUntil: params.validUntil ?? null,
+      reason: params.reason ?? null,
+    },
+  });
 }
 
 // Revokes an override (never deletes) and immediately invalidates the cache (ADR-010).
@@ -187,5 +206,12 @@ export async function revokeOverride(
       .set({ revokedAt: new Date(), updatedAt: new Date() })
       .where(eq(userPermissionOverrides.id, overrideId)),
   );
-  cache.invalidateUser(tenantId, userId);
+  cache.invalidateUser(tenantId, userId); // ADR-010: revoked → immediate targeted invalidation
+  await writeAudit({
+    tenantId,
+    action: 'rbac.override.revoke',
+    resourceType: 'override',
+    resourceId: overrideId,
+    metadata: { userId },
+  });
 }

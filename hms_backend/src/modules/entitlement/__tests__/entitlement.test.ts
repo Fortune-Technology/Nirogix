@@ -18,6 +18,10 @@ async function cleanup(): Promise<void> {
   const t = (await pool.query('SELECT id FROM tenants WHERE code = $1', [CODE])).rows[0];
   if (!t) return;
   await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1', [t.id]);
+  // audit rows (written by grantModule) are append-only — disable the trigger to purge.
+  await pool.query('ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_change');
+  await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
+  await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);
 }
 

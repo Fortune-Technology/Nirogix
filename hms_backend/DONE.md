@@ -159,3 +159,26 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **Decisions:** ADR-015 (defense-in-depth tenant scoping). A fresh grant is permanent unless an expiry is given. `tenant_entitlements` never deleted (state as data).
 
 **Known limitations:** Branch-scoped entitlement evaluation (nullable `branch_id`) is schema-ready but `requireModule` checks org-wide only. Admin CRUD endpoints for granting entitlements not exposed (service functions exist). Entitlement changes not yet audited (Task #7). Demonstrator `/patients` + `/ipd/beds` are placeholders for the real modules.
+
+---
+
+## 2026-08-13 — Audit log service (Task #7)
+
+**What:** Immutable, tamper-evident audit trail.
+
+**Added:**
+- Schema `audit_log` (tenant-scoped, RLS) — actor, action, resource, method/path/status, severity, jsonb metadata, ip/ua. Migration `drizzle/0004_motionless_lenny_balinger.sql`.
+- `db/auditProtection.ts` — trigger blocking UPDATE/DELETE (append-only); applied by `db:migrate` after RLS.
+- `modules/audit/audit.service.ts` (writeAudit best-effort + listAudit) + `audit.{schema,controller,routes,openapi}.ts`.
+- `http/auditMiddleware.ts` — auto-audits authenticated mutating requests.
+- `@hms/permissions`: AUDIT_VIEW (+ org_admin); `GET /api/v1/audit` gated by it.
+- Wired explicit audit into auth (login success/failure), rbac (setOverride/revokeOverride/assignRole — **replaced the TODO**), entitlement (grantModule/setModuleStatus).
+- Test `audit.test.ts` (write/read + append-only immutability). rbac/entitlement test cleanups purge audit rows (disable trigger).
+
+**API:** `GET /api/v1/audit` (documented, permission-gated).
+
+**Testing status:** typecheck green · openapi:validate green · full suite **17/17** (5 files). **Live-verified:** admin login writes `auth.login.success`; bad login writes `auth.login.failure`; `GET /audit` → 200 (total=12, incl. logins + role assigns + entitlement grants); receptionist → **403** (no `audit.log.view`). Satisfies Phase 0 DoD "a login attempt produces an audit_log row".
+
+**Decisions:** DB-trigger append-only (tamper-evident vs the app role); `writeAudit` best-effort (never breaks the request path). `audit_log` FK is `onDelete restrict` — deletion requires disabling the trigger (test-only).
+
+**Known limitations:** No cryptographic hash-chaining yet (future hardening). Break-glass enhanced event not built (severity field ready). Auto-audit covers authenticated mutations; unauthenticated ones audited explicitly where the tenant is known.

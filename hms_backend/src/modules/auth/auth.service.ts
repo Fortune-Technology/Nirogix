@@ -14,6 +14,7 @@ import {
   type RefreshClaims,
 } from './tokens';
 import type { LoginInput, PublicUser } from './auth.schema';
+import { writeAudit } from '../audit/audit.service';
 
 type ClientMeta = { userAgent?: string; ip?: string };
 
@@ -77,10 +78,31 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
       .limit(1);
     return rows[0] ?? null;
   });
-  if (!user || user.status !== 'active') throw Errors.unauthorized('Invalid credentials');
+  if (!user || user.status !== 'active') {
+    await writeAudit({
+      tenantId: tenant.id,
+      action: 'auth.login.failure',
+      severity: 'warning',
+      metadata: { email: input.email, reason: 'user_not_found_or_inactive' },
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    throw Errors.unauthorized('Invalid credentials');
+  }
 
   const ok = await verifyPassword(input.password, user.passwordHash);
-  if (!ok) throw Errors.unauthorized('Invalid credentials');
+  if (!ok) {
+    await writeAudit({
+      tenantId: tenant.id,
+      actorUserId: user.id,
+      action: 'auth.login.failure',
+      severity: 'warning',
+      metadata: { reason: 'bad_password' },
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    throw Errors.unauthorized('Invalid credentials');
+  }
 
   // MFA hook — present but not enforced at MVP. A tenant that enables MFA receives a challenge
   // state instead of tokens; the actual second-factor verification is a later phase.
@@ -95,6 +117,14 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
       .set({ lastLoginAt: new Date(), updatedAt: new Date() })
       .where(eq(users.id, user.id)),
   );
+
+  await writeAudit({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    action: 'auth.login.success',
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
 
   return { status: 'ok', accessToken, refreshToken, user: toPublicUser(user) };
 }

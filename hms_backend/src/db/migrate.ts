@@ -1,6 +1,7 @@
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { db, pool } from './client';
 import { applyRls } from './rls';
+import { applyAuditProtection } from './auditProtection';
 import { logger } from '../config/logger';
 
 // Runs pending Drizzle migrations, then (re)applies the RLS policy template to every
@@ -13,6 +14,9 @@ async function main(): Promise<void> {
   logger.info('Applying Row-Level Security policies...');
   const applied = await applyRls(pool);
   logger.info(`RLS applied to: ${applied.join(', ') || '(no tenant-scoped tables yet)'}`);
+
+  await applyAuditProtection(pool);
+  logger.info('Applied audit_log append-only protection (blocks UPDATE/DELETE)');
 
   await pool.end();
   process.exit(0);

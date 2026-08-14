@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenantEntitlements, type TenantEntitlement } from '../../db/schema';
 import { MODULE_CATALOG, moduleDef } from './moduleCatalog';
+import { writeAudit } from '../audit/audit.service';
 
 const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIAL']);
 
@@ -120,6 +121,15 @@ export async function grantModule(
       });
     }
   });
+
+  await writeAudit({
+    tenantId,
+    actorUserId: opts.grantedBy ?? null,
+    action: 'entitlement.grant',
+    resourceType: 'module',
+    resourceId: moduleKey,
+    metadata: { status },
+  });
 }
 
 // Transitions a module entitlement to a non-active state (soft — data is retained).
@@ -150,6 +160,13 @@ export async function setModuleStatus(
         ),
       ),
   );
+  await writeAudit({
+    tenantId,
+    action: 'entitlement.status',
+    resourceType: 'module',
+    resourceId: moduleKey,
+    metadata: { status, reason: reason ?? null },
+  });
 }
 
 export { MODULE_CATALOG };
