@@ -231,3 +231,13 @@ Append-only implementation log. Newest at the bottom.
 - `lib/api` lab functions; `lib/nav` Laboratory item (permission-filtered).
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green (26 routes). **Live-verified in the Portal:** the receptionist has **no Laboratory nav** and `/laboratory` → **403** (LAB_ORDER_VIEW gate). The lab-tech UI is API-verified (see backend DONE) + best eyeballed via a lab login.
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.7 screens: reports + CSV export (Phase 1 complete)
+
+**Added:**
+- `app/(app)/reports/page.tsx` — reports hub: tabs (**OPD register / Collections / Pending labs**), date-range filter, tables, and **client-side CSV export**. Collections shows a total + by-method summary above the detail table.
+- `lib/csv.ts` (client-side CSV download), `lib/api` report functions, `lib/nav` Reports item (permission-filtered).
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (27 routes). **Live-verified in the Portal:** the receptionist has **no Reports nav** and `/reports` → **403** (REPORTS_VIEW gate). The reports UI is API-verified (see backend DONE) + best eyeballed via an admin / cashier login. **🎉 Phase 1 frontend complete.**

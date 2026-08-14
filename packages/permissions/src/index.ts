@@ -41,6 +41,8 @@ export const PERMISSIONS = {
   BILLING_VIEW: 'billing.invoice.view',
   BILLING_CREATE: 'billing.invoice.create',
   BILLING_PAYMENT: 'billing.payment.collect',
+  // Reports
+  REPORTS_VIEW: 'reports.view',
   // Audit
   AUDIT_VIEW: 'audit.log.view',
   // Notifications
@@ -97,7 +99,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
       P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
-      P.OPD_VIEW, P.BILLING_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
@@ -107,7 +109,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'branch_admin',
     name: 'Branch Admin',
     description: 'Administers a branch',
-    permissions: [P.USERS_VIEW, P.BRANCHES_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.OPD_VIEW, P.BILLING_VIEW],
+    permissions: [P.USERS_VIEW, P.BRANCHES_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW],
   },
   {
     key: 'doctor',
@@ -146,6 +148,6 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'cashier',
     name: 'Cashier',
     description: 'Billing counter',
-    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.PATIENT_VIEW],
+    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW],
   },
 ];

@@ -623,6 +623,52 @@ export interface EnterResultRequest {
   notes?: string | null;
 }
 
+// ---- Reports (hms_backend/src/modules/reports) -----------------------------
+
+export interface OpdRegisterRow {
+  visitNumber: string;
+  tokenNumber: number;
+  visitDate: string;
+  patientName: string;
+  patientUhid: string;
+  providerName: string | null;
+  status: string;
+  checkedInAt: string;
+  invoiceNumber: string | null;
+  invoiceTotalPaise: number | null;
+  invoicePaidPaise: number | null;
+  invoiceStatus: string | null;
+}
+
+export interface CollectionsReport {
+  from: string;
+  to: string;
+  totalPaise: number;
+  count: number;
+  byMethod: Array<{ method: string; totalPaise: number; count: number }>;
+  byDay: Array<{ date: string; totalPaise: number; count: number }>;
+  rows: Array<{
+    id: string;
+    collectedAt: string;
+    method: string;
+    amountPaise: number;
+    reference: string | null;
+    invoiceNumber: string;
+    patientName: string;
+    patientUhid: string;
+  }>;
+}
+
+export interface PendingLabRow {
+  testName: string;
+  testCode: string | null;
+  priority: string;
+  status: string;
+  patientName: string;
+  patientUhid: string;
+  orderedAt: string;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

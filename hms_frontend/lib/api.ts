@@ -58,6 +58,9 @@ import type {
   LabOrder,
   CreateLabTestRequest,
   EnterResultRequest,
+  OpdRegisterRow,
+  CollectionsReport,
+  PendingLabRow,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -408,6 +411,20 @@ export async function collectLabSample(id: string): Promise<LabOrder> {
 
 export async function enterLabResult(id: string, body: EnterResultRequest): Promise<LabOrder> {
   return request<LabOrder>(`/lab-orders/${id}/result`, { method: "POST", body });
+}
+
+// ---- Reports (hms_backend/src/modules/reports) -----------------------------
+
+export async function reportOpdRegister(from: string, to: string): Promise<OpdRegisterRow[]> {
+  return request<OpdRegisterRow[]>(`/reports/opd-register?from=${from}&to=${to}`);
+}
+
+export async function reportCollections(from: string, to: string): Promise<CollectionsReport> {
+  return request<CollectionsReport>(`/reports/collections?from=${from}&to=${to}`);
+}
+
+export async function reportPendingLabs(): Promise<PendingLabRow[]> {
+  return request<PendingLabRow[]>("/reports/pending-labs");
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

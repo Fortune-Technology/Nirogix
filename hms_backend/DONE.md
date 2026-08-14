@@ -487,3 +487,17 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - `@hms/types` LabTest / LabOrder / LabResult + requests. Router mounted; OpenAPI registered; `db:seed` re-run.
 
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (lab tech):** create test CBC (ref 4000–11000) → worklist shows the CBC order → collect → enter **15000 → flag `high`** (auto vs range) → re-enter **8000 → flag `normal`**. The visit invoice `INV-000001` now carries **consultation ₹500 + pharmacy ₹20 + lab ₹300** on one bill, with **one lab line (no double-bill)** — the "one engine, new line-item types" pattern across all three revenue modules.
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.7: Basic Reports (Phase 1 complete)
+
+**What:** Read-only aggregate reports over the clinic data — no new tables.
+
+**Added:**
+- `modules/reports/` — service: `opdRegister` (visits in a date range + patient/provider/invoice), `collections` (payments by day + method + total), `pendingLabs` (unresolved lab orders). New `REPORTS_VIEW` perm (org_admin / branch_admin / cashier). Routes gated by `REPORTS_VIEW` (no module gate — cross-cutting like the dashboard); data tenant-scoped through RLS.
+- `@hms/types` OpdRegisterRow / CollectionsReport / PendingLabRow. Router mounted; OpenAPI registered; `db:seed` re-run. **No migration** (read-only).
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green. **Live-verified via API (org_admin):** OPD register (V-000001 completed) · collections **total ₹500 cash, byDay 2026-08-14** · pending labs 0 (all resulted).
+
+**🎉 Phase 1 complete** — all 7 slices (1.1–1.7). The full clinic journey is built and verified end-to-end: registration → appointment → check-in/queue → consultation (vitals / ICD-10 diagnosis / prescription / lab orders) → pharmacy dispense → lab result → billing (one invoice accumulating consultation + pharmacy + lab) → payment/receipt → reports. Tenant-isolated, permission-gated, OpenAPI-documented.
