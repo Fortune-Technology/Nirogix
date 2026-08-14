@@ -474,3 +474,16 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - `@hms/types` Drug / PendingPrescription + requests. Router mounted; OpenAPI registered; `db:seed` re-run.
 
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (pharmacist):** create drug → receive 100 → over-dispense 1000 → **409** → dispense 10 → success (**stock 100→90**, prescription dispensed) → re-dispense → **409** → the visit's paid invoice reopens to **partially_paid** with lines `consultation:50000, pharmacy:2000` (total ₹520, balance ₹20) — the dispensed drug is on the patient's bill.
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.6: Laboratory (result + report + billing)
+
+**What:** Test master + result entry against the EMR lab orders, abnormal-value flag, lab charge on the visit invoice.
+
+**Added:**
+- `db/schema/lab.ts` — `lab_tests` (master: LOINC, reference range, price), `lab_results` (one per lab order, abnormal flag) (migration `0015`, RLS auto-applied). `lab_orders` reused from EMR (1.4).
+- `modules/laboratory/` — service: `listTests`/`createTest`, `listWorklist` (from the EMR lab orders + results), `collectSample` (ordered→collected), **`enterResult`** (**auto-flags the value against the test's reference range**, marks resulted, **adds a lab line to the visit invoice via `addInvoiceLine` — billed once**, publishes `lab.result_ready`), `getLabOrder` (report). New `LAB_MANAGE` perm; `requireModule('laboratory')`.
+- `@hms/types` LabTest / LabOrder / LabResult + requests. Router mounted; OpenAPI registered; `db:seed` re-run.
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (lab tech):** create test CBC (ref 4000–11000) → worklist shows the CBC order → collect → enter **15000 → flag `high`** (auto vs range) → re-enter **8000 → flag `normal`**. The visit invoice `INV-000001` now carries **consultation ₹500 + pharmacy ₹20 + lab ₹300** on one bill, with **one lab line (no double-bill)** — the "one engine, new line-item types" pattern across all three revenue modules.

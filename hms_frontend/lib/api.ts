@@ -54,6 +54,10 @@ import type {
   ReceiveStockRequest,
   DispenseRequest,
   DispenseResult,
+  LabTest,
+  LabOrder,
+  CreateLabTestRequest,
+  EnterResultRequest,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -376,6 +380,34 @@ export async function listPendingPrescriptions(): Promise<PendingPrescription[]>
 
 export async function dispense(body: DispenseRequest): Promise<DispenseResult> {
   return request<DispenseResult>("/dispense", { method: "POST", body });
+}
+
+// ---- Laboratory (hms_backend/src/modules/laboratory) -----------------------
+
+export async function listLabTests(search?: string): Promise<LabTest[]> {
+  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+  return request<LabTest[]>(`/lab-tests${q}`);
+}
+
+export async function createLabTest(body: CreateLabTestRequest): Promise<LabTest> {
+  return request<LabTest>("/lab-tests", { method: "POST", body });
+}
+
+export async function listLabOrders(status?: string): Promise<LabOrder[]> {
+  const q = status ? `?status=${status}` : "";
+  return request<LabOrder[]>(`/lab-orders${q}`);
+}
+
+export async function getLabOrder(id: string): Promise<LabOrder> {
+  return request<LabOrder>(`/lab-orders/${id}`);
+}
+
+export async function collectLabSample(id: string): Promise<LabOrder> {
+  return request<LabOrder>(`/lab-orders/${id}/collect`, { method: "POST" });
+}
+
+export async function enterLabResult(id: string, body: EnterResultRequest): Promise<LabOrder> {
+  return request<LabOrder>(`/lab-orders/${id}/result`, { method: "POST", body });
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

@@ -219,3 +219,15 @@ Append-only implementation log. Newest at the bottom.
 - `lib/api` pharmacy functions; `lib/nav` Pharmacy item (permission-filtered).
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green (24 routes). **Live-verified in the Portal:** the receptionist has **no Pharmacy nav** and `/pharmacy` → **403** (lacks PHARMACY_STOCK_VIEW). The pharmacist UI is API-verified (see backend DONE) + best eyeballed via a pharmacist login.
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.6 screens: lab worklist + result + report
+
+**Added:**
+- `app/(app)/laboratory/page.tsx` — lab **worklist**: orders by status (ordered → **Collect**; collected → inline **result entry** with a test picker; resulted → flag badge + **Report** link).
+- `app/(app)/laboratory/tests/page.tsx` — **test master** (list + add: LOINC, reference range, price).
+- `app/(app)/laboratory/[id]/page.tsx` — printable **lab report** (result + abnormal flag + reference range), shared with the doctor (LAB_ORDER_VIEW).
+- `lib/api` lab functions; `lib/nav` Laboratory item (permission-filtered).
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (26 routes). **Live-verified in the Portal:** the receptionist has **no Laboratory nav** and `/laboratory` → **403** (LAB_ORDER_VIEW gate). The lab-tech UI is API-verified (see backend DONE) + best eyeballed via a lab login.

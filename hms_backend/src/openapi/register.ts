@@ -19,6 +19,7 @@ import '../modules/opd/opd.openapi';
 import '../modules/billing/billing.openapi';
 import '../modules/emr/emr.openapi';
 import '../modules/pharmacy/pharmacy.openapi';
+import '../modules/laboratory/laboratory.openapi';
 import '../modules/dashboard/dashboard.openapi';
 import '../modules/patient/patient.openapi';
 import '../modules/appointment/appointment.openapi';

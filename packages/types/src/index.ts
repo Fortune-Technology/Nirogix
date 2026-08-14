@@ -563,6 +563,66 @@ export interface DispenseResult {
   totalPaise: number;
 }
 
+// ---- Laboratory (hms_backend/src/modules/laboratory) -----------------------
+
+export interface LabTest {
+  id: string;
+  name: string;
+  code: string | null;
+  sampleType: string | null;
+  unit: string | null;
+  refLow: string | null;
+  refHigh: string | null;
+  pricePaise: number;
+  taxRateBps: number;
+  isActive: boolean;
+}
+
+export interface LabResult {
+  value: string;
+  unit: string | null;
+  flag: string; // normal | low | high | critical
+  refLow: string | null;
+  refHigh: string | null;
+  notes: string | null;
+}
+
+export interface LabOrder {
+  id: string;
+  testName: string;
+  testCode: string | null;
+  priority: string;
+  status: string; // ordered | collected | resulted | cancelled
+  notes: string | null;
+  visitId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  createdAt: string;
+  result: LabResult | null;
+}
+
+export interface CreateLabTestRequest {
+  name: string;
+  code?: string | null;
+  sampleType?: string | null;
+  unit?: string | null;
+  refLow?: string | null;
+  refHigh?: string | null;
+  pricePaise: number;
+  taxRateBps?: number;
+}
+
+export interface EnterResultRequest {
+  testId?: string | null;
+  value: string;
+  unit?: string | null;
+  refLow?: string | null;
+  refHigh?: string | null;
+  flag?: 'normal' | 'low' | 'high' | 'critical' | null;
+  notes?: string | null;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

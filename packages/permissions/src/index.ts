@@ -36,6 +36,7 @@ export const PERMISSIONS = {
   // Laboratory
   LAB_ORDER_VIEW: 'laboratory.order.view',
   LAB_RESULT_ENTER: 'laboratory.result.enter',
+  LAB_MANAGE: 'laboratory.test.manage', // test master + sample collection
   // Billing
   BILLING_VIEW: 'billing.invoice.view',
   BILLING_CREATE: 'billing.invoice.create',
@@ -139,7 +140,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'lab_technician',
     name: 'Lab Technician',
     description: 'Laboratory',
-    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.PATIENT_VIEW],
+    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_MANAGE, P.PATIENT_VIEW],
   },
   {
     key: 'cashier',

@@ -19,6 +19,7 @@ import { opdRouter } from '../../modules/opd/opd.routes';
 import { billingRouter } from '../../modules/billing/billing.routes';
 import { emrRouter } from '../../modules/emr/emr.routes';
 import { pharmacyRouter } from '../../modules/pharmacy/pharmacy.routes';
+import { laboratoryRouter } from '../../modules/laboratory/laboratory.routes';
 
 // The /api/v1 router. Every business-module router mounts here as it is built —
 // each gated by requireModule() then requirePermission() (added with the authz core).
@@ -44,6 +45,7 @@ apiV1.use(opdRouter);
 apiV1.use(billingRouter);
 apiV1.use(emrRouter);
 apiV1.use(pharmacyRouter);
+apiV1.use(laboratoryRouter);
 
 // Mounted as modules land:
 // apiV1.use('/auth', authRouter);
