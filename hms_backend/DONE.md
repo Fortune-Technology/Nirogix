@@ -380,3 +380,24 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** ADR-023 — cross-tenant analytics are aggregate-only + super-admin-gated; org roll-up uses the normal RLS path (invariant #2 holds). Never returns another tenant's rows. Snapshot-table optimization deferred to scale.
 
 **Known limitations:** Per-tenant COUNT loop is O(tenants) — fine at MVP scale; a materialized `platform_metrics` snapshot (BullMQ-refreshed) is the scale path. Patient/appointment counts light up when those modules land (Stage 1).
+
+---
+
+## 2026-08-14 — Patient Management, the first clinical module (Phase 1 / MVP 0 / Task P1)
+
+**What:** The first MVP-0 clinical vertical slice — patient registration + directory — and the **first real business module** to go through the full authz chain (`requireAuth → requireModule('patient') → requirePermission → logic`). On branch `feat/phase-1-clinic-pilot`.
+
+**Added:**
+- Schema `db/schema/patients.ts`: `patients` (tenant-scoped, RLS; migration `drizzle/0009_futuristic_rhodey.sql`) — strongly typed (no EAV, invariant #5): name/gender/DOB/phone/email/blood group/address+PIN/**ABHA**/emergency contact/lifecycle status. Per-tenant **UHID** auto-allocated (`UHID-000001`…), unique `(tenant_id, uhid)`.
+- `modules/patient/`: `patient.service` (createPatient w/ UHID retry-on-conflict, getPatient, listPatients paginated + search via `ILIKE` on UHID/name/phone, updatePatient, countPatients), `patient.{schema,controller,routes,openapi}.ts`. Routes module-gated + permission-gated. Wired into `api/v1` + `openapi/register`.
+- Removed the `/patients` demonstrator stub from the entitlement module (kept `/ipd/beds` as a requireModule demonstrator for the not-yet-built IPD).
+- Wired **patient counts into both dashboards** (platform `/admin/stats` + org `/dashboard/summary`) — the "Patients" tile now shows real numbers.
+- Seed: 3 demo patients in CITYCARE, 2 in SUNRISE (Indian names/cities/PINs), idempotent.
+
+**API:** `GET /patients` (list/search, paginated), `POST /patients`, `GET|PATCH /patients/:id` — `patient.record.view|create|update`. All documented.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **46/46** (15 files; +3 patient). **Live-verified (CITYCARE):** receptionist registers a patient (UHID-000004 auto-assigned), lists the 3 seeded, searches by name/UHID/phone; a receptionist **PATCH → 403** (lacks `patient.record.update`) while a **doctor PATCH → 200**; the **module gate** blocks the wildcard super-admin on `/patients` with **MODULE_NOT_ENTITLED** because the PLATFORM org has no `patient` entitlement; the dashboard patient count reflected the new registration. Test walk-in removed afterward.
+
+**Decisions:** UHID is a per-tenant sequential MRN allocated server-side (retry-on-conflict); patients are a strongly-typed core entity (specialty extras ride form templates, not columns). `requireModule` now guards a real module for the first time — proving the entitlement layer end-to-end.
+
+**Known limitations:** No merge/dedup of patients, no ABHA verification/linking (field only), no document attachments on the profile yet, no soft-delete/archive UI flow beyond the `status` field. Appointment/encounter links arrive with those modules.

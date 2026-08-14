@@ -98,3 +98,21 @@ Append-only implementation log. Newest at the bottom.
 **Decisions:** One dashboard route, role-branched by permission (not two routes). Aggregate-only platform view (ADR-023); org view is RLS-scoped. Tiles built to tolerate not-yet-present modules (null → placeholder).
 
 **Known limitations:** No charts/trends yet (single-value tiles); patient/appointment/revenue tiles fill in as the Stage 1 clinical modules land. No date-range or drill-down.
+
+---
+
+## 2026-08-14 — Patient Management screens: list, register, profile (Phase 1 / MVP 0 / Task P2)
+
+**What:** The Portal side of the first clinical module — the patient directory, registration, and profile (development-plan §21). On branch `feat/phase-1-clinic-pilot`.
+
+**Added:**
+- `app/(app)/patients/page.tsx` — directory (Standard DataTable: UHID→detail, name, gender, **age computed from DOB**, phone, city, status) with **debounced server-side search** (UHID/name/phone) + pagination + "Register patient" (`<Can patient.record.create>`).
+- `app/(app)/patients/new/page.tsx` — registration form (identity / contact / emergency; gender + blood-group selects, DOB picker, ABHA field); on save redirects to the new profile. `<RequirePermission patient.record.create>`.
+- `app/(app)/patients/[id]/page.tsx` — profile (read cards) with an inline **Edit** mode (`<Can patient.record.update>`) that PATCHes; empty inputs are coerced to `null` so nullable fields validate.
+- Nav "Patients" (`patient.record.view`); `lib/api` patient wrappers; `@hms/types` `Patient`/`CreatePatientRequest`. `PageHeader.description` widened to `ReactNode`.
+
+**Testing status:** typecheck green (7 workspaces) · `next build` green (16 routes incl. dynamic `/patients/[id]`). **Live-verified in-browser:** org_admin sees the 3 seeded patients but **no Register button** (lacks `create`); a **doctor** registers a patient (UHID-000004 auto-assigned) → profile; the doctor edits (blood group + state) and **Save persists** (after the empty-string→null fix); the list/age/search/pagination render. Test walk-in removed afterward.
+
+**Decisions:** Role-gated CRUD via `<Can>`/`<RequirePermission>` on the same shared permission keys the backend enforces — a receptionist can register but not edit, a doctor can do both (verified). Search is debounced (300ms) and server-side through the paginated list endpoint.
+
+**Known limitations:** No document attachments / photo, no ABHA verify, no merge/dedup, no encounter/appointment history on the profile yet (arrive with those modules). Branch selection on registration is not surfaced (branch_id supported by the API).

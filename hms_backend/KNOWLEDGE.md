@@ -138,6 +138,14 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Endpoints:** `GET /specialties` · `GET|POST /providers` · `GET /providers/:id` · `POST /providers/:id/specialties` · `GET|POST /specialty-templates` — read gated by `providers.view`, writes by `providers.manage`. Create/assign/template writes are audited.
 - Verified live: 17 specialties listed; seeded "Dr. Ananya Sharma" (cardiology); created a provider + assigned orthopedics (PractitionerRole); unknown specialty → **422**; form template created.
 
+## Patient Management (MVP 0 — first clinical module)
+
+- **The first real business module** through the full authz chain: `requireAuth → requireModule('patient') → requirePermission → logic`. A tenant not entitled to `patient` gets **403 MODULE_NOT_ENTITLED** before any permission check — verified live even for a wildcard super-admin whose (PLATFORM) tenant lacks the entitlement.
+- **`patients`** (tenant-scoped, RLS; migration `drizzle/0009_*`) — a **strongly-typed** core clinical entity (no EAV, invariant #5): name, gender, DOB, phone/email, blood group, address + **PIN code**, **ABHA number**, emergency contact, lifecycle `status` (active/archived). Per-tenant **UHID** (`UHID-000001`…) auto-allocated on registration (unique `(tenant_id, uhid)`, retry-on-conflict).
+- **`patient.service`:** `createPatient` (UHID allocation + audit), `getPatient`, `listPatients` (paginated + search across UHID/name/phone via `ILIKE`), `updatePatient`, `countPatients` (feeds the dashboards). Explicit `tenant_id` filters (ADR-015) + audited.
+- **Permissions:** `patient.record.view` (list/get) · `create` (register) · `update` (edit) — receptionist creates + views, doctor also updates. The old `/patients` stub (from the entitlement demonstrator) was replaced by this module.
+- Verified live: receptionist registers a patient (UHID assigned) + searches; a receptionist **cannot** update (403 — no `patient.record.update`); a doctor can; the dashboard patient count updates.
+
 ## Endpoints (current)
 
 - `GET /api/v1/health` — liveness
@@ -151,7 +159,8 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/branding/current` (any authed — bootstrap) · `PUT|DELETE /api/v1/branding` · `POST /api/v1/branding/logo` · `POST /api/v1/branding/favicon` — tenant branding (`platform.branding.manage`)
 - `GET /api/v1/admin/stats` — platform-wide aggregates (super-admin; **aggregate-only**, ADR-023) · `GET /api/v1/dashboard/summary` — the caller's own-tenant roll-up (RLS-scoped)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
-- `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/patients` + `GET /api/v1/ipd/beds` (authz-chain demonstrators)
+- `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/ipd/beds` (requireModule demonstrator — IPD is Phase 2)
+- `GET /api/v1/patients` (list/search, paginated) · `POST /api/v1/patients` · `GET|PATCH /api/v1/patients/{id}` — Patient Management, module-gated (`requireModule('patient')` → `patient.record.view|create|update`)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`

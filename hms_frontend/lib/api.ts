@@ -32,6 +32,8 @@ import type {
   Branding,
   PlatformStats,
   OrgSummary,
+  Patient,
+  CreatePatientRequest,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -223,6 +225,26 @@ export async function getPlatformStats(): Promise<PlatformStats> {
 
 export async function getOrgSummary(): Promise<OrgSummary> {
   return request<OrgSummary>("/dashboard/summary");
+}
+
+// ---- Patients --------------------------------------------------------------
+
+export async function listPatients(page = 1, pageSize = 20, search?: string): Promise<Paginated<Patient>> {
+  const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) q.set("search", search);
+  return request<Paginated<Patient>>(`/patients?${q.toString()}`);
+}
+
+export async function createPatient(body: CreatePatientRequest): Promise<Patient> {
+  return request<Patient>("/patients", { method: "POST", body });
+}
+
+export async function getPatient(id: string): Promise<Patient> {
+  return request<Patient>(`/patients/${id}`);
+}
+
+export async function updatePatient(id: string, patch: Partial<CreatePatientRequest> & { status?: string }): Promise<Patient> {
+  return request<Patient>(`/patients/${id}`, { method: "PATCH", body: patch });
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

@@ -209,6 +209,48 @@ export interface OrgSummary {
   appointments: number | null;
 }
 
+// ---- Patients (hms_backend/src/modules/patient) ----------------------------
+
+export interface Patient {
+  id: string;
+  uhid: string;
+  firstName: string;
+  lastName: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  phone: string | null;
+  email: string | null;
+  bloodGroup: string | null;
+  addressLine: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  abhaNumber: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  branchId: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface CreatePatientRequest {
+  firstName: string;
+  lastName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  bloodGroup?: string | null;
+  addressLine?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  abhaNumber?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  branchId?: string | null;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

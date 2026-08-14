@@ -7,6 +7,7 @@ import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
+import { createPatient, countPatients, type PatientInput } from '../modules/patient/patient.service';
 
 // Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
 // Takoriya Technology LLP — home of the System Super Admin who onboards hospitals; ADR-022) plus 2+
@@ -38,6 +39,8 @@ interface SeedTenant {
   /** One user per role — email, display name, and the system role key. */
   users: Array<{ email: string; fullName: string; role: string }>;
   providers: SeedProvider[];
+  /** A few demo patients (Indian context). Only seeded when the tenant has none. */
+  patients?: PatientInput[];
 }
 
 // The PLATFORM org (the vendor) + demo hospital tenants across different Indian states.
@@ -88,6 +91,11 @@ const SEED_TENANTS: SeedTenant[] = [
         userEmail: 'doctor@citycare.example',
       },
     ],
+    patients: [
+      { firstName: 'Aarav', lastName: 'Kulkarni', gender: 'male', dateOfBirth: '1990-04-12', phone: '9820011234', bloodGroup: 'B+', city: 'Pune', state: 'Maharashtra', pincode: '411038' },
+      { firstName: 'Isha', lastName: 'Deshpande', gender: 'female', dateOfBirth: '1985-11-03', phone: '9822045678', bloodGroup: 'O+', city: 'Pune', state: 'Maharashtra', pincode: '411045' },
+      { firstName: 'Vivaan', lastName: 'Patil', gender: 'male', dateOfBirth: '2015-06-20', phone: '9821099887', bloodGroup: 'A+', city: 'Pune', state: 'Maharashtra', pincode: '411001' },
+    ],
   },
   {
     code: 'SUNRISE',
@@ -114,6 +122,10 @@ const SEED_TENANTS: SeedTenant[] = [
         specialty: 'radiology',
         userEmail: 'doctor@sunrise.example',
       },
+    ],
+    patients: [
+      { firstName: 'Rajesh', lastName: 'Chaudhary', gender: 'male', dateOfBirth: '1978-07-22', phone: '9898012345', bloodGroup: 'A+', city: 'Ahmedabad', state: 'Gujarat', pincode: '380015' },
+      { firstName: 'Meera', lastName: 'Shah', gender: 'female', dateOfBirth: '1992-02-14', phone: '9898067890', bloodGroup: 'AB+', city: 'Ahmedabad', state: 'Gujarat', pincode: '380009' },
     ],
   },
 ];
@@ -205,6 +217,13 @@ async function seedTenant(t: SeedTenant): Promise<void> {
   }
   // eslint-disable-next-line no-console
   console.log(`  ${t.providers.length} providers seeded`);
+
+  // Demo patients — only when the tenant has none (idempotent; UHIDs auto-assigned).
+  if (t.patients?.length && (await countPatients(tenant.id)) === 0) {
+    for (const p of t.patients) await createPatient(tenant.id, p);
+    // eslint-disable-next-line no-console
+    console.log(`  ${t.patients.length} patients seeded`);
+  }
 }
 
 async function main(): Promise<void> {

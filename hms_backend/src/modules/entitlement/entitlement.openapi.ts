@@ -17,20 +17,7 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
-  method: 'get',
-  path: '/api/v1/patients',
-  operationId: 'listPatients',
-  tags: ['Patients'],
-  summary: 'Patient module (stub) — demonstrates auth → module → permission',
-  description: 'Requires the `patient` module entitlement AND `patient.record.view`.',
-  security: [{ bearerAuth: [] }],
-  responses: {
-    200: { description: 'OK', ...json(ModuleStubResponseSchema) },
-    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
-    403: { description: 'Module not entitled, or missing permission', ...json(ErrorResponseSchema) },
-  },
-});
+// (The `/patients` demonstrator was replaced by the real Patient module — modules/patient.)
 
 registry.registerPath({
   method: 'get',

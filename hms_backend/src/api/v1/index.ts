@@ -12,6 +12,7 @@ import { fileRouter } from '../../modules/file/file.routes';
 import { providerRouter } from '../../modules/provider/provider.routes';
 import { brandingRouter } from '../../modules/branding/branding.routes';
 import { dashboardRouter } from '../../modules/dashboard/dashboard.routes';
+import { patientRouter } from '../../modules/patient/patient.routes';
 
 // The /api/v1 router. Every business-module router mounts here as it is built —
 // each gated by requireModule() then requirePermission() (added with the authz core).
@@ -30,6 +31,7 @@ apiV1.use(fileRouter);
 apiV1.use(providerRouter);
 apiV1.use(brandingRouter);
 apiV1.use(dashboardRouter);
+apiV1.use(patientRouter);
 
 // Mounted as modules land:
 // apiV1.use('/auth', authRouter);

@@ -1,6 +1,6 @@
 import { count, eq } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { users, providers, branches } from '../../db/schema';
+import { users, providers, branches, patients } from '../../db/schema';
 import { listEntitledModules } from '../entitlement/entitlement.service';
 
 export type OrgSummary = {
@@ -16,11 +16,12 @@ export type OrgSummary = {
 // The Org-Admin dashboard roll-up — scoped to the caller's OWN tenant via RLS (never another
 // tenant's data). Same shape as the platform stats, one hospital's worth.
 export async function getOrgSummary(tenantId: string): Promise<OrgSummary> {
-  const { userCount, doctorCount, branchRows } = await runWithTenant(tenantId, async (tx) => {
+  const { userCount, doctorCount, patientCount, branchRows } = await runWithTenant(tenantId, async (tx) => {
     const u = (await tx.select({ c: count() }).from(users).where(eq(users.tenantId, tenantId)))[0];
     const p = (await tx.select({ c: count() }).from(providers).where(eq(providers.tenantId, tenantId)))[0];
+    const pt = (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId)))[0];
     const branchRows = await tx.select().from(branches).where(eq(branches.tenantId, tenantId));
-    return { userCount: Number(u?.c ?? 0), doctorCount: Number(p?.c ?? 0), branchRows };
+    return { userCount: Number(u?.c ?? 0), doctorCount: Number(p?.c ?? 0), patientCount: Number(pt?.c ?? 0), branchRows };
   });
   const modules = Array.from(await listEntitledModules(tenantId)).sort();
   return {
@@ -28,7 +29,7 @@ export async function getOrgSummary(tenantId: string): Promise<OrgSummary> {
     doctors: doctorCount,
     branches: { total: branchRows.length, active: branchRows.filter((b) => b.isActive).length },
     modules,
-    patients: null,
+    patients: patientCount,
     appointments: null,
   };
 }

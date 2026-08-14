@@ -6,11 +6,7 @@ export async function listMyEntitlements(req: Request, res: Response): Promise<v
   res.json({ modules: Array.from(modules).sort() });
 }
 
-// Placeholder handlers for the demonstrator routes (replaced by the real modules later).
-export async function patientsStub(_req: Request, res: Response): Promise<void> {
-  res.json({ ok: true, module: 'patient', note: 'Patient module stub — full CRUD arrives in milestone 1.1' });
-}
-
+// Placeholder handler for the IPD demonstrator route (real IPD module arrives in Phase 2).
 export async function ipdStub(_req: Request, res: Response): Promise<void> {
   res.json({ ok: true, module: 'ipd', note: 'IPD module stub' });
 }
