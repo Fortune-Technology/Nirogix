@@ -302,6 +302,115 @@ export interface BookAppointmentRequest {
   branchId?: string | null;
 }
 
+// ---- OPD / Visits (hms_backend/src/modules/opd) ----------------------------
+
+export interface VisitInvoiceSummary {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  totalPaise: number;
+  amountPaidPaise: number;
+  balancePaise: number;
+}
+
+export interface Visit {
+  id: string;
+  visitNumber: string;
+  tokenNumber: number;
+  visitDate: string;
+  visitType: string;
+  status: string; // checked_in | in_consultation | completed | cancelled
+  department: string | null;
+  reason: string | null;
+  checkedInAt: string;
+  completedAt: string | null;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  providerId: string | null;
+  providerName: string | null;
+  appointmentId: string | null;
+  invoice: VisitInvoiceSummary | null;
+}
+
+export interface CheckInRequest {
+  patientId: string;
+  appointmentId?: string | null;
+  providerId?: string | null;
+  branchId?: string | null;
+  department?: string | null;
+  reason?: string | null;
+  consultationFeePaise: number;
+}
+
+export interface UpdateVisitStatusRequest {
+  status: 'in_consultation' | 'completed' | 'cancelled';
+  version?: number;
+}
+
+// ---- Billing (hms_backend/src/modules/billing — Financial Transaction Infra) ----
+
+export interface InvoiceLineItem {
+  id: string;
+  itemType: string;
+  description: string;
+  quantity: number;
+  unitPricePaise: number;
+  taxRateBps: number;
+  taxPaise: number;
+  lineTotalPaise: number;
+}
+
+export interface Payment {
+  id: string;
+  amountPaise: number;
+  method: string;
+  reference: string | null;
+  status: string;
+  collectedAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  status: string; // draft | partially_paid | paid | void
+  currency: string;
+  subtotalPaise: number;
+  taxPaise: number;
+  totalPaise: number;
+  amountPaidPaise: number;
+  balancePaise: number;
+  notes: string | null;
+  visitId: string | null;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  createdAt: string;
+  lineItems: InvoiceLineItem[];
+  payments: Payment[];
+}
+
+export interface InvoiceListItem {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  totalPaise: number;
+  amountPaidPaise: number;
+  balancePaise: number;
+  currency: string;
+  createdAt: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+}
+
+export interface RecordPaymentRequest {
+  amountPaise: number;
+  method: 'cash' | 'upi' | 'card' | 'netbanking' | 'other';
+  reference?: string | null;
+  idempotencyKey: string;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

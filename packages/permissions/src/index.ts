@@ -22,6 +22,10 @@ export const PERMISSIONS = {
   APPOINTMENT_VIEW: 'appointment.booking.view',
   APPOINTMENT_CREATE: 'appointment.booking.create',
   APPOINTMENT_CANCEL: 'appointment.booking.cancel',
+  // OPD & Check-in (visit / queue)
+  OPD_VIEW: 'opd.visit.view',
+  OPD_CHECKIN: 'opd.visit.checkin',
+  OPD_UPDATE: 'opd.visit.update',
   // EMR
   EMR_VIEW: 'emr.encounter.view',
   EMR_WRITE: 'emr.encounter.write',
@@ -90,7 +94,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Administers the organization',
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
-      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW,
+      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
@@ -100,7 +105,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'branch_admin',
     name: 'Branch Admin',
     description: 'Administers a branch',
-    permissions: [P.USERS_VIEW, P.BRANCHES_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.BILLING_VIEW],
+    permissions: [P.USERS_VIEW, P.BRANCHES_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.OPD_VIEW, P.BILLING_VIEW],
   },
   {
     key: 'doctor',
@@ -108,6 +113,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Clinical provider',
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE,
+      P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
     ],
   },
@@ -117,6 +123,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Front desk',
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
+      P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.FILE_VIEW, P.FILE_UPLOAD,
     ],
@@ -137,6 +144,6 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'cashier',
     name: 'Cashier',
     description: 'Billing counter',
-    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.PATIENT_VIEW],
+    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.PATIENT_VIEW],
   },
 ];

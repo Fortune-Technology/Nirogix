@@ -20,3 +20,5 @@ export * from './branding';
 export * from './platformBranding';
 export * from './patients';
 export * from './appointments';
+export * from './visits';
+export * from './billing';

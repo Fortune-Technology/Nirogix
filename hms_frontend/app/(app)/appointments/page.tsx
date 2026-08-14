@@ -28,6 +28,7 @@ function AppointmentsTable() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canCancel = useCan(PERMISSIONS.APPOINTMENT_CANCEL);
+  const canCheckIn = useCan(PERMISSIONS.OPD_CHECKIN);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,8 +81,17 @@ function AppointmentsTable() {
       key: "actions",
       header: "",
       cell: (a) =>
-        canCancel && a.status === "booked" ? (
-          <Button variant="secondary" size="sm" disabled={busy} onClick={() => cancel(a.id)}>Cancel</Button>
+        a.status === "booked" ? (
+          <div className="flex justify-end gap-2">
+            {canCheckIn && (
+              <Link href={`/opd/check-in?appointmentId=${a.id}&patientId=${a.patientId}&providerId=${a.providerId}`}>
+                <Button size="sm">Check in</Button>
+              </Link>
+            )}
+            {canCancel && (
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => cancel(a.id)}>Cancel</Button>
+            )}
+          </div>
         ) : null,
     },
   ];

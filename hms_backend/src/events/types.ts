@@ -10,6 +10,7 @@ export type DomainEventPayload = {
   'patient.registered': { tenantId: string; patientId: string };
   'appointment.booked': { tenantId: string; appointmentId: string; patientId: string };
   'appointment.cancelled': { tenantId: string; appointmentId: string };
+  'visit.checked_in': { tenantId: string; visitId: string; patientId: string };
   'invoice.created': { tenantId: string; invoiceId: string };
   'payment.received': { tenantId: string; paymentId: string; invoiceId: string };
 };

@@ -434,3 +434,16 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - Wired into `api/v1/index.ts` + `openapi/register.ts`.
 
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green (all routes documented) · migration applied (RLS correctly skips the global table). **Live-verified via API:** public GET (marketing/hms → 200, bad scope → 422); super-admin login → PUT (version increments) → public GET reflects it → DELETE resets. A non-super-admin gets 403 on the write routes / admin page.
+
+---
+
+## 2026-08-14 — MVP-0 slice 1.3: OPD & Check-in + Billing Core (ADR-025)
+
+**What:** The visit/encounter backbone + the shared Financial Transaction Infrastructure (invariant #8).
+
+**Added:**
+- **`billing` module** (financial infra, no clinical logic) — `invoices` / `invoice_line_items` / `payments` tables (integer paise in `bigint`, tax in bps, migration `0012`, RLS auto-applied). `billing.service`: `createInvoice` (server-computed totals, tenant-monotonic `INV-` number), `getInvoice` (receipt: lines + payments + balance), `listInvoices`, **idempotent `recordPayment`** (`unique(tenant, idempotency_key)` + `onConflictDoNothing`; recomputes paid/status from the ledger). Routes gated `requireModule('billing')` + `BILLING_VIEW/CREATE/PAYMENT`.
+- **`opd` module** (clinical) — `visits` table (token/queue, `V-` number, status machine). `checkIn` validates patient/provider/appointment, dedupes an already-checked-in appointment, allocates a daily token, and opens a **draft consultation-fee invoice via `billing.createInvoice`** (never touches money tables). `listQueue` (today's visits, token order), `getVisit`, `updateStatus` (checked_in→in_consultation→completed, optimistic version). Routes gated `requireModule('opd')` + new `OPD_VIEW/CHECKIN/UPDATE`.
+- `@hms/permissions`: `OPD_VIEW/CHECKIN/UPDATE` (receptionist checks in, doctor advances, cashier + admins view). `@hms/types`: Visit/Invoice/Payment + request contracts. Event `visit.checked_in` (+ now-published `invoice.created`/`payment.received`). Routers mounted; OpenAPI registered; `db:seed` re-run to grant the new perms.
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (CITYCARE):** receptionist check-in → visit `V-000001`, token #1, auto invoice `INV-000001` (₹500 draft) → queue lists it → cashier reads the receipt (1 consultation line, totals correct) → collect ₹500 cash → **paid, balance ₹0** → **re-post same idempotencyKey ⇒ still 1 payment, balance ₹0 (no double-charge)**.

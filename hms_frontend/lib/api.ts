@@ -39,6 +39,12 @@ import type {
   CreatePatientRequest,
   Appointment,
   BookAppointmentRequest,
+  Visit,
+  CheckInRequest,
+  UpdateVisitStatusRequest,
+  Invoice,
+  InvoiceListItem,
+  RecordPaymentRequest,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -273,6 +279,53 @@ export async function bookAppointment(body: BookAppointmentRequest): Promise<{ i
 
 export async function cancelAppointment(id: string, reason?: string): Promise<{ id: string; status: string }> {
   return request<{ id: string; status: string }>(`/appointments/${id}/cancel`, { method: "POST", body: { reason } });
+}
+
+// ---- OPD / visits (hms_backend/src/modules/opd) ----------------------------
+
+export async function listVisits(
+  opts: { date?: string; branchId?: string; providerId?: string; status?: string } = {},
+): Promise<Visit[]> {
+  const q = new URLSearchParams();
+  if (opts.date) q.set("date", opts.date);
+  if (opts.branchId) q.set("branchId", opts.branchId);
+  if (opts.providerId) q.set("providerId", opts.providerId);
+  if (opts.status) q.set("status", opts.status);
+  const qs = q.toString();
+  return request<Visit[]>(`/visits${qs ? `?${qs}` : ""}`);
+}
+
+export async function getVisit(id: string): Promise<Visit> {
+  return request<Visit>(`/visits/${id}`);
+}
+
+export async function checkIn(body: CheckInRequest): Promise<Visit> {
+  return request<Visit>("/visits/check-in", { method: "POST", body });
+}
+
+export async function updateVisitStatus(id: string, body: UpdateVisitStatusRequest): Promise<Visit> {
+  return request<Visit>(`/visits/${id}/status`, { method: "PATCH", body });
+}
+
+// ---- Billing (hms_backend/src/modules/billing) -----------------------------
+
+export async function listInvoices(
+  opts: { page?: number; pageSize?: number; patientId?: string; status?: string } = {},
+): Promise<Paginated<InvoiceListItem>> {
+  const q = new URLSearchParams();
+  q.set("page", String(opts.page ?? 1));
+  q.set("pageSize", String(opts.pageSize ?? 20));
+  if (opts.patientId) q.set("patientId", opts.patientId);
+  if (opts.status) q.set("status", opts.status);
+  return request<Paginated<InvoiceListItem>>(`/invoices?${q.toString()}`);
+}
+
+export async function getInvoice(id: string): Promise<Invoice> {
+  return request<Invoice>(`/invoices/${id}`);
+}
+
+export async function recordPayment(id: string, body: RecordPaymentRequest): Promise<Invoice> {
+  return request<Invoice>(`/invoices/${id}/payments`, { method: "POST", body });
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------

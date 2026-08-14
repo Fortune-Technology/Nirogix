@@ -185,3 +185,16 @@ Append-only implementation log. Newest at the bottom.
 - `app/layout.tsx` — added the shared `@hms/ui` `LottiePreloader` (`src="/animations/ambulance.json"`) at the app root, replacing the plain initial loading state.
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green (19 routes). Live-verified in the Portal: the preloader shows on load then unmounts and restores scroll; the shell renders; no console errors.
+
+---
+
+## 2026-08-14 — MVP-0 slice 1.3 screens: OPD queue + Billing/receipt
+
+**Added:**
+- `app/(app)/opd/page.tsx` — front-desk **queue/token board**: today's visits in token order (patient, provider, status, checked-in time, invoice status + balance), per-row **Start consult / Complete** (OPD_UPDATE), **Check in** button.
+- `app/(app)/opd/check-in/page.tsx` — check-in form (patient search-picker + provider + consultation fee ₹ + reason); pre-fillable from an appointment (`?appointmentId=&patientId=&providerId=`), Suspense-wrapped.
+- `app/(app)/billing/page.tsx` — invoice list (invoice#, patient, total, balance, status) + status filter + pagination.
+- `app/(app)/billing/[id]/page.tsx` — **receipt**: line-item table, totals (subtotal/tax/total/paid/balance), payments list, **Collect payment** (cash/UPI/…, generates an `idempotencyKey` per attempt), **Print** (`window.print`, `print:hidden` chrome).
+- `lib/money.ts` (`formatPaise` / `rupeesToPaise`), `lib/api.ts` OPD + billing functions, `lib/nav.ts` OPD Queue + Billing items (permission-filtered), and an appointments-row **Check in** action.
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (22 routes). **Live-verified in the Portal:** as the receptionist, the OPD queue renders the real visit (**#1 · Vivaan Patil · Dr. Ananya Sharma · Checked in · paid**), the sidebar shows OPD Queue but **not** Billing, and `/billing` returns **403** (receptionist lacks BILLING_VIEW). The cashier billing UI (list / receipt / collect) is API-verified (see backend DONE) and best eyeballed via a cashier login.
