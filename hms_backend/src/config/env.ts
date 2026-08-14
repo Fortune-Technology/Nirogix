@@ -46,6 +46,10 @@ const EnvSchema = z.object({
   R2_BUCKET: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),
   R2_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // Background jobs — Redis + BullMQ. When unset, jobs run inline in-process (dev/CI) instead of
+  // on a queue; the same call sites work either way. No module creates its own cron/scheduler.
+  REDIS_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

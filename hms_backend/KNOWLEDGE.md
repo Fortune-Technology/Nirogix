@@ -117,7 +117,15 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Downloads:** short-lived signed URLs — a presigned R2 URL (r2 provider) or an app-served tokenized route `/files/content/:id?token=` (local). Default-private; nothing is a permanent public URL.
 - **Endpoints:** `POST /files` (`files.document.upload`) · `GET /files/:id` → URL (`files.document.view`) · `GET /files/content/:id?token=` (token-authorized) · `DELETE /files/:id` (`files.document.delete`).
 - **Audit:** upload, download, and delete are audit-logged. Delete removes the object + soft-deletes metadata (retained for audit); `version` supports amended documents.
-- Verified live: upload → metadata+checksum; download URL → content; delete → 204 then 404; unsupported type → 422. The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
+- Verified live: upload → metadata+checksum; download URL → content; delete → 204 then 404; unsupported type → 422.
+
+## Domain events & background jobs
+
+- **Event bus** (`events/`): typed in-process publish/subscribe (`eventBus.publish/subscribe`), NOT a broker. A module publishes once; subscribers react independently; a failing subscriber never breaks the publisher. Events include `user.logged_in` (published on login), `notification.requested`, `appointment.booked`, `invoice.created`. Subscribers wired in `events/subscribers.ts`.
+- **Job runner** (`jobs/`): one abstraction, two backends — **BullMQ** (Redis) when `REDIS_URL` is set, else an **inline** in-process runner (dev/CI). `getJobRunner().enqueue(name, data, { delaySeconds? })`; processors in `jobs/processors.ts`. BullMQ jobs are retryable (3 attempts, exp backoff) and schedulable (delay). **No module creates its own cron.**
+- **Bootstrap:** `initBackground()` (called by `server.ts` + tests) registers processors + subscribers.
+- **Pipeline:** `notification.requested` event → subscriber enqueues `notification.send` job → runner delivers via NotificationService. `POST /notifications/test {async:true}` → 202 (queued) exercises it end-to-end.
+- Verified live: an async send returns 202 and the notification is delivered via the job path (appears in `/notifications`). The `/api/v1` router and error codes already reserve their slots: routers will mount as `requireModule(...)` → `requirePermission(...)`. Permission keys will live in `@hms/permissions`.
 
 ## Endpoints (current)
 

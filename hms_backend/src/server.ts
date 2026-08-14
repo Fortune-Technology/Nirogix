@@ -1,7 +1,11 @@
 import { createApp } from './app';
+import { initBackground } from './bootstrap';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { pool } from './db/client';
+
+// Register job processors + domain-event subscribers before serving.
+initBackground();
 
 const app = createApp();
 

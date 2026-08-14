@@ -229,3 +229,22 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 ## 2026-08-13 (later) — Object storage switched to Cloudflare R2 (no AWS) — ADR-017
 
 Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3` / `s3-request-presigner` with the **MinIO client** (`minio`) — a non-AWS S3-compatible client — and renamed the provider `S3FileStorageProvider` → `R2FileStorageProvider` (`s3Provider.ts` → `r2Provider.ts`). Config `FILE_STORAGE_PROVIDER=local|r2`, `R2_*` env (was `S3_*`). **No AWS packages remain installed** (only an unused *optional* peer `@aws-sdk/client-rds-data` that drizzle-kit advertises — not installed, we use `pg`). Note: `@aws-sdk/client-s3` was only ever the S3-protocol client (R2's own docs recommend it), never an AWS service — removed to honor the directive. typecheck green; local provider + full suite unaffected. **For PHI, pin the R2 bucket jurisdiction to India** (architecture.md → File Storage).
+
+---
+
+## 2026-08-13 — Domain events + BullMQ background jobs (Task #10)
+
+**What:** Internal domain-event bus + a background job runner (Redis/BullMQ with an inline fallback).
+
+**Added:**
+- `events/`: `types.ts` (DomainEventPayload map), `eventBus.ts` (typed in-process pub/sub, error-isolated), `subscribers.ts` (`notification.requested` → enqueue job; representative subscribers).
+- `jobs/`: `types.ts`, `runner.ts` (JobRunner interface + `getJobRunner`), `inlineRunner.ts` (dev/CI), `bullmqRunner.ts` (Redis+BullMQ, retryable/schedulable, dormant), `processors.ts` (`notification.send`).
+- `bootstrap.ts` `initBackground()` (wired into `server.ts`).
+- Publish `user.logged_in` on login; `POST /notifications/test {async:true}` → 202, delivers via events→jobs.
+- Env `REDIS_URL` (optional). Deps: `bullmq` + `ioredis`. Tests: eventBus + inline job runner.
+
+**Testing status:** typecheck green · openapi:validate green · full suite **27/27** (9 files). **Live-verified:** async send → 202; the notification is delivered through the event→job→NotificationService pipeline (notification count 1→2, recipient `async@example.com` appears in `/notifications`).
+
+**Decisions:** in-process event bus (not a broker) per architecture; one job runner abstraction — BullMQ (Redis) or inline fallback so dev/CI need no Redis; jobs retryable + schedulable; no module creates its own cron.
+
+**Known limitations:** BullMQ path unverified against live Redis (dormant until `REDIS_URL`). Only `notification.send` processor so far (PDF gen, ABDM sync, reminders land with their modules). Inline runner is fire-and-forget (no retry/persistence) — dev only.

@@ -8,6 +8,10 @@ export const SendTestBody = z
     subject: z.string().optional().openapi({ example: 'Appointment reminder' }),
     body: z.string().min(1).openapi({ example: 'Your appointment is confirmed for 10:00 AM.' }),
     idempotencyKey: z.string().optional(),
+    async: z
+      .boolean()
+      .optional()
+      .openapi({ description: 'Deliver via the background job queue instead of inline' }),
   })
   .openapi('SendNotificationRequest');
 
@@ -29,3 +33,7 @@ export const NotificationEntrySchema = z
 export const NotificationListResponseSchema = z
   .object({ data: z.array(NotificationEntrySchema), page: PageMetaSchema })
   .openapi('NotificationListResponse');
+
+export const QueuedResponseSchema = z
+  .object({ queued: z.literal(true) })
+  .openapi('QueuedResponse');

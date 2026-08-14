@@ -15,6 +15,7 @@ import {
 } from './tokens';
 import type { LoginInput, PublicUser } from './auth.schema';
 import { writeAudit } from '../audit/audit.service';
+import { eventBus } from '../../events/eventBus';
 
 type ClientMeta = { userAgent?: string; ip?: string };
 
@@ -124,6 +125,12 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
     action: 'auth.login.success',
     ip: meta.ip,
     userAgent: meta.userAgent,
+  });
+
+  eventBus.publish('user.logged_in', {
+    tenantId: tenant.id,
+    userId: user.id,
+    at: new Date().toISOString(),
   });
 
   return { status: 'ok', accessToken, refreshToken, user: toPublicUser(user) };

@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from '../../openapi/registry';
 import { paginate } from '../../http/respond';
 import { sendEmail, sendSms, listNotifications } from './notification.service';
+import { eventBus } from '../../events/eventBus';
 import type { NotificationLog } from '../../db/schema';
 
 function toEntry(r: NotificationLog) {
@@ -20,14 +21,31 @@ function toEntry(r: NotificationLog) {
 }
 
 export async function sendTest(req: Request, res: Response): Promise<void> {
-  const { channel, to, subject, body, idempotencyKey } = req.body as {
+  const { channel, to, subject, body, idempotencyKey, async: asyncDeliver } = req.body as {
     channel: 'email' | 'sms';
     to: string;
     subject?: string;
     body: string;
     idempotencyKey?: string;
+    async?: boolean;
   };
   const tenantId = req.auth!.tenantId;
+
+  // Async: publish a domain event → a subscriber enqueues the notification.send job → the worker
+  // (or inline runner in dev) delivers it. Demonstrates events → jobs → notification end-to-end.
+  if (asyncDeliver) {
+    eventBus.publish('notification.requested', {
+      channel,
+      tenantId,
+      to,
+      subject,
+      body,
+      idempotencyKey,
+    });
+    res.status(202).json({ queued: true });
+    return;
+  }
+
   const entry =
     channel === 'email'
       ? await sendEmail({ tenantId, to, subject, body, idempotencyKey })
