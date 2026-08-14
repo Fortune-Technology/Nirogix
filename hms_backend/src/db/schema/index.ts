@@ -17,5 +17,6 @@ export * from './notifications';
 export * from './files';
 export * from './providers';
 export * from './branding';
+export * from './platformBranding';
 export * from './patients';
 export * from './appointments';

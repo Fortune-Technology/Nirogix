@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Badge, Button, DataTable, Field, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Patient } from "@hms/types";
@@ -91,7 +92,7 @@ function PatientsTable() {
         actions={
           <Can perm={PERMISSIONS.PATIENT_CREATE}>
             <Link href="/patients/new">
-              <Button>+ Register patient</Button>
+              <Button><Plus size={16} strokeWidth={2} /> Register patient</Button>
             </Link>
           </Can>
         }

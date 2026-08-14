@@ -133,3 +133,55 @@ Append-only implementation log. Newest at the bottom.
 **Decisions:** Reception needs provider visibility to book, so `providers.view` was added to the receptionist role (domain-correct front-desk capability) rather than exposing a parallel endpoint. Patient picker reuses the paginated patient search. Booking converts the local `datetime-local` to ISO before sending.
 
 **Known limitations:** No calendar/day view (list only), no reschedule (cancel + re-book), no reminder send (staging), no provider working-hours constraint. Duration is a fixed set of options.
+
+---
+
+## 2026-08-14 — HMS Design System reskin + Lucide icon migration (frontend)
+
+**What:** The Portal adopts the approved custom **HMS Design System** (`resources/DESIGN.md`) via the reskinned `@hms/ui` tokens, and completes the project-wide switch to **Lucide** icons.
+
+**Changed:**
+- Colour/theme come entirely from the reskinned `--hms-*` tokens (see `packages/ui` DONE) — no page markup changed for the palette; the whole Portal re-skins to cool-neutral + deep-teal in Light and Dark.
+- `lib/nav.ts` + `components/AppShell.tsx` — every sidebar item now carries a Lucide icon.
+- `components/ThemeToggle.tsx` — the ☀/☾ emoji replaced with Lucide `Sun` / `Moon`.
+- Text-glyph icons migrated to Lucide across pages: back links `←` → `ArrowLeft` (patients/users/tenants detail), remove/revoke `✕` → `X` (users/tenants detail), action `+` → `Plus` (patients/appointments/users/branches/tenants lists).
+- Deleted the unreferenced create-next-app demo SVGs from `public/`.
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (18 routes). Live-verified in the running Portal (authenticated): all sidebar items show icons, the appointments DataTable and buttons render, no horizontal overflow, **no console errors**; Light + Dark token values confirmed.
+
+---
+
+## 2026-08-14 — Frontend rules: Lenis smooth scroll + back-to-top (Portal)
+
+**What:** Applied the permanent frontend rules (`resources/DESIGN.md` §9) to the Portal.
+
+**Changed:**
+- `app/layout.tsx` — wrapped the app in the shared `SmoothScroll` (Lenis + route scroll-to-top) with a global `BackToTop`, both from `@hms/ui`.
+- `app/(app)/users/[id]/page.tsx` — the scrollable effective-permissions list marked `data-lenis-prevent` so its wheel scroll is not hijacked by Lenis.
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (18 routes). Live-verified in the running Portal: Lenis active, `BackToTop` in the DOM, DataTable intact, no console errors.
+
+**Note (pre-existing):** `npm run lint` reports `react-hooks/set-state-in-effect` errors across the app's established `useEffect`+`setState` data-loading pattern (theme, auth, list pages) under Next 16's stricter rule. Not introduced by this work; `next build` + `typecheck` (the project gates) are green. Resolving the rule broadly is a separate cleanup.
+
+---
+
+## 2026-08-14 — Platform branding admin + layered BrandingLoader (ADR-024)
+
+**Added:**
+- `app/(app)/admin/branding/page.tsx` — Super-Admin screen (gated `PLATFORM_BRANDING_MANAGE`) with **two independent panels** (Marketing / HMS Portal default).
+- `components/PlatformBrandingPanel.tsx` — per-scope editor: brand-family colour inputs (primary / secondary / accent / button bg + text), live preview, Save / Reset. (Neutral surfaces stay theme-managed for Light/Dark, so they are not exposed.)
+- `lib/api.ts` — `getPlatformBranding` / `updatePlatformBranding` / `resetPlatformBranding` / `uploadPlatformBrandingAsset`.
+- `components/BrandingLoader.tsx` — now **layers** branding: the platform `hms` default (injected as a `:root` rule) UNDER the per-tenant inline override, so a tenant still wins and, when it has none, falls back to the platform default.
+- `lib/nav.ts` — super-admin-only "Branding" nav item (Palette icon).
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (19 routes). Live-verified: the "Branding" nav item is absent and `/admin/branding` returns **403 Forbidden** for a non-super-admin session (RV); the full super-admin write/read/reset loop is verified at the API layer (see backend DONE). Super-admin panel render is best confirmed by logging in as the platform owner.
+
+---
+
+## 2026-08-14 — Global ambulance preloader
+
+**Changed:**
+- `public/animations/ambulance.json` — added (the shared preloader asset).
+- `app/layout.tsx` — added the shared `@hms/ui` `LottiePreloader` (`src="/animations/ambulance.json"`) at the app root, replacing the plain initial loading state.
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (19 routes). Live-verified in the Portal: the preloader shows on load then unmounts and restores scroll; the shell renders; no console errors.

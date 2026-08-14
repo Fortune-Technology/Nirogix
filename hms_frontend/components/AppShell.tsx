@@ -49,15 +49,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {visibleNav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-token px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
                   active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
+                <Icon size={17} strokeWidth={1.75} className="shrink-0" />
                 {item.label}
               </Link>
             );

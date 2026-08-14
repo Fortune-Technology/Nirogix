@@ -15,6 +15,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `resources/rules.md` | Engineering rules & standards (binding) |
 | `resources/memory.md` | Distilled invariants & decisions; open items |
 | `resources/development-plan.md` | The primary engineering execution roadmap |
+| `resources/DESIGN.md` | **Design system** — canonical visual language (colour/type/components/theming/icons) for marketing + Portal |
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
 
 On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over the development plan, and the development plan wins over ad-hoc code comments.
@@ -59,7 +60,9 @@ Tooling: **npm workspaces + Turborepo** (ADR-014). Root scripts: `npm run instal
 - **API docs (mandatory):** every `/api/v1` route is documented in OpenAPI, generated from Zod via `zod-to-openapi` in `hms_backend/src/openapi/` — never hand-written. Swagger UI at `/api/v1/docs`, spec at `/api/v1/openapi.json`; server URLs come from config, never hard-coded. `npm run openapi:validate` gates undocumented/invalid APIs in CI. Docs ship in the same change as the endpoint. See `resources/rules.md` → API Documentation Rules.
 - **DB:** every tenant-scoped table has `tenant_id` + an RLS policy; nullable `branch_id` (NULL = org-wide); migrations additive & reversible; optimistic locking on concurrently-edited records.
 - **Authorization:** permission keys are dot-hierarchy (`module.submodule.page.action`) declared in `@hms/permissions`; routes gated by `requireModule()` then `requirePermission()`.
-- **UI:** no component hardcodes color/spacing/radius/typography — use `@hms/ui` tokens; all tabular data uses the shared DataTable; verified in Light + Dark and under a non-default tenant's branding before "done".
+- **UI:** follow `resources/DESIGN.md` (the canonical design system — deep-teal signature, cool-neutral surfaces, Lucide icons). No component hardcodes color/spacing/radius/typography — use `@hms/ui` tokens; all tabular data uses the shared DataTable; verified in Light + Dark and under a non-default tenant's branding before "done".
+- **Frontend behaviour (binding — `resources/DESIGN.md` §9):** routes open scrolled to top; smooth scrolling via Lenis (shared `SmoothScroll`); overlays lock the background with `useScrollLock` + `data-lenis-prevent`; use the shared `BackToTop`; the marketing navbar includes About + Contact; marketing (`--mk-*`) and Portal (`--hms-*`) branding are **independent** token scopes.
+- **Clean code:** delete files/assets/imports/components once they are no longer used anywhere; prefer a shared `@hms/ui` component over duplication; check for unused resources before a feature is "done".
 - **Providers:** external SDKs only behind `SmsService`/`EmailService`/`FileStorageService`.
 - **Secrets:** never committed; `.env.example` documents required keys per app.
 

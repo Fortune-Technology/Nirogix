@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@hms/ui/styles.css";
 import "./globals.css";
+import { BackToTop, LottiePreloader, SmoothScroll } from "@hms/ui";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -40,7 +41,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body className="min-h-full">
-        <Providers>{children}</Providers>
+        <Providers>
+          <LottiePreloader src="/animations/ambulance.json" tintCssVar="--hms-brand" />
+          <SmoothScroll>
+            {children}
+            <BackToTop />
+          </SmoothScroll>
+        </Providers>
       </body>
     </html>
   );

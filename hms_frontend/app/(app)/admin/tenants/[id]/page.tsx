@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft, X } from "lucide-react";
 import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { ModuleCatalogItem, TenantDetail } from "@hms/types";
@@ -68,7 +69,7 @@ function Detail({ id }: { id: string }) {
         description={`Org code ${tenant.code} · ${tenant.userCount} user(s)`}
         actions={
           <Link href="/admin/tenants">
-            <Button variant="ghost">← All tenants</Button>
+            <Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All tenants</Button>
           </Link>
         }
       />
@@ -104,7 +105,7 @@ function Detail({ id }: { id: string }) {
                 title="Revoke"
                 onClick={() => run(() => api.revokeTenantModule(id, m))}
               >
-                ✕
+                <X size={14} strokeWidth={2} aria-hidden />
               </button>
             </span>
           ))}

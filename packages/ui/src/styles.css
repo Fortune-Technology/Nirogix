@@ -11,41 +11,43 @@
  */
 
 :root {
-  /* Brand (overridable per tenant) */
+  /* Brand / accent — the deep-teal HMS signature; the per-tenant overridable slot
+   * (resources/DESIGN.md §7). --hms-brand-subtle is derived so a tenant accent
+   * override also re-skins active nav, badges, and tints. */
   --hms-brand: #0e7490;
-  --hms-brand-hover: #0b5c72;
+  --hms-brand-hover: #0b5f76;
   --hms-brand-fg: #ffffff;
-  --hms-brand-subtle: #e0f2f7;
+  --hms-brand-subtle: color-mix(in srgb, var(--hms-brand) 12%, var(--hms-surface));
 
-  /* Surfaces & text (Light — default) */
-  --hms-bg: #f6f8fa;
+  /* Surfaces & text (Light — default). Cool-neutral, never warm. */
+  --hms-bg: #f4f7f7;
   --hms-surface: #ffffff;
-  --hms-surface-2: #f1f4f7;
-  --hms-border: #e2e7ec;
-  --hms-fg: #1a1f24;
-  --hms-fg-muted: #5c6773;
-  --hms-fg-subtle: #8a95a1;
+  --hms-surface-2: #eaf1f1;
+  --hms-border: #dbe6e7;
+  --hms-fg: #0f1e24;
+  --hms-fg-muted: #52646a;
+  --hms-fg-subtle: #7a888d;
 
   /* Status */
-  --hms-success: #157347;
-  --hms-success-subtle: #e3f2ea;
-  --hms-warning: #b7791f;
-  --hms-warning-subtle: #fbf1dd;
+  --hms-success: #15803d;
+  --hms-success-subtle: #e7f4ec;
+  --hms-warning: #b45309;
+  --hms-warning-subtle: #fbf0e2;
   --hms-danger: #c0392b;
   --hms-danger-fg: #ffffff;
-  --hms-danger-subtle: #fbe6e4;
+  --hms-danger-subtle: #fbe9e6;
 
-  /* Focus ring */
-  --hms-ring: #2563eb;
+  /* Focus ring — follows the (tenant) accent */
+  --hms-ring: var(--hms-brand);
 
   /* Radius */
-  --hms-radius-sm: 4px;
+  --hms-radius-sm: 6px;
   --hms-radius-md: 8px;
   --hms-radius-lg: 12px;
 
-  /* Elevation */
-  --hms-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
-  --hms-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.1);
+  /* Elevation — soft, teal-tinted */
+  --hms-shadow-sm: 0 1px 2px rgba(15, 60, 76, 0.06), 0 1px 3px rgba(15, 60, 76, 0.08);
+  --hms-shadow-md: 0 10px 30px rgba(15, 60, 76, 0.1);
 
   /* Typography */
   --hms-font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif);
@@ -55,31 +57,32 @@
 }
 
 [data-theme='dark'] {
+  /* Brand brightens on the dark ground for contrast; subtle re-derives from it.
+   * --hms-ring is inherited from :root (var(--hms-brand)) and resolves to the
+   * dark brand automatically. */
   --hms-brand: #22b8cf;
   --hms-brand-hover: #3bc9db;
-  --hms-brand-fg: #06232b;
-  --hms-brand-subtle: #0c343d;
+  --hms-brand-fg: #052027;
+  --hms-brand-subtle: color-mix(in srgb, var(--hms-brand) 18%, var(--hms-surface));
 
-  --hms-bg: #0d1117;
-  --hms-surface: #161b22;
-  --hms-surface-2: #1c232c;
-  --hms-border: #2a323c;
-  --hms-fg: #e6edf3;
-  --hms-fg-muted: #9aa7b2;
-  --hms-fg-subtle: #6e7b87;
+  --hms-bg: #0b1418;
+  --hms-surface: #112128;
+  --hms-surface-2: #16272e;
+  --hms-border: #22353c;
+  --hms-fg: #e7eff0;
+  --hms-fg-muted: #9db0b4;
+  --hms-fg-subtle: #6f8288;
 
   --hms-success: #3fb27f;
-  --hms-success-subtle: #10241b;
+  --hms-success-subtle: #10251c;
   --hms-warning: #d6a04a;
-  --hms-warning-subtle: #2a2113;
+  --hms-warning-subtle: #2a2013;
   --hms-danger: #f0776a;
   --hms-danger-fg: #2b0d0a;
   --hms-danger-subtle: #2a1512;
 
-  --hms-ring: #58a6ff;
-
   --hms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --hms-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --hms-shadow-md: 0 12px 34px rgba(0, 0, 0, 0.5);
 }
 
 /* --------------------------------------------------------------------------
@@ -332,6 +335,7 @@
   border-collapse: collapse;
   font-family: var(--hms-font-sans);
   font-size: var(--hms-text-base);
+  font-variant-numeric: tabular-nums;
 }
 .hms-table thead th {
   text-align: left;
@@ -361,4 +365,80 @@
   color: var(--hms-fg-muted);
   font-family: var(--hms-font-sans);
   font-size: var(--hms-text-base);
+}
+
+/* --------------------------------------------------------------------------
+ * Back to top (shared BackToTop component)
+ * ------------------------------------------------------------------------ */
+.hms-backtotop {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: 9999px;
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+  box-shadow: var(--hms-shadow-md);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(0.75rem);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.15s ease;
+}
+.hms-backtotop--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.hms-backtotop:hover {
+  background: var(--hms-brand-hover);
+}
+.hms-backtotop:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-backtotop {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+}
+@media (min-width: 640px) {
+  .hms-backtotop {
+    right: 1.75rem;
+    bottom: 1.75rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Lottie preloader (shared LottiePreloader) — full-screen loading overlay
+ * ------------------------------------------------------------------------ */
+.hms-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: var(--hms-bg);
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+.hms-preloader--leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.hms-preloader__anim {
+  width: min(42vw, 240px);
+  height: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-preloader {
+    transition-duration: 0.2s;
+  }
 }

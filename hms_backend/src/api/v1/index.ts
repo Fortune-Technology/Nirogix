@@ -11,6 +11,7 @@ import { notificationRouter } from '../../modules/notification/notification.rout
 import { fileRouter } from '../../modules/file/file.routes';
 import { providerRouter } from '../../modules/provider/provider.routes';
 import { brandingRouter } from '../../modules/branding/branding.routes';
+import { platformBrandingRouter } from '../../modules/platform-branding/platformBranding.routes';
 import { dashboardRouter } from '../../modules/dashboard/dashboard.routes';
 import { patientRouter } from '../../modules/patient/patient.routes';
 import { appointmentRouter } from '../../modules/appointment/appointment.routes';
@@ -31,6 +32,7 @@ apiV1.use(notificationRouter);
 apiV1.use(fileRouter);
 apiV1.use(providerRouter);
 apiV1.use(brandingRouter);
+apiV1.use(platformBrandingRouter);
 apiV1.use(dashboardRouter);
 apiV1.use(patientRouter);
 apiV1.use(appointmentRouter);

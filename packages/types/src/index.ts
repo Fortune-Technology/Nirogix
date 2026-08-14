@@ -179,6 +179,33 @@ export interface Branding {
   typography: unknown;
 }
 
+// ---- Platform branding (hms_backend/src/modules/platform-branding, ADR-024) ----
+// Vendor-owned, platform-global branding for two independent surfaces. Distinct
+// from per-tenant `Branding` above. The scalable token set maps to CSS variables
+// (resources/DESIGN.md §7).
+
+export type PlatformBrandingScope = 'marketing' | 'hms';
+
+export interface BrandingTokens {
+  primary?: string;
+  secondary?: string;
+  accent?: string;
+  background?: string;
+  surface?: string;
+  foreground?: string;
+  border?: string;
+  buttonBg?: string;
+  buttonFg?: string;
+}
+
+export interface PlatformBranding {
+  scope: PlatformBrandingScope;
+  tokens: BrandingTokens;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  version: number;
+}
+
 // ---- Dashboards (hms_backend/src/modules/admin, /dashboard) ----------------
 
 export interface ActiveInactive {

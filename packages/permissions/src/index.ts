@@ -13,6 +13,7 @@ export const PERMISSIONS = {
   BRANCHES_VIEW: 'platform.branches.view',
   BRANCHES_MANAGE: 'platform.branches.manage',
   BRANDING_MANAGE: 'platform.branding.manage',
+  PLATFORM_BRANDING_MANAGE: 'platform.branding.platform.manage', // Super-Admin only (marketing + HMS platform branding); covered by WILDCARD, not granted to org_admin
   // Patient
   PATIENT_VIEW: 'patient.record.view',
   PATIENT_CREATE: 'patient.record.create',

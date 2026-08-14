@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Patient, CreatePatientRequest } from "@hms/types";
@@ -89,7 +90,7 @@ function Profile({ id }: { id: string }) {
         actions={
           <div className="flex items-center gap-2">
             <Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status}</Badge>
-            <Link href="/patients"><Button variant="ghost">← All patients</Button></Link>
+            <Link href="/patients"><Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All patients</Button></Link>
             {!editing && (
               <Can perm={PERMISSIONS.PATIENT_UPDATE}>
                 <Button variant="secondary" onClick={startEdit}>Edit</Button>

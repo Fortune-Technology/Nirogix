@@ -22,3 +22,80 @@ Append-only implementation log. Newest at the bottom.
 **Decisions:** Marketing shares `@hms/ui` so the public site and app are one brand. The Portal link is environment-aware (env var), so staging/production point at the right Portal without code changes. Site is static (no API/auth) — it only hands off to the Portal.
 
 **Known limitations:** Single landing page; real SEO (JSON-LD, sitemap, robots), content pages, and pricing come in a later marketing phase. Light-only.
+
+---
+
+## 2026-08-14 — Full marketing site: design system + all pages (Phase 1)
+
+**What:** The marketing scaffold became a complete, production-ready SaaS/HMS marketing site, built on the `resources/Default-DESIGN-intercom.md` editorial design language and Lucide icons, grounded in the PRD/user-journeys.
+
+**Design system:** `app/globals.css` now carries a marketing-only token layer (`--mk-*`: cream `#f5f1ec` canvas, charcoal `#111` ink, hairline `#d3cec6`, accent = HMS brand teal `#0e7490`, modest radii, no drop shadows), mapped into Tailwind `@theme`. Geist substitutes Saans (500 display w/ negative tracking, 400 body). Deliberately separate from the Portal's `@hms/ui` clinical system; `@hms/ui` is still imported so real product-UI previews render as the genuine Portal.
+
+**Added:**
+- **UI kit:** `components/ui/Button` (charcoal primary / teal accent / white secondary / ghost), `primitives` (Container, Eyebrow, SectionHeading, Pill), `Reveal` (IntersectionObserver fade-up, reduced-motion safe).
+- **Chrome:** `SiteHeader` (sticky editorial nav + mobile hamburger), `SiteFooter` (dense link grid). Replaced the old root-level `components/SiteHeader/SiteFooter`.
+- **Product previews:** `ProductFrame` + `previews` (Appointments / Audit / Entitlements) built from **real `@hms/ui` components** with illustrative India-context data (no fake div screenshots, no real PHI).
+- **Shared page parts:** `PageHeader`, `CtaSection`, `ContactForm`, `LegalPage`.
+- **Pages (23 routes):** Home; `/platform`; `/modules` (25 grouped + 2 add-ons) and `/modules/[slug]` (7 clinic-core modules, SSG); `/solutions` (by role + facility); `/security` (isolation / residency / audit / practices / aligned-with, guardrailed); `/integrations`; `/pricing` (packaging model + FAQ, no numbers); `/about`; `/contact` (demo form); `/legal/privacy` + `/legal/terms`; plus `sitemap.ts` + `robots.ts`.
+- **Content data:** `lib/site.ts` + `lib/catalogue.ts` as the grounded source of truth.
+- **SEO:** per-page metadata with title template, OpenGraph/Twitter, Organization JSON-LD, sitemap, robots.
+- **Dependency:** `lucide-react` added to `marketing` (and `hms_frontend`) as the project-wide icon library.
+
+**Content guardrails honoured:** no pricing numbers, no compliance-certification claims, no HIPAA, no fabricated customers/logos/testimonials, demo-led (not self-serve) onboarding.
+
+**Testing status:** `typecheck` green · `next build` green (23 routes; 7 module pages SSG; robots.txt + sitemap.xml emitted). **Live-verified in-browser** (localhost:3001) across `/`, `/platform`, `/modules`, `/modules/appointments`, `/pricing`, `/security`, `/contact`: design tokens resolve (cream/charcoal/teal, Geist, negative tracking), **zero em/en-dashes** in copy, **no horizontal overflow** at 375 / 768 / 1280 (fixed a grid `min-width:auto` overflow where wide product tiles could not shrink), nav collapses to hamburger < 1024 and shows full links ≥ 1024 (65px tall), no live console errors.
+
+**Decisions:** Marketing uses the Intercom editorial language (docs win); the same language will be **adapted** into `@hms/ui` for the Portal in Phase 2, preserving Dark theme, per-tenant branding, and clinical table density (per user direction; overrides development-plan §15's marketing-only framing). "Product mockups" are real `@hms/ui` previews rather than generated/faked images. No fake social proof given no reference customers yet.
+
+**Known limitations:** demo form is inert on the static site (wire `handleSubmit` to a real endpoint before launch — field names are stable); legal pages are plain-language summaries pending counsel; 18 non-flagship modules have no dedicated pages; no blog/resources yet.
+
+---
+
+## 2026-08-14 — Retrofit to the HMS Design System (custom, replaces Intercom)
+
+**What:** Swapped the marketing surface from the Intercom exploration to the approved custom **HMS Design System** (`resources/DESIGN.md`), the same language the Portal now uses.
+
+**Changed:** `app/globals.css` `--mk-*` token values only — cool-neutral surfaces (canvas cream `#f5f1ec` → cool off-white `#f4f7f7`, surface-2 `#eaf1f1`), ink `#0f1e24`, hairline `#dbe6e7`, surface-ink `#0e1f26`; deep-teal accent retained. `.mk-display` weight 500→600, tracking -0.03em. `components/ui/Button` primary changed from charcoal to the teal accent (per DESIGN.md §5). No component markup changed — the whole site re-skinned through the tokens.
+
+**Testing status:** `typecheck` + `next build` green (23 routes). Live-verified: body ground now `#f4f7f7`, ink `#0f1e24`, accent teal; no horizontal overflow.
+
+---
+
+## 2026-08-14 — Frontend rules: Lenis, back-to-top, route scroll-top, navbar About/Contact
+
+**What:** Applied the permanent frontend rules (`resources/DESIGN.md` §9) to the marketing site.
+
+**Changed:**
+- `app/layout.tsx` — wrapped in the shared `SmoothScroll` (Lenis + route scroll-to-top) with a `BackToTop`, both from `@hms/ui`.
+- `components/site/SiteHeader.tsx` — the mobile menu now uses the shared `useScrollLock(open)` (stops Lenis + locks background) instead of a manual `body.overflow` toggle.
+- `lib/site.ts` — `NAV_LINKS` now includes **About** and **Contact** (7 links; verified single-line at desktop, and rendered in the mobile menu).
+- `components/ui/Button.tsx` — cleaned the discriminated-union destructure (removed unused discard vars).
+- Removed the leftover create-next-app demo SVGs from `public/`.
+
+**Testing status:** `typecheck` + `next build` green (23 routes). Live-verified: Lenis active (`html.lenis`), 7 nav links incl. About/Contact with no nav overflow, `BackToTop` in the DOM, page scrollable, no console errors.
+
+---
+
+## 2026-08-14 — Light/Dark theme + dynamic platform branding (ADR-024)
+
+**Light/Dark:** `lib/theme.tsx` (`ThemeProvider` + Sun/Moon toggle in the navbar, desktop + mobile), a `[data-theme="dark"]` `--mk-*` block, a no-flash script in `layout.tsx`, persisted under `mk-theme` (first visit honours `prefers-color-scheme`). Framed `@hms/ui` previews follow the same attribute. Verified: dark tokens resolve (canvas `#0b1418`), no overflow at 1280/1024/375.
+
+**Dynamic branding:** the site trades fully-static for **ISR-dynamic** to pick up System-Admin-set colours.
+- `lib/branding.ts` — server-side fetch of `GET /public/branding/marketing` (`revalidate: 300`), maps the theme-safe **brand-family** tokens (primary/secondary/accent/button) → `--mk-*` (neutrals stay theme-managed), defaults button text to white on a custom accent, falls back to built-in tokens if the API is down.
+- `app/layout.tsx` — async; applies the overrides as inline `--mk-*` on `<html>` (both themes, no flash).
+- `globals.css` — accent tints now derive from `--mk-accent` via `color-mix` (one value cascades); added `--mk-secondary`.
+
+**Testing status:** `typecheck` + `next build` green (routes now ISR, `Revalidate 5m`). **Live-verified end-to-end:** super-admin set marketing `primary=#7c3aed` → the site injected `--mk-accent: #7c3aed`; primary button + wordmark went violet; reset reverts within the 5-min ISR window. On-demand revalidation (instant) is a noted follow-up.
+
+---
+
+## 2026-08-14 — Hero doctor animation + ambulance preloader
+
+**What:** Replaced the hero's product mockup with a Lottie doctor animation, and added the shared Lottie preloader.
+
+**Changed:**
+- `public/animations/{doctor,ambulance}.json` — moved out of the repo root into the app's public assets (root cleaned).
+- `components/home/Hero.tsx` — **removed** the `portal.hms · appointments` `ProductFrame` + `AppointmentsPreview` from the hero; replaced with the **doctor Lottie** (`@hms/ui` `LottiePlayer`, `src="/animations/doctor.json"`, loop + autoplay, responsive `max-w`, no container/border per the design). `ProductFrame`/`AppointmentsPreview` are still used on other pages (modules/security/platform), so nothing was orphaned.
+- `app/layout.tsx` — added the shared `LottiePreloader` (`src="/animations/ambulance.json"`).
+
+**Testing status:** `typecheck` + `next build` green. **Live-verified:** the hero renders the doctor Lottie (SVG), the appointments table is gone from the hero, no horizontal overflow; the ambulance preloader shows on load then unmounts and restores scroll; no console errors.

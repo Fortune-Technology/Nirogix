@@ -1,4 +1,17 @@
 import { PERMISSIONS } from "@hms/permissions";
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Building2,
+  Palette,
+  Users,
+  CalendarDays,
+  Stethoscope,
+  UserCog,
+  GitBranch,
+  ScrollText,
+  Settings,
+} from "lucide-react";
 
 // The Portal's primary navigation. Each item names the permission required to see
 // it; the sidebar filters by the user's effective set. `perm: null` = always shown
@@ -8,16 +21,18 @@ export interface NavItem {
   label: string;
   href: string;
   perm: string | null;
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", perm: null },
-  { label: "Tenants", href: "/admin/tenants", perm: PERMISSIONS.TENANTS_MANAGE },
-  { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW },
-  { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW },
-  { label: "Providers", href: "/providers", perm: PERMISSIONS.PROVIDER_VIEW },
-  { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW },
-  { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW },
-  { label: "Audit Log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW },
-  { label: "Settings", href: "/settings", perm: null },
+  { label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard },
+  { label: "Tenants", href: "/admin/tenants", perm: PERMISSIONS.TENANTS_MANAGE, icon: Building2 },
+  { label: "Branding", href: "/admin/branding", perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE, icon: Palette },
+  { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users },
+  { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays },
+  { label: "Providers", href: "/providers", perm: PERMISSIONS.PROVIDER_VIEW, icon: Stethoscope },
+  { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW, icon: UserCog },
+  { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
+  { label: "Audit Log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
+  { label: "Settings", href: "/settings", perm: null, icon: Settings },
 ];

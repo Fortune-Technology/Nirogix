@@ -420,3 +420,17 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Decisions:** Double-booking checked in the service by scanning the provider's `booked` appointments for overlap (simple + correct at MVP scale; a DB exclusion constraint / index is the scale path). Cancellation is a soft status change (never deleted). The booking-reminder notification (event → NotificationService) is deferred to **staging** (needs real MSG91) — the `appointment.booked` event is already published for it to hook onto.
 
 **Known limitations:** No recurring appointments, no provider working-hours/slots model (any time is bookable if free), no reschedule endpoint (cancel + re-book), no reminder send yet (staging). Overlap scan is O(provider's booked appointments) — fine at MVP; add a time-range index / exclusion constraint at scale.
+
+---
+
+## 2026-08-14 — Platform branding module (ADR-024)
+
+**What:** Vendor-owned, platform-global branding for two independent surfaces — `marketing` (public site) and `hms` (Portal default) — distinct from per-tenant branding.
+
+**Added:**
+- `db/schema/platformBranding.ts` — `platform_branding` table: **global (no `tenant_id` → no RLS)**, `scope` enum (unique), scalable `tokens` jsonb, logo/favicon file ids, `version`. Migration `drizzle/0011_sticky_korg.sql`.
+- `modules/platform-branding/` — service (base `db`, not `runWithTenant`; assets stored under the PLATFORM tenant so tenant-scoped storage works unchanged), controller, routes, openapi, schema. **Public** `GET /public/branding/:scope` (no auth; CORS already open) + super-admin `PUT` / `DELETE` / `POST logo|favicon` on `/platform-branding/:scope`, gated by the new `PLATFORM_BRANDING_MANAGE` (WILDCARD-only; not granted to org_admin).
+- `@hms/permissions`: `PLATFORM_BRANDING_MANAGE = 'platform.branding.platform.manage'`. `@hms/types`: `PlatformBranding`, `BrandingTokens`, `PlatformBrandingScope`.
+- Wired into `api/v1/index.ts` + `openapi/register.ts`.
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green (all routes documented) · migration applied (RLS correctly skips the global table). **Live-verified via API:** public GET (marketing/hms → 200, bad scope → 422); super-admin login → PUT (version increments) → public GET reflects it → DELETE resets. A non-super-admin gets 403 on the write routes / admin page.

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Badge, Button, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Appointment } from "@hms/types";
@@ -92,7 +93,7 @@ function AppointmentsTable() {
         description={`${total} total`}
         actions={
           <Can perm={PERMISSIONS.APPOINTMENT_CREATE}>
-            <Link href="/appointments/new"><Button>+ Book appointment</Button></Link>
+            <Link href="/appointments/new"><Button><Plus size={16} strokeWidth={2} /> Book appointment</Button></Link>
           </Can>
         }
       />

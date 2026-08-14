@@ -1,34 +1,200 @@
 @import "tailwindcss";
 
 /*
- * Marketing shares the @hms/ui design tokens (--hms-*, from @hms/ui/styles.css) so
- * the public site is brand-consistent with the Portal. Maps them into Tailwind's
- * theme for layout utilities. The site renders in the Light (default) theme.
+ * Marketing design system — implements the canonical HMS Design System
+ * (resources/DESIGN.md) for the public marketing surface: deep-teal signature on
+ * cool-neutral surfaces, clinical precision, minimal ornament. Tokens are
+ * namespaced --mk-* so they never collide with the --hms-* tokens that real
+ * product-UI previews (framed @hms/ui components) rely on. Marketing is Light-only;
+ * the Portal (packages/ui) carries the Dark counterpart of these tokens.
+ * Geist is bound to --font-geist-sans on <html> in layout.tsx.
  */
+
+:root {
+  /* Surfaces — cool-neutral, never warm cream */
+  --mk-canvas: #f4f7f7;        /* page ground */
+  --mk-surface: #ffffff;       /* cards / panels lift off the canvas */
+  --mk-surface-2: #eaf1f1;     /* alt rows, tints, hovers */
+  --mk-surface-ink: #0e1f26;   /* inverted panels (deep CTA) — cool teal-black */
+
+  /* Hairlines */
+  --mk-hairline: #dbe6e7;
+  --mk-hairline-soft: #e8eeee;
+
+  /* Ink (text) — cool near-black scale */
+  --mk-ink: #0f1e24;
+  --mk-ink-muted: #52646a;
+  --mk-ink-subtle: #7a888d;
+  --mk-ink-faint: #9aa8ac;
+  --mk-ink-inverse: #ffffff;
+
+  /* Accent — the deep-teal HMS signature (single confident colour). The tints derive
+   * from --mk-accent via color-mix, so a platform-branding override of --mk-accent
+   * (ADR-024) cascades to hover / subtle / border with one value. */
+  --mk-accent: #0e7490;
+  --mk-accent-ink: #ffffff;
+  --mk-accent-hover: color-mix(in srgb, var(--mk-accent) 84%, #000);
+  --mk-accent-subtle: color-mix(in srgb, var(--mk-accent) 12%, var(--mk-surface));
+  --mk-accent-border: color-mix(in srgb, var(--mk-accent) 32%, var(--mk-surface));
+
+  /* Secondary (branding-controllable; used for secondary emphasis) */
+  --mk-secondary: #334155;
+
+  /* Semantic (used sparingly) */
+  --mk-success: #15803d;
+  --mk-danger: #c0392b;
+
+  /* Stage behind the hero doctor illustration. Transparent in light (the cream canvas
+   * already reads); a soft light panel in dark so the illustration's dark line-art stays
+   * legible on the dark ground. */
+  --mk-illustration-stage: transparent;
+
+  /* Radii */
+  --mk-radius-xs: 4px;
+  --mk-radius-sm: 6px;
+  --mk-radius-md: 8px;   /* buttons, inputs */
+  --mk-radius-lg: 12px;  /* cards */
+  --mk-radius-xl: 16px;  /* product-mockup tiles */
+  --mk-radius-2xl: 24px; /* oversized CTA banners */
+}
+
+/* Dark theme — the cool-neutral palette's dark counterpart (resources/DESIGN.md §2).
+ * Applied by `data-theme="dark"` on <html>; framed @hms/ui product previews follow
+ * suit because their --hms-* dark tokens key off the same attribute. */
+:root[data-theme="dark"] {
+  --mk-canvas: #0b1418;
+  --mk-surface: #112128;
+  --mk-surface-2: #16272e;
+  --mk-surface-ink: #17303a; /* elevated dark panel for the inverted CTA */
+
+  --mk-hairline: #22353c;
+  --mk-hairline-soft: #1a2a30;
+
+  --mk-ink: #e7eff0;
+  --mk-ink-muted: #9db0b4;
+  --mk-ink-subtle: #6f8288;
+  --mk-ink-faint: #566a70;
+  --mk-ink-inverse: #ffffff;
+
+  --mk-accent: #22b8cf;         /* brightened teal for contrast on dark */
+  --mk-accent-ink: #052027;     /* dark text on bright teal */
+  --mk-accent-hover: color-mix(in srgb, var(--mk-accent) 82%, #fff);
+  --mk-accent-subtle: color-mix(in srgb, var(--mk-accent) 18%, var(--mk-surface));
+  --mk-accent-border: color-mix(in srgb, var(--mk-accent) 40%, var(--mk-surface));
+
+  --mk-secondary: #94a3b8;
+
+  --mk-success: #3fb27f;
+  --mk-danger: #f0776a;
+
+  --mk-illustration-stage: #e9eff1; /* soft light medallion for the doctor on dark */
+}
+
+/* Map the marketing tokens into Tailwind's theme so utilities (bg-canvas, text-ink,
+ * text-accent, rounded-lg, font-sans …) resolve to the design system. */
 @theme inline {
-  --color-bg: var(--hms-bg);
-  --color-surface: var(--hms-surface);
-  --color-surface-2: var(--hms-surface-2);
-  --color-border: var(--hms-border);
-  --color-fg: var(--hms-fg);
-  --color-fg-muted: var(--hms-fg-muted);
-  --color-fg-subtle: var(--hms-fg-subtle);
-  --color-brand: var(--hms-brand);
-  --color-brand-fg: var(--hms-brand-fg);
-  --color-brand-subtle: var(--hms-brand-subtle);
-  --radius-token: var(--hms-radius-md);
-  --radius-token-lg: var(--hms-radius-lg);
-  --font-sans: var(--hms-font-sans);
+  --color-canvas: var(--mk-canvas);
+  --color-surface: var(--mk-surface);
+  --color-surface-2: var(--mk-surface-2);
+  --color-surface-ink: var(--mk-surface-ink);
+
+  --color-hairline: var(--mk-hairline);
+  --color-hairline-soft: var(--mk-hairline-soft);
+
+  --color-ink: var(--mk-ink);
+  --color-ink-muted: var(--mk-ink-muted);
+  --color-ink-subtle: var(--mk-ink-subtle);
+  --color-ink-faint: var(--mk-ink-faint);
+  --color-ink-inverse: var(--mk-ink-inverse);
+
+  --color-accent: var(--mk-accent);
+  --color-accent-hover: var(--mk-accent-hover);
+  --color-accent-ink: var(--mk-accent-ink);
+  --color-accent-subtle: var(--mk-accent-subtle);
+  --color-accent-border: var(--mk-accent-border);
+  --color-secondary: var(--mk-secondary);
+
+  --radius-xs: var(--mk-radius-xs);
+  --radius-sm: var(--mk-radius-sm);
+  --radius-md: var(--mk-radius-md);
+  --radius-lg: var(--mk-radius-lg);
+  --radius-xl: var(--mk-radius-xl);
+  --radius-2xl: var(--mk-radius-2xl);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-html,
-body {
-  height: 100%;
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* sticky-nav offset for #anchors */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
-  background: var(--hms-bg);
-  color: var(--hms-fg);
-  font-family: var(--hms-font-sans);
+  background: var(--mk-canvas);
+  color: var(--mk-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Editorial display type: negative tracking scales with size (Geist at 600). */
+.mk-display {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.mk-heading {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.mk-lede {
+  color: var(--mk-ink-muted);
+  text-wrap: pretty;
+}
+
+/* Consistent, accessible focus ring across the marketing surface. */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--mk-accent);
+  outline-offset: 2px;
+  border-radius: var(--mk-radius-xs);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mk-accent) 22%, transparent);
+  color: var(--mk-ink);
+}
+
+/* Scroll-reveal: opt-in via [data-reveal]; JS adds .is-in when in view.
+ * Fully collapses to visible/static under reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal].is-in {
+    opacity: 1;
+    transform: none;
+  }
 }

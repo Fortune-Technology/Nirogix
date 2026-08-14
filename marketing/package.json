@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@hms/ui": "*",
+    "lenis": "^1.3.26",
+    "lottie-react": "^2.4.1",
+    "lucide-react": "^1.31.0",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"

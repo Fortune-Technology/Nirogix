@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Badge, Button, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Tenant } from "@hms/types";
@@ -59,7 +60,7 @@ function TenantsTable() {
         description="Every hospital / organization on the platform."
         actions={
           <Link href="/admin/tenants/new">
-            <Button>+ Onboard tenant</Button>
+            <Button><Plus size={16} strokeWidth={2} /> Onboard tenant</Button>
           </Link>
         }
       />

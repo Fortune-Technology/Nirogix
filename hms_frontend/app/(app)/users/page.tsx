@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { UserListItem, Role } from "@hms/types";
@@ -105,7 +106,7 @@ function UsersTable() {
         actions={
           <Can perm={PERMISSIONS.USERS_MANAGE}>
             <Button onClick={() => { setShowForm((v) => !v); setCreated(null); }}>
-              {showForm ? "Close" : "+ New user"}
+              {showForm ? "Close" : <><Plus size={16} strokeWidth={2} /> New user</>}
             </Button>
           </Can>
         }

@@ -30,6 +30,9 @@ import type {
   Branch,
   Role,
   Branding,
+  PlatformBranding,
+  PlatformBrandingScope,
+  BrandingTokens,
   PlatformStats,
   OrgSummary,
   Patient,
@@ -352,4 +355,42 @@ export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File):
   });
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as Branding;
+}
+
+// ---- Platform branding (super-admin; ADR-024) ------------------------------
+// Two independent scopes: "marketing" (public site) and "hms" (Portal product default).
+// The GET is public; writes require platform.branding.platform.manage (super-admin).
+
+export async function getPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
+  return request<PlatformBranding>(`/public/branding/${scope}`);
+}
+
+export async function updatePlatformBranding(
+  scope: PlatformBrandingScope,
+  tokens: BrandingTokens,
+): Promise<PlatformBranding> {
+  return request<PlatformBranding>(`/platform-branding/${scope}`, { method: "PUT", body: { tokens } });
+}
+
+export async function resetPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
+  return request<PlatformBranding>(`/platform-branding/${scope}`, { method: "DELETE" });
+}
+
+export async function uploadPlatformBrandingAsset(
+  scope: PlatformBrandingScope,
+  kind: "logo" | "favicon",
+  file: File,
+): Promise<PlatformBranding> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const res = await fetch(`${BASE_URL}/platform-branding/${scope}/${kind}`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as PlatformBranding;
 }

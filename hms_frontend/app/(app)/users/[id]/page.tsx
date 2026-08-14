@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft, X } from "lucide-react";
 import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
 import { PERMISSIONS, ALL_PERMISSIONS } from "@hms/permissions";
 import type { UserDetail, Role } from "@hms/types";
@@ -66,7 +67,7 @@ function Detail({ id }: { id: string }) {
         description={user.email}
         actions={
           <Link href="/users">
-            <Button variant="ghost">← All users</Button>
+            <Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All users</Button>
           </Link>
         }
       />
@@ -96,7 +97,7 @@ function Detail({ id }: { id: string }) {
               {r.name}
               {canManageRbac && (
                 <button type="button" className="text-danger hover:opacity-80" disabled={busy} title="Remove" onClick={() => run(() => api.removeUserRole(id, r.key))}>
-                  ✕
+                  <X size={14} strokeWidth={2} aria-hidden />
                 </button>
               )}
             </span>
@@ -124,7 +125,7 @@ function Detail({ id }: { id: string }) {
         {user.wildcard ? (
           <Badge tone="brand">All permissions (wildcard)</Badge>
         ) : (
-          <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+          <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto" data-lenis-prevent>
             {user.permissions.map((p) => (
               <span key={p} className="rounded-token bg-surface-2 px-2 py-1 font-mono text-xs text-fg-muted">{p}</span>
             ))}
@@ -143,7 +144,7 @@ function Detail({ id }: { id: string }) {
                 {o.validUntil && <span className="text-fg-muted">until {new Date(o.validUntil).toLocaleDateString()}</span>}
                 {canManageRbac && (
                   <button type="button" className="ml-auto text-danger hover:opacity-80" disabled={busy} title="Revoke" onClick={() => run(() => api.revokeUserOverride(id, o.id))}>
-                    ✕
+                    <X size={14} strokeWidth={2} aria-hidden />
                   </button>
                 )}
               </li>

@@ -252,6 +252,8 @@ components:
     padding: 64px 32px
 ---
 
+> ⚠ **Superseded.** This is an earlier design exploration (an Intercom analysis) kept for reference only. The canonical HMS design system is **`resources/DESIGN.md`** (custom, deep-teal signature, cool-neutral surfaces). Where they differ, `DESIGN.md` wins.
+
 ## Overview
 
 Intercom's marketing canvas is a soft cream-white ground (`{colors.canvas}` ≈ #f5f1ec) — not pure white. The warmth is the brand's signal: this is editorial, calm, and product-focused, not bright SaaS. On top of the cream canvas sit white floating cards (`{colors.surface-1}`), thin hairline dividers (`{colors.hairline}`), and charcoal type (`{colors.ink}` #111111).

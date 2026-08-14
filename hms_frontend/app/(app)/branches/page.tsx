@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Plus } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch } from "@hms/types";
@@ -84,7 +85,7 @@ function BranchesTable() {
         description="Your organization's locations."
         actions={
           <Can perm={PERMISSIONS.BRANCHES_MANAGE}>
-            <Button onClick={() => setShowForm((v) => !v)}>{showForm ? "Close" : "+ New branch"}</Button>
+            <Button onClick={() => setShowForm((v) => !v)}>{showForm ? "Close" : <><Plus size={16} strokeWidth={2} /> New branch</>}</Button>
           </Can>
         }
       />
