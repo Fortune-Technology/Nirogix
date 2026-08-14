@@ -23,3 +23,4 @@ export * from './appointments';
 export * from './visits';
 export * from './billing';
 export * from './emr';
+export * from './pharmacy';

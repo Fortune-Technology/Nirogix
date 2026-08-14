@@ -208,3 +208,14 @@ Append-only implementation log. Newest at the bottom.
 - OPD queue gains a clinician-only **Open / View** consultation link; `lib/api` EMR functions (open / save / sign / ICD-10 search).
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green. **Live-verified in the Portal:** after the doctor signed the encounter (via API), the OPD queue shows the visit as **Completed**, the **Open** link is hidden from the receptionist, and `/opd/[id]` → **403** for the receptionist (EMR_VIEW gate). The doctor consultation UI is API-verified (see backend DONE) + best eyeballed via a doctor login.
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.5 screens: pharmacy dispensing + stock
+
+**Added:**
+- `app/(app)/pharmacy/page.tsx` — dispensing **worklist**: pending prescriptions, each with a drug picker (from the master, showing on-hand + price, out-of-stock disabled) + qty → **Dispense**.
+- `app/(app)/pharmacy/stock/page.tsx` — drug list (on-hand + **low-stock** badge, price, reorder) + **Add drug** + per-row **Receive stock**.
+- `lib/api` pharmacy functions; `lib/nav` Pharmacy item (permission-filtered).
+
+**Testing status:** `typecheck` green (7 ws) · `next build` green (24 routes). **Live-verified in the Portal:** the receptionist has **no Pharmacy nav** and `/pharmacy` → **403** (lacks PHARMACY_STOCK_VIEW). The pharmacist UI is API-verified (see backend DONE) + best eyeballed via a pharmacist login.

@@ -182,6 +182,67 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
   return getInvoice(tenantId, invoice.id);
 }
 
+// Billing-Core extension point (invariant #8): a revenue module (Pharmacy, Lab, …) adds a line
+// to an existing invoice and totals are recomputed from the ledger. Never reimplemented downstream.
+export async function addInvoiceLine(tenantId: string, invoiceId: string, item: LineItemInput, actorUserId?: string) {
+  const { taxPaise, lineTotalPaise } = computeLine(item);
+  await runWithTenant(tenantId, async (tx) => {
+    const inv = (
+      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1)
+    )[0];
+    if (!inv) throw Errors.notFound('Invoice not found');
+    if (inv.status === 'void') throw Errors.conflict('Cannot add a line to a void invoice');
+
+    await tx.insert(invoiceLineItems).values({
+      tenantId,
+      invoiceId,
+      itemType: item.itemType,
+      description: item.description,
+      quantity: item.quantity ?? 1,
+      unitPricePaise: item.unitPricePaise,
+      taxRateBps: item.taxRateBps ?? 0,
+      taxPaise,
+      lineTotalPaise,
+      sourceModule: item.sourceModule ?? null,
+      sourceRef: item.sourceRef ?? null,
+    });
+
+    // Recompute from the ledger: total = Σ line totals, tax = Σ line tax, subtotal = total − tax.
+    const agg = (
+      await tx
+        .select({
+          total: sql<number>`coalesce(sum(${invoiceLineItems.lineTotalPaise}), 0)`,
+          tax: sql<number>`coalesce(sum(${invoiceLineItems.taxPaise}), 0)`,
+        })
+        .from(invoiceLineItems)
+        .where(eq(invoiceLineItems.invoiceId, invoiceId))
+    )[0];
+    const total = Number(agg?.total ?? 0);
+    const tax = Number(agg?.tax ?? 0);
+    await tx
+      .update(invoices)
+      .set({
+        subtotalPaise: total - tax,
+        taxPaise: tax,
+        totalPaise: total,
+        status: invoiceStatus(total, inv.amountPaidPaise, inv.status),
+        version: sql`${invoices.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, invoiceId));
+  });
+
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'invoice.line_add',
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    metadata: { itemType: item.itemType, sourceModule: item.sourceModule ?? null },
+  });
+  return getInvoice(tenantId, invoiceId);
+}
+
 export interface ListInvoicesFilter {
   patientId?: string;
   status?: string;

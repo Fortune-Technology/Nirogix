@@ -32,6 +32,7 @@ export const PERMISSIONS = {
   // Pharmacy
   PHARMACY_DISPENSE: 'pharmacy.dispense.create',
   PHARMACY_STOCK_VIEW: 'pharmacy.stock.view',
+  PHARMACY_MANAGE: 'pharmacy.stock.manage', // drug master + stock receive/adjust
   // Laboratory
   LAB_ORDER_VIEW: 'laboratory.order.view',
   LAB_RESULT_ENTER: 'laboratory.result.enter',
@@ -132,7 +133,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'pharmacist',
     name: 'Pharmacist',
     description: 'Pharmacy dispensing',
-    permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PATIENT_VIEW],
+    permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PHARMACY_MANAGE, P.PATIENT_VIEW],
   },
   {
     key: 'lab_technician',

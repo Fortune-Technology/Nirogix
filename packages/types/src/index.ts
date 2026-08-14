@@ -499,6 +499,70 @@ export interface SaveEncounterRequest {
   labOrders: Array<{ testName: string; testCode?: string | null; priority?: string | null; notes?: string | null }>;
 }
 
+// ---- Pharmacy (hms_backend/src/modules/pharmacy) ---------------------------
+
+export interface Drug {
+  id: string;
+  name: string;
+  form: string | null;
+  strength: string | null;
+  unit: string;
+  unitPricePaise: number;
+  taxRateBps: number;
+  reorderLevel: number;
+  isActive: boolean;
+  onHand: number;
+  lowStock: boolean;
+}
+
+export interface PendingPrescription {
+  id: string;
+  drugName: string;
+  dose: string | null;
+  frequency: string | null;
+  duration: string | null;
+  route: string | null;
+  instructions: string | null;
+  status: string;
+  visitId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  createdAt: string;
+}
+
+export interface CreateDrugRequest {
+  name: string;
+  form?: string | null;
+  strength?: string | null;
+  unit?: string;
+  hsnSac?: string | null;
+  unitPricePaise: number;
+  taxRateBps?: number;
+  reorderLevel?: number;
+}
+
+export interface ReceiveStockRequest {
+  batchNo?: string | null;
+  expiryDate?: string | null;
+  quantity: number;
+  costPricePaise?: number | null;
+}
+
+export interface DispenseRequest {
+  prescriptionId: string;
+  drugId: string;
+  quantity: number;
+}
+
+export interface DispenseResult {
+  dispenseId: string;
+  invoiceId: string | null;
+  drugName: string;
+  quantity: number;
+  totalPaise: number;
+}
+
 // ---- Audit (hms_backend/src/modules/audit) ---------------------------------
 
 export interface AuditEntry {

@@ -460,3 +460,17 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - `@hms/types`: Encounter / Vitals / Diagnosis / Prescription / LabOrder / Icd10Code + SaveEncounterRequest. Router mounted; OpenAPI registered.
 
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (doctor):** open (draft v1) → ICD-10 search 'fever' → save (**vitals round-trip** temp 38.5 / wt 72.5, dx/rx/lab reference the visit) v1→v2 → **stale-version save → 409** → sign (signed; **visit auto-completed**) → **save-after-sign → 409**. Prescriptions/lab-orders are now the input queue for Pharmacy (1.5) ∥ Lab (1.6).
+
+---
+
+## 2026-08-15 — MVP-1 slice 1.5: Pharmacy (dispense + Billing-Core extension)
+
+**What:** Drug master + FEFO batch stock + dispense-against-prescription that extends Billing Core.
+
+**Added:**
+- `billing.service.addInvoiceLine` — the **Billing-Core extension point** (invariant #8): adds a line to an existing invoice + recomputes totals/status from the ledger. Pharmacy / Lab / IPD reuse it, never reimplement it.
+- `db/schema/pharmacy.ts` — `drugs` (master), `drug_batches` (FEFO stock), `dispenses` (migration `0014`, RLS auto-applied). Money integer paise.
+- `modules/pharmacy/` — service: `listDrugs` (on-hand + **low-stock flag**), `createDrug`, `receiveStock` (adds a batch), `listPendingPrescriptions` (the worklist — prescriptions `ordered` from EMR), **`dispense`** (FEFO stock deduction, **cannot over-dispense**, marks the prescription dispensed, adds a pharmacy line to the visit's invoice, records the dispense). New `PHARMACY_MANAGE` perm; `requireModule('pharmacy')`.
+- `@hms/types` Drug / PendingPrescription + requests. Router mounted; OpenAPI registered; `db:seed` re-run.
+
+**Testing status:** `typecheck` green (7 ws) · `openapi:validate` green · migration applied. **Live-verified via API (pharmacist):** create drug → receive 100 → over-dispense 1000 → **409** → dispense 10 → success (**stock 100→90**, prescription dispensed) → re-dispense → **409** → the visit's paid invoice reopens to **partially_paid** with lines `consultation:50000, pharmacy:2000` (total ₹520, balance ₹20) — the dispensed drug is on the patient's bill.

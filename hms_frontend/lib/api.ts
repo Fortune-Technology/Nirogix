@@ -48,6 +48,12 @@ import type {
   Encounter,
   SaveEncounterRequest,
   Icd10Code,
+  Drug,
+  PendingPrescription,
+  CreateDrugRequest,
+  ReceiveStockRequest,
+  DispenseRequest,
+  DispenseResult,
 } from "@hms/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -347,6 +353,29 @@ export async function signEncounter(id: string): Promise<Encounter> {
 
 export async function searchIcd10(q: string): Promise<Icd10Code[]> {
   return request<Icd10Code[]>(`/icd10?q=${encodeURIComponent(q)}`);
+}
+
+// ---- Pharmacy (hms_backend/src/modules/pharmacy) ---------------------------
+
+export async function listDrugs(search?: string): Promise<Drug[]> {
+  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+  return request<Drug[]>(`/drugs${q}`);
+}
+
+export async function createDrug(body: CreateDrugRequest): Promise<Drug> {
+  return request<Drug>("/drugs", { method: "POST", body });
+}
+
+export async function receiveStock(drugId: string, body: ReceiveStockRequest): Promise<Drug> {
+  return request<Drug>(`/drugs/${drugId}/stock`, { method: "POST", body });
+}
+
+export async function listPendingPrescriptions(): Promise<PendingPrescription[]> {
+  return request<PendingPrescription[]>("/prescriptions/pending");
+}
+
+export async function dispense(body: DispenseRequest): Promise<DispenseResult> {
+  return request<DispenseResult>("/dispense", { method: "POST", body });
 }
 
 // ---- Org-Admin: users & branches -------------------------------------------
