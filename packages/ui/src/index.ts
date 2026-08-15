@@ -25,8 +25,8 @@ export { Spinner } from './components/Spinner';
 export type { SpinnerProps } from './components/Spinner';
 export { Toaster } from './components/Toaster';
 export type { ToasterProps } from './components/Toaster';
-export { toast, subscribeToasts, getToasts } from './toast';
-export type { ToastOptions, ToastRecord, ToastVariant, ToastAction } from './toast';
+export { toast } from './toast';
+export type { ToastOptions, ToastVariant, ToastAction } from './toast';
 // The Standard DataTable system + the shared patterns it is built from (ADR-029).
 export {
   DataTable,

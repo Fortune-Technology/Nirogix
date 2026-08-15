@@ -15,13 +15,13 @@ The shared design system for the HMS monorepo. Consumed by `hms_frontend` (Porta
 
 ## `Toaster` / `toast()` — the one notification surface
 
-The single API-feedback surface for both apps (ADR-026, `resources/DESIGN.md` §5, `resources/rules.md` → API Feedback & Notification Rules). Never build a second one.
+shadcn/ui's **Base UI Toast**, generated with `shadcn add @shadcn/toast` and adapted into this package (ADR-032) so both apps share one implementation. Never build a second one.
 
-- **`src/toast.ts`** — a framework-free pub/sub store, so `toast()` can be called from the apps' shared **API client** (plain TypeScript, outside React). `toast(msg)` / `toast.success|error|warning|info|loading(...)` / `toast.dismiss(id?)` / `toast.update(id, patch)`. Repeats collapse by `dedupeKey` (default `variant|title|description`) and refresh the existing toast; the visible stack is capped at 4.
-- **`src/components/Toaster.tsx`** — mount once per app in the root layout. Portals into `document.body`. Durations: success/info 5s, warning 7s, error + loading persist. Timers pause while the pointer or keyboard focus is inside the stack; **Esc** dismisses the newest; each toast has its own dismiss button.
-- **A11y:** `role="alert"` + `aria-live="assertive"` for error/warning, `role="status"` + polite otherwise; the viewport is a labelled `region`.
-- **Visuals:** `.hms-toast*` in `styles.css` — semantic tokens (`--hms-success|danger|warning|info` + `-subtle`), Lucide icons, radius `lg`, `--hms-shadow-md`. Mobile: top, full width. Desktop: bottom-right at `bottom: 5.5rem`, clear of `BackToTop`. `z-index: 1000`. Entrance animation collapses under `prefers-reduced-motion`.
-- API/ergonomics follow the shadcn/ui Toast **pattern**; shadcn/Radix is **not** installed (no second UI library — Dependency Rules).
+- **`src/components/toast/toast.tsx`** — upstream shadcn source with three annotated adaptations: `cn` from this package, shadcn's `Button` dependency replaced by our `.hms-btn` classes, and Base UI's `className`-as-a-function state API merged rather than dropped. Its Tailwind classes (`bg-popover`, `text-muted-foreground`, `rounded-2xl`…) resolve to `--hms-*` / `--mk-*` through each app's token remap, so it is on-brand in Light/Dark and under a tenant accent with no extra styling. The desktop viewport is lifted to clear `BackToTop`.
+- **`src/toast.ts`** — the thin adapter over Base UI's `createToastManager()`. Keeps the call-site API (`toast(msg)` / `toast.success|error|warning|info|loading(...)` / `toast.dismiss(id?)` / `toast.update(id, patch)`), maps our variants to Base UI `type`s and our durations to `timeout` (success/info 5s, warning 7s, error/loading persist), and de-duplicates by `dedupeKey` so a retried request refreshes its toast instead of stacking. It is plain TypeScript because the **shared API client** raises every notification from outside React.
+- **`Toaster`** — mount once per app in the root layout; `limit` caps the visible stack at 4.
+- Base UI supplies hover/focus pause, swipe-to-dismiss, F6 focus movement, and the polite/assertive live region. **Removal is animation-completion driven**, so a toast waits while a tab is backgrounded and clears once it is shown again.
+- Tailwind must scan this package for those classes: both apps carry `@source "../../packages/ui/src/**/*.{ts,tsx}"` in `globals.css`.
 
 ## Rules
 

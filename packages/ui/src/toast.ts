@@ -1,12 +1,21 @@
-// The shared notification store behind `<Toaster />` (ADR-026).
+// The platform's notification API (ADR-026, ADR-032).
 //
-// Deliberately framework-free: `toast()` is called from the apps' shared API
-// client (plain TypeScript, outside React), so the store is a tiny pub/sub the
-// React viewport subscribes to. There is exactly ONE notification system in the
-// monorepo — see resources/rules.md → API Feedback & Notification Rules. Never
-// build a second one, and never pass a stack trace, backend internal, or PHI in.
+// The component underneath is shadcn/ui's Base UI Toast (`components/toast/toast.tsx`,
+// generated with `shadcn add @shadcn/toast`). This module is the thin adapter over
+// its toast manager that keeps the call-site API the apps already use:
+//
+//     toast.success("Patient registered.")
+//     toast.error({ title: "Not permitted", description: err.message })
+//
+// It exists for two reasons the raw manager does not cover:
+//   1. It is callable from PLAIN TYPESCRIPT — the shared API client raises every
+//      notification (lib/feedback.ts), and it is not a React component.
+//   2. De-duplication: a retried request refreshes the toast it already has
+//      instead of stacking a second identical one.
 
-export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'loading';
+import { toast as manager } from "./components/toast/toast";
+
+export type ToastVariant = "success" | "error" | "warning" | "info" | "loading";
 
 export interface ToastAction {
   label: string;
@@ -14,7 +23,6 @@ export interface ToastAction {
 }
 
 export interface ToastOptions {
-  /** Supply to update/replace a specific toast; otherwise generated. */
   id?: string;
   title?: string;
   /** The detail line — this is where the API's own message goes. */
@@ -23,23 +31,11 @@ export interface ToastOptions {
   /** ms before auto-dismiss. `null` persists until dismissed. Defaults per variant. */
   duration?: number | null;
   action?: ToastAction;
-  /** Repeats within the visible stack collapse onto one toast. Defaults to variant+title+description. */
+  /** Repeats collapse onto one toast. Defaults to variant+title+description. */
   dedupeKey?: string;
 }
 
-export interface ToastRecord {
-  id: string;
-  title: string;
-  description?: string;
-  variant: ToastVariant;
-  duration: number | null;
-  action?: ToastAction;
-  dedupeKey: string;
-  /** Bumped when a duplicate arrives, so the viewport restarts the timer. */
-  seq: number;
-}
-
-/** Success/info clear themselves; warnings linger; errors and loading persist until acted on. */
+/** Success/info clear themselves; warnings linger; errors and loading persist. */
 const DEFAULT_DURATION: Record<ToastVariant, number | null> = {
   success: 5000,
   info: 5000,
@@ -49,101 +45,83 @@ const DEFAULT_DURATION: Record<ToastVariant, number | null> = {
 };
 
 const DEFAULT_TITLE: Record<ToastVariant, string> = {
-  success: 'Success',
-  info: 'Notice',
-  warning: 'Warning',
-  error: 'Something went wrong',
-  loading: 'Working…',
+  success: "Success",
+  info: "Notice",
+  warning: "Warning",
+  error: "Something went wrong",
+  loading: "Working…",
 };
 
-/** Stack cap — beyond this the oldest is dropped so notifications never bury the UI. */
-const MAX_VISIBLE = 4;
-
-type Listener = (toasts: ToastRecord[]) => void;
-
-let toasts: ToastRecord[] = [];
-const listeners = new Set<Listener>();
-let counter = 0;
-let seq = 0;
-
-function emit(): void {
-  for (const listener of listeners) listener(toasts);
-}
-
-export function subscribeToasts(listener: Listener): () => void {
-  listeners.add(listener);
-  listener(toasts);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function getToasts(): ToastRecord[] {
-  return toasts;
-}
-
-function normalize(input: string | ToastOptions): ToastRecord {
-  const opts: ToastOptions = typeof input === 'string' ? { description: input } : input;
-  const variant = opts.variant ?? 'info';
-  const title = opts.title ?? DEFAULT_TITLE[variant];
-  return {
-    id: opts.id ?? `t${++counter}`,
-    title,
-    description: opts.description,
-    variant,
-    duration: opts.duration === undefined ? DEFAULT_DURATION[variant] : opts.duration,
-    action: opts.action,
-    dedupeKey: opts.dedupeKey ?? `${variant}|${title}|${opts.description ?? ''}`,
-    seq: ++seq,
-  };
-}
+/** dedupeKey → live toast id, so a repeat updates instead of stacking. */
+const live = new Map<string, string>();
 
 function show(input: string | ToastOptions): string {
-  const next = normalize(input);
+  const opts: ToastOptions = typeof input === "string" ? { description: input } : input;
+  const variant = opts.variant ?? "info";
+  const title = opts.title ?? DEFAULT_TITLE[variant];
+  const duration = opts.duration === undefined ? DEFAULT_DURATION[variant] : opts.duration;
+  const key = opts.dedupeKey ?? `${variant}|${title}|${opts.description ?? ""}`;
 
-  const existing = toasts.find((t) => (next.id && t.id === next.id) || t.dedupeKey === next.dedupeKey);
+  const payload = {
+    title,
+    description: opts.description,
+    // Base UI drives its own icon + styling from `type`.
+    type: variant,
+    // 0 disables the timer in Base UI; our `null` means "persist".
+    timeout: duration ?? 0,
+    actionProps: opts.action
+      ? { children: opts.action.label, onClick: opts.action.onClick }
+      : undefined,
+    onClose: () => {
+      if (live.get(key) === existing) live.delete(key);
+    },
+  };
+
+  const existing = opts.id ?? live.get(key);
   if (existing) {
-    // A repeat (e.g. a retried request) refreshes the existing toast instead of stacking.
-    toasts = toasts.map((t) => (t.id === existing.id ? { ...next, id: existing.id } : t));
-    emit();
-    return existing.id;
+    manager.update(existing, payload);
+    return existing;
   }
 
-  toasts = [...toasts, next].slice(-MAX_VISIBLE);
-  emit();
-  return next.id;
+  const id = manager.add(payload);
+  live.set(key, id);
+  return id;
 }
 
 function dismiss(id?: string): void {
-  toasts = id ? toasts.filter((t) => t.id !== id) : [];
-  emit();
+  if (id) {
+    manager.close(id);
+    for (const [key, value] of live) if (value === id) live.delete(key);
+    return;
+  }
+  for (const [, value] of live) manager.close(value);
+  live.clear();
 }
 
 function update(id: string, patch: Partial<ToastOptions>): void {
-  const current = toasts.find((t) => t.id === id);
-  if (!current) return;
-  const merged = normalize({ ...current, ...patch, id });
-  toasts = toasts.map((t) => (t.id === id ? merged : t));
-  emit();
+  manager.update(id, {
+    title: patch.title,
+    description: patch.description,
+    type: patch.variant,
+    timeout: patch.duration === undefined ? undefined : (patch.duration ?? 0),
+  });
 }
 
 function withVariant(variant: ToastVariant) {
-  return (input: string | ToastOptions, opts: Omit<ToastOptions, 'variant'> = {}): string =>
-    show(typeof input === 'string' ? { ...opts, description: input, variant } : { ...input, ...opts, variant });
+  return (input: string | ToastOptions, opts: Omit<ToastOptions, "variant"> = {}): string =>
+    show(typeof input === "string" ? { ...opts, description: input, variant } : { ...input, ...opts, variant });
 }
 
 /**
- * Raise a notification. `toast('Saved.')` is shorthand for an info toast whose
- * description is that text; pass an object for a title, variant, action, or a
- * custom duration. Every state-changing or failing API call goes through here
- * (via the shared API client) — no page writes its own toast logic.
+ * Raise a notification. Every state-changing or failing API call goes through
+ * here (via the shared API client) — no page writes its own toast logic.
  */
 export const toast = Object.assign(show, {
-  success: withVariant('success'),
-  error: withVariant('error'),
-  warning: withVariant('warning'),
-  info: withVariant('info'),
-  loading: withVariant('loading'),
+  success: withVariant("success"),
+  error: withVariant("error"),
+  warning: withVariant("warning"),
+  info: withVariant("info"),
+  loading: withVariant("loading"),
   dismiss,
   update,
 });

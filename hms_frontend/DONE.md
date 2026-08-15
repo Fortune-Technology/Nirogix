@@ -307,3 +307,17 @@ Append-only implementation log. Newest at the bottom.
 - The audit table drives the new backend query surface (`search`, `severity`, `sortBy`/`sortDir` — see `hms_backend/DONE.md`).
 
 **Testing status:** `typecheck` green · `next build` green · eslint clean (only the repo's pre-existing `set-state-in-effect` / `purity` findings). **Live-verified on /audit:** page size 100 returned 100 rows of 426; sorting Action asc→desc changed the data and the URL (`?sort=action:asc|desc`); search "branding" returned 33 of 33, every row matching; severity "notice" returned 1 of 1. **/users:** search, Roles + Status faceted filters, four sortable columns, pagination. **/opd:** search + six sortable columns (queue empty today, so the shared empty state renders instead of filters).
+
+---
+
+## 2026-08-15 — Dead-code sweep after the toast swap
+
+The Base UI toast lives in `@hms/ui`, so the scaffolding `shadcn init` left in the apps had no consumer. Removed, per the strengthened clean-code rule:
+
+- `hms_frontend/lib/utils.ts` and `marketing/lib/utils.ts` — nothing imported them, and their `cn` duplicated `@hms/ui`'s. `shadcn add` regenerates the file if a future component needs it.
+- Empty `hms_frontend/components/ui/` directory (its generated `toast.tsx` / `button.tsx` were superseded by the shared version).
+- Dependencies nothing imports, dropped from both apps' `package.json`: `@base-ui/react` (declared by `@hms/ui`, which owns the Toast), `class-variance-authority`, `clsx`, `tailwind-merge`. `tw-animate-css` stays — `globals.css` imports it — as does the `shadcn` devDependency, which provides `shadcn/tailwind.css` and the CLI.
+
+Swept the whole repo for other orphans in the same pass — files nothing references, unused `public/` assets, and unused runtime dependencies across all four workspaces: **none found**.
+
+**Testing status:** `typecheck` green (7 workspaces) · both apps `next build` green *after* the removals — which is the proof the code was dead.

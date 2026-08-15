@@ -273,8 +273,14 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 
 ### Clean Code & Replacement Rules
 
+**If it is not used, it does not stay. No garbage code, ever — in this change, not "later".**
+
 - **No dead implementations.** Replacing a technology or component follows *migrate → verify → delete*, in the same change. The old implementation is never kept "for future use", and two systems solving the same problem are never both active without a documented reason.
-- **Every change ends with a cleanup pass.** Anything no longer referenced anywhere is deleted: components, imports, hooks, utilities, CSS, images, Lottie files, fonts, API services, constants, types, deprecated implementations, duplicate components, old configuration — and any dependency nothing imports comes out of `package.json`.
+- **Deletion is part of Done, not a follow-up.** A change that leaves behind something it made unnecessary is unfinished — this is a Definition-of-Done gate, and a reviewer rejects on it.
+- **The cleanup pass covers, at minimum:** orphaned files and components (nothing imports them), unused imports/exports/types/constants/hooks/utilities, dead CSS and design tokens, unreferenced images / Lottie / fonts / other `public/` assets, superseded API services and endpoints, generated scaffolding nothing consumes, empty directories, commented-out code, and **dependencies nothing imports — removed from `package.json` in the same commit**.
+- **Regenerable scaffolding is deleted too.** Tooling output that can be recreated on demand (for example a `shadcn add` that was not adopted, or the `lib/utils.ts` its init writes) is removed while unused; the tool will write it again when it is actually needed.
+- **Never keep code "just in case".** Git history is the archive. If it might be wanted later, it is recoverable from the commit that removed it — say so in the message rather than leaving it in the tree.
+- **Verify, do not assume.** Before deleting, grep the whole repo for the symbol/filename/asset; after deleting, `typecheck` + `build` both apps. A green build with the code gone is the proof it was dead.
 
 ### Prohibited Patterns
 

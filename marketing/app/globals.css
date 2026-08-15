@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Compile the Tailwind classes inside @hms/ui too — the shared components
+ * (shadcn Toast) live there, and node_modules is not scanned by default. */
+@source "../../packages/ui/src/**/*.{ts,tsx}";
+
 /*
  * shadcn/ui is installed as a CLI + reference layer only (ADR-028) — the marketing
  * kit (`components/ui/*`) and `@hms/ui` stay canonical, and anything pulled in with

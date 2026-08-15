@@ -103,3 +103,23 @@ Append-only implementation log. Newest at the bottom.
 **Changed:** `styles.css` gained the toolbar/search, sortable-header, pagination, menu, states, skeleton (shimmer, disabled under `prefers-reduced-motion`) and dialog blocks — all token-driven. `src/index.ts` exports the new system. **Deleted** `src/components/DataTable.tsx` (replaced, not kept alongside).
 
 **Testing status:** `typecheck` green (8 workspaces) · `next build` green. **Live-verified in the Portal:** Providers — clicking a header cycled unsorted → asc → desc with the indicator active, search narrowed 3 rows to 1, faceted filters rendered for Specialties and Status. Patients (server mode) — typing `ravi` issued one debounced request, put `?q=ravi` in the URL and returned 1 row; the Columns menu listed only hideable columns, restoring the default-hidden "Registered" column showed `14/08/2026`; pagination read "Showing 1–3 of 3" with a 10/20/50/100 selector; each row carried the shared action menu.
+
+---
+
+## 2026-08-15 — Toast replaced with shadcn/ui's Base UI Toast (ADR-032)
+
+**What:** The hand-written notification system was swapped for the real registry component, at the owner's direction (superseding ADR-031, which had kept ours).
+
+**Added:**
+- `src/components/toast/toast.tsx` — generated with `shadcn add @shadcn/toast` (base-nova) and moved here so both apps still share **one** implementation. Three annotated adaptations: `cn` from this package; shadcn's `Button` dependency replaced with our `.hms-btn` classes (the shared kit must not carry a second button); Base UI's `className`-as-a-function state API merged instead of dropped. Desktop viewport lifted (`sm:bottom-22 sm:right-7`) so it clears `BackToTop`.
+- `@base-ui/react` as a real dependency of `@hms/ui` (it was installed in the apps but unused).
+
+**Changed:**
+- `src/toast.ts` — no longer a bespoke store; now a thin adapter over Base UI's `createToastManager()` that preserves the existing call-site API (`toast.success(...)`, `toast.error({title, description})`, `dismiss`, `update`), maps our variants → Base UI `type` and durations → `timeout` (success/info 5s, warning 7s, error/loading persist), and keeps **de-duplication** so a retried request refreshes its toast. Plain TypeScript, because the shared API client raises notifications from outside React.
+- `src/components/Toaster.tsx` — wraps the generated `Toaster` (stack limit 4).
+- `styles.css` — the whole `.hms-toast*` block **deleted**; only `.hms-toast-close-btn` remains (shadcn's close renders its own Button, which we replaced). `src/index.ts` drops `subscribeToasts` / `getToasts` / `ToastRecord`, which the store no longer provides.
+- Both apps: `@source "../../packages/ui/src/**/*.{ts,tsx}"` in `globals.css`, so Tailwind compiles the classes the shared component ships. The per-app generated copies (`hms_frontend/components/ui/{toast,button}.tsx`) were **deleted** — the shared version is canonical.
+
+**Testing status:** `typecheck` green (8 workspaces) · both apps `next build` green. **Live-verified in the Portal:** a branding save renders the Base UI toast (`data-slot="toast"` + portal/viewport/content/icon/title/description/close slots) reading "Success — Branding saved."; a 404 renders "Not found — User not found" with the danger icon colour (`#c0392b`); three rapid saves produce **one** toast (de-dup works); background resolves to `--hms-surface` in Light and `#112128` in Dark; radius comes from our `--hms-radius-lg` scale.
+
+**Not verified — needs a human glance:** dismissal timing (auto-dismiss and the close button). Base UI removes a toast only once its exit animation completes, and the agent's preview pane does not composite frames (`document.hidden === true`, zero `requestAnimationFrame` ticks), so CSS animations never run there and toasts stay in the DOM. Expected to behave normally in a real browser; worth one look. The behavioural difference from the old timer-driven implementation is real: a backgrounded tab holds its toasts until it is shown again.
