@@ -108,7 +108,7 @@ export function softwareApplicationJsonLd(opts?: { name?: string; description?: 
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: opts?.name ?? `${SITE.name} — Hospital Management System`,
+    name: opts?.name ?? `${SITE.name} Hospital Management System`,
     applicationCategory: "BusinessApplication",
     applicationSubCategory: "Hospital Management Software",
     operatingSystem: "Web browser",

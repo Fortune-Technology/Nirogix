@@ -99,7 +99,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title={`Welcome${user ? `, ${user.fullName}` : ""}`}
-        description={isPlatform ? "Platform overview — aggregated across every tenant." : "Your organization at a glance."}
+        description={isPlatform ? "Platform overview, aggregated across every tenant." : "Your organization at a glance."}
       />
 
       {isPlatform ? <PlatformDashboard /> : <OrgDashboard />}

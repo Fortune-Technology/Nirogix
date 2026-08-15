@@ -52,6 +52,7 @@ export type NavLink = { label: string; href: string };
 export const NAV_LINKS: NavLink[] = [
   { label: "Platform", href: "/platform" },
   { label: "Modules", href: "/modules" },
+  { label: "Specialties", href: "/specialties" },
   { label: "Solutions", href: "/solutions" },
   { label: "Security", href: "/security" },
   { label: "Pricing", href: "/pricing" },

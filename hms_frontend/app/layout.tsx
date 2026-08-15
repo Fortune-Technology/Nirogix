@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 // marketing site. No patient/tenant/staff data may enter this metadata.
 export const metadata: Metadata = {
   title: "HMS Portal",
-  description: "Hospital Management System — staff portal",
+  description: "Hospital Management System staff portal",
   robots: {
     index: false,
     follow: false,

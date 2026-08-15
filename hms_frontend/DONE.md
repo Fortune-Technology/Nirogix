@@ -321,3 +321,12 @@ The Base UI toast lives in `@hms/ui`, so the scaffolding `shadcn init` left in t
 Swept the whole repo for other orphans in the same pass — files nothing references, unused `public/` assets, and unused runtime dependencies across all four workspaces: **none found**.
 
 **Testing status:** `typecheck` green (7 workspaces) · both apps `next build` green *after* the removals — which is the proof the code was dead.
+
+---
+
+## 2026-08-15 — App-like mobile navigation (ADR-033)
+
+- `lib/nav.ts` — `MOBILE_PRIMARY_ORDER` + `mobilePrimaryNav(can)`: ranks the permission-filtered nav by day-to-day use, so the bottom bar shows what *this* user actually works with (receptionist → OPD/Appointments/Patients; pharmacist → Pharmacy; super-admin falls through to Tenants).
+- `components/AppShell.tsx` — renders the shared `BottomNav` (five slots, mobile only) plus a top-right hamburger opening the shared `NavDrawer` with every permitted module. `main` carries `.hms-bottomnav-offset`. The desktop sidebar is untouched and the bar never renders above `md`.
+
+**Testing status:** `typecheck` + `next build` green. **Live-verified at 375px** as CITYCARE org_admin: bar renders the permitted destinations with the active one marked, sidebar hidden, drawer lists all 11 permitted modules, `body` scroll locks while open and restores on close, `data-lenis-prevent` set, focus trapped inside, Esc closes.

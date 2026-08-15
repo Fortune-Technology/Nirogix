@@ -33,6 +33,7 @@ This document states rules only. For the architecture each rule is derived from,
   - [Security Rules](#security-rules)
   - [Audit Rules](#audit-rules)
   - [Testing Rules](#testing-rules)
+  - [Manual Test Cases (testcases.md)](#manual-test-cases-testcasesmd)
   - [Documentation Rules](#documentation-rules)
   - [Dependency Rules](#dependency-rules)
   - [Git Rules](#git-rules)
@@ -97,6 +98,23 @@ This document states rules only. For the architecture each rule is derived from,
 
 - Brand colors, logos, and typography are tenant-configurable values consumed from the centralized branding system, never hardcoded into a component
 - A new UI component works correctly for any tenant's branding without a module-specific redesign — this is what makes the tenant-level branding requirement in §4 hold at the component level, not just the page level
+
+### Responsive & Mobile Navigation
+
+**Mobile is an app, not a squeezed desktop** (ADR-033). Both surfaces follow the same shape.
+
+- **Under the `md`/`lg` breakpoint:** a fixed **bottom navigation bar** carrying **at most five** primary destinations (icon + short label, clear active/inactive states, safe-area padding, ≥44px touch targets), plus a **hamburger in the top right** that opens a **slide-out drawer** for everything else.
+- **The drawer** scrolls independently, locks background scrolling through the shared `useScrollLock` and `data-lenis-prevent`, restores scrolling on close, traps focus, and closes on Esc, on backdrop press, and on navigation.
+- **The bar respects role and permissions.** In the Portal it is derived from the same permission-filtered nav as the sidebar — a phone never offers a route the user cannot open.
+- **The five destinations are chosen per surface** from that surface's own information architecture; the marketing site does not copy the Portal's clinical menu.
+- **Desktop keeps its own professional navigation** (Portal sidebar, marketing header). The bottom bar is never shown on desktop.
+- Both are built from the shared `BottomNav` / `NavDrawer` in `@hms/ui` — never re-implemented per app or per page.
+
+### Content & Language
+
+- **Write natural, professional English.** No hyphens joining words that are not a real compound: *Hospital Management System*, never *Hospital-Management-System*. Legitimate compounds and terminology keep their hyphens — `multi-tenant`, `check-in`, `follow-up`, `no-show`, `India-resident`, `append-only`, `role-based` — as do URLs, slugs, CSS classes, and technical identifiers. Never bulk-strip hyphens.
+- Applies to every user-facing string: headings, body copy, buttons, navigation, cards, labels, marketing copy, form text, error messages, empty states, tooltips, metadata, and SEO content.
+- Product copy stays inside the PRD's content guardrails (no invented customers, no certification claims, no published prices).
 
 ## Development Rules
 
@@ -247,9 +265,22 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 
 ### Testing Rules
 
+**Every feature ships as: implement → automated tests → manual test cases → verify → complete.** Test documentation is never postponed to the end of the project.
+
 - A milestone is not complete until its full automated regression suite passes — not just its own new tests.
 - Every milestone's Definition of Done includes explicit entitlement, RBAC, override, and temporary-permission checks in both directions (access works / access denied). See Development Phases & Roadmap.
 - Direct URL access to an unauthorized route is tested explicitly, never assumed safe because navigation is hidden.
+- **Automated coverage is expected at the level the change deserves:** unit tests for pure logic (formatters, calculators, permission resolution), component tests for shared UI, integration/API tests for every endpoint (happy path, validation failure, 401, 403, tenant isolation), and end-to-end tests for the critical workflows (sign-in, register patient → book → check-in → consult → dispense → bill → collect).
+- **A feature is not complete while a known automated test is failing**, unless the failure is written down and explicitly accepted — in `BACKLOG.md`, with the reason.
+- Manual test cases are **not** a substitute for automated tests, and automated tests are not a substitute for the manual QA checklist. Both are required.
+
+### Manual Test Cases (`testcases.md`)
+
+The repository root holds **`testcases.md`** — the complete manual QA checklist for the platform, organised by module, written so a tester who has never seen the code can execute it.
+
+- **Every case carries:** ID, feature/module, preconditions, steps, expected result, priority, test type, the role/user required, and status.
+- **It is updated in the same change as the feature.** A new page, workflow, endpoint, component, validation, permission, or behaviour adds its cases; changed behaviour updates them; removed behaviour deletes them; a change that could affect existing functionality adds regression cases.
+- At any point in the project it must be usable as-is for a full feature-by-feature regression pass. Letting it drift is the same defect as letting `KNOWLEDGE.md` drift.
 
 ### Documentation Rules
 
@@ -297,6 +328,9 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 - Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.
 - Do not render a user-facing date in any format other than `DD/MM/YYYY` (`DD/MM/YYYY HH:mm` with a time), and do not format dates outside `@hms/utils`.
 - Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.
+- Do not ship a feature without its automated tests and its `testcases.md` entries, and do not mark one complete while a known test is failing without documenting the acceptance.
+- Do not render the mobile bottom bar on desktop, put more than five destinations in it, or offer a destination the signed-in user has no permission to open.
+- Do not hyphenate words that are not a compound in user-facing copy (and do not bulk-remove legitimate hyphens).
 - Do not replace a usable backend message with generic copy, and do not show a raw technical error, stack trace, or backend internal to a user.
 - Do not let any authenticated Portal route be indexable, and do not place patient/tenant/staff/operational data in metadata, URLs, OG images, or a sitemap.
 - Do not ship duplicate page metadata, keyword-stuffed copy, hidden SEO text, or structured data describing content that is not visible on the page (including fabricated reviews or ratings).

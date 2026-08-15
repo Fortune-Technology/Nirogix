@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CLINIC_MODULES } from "../lib/site";
+import { FEATURED_SPECIALTIES } from "../lib/specialties";
 import { SITE_URL } from "../lib/seo";
 
 /**
@@ -12,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/platform",
     "/modules",
     "/solutions",
+    "/specialties",
     "/security",
     "/integrations",
     "/pricing",
@@ -22,8 +24,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const modulePaths = CLINIC_MODULES.map((m) => `/modules/${m.slug}`);
+  const specialtyPaths = FEATURED_SPECIALTIES.map((s) => `/specialties/${s.slug}`);
 
-  return [...staticPaths, ...modulePaths].map((path) => ({
+  return [...staticPaths, ...modulePaths, ...specialtyPaths].map((path) => ({
     url: `${SITE_URL}${path}`,
     changeFrequency: "monthly",
     priority: path === "" ? 1 : 0.7,

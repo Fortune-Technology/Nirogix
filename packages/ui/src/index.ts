@@ -45,6 +45,8 @@ export { ConfirmDialog } from './components/ConfirmDialog';
 export type { ConfirmDialogProps } from './components/ConfirmDialog';
 export { EmptyState, ErrorState, Skeleton } from './components/States';
 export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
+export { BottomNav, NavDrawer, NavDrawerItem, NavDrawerSection, BOTTOM_NAV_MAX_ITEMS } from './components/MobileNav';
+export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components/MobileNav';
 export { BackToTop } from './components/BackToTop';
 export type { BackToTopProps } from './components/BackToTop';
 export { SmoothScroll } from './components/SmoothScroll';

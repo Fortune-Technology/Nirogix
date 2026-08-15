@@ -26,7 +26,7 @@ export default function PlatformPage() {
     <>
       <JsonLd
         data={softwareApplicationJsonLd({
-          name: "HMS Platform — hospital ERP software",
+          name: "HMS Platform, hospital ERP software",
           description:
             "The multi-tenant platform underneath every HMS module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.",
           path: "/platform",

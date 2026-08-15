@@ -114,7 +114,7 @@ function Worklist() {
     <>
       <PageHeader
         title="Laboratory"
-        description="Tests ordered from consultations — collect, result, report."
+        description="Tests ordered from consultations: collect, result, report."
         actions={
           <Link href="/laboratory/tests">
             <Button variant="secondary">

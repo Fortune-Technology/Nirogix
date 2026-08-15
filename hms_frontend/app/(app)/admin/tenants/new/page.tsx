@@ -61,7 +61,7 @@ function Wizard() {
     return (
       <>
         <PageHeader title="Tenant onboarded" description={`${done.tenant.name} (${done.tenant.code}) is ready.`} />
-        <Card header="First administrator — share these credentials securely">
+        <Card header="First administrator: share these credentials securely">
           <Alert tone="success">
             This temporary password is shown <strong>once</strong>. The admin should change it after signing in.
           </Alert>

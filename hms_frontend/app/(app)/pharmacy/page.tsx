@@ -68,7 +68,7 @@ function DispenseCard({
               <option value="">Select…</option>
               {drugs.map((d) => (
                 <option key={d.id} value={d.id} disabled={d.onHand <= 0}>
-                  {d.name} — {d.onHand} in stock ({formatPaise(d.unitPricePaise)})
+                  {d.name} ({d.onHand} in stock, {formatPaise(d.unitPricePaise)})
                 </option>
               ))}
             </select>
@@ -82,7 +82,7 @@ function DispenseCard({
           </Button>
         </div>
       </div>
-      {drug && drug.onHand <= 0 && <p className="mt-2 text-xs text-danger">Out of stock — receive stock first.</p>}
+      {drug && drug.onHand <= 0 && <p className="mt-2 text-xs text-danger">Out of stock. Receive stock first.</p>}
     </Card>
   );
 }

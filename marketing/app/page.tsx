@@ -18,7 +18,7 @@ export const metadata: Metadata = pageMetadata({
   absoluteTitle: true,
   title: "Hospital Management System Software for Hospitals & Clinics",
   description:
-    "A modular, multi-tenant hospital management system built for India — patients, appointments, OPD, EMR, pharmacy, laboratory, and billing. Turn on only the modules your hospital needs.",
+    "A modular, multi-tenant hospital management system built for India: patients, appointments, OPD, EMR, pharmacy, laboratory and billing. Turn on only the modules your hospital needs.",
 });
 
 export default function Home() {

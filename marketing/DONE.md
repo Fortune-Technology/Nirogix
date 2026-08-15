@@ -149,3 +149,17 @@ Append-only implementation log. Newest at the bottom.
 - `--font-sans` (Geist) and the marketing `--color-accent` / `--color-secondary` mappings left untouched, so `bg-accent` is still the teal CTA.
 
 **Testing status:** `typecheck` + `next build` green. **Live-verified:** in Dark, `--primary` resolves to `#22b8cf` (the dark-theme `--mk-accent`); in Light, `#0e7490` with `--border: #dbe6e7`; body ground, Geist, and the hero CTA unchanged.
+
+---
+
+## 2026-08-15 — Specializations + app-like mobile navigation (ADR-033, ADR-034)
+
+**Specializations:**
+- `lib/specialties.ts` — 22 specialties; six (cardiology, dentistry, pediatrics, gynecology, physiotherapy, radiology) carry real content: operational challenges, how configurable modules answer them, the modules such a practice enables, and what gets configured.
+- `components/specialties/` — the reusable system (`SpecializationCard`, `SpecializationGrid`, `SpecializationFeatureList`, `SpecializationModules`, `SpecializationWorkflow`, `SpecializationSection`). A new specialty is a data entry, never a new layout.
+- `/specialties` (full grid) + `/specialties/[slug]` for the six featured ones only — specialties without differentiated content stay on the index rather than becoming thin near-duplicate pages. Each page ships intent-matched metadata ("Hospital Management Software for Cardiology"), `SoftwareApplication` + `BreadcrumbList` JSON-LD, and its own OG card. Sitemap and nav updated.
+- Every page repeats the honest framing: specialties differ in **configuration, not code**, and a missing capability is named during the demo.
+
+**Mobile navigation:** `components/site/MobileNav.tsx` — bottom bar with five destinations chosen from this site's IA (Home · Modules · Specialties · Pricing · Demo) plus a top-right hamburger opening the shared drawer (full nav, legal links, sign-in / demo actions). The header's old inline mobile panel was **deleted**; below `lg` the header keeps only the wordmark and the hamburger. `main` carries `.hms-bottomnav-offset` so the fixed bar never covers content.
+
+**Testing status:** `typecheck` + `next build` green (53 static routes). **Live-verified at 375px:** the bar renders with the active destination marked, the drawer opens from the top right, background scroll locks (`overflow: hidden`) and restores on close, Esc closes it; `/specialties/cardiology` renders all four content sections with correct title, `<h1>` and JSON-LD.

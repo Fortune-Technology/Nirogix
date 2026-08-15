@@ -7,6 +7,7 @@ import { ThemeProvider } from "../lib/theme";
 import { getMarketingBrandingStyle } from "../lib/branding";
 import { SiteHeader } from "../components/site/SiteHeader";
 import { SiteFooter } from "../components/site/SiteFooter";
+import { MarketingMobileNav } from "../components/site/MobileNav";
 import { SITE } from "../lib/site";
 import { JsonLd } from "../components/site/JsonLd";
 import { SITE_URL, organizationJsonLd } from "../lib/seo";
@@ -26,7 +27,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE.name} — Modular hospital management system for India`,
+    default: `${SITE.name}: modular hospital management system for India`,
     template: `%s · ${SITE.name}`,
   },
   description: SITE.description,
@@ -46,14 +47,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: SITE.name,
-    title: `${SITE.name} — Modular hospital management system for India`,
+    title: `${SITE.name}: modular hospital management system for India`,
     description: SITE.description,
     locale: "en_IN",
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE.name} — Modular hospital management system for India`,
+    title: `${SITE.name}: modular hospital management system for India`,
     description: SITE.description,
   },
   robots: { index: true, follow: true },
@@ -87,9 +88,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <LottiePreloader src="/animations/ambulance.json" tintCssVar="--mk-accent" />
           <SmoothScroll>
             <SiteHeader />
-            <main className="flex-1">{children}</main>
+            <main className="hms-bottomnav-offset flex-1">{children}</main>
             <SiteFooter />
             <BackToTop />
+            <MarketingMobileNav />
           </SmoothScroll>
         </ThemeProvider>
       </body>

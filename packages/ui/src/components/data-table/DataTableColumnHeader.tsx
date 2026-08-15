@@ -38,7 +38,7 @@ export function DataTableColumnHeader({
     <button
       type="button"
       className={cn("hms-th__sort", align !== "left" && `hms-th__sort--${align}`)}
-      aria-label={`${typeof children === "string" ? children : "Column"} — ${label}. Activate to sort.`}
+      aria-label={`${typeof children === "string" ? children : "Column"}, ${label}. Activate to sort.`}
       onClick={(e) => onToggle?.(e.shiftKey)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

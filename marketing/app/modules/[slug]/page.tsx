@@ -37,7 +37,7 @@ const MODULE_SEO: Record<string, { title: string; description: string }> = {
       "OPD software from check-in to consult: token queues, live waiting lists, doctor-wise flow, and a consultation bill opened automatically at check-in.",
   },
   emr: {
-    title: "EMR Software — Clinical Workflow & E-Prescriptions",
+    title: "EMR Software: Clinical Workflow & E-Prescriptions",
     description:
       "EMR for outpatient care: structured SOAP notes, ICD-10 coding, e-prescriptions, and lab orders raised from the consultation itself.",
   },
@@ -74,7 +74,7 @@ export async function generateMetadata({
   return pageMetadata({
     path: `/modules/${slug}`,
     title: seo?.title ?? mod.name,
-    description: seo?.description ?? `${mod.name} — ${mod.tagline} Part of the modular HMS platform.`,
+    description: seo?.description ?? `${mod.name}. ${mod.tagline} Part of the modular HMS platform.`,
   });
 }
 

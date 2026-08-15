@@ -11,7 +11,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/solutions",
   title: "Clinic & Hospital Management Software by Role",
   description:
-    "Clinic management software that fits how your team works: receptionists, doctors, pharmacists, lab technicians, cashiers, and admins — across clinics, nursing homes, hospitals, and diagnostic centres.",
+    "Clinic management software that fits how your team works: receptionists, doctors, pharmacists, lab technicians, cashiers and admins, across clinics, nursing homes, hospitals and diagnostic centres.",
 });
 
 export default function SolutionsPage() {

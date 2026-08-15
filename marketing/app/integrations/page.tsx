@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 // Topical intent (healthcare interoperability standards).
 export const metadata: Metadata = pageMetadata({
   path: "/integrations",
-  title: "Healthcare Integrations — FHIR, ABDM, DICOM & Payments",
+  title: "Healthcare Integrations: FHIR, ABDM, DICOM & Payments",
   description:
     "Interoperability for hospital software: HL7 FHIR R4, ICD-10/11, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, DLT SMS and WhatsApp, UPI payments, and Tally export.",
 });

@@ -46,3 +46,35 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Audit Log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
   { label: "Settings", href: "/settings", perm: null, icon: Settings },
 ];
+
+/**
+ * The day-to-day destinations that earn a slot in the mobile bottom bar
+ * (ADR-033), most-used first. The bar shows the first four the user is actually
+ * permitted to see — Dashboard is always one of them — and everything else stays
+ * reachable through the hamburger drawer. Ordering is deliberate: a receptionist
+ * lands on Patients/Appointments/OPD, a pharmacist on Pharmacy, and a
+ * super-admin (who has no clinical permissions in a customer tenant) falls
+ * through to Tenants and Branding.
+ */
+export const MOBILE_PRIMARY_ORDER = [
+  "/dashboard",
+  "/opd",
+  "/appointments",
+  "/patients",
+  "/billing",
+  "/pharmacy",
+  "/laboratory",
+  "/admin/tenants",
+  "/users",
+] as const;
+
+/** The bottom bar's items for this user: permitted, in priority order, capped by the caller. */
+export function mobilePrimaryNav(can: (perm: string) => boolean): NavItem[] {
+  const permitted = NAV_ITEMS.filter((item) => item.perm === null || can(item.perm));
+  const ranked = [...permitted].sort((a, b) => {
+    const ia = MOBILE_PRIMARY_ORDER.indexOf(a.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
+    const ib = MOBILE_PRIMARY_ORDER.indexOf(b.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  return ranked;
+}

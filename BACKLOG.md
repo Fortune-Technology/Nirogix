@@ -44,7 +44,7 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - **On-demand revalidation** for platform branding on the marketing site (currently a 5-minute ISR window).
 - **No Core Web Vitals baseline.** Nothing has been measured against the LCP ≤2.5s / INP ≤200ms / CLS ≤0.1 budgets on a real device profile. (Next 16's Turbopack build no longer prints First Load JS, so chunk sizes above were read off `.next/static/chunks`; a proper measurement needs Lighthouse or the analyzer.)
 - Lint debt, pre-existing and repo-wide: `react-hooks/set-state-in-effect` (data-loading effects across Portal pages, `theme.tsx` in both apps) and four `react/no-unescaped-entities` in marketing copy. `npm run lint` fails on these today.
-- **No frontend tests** anywhere (Playwright / RTL). Verification is `next build` + live walkthrough.
+- **No automated frontend tests anywhere** — `hms_frontend`, `marketing`, `@hms/ui` and `@hms/utils` have no test runner configured, so the testing rule (implement → automated tests → manual cases) is only half satisfiable today. The backend already runs Vitest suites (auth, RBAC, tenancy, audit, admin, appointments, branding, events, jobs). **Plan:** add Vitest + Testing Library to `@hms/utils` (date layer — pure, highest value first), then `@hms/ui` (DataTable sorting/filtering/pagination, toast adapter de-dup, ConfirmDialog focus trap), then `hms_frontend` (`lib/feedback.ts` classifier, permission guards), then Playwright for the critical end-to-end workflow. Every case in `testcases.md` marked P1 is a candidate for automation.
 
 **Portal features**
 - Password reset / email-invite flow for new users (today: one-time temporary password reveal).

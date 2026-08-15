@@ -63,7 +63,7 @@ function BrandingEditor() {
   return (
     <Card header="Tenant branding">
       <p className="mb-4 text-sm text-fg-muted">
-        The accent colour is a single token — pick one and every button, link, badge, and highlight updates instantly,
+        The accent colour is a single token. Pick one and every button, link, badge and highlight updates instantly,
         in both themes. Persisted per tenant and applied for all your organization&apos;s users.
       </p>
 

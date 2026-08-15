@@ -123,3 +123,14 @@ Append-only implementation log. Newest at the bottom.
 **Testing status:** `typecheck` green (8 workspaces) · both apps `next build` green. **Live-verified in the Portal:** a branding save renders the Base UI toast (`data-slot="toast"` + portal/viewport/content/icon/title/description/close slots) reading "Success — Branding saved."; a 404 renders "Not found — User not found" with the danger icon colour (`#c0392b`); three rapid saves produce **one** toast (de-dup works); background resolves to `--hms-surface` in Light and `#112128` in Dark; radius comes from our `--hms-radius-lg` scale.
 
 **Not verified — needs a human glance:** dismissal timing (auto-dismiss and the close button). Base UI removes a toast only once its exit animation completes, and the agent's preview pane does not composite frames (`document.hidden === true`, zero `requestAnimationFrame` ticks), so CSS animations never run there and toasts stay in the DOM. Expected to behave normally in a real browser; worth one look. The behavioural difference from the old timer-driven implementation is real: a backgrounded tab holds its toasts until it is shown again.
+
+---
+
+## 2026-08-15 — Shared app-like mobile navigation (ADR-033)
+
+`src/components/MobileNav.tsx` — one implementation for both apps:
+- **`BottomNav`** — fixed bottom bar, capped at five items (`BOTTOM_NAV_MAX_ITEMS`), icon + label, active state with `aria-current`, safe-area padding, ≥3rem touch targets, optional trailing slot, and a `linkAs` prop so each app passes `next/link` and navigation stays client-side.
+- **`NavDrawer`** / **`NavDrawerItem`** / **`NavDrawerSection`** — portalled slide-out drawer: background scroll locked through the shared `useScrollLock`, its own scroll region marked `data-lenis-prevent`, focus trapped and returned to the trigger, closes on Esc and backdrop press.
+- `styles.css` gained `.hms-bottomnav*`, `.hms-drawer*` and `.hms-bottomnav-offset` (the padding that keeps page content clear of the fixed bar), all token-driven, animations disabled under `prefers-reduced-motion`.
+
+**Testing status:** `typecheck` green; both apps build. Live-verified at 375px in the Portal — bar shows the permission-filtered destinations with the active one marked, drawer lists every permitted module, scroll lock + Esc + focus trap all behave.

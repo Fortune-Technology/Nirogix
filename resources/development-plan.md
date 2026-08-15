@@ -136,6 +136,7 @@ Every milestone follows the **six-step loop** defined in the Development Phases 
 - **SEO boundary:** new public marketing routes ship unique metadata + canonical + sitemap entry; new Portal routes are `noindex, nofollow` and leak no patient/tenant/staff data to any crawler-visible surface (ADR-027).
 - **Performance:** images/fonts/scripts/metadata use the Next.js primitives; heavy non-critical UI is lazy-loaded; the route meets the Core Web Vitals budgets (LCP ≤2.5s, INP ≤200ms, CLS ≤0.1).
 - **Cleanup pass done:** nothing the change made unnecessary is left behind — orphaned files, unused imports/exports/assets/CSS/tokens, superseded implementations, empty directories, and any dependency nothing imports (removed from `package.json` in the same commit). Verified by grep before deletion and a green typecheck + build after.
+- **Automated tests written and passing** at the level the change deserves, and **`testcases.md` updated** with the feature's manual cases (added / changed / removed, plus regression cases where existing behaviour could be affected).
 - No open **P0/P1** defects.
 
 **Definition of Ready (entry gate, added by this plan).** A milestone is ready to start only when: its upstream dependencies (per the Dependency Map) are `Done`; the permission keys it introduces are named; its acceptance criteria and test matrix are written; and any external prerequisite (e.g. DLT template, SES production access) is either satisfied or explicitly scheduled ahead of the dependent step.

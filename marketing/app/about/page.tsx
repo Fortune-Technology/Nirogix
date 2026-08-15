@@ -11,7 +11,7 @@ import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "..
 export const metadata: Metadata = pageMetadata({
   path: "/about",
   title: `About ${SITE.legalName}`,
-  description: `${SITE.legalName} builds a multi-tenant, India-resident hospital management system from ${COMPANY.city}, ${COMPANY.region} — so hospitals buy and run only the modules they need.`,
+  description: `${SITE.legalName} builds a multi-tenant, India-resident hospital management system from ${COMPANY.city}, ${COMPANY.region}, so hospitals buy and run only the modules they need.`,
 });
 
 const PRINCIPLES = [

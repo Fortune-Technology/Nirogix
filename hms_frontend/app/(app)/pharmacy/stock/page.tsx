@@ -197,7 +197,7 @@ function Stock() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       {receiving && rows.find((d) => d.id === receiving) && (
-        <Card header={`Receive stock — ${rows.find((d) => d.id === receiving)!.name}`}>
+        <Card header={`Receive stock: ${rows.find((d) => d.id === receiving)!.name}`}>
           <ReceivePanel
             drug={rows.find((d) => d.id === receiving)!}
             onDone={() => { setError(null); setReceiving(null); void load(); }}

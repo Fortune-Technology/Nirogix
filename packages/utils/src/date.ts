@@ -24,6 +24,18 @@ function pad(n: number): string {
 }
 
 /**
+ * Builds a local date and REJECTS overflow. `new Date(2026, 12, 32)` silently
+ * rolls into February 2027, so a typo like 32/13/2026 would otherwise parse as a
+ * real — and wrong — date. Requiring the parts to round-trip catches it.
+ */
+function fromParts(year: number, month: number, day: number): Date | null {
+  const d = new Date(year, month - 1, day);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+}
+
+/**
  * Coerces input to a Date, or null when it is absent or unparseable.
  * A bare `YYYY-MM-DD` is read as a *local* calendar date, not UTC midnight —
  * otherwise a date-only value can display as the previous day west of UTC.
@@ -38,15 +50,13 @@ export function parseDate(value: DateInput): Date | null {
 
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (dateOnly) {
-    const d = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-    return Number.isNaN(d.getTime()) ? null : d;
+    return fromParts(Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3]));
   }
 
   // Accept a DD/MM/YYYY string coming back from an input we rendered.
   const display = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
   if (display) {
-    const d = new Date(Number(display[3]), Number(display[2]) - 1, Number(display[1]));
-    return Number.isNaN(d.getTime()) ? null : d;
+    return fromParts(Number(display[3]), Number(display[2]), Number(display[1]));
   }
 
   const parsed = new Date(value);
