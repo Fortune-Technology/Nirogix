@@ -131,6 +131,10 @@ Every milestone follows the **six-step loop** defined in the Development Phases 
 - Verified in both **Light and Dark** themes and under a **non-default tenant's branding**.
 - KNOWLEDGE.md updated and DONE.md appended for every app/package touched.
 - Every new/changed backend endpoint has synchronized OpenAPI/Swagger documentation; `npm run openapi:validate` passes (no undocumented `/api/v1` route, valid spec).
+- **Frontend work follows the Frontend Delivery Workflow** (Rules → Frontend Delivery Workflow): Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup.
+- **API feedback:** every state-changing or failing call surfaces through the shared `@hms/ui` toast via the shared API client, showing the backend's message where it provides one; no silent failure, no per-page toast code, no raw technical error or PHI in the UI (ADR-026).
+- **SEO boundary:** new public marketing routes ship unique metadata + canonical + sitemap entry; new Portal routes are `noindex, nofollow` and leak no patient/tenant/staff data to any crawler-visible surface (ADR-027).
+- **Performance:** images/fonts/scripts/metadata use the Next.js primitives; heavy non-critical UI is lazy-loaded; the route meets the Core Web Vitals budgets (LCP ≤2.5s, INP ≤200ms, CLS ≤0.1).
 - No open **P0/P1** defects.
 
 **Definition of Ready (entry gate, added by this plan).** A milestone is ready to start only when: its upstream dependencies (per the Dependency Map) are `Done`; the permission keys it introduces are named; its acceptance criteria and test matrix are written; and any external prerequisite (e.g. DLT template, SES production access) is either satisfied or explicitly scheduled ahead of the dependent step.
@@ -349,12 +353,15 @@ Per Phases → Frontend (Portal) and Rules → Engineering Standards.
 - **Capabilities context + `Can` guard:** entitled modules + effective permissions are fetched once at login into a client-side capabilities context; a reusable `Can` guard/hook drives menus, tabs, buttons, and route access. A real **403/forbidden page** renders for manually entered unauthorized URLs — never a blank screen or silent redirect.
 - **Portal auth wiring:** token storage (httpOnly refresh cookie + in-memory access token), `401 → refresh → retry`, unauthenticated redirect to `/login`.
 - **Accessibility:** WCAG 2.1 AA where feasible; responsive tablet UI; latest Chrome/Edge/Firefox.
+- **API feedback (ADR-026):** one shared `@hms/ui` Toast, raised from the shared API client — every mutating call gives feedback, the backend's own message is displayed when provided, and network/timeout/validation/401/403/409/5xx/unstructured responses are all normalized in that one layer. No page writes its own toast logic; no stack trace, backend internal, or PHI reaches the user.
+- **Optimization:** `next/image`, `next/font`, `next/script`, the Next Metadata API, and `next/dynamic` for heavy non-critical UI (charts, editors, complex dialogs, admin-only panels), against the Core Web Vitals budgets. The Portal is `noindex, nofollow` end to end and ships no third-party analytics by default (ADR-027).
 
 ## 15. Marketing Site Implementation
 
 - Minimal Next.js scaffold whose **single Login action** points to the Portal's `/login`. No auth logic on the marketing site.
-- The **`Default-DESIGN-intercom.md`** design reference is the visual system for the marketing surface (editorial cream-white canvas, charcoal primary, restrained accent, product-screenshot-led rhythm, modest radii). Treat it as a *marketing-site* design language — it is **not** the Portal's clinical UI system, which is governed by the `packages/ui` design tokens and must prioritize dense, legible, accessible clinical workflows in both themes. Substitute an open font (Inter/Geist) for the proprietary Saans per that document's own guidance.
-- Marketing content, landing pages, and SEO/documentation live here; it deploys independently on the root domain.
+- The visual system is **`resources/DESIGN.md` — the canonical HMS Design System** (deep-teal signature on cool-neutral surfaces, Lucide icons, Geist), expressed through the marketing token scope (`--mk-*`), independent from the Portal's `--hms-*`. It supersedes the earlier `Default-DESIGN-intercom.md` exploration; where they differ, `DESIGN.md` wins.
+- Marketing content, landing pages, and SEO live here; the site deploys independently on the root domain.
+- **SEO/AEO/GEO is this site's job (ADR-027, Rules → SEO / AEO / GEO Rules).** Unique per-page title/description, canonical from `NEXT_PUBLIC_SITE_URL`, one `<h1>` + semantic structure, OG/Twitter metadata, JSON-LD only for what the page shows (`Organization`, `SoftwareApplication`, `LocalBusiness`, `BreadcrumbList`, real `FAQPage`), sitemap/robots in sync with the route table, descriptive URLs, deliberate internal linking, alt text on every non-decorative image, mobile-first + Core Web Vitals. Keywords are mapped per page to matching intent (mapping recorded in `marketing/KNOWLEDGE.md`) — never stuffed, never hidden, never fabricated trust signals, and always inside the PRD content guardrails (no prices, no certification claims, no invented customers).
 
 ---
 

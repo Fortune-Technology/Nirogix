@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@hms/ui/styles.css";
 import "./globals.css";
-import { BackToTop, LottiePreloader, SmoothScroll } from "@hms/ui";
+import { BackToTop, LottiePreloader, SmoothScroll, Toaster } from "@hms/ui";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -15,9 +15,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// The Portal is a private, multi-tenant clinical application: it is never indexed
+// and never advertises anything about a tenant (ADR-027). Product SEO lives on the
+// marketing site. No patient/tenant/staff data may enter this metadata.
 export const metadata: Metadata = {
   title: "HMS Portal",
   description: "Hospital Management System — staff portal",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false, noimageindex: true },
+  },
+  referrer: "strict-origin-when-cross-origin",
 };
 
 // Applies the persisted theme + tenant brand before first paint to avoid a flash.
@@ -47,6 +57,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
             <BackToTop />
           </SmoothScroll>
+          {/* The one API-feedback surface for the Portal (ADR-026). */}
+          <Toaster />
         </Providers>
       </body>
     </html>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Card, Field } from "@hms/ui";
+import Image from "next/image";
+import { Badge, Button, Card, Field } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import * as api from "../../../lib/api";
 import { useTheme } from "../../../lib/theme";
@@ -15,8 +16,6 @@ function BrandingEditor() {
   const { applyBranding, previewBrandColor, logoUrl } = useTheme();
   const [brand, setBrand] = useState(DEFAULT_BRAND);
   const [secondary, setSecondary] = useState(DEFAULT_SECONDARY);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
   const faviconInput = useRef<HTMLInputElement>(null);
@@ -28,16 +27,14 @@ function BrandingEditor() {
     }).catch(() => {});
   }, []);
 
+  // Success and failure are announced by the shared toast, raised inside the API
+  // client (ADR-026) — this screen keeps no notification state of its own.
   async function save() {
     setSaving(true);
-    setError(null);
-    setMsg(null);
     try {
-      const b = await api.updateBranding({ brandColor: brand, secondaryColor: secondary });
-      applyBranding(b);
-      setMsg("Branding saved.");
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not save branding.");
+      applyBranding(await api.updateBranding({ brandColor: brand, secondaryColor: secondary }));
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setSaving(false);
     }
@@ -45,37 +42,26 @@ function BrandingEditor() {
 
   async function upload(kind: "logo" | "favicon", file: File | undefined) {
     if (!file) return;
-    setError(null);
-    setMsg(null);
     try {
-      const b = await api.uploadBrandingAsset(kind, file);
-      applyBranding(b);
-      setMsg(`${kind === "logo" ? "Logo" : "Favicon"} updated.`);
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Upload failed.");
+      applyBranding(await api.uploadBrandingAsset(kind, file));
+    } catch {
+      /* reported by the shared API-feedback layer */
     }
   }
 
   async function reset() {
-    setError(null);
-    setMsg(null);
     try {
-      const b = await api.resetBranding();
-      applyBranding(b);
+      applyBranding(await api.resetBranding());
       previewBrandColor(null);
       setBrand(DEFAULT_BRAND);
       setSecondary(DEFAULT_SECONDARY);
-      setMsg("Branding reset to default.");
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Reset failed.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     }
   }
 
   return (
     <Card header="Tenant branding">
-      {msg && <Alert tone="success">{msg}</Alert>}
-      {error && <Alert tone="danger">{error}</Alert>}
-
       <p className="mb-4 text-sm text-fg-muted">
         The accent colour is a single token — pick one and every button, link, badge, and highlight updates instantly,
         in both themes. Persisted per tenant and applied for all your organization&apos;s users.
@@ -121,8 +107,15 @@ function BrandingEditor() {
           <span className="hms-label">Logo</span>
           <div className="mt-2 flex items-center gap-3">
             {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Current logo" className="h-10 w-10 rounded-token border border-border object-contain" />
+              // Tenant-uploaded asset from per-deployment storage — see AppShell.
+              <Image
+                src={logoUrl}
+                alt="Current organization logo"
+                width={40}
+                height={40}
+                unoptimized
+                className="h-10 w-10 rounded-token border border-border object-contain"
+              />
             ) : (
               <span className="flex h-10 w-10 items-center justify-center rounded-token bg-surface-2 text-xs text-fg-subtle">none</span>
             )}

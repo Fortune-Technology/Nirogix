@@ -36,6 +36,8 @@
   --hms-danger: #c0392b;
   --hms-danger-fg: #ffffff;
   --hms-danger-subtle: #fbe9e6;
+  --hms-info: #2563eb;
+  --hms-info-subtle: #e8effd;
 
   /* Focus ring — follows the (tenant) accent */
   --hms-ring: var(--hms-brand);
@@ -80,6 +82,8 @@
   --hms-danger: #f0776a;
   --hms-danger-fg: #2b0d0a;
   --hms-danger-subtle: #2a1512;
+  --hms-info: #58a6ff;
+  --hms-info-subtle: #0f2138;
 
   --hms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --hms-shadow-md: 0 12px 34px rgba(0, 0, 0, 0.5);
@@ -413,6 +417,169 @@
   .hms-backtotop {
     right: 1.75rem;
     bottom: 1.75rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Toast / notifications (shared Toaster + toast()) — the ONE API-feedback
+ * surface for the Portal and marketing (ADR-026, resources/DESIGN.md §5).
+ * Mobile: top, full width. Desktop: bottom-right, clear of BackToTop.
+ * ------------------------------------------------------------------------ */
+.hms-toaster {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.hms-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-lg);
+  background: var(--hms-surface);
+  box-shadow: var(--hms-shadow-md);
+  font-family: var(--hms-font-sans);
+  color: var(--hms-fg);
+  animation: hms-toast-in 0.18s ease-out;
+}
+.hms-toast__icon {
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  color: var(--hms-fg-muted);
+}
+.hms-toast__icon--spin {
+  animation: hms-spin 0.9s linear infinite;
+}
+.hms-toast--success {
+  background: var(--hms-success-subtle);
+  border-color: color-mix(in srgb, var(--hms-success) 35%, transparent);
+}
+.hms-toast--success .hms-toast__icon {
+  color: var(--hms-success);
+}
+.hms-toast--error {
+  background: var(--hms-danger-subtle);
+  border-color: color-mix(in srgb, var(--hms-danger) 35%, transparent);
+}
+.hms-toast--error .hms-toast__icon {
+  color: var(--hms-danger);
+}
+.hms-toast--warning {
+  background: var(--hms-warning-subtle);
+  border-color: color-mix(in srgb, var(--hms-warning) 35%, transparent);
+}
+.hms-toast--warning .hms-toast__icon {
+  color: var(--hms-warning);
+}
+.hms-toast--info {
+  background: var(--hms-info-subtle);
+  border-color: color-mix(in srgb, var(--hms-info) 35%, transparent);
+}
+.hms-toast--info .hms-toast__icon {
+  color: var(--hms-info);
+}
+.hms-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+.hms-toast__title {
+  margin: 0;
+  font-size: var(--hms-text-base);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.hms-toast__desc {
+  margin: 0.1875rem 0 0;
+  font-size: var(--hms-text-sm);
+  line-height: 1.45;
+  color: var(--hms-fg-muted);
+  overflow-wrap: anywhere;
+}
+.hms-toast__action {
+  margin-top: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--hms-text-sm);
+  font-weight: 600;
+  color: var(--hms-brand);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hms-toast__action:focus-visible,
+.hms-toast__close:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+  border-radius: var(--hms-radius-sm);
+}
+.hms-toast__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: -0.125rem -0.25rem 0 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: none;
+  color: var(--hms-fg-subtle);
+  cursor: pointer;
+}
+.hms-toast__close:hover {
+  color: var(--hms-fg);
+  background: color-mix(in srgb, var(--hms-fg) 8%, transparent);
+}
+@keyframes hms-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 640px) {
+  .hms-toaster {
+    top: auto;
+    left: auto;
+    right: 1.75rem;
+    /* Clears the BackToTop control (2.75rem tall at 1.75rem from the bottom). */
+    bottom: 5.5rem;
+    width: min(22rem, calc(100vw - 3.5rem));
+  }
+  @keyframes hms-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-toast {
+    animation: none;
+  }
+  .hms-toast__icon--spin {
+    animation-duration: 2s;
   }
 }
 

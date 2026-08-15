@@ -16,12 +16,16 @@ import { Container, SectionHeading } from "../../components/ui/primitives";
 import { Reveal } from "../../components/ui/Reveal";
 import { ProductFrame } from "../../components/product/ProductFrame";
 import { AuditPreview } from "../../components/product/previews";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Security & Trust",
+// Topical intent (data protection / residency) — no location or commercial terms here.
+export const metadata: Metadata = pageMetadata({
+  path: "/security",
+  title: "Security, Tenant Isolation & India Data Residency",
   description:
-    "How the HMS protects data: PostgreSQL row-level tenant isolation, India data residency, an immutable audit trail, encryption at rest and in transit, and least-privilege access.",
-};
+    "How the HMS protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.",
+});
 
 const PRACTICES: { name: string; icon: typeof Lock; body: string }[] = [
   { name: "Encryption everywhere", icon: Lock, body: "AES-256 at rest and TLS 1.2+ in transit for data moving between every service." },
@@ -42,6 +46,7 @@ const ALIGNED = [
 export default function SecurityPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Security", path: "/security" }])} />
       <PageHeader
         eyebrow="Security & trust"
         title="Health data, protected at the layer that matters."

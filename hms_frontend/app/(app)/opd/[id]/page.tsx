@@ -37,7 +37,6 @@ function Consultation({ visitId }: { visitId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [soap, setSoap] = useState({ subjective: "", objective: "", assessment: "", plan: "" });
@@ -116,12 +115,12 @@ function Consultation({ visitId }: { visitId: string }) {
 
   async function save() {
     if (!enc) return;
-    setSaving(true); setError(null); setSavedMsg(null);
+    setSaving(true); setError(null);
     try {
+      // Outcome is announced by the shared toast (ADR-026).
       hydrate(await api.saveEncounter(enc.id, buildBody()));
-      setSavedMsg("Saved.");
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not save the consultation.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setSaving(false);
     }
@@ -130,12 +129,12 @@ function Consultation({ visitId }: { visitId: string }) {
   async function sign() {
     if (!enc) return;
     if (!window.confirm("Sign this consultation? It will be locked and the visit marked completed.")) return;
-    setSigning(true); setError(null); setSavedMsg(null);
+    setSigning(true); setError(null);
     try {
       await api.saveEncounter(enc.id, buildBody());
       hydrate(await api.signEncounter(enc.id));
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not sign the consultation.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setSigning(false);
     }
@@ -180,7 +179,6 @@ function Consultation({ visitId }: { visitId: string }) {
       />
 
       {error && <Alert tone="danger">{error}</Alert>}
-      {savedMsg && !error && <Alert tone="success">{savedMsg}</Alert>}
 
       <Card header="Vitals">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

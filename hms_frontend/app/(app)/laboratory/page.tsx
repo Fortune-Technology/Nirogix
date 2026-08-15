@@ -43,8 +43,8 @@ function ResultForm({ order, tests, onDone, onError }: { order: LabOrder; tests:
     try {
       await api.enterLabResult(order.id, { testId: testId || null, value: value.trim(), notes: notes || null });
       onDone();
-    } catch (e) {
-      onError(e instanceof api.ApiRequestError ? e.message : "Could not save the result.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -76,7 +76,6 @@ function Worklist() {
   const [tests, setTests] = useState<LabTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canManage = useCan(PERMISSIONS.LAB_MANAGE);
   const canResult = useCan(PERMISSIONS.LAB_RESULT_ENTER);
@@ -125,7 +124,6 @@ function Worklist() {
         }
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      {msg && !error && <Alert tone="success">{msg}</Alert>}
 
       {loading ? (
         <div className="flex items-center gap-2 text-fg-muted">
@@ -175,8 +173,8 @@ function Worklist() {
                   <ResultForm
                     order={o}
                     tests={tests}
-                    onDone={() => { setMsg("Result saved."); setError(null); void load(); }}
-                    onError={(m) => { setError(m); setMsg(null); }}
+                    onDone={() => { setError(null); void load(); }}
+                    onError={setError}
                   />
                 </div>
               )}

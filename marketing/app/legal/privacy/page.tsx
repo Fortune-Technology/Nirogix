@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "../../../components/site/LegalPage";
 import { SITE } from "../../../lib/site";
+import { pageMetadata } from "../../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy",
+export const metadata: Metadata = pageMetadata({
+  path: "/legal/privacy",
+  title: "Privacy Policy",
   description:
     "How the HMS platform handles data: what is collected, how it is used, India data residency, security, and data-subject rights aligned with the DPDP Act.",
-};
+});
 
 const SECTIONS: LegalSection[] = [
   {

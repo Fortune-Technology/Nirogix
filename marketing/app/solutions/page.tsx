@@ -3,16 +3,21 @@ import { PageHeader } from "../../components/site/PageHeader";
 import { CtaSection } from "../../components/site/CtaSection";
 import { Container, SectionHeading } from "../../components/ui/primitives";
 import { ROLES, FACILITIES } from "../../lib/site";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Solutions",
+// Primary intent: "clinic management software" + role/facility fit.
+export const metadata: Metadata = pageMetadata({
+  path: "/solutions",
+  title: "Clinic & Hospital Management Software by Role",
   description:
-    "HMS by role and by facility: receptionists, doctors, pharmacists, lab technicians, cashiers, and admins, across clinics, nursing homes, hospitals, diagnostic centres, and pharmacies.",
-};
+    "Clinic management software that fits how your team works: receptionists, doctors, pharmacists, lab technicians, cashiers, and admins — across clinics, nursing homes, hospitals, and diagnostic centres.",
+});
 
 export default function SolutionsPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Solutions", path: "/solutions" }])} />
       <PageHeader
         eyebrow="Solutions"
         title="Built around how your team actually works."

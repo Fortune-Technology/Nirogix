@@ -10,16 +10,29 @@ import { EntitlementsPreview } from "../../components/product/previews";
 import { PlatformCoreSection, TrustStrip } from "../../components/home/sections";
 import { PLATFORM_PILLARS } from "../../lib/catalogue";
 import { PORTAL_LOGIN_URL } from "../../lib/portal";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Platform",
+// Primary intent: "hospital ERP software" / "healthcare management software".
+export const metadata: Metadata = pageMetadata({
+  path: "/platform",
+  title: "Hospital ERP Software Platform",
   description:
-    "One multi-tenant platform: isolated per hospital, modular and independently sellable, multi-branch, and configurable per tenant without code forks.",
-};
+    "One multi-tenant healthcare management platform: isolated per hospital, modular and independently sellable, multi-branch, and configurable per tenant without code forks.",
+});
 
 export default function PlatformPage() {
   return (
     <>
+      <JsonLd
+        data={softwareApplicationJsonLd({
+          name: "HMS Platform — hospital ERP software",
+          description:
+            "The multi-tenant platform underneath every HMS module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.",
+          path: "/platform",
+        })}
+      />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Platform", path: "/platform" }])} />
       <PageHeader
         eyebrow="Platform"
         title="Build the core once. Sell the modules independently."

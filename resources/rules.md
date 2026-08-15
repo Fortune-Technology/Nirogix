@@ -26,6 +26,10 @@ This document states rules only. For the architecture each rule is derived from,
   - [Database Rules](#database-rules)
   - [API Rules](#api-rules)
   - [UI / UX Rules](#ui--ux-rules)
+  - [Frontend Delivery Workflow](#frontend-delivery-workflow)
+  - [SEO / AEO / GEO Rules](#seo--aeo--geo-rules)
+  - [API Feedback & Notification Rules](#api-feedback--notification-rules)
+  - [Frontend Performance & Next.js Optimization Rules](#frontend-performance--nextjs-optimization-rules)
   - [Security Rules](#security-rules)
   - [Audit Rules](#audit-rules)
   - [Testing Rules](#testing-rules)
@@ -135,6 +139,78 @@ OpenAPI/Swagger documentation is part of backend implementation — not an optio
 - Every component renders correctly in both Light and Dark themes, and under a non-default tenant's branding, before being considered complete.
 - Unauthorized sidebar items, tabs, buttons, and routes are hidden client-side, and a manually entered unauthorized URL renders a 403/forbidden state — never a blank screen or silent redirect.
 
+### Frontend Delivery Workflow
+
+Binding order for **every** new page or feature on the Marketing site and the Portal — each step is part of the Definition of Done, not a follow-up task:
+
+**Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup.**
+
+The shipped result is *SEO-friendly + fast + accessible + responsive + maintainable + secure + production-ready*. A page that renders correctly but has duplicate metadata, no API feedback, an un-optimized image, or leftover unused files is not done.
+
+### SEO / AEO / GEO Rules
+
+**Scope.** The Marketing site (`marketing/`) is the public, indexable surface and carries the product's SEO. The Portal (`hms_frontend/`) is a private application: it is optimized for humans and never for search engines. SEO work on a Portal page is only ever appropriate for a genuinely public, non-authenticated route.
+
+**Reference standard.** The **Claude SEO Skill** (https://www.claudeseoskill.com/) is the SEO/AEO/GEO implementation reference for this project. Where it and this section differ, this section wins (it encodes the project's own content guardrails).
+
+**Technical SEO (marketing, every public route)**
+
+- **Unique title and meta description per route.** No two routes ship the same title/description pair. Written for the page's actual search intent, not templated filler.
+- **Canonical URL** on every public page; the base URL comes from `NEXT_PUBLIC_SITE_URL` via `metadataBase`, never hard-coded.
+- **One `<h1>` per page**, heading levels never skipped, semantic HTML (`header`/`nav`/`main`/`section`/`article`/`footer`) — the same structure that AEO/GEO answer extraction relies on.
+- **Open Graph + Twitter/social metadata** on every public page, with an OG image appropriate to that page family.
+- **Structured data / JSON-LD, only where it describes what the page actually shows:** `Organization` site-wide; `SoftwareApplication` on product/platform/module pages; `LocalBusiness` on the company/contact page (Ahmedabad, Gujarat, India); `BreadcrumbList` on nested routes; `FAQPage` only where a real, visible FAQ exists.
+- **`sitemap.ts` and `robots.ts` stay in sync with the real route table** — a new public route adds its sitemap entry in the same change; a removed route is redirected (301), never left dead.
+- **Descriptive, kebab-case, hierarchical URLs.** Content identity never depends on a query parameter.
+- **Internal linking** is deliberate: every public page is reachable from navigation or a contextual in-content link; no orphan pages.
+- **Every non-decorative image has meaningful `alt` text**; decorative images use `alt=""`.
+- **Mobile-first and Core Web Vitals are SEO requirements**, governed by the performance rules below.
+
+**Keyword strategy**
+
+- Keywords are **mapped to the page whose search intent they match**, and used naturally in the title, `<h1>`, and body — or not used at all. The mapping is recorded in `marketing/KNOWLEDGE.md`.
+- The working set is the product's real market: *Hospital Management System / Software*, *…in India*, *…Gujarat*, *Hospital Software Ahmedabad*, *Healthcare Management Software*, *Clinic Management Software*, *Hospital ERP Software*, *HMS Software for Hospitals*, *Hospital Billing Software*, *Hospital Appointment Management*, *Patient Management System*, *Doctor Management System*, *Pharmacy Management*, *Laboratory Management System*. Location and module terms belong on the pages that genuinely serve them (module pages, solutions, contact), not sitewide.
+- **SEO never overrides UX.** If a keyword makes a sentence worse, the sentence wins.
+
+**Prohibited in SEO work**
+
+- Keyword stuffing, artificial repetition, hidden text, doorway pages, or duplicated metadata.
+- Structured data for content not visible on the page, and **fabricated reviews, ratings, or `aggregateRating`** — this extends the PRD Regulatory Register's no-fabricated-social-proof rule.
+- Misleading claims. The marketing content guardrails still bind SEO copy: no prices/named tiers, no compliance-certification claims, no reference customers that do not exist.
+
+**Portal / private-surface rules**
+
+- Every authenticated Portal route is **`noindex, nofollow`**, and the Portal serves a `robots.ts` disallowing crawling. Public auth routes (`/login`) are noindex too — product SEO lives on the marketing site.
+- **No patient, tenant, staff, clinical, or operational data ever appears** in a title, meta description, OG image, URL path, sitemap, or any crawler-visible surface.
+
+### API Feedback & Notification Rules
+
+- **One shared notification/Toast system in `@hms/ui`**, consumed by both the Portal and the Marketing site. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
+- Its API and behaviour follow the **shadcn/ui Toast** pattern (https://ui.shadcn.com/docs/components/base/toast) as a *design and ergonomics reference*. It is implemented on `@hms/ui` design tokens with Lucide icons per `resources/DESIGN.md`; shadcn/Radix is **not** added as a dependency (see Dependency Rules and ADR-026).
+- **Every state-changing API call produces user-visible feedback, and every failure does** — a silently failed request is a defect. Background/read-only refreshes may be silent on success but never on error.
+- **Feedback is centralized in the shared API client**, not written per call site. The `if (success) toast(...) / if (error) toast(...)` pattern repeated in pages is prohibited; the client extracts the message, classifies the outcome, and raises one notification.
+- **Show the backend's message when it provides one.** Success responses carrying a `message` (e.g. `"Hospital registered successfully."`) are displayed verbatim; failures use `error.message` from the canonical `{ error: { code, message, details? } }` envelope. Generic fallback copy is used **only** when the response carries nothing usable — never as a blanket replacement.
+- **Variants** map to the semantic tokens in `resources/DESIGN.md` §2 — success (green), error (danger red), warning (amber), info (blue/neutral), loading/processing (neutral) — never a hardcoded colour.
+- **The layer handles every failure mode:** network failure, timeout, validation (field errors rendered on the fields plus one summary notification), 401 (session expired → silent refresh, then the re-auth path — never a bare "Unauthorized"), 403 (the standard Forbidden panel at page level), 409/optimistic-lock conflict, 429, 5xx, and unstructured or non-JSON responses.
+- **Never surface internals.** No stack traces, SQL, raw provider errors, internal hostnames, or developer-facing `details` reach the user; full detail goes to the structured logger / `errorTracker`. **Never render PHI in a notification.**
+- **Accessible by construction:** `role="status"` (polite) for routine messages and `role="alert"` (assertive) for errors, keyboard-focusable and Esc-dismissible, auto-dismiss for success, errors persist until dismissed, honours `prefers-reduced-motion`, positioned so it never covers the primary action, with a stack limit and de-duplication.
+- **Idempotent retries produce one notification, not one per attempt.**
+
+### Frontend Performance & Next.js Optimization Rules
+
+The Next.js optimization guides are the reference. **Both apps are Next 16** — read the version-matched docs bundled at `node_modules/next/dist/docs/` (per each app's `AGENTS.md`) rather than any older online version.
+
+- **Images:** `next/image` with explicit dimensions (or `fill` inside a sized container), a correct `sizes`, lazy by default, and `priority` on at most one genuinely above-the-fold LCP image per route. Modern formats. No raw `<img>` for content images; icons remain Lucide.
+- **Fonts:** `next/font` only (Geist / Geist Mono today) — self-hosted and subset, only the weights actually used, no runtime font-CDN request, no layout shift on load. Typography stays identical across Marketing and Portal.
+- **Scripts:** third-party scripts load through `next/script` with a deliberate strategy (`afterInteractive` / `lazyOnload`) and never block first render. **No third-party script ships without a stated product requirement** and a privacy review.
+- **Metadata:** use the Next Metadata API — global defaults in the root layout, per-route overrides, `generateMetadata` for dynamic routes. No hand-rolled `<head>` tags.
+- **Static assets:** organized under each app's `public/`; an asset no longer referenced is deleted (clean-code rule, `resources/DESIGN.md` §9.7).
+- **Bundle:** run bundle analysis before adding a heavy dependency and when a route's JavaScript grows noticeably. Prefer Server Components; push `"use client"` to the leaves; no two libraries doing the same job.
+- **Lazy loading:** `next/dynamic` for heavy non-critical UI — charts, rich editors, complex dialogs, below-the-fold marketing sections, admin-only panels. **Never** lazy-load above-the-fold or LCP content.
+- **Budgets, measured before "done":** LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 on a mid-range mobile profile for public marketing routes; the Portal targets the same INP/CLS with LCP measured on the authenticated shell.
+- **Analytics & instrumentation:** loaded lazily, off the critical path, and separate from core application logic. **Never send PHI, patient/clinical detail, or tenant-identifying operational data to an analytics or telemetry platform** — page-level events only, identifiers stripped. The Portal ships no third-party analytics by default.
+- **Observability:** application/API telemetry flows through the existing structured logger and the `errorTracker` abstraction (ADR-019, ADR-007); OpenTelemetry, if adopted, sits behind that same seam. Internal telemetry is never exposed to end users beyond a support reference id.
+
 ### Security Rules
 
 - Encryption in transit and at rest is mandatory for all PHI-bearing data.
@@ -157,6 +233,7 @@ OpenAPI/Swagger documentation is part of backend implementation — not an optio
 ### Documentation Rules
 
 - Every app and package maintains KNOWLEDGE.md (current state) and DONE.md (append-only implementation log). A feature is not done until both are updated.
+- Anything knowingly **blocked, skipped, or deferred** is recorded in the root **BACKLOG.md** in the same change that discovered it — including what is needed from the product owner and which file/decision it unblocks. An item leaves BACKLOG.md only when it is done (and logged in DONE.md) or explicitly dropped with a reason.
 - Architecturally significant decisions are recorded in DECISIONS.md as a numbered ADR. DECISIONS.md is appended to, never rewritten.
 - A root CLAUDE.md indexes the whole monorepo and links to every app/package's own KNOWLEDGE.md and DONE.md.
 
@@ -164,6 +241,8 @@ OpenAPI/Swagger documentation is part of backend implementation — not an optio
 
 - A business module's hard dependencies (Module Capability Matrix, Project Requirements Document) are enforced by the entitlement engine at activation time. The system refuses to activate a module whose hard dependency is not already entitled.
 - New third-party dependencies sit behind a provider abstraction (SmsService, EmailService, FileStorageService). Module code never makes a direct SDK call to an external vendor.
+- **Every new dependency is audited before it is added**, frontend included: is it actually necessary; does an existing dependency or `@hms/ui` already solve it; does Next.js/the platform provide it natively; what is its bundle cost; is it actively maintained; does it introduce a security or privacy concern. A large library is never introduced where a lightweight existing solution or a native capability is sufficient. The reasoning is recorded in the PR (and in DECISIONS.md when the choice is architecturally significant).
+- **No second UI component library.** Missing UI capability is added to `@hms/ui`; a design reference (e.g. shadcn/ui) is followed as a pattern, not installed as a package (ADR-026).
 
 ### Git Rules
 
@@ -179,6 +258,13 @@ OpenAPI/Swagger documentation is part of backend implementation — not an optio
 - Do not build a new authorization/permission engine for a specific feature (temporary access, break-glass, or otherwise) instead of extending the existing one.
 - Do not physically delete entitlement, permission-override, or audit records.
 - Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by `npm run openapi:validate` in CI).
+- Do not write per-call success/error notification logic in a page or component instead of using the shared API-feedback layer.
+- Do not build a second notification/toast implementation, and do not install a UI component library (shadcn/Radix/MUI/…) to get one — extend `@hms/ui`.
+- Do not replace a usable backend message with generic copy, and do not show a raw technical error, stack trace, or backend internal to a user.
+- Do not let any authenticated Portal route be indexable, and do not place patient/tenant/staff/operational data in metadata, URLs, OG images, or a sitemap.
+- Do not ship duplicate page metadata, keyword-stuffed copy, hidden SEO text, or structured data describing content that is not visible on the page (including fabricated reviews or ratings).
+- Do not use a raw `<img>` for a content image, load fonts from a runtime CDN, or ship a render-blocking third-party script.
+- Do not send PHI or tenant-identifying operational data to an analytics or telemetry platform.
 - Do not silently convert a "Pending verification" regulatory assumption into a stated compliance requirement.
 - Do not introduce Kubernetes, Kafka, a service mesh, or multi-region deployment without an explicit, documented Phase 2+ decision.
 
@@ -193,7 +279,7 @@ OpenAPI/Swagger documentation is part of backend implementation — not an optio
 - Reading order for both human and AI-assisted development: root CLAUDE.md → the relevant module's KNOWLEDGE.md → DONE.md for historical context → source code — so architecture and past decisions are never rediscovered from scratch
 - KNOWLEDGE.md is updated whenever a module's architecture or behavior changes; DONE.md is appended, never rewritten, whenever a feature is completed
 
-> **Definition of Done, extended:** Documentation is not a follow-up task. On top of every milestone's own testing criteria (see "How This Roadmap Works"), a feature is not complete until KNOWLEDGE.md reflects it, DONE.md records it, and it has been verified in both themes and under a non-default tenant's branding.
+> **Definition of Done, extended:** Documentation is not a follow-up task. On top of every milestone's own testing criteria (see "How This Roadmap Works"), a feature is not complete until KNOWLEDGE.md reflects it, DONE.md records it, and it has been verified in both themes and under a non-default tenant's branding. For any frontend work, the [Frontend Delivery Workflow](#frontend-delivery-workflow) is also part of Done — SEO (where applicable), accessibility, Next.js optimization, shared API feedback, performance budgets, and cleanup of everything the change made obsolete.
 
 ### Architecture Decision Records (DECISIONS.md)
 

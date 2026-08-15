@@ -4,11 +4,15 @@ import { PageHeader } from "../../components/site/PageHeader";
 import { CtaSection } from "../../components/site/CtaSection";
 import { Container, SectionHeading } from "../../components/ui/primitives";
 import { SITE } from "../../lib/site";
+import { JsonLd } from "../../components/site/JsonLd";
+import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: `${SITE.legalName} builds a multi-tenant, India-resident hospital management system that lets hospitals buy and run only the modules they need.`,
-};
+// Company intent, including where the team is based.
+export const metadata: Metadata = pageMetadata({
+  path: "/about",
+  title: `About ${SITE.legalName}`,
+  description: `${SITE.legalName} builds a multi-tenant, India-resident hospital management system from ${COMPANY.city}, ${COMPANY.region} — so hospitals buy and run only the modules they need.`,
+});
 
 const PRINCIPLES = [
   {
@@ -36,6 +40,9 @@ const PRINCIPLES = [
 export default function AboutPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "About", path: "/about" }])} />
+      {/* Rendered only once a verified postal address + phone exist (lib/seo.ts). */}
+      <JsonLd data={localBusinessJsonLd()} />
       <PageHeader
         eyebrow="About"
         title="A hospital platform that scales by the module."

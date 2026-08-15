@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, cn } from "@hms/ui";
 import { useAuth } from "../lib/auth";
@@ -39,8 +40,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-5">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Logo" className="h-6 w-6 rounded-token object-contain" />
+            // Tenant-uploaded asset: the origin is per-deployment object storage, so it
+            // cannot be enumerated in `images.remotePatterns` — `unoptimized` keeps
+            // next/image's sizing/CLS discipline without the optimizer round-trip.
+            <Image
+              src={logoUrl}
+              alt="Organization logo"
+              width={24}
+              height={24}
+              unoptimized
+              className="h-6 w-6 rounded-token object-contain"
+            />
           ) : (
             <span className="inline-block h-6 w-6 rounded-token bg-brand" aria-hidden />
           )}

@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
 import { CLINIC_MODULES } from "../lib/site";
+import { SITE_URL } from "../lib/seo";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
-
+/**
+ * Every public route, and nothing else (ADR-027). A new marketing route adds its
+ * entry here in the same change; a removed one is 301'd, never left dead.
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPaths = [
     "",

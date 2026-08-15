@@ -8,6 +8,11 @@
 //   considered expired and `onSessionExpired` fires so the AuthProvider can react.
 // - The backend's canonical `{ error: { code, message } }` shape is unwrapped into
 //   typed errors. Security is enforced server-side; the client only reflects it.
+// - USER FEEDBACK LIVES HERE (ADR-026). Every failure, and every state-changing
+//   call, raises exactly one notification through the shared @hms/ui toast via
+//   lib/feedback.ts. Pages never write their own toast logic; a call opts out
+//   with `feedback: false` (or tunes the copy with `success: "…"`) only where the
+//   screen itself is the feedback (e.g. sign-in, which navigates).
 
 import type {
   ApiError,
@@ -62,6 +67,9 @@ import type {
   CollectionsReport,
   PendingLabRow,
 } from "@hms/types";
+import { ApiRequestError, NetworkError, TimeoutError } from "./apiErrors";
+import { notifyError, notifySuccess, successMessage } from "./feedback";
+import { formatPaise } from "./money";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
 
@@ -78,24 +86,10 @@ export function setOnSessionExpired(cb: (() => void) | null): void {
   onSessionExpired = cb;
 }
 
-export class ApiRequestError extends Error {
-  code: string;
-  status: number;
-  details?: unknown;
-  constructor(status: number, code: string, message: string, details?: unknown) {
-    super(message);
-    this.name = "ApiRequestError";
-    this.status = status;
-    this.code = code;
-    this.details = details;
-  }
-  get isForbidden(): boolean {
-    return this.status === 403;
-  }
-  get isUnauthorized(): boolean {
-    return this.status === 401;
-  }
-}
+export { ApiRequestError, NetworkError, TimeoutError } from "./apiErrors";
+
+/** Requests that outlive this are aborted and reported as a timeout, never left hanging. */
+const REQUEST_TIMEOUT_MS = 30_000;
 
 async function parseError(res: Response): Promise<ApiRequestError> {
   let code = "ERROR";
@@ -121,33 +115,73 @@ interface RequestOptions {
   _retry?: boolean;
   /** When false, a 401 is returned as an error without attempting a refresh. */
   refreshOn401?: boolean;
+  /**
+   * Notification control (ADR-026). Default: failures always notify; state-changing
+   * methods also notify on success. `false` silences both (the screen is the
+   * feedback); `{ success: "…" }` sets the fallback copy used when the API returns
+   * no `message` of its own — a function builds that copy from the response;
+   * `{ success: false }` keeps only the failure toast.
+   */
+  feedback?: false | { success?: string | false | ((payload: never) => string); error?: false };
+}
+
+/** Runs the fetch, converting a dead connection or a stalled request into typed errors. */
+async function send(path: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${BASE_URL}${path}`, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) throw new TimeoutError();
+    throw new NetworkError("Network request failed", err);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, _retry = false, refreshOn401 = true } = opts;
+  const { method = "GET", body, _retry = false, refreshOn401 = true, feedback } = opts;
+  const mutating = method !== "GET" && method !== "HEAD";
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    credentials: "include",
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await send(path, {
+      method,
+      headers,
+      credentials: "include",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    if (feedback !== false && feedback?.error !== false) notifyError(err);
+    throw err;
+  }
 
   if (res.status === 401 && refreshOn401 && !_retry) {
     const refreshed = await tryRefresh();
     if (refreshed) return request<T>(path, { ...opts, _retry: true });
     if (onSessionExpired) onSessionExpired();
-    throw await parseError(res);
+    const expired = await parseError(res);
+    if (feedback !== false && feedback?.error !== false) notifyError(expired);
+    throw expired;
   }
 
-  if (!res.ok) throw await parseError(res);
+  if (!res.ok) {
+    const failure = await parseError(res);
+    if (feedback !== false && feedback?.error !== false) notifyError(failure);
+    throw failure;
+  }
 
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const payload = res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+
+  if (mutating && feedback !== false && feedback?.success !== false) {
+    notifySuccess(successMessage(payload, feedback?.success, method));
+  }
+
+  return payload;
 }
 
 // ---- Session ---------------------------------------------------------------
@@ -177,12 +211,20 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
     method: "POST",
     body: payload,
     refreshOn401: false,
+    // Sign-in is the one screen that owns its own feedback: success navigates to
+    // the dashboard, and failure renders inline on the form (built from the same
+    // describeError() copy), so a toast would just say it twice.
+    feedback: false,
   });
 }
 
 export async function logout(): Promise<void> {
   try {
-    await request<{ message: string }>("/auth/logout", { method: "POST", refreshOn401: false });
+    await request<{ message: string }>("/auth/logout", {
+      method: "POST",
+      refreshOn401: false,
+      feedback: { success: "Signed out." },
+    });
   } finally {
     accessToken = null;
   }
@@ -227,19 +269,27 @@ export async function getTenant(id: string): Promise<TenantDetail> {
 }
 
 export async function onboardTenant(body: OnboardTenantRequest): Promise<OnboardTenantResponse> {
-  return request<OnboardTenantResponse>("/admin/tenants", { method: "POST", body });
+  return request<OnboardTenantResponse>("/admin/tenants", { method: "POST", body, feedback: { success: "Hospital onboarded." } });
 }
 
 export async function setTenantStatus(id: string, status: string): Promise<Tenant> {
-  return request<Tenant>(`/admin/tenants/${id}/status`, { method: "PATCH", body: { status } });
+  return request<Tenant>(`/admin/tenants/${id}/status`, {
+    method: "PATCH",
+    body: { status },
+    feedback: { success: "Tenant status updated." },
+  });
 }
 
 export async function grantTenantModule(id: string, module: string): Promise<void> {
-  await request(`/admin/tenants/${id}/modules`, { method: "POST", body: { module } });
+  await request(`/admin/tenants/${id}/modules`, {
+    method: "POST",
+    body: { module },
+    feedback: { success: "Module granted." },
+  });
 }
 
 export async function revokeTenantModule(id: string, key: string): Promise<void> {
-  await request(`/admin/tenants/${id}/modules/${key}`, { method: "DELETE" });
+  await request(`/admin/tenants/${id}/modules/${key}`, { method: "DELETE", feedback: { success: "Module revoked." } });
 }
 
 export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
@@ -263,7 +313,7 @@ export async function listPatients(page = 1, pageSize = 20, search?: string): Pr
 }
 
 export async function createPatient(body: CreatePatientRequest): Promise<Patient> {
-  return request<Patient>("/patients", { method: "POST", body });
+  return request<Patient>("/patients", { method: "POST", body, feedback: { success: "Patient registered." } });
 }
 
 export async function getPatient(id: string): Promise<Patient> {
@@ -271,7 +321,7 @@ export async function getPatient(id: string): Promise<Patient> {
 }
 
 export async function updatePatient(id: string, patch: Partial<CreatePatientRequest> & { status?: string }): Promise<Patient> {
-  return request<Patient>(`/patients/${id}`, { method: "PATCH", body: patch });
+  return request<Patient>(`/patients/${id}`, { method: "PATCH", body: patch, feedback: { success: "Patient updated." } });
 }
 
 // ---- Appointments ----------------------------------------------------------
@@ -290,11 +340,15 @@ export async function listAppointments(
 }
 
 export async function bookAppointment(body: BookAppointmentRequest): Promise<{ id: string; status: string }> {
-  return request<{ id: string; status: string }>("/appointments", { method: "POST", body });
+  return request<{ id: string; status: string }>("/appointments", { method: "POST", body, feedback: { success: "Appointment booked." } });
 }
 
 export async function cancelAppointment(id: string, reason?: string): Promise<{ id: string; status: string }> {
-  return request<{ id: string; status: string }>(`/appointments/${id}/cancel`, { method: "POST", body: { reason } });
+  return request<{ id: string; status: string }>(`/appointments/${id}/cancel`, {
+    method: "POST",
+    body: { reason },
+    feedback: { success: "Appointment cancelled." },
+  });
 }
 
 // ---- OPD / visits (hms_backend/src/modules/opd) ----------------------------
@@ -316,11 +370,11 @@ export async function getVisit(id: string): Promise<Visit> {
 }
 
 export async function checkIn(body: CheckInRequest): Promise<Visit> {
-  return request<Visit>("/visits/check-in", { method: "POST", body });
+  return request<Visit>("/visits/check-in", { method: "POST", body, feedback: { success: "Patient checked in." } });
 }
 
 export async function updateVisitStatus(id: string, body: UpdateVisitStatusRequest): Promise<Visit> {
-  return request<Visit>(`/visits/${id}/status`, { method: "PATCH", body });
+  return request<Visit>(`/visits/${id}/status`, { method: "PATCH", body, feedback: { success: "Visit updated." } });
 }
 
 // ---- Billing (hms_backend/src/modules/billing) -----------------------------
@@ -341,21 +395,21 @@ export async function getInvoice(id: string): Promise<Invoice> {
 }
 
 export async function recordPayment(id: string, body: RecordPaymentRequest): Promise<Invoice> {
-  return request<Invoice>(`/invoices/${id}/payments`, { method: "POST", body });
+  return request<Invoice>(`/invoices/${id}/payments`, { method: "POST", body, feedback: { success: "Payment recorded." } });
 }
 
 // ---- EMR / Clinical Workflow (hms_backend/src/modules/emr) ------------------
 
 export async function openEncounter(visitId: string): Promise<Encounter> {
-  return request<Encounter>("/encounters/open", { method: "POST", body: { visitId } });
+  return request<Encounter>("/encounters/open", { method: "POST", body: { visitId }, feedback: { success: false } });
 }
 
 export async function saveEncounter(id: string, body: SaveEncounterRequest): Promise<Encounter> {
-  return request<Encounter>(`/encounters/${id}`, { method: "PUT", body });
+  return request<Encounter>(`/encounters/${id}`, { method: "PUT", body, feedback: { success: "Consultation saved." } });
 }
 
 export async function signEncounter(id: string): Promise<Encounter> {
-  return request<Encounter>(`/encounters/${id}/sign`, { method: "POST" });
+  return request<Encounter>(`/encounters/${id}/sign`, { method: "POST", feedback: { success: "Consultation signed." } });
 }
 
 export async function searchIcd10(q: string): Promise<Icd10Code[]> {
@@ -370,11 +424,11 @@ export async function listDrugs(search?: string): Promise<Drug[]> {
 }
 
 export async function createDrug(body: CreateDrugRequest): Promise<Drug> {
-  return request<Drug>("/drugs", { method: "POST", body });
+  return request<Drug>("/drugs", { method: "POST", body, feedback: { success: "Drug added." } });
 }
 
 export async function receiveStock(drugId: string, body: ReceiveStockRequest): Promise<Drug> {
-  return request<Drug>(`/drugs/${drugId}/stock`, { method: "POST", body });
+  return request<Drug>(`/drugs/${drugId}/stock`, { method: "POST", body, feedback: { success: "Stock received." } });
 }
 
 export async function listPendingPrescriptions(): Promise<PendingPrescription[]> {
@@ -382,7 +436,14 @@ export async function listPendingPrescriptions(): Promise<PendingPrescription[]>
 }
 
 export async function dispense(body: DispenseRequest): Promise<DispenseResult> {
-  return request<DispenseResult>("/dispense", { method: "POST", body });
+  return request<DispenseResult>("/dispense", {
+    method: "POST",
+    body,
+    feedback: {
+      success: (r: DispenseResult) =>
+        `Dispensed ${r.drugName} × ${r.quantity} · ${formatPaise(r.totalPaise)} added to the bill.`,
+    },
+  });
 }
 
 // ---- Laboratory (hms_backend/src/modules/laboratory) -----------------------
@@ -393,7 +454,7 @@ export async function listLabTests(search?: string): Promise<LabTest[]> {
 }
 
 export async function createLabTest(body: CreateLabTestRequest): Promise<LabTest> {
-  return request<LabTest>("/lab-tests", { method: "POST", body });
+  return request<LabTest>("/lab-tests", { method: "POST", body, feedback: { success: "Lab test added." } });
 }
 
 export async function listLabOrders(status?: string): Promise<LabOrder[]> {
@@ -406,11 +467,11 @@ export async function getLabOrder(id: string): Promise<LabOrder> {
 }
 
 export async function collectLabSample(id: string): Promise<LabOrder> {
-  return request<LabOrder>(`/lab-orders/${id}/collect`, { method: "POST" });
+  return request<LabOrder>(`/lab-orders/${id}/collect`, { method: "POST", feedback: { success: "Sample marked collected." } });
 }
 
 export async function enterLabResult(id: string, body: EnterResultRequest): Promise<LabOrder> {
-  return request<LabOrder>(`/lab-orders/${id}/result`, { method: "POST", body });
+  return request<LabOrder>(`/lab-orders/${id}/result`, { method: "POST", body, feedback: { success: "Result saved." } });
 }
 
 // ---- Reports (hms_backend/src/modules/reports) -----------------------------
@@ -434,7 +495,11 @@ export async function listUsers(): Promise<UserListItem[]> {
 }
 
 export async function createUser(body: CreateUserRequest): Promise<{ id: string; tempPassword: string | null }> {
-  return request<{ id: string; tempPassword: string | null }>("/users", { method: "POST", body });
+  return request<{ id: string; tempPassword: string | null }>("/users", {
+    method: "POST",
+    body,
+    feedback: { success: "User created." },
+  });
 }
 
 export async function getUser(id: string): Promise<UserDetail> {
@@ -442,26 +507,26 @@ export async function getUser(id: string): Promise<UserDetail> {
 }
 
 export async function updateUser(id: string, patch: { status?: string; fullName?: string }): Promise<void> {
-  await request(`/users/${id}`, { method: "PATCH", body: patch });
+  await request(`/users/${id}`, { method: "PATCH", body: patch, feedback: { success: "User updated." } });
 }
 
 export async function assignUserRole(id: string, roleKey: string): Promise<void> {
-  await request(`/users/${id}/roles`, { method: "POST", body: { roleKey } });
+  await request(`/users/${id}/roles`, { method: "POST", body: { roleKey }, feedback: { success: "Role assigned." } });
 }
 
 export async function removeUserRole(id: string, roleKey: string): Promise<void> {
-  await request(`/users/${id}/roles/${roleKey}`, { method: "DELETE" });
+  await request(`/users/${id}/roles/${roleKey}`, { method: "DELETE", feedback: { success: "Role removed." } });
 }
 
 export async function addUserOverride(
   id: string,
   body: { permission: string; effect: "GRANT" | "DENY"; validUntil?: string },
 ): Promise<void> {
-  await request(`/users/${id}/overrides`, { method: "POST", body });
+  await request(`/users/${id}/overrides`, { method: "POST", body, feedback: { success: "Override added." } });
 }
 
 export async function revokeUserOverride(id: string, overrideId: string): Promise<void> {
-  await request(`/users/${id}/overrides/${overrideId}`, { method: "DELETE" });
+  await request(`/users/${id}/overrides/${overrideId}`, { method: "DELETE", feedback: { success: "Override revoked." } });
 }
 
 export async function listBranches(): Promise<Branch[]> {
@@ -469,11 +534,11 @@ export async function listBranches(): Promise<Branch[]> {
 }
 
 export async function createBranch(body: { code: string; name: string }): Promise<Branch> {
-  return request<Branch>("/branches", { method: "POST", body });
+  return request<Branch>("/branches", { method: "POST", body, feedback: { success: "Branch created." } });
 }
 
 export async function updateBranch(id: string, patch: { name?: string; isActive?: boolean }): Promise<Branch> {
-  return request<Branch>(`/branches/${id}`, { method: "PATCH", body: patch });
+  return request<Branch>(`/branches/${id}`, { method: "PATCH", body: patch, feedback: { success: "Branch updated." } });
 }
 
 // ---- Tenant branding -------------------------------------------------------
@@ -486,11 +551,11 @@ export async function updateBranding(patch: {
   brandColor?: string | null;
   secondaryColor?: string | null;
 }): Promise<Branding> {
-  return request<Branding>("/branding", { method: "PUT", body: patch });
+  return request<Branding>("/branding", { method: "PUT", body: patch, feedback: { success: "Branding saved." } });
 }
 
 export async function resetBranding(): Promise<Branding> {
-  return request<Branding>("/branding", { method: "DELETE" });
+  return request<Branding>("/branding", { method: "DELETE", feedback: { success: "Branding reset to the default." } });
 }
 
 /** Upload a logo/favicon (multipart). Returns the updated branding (with the new asset URL). */
@@ -499,14 +564,15 @@ export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File):
   form.append("file", file);
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-  const res = await fetch(`${BASE_URL}/branding/${kind}`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: form,
-  });
-  if (!res.ok) throw await parseError(res);
-  return (await res.json()) as Branding;
+  const res = await send(`/branding/${kind}`, { method: "POST", headers, credentials: "include", body: form });
+  if (!res.ok) {
+    const failure = await parseError(res);
+    notifyError(failure);
+    throw failure;
+  }
+  const branding = (await res.json()) as Branding;
+  notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
+  return branding;
 }
 
 // ---- Platform branding (super-admin; ADR-024) ------------------------------
@@ -521,11 +587,18 @@ export async function updatePlatformBranding(
   scope: PlatformBrandingScope,
   tokens: BrandingTokens,
 ): Promise<PlatformBranding> {
-  return request<PlatformBranding>(`/platform-branding/${scope}`, { method: "PUT", body: { tokens } });
+  return request<PlatformBranding>(`/platform-branding/${scope}`, {
+    method: "PUT",
+    body: { tokens },
+    feedback: { success: "Platform branding saved." },
+  });
 }
 
 export async function resetPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
-  return request<PlatformBranding>(`/platform-branding/${scope}`, { method: "DELETE" });
+  return request<PlatformBranding>(`/platform-branding/${scope}`, {
+    method: "DELETE",
+    feedback: { success: "Platform branding reset." },
+  });
 }
 
 export async function uploadPlatformBrandingAsset(
@@ -537,12 +610,18 @@ export async function uploadPlatformBrandingAsset(
   form.append("file", file);
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-  const res = await fetch(`${BASE_URL}/platform-branding/${scope}/${kind}`, {
+  const res = await send(`/platform-branding/${scope}/${kind}`, {
     method: "POST",
     headers,
     credentials: "include",
     body: form,
   });
-  if (!res.ok) throw await parseError(res);
-  return (await res.json()) as PlatformBranding;
+  if (!res.ok) {
+    const failure = await parseError(res);
+    notifyError(failure);
+    throw failure;
+  }
+  const branding = (await res.json()) as PlatformBranding;
+  notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
+  return branding;
 }

@@ -64,6 +64,45 @@ lib/
 - **No fabricated social proof.** No fake customers, logos, or testimonials (there are no reference customers yet). Trust = honest architecture facts.
 - **Onboarding is demo / sales led** (operator-driven), not public self-serve signup.
 
+## SEO / AEO / GEO (binding — ADR-027, `resources/rules.md` → SEO / AEO / GEO Rules)
+
+This site owns **all** product SEO; the Portal is never indexed. Reference standard: the Claude SEO Skill (https://www.claudeseoskill.com/), subordinate to the content guardrails above.
+
+**How it is built:** `lib/seo.ts` is the single source — `pageMetadata({ path, title, description })` returns the unique title + description, the **canonical**, and matching Open Graph + Twitter cards, so no route can silently inherit the layout's metadata. It also holds the JSON-LD builders (`organizationJsonLd`, `softwareApplicationJsonLd`, `localBusinessJsonLd`, `breadcrumbJsonLd`, `faqJsonLd`) and the `COMPANY` constant. `components/site/JsonLd.tsx` renders a block (server component, `null` renders nothing). `app/sitemap.ts` + `app/robots.ts` share `SITE_URL` from the same module.
+
+**Live structured data:** `Organization` site-wide (root layout, `@id`-referenced by the rest) · `SoftwareApplication` on `/`, `/platform`, and each `/modules/[slug]` (no `offers` — no prices are published) · `BreadcrumbList` on every nested route · `FAQPage` on `/pricing`, marking up the FAQ that page actually renders · `LocalBusiness` on `/about` and `/contact`, **gated**: `localBusinessJsonLd()` returns `null` until `COMPANY.streetAddress` and `COMPANY.telephone` are filled in, so nothing false is published.
+
+> ⚠ **Verify before launch:** `COMPANY` in `lib/seo.ts` currently states Ahmedabad, Gujarat, India, and `/contact`'s title/description name that city. Street address, postal code, phone, and email are intentionally blank. Confirm all of it with the business, in that one file.
+
+**Required of every new/edited public route:** a unique title + meta description (no duplicates across routes), a canonical URL, exactly one `<h1>` with unskipped heading levels, semantic landmarks, OG/Twitter metadata, `alt` on every non-decorative image, a sitemap entry in the same change, a real internal link in (no orphans), a descriptive kebab-case URL (a rename ships a 301), and JSON-LD only for what the page actually shows — `SoftwareApplication` (product/platform/module), `LocalBusiness` (contact/about — Ahmedabad, Gujarat), `BreadcrumbList` (nested routes), `FAQPage` (only a real, visible FAQ). Never fabricated reviews/ratings.
+
+**Keyword → page intent map** (used naturally in title/H1/body, or not at all — never stuffed):
+
+| Page | Primary intent | Supporting terms |
+|---|---|---|
+| `/` | Hospital Management System · Hospital Management Software | Hospital Management System in India, Healthcare Management Software, HMS Software for Hospitals |
+| `/platform` | Hospital ERP Software | Healthcare Management Software, multi-tenant hospital software |
+| `/modules` | HMS Software for Hospitals | module-level terms for the catalogue |
+| `/modules/[slug]` | the module's own term | Patient Management System · Hospital Appointment Management · Doctor Management System · Hospital Billing Software · Pharmacy Management · Laboratory Management System · Clinic Management Software |
+| `/solutions` | Clinic Management Software | Hospital Management Software India, by-role / by-facility phrasing |
+| `/pricing` | Hospital Management Software India | Best Hospital Management System in India (only as honest positioning, never a fabricated claim) |
+| `/about`, `/contact` | Hospital Software Ahmedabad | Hospital Management Software Gujarat, Hospital Management System Gujarat |
+| `/security`, `/integrations` | topical (India residency, ABDM/FHIR) | no location or commercial stuffing |
+
+Module pages carry their own intent map (`MODULE_SEO` in `app/modules/[slug]/page.tsx`): Patient Management System · Hospital Appointment Management Software · OPD Management & Patient Check-in Software · EMR Software · Pharmacy Management Software for Hospitals · Laboratory Management System (LIS) · Hospital Billing Software.
+
+**Open Graph cards:** generated per route by `lib/og.tsx` (`ogImage()` → `next/og` `ImageResponse`, 1200×630, prerendered at build). Each segment holds a three-line `opengraph-image.tsx`; `/modules/[slug]` generates one card per module via `generateStaticParams`. Next's file convention wires `og:image` + `twitter:image` automatically, so `pageMetadata()` never sets them. **`lib/og.tsx` holds the only hardcoded colours in the app** — Satori has no CSS custom properties, so the four hexes mirror `resources/DESIGN.md` §2 and must be changed with it.
+
+**Not yet built:** location landing pages, resource/blog content, sitemap `lastModified` tracking. See root `BACKLOG.md`.
+
+## API feedback (binding — ADR-026)
+
+The site currently calls no API. When `ContactForm` is wired to a real endpoint, its result **must** go through the shared `@hms/ui` toast raised by the shared API client — displaying the backend's own message, handling network/timeout/validation/5xx, never a raw technical error. Do not build a form-local success/error banner.
+
+## Performance (binding — `resources/rules.md`)
+
+Fonts already use `next/font` (Geist / Geist Mono). **Outstanding:** no `next/image` usage yet — any content image added must use it (explicit dimensions, correct `sizes`, lazy by default, `priority` only for the true LCP image); below-the-fold heavy sections use `next/dynamic`; third-party scripts (none today) go through `next/script`; routes are measured against LCP ≤2.5s / INP ≤200ms / CLS ≤0.1.
+
 ## The Portal link (environment-aware)
 
 - "Sign in" / "Go to Portal" actions link to `PORTAL_LOGIN_URL` (`lib/portal.ts`) from **`NEXT_PUBLIC_PORTAL_LOGIN_URL`** (default `http://localhost:3000/login`). Site metadata base URL is `NEXT_PUBLIC_SITE_URL` (default `http://localhost:3001`).

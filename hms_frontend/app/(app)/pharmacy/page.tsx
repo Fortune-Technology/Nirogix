@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
-import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
+import { Alert, Button, Card, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { PendingPrescription, Drug } from "@hms/types";
 import * as api from "../../../lib/api";
@@ -23,7 +23,8 @@ function DispenseCard({
 }: {
   rx: PendingPrescription;
   drugs: Drug[];
-  onDone: (msg: string) => void;
+  onDone: () => void;
+  /** Client-side validation only — API failures come from the shared toast. */
   onError: (msg: string) => void;
 }) {
   // Pre-match a stocked drug against the prescribed name.
@@ -39,10 +40,10 @@ function DispenseCard({
     if (!Number.isInteger(quantity) || quantity <= 0) return onError("Enter a valid quantity.");
     setBusy(true);
     try {
-      const res = await api.dispense({ prescriptionId: rx.id, drugId, quantity });
-      onDone(`Dispensed ${res.drugName} × ${res.quantity} · ${formatPaise(res.totalPaise)} added to the bill.`);
-    } catch (e) {
-      onError(e instanceof api.ApiRequestError ? e.message : "Could not dispense.");
+      await api.dispense({ prescriptionId: rx.id, drugId, quantity });
+      onDone();
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -91,7 +92,6 @@ function Worklist() {
   const [drugs, setDrugs] = useState<Drug[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,7 +125,6 @@ function Worklist() {
         }
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      {msg && !error && <Alert tone="success">{msg}</Alert>}
 
       {loading ? (
         <div className="flex items-center gap-2 text-fg-muted">
@@ -142,8 +141,8 @@ function Worklist() {
               key={rx.id}
               rx={rx}
               drugs={drugs}
-              onDone={(m) => { setMsg(m); setError(null); void load(); }}
-              onError={(m) => { setError(m); setMsg(null); }}
+              onDone={() => { setError(null); void load(); }}
+              onError={setError}
             />
           ))}
         </div>

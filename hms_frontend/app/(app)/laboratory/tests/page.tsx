@@ -34,8 +34,8 @@ function AddTestForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
       setF({ name: "", code: "", sampleType: "blood", unit: "", refLow: "", refHigh: "", price: "" });
       setOpen(false);
       onAdded();
-    } catch (err) {
-      onError(err instanceof api.ApiRequestError ? err.message : "Could not add the test.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -71,7 +71,6 @@ function Tests() {
   const [rows, setRows] = useState<LabTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,10 +115,9 @@ function Tests() {
       <PageHeader
         title="Test master"
         description={`${rows.length} test${rows.length === 1 ? "" : "s"}`}
-        actions={<Can perm={PERMISSIONS.LAB_MANAGE}><AddTestForm onAdded={() => { setMsg("Test added."); setError(null); void load(); }} onError={(m) => { setError(m); setMsg(null); }} /></Can>}
+        actions={<Can perm={PERMISSIONS.LAB_MANAGE}><AddTestForm onAdded={() => { setError(null); void load(); }} onError={setError} /></Can>}
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      {msg && !error && <Alert tone="success">{msg}</Alert>}
       <DataTable columns={columns} rows={rows} rowKey={(t) => t.id} loading={loading} error={error} emptyMessage="No tests yet. Add one to start." />
     </>
   );

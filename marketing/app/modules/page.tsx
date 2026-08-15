@@ -6,12 +6,16 @@ import { CtaSection } from "../../components/site/CtaSection";
 import { Container } from "../../components/ui/primitives";
 import { MODULE_GROUPS, CATALOGUE_ADDONS } from "../../lib/catalogue";
 import { COUNTS, type ModuleEntry } from "../../lib/site";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Modules",
+// Primary intent: "HMS software for hospitals" — the catalogue page.
+export const metadata: Metadata = pageMetadata({
+  path: "/modules",
+  title: "HMS Software Modules for Hospitals",
   description:
-    "The full HMS module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, billing, and the hospital-grade and operational modules, plus telemedicine and ABDM add-ons.",
-};
+    "The full HMS module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, and hospital billing, plus the hospital-grade and operational modules and ABDM add-ons.",
+});
 
 function CatalogueCard({ module }: { module: ModuleEntry }) {
   const Icon = module.icon;
@@ -52,6 +56,7 @@ function CatalogueCard({ module }: { module: ModuleEntry }) {
 export default function ModulesPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Modules", path: "/modules" }])} />
       <PageHeader
         eyebrow="Modules"
         title={`${COUNTS.modules} modules. Turn on only what you need.`}

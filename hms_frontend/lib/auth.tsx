@@ -20,6 +20,7 @@ import {
 } from "react";
 import type { AuthUser, LoginRequest } from "@hms/types";
 import * as api from "./api";
+import { describeError } from "./feedback";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
@@ -94,8 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("authenticated");
         return { ok: true };
       } catch (err) {
-        const message = err instanceof api.ApiRequestError ? err.message : "Unable to sign in. Try again.";
-        return { ok: false, error: message };
+        // Sign-in renders its failure inline (api.login opts out of the toast),
+        // but the copy comes from the same shared classifier every other call uses.
+        return { ok: false, error: describeError(err).description };
       }
     },
     [],

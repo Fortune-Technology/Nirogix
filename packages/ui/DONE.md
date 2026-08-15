@@ -70,3 +70,19 @@ Append-only implementation log. Newest at the bottom.
 **Wired:** marketing hero doctor + marketing preloader → `--mk-accent`; Portal preloader → `--hms-brand`.
 
 **Testing status:** `typecheck` green (7 ws) · both apps `next build` green. **Live-verified:** the doctor's accent (`#2ca6ff`, hue 208) renders at the brand hue — 188 in dark (`#22b8cf`), 193 in light (`#0e7490`) — updating live on theme toggle; skin tones and neutrals unchanged. Same tint path drives the ambulance preloader.
+
+---
+
+## 2026-08-15 — Shared Toast / notification system (ADR-026)
+
+**What:** The one API-feedback surface for the whole platform. Until now `@hms/ui` shipped `Alert` only, so every page invented its own success/error copy.
+
+**Added:**
+- `src/toast.ts` — framework-free pub/sub store so `toast()` works from the apps' shared API client (outside React). `toast()` + `.success|.error|.warning|.info|.loading|.dismiss|.update`; de-duplication by `dedupeKey` (a repeat refreshes the existing toast and restarts its timer instead of stacking); visible stack capped at 4; per-variant default durations (success/info 5s, warning 7s, error/loading persist).
+- `src/components/Toaster.tsx` — the viewport (mount once per app). Portals to `document.body`; timers pause on pointer/focus inside the stack; **Esc** dismisses the newest; per-toast dismiss button; optional action button. `role="alert"`/assertive for error+warning, `role="status"`/polite otherwise, inside a labelled `region`.
+- `styles.css` — `--hms-info` / `--hms-info-subtle` tokens (Light + Dark; the palette had success/warning/danger only) and the `.hms-toast*` block: token-driven variants, Lucide icons, radius `lg`, `--hms-shadow-md`, mobile top-full-width → desktop bottom-right at `bottom: 5.5rem` (clears `BackToTop`), `z-index: 1000`, entrance animation disabled under `prefers-reduced-motion`.
+- Exported `Toaster`, `toast`, `subscribeToasts`, `getToasts` + types from `src/index.ts`.
+
+**Design reference:** shadcn/ui Toast as a *pattern* only — no shadcn/Radix dependency (Dependency Rules: no second UI library).
+
+**Testing status:** `typecheck` green · both apps `next build` green. **Live-verified in the Portal:** a branding save raised `hms-toast--success` (`role="status"`, "Branding saved."); a 404 raised `hms-toast--error` (`role="alert"`, `aria-live="assertive"`, backend message "User not found") which persists until dismissed. Positioned bottom-right (352×67 at y=573 in a 1280×720 viewport, `bottom: 88px`) clear of `BackToTop`; Dark theme re-checked via `data-theme="dark"` (bg `#2a1512`, fg `#e7eff0`, icon `#f0776a`).

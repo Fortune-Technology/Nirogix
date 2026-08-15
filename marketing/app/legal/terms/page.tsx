@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "../../../components/site/LegalPage";
 import { SITE } from "../../../lib/site";
+import { pageMetadata } from "../../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms",
+export const metadata: Metadata = pageMetadata({
+  path: "/legal/terms",
+  title: "Terms of Use",
   description:
     "A plain-language summary of the terms for using the HMS platform: accounts, acceptable use, availability, and how changes are communicated.",
-};
+});
 
 const SECTIONS: LegalSection[] = [
   {

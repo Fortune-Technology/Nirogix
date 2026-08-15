@@ -241,3 +241,23 @@ Append-only implementation log. Newest at the bottom.
 - `lib/csv.ts` (client-side CSV download), `lib/api` report functions, `lib/nav` Reports item (permission-filtered).
 
 **Testing status:** `typecheck` green (7 ws) · `next build` green (27 routes). **Live-verified in the Portal:** the receptionist has **no Reports nav** and `/reports` → **403** (REPORTS_VIEW gate). The reports UI is API-verified (see backend DONE) + best eyeballed via an admin / cashier login. **🎉 Phase 1 frontend complete.**
+
+---
+
+## 2026-08-15 — Centralized API feedback + Portal noindex (ADR-026, ADR-027)
+
+**What:** Every API outcome now reaches the user through the one shared `@hms/ui` toast, raised inside the API client — and the Portal is explicitly uncrawlable.
+
+**Added:**
+- `lib/apiErrors.ts` — `ApiRequestError` (moved out of `api.ts`), plus `NetworkError` and `TimeoutError`. Separate module so `api.ts` and `feedback.ts` share them without a cycle; `api.ts` re-exports them, so the ~20 pages importing `ApiRequestError` from `@/lib/api` are unchanged.
+- `lib/feedback.ts` — the single classifier. `describeError()` → user-safe title/description per failure mode (timeout, offline, 401, 403, 404, 409, 400/422, 429, 5xx, unknown), preferring the backend's message when usable and **always** using generic copy for 5xx. `notifyError()` / `notifySuccess()` raise the toast; `successMessage()` resolves API `message` → call-supplied copy or formatter → `Saved.`/`Removed.`.
+- `app/robots.ts` — `disallow: "/"` for the whole origin.
+
+**Changed:**
+- `lib/api.ts` — `send()` wraps `fetch` with a 30s `AbortController` timeout (stalled → `TimeoutError`, dead connection → `NetworkError`); `request()` notifies on every failure and on every mutating success; new per-call `feedback` option (`false` / `{ success: false }` / `{ success: string | (payload) => string }` / `{ error: false }`). 32 call sites given intent-specific success copy (e.g. "Patient checked in.", "Payment recorded.", dispensing reports drug × qty + amount added to the bill). The two multipart uploads now route through `send()` + the same notifications. `login()` opts out entirely (the form renders failure inline).
+- `lib/auth.tsx` — the login error string now comes from `describeError()`, so inline and toast copy can never drift.
+- `app/layout.tsx` — mounts `<Toaster />`; metadata gains `robots: { index: false, follow: false, nocache: true, googleBot: { noimageindex } }` + `referrer: strict-origin-when-cross-origin`.
+- Removed duplicate per-page feedback in `settings`, `pharmacy`, `pharmacy/stock`, `laboratory`, `laboratory/tests`, and `opd/[id]` — local "Saved."/"Result saved."/"Drug added." banners and API-failure re-reporting are gone; client-side **validation** messages and DataTable load-error states stay.
+- `components/AppShell.tsx` + `settings/page.tsx` — tenant logo now renders through `next/image` (`unoptimized`, explicit 24/40px dimensions) instead of a raw `<img>`; dropped the two `no-img-element` eslint suppressions. Removed an unused `Badge` import in `pharmacy/page.tsx`.
+
+**Testing status:** `typecheck` green · `next build` green · eslint clean on all changed files (only the repo's pre-existing `react-hooks/set-state-in-effect` findings remain). **Live-verified** against the local backend as CITYCARE org_admin: wrong password → inline "Invalid credentials" and **no** toast (no double message); dashboard GETs stay silent; `Save colours` → success toast "Branding saved."; `/users/<bogus-uuid>` → persistent error toast "Not found — User not found" with `role="alert"`; toast sits bottom-right clear of `BackToTop` and re-checked in Dark.

@@ -8,6 +8,8 @@ import { getMarketingBrandingStyle } from "../lib/branding";
 import { SiteHeader } from "../components/site/SiteHeader";
 import { SiteFooter } from "../components/site/SiteFooter";
 import { SITE } from "../lib/site";
+import { JsonLd } from "../components/site/JsonLd";
+import { SITE_URL, organizationJsonLd } from "../lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,8 +21,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
-
+// Defaults only. Every route sets its own unique title/description/canonical via
+// `pageMetadata()` (lib/seo.ts) — these apply to anything that somehow does not.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -57,16 +59,6 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-const orgJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: SITE.legalName,
-  url: SITE_URL,
-  brand: SITE.name,
-  description: SITE.description,
-  areaServed: "IN",
-};
-
 // Paints the persisted (or system-preferred) theme before first paint, no flash.
 const noFlashScript = `(function(){try{
   var t=localStorage.getItem('mk-theme');
@@ -87,11 +79,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
-        />
+        {/* Site-wide publisher identity; pages reference it by @id. */}
+        <JsonLd data={organizationJsonLd()} />
       </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider>

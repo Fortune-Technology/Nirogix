@@ -12,6 +12,8 @@ import { PageHeader } from "../../../../components/PageHeader";
 import { formatPaise, rupeesToPaise } from "../../../../lib/money";
 import { useCan } from "../../../../lib/auth";
 
+// `onError` carries client-side validation only — API failures are announced by
+// the shared toast from the API client (ADR-026), never re-reported here.
 function AddDrugForm({ onAdded, onError }: { onAdded: () => void; onError: (m: string) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -36,8 +38,8 @@ function AddDrugForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
       setName(""); setStrength(""); setPriceRupees(""); setReorder("0");
       setOpen(false);
       onAdded();
-    } catch (err) {
-      onError(err instanceof api.ApiRequestError ? err.message : "Could not add the drug.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -81,8 +83,8 @@ function ReceivePanel({ drug, onDone, onError }: { drug: Drug; onDone: () => voi
     try {
       await api.receiveStock(drug.id, { quantity, batchNo: batch || null, expiryDate: expiry || null });
       onDone();
-    } catch (err) {
-      onError(err instanceof api.ApiRequestError ? err.message : "Could not receive stock.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,6 @@ function Stock() {
   const [rows, setRows] = useState<Drug[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
   const [receiving, setReceiving] = useState<string | null>(null);
   const canManage = useCan(PERMISSIONS.PHARMACY_MANAGE);
 
@@ -165,17 +166,16 @@ function Stock() {
       <PageHeader
         title="Stock"
         description={`${rows.length} drug${rows.length === 1 ? "" : "s"}`}
-        actions={<Can perm={PERMISSIONS.PHARMACY_MANAGE}><AddDrugForm onAdded={() => { setMsg("Drug added."); setError(null); void load(); }} onError={(m) => { setError(m); setMsg(null); }} /></Can>}
+        actions={<Can perm={PERMISSIONS.PHARMACY_MANAGE}><AddDrugForm onAdded={() => { setError(null); void load(); }} onError={setError} /></Can>}
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      {msg && !error && <Alert tone="success">{msg}</Alert>}
 
       {receiving && rows.find((d) => d.id === receiving) && (
         <Card header={`Receive stock — ${rows.find((d) => d.id === receiving)!.name}`}>
           <ReceivePanel
             drug={rows.find((d) => d.id === receiving)!}
-            onDone={() => { setMsg("Stock received."); setError(null); setReceiving(null); void load(); }}
-            onError={(m) => { setError(m); setMsg(null); }}
+            onDone={() => { setError(null); setReceiving(null); void load(); }}
+            onError={setError}
           />
         </Card>
       )}

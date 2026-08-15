@@ -75,6 +75,24 @@ components/
 
 Every tabular view renders through `DataTable` from `@hms/ui` (`columns` + `rows` + `rowKey`, with built-in `loading` / `error` / `empty` states and horizontal overflow). The Providers (client-loaded) and Audit (server-paginated, consuming the backend's `{ data, page }` envelope) pages both use it, so headers, spacing, and states are identical everywhere.
 
+## API feedback (ADR-026)
+
+**One** notification path: the shared `@hms/ui` toast, raised inside the API client. Pages never write toast logic.
+
+- `lib/apiErrors.ts` — `ApiRequestError` (canonical `{ error: { code, message, details? } }`), `NetworkError`, `TimeoutError`. Split out so the client and the feedback layer share them without an import cycle.
+- `lib/feedback.ts` — the only place an outcome becomes user-facing copy. `describeError()` maps timeout / offline / 401 / 403 / 404 / 409 / 400+422 / 429 / 5xx / unknown to a title + description, preferring the **backend's own message** when it is usable (a bare error code, a stack-shaped string, or anything over 300 chars is rejected). **5xx always uses generic copy** — a server message may carry internals. Full detail goes to the console/error tracker, never the screen; PHI never enters a toast. `successMessage()` prefers the API's `message`, then the call's own copy (a string or a formatter over the response), then `Saved.`/`Removed.`.
+- `lib/api.ts` — `request()` owns it: a 30s `AbortController` timeout turns a stalled call into `TimeoutError`, a dead connection into `NetworkError`; **every failure notifies**; **every mutating method also notifies on success**. Per-call `feedback` opts out (`false`), silences just the success toast (`{ success: false }`), or sets the copy (`{ success: "Patient registered." }` / a formatter, e.g. dispensing reports drug × qty and the amount added to the bill). Sign-in is the one opt-out: it renders failure inline from the same `describeError()` copy, so nothing is said twice.
+- Pages keep **client-side validation** messages and DataTable load-error states; they no longer keep "Saved."-style banners.
+
+## SEO boundary (ADR-027)
+
+The Portal is private and never indexed: the root layout sets `robots: { index: false, follow: false, nocache: true }` (+ `googleBot.noimageindex`) and `app/robots.ts` disallows the whole origin. No patient/tenant/staff/operational data may appear in metadata, a URL path, an OG image, or a sitemap. All product SEO belongs to `marketing/`.
+
+## Frontend performance
+
+- Fonts: `next/font` (Geist / Geist Mono). Images: `next/image` — the tenant logo (AppShell + Settings) uses `unoptimized` with explicit dimensions, because tenant assets come from per-deployment object storage whose origin cannot be enumerated in `images.remotePatterns`.
+- Heavy, non-critical UI uses `next/dynamic`; third-party scripts go through `next/script`; `<head>` comes from the Metadata API. No third-party analytics by default — and never PHI or tenant-identifying data in any telemetry.
+
 ## Conventions
 
 - **Client vs server components:** context/providers/interactive pages are `"use client"`. `app/page.tsx` uses a server `redirect()`. Route groups `(auth)` / `(app)` separate the public and authenticated shells without adding URL segments.

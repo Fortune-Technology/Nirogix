@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import { CalendarClock, Route, Headset } from "lucide-react";
 import { Container } from "../../components/ui/primitives";
 import { ContactForm } from "../../components/site/ContactForm";
-import { SITE } from "../../lib/site";
 import { PORTAL_LOGIN_URL } from "../../lib/portal";
+import { JsonLd } from "../../components/site/JsonLd";
+import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Book a demo",
-  description:
-    "Book a walkthrough of the HMS platform. Our team maps your clinic or hospital onto the platform, module by module. Onboarding is guided, not self-serve.",
-};
+// Location intent: hospital software buyers searching locally (Ahmedabad / Gujarat).
+export const metadata: Metadata = pageMetadata({
+  path: "/contact",
+  title: `Book a Demo — Hospital Software in ${COMPANY.city}`,
+  description: `Book a walkthrough of the HMS platform with our team in ${COMPANY.city}, ${COMPANY.region}. We map your clinic or hospital onto the platform module by module. Onboarding is guided, not self-serve.`,
+});
 
 const STEPS = [
   {
@@ -32,6 +34,9 @@ const STEPS = [
 export default function ContactPage() {
   return (
     <section className="bg-canvas">
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Contact", path: "/contact" }])} />
+      {/* Rendered only once a verified postal address + phone exist (lib/seo.ts). */}
+      <JsonLd data={localBusinessJsonLd()} />
       <Container className="py-16 sm:py-20">
         <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
           {/* info */}

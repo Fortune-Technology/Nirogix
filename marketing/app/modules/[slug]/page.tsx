@@ -10,8 +10,53 @@ import { Reveal } from "../../../components/ui/Reveal";
 import { ProductFrame } from "../../../components/product/ProductFrame";
 import { AppointmentsPreview } from "../../../components/product/previews";
 import { CLINIC_MODULES } from "../../../lib/site";
+import { JsonLd } from "../../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../../lib/seo";
 
 const bySlug = Object.fromEntries(CLINIC_MODULES.map((m) => [m.slug, m]));
+
+/**
+ * Per-module search intent. Each module page targets the term people actually
+ * search for that capability — mapped once here, used in the title and the
+ * description, and matching what the page renders (marketing/KNOWLEDGE.md).
+ */
+const MODULE_SEO: Record<string, { title: string; description: string }> = {
+  patients: {
+    title: "Patient Management System",
+    description:
+      "Patient management software for hospitals and clinics: one record per patient with UHID, duplicate detection, family linking, and a complete medical timeline.",
+  },
+  appointments: {
+    title: "Hospital Appointment Management Software",
+    description:
+      "Hospital appointment management: slot and availability control per doctor, multi-channel booking, reminders, rescheduling, waitlists, and no-show tracking.",
+  },
+  opd: {
+    title: "OPD Management & Patient Check-in Software",
+    description:
+      "OPD software from check-in to consult: token queues, live waiting lists, doctor-wise flow, and a consultation bill opened automatically at check-in.",
+  },
+  emr: {
+    title: "EMR Software — Clinical Workflow & E-Prescriptions",
+    description:
+      "EMR for outpatient care: structured SOAP notes, ICD-10 coding, e-prescriptions, and lab orders raised from the consultation itself.",
+  },
+  pharmacy: {
+    title: "Pharmacy Management Software for Hospitals",
+    description:
+      "Hospital pharmacy management: dispensing against prescriptions, batch and expiry-aware stock, reorder levels, and GST-correct pharmacy billing.",
+  },
+  laboratory: {
+    title: "Laboratory Management System (LIS)",
+    description:
+      "Laboratory management for hospitals and diagnostic centres: order to signed report, sample tracking, reference ranges, and lab charges on the patient's bill.",
+  },
+  billing: {
+    title: "Hospital Billing Software",
+    description:
+      "Hospital billing software: one invoice across consultation, pharmacy, and lab, with part payments, GST handling, receipts, and a complete collections trail.",
+  },
+};
 
 export function generateStaticParams() {
   return CLINIC_MODULES.map((m) => ({ slug: m.slug }));
@@ -24,11 +69,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const mod = bySlug[slug];
-  if (!mod) return { title: "Module not found" };
-  return {
-    title: mod.name,
-    description: `${mod.name} — ${mod.tagline} Part of the modular HMS platform.`,
-  };
+  if (!mod) return { title: "Module not found", robots: { index: false, follow: true } };
+  const seo = MODULE_SEO[slug];
+  return pageMetadata({
+    path: `/modules/${slug}`,
+    title: seo?.title ?? mod.name,
+    description: seo?.description ?? `${mod.name} — ${mod.tagline} Part of the modular HMS platform.`,
+  });
 }
 
 export default async function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -37,9 +84,24 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   if (!mod) notFound();
 
   const related = CLINIC_MODULES.filter((m) => m.slug !== mod.slug);
+  const seo = MODULE_SEO[slug];
 
   return (
     <>
+      <JsonLd
+        data={softwareApplicationJsonLd({
+          name: seo?.title ?? mod.name,
+          description: seo?.description ?? mod.tagline,
+          path: `/modules/${slug}`,
+        })}
+      />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Modules", path: "/modules" },
+          { name: mod.name, path: `/modules/${slug}` },
+        ])}
+      />
       <PageHeader
         eyebrow="Module"
         title={mod.name}

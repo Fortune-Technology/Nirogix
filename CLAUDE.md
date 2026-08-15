@@ -17,6 +17,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `resources/development-plan.md` | The primary engineering execution roadmap |
 | `resources/DESIGN.md` | **Design system** — canonical visual language (colour/type/components/theming/icons) for marketing + Portal |
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
+| `BACKLOG.md` | **Every open item in one place** — what needs a decision from the owner, what is blocked on infrastructure, engineering follow-ups, and what is deferred on purpose. Add an item the moment work is blocked, skipped, or deferred; remove it only when done or explicitly dropped. |
 
 On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over the development plan, and the development plan wins over ad-hoc code comments.
 
@@ -61,6 +62,10 @@ Tooling: **npm workspaces + Turborepo** (ADR-014). Root scripts: `npm run instal
 - **DB:** every tenant-scoped table has `tenant_id` + an RLS policy; nullable `branch_id` (NULL = org-wide); migrations additive & reversible; optimistic locking on concurrently-edited records.
 - **Authorization:** permission keys are dot-hierarchy (`module.submodule.page.action`) declared in `@hms/permissions`; routes gated by `requireModule()` then `requirePermission()`.
 - **UI:** follow `resources/DESIGN.md` (the canonical design system — deep-teal signature, cool-neutral surfaces, Lucide icons). No component hardcodes color/spacing/radius/typography — use `@hms/ui` tokens; all tabular data uses the shared DataTable; verified in Light + Dark and under a non-default tenant's branding before "done".
+- **API feedback (binding — ADR-026):** every state-changing or failing API call raises a notification through the **one** shared `@hms/ui` toast, driven from the shared API client — never per-page toast code, never a silent failure. Show the backend's own `message` when it provides one; generic copy only as a fallback. Never render a stack trace, backend internal, or PHI.
+- **SEO/AEO/GEO (binding — ADR-027):** all product SEO lives in `marketing/` — unique per-page title/description, canonical, one `<h1>`, semantic HTML, OG/social metadata, honest JSON-LD, sitemap + robots, descriptive URLs, keywords mapped to matching page intent (never stuffed). `hms_frontend/` is `noindex, nofollow` end to end; no patient/tenant/staff data in metadata, URLs, OG images, or sitemaps.
+- **Frontend performance:** `next/image` (correct `sizes`, `priority` only for the real LCP image), `next/font`, `next/script` for third-party, the Next Metadata API, `next/dynamic` for heavy non-critical UI; budgets LCP ≤2.5s / INP ≤200ms / CLS ≤0.1. Audit every new dependency; no second UI library. Never send PHI or tenant-identifying data to analytics.
+- **Frontend delivery workflow:** Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup. All of it is Definition of Done.
 - **Frontend behaviour (binding — `resources/DESIGN.md` §9):** routes open scrolled to top; smooth scrolling via Lenis (shared `SmoothScroll`); overlays lock the background with `useScrollLock` + `data-lenis-prevent`; use the shared `BackToTop`; the marketing navbar includes About + Contact; marketing (`--mk-*`) and Portal (`--hms-*`) branding are **independent** token scopes.
 - **Clean code:** delete files/assets/imports/components once they are no longer used anywhere; prefer a shared `@hms/ui` component over duplication; check for unused resources before a feature is "done".
 - **Providers:** external SDKs only behind `SmsService`/`EmailService`/`FileStorageService`.

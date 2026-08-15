@@ -3,16 +3,23 @@ import { PageHeader } from "../../components/site/PageHeader";
 import { CtaSection } from "../../components/site/CtaSection";
 import { Container } from "../../components/ui/primitives";
 import { INTEGRATION_GROUPS } from "../../lib/catalogue";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Integrations",
+// Topical intent (healthcare interoperability standards).
+export const metadata: Metadata = pageMetadata({
+  path: "/integrations",
+  title: "Healthcare Integrations — FHIR, ABDM, DICOM & Payments",
   description:
-    "Interoperability for HMS: HL7 FHIR R4, ICD-10/11, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, DLT SMS and WhatsApp, UPI payments, and Tally and ERP export.",
-};
+    "Interoperability for hospital software: HL7 FHIR R4, ICD-10/11, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, DLT SMS and WhatsApp, UPI payments, and Tally export.",
+});
 
 export default function IntegrationsPage() {
   return (
     <>
+      <JsonLd
+        data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Integrations", path: "/integrations" }])}
+      />
       <PageHeader
         eyebrow="Integrations"
         title="Speaks the standards your systems already use."

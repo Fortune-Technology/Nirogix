@@ -5,16 +5,24 @@ import { CtaSection } from "../../components/site/CtaSection";
 import { Button } from "../../components/ui/Button";
 import { Container, SectionHeading } from "../../components/ui/primitives";
 import { PACKAGES, PRICING_FAQ } from "../../lib/catalogue";
+import { JsonLd } from "../../components/site/JsonLd";
+import { breadcrumbJsonLd, faqJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Pricing",
+// Primary intent: "hospital management software price / India". No numbers are
+// published (content guardrail), so no Offer/price markup is emitted either.
+export const metadata: Metadata = pageMetadata({
+  path: "/pricing",
+  title: "Hospital Management Software Pricing in India",
   description:
-    "HMS pricing follows the modules you enable. Start with a single module, take the clinic bundle, or run the full enterprise set. Talk to us for a quote tailored to your hospital.",
-};
+    "HMS pricing follows the modules you enable — start with a single module, take the clinic bundle, or run the full set. Talk to us for a quote tailored to your hospital.",
+});
 
 export default function PricingPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Pricing", path: "/pricing" }])} />
+      {/* Marks up the FAQ that is rendered further down this page — nothing else. */}
+      <JsonLd data={faqJsonLd(PRICING_FAQ)} />
       <PageHeader
         eyebrow="Pricing"
         title="Pay for the modules you turn on."

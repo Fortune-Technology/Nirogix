@@ -99,3 +99,37 @@ Append-only implementation log. Newest at the bottom.
 - `app/layout.tsx` — added the shared `LottiePreloader` (`src="/animations/ambulance.json"`).
 
 **Testing status:** `typecheck` + `next build` green. **Live-verified:** the hero renders the doctor Lottie (SVG), the appointments table is gone from the hero, no horizontal overflow; the ambulance preloader shows on load then unmounts and restores scroll; no console errors.
+
+---
+
+## 2026-08-15 — SEO/AEO/GEO: per-page metadata, canonicals, structured data (ADR-027)
+
+**What:** The marketing site now owns product SEO properly — every public route has its own intent-matched metadata, a canonical, social cards, and honest structured data. (The Portal was made `noindex, nofollow` in the same change.)
+
+**Added:**
+- `lib/seo.ts` — the single SEO source: `SITE_URL`, `canonicalUrl()`, `pageMetadata()` (unique title + description → canonical + Open Graph + Twitter), the `COMPANY` constant, and JSON-LD builders `organizationJsonLd` / `softwareApplicationJsonLd` / `localBusinessJsonLd` / `breadcrumbJsonLd` / `faqJsonLd`.
+- `components/site/JsonLd.tsx` — renders a structured-data block; `null` renders nothing (server component, no client JS).
+
+**Changed:**
+- Every route now calls `pageMetadata()` with an intent-matched title: `/` "Hospital Management System Software for Hospitals & Clinics" · `/platform` "Hospital ERP Software Platform" · `/modules` "HMS Software Modules for Hospitals" · `/solutions` "Clinic & Hospital Management Software by Role" · `/pricing` "Hospital Management Software Pricing in India" · `/security` "Security, Tenant Isolation & India Data Residency" · `/integrations` "Healthcare Integrations — FHIR, ABDM, DICOM & Payments" · `/about` "About Takoriya Technology LLP" · `/contact` "Book a Demo — Hospital Software in Ahmedabad" · both legal pages. `/modules/[slug]` gained a `MODULE_SEO` map (Patient Management System, Hospital Appointment Management Software, OPD Management & Patient Check-in Software, EMR Software, Pharmacy Management Software for Hospitals, Laboratory Management System (LIS), Hospital Billing Software); an unknown slug returns `noindex`.
+- Structured data: `Organization` in the root layout (now from `lib/seo.ts`, `@id`-referenced elsewhere) · `SoftwareApplication` on `/`, `/platform`, and each module page (deliberately **no** `offers` — no prices are published) · `BreadcrumbList` on every nested route · `FAQPage` on `/pricing` for the FAQ that page renders · `LocalBusiness` on `/about` + `/contact`, emitted **only** once a real street address and phone exist.
+- `app/sitemap.ts` / `app/robots.ts` now share `SITE_URL` from `lib/seo.ts` instead of each re-reading the env var.
+- Removed the now-unused `SITE` import from `/contact`.
+
+**Open item:** `COMPANY` states Ahmedabad, Gujarat, India (matching the target keywords) with address/phone/email blank — confirm with the business before launch; that one constant drives the contact copy and the gated LocalBusiness markup. Per-page OG images are still outstanding.
+
+**Testing status:** `typecheck` green · `next build` green (23 routes, all prerendered) · eslint clean on every changed file (only the repo's four pre-existing `react/no-unescaped-entities` findings remain, untouched).
+
+---
+
+## 2026-08-15 — Per-route Open Graph cards
+
+**What:** Every public route now ships its own 1200×630 social card instead of sharing one text-only preview.
+
+**Added:**
+- `lib/og.tsx` — `ogImage({ title, eyebrow })` renders the card through `next/og`'s `ImageResponse`: deep ink ground, teal mark + `HMS` wordmark, section eyebrow, the page's own headline (auto-shrinks past 46 characters), and a teal rule with the positioning line. Satori has no CSS custom properties, so this file holds the **only** hardcoded colours in the app, each annotated against `resources/DESIGN.md` §2.
+- `opengraph-image.tsx` in `app/`, `platform/`, `modules/`, `solutions/`, `security/`, `integrations/`, `pricing/`, `about/`, `contact/` (three lines each), plus `app/modules/[slug]/opengraph-image.tsx` which generates one card per clinic module via `generateStaticParams`.
+
+**Testing status:** `typecheck` + `next build` green — 39 static pages, every `*/opengraph-image` route prerendered. **Live-verified:** `/pricing` emits `og:image` + `twitter:image` (1200×630, `image/png`, alt "Pay for the modules you turn on"); fetched the PNG and confirmed it renders the wordmark, the "· PRICING" eyebrow, the headline, and the teal rule.
+
+**Follow-ups (root `BACKLOG.md`):** a real logo mark and brand typeface would replace the placeholder square and the renderer's default font (U-3).
