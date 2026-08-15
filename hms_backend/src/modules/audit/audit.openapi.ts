@@ -1,4 +1,4 @@
-import { registry } from '../../openapi/registry';
+import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema, PaginationQuerySchema } from '../../openapi/schemas';
 import { AuditListResponseSchema } from './audit.schema';
 
@@ -9,10 +9,17 @@ registry.registerPath({
   path: '/api/v1/audit',
   operationId: 'listAuditLog',
   tags: ['Audit'],
-  summary: 'List the tenant audit trail (newest first)',
+  summary: 'List the tenant audit trail (newest first), with search, severity filter and sorting',
   description: 'Requires the `audit.log.view` permission. Append-only, immutable.',
   security: [{ bearerAuth: [] }],
-  request: { query: PaginationQuerySchema },
+  request: {
+    query: PaginationQuerySchema.extend({
+      search: z.string().max(120).optional().openapi({ description: 'Free-text over action / path / resource type' }),
+      severity: z.enum(['info', 'notice', 'warning', 'critical']).optional(),
+      sortBy: z.enum(['createdAt', 'action', 'severity', 'statusCode']).optional().openapi({ description: 'Allow-listed sort column (default createdAt)' }),
+      sortDir: z.enum(['asc', 'desc']).optional().openapi({ description: 'Sort direction (default desc)' }),
+    }),
+  },
   responses: {
     200: { description: 'Audit entries (paginated)', ...json(AuditListResponseSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },

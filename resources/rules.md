@@ -57,10 +57,31 @@ This document states rules only. For the architecture each rule is derived from,
 
 ### Standard DataTable Component
 
-- One reusable DataTable in packages/ui covering pagination, rows-per-page, single/multi-column sorting, search, filtering, column visibility, row selection, and loading/empty/error states
-- Server-side pagination/sorting/filtering as a mode for large datasets (patient lists, MIS reports); client-side for small ones
-- Modules supply only data and column configuration — no module implements its own table, pagination, or sorting logic
-- Missing DataTable functionality is added to the shared component, never worked around locally
+**One DataTable system → many modules → consistent UX.** It lives in `@hms/ui`, is built on the shadcn/ui Data Table pattern (TanStack Table headless core, styled on our tokens — ADR-029), and every tabular view in the platform renders through it. No module ships `PatientTable.tsx` / `DoctorTable.tsx` / `BillingTable.tsx`; it ships a *column + filter configuration* for the shared table.
+
+- **Required capabilities:** column sorting (with a visible unsorted / ascending / descending indicator, Lucide icons) and multi-column sorting where it makes sense; pagination with a configurable page size (10 / 20 / 50 / 100, sensible default per module — never a hardcoded single size); search; per-column and faceted filtering; column visibility (show / hide / restore, with a sensible default set per table); row selection and select-all where required; empty, loading (skeleton) and error states; responsive behaviour with contained horizontal scrolling; sticky headers where appropriate; keyboard operation and visible focus states; a consistent action column; custom cell rendering and column definitions.
+- **Client-side or server-side, stated explicitly.** Small local datasets sort/filter/paginate in the browser; large ones (patient lists, audit, MIS reports) use server-side pagination, sorting, filtering and search. The table's configuration makes the mode obvious at the call site. Never load thousands of rows into the browser to filter them there.
+- **Consistent control layout:** *Search → Filters → Column visibility → Actions* above the table; *Rows per page → Pagination → "Showing X–Y of Z"* below it.
+- **URL/query state** where a view is worth linking or reloading into (page, page size, sort, search, filters).
+- **Filters are reusable components** (status, department, doctor, date range, branch, role, priority, payment status), configured per module — never re-implemented per page.
+- **Row actions use the one shared action menu/button.** Same affordance in every module; destructive actions always go through the shared confirmation dialog.
+- Missing DataTable functionality is added to the shared component, never worked around locally. A module needing a genuinely specialised table documents why in its `KNOWLEDGE.md`.
+
+### Reusable UI Architecture
+
+**Build once, configure everywhere, reuse forever.** Applies to the Portal and the marketing site, to current and future work.
+
+- **Before building any UI, check `@hms/ui` first** (then the app's own shared components). If something close exists, extend or configure it; if a pattern appears in a second place, extract it into a shared component in the same change that duplicates it.
+- **The shared layer covers the recurring patterns:** DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and action menus, cards and stat cards, forms and form fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, and navigation.
+- **Reusable is not uniform.** Components take props/variants so a module can vary labels, icons, actions, columns, filters, data, empty-state content, loading behaviour, permissions, variants, sizes, and layout — without forking the component. The chain is: primitives → shared patterns → module configuration → page.
+- **Use shadcn/ui as the scaffolding source** for standard primitives rather than reinventing them (ADR-028), then restyle onto the design tokens before shipping.
+- **Organisation:** shared primitives and the DataTable parts live in `@hms/ui` (`src/components/`, `src/components/data-table/`); app-specific compositions live under that app's `components/`. Generated shadcn source lands in `hms_frontend/components/ui/` or `marketing/components/shadcn/` for review before promotion.
+
+### Dates & Formatting
+
+- **Every user-facing date is `DD/MM/YYYY`** — Portal and marketing, in tables, forms, date pickers, appointments, patient and staff records, billing, reports, notifications, activity logs, dashboards, filters, and search results. Never `2026-08-15`, `08/15/2026`, `15-08-2026`, or `Aug 15, 2026` in the UI. Date+time reads `DD/MM/YYYY HH:mm`.
+- **Display format is separate from transport format.** APIs, the database, and query parameters keep their machine-readable format (ISO-8601); conversion happens once, at the display boundary.
+- **All of it goes through the centralized date utility** (`@hms/utils`): formatting, parsing, comparison, ranges, validation, and input↔output conversion. No component calls `toLocaleDateString()`, hand-rolls a format, or adds a date library of its own. A new date-bearing component uses the utility or extends it.
 
 ### Light & Dark Theme
 
@@ -242,13 +263,18 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 - A business module's hard dependencies (Module Capability Matrix, Project Requirements Document) are enforced by the entitlement engine at activation time. The system refuses to activate a module whose hard dependency is not already entitled.
 - New third-party dependencies sit behind a provider abstraction (SmsService, EmailService, FileStorageService). Module code never makes a direct SDK call to an external vendor.
 - **Every new dependency is audited before it is added**, frontend included: is it actually necessary; does an existing dependency or `@hms/ui` already solve it; does Next.js/the platform provide it natively; what is its bundle cost; is it actively maintained; does it introduce a security or privacy concern. A large library is never introduced where a lightweight existing solution or a native capability is sufficient. The reasoning is recorded in the PR (and in DECISIONS.md when the choice is architecturally significant).
-- **No second UI component library.** Missing UI capability is added to `@hms/ui`; a design reference (e.g. shadcn/ui) is followed as a pattern, not installed as a package (ADR-026).
+- **One canonical component kit: `@hms/ui`.** Shipped product UI comes from it, and missing capability is added to it. **shadcn/ui is installed in both frontends as a CLI + reference layer only (ADR-028)** — `shadcn add` is a scaffolding shortcut, not a second kit. Anything it generates must be reviewed before it ships: restyled onto `--hms-*` / `--mk-*` (never shadcn's own palette), verified in Light + Dark and under a non-default tenant accent, and kept out of the paths the existing kit already covers. No third UI library.
 
 ### Git Rules
 
 - One feature branch per module/milestone, merged to a staging branch that auto-deploys to the staging environment.
 - CI runs lint, tests, and build on every push. A push that fails CI does not merge.
 - Commit messages and pull requests reference the milestone/module they implement, so DONE.md entries stay traceable back to source control.
+
+### Clean Code & Replacement Rules
+
+- **No dead implementations.** Replacing a technology or component follows *migrate → verify → delete*, in the same change. The old implementation is never kept "for future use", and two systems solving the same problem are never both active without a documented reason.
+- **Every change ends with a cleanup pass.** Anything no longer referenced anywhere is deleted: components, imports, hooks, utilities, CSS, images, Lottie files, fonts, API services, constants, types, deprecated implementations, duplicate components, old configuration — and any dependency nothing imports comes out of `package.json`.
 
 ### Prohibited Patterns
 
@@ -259,7 +285,12 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 - Do not physically delete entitlement, permission-override, or audit records.
 - Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by `npm run openapi:validate` in CI).
 - Do not write per-call success/error notification logic in a page or component instead of using the shared API-feedback layer.
-- Do not build a second notification/toast implementation, and do not install a UI component library (shadcn/Radix/MUI/…) to get one — extend `@hms/ui`.
+- Do not build a second notification/toast implementation — extend `@hms/ui`. (shadcn is installed as scaffolding only, ADR-028; its toast does not replace the shared one.)
+- Do not ship a `shadcn add` component as-is: unreviewed, on shadcn's own palette, or unverified in Dark and under a tenant accent.
+- Do not build a module-specific table, toolbar, pagination, column-visibility, filter, action menu, empty/loading/error state, or confirmation dialog when the shared one exists — configure it instead.
+- Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.
+- Do not render a user-facing date in any format other than `DD/MM/YYYY` (`DD/MM/YYYY HH:mm` with a time), and do not format dates outside `@hms/utils`.
+- Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.
 - Do not replace a usable backend message with generic copy, and do not show a raw technical error, stack trace, or backend internal to a user.
 - Do not let any authenticated Portal route be indexable, and do not place patient/tenant/staff/operational data in metadata, URLs, OG images, or a sitemap.
 - Do not ship duplicate page metadata, keyword-stuffed copy, hidden SEO text, or structured data describing content that is not visible on the page (including fabricated reviews or ratings).

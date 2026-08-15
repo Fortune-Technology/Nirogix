@@ -20,16 +20,20 @@ const columns: Array<Column<UserListItem>> = [
   {
     key: "email",
     header: "Email",
+    hideable: false,
+    accessor: (u) => u.email,
     cell: (u) => (
       <Link href={`/users/${u.id}`} className="font-medium text-brand hover:underline">
         {u.email}
       </Link>
     ),
   },
-  { key: "name", header: "Name", cell: (u) => <span className="text-fg">{u.fullName}</span> },
+  { key: "name", header: "Name", accessor: (u) => u.fullName, cell: (u) => <span className="text-fg">{u.fullName}</span> },
   {
     key: "roles",
     header: "Roles",
+    filterable: true,
+    accessor: (u) => u.roles.join(", ") || "—",
     cell: (u) =>
       u.roles.length ? (
         <div className="flex flex-wrap gap-1">
@@ -43,7 +47,13 @@ const columns: Array<Column<UserListItem>> = [
         "—"
       ),
   },
-  { key: "status", header: "Status", cell: (u) => <Badge tone={statusTone(u.status)}>{u.status}</Badge> },
+  {
+    key: "status",
+    header: "Status",
+    filterable: true,
+    accessor: (u) => u.status,
+    cell: (u) => <Badge tone={statusTone(u.status)}>{u.status}</Badge>,
+  },
 ];
 
 function UsersTable() {

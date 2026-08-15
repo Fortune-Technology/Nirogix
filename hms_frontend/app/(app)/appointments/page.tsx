@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Badge, Button, DataTable, type Column } from "@hms/ui";
+import { Badge, Button, DataTable, type Column, type DataTableQuery } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Appointment } from "@hms/types";
+import { formatDateTime } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -19,10 +20,10 @@ function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
 }
 
 function AppointmentsTable() {
+  // Server mode: the API owns paging and the status filter.
   const [rows, setRows] = useState<Appointment[]>([]);
   const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [] });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,17 +34,20 @@ function AppointmentsTable() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.listAppointments({ page, pageSize: 20, status: status || undefined });
+      const res = await api.listAppointments({
+        page: query.page,
+        pageSize: query.pageSize,
+        status: status || undefined,
+      });
       setRows(res.data);
-      setTotalPages(res.page.totalPages);
       setTotal(res.page.total);
       setError(null);
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load appointments.");
+    } catch {
+      setError("Could not load appointments.");
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [query, status]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -52,8 +56,8 @@ function AppointmentsTable() {
     try {
       await api.cancelAppointment(id, "cancelled from portal");
       await load();
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not cancel.");
+    } catch {
+      /* reported by the shared API-feedback layer */
     } finally {
       setBusy(false);
     }
@@ -63,23 +67,41 @@ function AppointmentsTable() {
     {
       key: "when",
       header: "When",
-      cell: (a) => <span className="whitespace-nowrap text-fg">{new Date(a.scheduledAt).toLocaleString()}</span>,
+      hideable: false,
+      accessor: (a) => a.scheduledAt,
+      cell: (a) => <span className="whitespace-nowrap text-fg">{formatDateTime(a.scheduledAt)}</span>,
     },
     {
       key: "patient",
       header: "Patient",
+      hideable: false,
+      accessor: (a) => `${a.patientName} ${a.patientUhid}`,
       cell: (a) => (
         <Link href={`/patients/${a.patientId}`} className="text-brand hover:underline">
           {a.patientName} <span className="font-mono text-xs text-fg-muted">{a.patientUhid}</span>
         </Link>
       ),
     },
-    { key: "provider", header: "Provider", cell: (a) => a.providerName },
-    { key: "dur", header: "Duration", cell: (a) => `${a.durationMinutes}m` },
-    { key: "status", header: "Status", cell: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge> },
+    { key: "provider", header: "Provider", filterable: true, accessor: (a) => a.providerName, cell: (a) => a.providerName },
+    {
+      key: "dur",
+      header: "Duration",
+      align: "right",
+      accessor: (a) => a.durationMinutes,
+      cell: (a) => `${a.durationMinutes}m`,
+    },
+    {
+      key: "status",
+      header: "Status",
+      filterable: true,
+      accessor: (a) => a.status,
+      cell: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge>,
+    },
     {
       key: "actions",
       header: "",
+      align: "right",
+      hideable: false,
       cell: (a) =>
         a.status === "booked" ? (
           <div className="flex justify-end gap-2">
@@ -107,21 +129,42 @@ function AppointmentsTable() {
           </Can>
         }
       />
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-fg-muted">Status:</span>
-        <select className="hms-input max-w-[12rem]" value={status} onChange={(e) => { setPage(1); setStatus(e.target.value); }}>
-          <option value="">All</option>
-          <option value="booked">Booked</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-      <DataTable columns={columns} rows={rows} rowKey={(a) => a.id} loading={loading} error={error} emptyMessage="No appointments." />
-      <div className="flex items-center justify-end gap-3">
-        <span className="text-sm text-fg-muted">Page {page} of {totalPages}</span>
-        <Button variant="secondary" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-        <Button variant="secondary" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(a) => a.id}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyMessage={status ? "No appointments with this status." : "No appointments."}
+        urlState
+        filters={
+          <label className="inline-flex items-center gap-2 text-sm text-fg-muted">
+            <span className="sr-only">Appointment status</span>
+            <select
+              className="hms-input hms-input--sm"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setQuery((q) => ({ ...q, page: 1 }));
+              }}
+            >
+              <option value="">All statuses</option>
+              <option value="booked">Booked</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+        }
+        server={{
+          total,
+          page: query.page,
+          pageSize: query.pageSize,
+          search: query.search,
+          sort: query.sort,
+          onChange: setQuery,
+        }}
+      />
     </>
   );
 }

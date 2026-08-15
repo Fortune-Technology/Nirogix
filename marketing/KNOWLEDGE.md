@@ -25,6 +25,14 @@ The public-facing product site (unauthenticated). It presents the product across
 - **Light + Dark** (`data-theme` on `<html>`, `--mk-*` dark block in `globals.css`). `lib/theme.tsx` provides the toggle (Sun/Moon in the navbar, desktop + mobile), persisted under `mk-theme`, first visit honours `prefers-color-scheme`; a no-flash script in `layout.tsx` paints it before hydration. Framed `@hms/ui` product previews follow the same `data-theme`.
 - Motion: restrained (design-taste dials VARIANCE 6 / MOTION 3 / DENSITY 3). `Reveal` does a soft fade-up via IntersectionObserver, fully static under `prefers-reduced-motion`.
 
+## shadcn/ui — CLI + reference layer (ADR-028)
+
+Installed, but **not** a second kit: the marketing components in `components/ui/*` and `@hms/ui` stay canonical.
+
+- `components.json` (style `base-nova`, base `base` = Base UI, Lucide) with the `ui` alias pointed at **`@/components/shadcn`** — deliberately *not* `components/ui`, because `shadcn init` overwrote the site's own `Button.tsx` on first run (restored from git). Generated components land in their own folder and can never clobber the marketing kit. `lib/utils.ts` holds `cn` for them. Dependencies: `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI is a devDependency.
+- **`app/globals.css` re-points shadcn's semantic contract at `--mk-*`** (`--background`, `--foreground`, `--card`, `--primary`, `--muted`, `--accent`, `--destructive`, `--border`, `--ring`, `--radius`), keeps `--font-sans` on Geist, drops shadcn's OKLCH palette and `.dark` block, and redefines `@custom-variant dark` to `[data-theme="dark"]`. `--color-accent` / `--color-secondary` stay bound to the marketing scale (`bg-accent` is the teal CTA). Platform-branding overrides (ADR-024) therefore reach shadcn components too.
+- Usage rule: `npx shadcn@latest add <component>`, then review and restyle before it ships.
+
 ## Layout
 
 ```

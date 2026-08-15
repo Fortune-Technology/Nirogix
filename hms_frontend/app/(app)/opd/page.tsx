@@ -6,6 +6,7 @@ import { UserCheck } from "lucide-react";
 import { Badge, Button, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Visit } from "@hms/types";
+import { formatTime } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -75,27 +76,45 @@ function OpdQueue() {
     {
       key: "token",
       header: "Token",
+      hideable: false,
+      accessor: (v) => v.tokenNumber,
       cell: (v) => <span className="font-mono text-base font-semibold text-fg">#{v.tokenNumber}</span>,
     },
     {
       key: "patient",
       header: "Patient",
+      hideable: false,
+      accessor: (v) => `${v.patientName} ${v.patientUhid}`,
       cell: (v) => (
         <Link href={`/patients/${v.patientId}`} className="text-brand hover:underline">
           {v.patientName} <span className="font-mono text-xs text-fg-muted">{v.patientUhid}</span>
         </Link>
       ),
     },
-    { key: "provider", header: "Provider", cell: (v) => v.providerName ?? <span className="text-fg-subtle">—</span> },
+    {
+      key: "provider",
+      header: "Provider",
+      filterable: true,
+      accessor: (v) => v.providerName ?? "—",
+      cell: (v) => v.providerName ?? <span className="text-fg-subtle">—</span>,
+    },
     {
       key: "since",
       header: "Checked in",
-      cell: (v) => <span className="whitespace-nowrap text-fg-muted">{new Date(v.checkedInAt).toLocaleTimeString()}</span>,
+      accessor: (v) => v.checkedInAt,
+      cell: (v) => <span className="whitespace-nowrap text-fg-muted">{formatTime(v.checkedInAt)}</span>,
     },
-    { key: "status", header: "Status", cell: (v) => <Badge tone={statusTone(v.status)}>{STATUS_LABEL[v.status] ?? v.status}</Badge> },
+    {
+      key: "status",
+      header: "Status",
+      filterable: true,
+      accessor: (v) => STATUS_LABEL[v.status] ?? v.status,
+      cell: (v) => <Badge tone={statusTone(v.status)}>{STATUS_LABEL[v.status] ?? v.status}</Badge>,
+    },
     {
       key: "bill",
       header: "Bill",
+      accessor: (v) => v.invoice?.status.replace("_", " ") ?? "—",
       cell: (v) =>
         v.invoice ? (
           <Link href={`/billing/${v.invoice.id}`} className="inline-flex items-center gap-2 hover:underline">
@@ -111,6 +130,8 @@ function OpdQueue() {
     {
       key: "actions",
       header: "",
+      align: "right",
+      hideable: false,
       cell: (v) => (
         <div className="flex justify-end gap-2">
           {canConsult && v.status !== "cancelled" && (

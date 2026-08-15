@@ -127,6 +127,8 @@ function Stock() {
     {
       key: "name",
       header: "Drug",
+      hideable: false,
+      accessor: (d) => `${d.name} ${d.strength ?? ""} ${d.form ?? ""}`,
       cell: (d) => (
         <span className="text-fg">
           {d.name} {d.strength && <span className="text-xs text-fg-muted">{d.strength}</span>}
@@ -137,6 +139,8 @@ function Stock() {
     {
       key: "onHand",
       header: "On hand",
+      align: "right",
+      accessor: (d) => d.onHand,
       cell: (d) => (
         <span className="flex items-center gap-2">
           <span className="font-mono text-fg">{d.onHand}</span>
@@ -144,11 +148,33 @@ function Stock() {
         </span>
       ),
     },
-    { key: "price", header: "Price", cell: (d) => formatPaise(d.unitPricePaise) },
-    { key: "reorder", header: "Reorder", cell: (d) => <span className="text-fg-muted">{d.reorderLevel || "—"}</span> },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      accessor: (d) => d.unitPricePaise,
+      cell: (d) => formatPaise(d.unitPricePaise),
+    },
+    {
+      key: "reorder",
+      header: "Reorder",
+      align: "right",
+      defaultHidden: true,
+      accessor: (d) => d.reorderLevel,
+      cell: (d) => <span className="text-fg-muted">{d.reorderLevel || "—"}</span>,
+    },
+    {
+      key: "stock",
+      header: "Stock level",
+      filterable: true,
+      accessor: (d) => (d.lowStock ? "Low" : "OK"),
+      cell: (d) => (d.lowStock ? <Badge tone="warning">Low</Badge> : <span className="text-fg-muted">OK</span>),
+    },
     {
       key: "actions",
       header: "",
+      align: "right",
+      hideable: false,
       cell: (d) =>
         canManage ? (
           <Button variant="secondary" size="sm" onClick={() => setReceiving((r) => (r === d.id ? null : d.id))}>

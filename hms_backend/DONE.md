@@ -501,3 +501,16 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Testing status:** `typecheck` green (7 ws) · `openapi:validate` green. **Live-verified via API (org_admin):** OPD register (V-000001 completed) · collections **total ₹500 cash, byDay 2026-08-14** · pending labs 0 (all resulted).
 
 **🎉 Phase 1 complete** — all 7 slices (1.1–1.7). The full clinic journey is built and verified end-to-end: registration → appointment → check-in/queue → consultation (vitals / ICD-10 diagnosis / prescription / lab orders) → pharmacy dispense → lab result → billing (one invoice accumulating consultation + pharmacy + lab) → payment/receipt → reports. Tenant-isolated, permission-gated, OpenAPI-documented.
+
+---
+
+## 2026-08-15 — Audit list gains search, severity filter and allow-listed sorting
+
+**Why:** the Portal's audit table was being rebuilt as a server-mode DataTable (ADR-029), and `GET /audit` accepted only `page`/`pageSize` — so search and sorting had nowhere to go. Filtering a security log in the browser was never an option: it only ever holds one page.
+
+**Changed:**
+- `audit.service.ts` — `listAudit` takes `{ page, pageSize, search?, severity?, sortBy?, sortDir? }`. `search` is an ILIKE over `action` / `path` / `resource_type`; `severity` is an equality filter; sorting uses an **allow-list map** (`createdAt`, `action`, `severity`, `statusCode`) so an arbitrary column can never reach the query. Filters apply to both the page query and the count, so totals stay honest. Still entirely inside `runWithTenant` (tenant isolation unchanged).
+- `audit.controller.ts` — Zod schema extended with `search` (≤120 chars), `severity` enum, `sortBy`/`sortDir` enums with defaults (`createdAt` / `desc`).
+- `audit.openapi.ts` — the query parameters are documented with descriptions; summary updated.
+
+**Testing status:** `typecheck` green · `npm run openapi:validate` green (spec valid, every route documented). **Live-verified** through the Portal against the local database: `?search=branding` returned 33 of 33 matching entries, `?severity=notice` returned 1, `sortBy=action` flipped asc/desc, and `pageSize=100` returned 100 rows of 426.

@@ -23,3 +23,14 @@ Shared, framework-agnostic utilities used across `hms_backend` and `hms_frontend
 ## Status
 
 Intentionally empty in Phase 0 — helpers are added as the first modules that need them land (Stage 1+). Listed here so the package's purpose and rules are set before the first helper arrives.
+
+## Dates (ADR-030)
+
+`src/date.ts` is the platform's only date formatter. Every user-facing date is **`DD/MM/YYYY`** (`DD/MM/YYYY HH:mm` with a time); transport stays ISO-8601.
+
+- `formatDate` · `formatDateTime` · `formatTime` (24-hour) · `formatDateRange` — display.
+- `parseDate` — Date / ISO / epoch / `YYYY-MM-DD` (read as a **local** calendar date, so a date-only value never slips a day) / `DD/MM/YYYY`.
+- `toApiDate` · `toApiDateTime` — back to ISO for APIs, query strings and `<input type="date">`.
+- `isValidDate` · `compareDates` (safe comparator) · `isSameDay` · `todayApiDate` · `addDays`.
+
+Absent or unparseable values render an em dash, never "Invalid Date". No component may call `toLocaleDateString()` or add a date library — extend this module instead.

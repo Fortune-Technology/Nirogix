@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Encounter, Icd10Code, SaveEncounterRequest } from "@hms/types";
+import { formatDateTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -168,7 +169,7 @@ function Consultation({ visitId }: { visitId: string }) {
         description={`${enc.patientName} · ${enc.patientUhid}${enc.providerName ? ` · ${enc.providerName}` : ""}`}
         actions={
           signed ? (
-            <Badge tone="success">Signed {enc.signedAt ? new Date(enc.signedAt).toLocaleString() : ""}</Badge>
+            <Badge tone="success">Signed {formatDateTime(enc.signedAt, "")}</Badge>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={save} loading={saving} disabled={signing}>Save</Button>

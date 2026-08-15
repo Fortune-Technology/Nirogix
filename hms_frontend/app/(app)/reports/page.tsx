@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { Alert, Badge, Button, Card, DataTable, Field, Spinner, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { OpdRegisterRow, CollectionsReport, PendingLabRow } from "@hms/types";
+import { formatDate, formatDateTime } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -54,29 +55,29 @@ function Reports() {
   }, [load]);
 
   const opdCols: Array<Column<OpdRegisterRow>> = [
-    { key: "visit", header: "Visit", cell: (r) => <span className="font-mono text-xs">{r.visitNumber}</span> },
-    { key: "token", header: "Token", cell: (r) => `#${r.tokenNumber}` },
-    { key: "date", header: "Date", cell: (r) => r.visitDate },
-    { key: "patient", header: "Patient", cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
-    { key: "provider", header: "Provider", cell: (r) => r.providerName ?? "—" },
-    { key: "status", header: "Status", cell: (r) => <Badge tone={r.status === "completed" ? "success" : "neutral"}>{r.status}</Badge> },
-    { key: "invoice", header: "Invoice", cell: (r) => (r.invoiceNumber ? `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}` : "—") },
+    { key: "visit", header: "Visit", hideable: false, accessor: (r) => r.visitNumber, cell: (r) => <span className="font-mono text-xs">{r.visitNumber}</span> },
+    { key: "token", header: "Token", align: "right", accessor: (r) => r.tokenNumber, cell: (r) => `#${r.tokenNumber}` },
+    { key: "date", header: "Date", accessor: (r) => r.visitDate, cell: (r) => formatDate(r.visitDate) },
+    { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
+    { key: "provider", header: "Provider", filterable: true, accessor: (r) => r.providerName ?? "—", cell: (r) => r.providerName ?? "—" },
+    { key: "status", header: "Status", filterable: true, accessor: (r) => r.status, cell: (r) => <Badge tone={r.status === "completed" ? "success" : "neutral"}>{r.status}</Badge> },
+    { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceTotalPaise ?? 0, cell: (r) => (r.invoiceNumber ? `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}` : "—") },
   ];
 
   const pendingCols: Array<Column<PendingLabRow>> = [
-    { key: "test", header: "Test", cell: (r) => r.testName },
-    { key: "patient", header: "Patient", cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
-    { key: "priority", header: "Priority", cell: (r) => (r.priority === "urgent" ? <Badge tone="danger">urgent</Badge> : r.priority) },
-    { key: "status", header: "Status", cell: (r) => <Badge tone="warning">{r.status}</Badge> },
-    { key: "ordered", header: "Ordered", cell: (r) => new Date(r.orderedAt).toLocaleString() },
+    { key: "test", header: "Test", hideable: false, accessor: (r) => r.testName, cell: (r) => r.testName },
+    { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
+    { key: "priority", header: "Priority", filterable: true, accessor: (r) => r.priority, cell: (r) => (r.priority === "urgent" ? <Badge tone="danger">urgent</Badge> : r.priority) },
+    { key: "status", header: "Status", filterable: true, accessor: (r) => r.status, cell: (r) => <Badge tone="warning">{r.status}</Badge> },
+    { key: "ordered", header: "Ordered", accessor: (r) => r.orderedAt, cell: (r) => formatDateTime(r.orderedAt) },
   ];
 
   const collectionCols: Array<Column<CollectionsReport["rows"][number]>> = [
-    { key: "when", header: "When", cell: (r) => new Date(r.collectedAt).toLocaleString() },
-    { key: "patient", header: "Patient", cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
-    { key: "invoice", header: "Invoice", cell: (r) => <span className="font-mono text-xs">{r.invoiceNumber}</span> },
-    { key: "method", header: "Method", cell: (r) => r.method.toUpperCase() },
-    { key: "amount", header: "Amount", cell: (r) => formatPaise(r.amountPaise) },
+    { key: "when", header: "When", hideable: false, accessor: (r) => r.collectedAt, cell: (r) => formatDateTime(r.collectedAt) },
+    { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
+    { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceNumber, cell: (r) => <span className="font-mono text-xs">{r.invoiceNumber}</span> },
+    { key: "method", header: "Method", filterable: true, accessor: (r) => r.method.toUpperCase(), cell: (r) => r.method.toUpperCase() },
+    { key: "amount", header: "Amount", align: "right", accessor: (r) => r.amountPaise, cell: (r) => formatPaise(r.amountPaise) },
   ];
 
   function exportCsv() {

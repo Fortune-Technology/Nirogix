@@ -1,4 +1,19 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * shadcn/ui is installed as a CLI + reference layer only (ADR-028) — the marketing
+ * kit (`components/ui/*`) and `@hms/ui` stay canonical, and anything pulled in with
+ * `shadcn add` lands in `components/shadcn/` and must render on OUR tokens. So
+ * shadcn's semantic variables are re-pointed at `--mk-*` further down instead of
+ * the neutral OKLCH palette its init writes.
+ *
+ * Dark mode: this site switches on `data-theme="dark"`, not a `.dark` class — the
+ * variant is redefined to match, and no `.dark` block is needed because the
+ * `--mk-*` values these map to already flip under the attribute.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
  * Marketing design system — implements the canonical HMS Design System
@@ -124,6 +139,58 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-sans);
+
+  /* shadcn's scale, resolved from the marketing tokens (see :root below). */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-3xl: calc(var(--mk-radius-2xl) * 1.5);
+  --radius-4xl: calc(var(--mk-radius-2xl) * 2);
+}
+
+/*
+ * shadcn's semantic contract, expressed entirely in `--mk-*`. Every value is a
+ * reference, so Light/Dark and a platform-branding override (ADR-024) cascade into
+ * shadcn components for free — no second palette to keep in sync. `--color-accent`
+ * and `--color-secondary` are intentionally NOT remapped: they already belong to
+ * the marketing scale above (`bg-accent` is the teal CTA), and shadcn components
+ * read `--accent` / `--secondary` directly.
+ */
+:root {
+  --background: var(--mk-canvas);
+  --foreground: var(--mk-ink);
+  --card: var(--mk-surface);
+  --card-foreground: var(--mk-ink);
+  --popover: var(--mk-surface);
+  --popover-foreground: var(--mk-ink);
+  --primary: var(--mk-accent);
+  --primary-foreground: var(--mk-accent-ink);
+  --secondary: var(--mk-surface-2);
+  --secondary-foreground: var(--mk-ink);
+  --muted: var(--mk-surface-2);
+  --muted-foreground: var(--mk-ink-muted);
+  --accent: var(--mk-accent-subtle);
+  --accent-foreground: var(--mk-accent);
+  --destructive: var(--mk-danger);
+  --destructive-foreground: var(--mk-ink-inverse);
+  --border: var(--mk-hairline);
+  --input: var(--mk-hairline);
+  --ring: var(--mk-accent);
+  --radius: var(--mk-radius-lg);
 }
 
 html {

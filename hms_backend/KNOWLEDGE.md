@@ -98,6 +98,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Immutable trail:** `audit_log` (tenant-scoped, RLS) is **append-only** — a DB trigger (`db/auditProtection.ts`, applied by `db:migrate`) blocks UPDATE/DELETE, so it's tamper-evident even against the app role. Never deleted. `severity` supports the enhanced break-glass event.
 - **`writeAudit(entry)`** (`modules/audit/audit.service.ts`) — best-effort (a failed audit write is logged, never breaks the request). Tenant-scoped.
 - **Auto-audit:** `http/auditMiddleware.ts` audits every authenticated mutating request (method/path/status/actor).
+- **`GET /audit` query surface:** `page`/`pageSize` plus `search` (ILIKE over action / path / resourceType), `severity`, and `sortBy`/`sortDir`. Sort columns are **allow-listed** (`createdAt`, `action`, `severity`, `statusCode`) so a client can never sort by an arbitrary column; everything stays inside `runWithTenant`. The Portal's audit table drives these directly (server-mode DataTable, ADR-029).
 - **Explicit events:** login success/failure (`auth.login.*`), permission grant/deny/revoke (`rbac.override.*`), role assignment (`rbac.role.assign`), entitlement changes (`entitlement.grant` / `entitlement.status`).
 - **View:** `GET /api/v1/audit` (paginated, newest first) requires `audit.log.view`.
 - Verified live: a login writes an `audit_log` row; `/audit` returns the trail; a user without `audit.log.view` → 403; UPDATE/DELETE blocked (tested).

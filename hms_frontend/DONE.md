@@ -261,3 +261,49 @@ Append-only implementation log. Newest at the bottom.
 - `components/AppShell.tsx` + `settings/page.tsx` — tenant logo now renders through `next/image` (`unoptimized`, explicit 24/40px dimensions) instead of a raw `<img>`; dropped the two `no-img-element` eslint suppressions. Removed an unused `Badge` import in `pharmacy/page.tsx`.
 
 **Testing status:** `typecheck` green · `next build` green · eslint clean on all changed files (only the repo's pre-existing `react-hooks/set-state-in-effect` findings remain). **Live-verified** against the local backend as CITYCARE org_admin: wrong password → inline "Invalid credentials" and **no** toast (no double message); dashboard GETs stay silent; `Save colours` → success toast "Branding saved."; `/users/<bogus-uuid>` → persistent error toast "Not found — User not found" with `role="alert"`; toast sits bottom-right clear of `BackToTop` and re-checked in Dark.
+
+---
+
+## 2026-08-15 — shadcn/ui installed as a CLI + reference layer (ADR-028)
+
+**What:** `shadcn init` run against the Portal so `shadcn add` and the shadcn agent skill work here — without shadcn becoming a second component kit. `@hms/ui` stays canonical (ADR-026 unchanged).
+
+**Added:** `components.json` (template `next`, base `base` = Base UI, preset `nova`, Lucide, CSS variables), `lib/utils.ts`, `components/ui/` as the add-target. Dependencies `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI moved to **devDependencies** (init put it in `dependencies`).
+
+**Changed — `app/globals.css`, reconciled by hand after init:**
+- Init's regressions reverted: `--font-sans` restored to `var(--hms-font-sans)` (it had been repointed at itself), and the generated demo `components/ui/button.tsx` deleted rather than left unused.
+- shadcn's neutral **OKLCH palette and its `.dark` block removed**; every semantic variable it needs is now a reference to `--hms-*` (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--sidebar-*`, `--chart-*`).
+- `@custom-variant dark` redefined from `(&:is(.dark *))` to `[data-theme="dark"]` — the switch this app actually uses — so `dark:` utilities and the mapped variables track the real theme.
+- Init's `@layer base` reset (`* { @apply border-border }`, `body { @apply bg-background }`) dropped; the existing body rules already do this and the wildcard border would have altered `@hms/ui` components.
+
+**Result:** anything pulled in with `shadcn add` renders on the HMS palette in Light **and** Dark and follows a tenant's accent override, with no second palette to maintain.
+
+**Testing status:** `npm install` + `typecheck` green (7 workspaces) · `next build` green. **Live-verified:** `--primary` resolves to `--hms-brand` (`#0e7490`), `--radius` to 12px, the existing `.hms-btn--primary` still paints `rgb(14,116,144)`, page ground unchanged. `shadcn info` reports Next.js 16.3.0 / Tailwind v4 / alias `@` correctly.
+
+---
+
+## 2026-08-15 — DataTable configurations + `DD/MM/YYYY` dates (ADR-029, ADR-030)
+
+**Dates:** all ten locale-dependent renders (`toLocaleDateString` / `toLocaleString` / `toLocaleTimeString` in tenants, appointments, audit, billing ×2, opd ×2, reports ×2, user overrides) now go through `formatDate` / `formatDateTime` / `formatTime` from `@hms/utils`; `@hms/utils` added as a workspace dependency. No locale-dependent date formatting remains in the app.
+
+**Tables:** the shared `DataTable` gained sorting/search/filters/column-visibility/pagination (ADR-029) with a backwards-compatible column API, so all 12 existing screens compiled untouched. Two were then upgraded to real configurations:
+- **Patients** — server mode (`server` + `urlState`): the API owns paging and search, the toolbar's search is debounced into one request, `?q=`/`?page=` make a view linkable. Columns gained sortable UHID/Name/Registered, faceted Gender/City/Status filters, a default-hidden "Registered" column, and a right-aligned actions column using the shared `ActionMenu` (View record / Edit details, the latter permission-gated). The page's hand-rolled search box and Previous/Next buttons were deleted.
+- **Providers** — client mode: sortable Name, faceted Specialties and Status filters, search placeholder, 20-row pages, and an empty-state description.
+
+**Testing status:** `typecheck` green · `next build` green · eslint clean on changed files. **Live-verified** against the local backend (CITYCARE org_admin) — see `packages/ui/DONE.md` for the sorting / search / filter / column-visibility / pagination checks and the `14/08/2026` date render.
+
+---
+
+## 2026-08-15 — Every table converted to a full DataTable configuration
+
+**Reported:** on the audit screen, choosing "100 rows per page" still showed 20; no column could be sorted; no search box; no filters.
+
+**Cause:** those screens were still passing the *minimal* column shape (`{ key, header, cell }`) the old table accepted. Without an `accessor` a column has no comparable value, so the table could not sort, search, or facet it — and their pages still owned paging themselves, so the table's rows-per-page control changed nothing the API was asked for.
+
+**Fixed:**
+- `@hms/ui` — a column with an `accessor` is now **sortable and searchable by default** (opt out with `sortable: false`), so configuring a table no longer means repeating flags. Server-mode sorting now computes the next sort state and emits *that* (it previously read the pre-click state back through a `setTimeout`, so the API received the wrong sort). The toolbar no longer renders an empty bar for tables with no filters.
+- **Converted every remaining table** with accessors, faceted filters, aligned numeric columns, sensible default-hidden columns, and shared row actions: audit, appointments, billing, opd, users, branches, admin/tenants, laboratory/tests, pharmacy/stock, and all three reports tables (OPD register, pending labs, collections).
+- **Server mode** wired where the API paginates — **audit**, **appointments**, **billing** (joining patients) — so rows-per-page, page changes, search and filters all reach the API. Their hand-rolled Previous/Next blocks and stand-alone status `<select>`s were deleted; the status filters now live in the table toolbar.
+- The audit table drives the new backend query surface (`search`, `severity`, `sortBy`/`sortDir` — see `hms_backend/DONE.md`).
+
+**Testing status:** `typecheck` green · `next build` green · eslint clean (only the repo's pre-existing `set-state-in-effect` / `purity` findings). **Live-verified on /audit:** page size 100 returned 100 rows of 426; sorting Action asc→desc changed the data and the URL (`?sort=action:asc|desc`); search "branding" returned 33 of 33, every row matching; severity "notice" returned 1 of 1. **/users:** search, Roles + Status faceted filters, four sortable columns, pagination. **/opd:** search + six sortable columns (queue empty today, so the shared empty state renders instead of filters).

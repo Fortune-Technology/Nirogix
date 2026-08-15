@@ -421,6 +421,420 @@
 }
 
 /* --------------------------------------------------------------------------
+ * DataTable system — toolbar, sortable headers, pagination, states (ADR-029).
+ * The table base (.hms-table) is above; these are the surrounding controls.
+ * ------------------------------------------------------------------------ */
+.hms-datatable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.hms-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.hms-toolbar__left,
+.hms-toolbar__right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hms-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.hms-search__icon {
+  position: absolute;
+  left: 0.625rem;
+  color: var(--hms-fg-subtle);
+  pointer-events: none;
+}
+.hms-search__input {
+  padding-left: 2rem;
+  min-width: min(18rem, 60vw);
+}
+.hms-input--sm {
+  padding: 0.3125rem 0.5rem;
+  font-size: var(--hms-text-sm);
+}
+.hms-filter__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  margin-left: 0.125rem;
+  border-radius: 9999px;
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.hms-filter__label {
+  flex: 1;
+}
+.hms-filter__facet {
+  color: var(--hms-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sortable header */
+.hms-th__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--hms-radius-sm);
+}
+.hms-th__sort--center {
+  justify-content: center;
+}
+.hms-th__sort--right {
+  justify-content: flex-end;
+}
+.hms-th__sort:hover .hms-th__icon {
+  color: var(--hms-fg);
+}
+.hms-th__sort:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+.hms-th__icon {
+  display: inline-flex;
+  color: var(--hms-fg-subtle);
+  transition: color 0.15s ease;
+}
+.hms-th__icon--active {
+  color: var(--hms-brand);
+}
+.hms-th__order {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--hms-brand);
+}
+.hms-table--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.hms-table tbody tr[data-selected] td {
+  background: var(--hms-brand-subtle);
+}
+.hms-cell--right {
+  text-align: right;
+}
+.hms-cell--center {
+  text-align: center;
+}
+.hms-checkbox {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--hms-brand);
+  cursor: pointer;
+}
+
+/* Pagination */
+.hms-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+}
+.hms-pagination__info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.hms-pagination__selected {
+  color: var(--hms-brand);
+}
+.hms-pagination__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hms-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.hms-pagination__pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+.hms-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.875rem;
+  height: 1.875rem;
+  padding: 0 0.375rem;
+  border: 1px solid transparent;
+  border-radius: var(--hms-radius-sm);
+  background: none;
+  color: var(--hms-fg-muted);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.hms-pagination__btn:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+.hms-pagination__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.hms-pagination__btn--active {
+  background: var(--hms-brand);
+  border-color: var(--hms-brand);
+  color: var(--hms-brand-fg);
+}
+.hms-pagination__btn--active:hover {
+  background: var(--hms-brand-hover);
+  color: var(--hms-brand-fg);
+}
+.hms-pagination__btn:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+.hms-pagination__gap {
+  padding: 0 0.25rem;
+  color: var(--hms-fg-subtle);
+}
+
+/* --------------------------------------------------------------------------
+ * Menu / dropdown (shared Menu, ActionMenu, column visibility, filters)
+ * ------------------------------------------------------------------------ */
+.hms-menu {
+  position: relative;
+  display: inline-flex;
+}
+.hms-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 50;
+  min-width: 11rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  background: var(--hms-surface);
+  box-shadow: var(--hms-shadow-md);
+}
+.hms-menu__panel--start {
+  right: auto;
+  left: 0;
+}
+.hms-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.5rem;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: none;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.hms-menu__item:hover:not(:disabled),
+.hms-menu__item:focus-visible {
+  background: var(--hms-surface-2);
+  outline: none;
+}
+.hms-menu__item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--hms-ring);
+}
+.hms-menu__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hms-menu__item--danger {
+  color: var(--hms-danger);
+}
+.hms-menu__item-icon {
+  display: inline-flex;
+  color: var(--hms-fg-subtle);
+}
+.hms-menu__item--danger .hms-menu__item-icon {
+  color: var(--hms-danger);
+}
+.hms-menu__check {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 1px solid var(--hms-border);
+  border-radius: 3px;
+  background: var(--hms-surface);
+}
+.hms-menu__check--on {
+  border-color: var(--hms-brand);
+  background: var(--hms-brand);
+  box-shadow: inset 0 0 0 2px var(--hms-surface);
+}
+.hms-menu__sep {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--hms-border);
+}
+.hms-actions__trigger {
+  padding: 0.25rem 0.375rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Shared states: empty, error, skeleton
+ * ------------------------------------------------------------------------ */
+.hms-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  font-family: var(--hms-font-sans);
+}
+.hms-state__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: var(--hms-surface-2);
+  color: var(--hms-fg-subtle);
+}
+.hms-state--error .hms-state__icon {
+  background: var(--hms-danger-subtle);
+  color: var(--hms-danger);
+}
+.hms-state__title {
+  margin: 0;
+  font-size: var(--hms-text-base);
+  font-weight: 600;
+  color: var(--hms-fg);
+}
+.hms-state__desc {
+  margin: 0;
+  max-width: 28rem;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+}
+.hms-state__action {
+  margin-top: 0.25rem;
+}
+.hms-skeleton {
+  display: block;
+  width: 100%;
+  height: 1rem;
+  border-radius: var(--hms-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--hms-surface-2) 25%,
+    color-mix(in srgb, var(--hms-surface-2) 55%, var(--hms-surface)) 37%,
+    var(--hms-surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: hms-shimmer 1.4s ease infinite;
+}
+@keyframes hms-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-skeleton {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Confirmation dialog (shared ConfirmDialog — every destructive action)
+ * ------------------------------------------------------------------------ */
+.hms-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--hms-fg) 45%, transparent);
+}
+.hms-dialog {
+  width: min(26rem, 100%);
+  padding: 1.25rem;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-lg);
+  background: var(--hms-surface);
+  box-shadow: var(--hms-shadow-md);
+  font-family: var(--hms-font-sans);
+}
+.hms-dialog__head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.hms-dialog__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: var(--hms-surface-2);
+  color: var(--hms-fg-muted);
+}
+.hms-dialog__icon--danger {
+  background: var(--hms-danger-subtle);
+  color: var(--hms-danger);
+}
+.hms-dialog__title {
+  margin: 0;
+  font-size: var(--hms-text-lg);
+  font-weight: 600;
+  color: var(--hms-fg);
+}
+.hms-dialog__body {
+  margin-top: 0.75rem;
+  font-size: var(--hms-text-sm);
+  line-height: 1.5;
+  color: var(--hms-fg-muted);
+}
+.hms-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
  * Toast / notifications (shared Toaster + toast()) — the ONE API-feedback
  * surface for the Portal and marketing (ADR-026, resources/DESIGN.md §5).
  * Mobile: top, full width. Desktop: bottom-right, clear of BackToTop.

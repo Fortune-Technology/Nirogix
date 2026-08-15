@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Badge, Button, DataTable, type Column } from "@hms/ui";
+import { Badge, DataTable, type Column, type DataTableQuery } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { InvoiceListItem } from "@hms/types";
+import { formatDate } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -18,10 +19,11 @@ function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
 }
 
 function InvoicesTable() {
+  // Server mode: the invoice list is paginated and filtered by the API, so the
+  // table reports the view the user asked for instead of paging in the browser.
   const [rows, setRows] = useState<InvoiceListItem[]>([]);
   const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [] });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,17 +31,20 @@ function InvoicesTable() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.listInvoices({ page, pageSize: 20, status: status || undefined });
+      const res = await api.listInvoices({
+        page: query.page,
+        pageSize: query.pageSize,
+        status: status || undefined,
+      });
       setRows(res.data);
-      setTotalPages(res.page.totalPages);
       setTotal(res.page.total);
       setError(null);
-    } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load invoices.");
+    } catch {
+      setError("Could not load invoices.");
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [query, status]);
 
   useEffect(() => {
     void load();
@@ -49,6 +54,8 @@ function InvoicesTable() {
     {
       key: "number",
       header: "Invoice",
+      hideable: false,
+      accessor: (i) => i.invoiceNumber,
       cell: (i) => (
         <Link href={`/billing/${i.id}`} className="font-mono text-brand hover:underline">
           {i.invoiceNumber}
@@ -58,49 +65,87 @@ function InvoicesTable() {
     {
       key: "patient",
       header: "Patient",
+      hideable: false,
+      accessor: (i) => `${i.patientName} ${i.patientUhid}`,
       cell: (i) => (
         <Link href={`/patients/${i.patientId}`} className="hover:underline">
           {i.patientName} <span className="font-mono text-xs text-fg-muted">{i.patientUhid}</span>
         </Link>
       ),
     },
-    { key: "total", header: "Total", cell: (i) => <span className="whitespace-nowrap text-fg">{formatPaise(i.totalPaise, i.currency)}</span> },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      accessor: (i) => i.totalPaise,
+      cell: (i) => <span className="whitespace-nowrap text-fg">{formatPaise(i.totalPaise, i.currency)}</span>,
+    },
     {
       key: "balance",
       header: "Balance",
+      align: "right",
+      accessor: (i) => i.balancePaise,
       cell: (i) => (
         <span className={`whitespace-nowrap ${i.balancePaise > 0 ? "text-fg" : "text-fg-muted"}`}>
           {formatPaise(i.balancePaise, i.currency)}
         </span>
       ),
     },
-    { key: "status", header: "Status", cell: (i) => <Badge tone={statusTone(i.status)}>{i.status.replace("_", " ")}</Badge> },
+    {
+      key: "status",
+      header: "Status",
+      filterable: true,
+      accessor: (i) => i.status.replace("_", " "),
+      cell: (i) => <Badge tone={statusTone(i.status)}>{i.status.replace("_", " ")}</Badge>,
+    },
     {
       key: "date",
       header: "Created",
-      cell: (i) => <span className="whitespace-nowrap text-fg-muted">{new Date(i.createdAt).toLocaleDateString()}</span>,
+      accessor: (i) => i.createdAt,
+      cell: (i) => <span className="whitespace-nowrap text-fg-muted">{formatDate(i.createdAt)}</span>,
     },
   ];
 
   return (
     <>
       <PageHeader title="Billing" description={`${total} invoice${total === 1 ? "" : "s"}`} />
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-fg-muted">Status:</span>
-        <select className="hms-input max-w-[14rem]" value={status} onChange={(e) => { setPage(1); setStatus(e.target.value); }}>
-          <option value="">All</option>
-          <option value="draft">Unpaid (draft)</option>
-          <option value="partially_paid">Partially paid</option>
-          <option value="paid">Paid</option>
-          <option value="void">Void</option>
-        </select>
-      </div>
-      <DataTable columns={columns} rows={rows} rowKey={(i) => i.id} loading={loading} error={error} emptyMessage="No invoices yet." />
-      <div className="flex items-center justify-end gap-3">
-        <span className="text-sm text-fg-muted">Page {page} of {totalPages}</span>
-        <Button variant="secondary" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-        <Button variant="secondary" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(i) => i.id}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyMessage={status ? "No invoices with this status." : "No invoices yet."}
+        urlState
+        filters={
+          <label className="inline-flex items-center gap-2 text-sm text-fg-muted">
+            <span className="sr-only">Invoice status</span>
+            <select
+              className="hms-input hms-input--sm"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setQuery((q) => ({ ...q, page: 1 }));
+              }}
+            >
+              <option value="">All statuses</option>
+              <option value="draft">Unpaid (draft)</option>
+              <option value="partially_paid">Partially paid</option>
+              <option value="paid">Paid</option>
+              <option value="void">Void</option>
+            </select>
+          </label>
+        }
+        server={{
+          total,
+          page: query.page,
+          pageSize: query.pageSize,
+          search: query.search,
+          sort: query.sort,
+          onChange: setQuery,
+        }}
+      />
     </>
   );
 }

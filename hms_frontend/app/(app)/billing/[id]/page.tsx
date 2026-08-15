@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
+import { Alert, Badge, Button, Card, DataTable, Field, Spinner, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Invoice } from "@hms/types";
+import { formatDateTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -20,6 +21,41 @@ function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
 }
 
 const METHODS: Array<Invoice["payments"][number]["method"]> = ["cash", "upi", "card", "netbanking", "other"];
+
+/** Invoice line items — the shared table, configured as a receipt (ADR-029). */
+function lineItemColumns(currency: string): Array<Column<Invoice["lineItems"][number]>> {
+  return [
+    {
+      key: "item",
+      header: "Item",
+      cell: (li) => (
+        <span className="text-fg">
+          {li.description}
+          <span className="ml-2 text-xs text-fg-subtle">{li.itemType}</span>
+        </span>
+      ),
+    },
+    { key: "qty", header: "Qty", align: "right", cell: (li) => <span className="text-fg-muted">{li.quantity}</span> },
+    {
+      key: "unit",
+      header: "Unit",
+      align: "right",
+      cell: (li) => <span className="text-fg-muted">{formatPaise(li.unitPricePaise, currency)}</span>,
+    },
+    {
+      key: "tax",
+      header: "Tax",
+      align: "right",
+      cell: (li) => <span className="text-fg-muted">{formatPaise(li.taxPaise, currency)}</span>,
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "right",
+      cell: (li) => <span className="text-fg">{formatPaise(li.lineTotalPaise, currency)}</span>,
+    },
+  ];
+}
 
 function InvoiceDetail({ id }: { id: string }) {
   const [inv, setInv] = useState<Invoice | null>(null);
@@ -158,33 +194,17 @@ function InvoiceDetail({ id }: { id: string }) {
           </div>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-fg-muted">
-                <th className="py-2 pr-3 font-medium">Item</th>
-                <th className="py-2 px-3 text-right font-medium">Qty</th>
-                <th className="py-2 px-3 text-right font-medium">Unit</th>
-                <th className="py-2 px-3 text-right font-medium">Tax</th>
-                <th className="py-2 pl-3 text-right font-medium">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inv.lineItems.map((li) => (
-                <tr key={li.id} className="border-b border-border/60">
-                  <td className="py-2 pr-3 text-fg">
-                    {li.description}
-                    <span className="ml-2 text-xs text-fg-subtle">{li.itemType}</span>
-                  </td>
-                  <td className="py-2 px-3 text-right text-fg-muted">{li.quantity}</td>
-                  <td className="py-2 px-3 text-right text-fg-muted">{formatPaise(li.unitPricePaise, currency)}</td>
-                  <td className="py-2 px-3 text-right text-fg-muted">{formatPaise(li.taxPaise, currency)}</td>
-                  <td className="py-2 pl-3 text-right text-fg">{formatPaise(li.lineTotalPaise, currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* A receipt, not a worklist: the shared table with its controls turned off. */}
+        <DataTable
+          columns={lineItemColumns(currency)}
+          rows={inv.lineItems}
+          rowKey={(li) => li.id}
+          pagination={false}
+          columnVisibility={false}
+          searchable={false}
+          stickyHeader={false}
+          emptyMessage="No line items on this invoice."
+        />
 
         <dl className="mt-4 ml-auto flex max-w-xs flex-col gap-1.5 text-sm">
           <div className="flex justify-between text-fg-muted">
@@ -219,7 +239,7 @@ function InvoiceDetail({ id }: { id: string }) {
                   {formatPaise(p.amountPaise, currency)} · <span className="uppercase text-fg-muted">{p.method}</span>
                   {p.reference && <span className="ml-2 text-xs text-fg-subtle">{p.reference}</span>}
                 </span>
-                <span className="text-xs text-fg-muted">{new Date(p.collectedAt).toLocaleString()}</span>
+                <span className="text-xs text-fg-muted">{formatDateTime(p.collectedAt)}</span>
               </li>
             ))}
           </ul>

@@ -133,3 +133,19 @@ Append-only implementation log. Newest at the bottom.
 **Testing status:** `typecheck` + `next build` green — 39 static pages, every `*/opengraph-image` route prerendered. **Live-verified:** `/pricing` emits `og:image` + `twitter:image` (1200×630, `image/png`, alt "Pay for the modules you turn on"); fetched the PNG and confirmed it renders the wordmark, the "· PRICING" eyebrow, the headline, and the teal rule.
 
 **Follow-ups (root `BACKLOG.md`):** a real logo mark and brand typeface would replace the placeholder square and the renderer's default font (U-3).
+
+---
+
+## 2026-08-15 — shadcn/ui installed as a CLI + reference layer (ADR-028)
+
+**What:** `shadcn init` run against the marketing site so `shadcn add` and the shadcn agent skill work here, without displacing the marketing component kit.
+
+**Added:** `components.json` (template `next`, base `base` = Base UI, preset `nova`, Lucide), `lib/utils.ts`. Dependencies `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI moved to **devDependencies**.
+
+**Incident + guard:** init **overwrote `components/ui/Button.tsx`** — the site's own token-driven button — which was restored from git. The `ui` alias now points at **`@/components/shadcn`**, so generated components land in their own folder and the CLI can never clobber the marketing kit again.
+
+**Changed — `app/globals.css`, reconciled by hand after init** (init had inlined its palette into the middle of a token declaration, repointed `--font-sans` at itself, and appended a `.dark` block plus a base reset):
+- Restored the file from git and re-applied the shadcn layer cleanly: `tw-animate-css` + `shadcn/tailwind.css` imports, `@custom-variant dark` bound to `[data-theme="dark"]`, and shadcn's semantic contract expressed entirely in `--mk-*` (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`).
+- `--font-sans` (Geist) and the marketing `--color-accent` / `--color-secondary` mappings left untouched, so `bg-accent` is still the teal CTA.
+
+**Testing status:** `typecheck` + `next build` green. **Live-verified:** in Dark, `--primary` resolves to `#22b8cf` (the dark-theme `--mk-accent`); in Light, `#0e7490` with `--border: #dbe6e7`; body ground, Geist, and the hero CTA unchanged.

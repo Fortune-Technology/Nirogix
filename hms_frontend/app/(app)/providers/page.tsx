@@ -9,12 +9,21 @@ import { RequirePermission } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
 
 const columns: Array<Column<Provider>> = [
-  { key: "name", header: "Name", cell: (p) => <span className="font-medium text-fg">{p.fullName}</span> },
-  { key: "reg", header: "Registration", cell: (p) => p.registrationNumber ?? "—" },
-  { key: "qual", header: "Qualification", cell: (p) => p.qualification ?? "—" },
+  {
+    key: "name",
+    header: "Name",
+    sortable: true,
+    hideable: false,
+    accessor: (p) => p.fullName,
+    cell: (p) => <span className="font-medium text-fg">{p.fullName}</span>,
+  },
+  { key: "reg", header: "Registration", accessor: (p) => p.registrationNumber, cell: (p) => p.registrationNumber ?? "—" },
+  { key: "qual", header: "Qualification", accessor: (p) => p.qualification, cell: (p) => p.qualification ?? "—" },
   {
     key: "specialties",
     header: "Specialties",
+    filterable: true,
+    accessor: (p) => p.specialties.map((s) => s.replace(/_/g, " ")).join(", ") || "—",
     cell: (p) =>
       p.specialties.length ? (
         <div className="flex flex-wrap gap-1">
@@ -31,6 +40,8 @@ const columns: Array<Column<Provider>> = [
   {
     key: "status",
     header: "Status",
+    filterable: true,
+    accessor: (p) => (p.isActive ? "Active" : "Inactive"),
     cell: (p) => (p.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>),
   },
 ];
@@ -65,6 +76,9 @@ function ProvidersTable() {
         loading={loading}
         error={error}
         emptyMessage="No providers yet."
+        emptyDescription="Practitioners appear here once they are added to your organization."
+        searchPlaceholder="Search providers…"
+        pagination={{ pageSize: 20 }}
       />
     </>
   );

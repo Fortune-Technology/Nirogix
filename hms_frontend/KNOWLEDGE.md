@@ -71,9 +71,23 @@ components/
 - **Tenant branding (server-persisted, ADR-021):** the accent is a single token (`--hms-brand`). `theme.tsx` exposes `applyBranding(b)` (sets `--hms-brand`/`--hms-brand-hover`, swaps the favicon, tracks the logo URL) and `previewBrandColor(hex)` (live preview while editing). `components/BrandingLoader` (mounted in the authenticated shell) fetches `GET /branding/current` at bootstrap and applies it; a cached brand colour in `localStorage` lets the no-flash script paint it before hydration. The **Settings → Branding** editor (org_admin, `platform.branding.manage`) is a real colour picker + logo/favicon upload + reset, persisted via the branding API. `AppShell` shows the uploaded logo. No component hardcodes colour — branding is a token swap.
 - Verified in **Light and Dark** and under a **non-default brand**.
 
+## shadcn/ui — CLI + reference layer (ADR-028)
+
+Installed, but **not** a second component kit: `@hms/ui` remains canonical and nothing shadcn-generated ships without review.
+
+- `components.json` (style `base-nova`, base `base` = Base UI, Lucide icons, `@/` alias), `lib/utils.ts` (`cn` for generated components), and `components/ui/` as the `shadcn add` target. Dependencies: `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI is a devDependency.
+- **`app/globals.css` re-points shadcn's whole semantic contract at `--hms-*`** — `--background`/`--foreground`/`--card`/`--popover`/`--primary`/`--secondary`/`--muted`/`--accent`/`--destructive`/`--border`/`--input`/`--ring`/`--radius`/`--sidebar-*`/`--chart-*`. shadcn's neutral OKLCH palette and its `.dark` block are deliberately absent, and `@custom-variant dark` is redefined to `[data-theme="dark"]` (the switch this app actually uses). Net effect: a component added by the CLI inherits Light/Dark **and** the tenant accent with no extra work.
+- Init's two regressions were reverted by hand: `--font-sans` is back to `var(--hms-font-sans)`, and the generated demo `button.tsx` was deleted (the `@hms/ui` `Button` is the real one).
+- Usage rule: run `npx shadcn@latest add <component>` for primitives `@hms/ui` lacks (Select, Dialog, Command, Popover), then review — tokens, both themes, tenant accent, a11y — before it reaches a screen. The `shadcn` agent skill in `.agents/skills/` reads this config.
+
 ## The Standard DataTable
 
-Every tabular view renders through `DataTable` from `@hms/ui` (`columns` + `rows` + `rowKey`, with built-in `loading` / `error` / `empty` states and horizontal overflow). The Providers (client-loaded) and Audit (server-paginated, consuming the backend's `{ data, page }` envelope) pages both use it, so headers, spacing, and states are identical everywhere.
+Every tabular view renders through `DataTable` from `@hms/ui` (ADR-029) — a **configuration**, never a per-page table. Columns carry `sortable` / `filterable` / `hideable` / `defaultHidden` / `accessor` flags; the toolbar (search → filters → columns → actions) and pagination (10/20/50/100 + "Showing X–Y of Z") come with it, as do the skeleton, empty and error states.
+
+- **Server mode** for large datasets: pass `server={{ total, page, pageSize, search, sort, onChange }}` and the API owns paging/search (search is debounced). **Patients** runs this way, with `urlState` so `?page/size/q/sort` survives a reload and a link.
+- **Client mode** for small local sets — **Providers** sorts, searches, and offers faceted filters (Specialties, Status) in the browser.
+- Row actions use the shared `ActionMenu`; destructive ones route through `ConfirmDialog`. Dates in cells come from `@hms/utils` (`DD/MM/YYYY`).
+- The remaining screens (audit, appointments, billing, opd, laboratory, pharmacy, users, branches, tenants, reports) still pass the original `{ key, header, cell }` columns — valid, since the API is a superset — and gain sorting/filters by adding flags. Tracked in root `BACKLOG.md`.
 
 ## API feedback (ADR-026)
 

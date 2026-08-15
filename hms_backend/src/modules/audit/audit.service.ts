@@ -1,4 +1,4 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, or, type SQL } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { auditLog, type AuditLog } from '../../db/schema';
 import { logger } from '../../config/logger';
@@ -45,22 +45,53 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
   }
 }
 
+export type AuditListOptions = {
+  page: number;
+  pageSize: number;
+  /** Free-text over action / path / resource type. */
+  search?: string;
+  severity?: AuditSeverity;
+  sortBy?: 'createdAt' | 'action' | 'severity' | 'statusCode';
+  sortDir?: 'asc' | 'desc';
+};
+
+// Sortable columns are allow-listed — a client can never sort by an arbitrary column.
+const SORTABLE = {
+  createdAt: auditLog.createdAt,
+  action: auditLog.action,
+  severity: auditLog.severity,
+  statusCode: auditLog.statusCode,
+} as const;
+
 export async function listAudit(
   tenantId: string,
-  opts: { page: number; pageSize: number },
+  opts: AuditListOptions,
 ): Promise<{ rows: AuditLog[]; total: number }> {
   return runWithTenant(tenantId, async (tx) => {
+    const filters: SQL[] = [eq(auditLog.tenantId, tenantId)];
+    if (opts.severity) filters.push(eq(auditLog.severity, opts.severity));
+    if (opts.search?.trim()) {
+      const term = `%${opts.search.trim()}%`;
+      const match = or(
+        ilike(auditLog.action, term),
+        ilike(auditLog.path, term),
+        ilike(auditLog.resourceType, term),
+      );
+      if (match) filters.push(match);
+    }
+    const where = and(...filters);
+
+    const column = SORTABLE[opts.sortBy ?? 'createdAt'];
+    const order = opts.sortDir === 'asc' ? asc(column) : desc(column);
+
     const rows = await tx
       .select()
       .from(auditLog)
-      .where(eq(auditLog.tenantId, tenantId))
-      .orderBy(desc(auditLog.createdAt))
+      .where(where)
+      .orderBy(order)
       .limit(opts.pageSize)
       .offset((opts.page - 1) * opts.pageSize);
-    const totalRow = await tx
-      .select({ c: count() })
-      .from(auditLog)
-      .where(eq(auditLog.tenantId, tenantId));
+    const totalRow = await tx.select({ c: count() }).from(auditLog).where(where);
     return { rows, total: Number(totalRow[0]?.c ?? 0) };
   });
 }

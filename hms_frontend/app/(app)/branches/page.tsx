@@ -63,12 +63,20 @@ function BranchesTable() {
   }
 
   const columns: Array<Column<Branch>> = [
-    { key: "code", header: "Code", cell: (b) => <span className="font-medium text-fg">{b.code}</span> },
-    { key: "name", header: "Name", cell: (b) => <span className="text-fg">{b.name}</span> },
-    { key: "status", header: "Status", cell: (b) => <Badge tone={b.isActive ? "success" : "neutral"}>{b.isActive ? "active" : "inactive"}</Badge> },
+    { key: "code", header: "Code", hideable: false, accessor: (b) => b.code, cell: (b) => <span className="font-medium text-fg">{b.code}</span> },
+    { key: "name", header: "Name", accessor: (b) => b.name, cell: (b) => <span className="text-fg">{b.name}</span> },
+    {
+      key: "status",
+      header: "Status",
+      filterable: true,
+      accessor: (b) => (b.isActive ? "active" : "inactive"),
+      cell: (b) => <Badge tone={b.isActive ? "success" : "neutral"}>{b.isActive ? "active" : "inactive"}</Badge>,
+    },
     {
       key: "actions",
       header: "",
+      align: "right",
+      hideable: false,
       cell: (b) =>
         canManage ? (
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => api.updateBranch(b.id, { isActive: !b.isActive }))}>

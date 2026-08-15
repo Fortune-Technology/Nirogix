@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { Badge, Button, DataTable, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Tenant } from "@hms/types";
+import { formatDate } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -21,18 +22,27 @@ const columns: Array<Column<Tenant>> = [
   {
     key: "code",
     header: "Code",
+    hideable: false,
+    accessor: (t) => t.code,
     cell: (t) => (
       <Link href={`/admin/tenants/${t.id}`} className="font-medium text-brand hover:underline">
         {t.code}
       </Link>
     ),
   },
-  { key: "name", header: "Name", cell: (t) => <span className="text-fg">{t.name}</span> },
-  { key: "status", header: "Status", cell: (t) => <Badge tone={statusTone(t.status)}>{t.status}</Badge> },
+  { key: "name", header: "Name", accessor: (t) => t.name, cell: (t) => <span className="text-fg">{t.name}</span> },
+  {
+    key: "status",
+    header: "Status",
+    filterable: true,
+    accessor: (t) => t.status,
+    cell: (t) => <Badge tone={statusTone(t.status)}>{t.status}</Badge>,
+  },
   {
     key: "created",
     header: "Created",
-    cell: (t) => <span className="text-fg-muted">{new Date(t.createdAt).toLocaleDateString()}</span>,
+    accessor: (t) => t.createdAt,
+    cell: (t) => <span className="text-fg-muted">{formatDate(t.createdAt)}</span>,
   },
 ];
 

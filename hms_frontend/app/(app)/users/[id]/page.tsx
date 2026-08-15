@@ -7,6 +7,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
 import { PERMISSIONS, ALL_PERMISSIONS } from "@hms/permissions";
 import type { UserDetail, Role } from "@hms/types";
+import { formatDate } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -141,7 +142,7 @@ function Detail({ id }: { id: string }) {
               <li key={o.id} className="flex items-center gap-2">
                 <Badge tone={o.effect === "DENY" ? "danger" : "success"}>{o.effect}</Badge>
                 <span className="font-mono text-fg">{o.permission}</span>
-                {o.validUntil && <span className="text-fg-muted">until {new Date(o.validUntil).toLocaleDateString()}</span>}
+                {o.validUntil && <span className="text-fg-muted">until {formatDate(o.validUntil)}</span>}
                 {canManageRbac && (
                   <button type="button" className="ml-auto text-danger hover:opacity-80" disabled={busy} title="Revoke" onClick={() => run(() => api.revokeUserOverride(id, o.id))}>
                     <X size={14} strokeWidth={2} aria-hidden />

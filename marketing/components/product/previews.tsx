@@ -1,3 +1,5 @@
+"use client";
+
 import { Badge, DataTable, type Column } from "@hms/ui";
 
 /*
@@ -5,6 +7,10 @@ import { Badge, DataTable, type Column } from "@hms/ui";
  * representative (illustrative) clinic data. These render the genuine Portal
  * components, so the marketing surface shows the real product, not a fake mockup.
  * Data is illustrative and India-context; no real patient information.
+ *
+ * Client components: the Standard DataTable is interactive (sorting, filters,
+ * column visibility), so its column definitions — which carry `cell` render
+ * functions — have to be created on the client side of the boundary.
  */
 
 type Appt = {
@@ -40,7 +46,10 @@ const apptColumns: Column<Appt>[] = [
 
 /** The appointments schedule — a real Standard DataTable. */
 export function AppointmentsPreview() {
-  return <DataTable columns={apptColumns} rows={APPTS} rowKey={(r) => r.patient} />;
+  return (
+    // A still product shot: no toolbar, no pagination — just the table itself.
+    <DataTable columns={apptColumns} rows={APPTS} rowKey={(r) => r.patient} pagination={false} columnVisibility={false} />
+  );
 }
 
 type AuditRow = { event: string; actor: string; when: string };
@@ -64,7 +73,9 @@ const auditColumns: Column<AuditRow>[] = [
 
 /** The immutable audit trail — a real Standard DataTable. */
 export function AuditPreview() {
-  return <DataTable columns={auditColumns} rows={AUDIT} rowKey={(r) => r.when} />;
+  return (
+    <DataTable columns={auditColumns} rows={AUDIT} rowKey={(r) => r.when} pagination={false} columnVisibility={false} />
+  );
 }
 
 type Entitlement = { module: string; on: boolean };

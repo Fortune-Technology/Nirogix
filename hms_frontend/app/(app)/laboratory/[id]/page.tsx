@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
+import { Alert, Badge, Button, Card, DataTable, Spinner, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { LabOrder } from "@hms/types";
 import * as api from "../../../../lib/api";
@@ -17,6 +17,34 @@ function flagTone(f: string): "success" | "warning" | "danger" | "neutral" {
   if (f === "high" || f === "low") return "warning";
   return "neutral";
 }
+
+/** The signed report line — one row, rendered through the shared table (ADR-029). */
+type ResultRow = { order: LabOrder; result: NonNullable<LabOrder["result"]> };
+
+const resultColumns: Array<Column<ResultRow>> = [
+  {
+    key: "test",
+    header: "Test",
+    cell: ({ order }) => (
+      <span className="text-fg">
+        {order.testName}
+        {order.testCode && <span className="ml-2 font-mono text-xs text-fg-subtle">{order.testCode}</span>}
+      </span>
+    ),
+  },
+  { key: "value", header: "Result", cell: ({ result }) => <span className="font-medium text-fg">{result.value}</span> },
+  { key: "unit", header: "Unit", cell: ({ result }) => <span className="text-fg-muted">{result.unit ?? "—"}</span> },
+  {
+    key: "reference",
+    header: "Reference",
+    cell: ({ result }) => (
+      <span className="text-fg-muted">
+        {result.refLow || result.refHigh ? `${result.refLow ?? ""}–${result.refHigh ?? ""}` : "—"}
+      </span>
+    ),
+  },
+  { key: "flag", header: "Flag", cell: ({ result }) => <Badge tone={flagTone(result.flag)}>{result.flag}</Badge> },
+];
 
 function Report({ id }: { id: string }) {
   const [order, setOrder] = useState<LabOrder | null>(null);
@@ -76,32 +104,17 @@ function Report({ id }: { id: string }) {
         {!r ? (
           <p className="text-sm text-fg-muted">No result entered yet (status: {order.status}).</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-fg-muted">
-                  <th className="py-2 pr-3 font-medium">Test</th>
-                  <th className="py-2 px-3 font-medium">Result</th>
-                  <th className="py-2 px-3 font-medium">Unit</th>
-                  <th className="py-2 px-3 font-medium">Reference</th>
-                  <th className="py-2 pl-3 font-medium">Flag</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/60">
-                  <td className="py-2 pr-3 text-fg">
-                    {order.testName}
-                    {order.testCode && <span className="ml-2 font-mono text-xs text-fg-subtle">{order.testCode}</span>}
-                  </td>
-                  <td className="py-2 px-3 font-medium text-fg">{r.value}</td>
-                  <td className="py-2 px-3 text-fg-muted">{r.unit ?? "—"}</td>
-                  <td className="py-2 px-3 text-fg-muted">{r.refLow || r.refHigh ? `${r.refLow ?? ""}–${r.refHigh ?? ""}` : "—"}</td>
-                  <td className="py-2 pl-3">
-                    <Badge tone={flagTone(r.flag)}>{r.flag}</Badge>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div>
+            {/* A signed report line: the shared table with its controls turned off. */}
+            <DataTable
+              columns={resultColumns}
+              rows={[{ order, result: r }]}
+              rowKey={() => order.id}
+              pagination={false}
+              columnVisibility={false}
+              searchable={false}
+              stickyHeader={false}
+            />
             {r.notes && <p className="mt-3 text-sm text-fg-muted">Notes: {r.notes}</p>}
           </div>
         )}

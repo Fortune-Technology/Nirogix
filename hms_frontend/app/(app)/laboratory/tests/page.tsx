@@ -92,19 +92,28 @@ function Tests() {
     {
       key: "name",
       header: "Test",
+      hideable: false,
+      accessor: (t) => `${t.name} ${t.code ?? ""}`,
       cell: (t) => (
         <span className="text-fg">
           {t.name} {t.code && <span className="font-mono text-xs text-fg-muted">{t.code}</span>}
         </span>
       ),
     },
-    { key: "sample", header: "Sample", cell: (t) => <span className="text-fg-muted">{t.sampleType ?? "—"}</span> },
+    {
+      key: "sample",
+      header: "Sample",
+      filterable: true,
+      accessor: (t) => t.sampleType ?? "—",
+      cell: (t) => <span className="text-fg-muted">{t.sampleType ?? "—"}</span>,
+    },
     {
       key: "range",
       header: "Reference",
+      sortable: false,
       cell: (t) => (t.refLow || t.refHigh ? `${t.refLow ?? ""}–${t.refHigh ?? ""} ${t.unit ?? ""}` : "—"),
     },
-    { key: "price", header: "Price", cell: (t) => formatPaise(t.pricePaise) },
+    { key: "price", header: "Price", align: "right", accessor: (t) => t.pricePaise, cell: (t) => formatPaise(t.pricePaise) },
   ];
 
   return (

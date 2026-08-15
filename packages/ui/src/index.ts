@@ -27,8 +27,24 @@ export { Toaster } from './components/Toaster';
 export type { ToasterProps } from './components/Toaster';
 export { toast, subscribeToasts, getToasts } from './toast';
 export type { ToastOptions, ToastRecord, ToastVariant, ToastAction } from './toast';
-export { DataTable } from './components/DataTable';
-export type { Column, DataTableProps } from './components/DataTable';
+// The Standard DataTable system + the shared patterns it is built from (ADR-029).
+export {
+  DataTable,
+  DataTableToolbar,
+  DataTablePagination,
+  DataTableColumnHeader,
+  DataTableViewOptions,
+  DataTableFacetedFilter,
+} from './components/data-table';
+export type { Column, DataTableProps, DataTableQuery, ServerMode, SortState } from './components/data-table';
+export { Menu, MenuItem, MenuCheckboxItem, MenuSeparator } from './components/Menu';
+export type { MenuProps, MenuItemProps } from './components/Menu';
+export { ActionMenu } from './components/ActionMenu';
+export type { ActionMenuProps, RowAction } from './components/ActionMenu';
+export { ConfirmDialog } from './components/ConfirmDialog';
+export type { ConfirmDialogProps } from './components/ConfirmDialog';
+export { EmptyState, ErrorState, Skeleton } from './components/States';
+export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
 export { BackToTop } from './components/BackToTop';
 export type { BackToTopProps } from './components/BackToTop';
 export { SmoothScroll } from './components/SmoothScroll';

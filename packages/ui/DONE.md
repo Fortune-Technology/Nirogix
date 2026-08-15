@@ -86,3 +86,20 @@ Append-only implementation log. Newest at the bottom.
 **Design reference:** shadcn/ui Toast as a *pattern* only — no shadcn/Radix dependency (Dependency Rules: no second UI library).
 
 **Testing status:** `typecheck` green · both apps `next build` green. **Live-verified in the Portal:** a branding save raised `hms-toast--success` (`role="status"`, "Branding saved."); a 404 raised `hms-toast--error` (`role="alert"`, `aria-live="assertive"`, backend message "User not found") which persists until dismissed. Positioned bottom-right (352×67 at y=573 in a 1280×720 viewport, `bottom: 88px`) clear of `BackToTop`; Dark theme re-checked via `data-theme="dark"` (bg `#2a1512`, fg `#e7eff0`, icon `#f0776a`).
+
+---
+
+## 2026-08-15 — Standard DataTable rebuilt on TanStack + shared UI patterns (ADR-029)
+
+**What:** The 83-line `DataTable` (columns/rows + three states) became the platform's full table system, and the patterns every module was about to duplicate now exist once.
+
+**Added — `src/components/data-table/`** (dependency: `@tanstack/react-table` ^8.21.3, headless, following the shadcn/ui Data Table pattern):
+- `DataTable.tsx` — sorting (multi-level via Shift+click), toolbar search, faceted filters, column visibility, row selection with select-all, configurable pagination (10/20/50/100), sticky header, contained horizontal scroll, skeleton/empty/error states, optional **URL state** (`?page/size/q/sort`), and a **`server` mode** that reports `{ page, pageSize, search, sort }` to the caller (debounced search) instead of paging in the browser.
+- `DataTableToolbar` (Search → Filters → Columns → Actions), `DataTablePagination` (rows-per-page + windowed page numbers + "Showing X–Y of Z"), `DataTableColumnHeader` (three-state Lucide sort indicator + multi-sort order badge), `DataTableViewOptions` (show/hide/restore columns), `DataTableFacetedFilter` (multi-select built from a column's distinct values, with counts), `types.ts`.
+- **Column API is a superset of the old one** — `{ key, header, cell }` plus optional `accessor`, `sortable`, `filterable`, `filterLabel`, `searchable`, `hideable`, `defaultHidden`, `align`, `width` — so all 12 existing Portal screens compiled unchanged and opt into features by adding flags.
+
+**Added — shared patterns:** `Menu` (the one dropdown: `aria-expanded`/`aria-haspopup`, Esc + outside-click close, arrow-key roving focus, checkbox items), `ActionMenu` (row actions; destructive items route through a confirmation), `ConfirmDialog` (portalled, focus-trapped, Esc, scroll-locked via `useScrollLock`), `EmptyState`, `ErrorState` (with retry), `Skeleton`.
+
+**Changed:** `styles.css` gained the toolbar/search, sortable-header, pagination, menu, states, skeleton (shimmer, disabled under `prefers-reduced-motion`) and dialog blocks — all token-driven. `src/index.ts` exports the new system. **Deleted** `src/components/DataTable.tsx` (replaced, not kept alongside).
+
+**Testing status:** `typecheck` green (8 workspaces) · `next build` green. **Live-verified in the Portal:** Providers — clicking a header cycled unsorted → asc → desc with the indicator active, search narrowed 3 rows to 1, faceted filters rendered for Specialties and Status. Patients (server mode) — typing `ravi` issued one debounced request, put `?q=ravi` in the URL and returned 1 row; the Columns menu listed only hideable columns, restoring the default-hidden "Registered" column showed `14/08/2026`; pagination read "Showing 1–3 of 3" with a 10/20/50/100 selector; each row carried the shared action menu.

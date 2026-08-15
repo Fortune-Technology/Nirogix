@@ -254,8 +254,24 @@ export async function listSpecialties(): Promise<Specialty[]> {
   return data.specialties;
 }
 
-export async function listAudit(page = 1, pageSize = 20): Promise<Paginated<AuditEntry>> {
-  return request<Paginated<AuditEntry>>(`/audit?page=${page}&pageSize=${pageSize}`);
+export async function listAudit(
+  opts: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    severity?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  } = {},
+): Promise<Paginated<AuditEntry>> {
+  const q = new URLSearchParams();
+  q.set("page", String(opts.page ?? 1));
+  q.set("pageSize", String(opts.pageSize ?? 20));
+  if (opts.search) q.set("search", opts.search);
+  if (opts.severity) q.set("severity", opts.severity);
+  if (opts.sortBy) q.set("sortBy", opts.sortBy);
+  if (opts.sortDir) q.set("sortDir", opts.sortDir);
+  return request<Paginated<AuditEntry>>(`/audit?${q.toString()}`);
 }
 
 // ---- Admin / onboarding (Super-Admin) --------------------------------------
