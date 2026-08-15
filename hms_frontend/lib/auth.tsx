@@ -35,6 +35,8 @@ interface AuthContextValue {
   can: (permission: string) => boolean;
   login: (payload: LoginRequest) => Promise<{ ok: true } | { ok: false; error: string; mfa?: boolean }>;
   logout: () => Promise<void>;
+  /** Re-reads the session after the user changes their own profile. */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -113,9 +115,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [caps],
   );
 
+  const refresh = useCallback(async () => {
+    try {
+      await loadSession();
+    } catch {
+      /* reported by the shared API-feedback layer */
+    }
+  }, [loadSession]);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, can, login, logout }),
-    [status, user, can, login, logout],
+    () => ({ status, user, can, login, logout, refresh }),
+    [status, user, can, login, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

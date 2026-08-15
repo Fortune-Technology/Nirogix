@@ -104,15 +104,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Menu size={20} strokeWidth={1.75} aria-hidden />
             </button>
             {user && (
-              <div className="flex items-center gap-2">
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-subtle text-xs font-semibold text-brand"
-                  title={user.email}
-                >
+              // The avatar is the entry point to My Profile (ADR-035).
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 rounded-token px-1 py-1 hover:bg-surface-2"
+                title={`${user.fullName} · ${user.email}`}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-subtle text-xs font-semibold text-brand">
                   {initials(user.fullName)}
                 </span>
                 <span className="hidden text-sm text-fg sm:inline">{user.fullName}</span>
-              </div>
+              </Link>
             )}
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Sign out

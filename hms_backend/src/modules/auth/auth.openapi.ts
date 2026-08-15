@@ -1,4 +1,4 @@
-import { registry } from '../../openapi/registry';
+import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
 import {
   LoginBody,
@@ -6,6 +6,7 @@ import {
   RefreshResponseSchema,
   MessageResponseSchema,
   MeResponseSchema,
+  PublicUserSchema,
 } from './auth.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -61,6 +62,47 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: { description: 'The current user', ...json(MeResponseSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/auth/profile',
+  operationId: 'updateOwnProfile',
+  tags: ['Auth'],
+  summary: "Update the signed-in user's own profile",
+  description:
+    'Self-service. Acts only on the caller (the user id comes from the access token, never the body).',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(z.object({ fullName: z.string().min(2).max(200) })) },
+  responses: {
+    200: { description: 'Updated profile', ...json(z.object({ user: PublicUserSchema, message: z.string() })) },
+    400: { description: 'Validation failed', ...json(ErrorResponseSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/change-password',
+  operationId: 'changeOwnPassword',
+  tags: ['Auth'],
+  summary: "Change the signed-in user's own password",
+  description:
+    'Requires the current password, so a stolen access token alone cannot take over the account. On success every session for this user is revoked, so the client must sign in again.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: json(
+      z.object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(10).max(200),
+      }),
+    ),
+  },
+  responses: {
+    200: { description: 'Password changed', ...json(z.object({ message: z.string() })) },
+    400: { description: 'Current password incorrect, or the new password is invalid', ...json(ErrorResponseSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
   },
 });

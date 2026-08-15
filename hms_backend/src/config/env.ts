@@ -5,6 +5,9 @@ import { z } from 'zod';
 // clear message rather than surfacing as a confusing runtime error later.
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  // Comma-separated browser origins allowed to call the API with credentials.
+  // Required in production (see config/cors.ts).
+  CORS_ORIGINS: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(16),

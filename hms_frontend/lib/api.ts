@@ -242,6 +242,24 @@ export async function listRoles(): Promise<Role[]> {
   return (await request<{ roles: Role[] }>("/rbac/roles")).roles;
 }
 
+
+// ---- Self-service profile (ADR-035) ----------------------------------------
+
+export async function updateOwnProfile(patch: { fullName: string }): Promise<MeResponse> {
+  return request<MeResponse>("/auth/profile", {
+    method: "PATCH",
+    body: patch,
+    feedback: { success: "Profile updated." },
+  });
+}
+
+export async function changeOwnPassword(body: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/change-password", { method: "POST", body });
+}
+
 // ---- Resources -------------------------------------------------------------
 
 export async function listProviders(): Promise<Provider[]> {

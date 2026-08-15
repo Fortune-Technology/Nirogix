@@ -252,6 +252,16 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 
 ### Security Rules
 
+**Security is part of every feature, not a phase before release.** For each new API, form, database operation, file upload, authentication flow, permission, piece of user-generated content, third-party integration, admin feature, or background job, walk the chain: **authentication - authorization - validation - sanitization - rate limiting - data exposure - logging - abuse cases**. A feature that works functionally is not production ready.
+
+- **Authorization is server-side, always.** A hidden button is never the boundary; every endpoint re-checks auth, entitlement and permission, and is tested for IDOR/BOLA, horizontal and vertical privilege escalation, and tenant isolation.
+- **Validate at the server boundary with strict schemas** (body, query, path, headers, cookies, file metadata) and reject unexpected input rather than coercing it.
+- **Never build a query or command from untrusted strings.** Parameterized queries and safe ORM APIs only; sortable/filterable columns are allow-listed, never taken from the client.
+- **Rate-limit by risk**, not one global number: credential routes tightest, expensive endpoints capped, ordinary reads generous (ADR-036).
+- **Never expose more than the screen needs.** No internal or database-only fields in API responses, no sensitive values in URLs, no PHI in logs, error messages, or analytics.
+- **Secrets never reach the client or the repository.** Server-only values never go through `NEXT_PUBLIC_*`; a secret found in code or history is treated as compromised and rotated, not merely deleted.
+- **Production is not development.** With `NODE_ENV=production`: debug and dev-only endpoints off, no stack traces to users, secure cookies, CORS restricted to an allowlist, security headers on, rate limits active, environment validated at startup, and no development or seed credentials present.
+- **The findings live in `SECURITY-AUDIT.md`** at the repository root, re-run before each production release and updated in the same change that fixes a finding.
 - Encryption in transit and at rest is mandatory for all PHI-bearing data.
 - File uploads are validated server-side for type and size before acceptance, regardless of client-side validation.
 - PHI-bearing files use default-private storage with short-lived signed URLs. Nothing is served as a permanent public object URL.

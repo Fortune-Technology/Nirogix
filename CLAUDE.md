@@ -18,6 +18,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `resources/DESIGN.md` | **Design system** — canonical visual language (colour/type/components/theming/icons) for marketing + Portal |
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
 | `testcases.md` | **The manual QA checklist for the whole platform** — every feature's test cases, by module. Updated in the same change as the feature, never at the end. |
+| `SECURITY-AUDIT.md` | **Production security review** - findings by severity with status, plus the production configuration checklist. Re-run before each release; update it in the change that fixes a finding. |
 | `BACKLOG.md` | **Every open item in one place** — what needs a decision from the owner, what is blocked on infrastructure, engineering follow-ups, and what is deferred on purpose. Add an item the moment work is blocked, skipped, or deferred; remove it only when done or explicitly dropped. |
 
 On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over the development plan, and the development plan wins over ad-hoc code comments.

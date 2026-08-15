@@ -18,6 +18,11 @@ export const PublicUserSchema = z
     email: z.string().email(),
     fullName: z.string(),
     mfaEnabled: z.boolean(),
+    status: z.string(),
+    lastLoginAt: z.string().datetime().nullable(),
+    createdAt: z.string().datetime(),
+    /** Role keys held in this tenant; present on /auth/me, omitted elsewhere. */
+    roles: z.array(z.string()).optional(),
   })
   .openapi('User');
 export type PublicUser = z.infer<typeof PublicUserSchema>;

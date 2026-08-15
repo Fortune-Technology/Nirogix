@@ -262,6 +262,35 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | THEME-02 | Tenant accent | Custom brand colour set | Walk the Portal | Buttons, links, badges, active nav and table accents all follow the tenant colour | P2 | UI/UX | org_admin | Not run |
 | PERF-01 | Core Web Vitals | Throttled mid-range mobile | Lighthouse on the marketing home and a Portal list page | LCP ≤2.5s, INP ≤200ms, CLS ≤0.1. **Not yet measured — see `BACKLOG.md`** | P2 | Functional | any | Not run |
 
+## 19. My profile & account security
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| PRF-01 | Open the profile | Signed in | Click the avatar in the topbar | `/profile` opens showing name, email, role badges, account status, MFA state, last sign-in and member-since | P1 | Functional | any | Not run |
+| PRF-02 | Same screen for every role | — | Repeat as receptionist, doctor, org_admin | One screen throughout; only the values differ | P2 | UI/UX | any | Not run |
+| PRF-03 | Rename yourself | Signed in | Change Full name, Save | Success toast; the topbar name updates without a reload; the change survives a reload | P1 | Functional | any | Not run |
+| PRF-04 | Cancel discards the edit | Signed in | Type a new name, press Cancel | Field reverts; Save is disabled until something actually changes | P2 | UI/UX | any | Not run |
+| PRF-05 | Email is not self-editable | Signed in | Attempt to edit Email | Read-only, with an explanation | P2 | Security | any | Not run |
+| PRF-06 | Change password, happy path | Signed in | Enter current + a new password twice, submit | Signed out and returned to `/login`; the new password works, the old one does not | P1 | Security | any | Not run |
+| PRF-07 | Wrong current password | Signed in | Enter a wrong current password | Rejected; password unchanged; the message does not reveal which field was wrong | P1 | Security | any | Not run |
+| PRF-08 | New password too short / mismatched | Signed in | Enter 9 characters, then two different values | Blocked client-side with a field-level message; no request sent | P2 | Validation | any | Not run |
+| PRF-09 | Reusing the current password | Signed in | Set the new password to the current one | Rejected with a clear message | P2 | Security | any | Not run |
+| PRF-10 | All sessions revoked | Signed in on two browsers | Change the password in one | The other browser's next request fails and returns to sign-in | P1 | Security | any | Not run |
+| PRF-11 | Cannot edit another user | Signed in | Call `PATCH /auth/profile` with another user's id in the body | Ignored — the endpoint acts only on the token's user | P1 | Security | any | Not run |
+| PRF-12 | Password manager works | — | Sign in, then change the password | The browser offers to save at sign-in and to update after the change (no `autocomplete="off"` anywhere) | P2 | UI/UX | any | Not run |
+
+## 20. Error pages & rate limiting
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| 404-01 | Portal 404 | Signed in | Open `/does-not-exist` | Branded Portal 404 with a dashboard CTA, using design-system tokens and Lucide icons — never a browser error page | P2 | UI/UX | any | Not run |
+| 404-02 | Marketing 404 | — | Open `/does-not-exist` on the marketing site | Branded 404 with Back-to-home, Book-a-demo and the section links | P2 | UI/UX | anonymous | Not run |
+| 404-03 | 404s are not indexed | — | Inspect both 404 pages' robots metadata | `noindex`; the marketing one keeps `follow` so crawlers can leave via the links | P3 | Functional | anonymous | Not run |
+| RATE-01 | Login brute force is throttled | `RATE_LIMIT_IN_DEV=true` | Fail sign-in 11 times within 15 minutes | The 11th is refused with 429 and the shared toast, not another credential check | P1 | Security | anonymous | Not run |
+| RATE-02 | Successful logins are not penalised | Same | Sign in and out repeatedly | Never throttled — only failures consume the allowance | P2 | Functional | any | Not run |
+| RATE-03 | Password-change throttling | Same | Submit the change form 21 times in 15 minutes | Refused with 429 | P2 | Security | any | Not run |
+| CORS-01 | Cross-origin is refused in production | Production build with `CORS_ORIGINS` set | Call the API from an origin outside the allowlist | Browser blocks it; the server logs the refused origin | P1 | Security | anonymous | Not run |
+
 ---
 
 ## Coverage gaps (deliberate, tracked)

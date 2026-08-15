@@ -33,6 +33,11 @@ export interface AuthUser {
   email: string;
   fullName: string;
   mfaEnabled: boolean;
+  status: string;
+  lastLoginAt: string | null;
+  createdAt: string;
+  /** Role keys in this tenant. Present on /auth/me; omitted on the login response. */
+  roles?: string[];
 }
 
 export interface LoginRequest {

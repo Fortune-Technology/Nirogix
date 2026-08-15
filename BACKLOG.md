@@ -46,7 +46,18 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - Lint debt, pre-existing and repo-wide: `react-hooks/set-state-in-effect` (data-loading effects across Portal pages, `theme.tsx` in both apps) and four `react/no-unescaped-entities` in marketing copy. `npm run lint` fails on these today.
 - **No automated frontend tests anywhere** — `hms_frontend`, `marketing`, `@hms/ui` and `@hms/utils` have no test runner configured, so the testing rule (implement → automated tests → manual cases) is only half satisfiable today. The backend already runs Vitest suites (auth, RBAC, tenancy, audit, admin, appointments, branding, events, jobs). **Plan:** add Vitest + Testing Library to `@hms/utils` (date layer — pure, highest value first), then `@hms/ui` (DataTable sorting/filtering/pagination, toast adapter de-dup, ConfirmDialog focus trap), then `hms_frontend` (`lib/feedback.ts` classifier, permission guards), then Playwright for the critical end-to-end workflow. Every case in `testcases.md` marked P1 is a candidate for automation.
 
+**Security follow-ups (from `SECURITY-AUDIT.md`)**
+- **H-3** account-level brute-force lockout with backoff + an audit event at threshold (rate limiting alone does not stop a slow attack on one known email).
+- **M-1** Content-Security-Policy for both apps (needs a nonce for the no-flash theme script); start report-only.
+- **M-2** `statement_timeout` on the pool, a maximum span on report date ranges, and `expensiveLimiter` on the report + upload routes.
+- **M-4** verify upload magic bytes server-side, not just the declared MIME type.
+- **M-5** constant-time login path: run a bcrypt comparison against a dummy hash when the email is unknown, so timing cannot enumerate accounts.
+- **M-6** password policy beyond length for admin-created accounts; consider a breached-password check.
+- **L-1..L-5** `server_tokens off`, confirm Swagger UI is off in production, request id in the audit row, an `npm audit` gate in CI, and a Portal idle-session timeout.
+- **Deploy-time:** `CORS_ORIGINS` must be set to the real origins or cross-origin browser calls will be refused (by design).
+
 **Portal features**
+- **Profile fields needing an additive migration:** phone, department, designation, avatar (`avatar_file_id`), and notification preferences. `/profile` deliberately omits them rather than showing empty placeholders (ADR-035); each needs a column, admin UI, and `testcases.md` cases.
 - Password reset / email-invite flow for new users (today: one-time temporary password reveal).
 - MFA challenge screen and branch switching are stubs.
 - Per-branch branding overrides (schema supports `branch_id`; no UI).

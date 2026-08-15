@@ -33,4 +33,6 @@ export const Errors = {
     new AppError(409, 'CONFLICT', m),
   validation: (details: unknown, m = 'Validation failed') =>
     new AppError(422, 'VALIDATION_ERROR', m, details),
+  tooManyRequests: (m = 'Too many requests. Please wait a moment and try again.') =>
+    new AppError(429, 'TOO_MANY_REQUESTS', m),
 };

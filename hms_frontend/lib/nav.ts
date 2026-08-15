@@ -13,6 +13,7 @@ import {
   BarChart3,
   Stethoscope,
   UserCog,
+  UserCircle,
   GitBranch,
   ScrollText,
   Settings,
@@ -44,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW, icon: UserCog },
   { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
   { label: "Audit Log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
+  { label: "My Profile", href: "/profile", perm: null, icon: UserCircle },
   { label: "Settings", href: "/settings", perm: null, icon: Settings },
 ];
 
