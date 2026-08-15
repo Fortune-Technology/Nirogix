@@ -514,3 +514,15 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - `audit.openapi.ts` — the query parameters are documented with descriptions; summary updated.
 
 **Testing status:** `typecheck` green · `npm run openapi:validate` green (spec valid, every route documented). **Live-verified** through the Portal against the local database: `?search=branding` returned 33 of 33 matching entries, `?severity=notice` returned 1, `sortBy=action` flipped asc/desc, and `pageSize=100` returned 100 rows of 426.
+
+---
+
+## 2026-08-15 — Phase 1 close-out: role claims, login timing, expensive-endpoint limits
+
+**Bug fixed — access tokens never carried roles.** `signAccessToken({... roles: [] })` was hardcoded at **both** mint sites (login and refresh), so `req.auth.roles` was always empty and the Portal's new profile screen showed "No role assigned" for everyone. Now populated from `listUserRoles()` at both sites; refresh re-reads them, so a role granted or removed mid-session takes effect on the next token instead of persisting until sign-out. Authorization is unaffected — it always resolved roles + overrides server-side (invariant #2); this was an informational claim that was silently wrong.
+
+**Security fixes (SECURITY-AUDIT.md):**
+- **M-5** login timing no longer enumerates accounts: `burnPasswordComparison()` spends the same bcrypt work against a precomputed dummy hash when the email is unknown, so "no such user" and "wrong password" cost the same.
+- **M-2** report date ranges are validated server-side (format + ordering) and capped at **366 days**, closing an unbounded multi-year scan; `expensiveLimiter` now covers the report and file-upload routes, completing H-1.
+
+**Testing status:** `typecheck` green · 49 backend tests pass · `openapi:validate` green.

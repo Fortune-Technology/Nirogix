@@ -306,7 +306,7 @@ export function DataTable<Row>({
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const meta = header.column.columnDef.meta as
-                    | { align?: "left" | "center" | "right"; width?: string }
+                    | { align?: "left" | "center" | "right"; width?: string; label?: string }
                     | undefined;
                   const sortIndex = sorting.findIndex((s) => s.id === header.column.id) + 1;
                   return (
@@ -316,6 +316,7 @@ export function DataTable<Row>({
                         direction={header.column.getIsSorted()}
                         sortIndex={sortIndex}
                         align={meta?.align}
+                        name={meta?.label}
                         onToggle={(additive) => toggleSort(header.column.id, additive)}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}

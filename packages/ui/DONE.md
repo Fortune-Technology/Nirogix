@@ -134,3 +134,15 @@ Append-only implementation log. Newest at the bottom.
 - `styles.css` gained `.hms-bottomnav*`, `.hms-drawer*` and `.hms-bottomnav-offset` (the padding that keeps page content clear of the fixed bar), all token-driven, animations disabled under `prefers-reduced-motion`.
 
 **Testing status:** `typecheck` green; both apps build. Live-verified at 375px in the Portal — bar shows the permission-filtered destinations with the active one marked, drawer lists every permitted module, scroll lock + Esc + focus trap all behave.
+
+---
+
+## 2026-08-15 — Component tests, and the accessibility defect they found
+
+**Added:** Vitest + Testing Library (jsdom) with `test` / `test:watch` scripts. 27 tests:
+- `toast.test.ts` (14) — variant → Base UI `type` mapping, per-variant durations (success/info 5s, warning 7s, error/loading persist), explicit-duration override, and **de-duplication**: three identical calls produce one toast and two updates, different variants of the same text stay separate, an explicit `dedupeKey` collapses differing text, and a dismissed message can be raised again.
+- `DataTable.test.tsx` (13) — the full sort cycle (unsorted → asc → desc → unsorted), numeric-not-lexical sorting, no sort control on a column without an accessor, search across searchable columns, client pagination with a true total, and the **server-mode contract**: rows are not re-paginated locally, page changes report `{ page, pageSize }`, and a header click emits the sort the user just asked for.
+
+**Defect found and fixed:** every sortable header announced as **"Column, not sorted"** to a screen reader, because `children` is a React node rather than a string. `DataTableColumnHeader` gained an explicit `name` prop, and `DataTable` passes the column label from its meta — so headers now announce "Patient, not sorted. Activate to sort." This was invisible to sighted testing and only surfaced because the test asked for the control by its accessible name.
+
+**Testing status:** 27 passed; both apps still build.

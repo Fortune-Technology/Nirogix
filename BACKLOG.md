@@ -44,14 +44,13 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - **On-demand revalidation** for platform branding on the marketing site (currently a 5-minute ISR window).
 - **No Core Web Vitals baseline.** Nothing has been measured against the LCP ≤2.5s / INP ≤200ms / CLS ≤0.1 budgets on a real device profile. (Next 16's Turbopack build no longer prints First Load JS, so chunk sizes above were read off `.next/static/chunks`; a proper measurement needs Lighthouse or the analyzer.)
 - Lint debt, pre-existing and repo-wide: `react-hooks/set-state-in-effect` (data-loading effects across Portal pages, `theme.tsx` in both apps) and four `react/no-unescaped-entities` in marketing copy. `npm run lint` fails on these today.
-- **No automated frontend tests anywhere** — `hms_frontend`, `marketing`, `@hms/ui` and `@hms/utils` have no test runner configured, so the testing rule (implement → automated tests → manual cases) is only half satisfiable today. The backend already runs Vitest suites (auth, RBAC, tenancy, audit, admin, appointments, branding, events, jobs). **Plan:** add Vitest + Testing Library to `@hms/utils` (date layer — pure, highest value first), then `@hms/ui` (DataTable sorting/filtering/pagination, toast adapter de-dup, ConfirmDialog focus trap), then `hms_frontend` (`lib/feedback.ts` classifier, permission guards), then Playwright for the critical end-to-end workflow. Every case in `testcases.md` marked P1 is a candidate for automation.
+- **Automated tests now run in 4 workspaces** (`npm run test` at the root): backend 49, `@hms/ui` 27 (toast adapter + DataTable behaviour), `hms_frontend` 12 (the error classifier), `@hms/utils` 18 (dates). **Still missing:** component tests for `ConfirmDialog`/`NavDrawer` focus trapping, tests for the permission guards (`Can` / `RequirePermission`), and **Playwright end-to-end** for the critical workflow (register → book → check in → consult → dispense → bill → collect). Every P1 case in `testcases.md` is a candidate for automation.
 
 **Security follow-ups (from `SECURITY-AUDIT.md`)**
 - **H-3** account-level brute-force lockout with backoff + an audit event at threshold (rate limiting alone does not stop a slow attack on one known email).
 - **M-1** Content-Security-Policy for both apps (needs a nonce for the no-flash theme script); start report-only.
-- **M-2** `statement_timeout` on the pool, a maximum span on report date ranges, and `expensiveLimiter` on the report + upload routes.
+- **M-2 (partly fixed)** report date ranges are now validated and capped at 366 days, and `expensiveLimiter` covers the report + upload routes. **Still open:** a `statement_timeout` on the connection pool.
 - **M-4** verify upload magic bytes server-side, not just the declared MIME type.
-- **M-5** constant-time login path: run a bcrypt comparison against a dummy hash when the email is unknown, so timing cannot enumerate accounts.
 - **M-6** password policy beyond length for admin-created accounts; consider a breached-password check.
 - **L-1..L-5** `server_tokens off`, confirm Swagger UI is off in production, request id in the audit row, an `npm audit` gate in CI, and a Portal idle-session timeout.
 - **Deploy-time:** `CORS_ORIGINS` must be set to the real origins or cross-origin browser calls will be refused (by design).

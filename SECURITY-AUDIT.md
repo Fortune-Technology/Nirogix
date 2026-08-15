@@ -14,7 +14,7 @@ Reviewed 15/08/2026 against the code in this repository. Findings are evidence-b
 |---|---|---|---|
 | Critical | 0 | 0 | 0 |
 | High | 3 | 2 | 1 |
-| Medium | 6 | 1 | 5 |
+| Medium | 6 | 3 | 3 |
 | Low | 5 | 0 | 5 |
 
 No critical finding. The architecture's security invariants hold: authorization is enforced server-side on every route, tenant isolation is RLS-backed and tested, queries are parameterized, and the error handler never leaks internals. The gaps are operational hardening — rate limiting, CORS, security headers, and the production-config checks that only matter once real traffic arrives.
@@ -28,7 +28,7 @@ No critical finding. The architecture's security invariants hold: authorization 
 
 **Fixed** by `src/http/rateLimit.ts` with tiers rather than one global number (ADR-036): a baseline of 300/min across `/api/v1`; **10 per 15 min, IP-keyed, successful logins not counted** on `/auth/login` and `/auth/refresh`; 20 per 15 min on account-takeover-adjacent operations (`/auth/change-password`, `/auth/profile`); an `expensiveLimiter` available for uploads and reports. Authenticated requests key by user id so one user behind a hospital's shared NAT cannot exhaust everyone's allowance. Refusals return the canonical `429 TOO_MANY_REQUESTS`, which the frontend already renders through the shared toast.
 
-**Remaining:** apply `expensiveLimiter` to the reports and file-upload routes (they currently inherit only the global tier).
+**Done in the same pass:** `expensiveLimiter` is applied to the report and file-upload routes.
 
 ### H-2 · CORS reflected any origin with credentials — **Fixed**
 `app.use(cors({ origin: true, credentials: true }))` reflected the caller's `Origin` and allowed credentials, so **any website** could have made authenticated cross-origin calls with a signed-in user's refresh cookie.
@@ -51,10 +51,10 @@ Rate limiting slows an attacker but nothing tracks repeated failures per *accoun
 
 **Recommended:** add a CSP in `next.config.ts` for both apps, starting in report-only, with a nonce for the theme script.
 
-### M-2 · Expensive endpoints have no query timeout or pagination ceiling — **Open**
-`pageSize` is capped at 100 on audit, and reports take a date range with no maximum span, so a multi-year range is a single unbounded scan. No statement timeout is configured on the database connection.
+### M-2 · Expensive endpoints had no range cap or query timeout — **Partly fixed**
+`pageSize` was capped at 100 on audit, but reports took a date range with **no validation and no maximum span**, so a multi-year range was a single unbounded scan. No statement timeout is configured on the database connection.
 
-**Recommended:** a `statement_timeout` on the pool, a maximum range on report queries, and `expensiveLimiter` on those routes (see H-1).
+**Fixed:** report queries now validate the date format server-side and reject a span over 366 days, and `expensiveLimiter` is applied to the report and upload routes. **Still open:** a `statement_timeout` on the connection pool.
 
 ### M-3 · No CSRF defence beyond `SameSite=Lax` — **Accepted, documented**
 The refresh cookie is `httpOnly`, `SameSite=Lax`, `Secure` in production and scoped to `/api/v1/auth`; the access token is sent in an `Authorization` header held in memory, never a cookie. `SameSite=Lax` blocks cross-site POSTs, so the practical CSRF surface is small. Once H-2's allowlist is in place, cross-origin abuse is closed off too.
@@ -66,10 +66,10 @@ The refresh cookie is `httpOnly`, `SameSite=Lax`, `Secure` in production and sco
 
 **Recommended:** verify magic bytes server-side for the allowed types, and continue serving PHI-bearing files only through short-lived signed URLs (already the case).
 
-### M-5 · No account-enumeration review of auth responses — **Open**
-Login failures return "Invalid credentials" uniformly (verified in `auth.service.ts`), which is right. Not verified: whether **timing** differs measurably between "unknown email" (no bcrypt comparison) and "wrong password" (full bcrypt round). That difference is a classic enumeration oracle.
+### M-5 · Login timing could enumerate accounts — **Fixed**
+Login failures return "Invalid credentials" uniformly (verified in `auth.service.ts`), which is right — but the **timing** differed: an unknown email returned without running bcrypt at all, while a wrong password paid a full bcrypt round. That difference is a classic account-enumeration oracle.
 
-**Recommended:** always run a bcrypt comparison against a dummy hash when the user is not found.
+**Fixed** in `auth/password.ts`: `burnPasswordComparison()` runs a bcrypt compare against a precomputed dummy hash whenever the account is not found, so the unknown-email and wrong-password paths cost the same.
 
 ### M-6 · Password policy is length-only — **Fixed for self-service, Open elsewhere**
 The new self-service change enforces ≥10 characters and rejects reuse of the current password. Admin-created passwords and the seed still use a fixed pattern, and there is no check against known-breached passwords.

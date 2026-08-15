@@ -4,7 +4,8 @@ import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, sessions, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
-import { hashPassword, verifyPassword } from './password';
+import { burnPasswordComparison, hashPassword, verifyPassword } from './password';
+import { listUserRoles } from '../rbac/rbac.service';
 import {
   signAccessToken,
   signRefreshToken,
@@ -51,10 +52,24 @@ function requireRefreshClaims(token: string): RefreshClaims {
   }
 }
 
+/**
+ * Role keys for the access token. Informational only: authorization is always
+ * re-resolved server-side from roles + overrides (invariant #2), but the Portal
+ * shows them on the profile, so an empty claim is a real defect rather than a
+ * harmless one.
+ */
+async function roleKeysFor(tenantId: string, userId: string): Promise<string[]> {
+  return (await listUserRoles(tenantId, userId)).map((r) => r.key);
+}
+
 async function issueSession(tenantId: string, userId: string, meta: ClientMeta) {
   const sid = randomUUID();
   const refreshToken = signRefreshToken({ sub: userId, tid: tenantId, sid });
-  const accessToken = signAccessToken({ sub: userId, tid: tenantId, roles: [] });
+  const accessToken = signAccessToken({
+    sub: userId,
+    tid: tenantId,
+    roles: await roleKeysFor(tenantId, userId),
+  });
   await runWithTenant(tenantId, (tx) =>
     tx.insert(sessions).values({
       id: sid,
@@ -83,6 +98,9 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
     return rows[0] ?? null;
   });
   if (!user || user.status !== 'active') {
+    // Equalise timing with the "wrong password" path so response time cannot be
+    // used to discover which emails exist (SECURITY-AUDIT.md M-5).
+    await burnPasswordComparison(input.password);
     await writeAudit({
       tenantId: tenant.id,
       action: 'auth.login.failure',
@@ -171,7 +189,13 @@ export async function refresh(
       })
       .where(eq(sessions.id, claims.sid));
 
-    const accessToken = signAccessToken({ sub: claims.sub, tid: claims.tid, roles: [] });
+    // Re-read roles on refresh so a role granted or removed mid-session is
+    // reflected in the next token rather than persisting until sign-out.
+    const accessToken = signAccessToken({
+      sub: claims.sub,
+      tid: claims.tid,
+      roles: await roleKeysFor(claims.tid, claims.sub),
+    });
     return { accessToken, refreshToken: newRefresh };
   });
 }

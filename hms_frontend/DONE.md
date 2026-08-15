@@ -330,3 +330,17 @@ Swept the whole repo for other orphans in the same pass — files nothing refere
 - `components/AppShell.tsx` — renders the shared `BottomNav` (five slots, mobile only) plus a top-right hamburger opening the shared `NavDrawer` with every permitted module. `main` carries `.hms-bottomnav-offset`. The desktop sidebar is untouched and the bar never renders above `md`.
 
 **Testing status:** `typecheck` + `next build` green. **Live-verified at 375px** as CITYCARE org_admin: bar renders the permitted destinations with the active one marked, sidebar hidden, drawer lists all 11 permitted modules, `body` scroll locks while open and restores on close, `data-lenis-prevent` set, focus trapped inside, Esc closes.
+
+---
+
+## 2026-08-15 — Tests for the API feedback classifier
+
+Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.ts` — the layer every API failure passes through (ADR-026). They pin what the user is *told*, which is a security boundary as much as a UX one:
+
+- A 5xx carrying `relation "users" does not exist…` never reaches the screen; generic copy is used instead.
+- Stack-shaped messages and bare error codes are rejected as user-facing copy.
+- Each status maps to its own title and dedupe key (401 session expired, 403 not permitted, 409 conflict, 429 throttled, 422 check the details).
+- Offline and timeout read differently; a thrown non-Error still produces usable copy.
+- `successMessage` prefers the API's own message, then the call's copy or formatter, then a verb-appropriate default.
+
+**Testing status:** 12 passed. Root `npm run test` now runs all four workspaces: **106 tests green** (backend 49, `@hms/ui` 27, `@hms/utils` 18, Portal 12).

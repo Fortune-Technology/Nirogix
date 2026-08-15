@@ -5,6 +5,7 @@ import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
 import { uploadSingle } from './file.upload';
 import * as controller from './file.controller';
+import { expensiveLimiter } from '../../http/rateLimit';
 
 export const fileRouter = Router();
 
@@ -13,6 +14,7 @@ fileRouter.post(
   '/files',
   requireAuth,
   requirePermission(PERMISSIONS.FILE_UPLOAD),
+  expensiveLimiter,
   uploadSingle('file'),
   asyncHandler(controller.upload),
 );
