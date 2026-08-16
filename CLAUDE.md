@@ -22,6 +22,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
 | `testcases.md` | **The manual QA checklist for the whole platform** — every feature's test cases, by module. Updated in the same change as the feature, never at the end. |
 | `SECURITY-AUDIT.md` | **Production security review** - findings by severity with status, plus the production configuration checklist. Re-run before each release; update it in the change that fixes a finding. |
+| `resources/marketing-product-capability-reference.html` | **The marketing team's single source of truth** — every module, capability, role and permission with a status (BUILT / IN DEVELOPMENT / PLANNED / FUTURE / NOT AVAILABLE), plus per-feature marketing guidance and the never-claim list. Binding: see *Marketing Product Capability Documentation Rule* below. |
 | `BACKLOG.md` | **Every open item in one place** — what needs a decision from the owner, what is blocked on infrastructure, engineering follow-ups, and what is deferred on purpose. Add an item the moment work is blocked, skipped, or deferred; remove it only when done or explicitly dropped. |
 
 On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over the development plan, and the development plan wins over ad-hoc code comments.
@@ -87,6 +88,20 @@ Tooling: **npm workspaces + Turborepo** (ADR-014). Root scripts: `npm run instal
 - **Clean code (binding):** **if it is not used, it does not stay** — delete orphaned files, imports, exports, components, CSS, tokens, assets, empty directories, and any dependency nothing imports, in the *same* change that orphans them. Replacing something is *migrate → verify → delete*, never two systems side by side. Regenerable scaffolding goes too; git history is the archive. Grep before deleting, typecheck + build after — that is the proof it was dead. This is a Definition-of-Done gate, not a later chore.
 - **Providers:** external SDKs only behind `SmsService`/`EmailService`/`FileStorageService`.
 - **Secrets:** never committed; `.env.example` documents required keys per app.
+
+## Marketing Product Capability Documentation Rule (binding)
+
+`resources/marketing-product-capability-reference.html` is the **single source of truth for marketing-facing product capabilities**.
+
+Whenever any code, feature, permission, role, module, workflow, integration, UI capability, security capability, branding capability, or roadmap item changes, review whether the marketing capability reference needs updating. **If the change affects a documented capability, update the HTML document in the same development task** — never as a later chore.
+
+- No feature may be marked `BUILT / AVAILABLE` unless it is actually implemented and usable. A screen that exists but is not wired, an API with no interface, or a capability behind a stub is **not** BUILT — say what is true (e.g. "API only, no Portal screen").
+- `IN DEVELOPMENT`, `PLANNED`, and `FUTURE / CONSIDERATION` features must never be represented as currently available product functionality.
+- Marketing copy must never claim functionality that cannot be traced to the approved product documentation or to implemented product behaviour.
+- The capability reference must stay synchronized with the current implementation and the approved roadmap, and must stay consistent with `marketing/lib/availability.ts` + `marketing/lib/site.ts` (ADR-038), `resources/phases.md`, `BACKLOG.md` and `SECURITY-AUDIT.md`.
+- Any material update also bumps the document **version**, the **last updated** date (`DD/MM/YYYY`), and appends a **change history** row.
+
+**Golden rule.** If the product cannot currently do it, marketing must not sell it as if it can. If development changes what the product can do, the capability document changes in the same development task.
 
 ## Documentation rules
 
