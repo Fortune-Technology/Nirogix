@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LifeBuoy } from "lucide-react";
 import { Card, Spinner } from "@hms/ui";
 import * as api from "../../../../lib/api";
+import { ADMIN_ORIGIN } from "../../../../lib/adminOrigin";
 import { useAuth } from "../../../../lib/auth";
 
 /**
@@ -31,8 +32,12 @@ export default function SupportEnterPage() {
     }
 
     async function onMessage(event: MessageEvent) {
-      // Same-origin only: never accept a token from another site.
-      if (event.origin !== window.location.origin) return;
+      // Only the platform admin app may hand this tab a session (ADR-051). Before the
+      // frontends split this was a same-origin check; the admin console now lives on
+      // its own origin, so the allowed sender is named explicitly and read from
+      // configuration. Anything else is ignored — a token from another site is exactly
+      // the attack this check exists to refuse.
+      if (event.origin !== ADMIN_ORIGIN) return;
       const data = event.data as { type?: string; accessToken?: string } | null;
       if (data?.type !== "hms:support-session" || !data.accessToken || claimed.current) return;
 
@@ -47,7 +52,7 @@ export default function SupportEnterPage() {
 
     window.addEventListener("message", onMessage);
     // Tell the opener this tab is ready to receive the session.
-    window.opener.postMessage({ type: "hms:support-ready" }, window.location.origin);
+    window.opener.postMessage({ type: "hms:support-ready" }, ADMIN_ORIGIN);
 
     const timeout = setTimeout(() => {
       if (!claimed.current) setState("failed");

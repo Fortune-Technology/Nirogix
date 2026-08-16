@@ -1,34 +1,18 @@
-// The Portal's single HTTP client for the hms_backend API.
+// The Nirogix Portal's endpoint surface (ADR-051, ADR-054).
 //
-// - Access token is held in memory only (never localStorage) — on a full reload
-//   the session is re-established from the httpOnly refresh cookie via /auth/refresh.
-// - Every request sends `credentials: 'include'` so the refresh cookie flows, and
-//   `Authorization: Bearer <token>` when authenticated.
-// - A 401 triggers a single silent refresh + retry; if that fails the session is
-//   considered expired and `onSessionExpired` fires so the AuthProvider can react.
-// - The backend's canonical `{ error: { code, message } }` shape is unwrapped into
-//   typed errors. Security is enforced server-side; the client only reflects it.
-// - USER FEEDBACK LIVES HERE (ADR-026). Every failure, and every state-changing
-//   call, raises exactly one notification through the shared @hms/ui toast via
-//   lib/feedback.ts. Pages never write their own toast logic; a call opts out
-//   with `feedback: false` (or tunes the copy with `success: "…"`) only where the
-//   screen itself is the feedback (e.g. sign-in, which navigates).
+// The HTTP core — access token in memory, the single in-flight refresh, the 401 retry,
+// canonical error unwrapping and the one-notification-per-call rule (ADR-026) — lives
+// in `@hms/client` and is shared by every frontend, so the security-relevant half
+// cannot drift between apps. What stays here is this audience's endpoints: hospital
+// staff. There is no platform-administration call in this file; those live in the
+// admin console on its own origin.
 
 import type {
-  ApiError,
-  LoginRequest,
-  LoginResponse,
+  AuditEntry,
   MeResponse,
-  MyPermissionsResponse,
+  Paginated,
   Provider,
   Specialty,
-  AuditEntry,
-  Paginated,
-  Tenant,
-  TenantDetail,
-  ModuleCatalogItem,
-  OnboardTenantRequest,
-  OnboardTenantResponse,
   UserListItem,
   UserDetail,
   CreateUserRequest,
@@ -43,10 +27,7 @@ import type {
   SetupStatus,
   PlatformBranding,
   PlatformBrandingScope,
-  BrandingTokens,
   DashboardOverview,
-  PlatformStats,
-  PlatformTrends,
   OrgSummary,
   Patient,
   CreatePatientRequest,
@@ -74,202 +55,25 @@ import type {
   OpdRegisterRow,
   CollectionsReport,
   PendingLabRow,
-  StartSupportSessionRequest,
-  StartSupportSessionResponse,
 } from "@hms/types";
-import { ApiRequestError, NetworkError, TimeoutError } from "./apiErrors";
-import { notifyError, notifySuccess, successMessage } from "./feedback";
+import { createApiClient, notifyError, notifySuccess } from "@hms/client";
 import { formatPaise } from "./money";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
+const client = createApiClient({
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+});
 
-let accessToken: string | null = null;
-let onSessionExpired: (() => void) | null = null;
+const { request, send, parseError } = client;
 
-export function setAccessToken(token: string | null): void {
-  accessToken = token;
-}
-export function getAccessToken(): string | null {
-  return accessToken;
-}
-export function setOnSessionExpired(cb: (() => void) | null): void {
-  onSessionExpired = cb;
-}
+/** The client the AuthProvider drives. */
+export const apiClient = client;
 
-export { ApiRequestError, NetworkError, TimeoutError } from "./apiErrors";
+export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
+export const { setAccessToken, getAccessToken, setOnSessionExpired, tryRefresh, login, logout, me, myPermissions } =
+  client;
 
-/** Requests that outlive this are aborted and reported as a timeout, never left hanging. */
-const REQUEST_TIMEOUT_MS = 30_000;
-
-async function parseError(res: Response): Promise<ApiRequestError> {
-  let code = "ERROR";
-  let message = res.statusText || "Request failed";
-  let details: unknown;
-  try {
-    const body = (await res.json()) as ApiError;
-    if (body?.error) {
-      code = body.error.code ?? code;
-      message = body.error.message ?? message;
-      details = body.error.details;
-    }
-  } catch {
-    /* non-JSON body — keep the status text */
-  }
-  return new ApiRequestError(res.status, code, message, details);
-}
-
-interface RequestOptions {
-  method?: string;
-  body?: unknown;
-  /** Internal: prevents infinite refresh recursion. */
-  _retry?: boolean;
-  /** When false, a 401 is returned as an error without attempting a refresh. */
-  refreshOn401?: boolean;
-  /**
-   * Notification control (ADR-026). Default: failures always notify; state-changing
-   * methods also notify on success. `false` silences both (the screen is the
-   * feedback); `{ success: "…" }` sets the fallback copy used when the API returns
-   * no `message` of its own — a function builds that copy from the response;
-   * `{ success: false }` keeps only the failure toast.
-   */
-  feedback?: false | { success?: string | false | ((payload: never) => string); error?: false };
-}
-
-/** Runs the fetch, converting a dead connection or a stalled request into typed errors. */
-async function send(path: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(`${BASE_URL}${path}`, { ...init, signal: controller.signal });
-  } catch (err) {
-    if (controller.signal.aborted) throw new TimeoutError();
-    throw new NetworkError("Network request failed", err);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, _retry = false, refreshOn401 = true, feedback } = opts;
-  const mutating = method !== "GET" && method !== "HEAD";
-
-  const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-
-  let res: Response;
-  try {
-    res = await send(path, {
-      method,
-      headers,
-      credentials: "include",
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch (err) {
-    if (feedback !== false && feedback?.error !== false) notifyError(err);
-    throw err;
-  }
-
-  if (res.status === 401 && refreshOn401 && !_retry) {
-    const refreshed = await tryRefresh();
-    if (refreshed) return request<T>(path, { ...opts, _retry: true });
-    if (onSessionExpired) onSessionExpired();
-    const expired = await parseError(res);
-    if (feedback !== false && feedback?.error !== false) notifyError(expired);
-    throw expired;
-  }
-
-  if (!res.ok) {
-    const failure = await parseError(res);
-    if (feedback !== false && feedback?.error !== false) notifyError(failure);
-    throw failure;
-  }
-
-  const payload = res.status === 204 ? (undefined as T) : ((await res.json()) as T);
-
-  if (mutating && feedback !== false && feedback?.success !== false) {
-    notifySuccess(successMessage(payload, feedback?.success, method));
-  }
-
-  return payload;
-}
-
-// ---- Session ---------------------------------------------------------------
-
-/**
- * The one in-flight refresh. A dashboard fires several requests at once, so an
- * expired access token used to produce one `POST /auth/refresh` **per request** —
- * each rotating the same `sessions` row in its own transaction, serialising on
- * that row lock and draining the connection pool until every request timed out.
- * Callers now share a single refresh: the first starts it, the rest await it.
- */
-let inFlightRefresh: Promise<boolean> | null = null;
-
-/** Exchange the refresh cookie for a new access token. Returns true on success. */
-export async function tryRefresh(): Promise<boolean> {
-  if (inFlightRefresh) return inFlightRefresh;
-
-  inFlightRefresh = (async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        accessToken = null;
-        return false;
-      }
-      const data = (await res.json()) as { accessToken: string };
-      accessToken = data.accessToken;
-      return true;
-    } catch {
-      accessToken = null;
-      return false;
-    } finally {
-      // Cleared in `finally` so a failed refresh does not wedge every later call.
-      inFlightRefresh = null;
-    }
-  })();
-
-  return inFlightRefresh;
-}
-
-export async function login(payload: LoginRequest): Promise<LoginResponse> {
-  return request<LoginResponse>("/auth/login", {
-    method: "POST",
-    body: payload,
-    refreshOn401: false,
-    // Sign-in is the one screen that owns its own feedback: success navigates to
-    // the dashboard, and failure renders inline on the form (built from the same
-    // describeError() copy), so a toast would just say it twice.
-    feedback: false,
-  });
-}
-
-export async function logout(): Promise<void> {
-  try {
-    await request<{ message: string }>("/auth/logout", {
-      method: "POST",
-      refreshOn401: false,
-      feedback: { success: "Signed out." },
-    });
-  } finally {
-    accessToken = null;
-  }
-}
-
-export async function me(): Promise<MeResponse> {
-  return request<MeResponse>("/auth/me");
-}
-
-export async function myPermissions(): Promise<MyPermissionsResponse> {
-  return request<MyPermissionsResponse>("/rbac/permissions");
-}
-
-export async function listRoles(): Promise<Role[]> {
-  return (await request<{ roles: Role[] }>("/rbac/roles")).roles;
-}
-
+// Session endpoints (login / logout / me / permissions / refresh) come from
+// `@hms/client` and are re-exported above — one implementation for every frontend.
 
 // ---- Self-service profile (ADR-035) ----------------------------------------
 
@@ -320,59 +124,48 @@ export async function listAudit(
   return request<Paginated<AuditEntry>>(`/audit?${q.toString()}`);
 }
 
-// ---- Admin / onboarding (Super-Admin) --------------------------------------
-
-export async function listTenants(): Promise<Tenant[]> {
-  return (await request<{ tenants: Tenant[] }>("/admin/tenants")).tenants;
+export async function listRoles(): Promise<Role[]> {
+  return (await request<{ roles: Role[] }>("/rbac/roles")).roles;
 }
 
-export async function getTenant(id: string): Promise<TenantDetail> {
-  return request<TenantDetail>(`/admin/tenants/${id}`);
-}
+// ---- Patient portal access (ADR-052) ---------------------------------------
+// The hospital grants and withdraws a patient's portal access. There is no
+// self-service path — this is the only way a link is ever created.
 
-export async function onboardTenant(body: OnboardTenantRequest): Promise<OnboardTenantResponse> {
-  return request<OnboardTenantResponse>("/admin/tenants", { method: "POST", body, feedback: { success: "Hospital onboarded." } });
-}
-
-export async function setTenantStatus(id: string, status: string): Promise<Tenant> {
-  return request<Tenant>(`/admin/tenants/${id}/status`, {
-    method: "PATCH",
-    body: { status },
-    feedback: { success: "Tenant status updated." },
-  });
-}
-
-export async function grantTenantModule(id: string, module: string): Promise<void> {
-  await request(`/admin/tenants/${id}/modules`, {
+export async function grantPortalAccess(
+  patientId: string,
+  contact: { mobile: string } | { email: string },
+): Promise<{ identityId: string; linkId: string }> {
+  return request<{ identityId: string; linkId: string }>(`/patients/${patientId}/portal-access`, {
     method: "POST",
-    body: { module },
-    feedback: { success: "Module granted." },
+    body: contact,
+    feedback: { success: "Portal access granted." },
   });
 }
 
-export async function revokeTenantModule(id: string, key: string): Promise<void> {
-  await request(`/admin/tenants/${id}/modules/${key}`, { method: "DELETE", feedback: { success: "Module revoked." } });
+export async function revokePortalAccess(patientId: string): Promise<void> {
+  await request<void>(`/patients/${patientId}/portal-access`, {
+    method: "DELETE",
+    feedback: { success: "Portal access withdrawn." },
+  });
 }
 
-export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
-  return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+// ---- Platform branding: READ ONLY (ADR-024, ADR-051) -----------------------
+// The Portal reads the platform's "hms" default palette at bootstrap and applies the
+// tenant's own branding on top. This GET is public and is NOT an operator capability,
+// so it stays here — only the writes (update / reset / logo / favicon upload) moved to
+// the admin console, where `platform.branding.platform.manage` is held.
+
+export async function getPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
+  return request<PlatformBranding>(`/public/branding/${scope}`);
 }
 
-/**
- * Starts a support session (ADR-037). The response's access token belongs to the
- * TARGET user in the TARGET tenant — the caller continues as them until they exit.
- */
-export async function startSupportSession(body: StartSupportSessionRequest): Promise<StartSupportSessionResponse> {
-  return request<StartSupportSessionResponse>("/admin/support-sessions", { method: "POST", body });
-}
-
-export async function getPlatformStats(): Promise<PlatformStats> {
-  return request<PlatformStats>("/admin/stats");
-}
-
-export async function getPlatformTrends(months = 12): Promise<PlatformTrends> {
-  return request<PlatformTrends>(`/admin/trends?months=${months}`);
-}
+// ---- Platform administration: MOVED (ADR-051) ------------------------------
+// Tenant onboarding, module provisioning, platform analytics, support sessions and
+// platform branding now live in the `admin` app on its own origin. They are gone from
+// here on purpose: leaving the functions behind would keep shipping operator code in
+// every hospital's bundle, which is the whole reason the frontends were split.
+// The Portal keeps `/support/enter`, which RECEIVES a session the admin console mints.
 
 /**
  * Liveness + readiness for the health tile. Deliberately tolerant: a failure here
@@ -702,7 +495,8 @@ export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File):
   const form = new FormData();
   form.append("file", file);
   const headers: Record<string, string> = {};
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const token = client.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await send(`/branding/${kind}`, { method: "POST", headers, credentials: "include", body: form });
   if (!res.ok) {
     const failure = await parseError(res);
@@ -710,57 +504,6 @@ export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File):
     throw failure;
   }
   const branding = (await res.json()) as Branding;
-  notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
-  return branding;
-}
-
-// ---- Platform branding (super-admin; ADR-024) ------------------------------
-// Two independent scopes: "marketing" (public site) and "hms" (Portal product default).
-// The GET is public; writes require platform.branding.platform.manage (super-admin).
-
-export async function getPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
-  return request<PlatformBranding>(`/public/branding/${scope}`);
-}
-
-export async function updatePlatformBranding(
-  scope: PlatformBrandingScope,
-  tokens: BrandingTokens,
-): Promise<PlatformBranding> {
-  return request<PlatformBranding>(`/platform-branding/${scope}`, {
-    method: "PUT",
-    body: { tokens },
-    feedback: { success: "Platform branding saved." },
-  });
-}
-
-export async function resetPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
-  return request<PlatformBranding>(`/platform-branding/${scope}`, {
-    method: "DELETE",
-    feedback: { success: "Platform branding reset." },
-  });
-}
-
-export async function uploadPlatformBrandingAsset(
-  scope: PlatformBrandingScope,
-  kind: "logo" | "favicon",
-  file: File,
-): Promise<PlatformBranding> {
-  const form = new FormData();
-  form.append("file", file);
-  const headers: Record<string, string> = {};
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-  const res = await send(`/platform-branding/${scope}/${kind}`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: form,
-  });
-  if (!res.ok) {
-    const failure = await parseError(res);
-    notifyError(failure);
-    throw failure;
-  }
-  const branding = (await res.json()) as PlatformBranding;
   notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
   return branding;
 }

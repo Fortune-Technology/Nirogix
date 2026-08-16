@@ -511,15 +511,44 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)</li>
     <li>Package manager / build system — npm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds (ADR-014 — npm chosen over pnpm; Turborepo retained)</li>
   </ul>
-<h3>Monorepo Structure</h3><ul>
+<h3>Monorepo Structure</h3><div class="callout teal">
+  <span class="tag">Patient identity — ADR-052</span>
+  Patients authenticate as a <strong>different principal from staff</strong>, not as a staff user with fewer
+  permissions. <code>patient_identity</code> is platform-level and keyed to a <strong>verified</strong> mobile or email;
+  <code>patient_identity_link</code> is tenant-scoped and joins one identity to one hospital's patient record.
+  <strong>The hospital creates the link, never the patient</strong> — that is what "no public patient signup" means
+  structurally. One identity may hold many links, because a patient registered at several hospitals is one person.
+  The token carries a principal type, so staff routes refuse a patient <em>by type</em> before any permission is read,
+  and patient routes refuse a staff token. Tenant is resolved from an active link on <strong>every request</strong>,
+  never from the URL, and the patient id each query filters on comes from that link — so another person's record is
+  unrepresentable rather than merely refused, and revocation is immediate. The portal is read-only. Patients have their own <strong>session model</strong> — a separate
+  <code>patient_sessions</code> table, because <code>sessions</code> is foreign-keyed to staff users — with a refresh
+  cookie scoped to <code>/api/v1/patient/auth</code>, so a staff cookie is never sent to a patient route or the
+  reverse. Rotation on every use, hashed storage, revocation on sign-out.
+</div>
+<div class="callout teal">
+  <span class="tag">Frontend architecture — ADR-051</span>
+  <strong>Five frontends, one backend, one origin per audience.</strong> <code>marketing</code> (public) ·
+  <code>hms_frontend</code> (hospital staff) · <code>admin</code> (vendor operators) · <code>patient</code> (verified
+  patients, ADR-052) · <code>aiportal</code> (authorised staff and operators, ADR-053). Each frontend renders and may
+  hide; it never decides. Authentication, authorization, tenant resolution, permissions, business logic and audit live
+  only in the backend, and every route is re-checked server-side regardless of what an application already hid.
+  No session is shared between applications: the refresh cookie is host-only on the API origin, and each origin is
+  listed individually in <code>CORS_ORIGINS</code> per environment. The platform-operator surface is <em>not</em> in the
+  Portal, so operator code never ships in a hospital's bundle.
+</div>
+<ul>
     <li>hms_backend — Node.js/Express API, authentication, business logic, database integration</li>
-    <li>hms_frontend — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards</li>
+    <li>hms_frontend — Next.js Nirogix Portal serving hospital staff role dashboards behind role-based route guards</li>
+    <li>admin — Next.js platform administration for the vendor's own operators (ADR-051)</li>
+    <li>patient — Next.js patient portal for verified, hospital-provisioned patients (ADR-052)</li>
+    <li>aiportal — Next.js AI Portal; an authorization boundary with no AI capability behind it yet (ADR-053)</li>
     <li>marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content</li>
     <li>packages/types — shared TypeScript types and API contracts consumed by both backend and portal</li>
     <li>packages/ui — shared design-system components used by portal and marketing</li>
     <li>packages/config, packages/utils — shared lint/build configuration and common utilities</li>
     <li>packages/permissions — dot-hierarchy permission keys shared front-end/back-end</li>
-    <li>App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6</li>
+    <li>App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; the frontends added in ADR-051 are named for their audience (admin / patient / aiportal). Shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6</li>
   </ul></section><section id="s7-2"><h3>Technical Expectations</h3><ul>
     <li>Cloud-native microservices or well-modularized architecture (depending on deployment scale)</li>
     <li>API-first design — versioned REST APIs with backward compatibility; optional GraphQL</li>

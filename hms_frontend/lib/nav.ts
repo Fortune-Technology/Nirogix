@@ -44,47 +44,12 @@ export interface NavGroup {
 }
 
 /**
- * PLATFORM context (ADR-037) — the vendor's own operators, in the PLATFORM org.
- * Deliberately contains **no clinical navigation**: a System Admin does not get a
- * duplicate of every hospital's HMS. To work inside a hospital they enter that
- * tenant explicitly through a support session, which switches them to TENANT_NAV.
+ * The Portal's navigation — a hospital's own staff, and what a support session shows.
  *
- * Grouped by what an operator is doing, not by which table a screen reads
- * (ADR-043). Only routes that exist appear here — the platform areas we expect to
- * need later (plans and subscriptions, platform-wide reporting, integrations and
- * API keys, system configuration, support tickets) are recorded in
- * `resources/development-plan.md` and join a group below when they are built. A
- * navigation item is never a placeholder for an unbuilt screen.
- */
-export const PLATFORM_NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [{ label: "Dashboard", href: "/platform", perm: null, icon: LayoutDashboard }],
-  },
-  {
-    label: "Customers",
-    items: [
-      { label: "Hospitals", href: "/admin/tenants", perm: PERMISSIONS.TENANTS_MANAGE, icon: Building2 },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { label: "Branding", href: "/admin/branding", perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE, icon: Palette },
-      { label: "Security & audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
-    ],
-  },
-  {
-    label: "Account",
-    items: [{ label: "My profile", href: "/profile", perm: null, icon: UserCircle }],
-  },
-];
-
-/** Flattened platform navigation — for the mobile bar and anything that wants a plain list. */
-export const PLATFORM_NAV: NavItem[] = PLATFORM_NAV_GROUPS.flatMap((g) => g.items);
-
-/**
- * TENANT context — a hospital's own staff, and what a support session shows.
+ * There is no platform context here any more (ADR-051): the vendor's operator screens
+ * moved to their own application on their own origin, so operator code is no longer
+ * in a hospital's bundle. An operator working inside a hospital arrives through a
+ * support session and sees exactly this navigation, which is the point.
  * Grouped the same way: the clinical day first, then the records a hospital runs
  * on, then administration. New clinical modules join "Clinical" as they ship.
  */
@@ -169,38 +134,17 @@ export function mobilePrimaryNav(can: (perm: string) => boolean, source: NavItem
 }
 
 /**
- * Which application context this user belongs in (ADR-037).
+ * The Portal's sidebar for this user, grouped. Groups whose every item is denied
+ * disappear entirely, so a section heading never sits above nothing.
  *
- * A platform operator is identified by `platform.tenants.manage`, which only the
- * vendor's super_admin resolves (via WILDCARD in the PLATFORM org, ADR-020/022) —
- * never a hospital's org_admin. This is UX routing only: every endpoint still
- * re-checks permissions server-side.
+ * There is no longer a context decision to make (ADR-051). The Portal renders tenant
+ * navigation for everyone who reaches it, including a platform operator inside a
+ * support session — which is exactly right: they are working as a hospital user, and
+ * the support banner says so.
  */
-export function isPlatformOperator(can: (perm: string) => boolean): boolean {
-  return can(PERMISSIONS.TENANTS_MANAGE);
-}
-
-/**
- * The sidebar for the context the user is in. A System Admin gets platform
- * navigation and **no clinical menu** — to work inside a hospital they enter that
- * tenant explicitly through a support session, which is an audited transition
- * rather than a silently broader sidebar.
- */
-export function navForContext(can: (perm: string) => boolean, inTenantContext: boolean): NavItem[] {
-  return isPlatformOperator(can) && !inTenantContext ? PLATFORM_NAV : NAV_ITEMS;
-}
-
-/**
- * The same decision, grouped — what the sidebar and the mobile drawer render.
- * Groups whose every item is denied to this user disappear entirely, so a section
- * heading never sits above nothing.
- */
-export function navGroupsForContext(
-  can: (perm: string) => boolean,
-  inTenantContext: boolean,
-): NavGroup[] {
-  const groups = isPlatformOperator(can) && !inTenantContext ? PLATFORM_NAV_GROUPS : TENANT_NAV_GROUPS;
-  return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.perm === null || can(i.perm)) }))
-    .filter((g) => g.items.length > 0);
+export function navGroupsForUser(can: (perm: string) => boolean): NavGroup[] {
+  return TENANT_NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => i.perm === null || can(i.perm)),
+  })).filter((g) => g.items.length > 0);
 }

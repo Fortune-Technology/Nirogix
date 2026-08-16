@@ -6,6 +6,8 @@ Current state of the Nirogix Portal (staff-facing web app). Read after root `CLA
 
 ## Purpose
 
+The web portal for **hospital staff**, on its own origin (`:3000` → `portal.nirogix.com`). Since ADR-051 it serves hospital staff only — the vendor's platform-operator screens live in the separate `admin` application, so operator code no longer ships in a hospital's bundle.
+
 The single web portal for all hospital staff roles. One RBAC-driven shell renders every role's workspace; the visible menu and pages derive from the signed-in user's **effective permissions**, but visibility is never security — every backend endpoint independently re-checks `auth → module → permission → business logic` (invariant #2).
 
 ## Stack
@@ -67,6 +69,13 @@ components/
 - **`<RequirePermission perm>`**: wraps a protected page's body; renders the standard **Forbidden** panel when the permission is missing, so a direct URL hit gets a clean 403 instead of a broken screen (and the API would 403 the data calls anyway).
 - **Keys come from `@hms/permissions`** — the same module the backend enforces with, so the menu and server never drift.
 - Verified live (CITYCARE demo): **org_admin** sees Dashboard/Providers/Audit/Settings; **receptionist** sees only Dashboard/Settings, and a direct hit to `/providers` renders the 403 panel with **no `/providers` API call made**.
+- **There is no platform context here (ADR-051).** `navGroupsForUser(can)` renders the hospital's navigation for everyone, including an operator inside a support session — they are working as a hospital user, and the banner says so. `lib/api.ts` holds no platform-administration call; `admin` does.
+
+## Support sessions — the receiving end (ADR-037, ADR-051)
+
+- `/support/enter` claims a session that the **admin console** mints. The token arrives by `postMessage`, never in a URL, because a URL lands in history, referrers and server logs.
+- The sender is now a **different origin**, so the check is explicit: only `ADMIN_ORIGIN` (`lib/adminOrigin.ts`, from `NEXT_PUBLIC_ADMIN_ORIGIN`) may hand this tab a session. Before the split this was a `window.location.origin` comparison — correct then, silently wrong after.
+- Once claimed, the operator sees this app's normal navigation with the support banner and an explicit exit.
 
 ## Hospital Configuration console (ADR-049)
 

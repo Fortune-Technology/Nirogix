@@ -391,12 +391,41 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 ### Authentication
 
+### Frontend Architecture — five applications, one backend (ADR-051)
+
+Each frontend serves **one audience** and owns nothing but rendering. The backend is the single source of truth for authentication, authorization, tenant resolution, permissions, business logic and audit; a frontend guard is UX and never security.
+
+| Application | Audience | Access rule |
+|---|---|---|
+| `marketing` | Public | None — no authentication logic at all |
+| `hms_frontend` (Nirogix Portal) | Hospital staff | Authenticated staff user, tenant-scoped |
+| `admin` | Vendor operators | Authenticated **and** `platform.tenants.manage`, held only by a super_admin in the PLATFORM org |
+| `patient` | Patients | A verified patient principal, never a staff `user` (ADR-052) |
+| `aiportal` | Authorised staff + operators | `ai.portal.access`, held by **no role** — granted per person. A patient principal is refused by type before the permission is read (ADR-052). Entry is audited. **No AI capability exists behind it** (ADR-053) |
+
+- **One origin per audience.** A different audience is a different security boundary, a different release cadence and a different blast radius. The concrete host map is `resources/domains.md`.
+- **No shared session between applications.** The refresh cookie is host-only on the API origin, so one application's session cannot be replayed against another's. Each origin is listed individually in `CORS_ORIGINS` per environment.
+- **The platform surface is not in the Portal.** Tenant onboarding, module provisioning, platform analytics, support sessions and platform branding live only in `admin`, so operator code never ships in a hospital's bundle. The Portal keeps `/support/enter`, which *receives* a session the admin console mints.
+- **The support-session handoff is cross-origin and explicit.** The token travels by `postMessage` — never a URL, which lands in history, referrers and logs — with each side naming the other's origin from configuration. The Portal accepts a session only from the configured admin origin.
+
+### Patient Identity (ADR-052)
+
+Patients authenticate as a **different principal from staff**, not as a staff user with fewer permissions.
+
+- `patient_identity` is **platform-level** (no tenant), keyed to a **verified** mobile or email. An unverified contact is a claim, not an identity, and unlocks nothing.
+- `patient_identity_link` is **tenant-scoped** and joins one identity to one hospital's patient record. It is created by the hospital during registration — never by the patient, which is what "no public patient signup" means structurally rather than as a missing button.
+- One identity may hold many links, because a patient registered at several hospitals is one person. One patient record holds at most one identity, so two people cannot claim the same chart.
+- The access token carries a principal type. Staff routes refuse a patient **by type** before any permission is read; patient routes refuse a staff token. Neither can be opened by a permission grant.
+- **Tenant is resolved from an active link on every request**, never from the URL. The patient id every query filters on comes from that link, so reading another person's record is unrepresentable rather than merely refused, and revocation takes effect immediately.
+- The portal is read-only: profile, appointments, invoices and resulted laboratory reports. It writes nothing clinical.
+- **Patients have their own session model.** `patient_sessions` is a separate table, because `sessions` is foreign-keyed to staff `users`. The refresh cookie is scoped to `/api/v1/patient/auth`, so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint. Rotation on every use, hashed storage, server-side revocation on sign-out.
+
 ### Marketing Site → Portal Authentication Flow
 
 - Marketing site carries no authentication logic — a single Login action links directly to the Portal's login route, with an optional redirect parameter for deep-linking
-- All authentication, session issuance, MFA, SSO, and role-based dashboard routing is handled entirely within the Portal application
-- Session model — short-lived JWT access token plus an httpOnly, secure refresh-token cookie scoped to the Portal's own domain; no shared session state with the Marketing Site
-- Post-login routing determined by the authenticated user's role, served from the single Portal application rather than separate apps per role
+- All authentication, session issuance, MFA, SSO, and role-based dashboard routing is handled by the backend and consumed by whichever frontend the user signed in to
+- Session model — short-lived JWT access token held in memory plus an httpOnly, secure refresh-token cookie scoped host-only to the API origin; no shared session state with the Marketing Site and none between the authenticated applications
+- Post-login routing determined by the authenticated user's role within the application they signed in to
 
 ### Notification Architecture
 
@@ -575,7 +604,7 @@ Every regulatory area this platform touches, with its verification status tracke
 ### Deployment Topology
 
 - Reuses the existing Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner pattern already in production for the StoreVeu platform
-- Subdomain-per-application convention — Marketing Site on the root domain, Nirogix Portal on a portal subdomain, backend API on an api subdomain. The concrete host map, per environment, is **`resources/domains.md`** (ADR-042): `nirogix.com` / `portal.nirogix.com` / `api.nirogix.com` in production and the `-staging` counterparts alongside, every host second-level so one wildcard certificate covers the platform. No host name appears in application code.
+- Subdomain-per-application convention — Marketing Site on the root domain, and one host per audience alongside it. The concrete host map, per environment, is **`resources/domains.md`** (ADR-042, ADR-051): `nirogix.com` / `portal.nirogix.com` / `admin.nirogix.com` / `patient.nirogix.com` / `api.nirogix.com`, plus **`nirogix.ai`** for the AI Portal on its own registrable domain so its cookie scope is separate by construction. The `-staging` counterparts sit alongside. No host name appears in application code.
 - CI/CD builds and deploys only the application(s) affected by a given push, using Turborepo's affected-package detection
 - This topology is right-sized for pilot customers and early revenue; meeting the horizontal auto-scaling, multi-region, and 99.5%+ uptime targets in §57 will require a later migration to managed PostgreSQL (with read replicas) and containerized horizontal scaling — a deliberate future-stage step, not a day-one requirement
 
@@ -605,13 +634,16 @@ Every regulatory area this platform touches, with its verification status tracke
 ### Monorepo Structure
 
 - hms_backend — Node.js/Express API, authentication, business logic, database integration
-- hms_frontend — Next.js Nirogix Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
+- hms_frontend — Next.js Nirogix Portal serving hospital staff role dashboards behind role-based route guards
+- admin — Next.js platform administration for the vendor's own operators (ADR-051)
+- patient — Next.js patient portal for verified, hospital-provisioned patients (ADR-052)
+- aiportal — Next.js AI Portal; an authorization boundary with no AI capability behind it yet (ADR-053)
 - marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content
 - packages/types — shared TypeScript types and API contracts consumed by both backend and portal
 - packages/ui — shared design-system components used by portal and marketing
 - packages/config, packages/utils — shared lint/build configuration and common utilities
 - packages/permissions — dot-hierarchy permission keys shared front-end/back-end
-- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
+- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; the frontends added in ADR-051 are named for their audience (admin / patient / aiportal). Shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
 
 ### Technical Expectations
 

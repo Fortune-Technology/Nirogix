@@ -170,6 +170,9 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/organization/profile` (any authed — document headers) · `PUT /api/v1/organization/profile` (`platform.organization.manage`) — the hospital's own identity (ADR-049)
 - `GET /api/v1/setup/status` — Hospital Setup progress, derived from real rows (`platform.organization.manage`, ADR-049)
 - `GET|POST /api/v1/departments` · `GET|PATCH /api/v1/departments/{id}` — the hospital's clinical departments (`platform.departments.view|manage`, ADR-050)
+- `POST /api/v1/patient/auth/request-code` · `POST /api/v1/patient/auth/verify` — patient sign-in, unauthenticated, sign-in rate tier (ADR-052)
+- `GET /api/v1/patient/hospitals` · `GET /api/v1/patient/hospitals/{tenantId}/profile|appointments|invoices|lab-reports` — the patient portal's reads (`requirePatientAuth`)
+- `POST|DELETE /api/v1/patients/{id}/portal-access` — the hospital grants and withdraws portal access (`patient.record.create`)
 - `GET /api/v1/admin/stats` — platform-wide aggregates (super-admin; **aggregate-only**, ADR-023) · `GET /api/v1/dashboard/summary` — the caller's own-tenant roll-up (RLS-scoped)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/ipd/beds` (requireModule demonstrator — IPD is Phase 2)
@@ -197,6 +200,18 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Never deleted.** Visits and encounters reference departments and last year's register must still name one, so the only lifecycle action is activate/deactivate — audited at `notice`, with the attached doctor count in the metadata.
 - **Referential rules live in the service, not only the request schema:** a department cannot be scoped to another hospital's branch, headed by another hospital's provider, or reuse a code; a visit cannot be checked into another tenant's or a retired department. The uppercase-code normalisation is in the service for the same reason — it was in the Zod schema only, and the seed happily created `ortho` beside `ORTHO` because the unique index is case-sensitive.
 - Verified live: four seeded departments for CITYCARE, receptionist **200** on read / **403** on create, pharmacist **403** on read, and a CITYCARE department id returns **404** to SUNRISE while CITYCARE reads it with 200.
+
+## Patient identity & the patient portal (ADR-052)
+
+- **Two principals, not two roles.** The access token carries `pt` (`staff` | `patient`). `requireAuth` refuses a patient **by type**, before any permission is consulted — so a future grant or a mistaken override cannot open a staff route to a patient — and `requirePatientAuth` refuses a staff token on patient routes. The boundary is enforced in both directions.
+- **Model:** `patient_identity` + `patient_verification` are **platform-managed** (no `tenant_id`, no RLS, like `tenants`); `patient_identity_link` is **tenant-scoped** and inherits RLS. A patient registered at three hospitals is one person, so the identity sits above the tenancy boundary and reaches into it through links. Migration `drizzle/0019_clammy_ben_parker.sql`.
+- **No public signup, structurally.** No route lets a caller attach themselves to a chart. `POST /patients/:id/portal-access` is a staff route and is the only way a link is created. Granting does not verify the contact.
+- **The tenant is never trusted from the path.** Every read calls `resolvePatientAccess` first; the patient id it filters on comes from the link, not the request, so another person's chart is unrepresentable rather than merely refused. Per-request, so revocation is immediate.
+- **Codes** are hashed, single-use, expiring, attempt-capped. `request-code` always answers 202 with the same message — otherwise it answers "is this person a patient somewhere?".
+- **Verification is sent from the PLATFORM tenant**, never a hospital: a hospital's notification log must not record that a patient signed in, least of all a hospital they did not choose.
+- **Lab reports are resulted orders only** — an in-progress sample is not a report.
+- **Revoke uses the same permission as grant** (`patient.record.create`): withdrawing access must never be harder than granting it.
+- Verified live: patient token → **401** on `/patients`; staff token → **401** on `/patient/hospitals`; patient reads their own profile at the linked hospital and gets **403** at an unlinked one; a replayed code gives **401**.
 
 ## Organization profile & Hospital Setup (ADR-049)
 

@@ -1,10 +1,10 @@
 # Domain & Environment Architecture
 
 **Document:** `domains.md`
-**Version:** 1.0
-**Last Updated:** August 2026
+**Version:** 2.0
+**Last Updated:** 16/08/2026
 **Prepared for:** Takoriya Technology LLP
-**Decision record:** ADR-041 (the platform is named **Nirogix**), ADR-042 (this structure)
+**Decision record:** ADR-041 (the platform is named **Nirogix**), ADR-042 (this structure), **ADR-051 (five frontends, one origin per audience — this version)**
 
 The authoritative host map for Nirogix. Every environment URL in code, configuration, or a deploy script comes from here, and nothing hard-codes a host (see `resources/rules.md` → API Documentation Rules, and the environment matrix below).
 
@@ -12,10 +12,10 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 
 ## 1. Principles
 
-1. **One registrable domain: `nirogix.com`.** Everything is a subdomain of it, so one DNS zone and one certificate strategy cover the platform. DNS is hosted at **GoDaddy** (ADR-045); there is no CDN or edge proxy in front of the origin.
+1. **Two registrable domains.** `nirogix.com` carries the platform; **`nirogix.ai`** carries the AI Portal and nothing else (ADR-051). A separate registrable domain gives the AI surface a different cookie scope *by construction* rather than by configuration — the correct boundary for a surface with its own access rule. DNS is hosted at **GoDaddy** (ADR-045); there is no CDN or edge proxy in front of the origin. `nirogix.ai` is **not yet purchased** — see §10.
 2. **Every host is second-level** (`portal.nirogix.com`, `api-staging.nirogix.com`) and never third-level (`test.portal.nirogix.com`). Most free wildcard certificates cover `*.nirogix.com` only — a third-level host needs its own certificate for no functional gain. With Let's Encrypt on the VM each host gets its own certificate anyway, so the rule keeps issuance and renewal simple rather than being a hard constraint.
 3. **Environment is a prefix on the host, not a path.** `portal-staging`, never `portal.nirogix.com/staging`. Paths belong to the application.
-4. **A new capability gets a subdomain only when it needs its own origin** — a different security boundary, a different server, or third-party delivery. Otherwise it is a route on an existing host. Subdomains are cheap to create and expensive to retire.
+4. **One origin per audience** (ADR-051). A different *audience* — public, hospital staff, vendor operator, patient — is a different security boundary, a different release cadence and a different blast radius, so it gets its own host and its own bundle. A new *capability* for an existing audience is still a route on that audience's host. Subdomains are cheap to create and expensive to retire.
 5. **Cookies are host-only.** No cookie ever sets `Domain=.nirogix.com`, so a staging session can never be presented to production, and one host's compromise does not hand over another's session.
 6. **Production and non-production never share state** — separate database, separate object storage bucket, separate secrets, separate notification sender.
 
@@ -27,7 +27,10 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 |---|---|---|---|
 | `nirogix.com` | Marketing site (apex) | `marketing` (Next.js, :3001) | The canonical public surface. Indexable. |
 | `www.nirogix.com` | 301 → `nirogix.com` | Nginx | Redirect only. Never serves content, so there is one canonical URL for SEO. |
-| `portal.nirogix.com` | Nirogix Portal — every staff and operator screen | `hms_frontend` (Next.js, :3000) | `noindex, nofollow` end to end (ADR-027). Includes the System Admin context (ADR-037). |
+| `portal.nirogix.com` | Nirogix Portal — hospital staff only | `hms_frontend` (Next.js, :3000) | `noindex, nofollow` end to end (ADR-027). **No platform-operator screens** — they moved to `admin` (ADR-051). |
+| `admin.nirogix.com` | Platform administration | `admin` (Next.js, :3002) | Vendor operators only. `noindex, nofollow`. Its own bundle, so operator code never ships to a hospital. |
+| `patient.nirogix.com` | Patient portal | `patient` (Next.js, :3003) | Verified, hospital-provisioned patients only (ADR-052). `noindex, nofollow`. **No public signup.** |
+| `nirogix.ai` | AI Portal | `aiportal` (Next.js, :3004) | Authorised staff + operators, `ai.portal.access` (ADR-053). Patients refused server-side by principal type. Separate registrable domain = separate cookie scope. |
 | `api.nirogix.com` | REST API, `/api/v1` | `hms_backend` (Express, :4000) | Sets the refresh cookie (host-only). Serves `/api/v1/openapi.json`; the Swagger UI is env-gated. |
 | `docs.nirogix.com` | Public API reference | *(reserved)* | Swagger UI / redoc built from the same spec, for hospitals' own integrators. Read-only, no credentials. |
 | `status.nirogix.com` | Uptime and incident page | *(reserved)* | Deliberately **not** on our infrastructure — a status page hosted where the platform lives is useless during the outage it is meant to report. |
@@ -42,6 +45,9 @@ Identical topology, `-staging` suffixed, on the same zone and the same wildcard 
 |---|---|
 | `staging.nirogix.com` | Marketing site |
 | `portal-staging.nirogix.com` | Nirogix Portal |
+| `admin-staging.nirogix.com` | Platform administration |
+| `patient-staging.nirogix.com` | Patient portal |
+| `ai-staging.nirogix.com` | AI Portal — staging lives on `nirogix.com`, so the `.ai` zone carries production only |
 | `api-staging.nirogix.com` | REST API |
 
 - **Never indexed.** Staging serves `X-Robots-Tag: noindex, nofollow` at Nginx for every host, on top of the app's own `robots.ts`. A duplicate of the marketing site in the index is an SEO defect and a leak of unreleased copy.
@@ -52,11 +58,16 @@ Identical topology, `-staging` suffixed, on the same zone and the same wildcard 
 
 Local only; no public DNS. Ports are already fixed by each app's `dev` script.
 
-| URL | Serves |
-|---|---|
-| `http://localhost:3000` | Nirogix Portal |
-| `http://localhost:3001` | Marketing site |
-| `http://localhost:4000` | REST API (`/api/v1`) |
+| URL | Serves | Workspace |
+|---|---|---|
+| `http://localhost:3000` | Nirogix Portal (hospital staff) | `hms_frontend` |
+| `http://localhost:3001` | Marketing site | `marketing` |
+| `http://localhost:3002` | Platform administration | `admin` |
+| `http://localhost:3003` | Patient portal | `patient` |
+| `http://localhost:3004` | AI Portal | `aiportal` |
+| `http://localhost:4000` | REST API (`/api/v1`) | `hms_backend` |
+
+Ports are fixed in each workspace's `dev` script and mirrored in `.claude/launch.json`. **The System Admin application is `http://localhost:3002`, not `http://localhost:3000/platform`** — port 3000 belongs to the staff Portal, and a second Next application cannot serve a path on another's port without a reverse proxy in front of both, which would put the two back on one origin and undo the split (ADR-051).
 
 A shared cloud dev tier is **not** provisioned. Two deployed environments are the minimum that lets a release be verified; a third earns its keep only when several developers need to integrate against a running stack at once. If that day comes the naming already accommodates it — `dev.nirogix.com`, `portal-dev.nirogix.com`, `api-dev.nirogix.com` — with no restructuring.
 
@@ -64,11 +75,12 @@ A shared cloud dev tier is **not** provisioned. Two deployed environments are th
 
 | Candidate | Decision | Why |
 |---|---|---|
-| Admin / backoffice | Route inside the Portal | The System Admin surface is already a separate application *context* with its own navigation, permissions, and audit expectations (ADR-037). A separate host would fork the session model and double the auth surface to protect, for a boundary the permission system already enforces server-side. |
+| ~~Admin / backoffice~~ | **Superseded — now `admin.nirogix.com`** | ADR-042 reasoned that a separate host "would fork the session model and double the auth surface to protect". That was sound and is now outweighed: a platform operator and a receptionist were sharing a JavaScript bundle, so operator code shipped to every hospital, and the two have different release cadences and blast radii (ADR-051). |
 | Authentication / SSO | `api.nirogix.com` | Tokens are minted by the API and the refresh cookie is scoped to that host. A dedicated `id.` host is worth it only for federated SSO across several products or a hospital-side IdP integration — neither is in scope. It can be added later without moving anything, because the Portal already reads its API base URL from configuration. |
 | Webhooks | `api.nirogix.com/api/v1/webhooks/*` | Inbound webhooks need the same request validation, rate limiting, idempotency, and audit trail as every other endpoint (`resources/rules.md` → API Rules). A separate host would duplicate all four. |
 | Per-tenant hosts (`citycare.nirogix.com`) | Not now | Tenant context comes from the authenticated session, never from the URL (a non-negotiable invariant). Per-tenant vanity hosts would need per-host certificates, a tenant-to-host resolution step, and a second way to establish tenancy. Revisit only as an Enterprise-track request, with an ADR. |
-| Customer-facing patient portal | Not yet | Out of current scope. When it arrives it is `my.nirogix.com` — a different audience and a different threat model from the staff Portal, so it gets its own origin. |
+| ~~Customer-facing patient portal~~ | **Superseded — now `patient.nirogix.com`** | The reasoning held ("a different audience and a different threat model … so it gets its own origin"); only the hostname changed, from the reserved `my.` to the plainer `patient.` (ADR-051). |
+| AI subdomains (`chat.nirogix.ai`, `api.nirogix.ai`) | Not now | The AI Portal is one host on its own registrable domain. If the AI surface later needs its own API origin or a second app, those hosts are documented **under `nirogix.ai`** and never mixed into the `nirogix.com` application hosts. |
 
 ## 6. TLS, DNS, and edge
 
@@ -92,11 +104,16 @@ Every one of these is read from configuration. No host appears in application co
 | Variable | Local | Staging | Production |
 |---|---|---|---|
 | `API_PUBLIC_URL` (backend) | `http://localhost:4000` | `https://api-staging.nirogix.com` | `https://api.nirogix.com` |
-| `CORS_ORIGINS` (backend) | *(permissive in dev)* | `https://portal-staging.nirogix.com,https://staging.nirogix.com` | `https://portal.nirogix.com,https://nirogix.com` |
+| `CORS_ORIGINS` (backend) | *(permissive in dev)* | `https://portal-staging.nirogix.com,https://staging.nirogix.com,https://admin-staging.nirogix.com,https://patient-staging.nirogix.com,https://ai-staging.nirogix.com` | `https://portal.nirogix.com,https://nirogix.com,https://admin.nirogix.com,https://patient.nirogix.com,https://nirogix.ai` |
 | `OPENAPI_UI_ENABLED` (backend) | `true` | `true` | `false` — the JSON spec is always served; the interactive UI is not exposed in production |
 | `NEXT_PUBLIC_API_BASE_URL` (Portal) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
 | `NEXT_PUBLIC_SITE_URL` (marketing) | `http://localhost:3001` | `https://staging.nirogix.com` | `https://nirogix.com` |
 | `NEXT_PUBLIC_PORTAL_LOGIN_URL` (marketing) | `http://localhost:3000/login` | `https://portal-staging.nirogix.com/login` | `https://portal.nirogix.com/login` |
+| `NEXT_PUBLIC_API_BASE_URL` (admin) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
+| `NEXT_PUBLIC_API_BASE_URL` (patient) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
+| `NEXT_PUBLIC_API_BASE_URL` (aiportal) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
+
+**Every frontend reads its API base URL from configuration.** No app holds a host in source, and all five point at the same backend — there is one API, one database, one permission catalog and one audit trail behind every one of them (ADR-051).
 
 ## 9. Cutover checklist
 
@@ -107,3 +124,6 @@ Every one of these is read from configuration. No host appears in application co
 5. Confirm the refresh cookie arrives with `Secure; HttpOnly; SameSite=Lax` and **no** `Domain`, on the API host only.
 6. Publish DKIM/SPF/DMARC for `mail.nirogix.com` before the first real notification send (this is also blocked on MSG91 DLT registration — `BACKLOG.md` I-1).
 7. Point `docs`, `status`, and `cdn` when each is actually built; until then they stay documented and unrouted.
+8. **Purchase `nirogix.ai`**, create its zone at GoDaddy, and issue its certificate separately — a `*.nirogix.com` certificate does not cover it. Until it exists the AI Portal is reachable in development only (`BACKLOG.md`).
+9. Confirm each frontend's origin appears in `CORS_ORIGINS` for that environment **and nowhere else** — an admin origin listed in staging's production allowlist is exactly the mistake the per-audience split is meant to prevent.
+10. Confirm `portal.nirogix.com` serves **no** platform-operator route after the split, and `admin.nirogix.com` serves no clinical route. Each app's bundle should contain only its own audience's code.

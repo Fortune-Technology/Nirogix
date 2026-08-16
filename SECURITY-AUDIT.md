@@ -2,7 +2,7 @@
 
 Target environment: **`NODE_ENV=production`**. Scope: `hms_backend`, `hms_frontend`, `marketing`, shared packages, configuration and dependencies.
 
-Reviewed 15/08/2026 against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
+Reviewed 15/08/2026, updated 16/08/2026 (H-4, patient session model) against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
 
 **Status legend:** `Fixed` in this pass · `Open` needs work · `Accepted` deliberate, with the reason · `Blocked` needs infrastructure.
 
@@ -13,7 +13,7 @@ Reviewed 15/08/2026 against the code in this repository. Findings are evidence-b
 | Severity | Count | Fixed | Open |
 |---|---|---|---|
 | Critical | 0 | 0 | 0 |
-| High | 3 | 2 | 1 |
+| High | 4 | 3 | 1 |
 | Medium | 6 | 3 | 3 |
 | Low | 5 | 0 | 5 |
 
@@ -36,6 +36,11 @@ No critical finding. The architecture's security invariants hold: authorization 
 **Fixed** in `src/config/cors.ts`: production requires an explicit allowlist from `CORS_ORIGINS`, logs an error if it is empty rather than silently allowing everything, and refuses unlisted origins. Development keeps the permissive behaviour, where the cookie is not `Secure` and localhost ports move.
 
 **Action required at deploy:** set `CORS_ORIGINS` to the Portal and marketing origins.
+
+### H-4 · Refresh-token rotation did not rotate — **Fixed**
+`signRefreshToken` signed `{ sub, tid, sid }` with a second-resolution `iat`/`exp`, so **two refresh tokens minted in the same second were byte-identical**. On refresh the stored hash was replaced with the same value, which meant the previous token stayed valid — a stolen refresh token could not be invalidated by the legitimate user simply continuing their session, which is the one property rotation exists to provide. Present in **staff** sessions since the session model was built; found while testing the new patient session routes.
+
+**Fixed** in `auth/tokens.ts`: `signRefreshToken` now adds a per-issue `gen` nonce, generated inside the signer so no call site can forget it. Verified live for both principals — after a refresh, replaying the previous cookie returns **401** for staff and for patients. Two regression tests assert that back-to-back tokens differ.
 
 ### H-3 · No brute-force lockout or credential-stuffing detection beyond rate limiting — **Open**
 Rate limiting slows an attacker but nothing tracks repeated failures per *account*, so a slow distributed attempt against one known email is still viable, and there is no signal to a defender.
@@ -97,7 +102,7 @@ The new self-service change enforces ≥10 characters and rejects reuse of the c
 | **Error leakage** | `errorHandler` returns the canonical shape, sends 5xx detail to the error tracker, and never returns a stack trace. The frontend additionally forces generic copy for 5xx (ADR-026). |
 | **Secrets** | No `.env` file is tracked (only `.env.example`); the three `NEXT_PUBLIC_*` variables in use are non-secret URLs; no credential literals found in source or client bundles. |
 | **Password storage** | bcrypt, cost 12. |
-| **Session model** | Access token in memory only (never `localStorage`), refresh token in an `httpOnly`, `Secure`-in-production, `SameSite=Lax`, path-scoped cookie; server-side session rows support revocation, and a password change now revokes all of them. |
+| **Session model** | Access token in memory only (never `localStorage`), refresh token in an `httpOnly`, `Secure`-in-production, `SameSite=Lax`, path-scoped cookie; server-side session rows support revocation, and a password change revokes all of them. Rotation is now genuine (H-4). **Patients have their own session table and their own cookie path** (`/api/v1/patient/auth`), so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint (ADR-052). |
 | **PHI in logs/analytics** | No analytics is installed in either app; the audit middleware records method/path/actor, not bodies. |
 | **Payload limits** | JSON capped at 1 MB; uploads capped by size and count. |
 | **Browser credential saving** | Login uses `autocomplete="username"` / `"current-password"` and the profile uses `"new-password"`; no `autocomplete="off"` anywhere, so password managers work normally. |

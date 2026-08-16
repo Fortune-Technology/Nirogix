@@ -16,7 +16,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 ## Test environment & accounts
 
-- **Portal** `http://localhost:3000` · **Marketing** `http://localhost:3001` · **API** `http://localhost:4000/api/v1` (Swagger at `/api/v1/docs`).
+- **Portal** `http://localhost:3000` · **Marketing** `http://localhost:3001` · **Platform admin** `http://localhost:3002` · **Patient portal** `http://localhost:3003` · **AI Portal** `http://localhost:3004` · **API** `http://localhost:4000/api/v1` (Swagger at `/api/v1/docs`). Five frontends, one backend (ADR-051).
 - Seeded demo tenants: **CITYCARE**, **SUNRISE**, plus the vendor tenant **PLATFORM**.
 - Accounts (seed, password `ChangeMe#123`): `owner@takoriya.example` (super_admin, PLATFORM) · `admin@citycare.example` (org_admin) · `reception@citycare.example` (receptionist) · plus doctor / pharmacist / lab / cashier users per the seed.
 - Run each UI case in **Light and Dark**, and at least once at **mobile width (375px)** and desktop.
@@ -37,6 +37,9 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | AUTH-07 | Sign out | Signed in | Topbar → Sign out | Returns to `/login`; success toast "Signed out."; back button does not restore an authenticated page | P1 | Security | any | Not run |
 | AUTH-08 | Direct URL to a protected route while signed out | Signed out | Open `/patients` directly | Redirected to `/login`, not a blank screen | P1 | Security | anonymous | Not run |
 | AUTH-09 | MFA-flagged account | Account with MFA required | Sign in | Clear "not supported yet" message; no partial session created | P2 | Functional | any | Not run |
+| AUTH-20 | Refresh rotation invalidates the previous token (H-4 regression) | Signed in | Trigger a refresh, then replay the previous `hms_refresh` cookie | **401** — before this was fixed, two tokens minted in the same second were identical and the old one stayed valid for its whole lifetime | P1 | Security | receptionist | Not run |
+| AUTH-21 | Refresh cookie is path-scoped | Signed in | Inspect the cookie | `HttpOnly`, `SameSite=Lax`, `Path=/api/v1/auth`, `Secure` in production, and **no** `Domain` attribute | P1 | Security | receptionist | Not run |
+| AUTH-22 | A patient token is not a staff token | A patient token | Call any staff route with it | **401** — refused by principal type, before any permission is read (ADR-052) | P1 | Security | — | Not run |
 
 ## 2. Authorization, roles & tenancy
 
@@ -197,6 +200,105 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | RPT-04 | CSV export | Any report | Export | File downloads; contents match what is on screen | P2 | Functional | org_admin | Not run |
 | RPT-05 | Empty range | Range with no data | — | Shared empty state, not an error | P3 | UI/UX | org_admin | Not run |
 | RPT-06 | Permission gate | Role without `reports.view` | Open `/reports` | Forbidden panel | P1 | Security | receptionist | Not run |
+
+## 12b. Frontend separation (ADR-051)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FE-01 | Admin console is its own app | — | Open `http://localhost:3002` | The platform admin sign-in renders, on the shared design system, with no hospital branding | P1 | Functional | super_admin | Not run |
+| FE-02 | Platform routes are gone from the Portal | — | Open `/platform`, `/admin/tenants`, `/admin/branding` on `:3000` | All 404 — the operator surface no longer exists in the Portal | P1 | Regression | super_admin | Not run |
+| FE-03 | Hospital admin cannot use the admin console | org_admin credentials | Sign in at `:3002` | Forbidden panel, not an empty console; the API refuses the same calls independently | P1 | Security | org_admin | Not run |
+| FE-04 | Operator has no clinical menu | super_admin | Sign in at `:3002` | Overview, Hospitals, Support, Platform, Account — no patients, appointments, OPD, pharmacy, laboratory or billing | P1 | Security | super_admin | Not run |
+| FE-05 | Support session crosses origins | super_admin at `:3002` | Hospitals → a hospital → start a support session | A **Portal** tab opens at `:3000/support/enter`, claims the session, and lands on the hospital's dashboard with the support banner | P1 | Functional | super_admin | Not run |
+| FE-06 | Token never appears in a URL | Same as FE-05 | Watch the address bar and browser history | The token is never in a URL, a query string or history — it travels only by `postMessage` | P1 | Security | super_admin | Not run |
+| FE-07 | Only the admin origin may hand over a session | — | Open `:3000/support/enter` directly, and post a fake `hms:support-session` from another origin | The page fails to claim anything; a message from any origin other than `NEXT_PUBLIC_ADMIN_ORIGIN` is ignored | P1 | Security | — | Not run |
+| FE-08 | Sessions are not shared between apps | Signed in at `:3002` | Open `:3000` in the same browser | The Portal does not inherit the admin session — each origin holds its own | P1 | Security | super_admin | Not run |
+| FE-09 | CORS is per origin | — | Preflight `/api/v1/admin/stats` with `Origin: http://localhost:3002` | 204, `Access-Control-Allow-Origin: http://localhost:3002`, `Allow-Credentials: true` | P2 | Security | — | Not run |
+| FE-10 | Portal still applies the platform branding default | Platform "hms" branding set | Sign in to the Portal | The default palette applies, then tenant branding on top — the Portal keeps the public read | P2 | Regression | org_admin | Not run |
+| FE-11 | No development credentials in any bundle | — | Search the built output of every frontend for the seed email and password | No match in any app | P1 | Security | — | Not run |
+| FE-12 | Patient portal is not usable | — | Open `http://localhost:3003` | A scaffold only — no login, no patient data. Nothing claims otherwise | P1 | Functional | — | Not run |
+| FE-13 | AI Portal is not usable | — | Open `http://localhost:3004` | A scaffold only — no AI capability, and no claim that one exists | P1 | Functional | — | Not run |
+
+## 12c. Patient identity & portal API (ADR-052)
+
+The portal frontend does not exist yet — these are API cases, run with curl or the Swagger UI.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| PAT-01 | Hospital grants portal access | Receptionist, a registered patient | `POST /patients/{id}/portal-access` with a mobile | 201 with `identityId` and `linkId`; an audit entry `patient.portal.link` at **notice** | P1 | Functional | receptionist | Not run |
+| PAT-02 | Granting is the only way in | — | Search the API for any route that lets a caller link themselves | None exists — there is no public patient signup | P1 | Security | — | Not run |
+| PAT-03 | Wrong permission is refused | org_admin (holds only `patient.record.view`) | Same call as PAT-01 | 403 | P1 | Security | org_admin | Not run |
+| PAT-04 | Linking is idempotent | An existing link | Repeat PAT-01 | Same `linkId`, no duplicate | P2 | Functional | receptionist | Not run |
+| PAT-05 | A chart cannot be claimed twice | A linked patient | Link the same patient to a different contact | 409 | P1 | Security | receptionist | Not run |
+| PAT-06 | Code request is uniform | — | `POST /patient/auth/request-code` for a registered contact, then an unregistered one | Both 202, identical body — the endpoint never reveals who is a patient | P1 | Security | — | Not run |
+| PAT-07 | Codes are stored hashed | A requested code | Read `patient_verification` | `code_hash` only; no plaintext anywhere | P1 | Security | dba | Not run |
+| PAT-08 | Verify mints a patient session | A valid code | `POST /patient/auth/verify` | 200 with an access token whose `pt` claim is `patient` | P1 | Functional | — | Not run |
+| PAT-09 | A code is single use | Just-used code | Replay it | 401 | P1 | Security | — | Not run |
+| PAT-10 | Wrong code and unknown contact fail identically | — | Verify with a wrong code, then an unknown contact | Both 401, same message | P1 | Security | — | Not run |
+| PAT-11 | Attempts are capped | — | Send 6 wrong codes for one issued code | Refused after the cap even before expiry | P1 | Security | — | Not run |
+| PAT-12 | Verification is not sent from a hospital | A code request | Check `notification_log` | Logged against **PLATFORM**, never a hospital — no hospital learns that a patient signed in | P1 | Security | super_admin | Not run |
+| PAT-13 | Unverified identity has no access | Linked but never verified | `GET /patient/hospitals` with a token minted another way | Empty list — a link is not access | P1 | Security | — | Not run |
+| PAT-14 | Patient sees only their own hospitals | Linked at two hospitals | `GET /patient/hospitals` | Exactly those two, no others | P1 | Security | — | Not run |
+| PAT-15 | Patient reads their own record | Linked hospital | `GET /patient/hospitals/{tenantId}/profile` | Their own UHID and details | P1 | Functional | — | Not run |
+| PAT-16 | Unlinked hospital is refused | A tenant they are not linked to | Same call with that tenant id | 403 | P1 | Security | — | Not run |
+| PAT-17 | No patient id is accepted from the caller | — | Inspect every patient route | None takes a patient id — it comes from the link | P1 | Security | — | Not run |
+| PAT-18 | Revocation is immediate | An active link | Revoke, then repeat PAT-15 without re-authenticating | 403 straight away — access is re-checked per request, not baked into the token | P1 | Security | receptionist | Not run |
+| PAT-19 | Revoke is no harder than grant | Receptionist | `DELETE /patients/{id}/portal-access` | 204 — the same permission that grants can withdraw | P1 | Security | receptionist | Not run |
+| PAT-20 | Patient token is refused on staff routes | A patient token | `GET /patients` | 401 — refused by principal type, not by an empty permission set | P1 | Security | — | Not run |
+| PAT-21 | Staff token is refused on patient routes | A staff token | `GET /patient/hospitals` | 401 — the boundary holds in both directions | P1 | Security | receptionist | Not run |
+| PAT-22 | Lab reports are resulted only | An ordered-but-unresulted test | `GET /patient/hospitals/{tenantId}/lab-reports` | The pending order is absent | P1 | Functional | — | Not run |
+| PAT-23 | Code requests are rate limited | — | Request codes repeatedly | 429 at the sign-in tier | P2 | Security | — | Not run |
+| PAT-24 | Clinical record survives revocation | A revoked link | Staff opens the patient | The record is intact; only portal access was withdrawn | P1 | Regression | receptionist | Not run |
+
+## 12d. Patient portal — the application (ADR-052, F-3)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| PP-01 | Sign-in screen | — | Open `http://localhost:3003` | Two-step sign-in; a line stating there is **no signup** and that the hospital grants access | P1 | UI/UX | patient | Not run |
+| PP-02 | Unknown contact reveals nothing | — | Request a code for an unregistered number | The screen advances to the code step exactly as for a registered one — no "we don't recognise that" | P1 | Security | patient | Not run |
+| PP-03 | Sign in with a code | Portal access granted, code received | Enter the code | Lands on the hospital picker | P1 | Functional | patient | Not run |
+| PP-04 | Wrong code | — | Enter a wrong code | Inline error; no session | P1 | Validation | patient | Not run |
+| PP-05 | Hospital picker | Linked at two hospitals | Open the portal | Both listed, no others | P1 | Functional | patient | Not run |
+| PP-06 | No hospitals | A verified identity with no active link | Sign in | Empty state explaining the hospital grants access — not an error | P2 | UI/UX | patient | Not run |
+| PP-07 | Records screen | A linked hospital | Open it | Own details, appointments, bills and resulted lab reports | P1 | Functional | patient | Not run |
+| PP-08 | Tenant in the URL is not trusted | Signed in | Edit the address bar to another hospital's id | Refused — the server re-checks the link | P1 | Security | patient | Not run |
+| PP-09 | Pending lab work is hidden | An ordered-but-unresulted test | Open the records screen | It does not appear; only finished reports do | P1 | Functional | patient | Not run |
+| PP-10 | Results are not interpreted | A flagged result | Read the lab section | The lab's own flag, plus a line saying a value outside the usual range is not a diagnosis | P1 | UI/UX | patient | Not run |
+| PP-11 | Read-only | Signed in | Look for any action | Nothing books, pays, cancels or messages — the portal only shows records | P1 | Functional | patient | Not run |
+| PP-12 | Session survives a reload | Signed in | Reload | Still signed in — the portal restores the session from the refresh cookie, showing "Restoring your session…" briefly | P1 | Functional | patient | Not run |
+| PP-13 | Nothing readable is stored on the device | Signed in | Inspect `localStorage`, `sessionStorage` and the cookie | No token or record data in storage — only the theme preference. The refresh cookie is `HttpOnly`, so JavaScript cannot read it | P1 | Security | patient | Not run |
+| PP-21 | Refresh rotates | Signed in | Reload twice, capturing the cookie each time | The cookie value changes; **replaying the previous one returns 401** | P1 | Security | patient | Not run |
+| PP-22 | Sign-out revokes server-side | Signed in | Sign out, then replay the last refresh cookie | 401 — the session is dead on the server, not merely dropped by the browser | P1 | Security | patient | Not run |
+| PP-23 | Cookie is path-scoped | Signed in | Inspect the cookie, then call a staff route | `Path=/api/v1/patient/auth`; the cookie is not sent to `/api/v1/auth/*` | P1 | Security | patient | Not run |
+| PP-24 | A staff token cannot refresh a patient session | A staff refresh cookie value | Send it as `hms_patient_refresh` to `/patient/auth/refresh` | 401 | P1 | Security | receptionist | Not run |
+| PP-25 | Two devices coexist | Signed in on two browsers | Use both | Neither signs the other out — a patient may use a phone and a laptop | P2 | Functional | patient | Not run |
+| PP-14 | Sign out | Signed in | Sign out | Returned to sign-in; the back button does not restore records | P1 | Security | patient | Not run |
+| PP-15 | Portal access card | Receptionist, a patient with a mobile on file | Patients → open one | A **Portal access** card offering grant and withdraw | P1 | Functional | receptionist | Not run |
+| PP-16 | Granting is not signing in | Just granted | Read the card's copy | It says the patient still has to verify the contact — access granted is not access used | P2 | UI/UX | receptionist | Not run |
+| PP-17 | No contact on file | A patient with no mobile or email | Open the card | Explains a contact is needed first, and offers no grant button | P2 | UI/UX | receptionist | Not run |
+| PP-18 | Withdrawing confirms | A patient with access | Withdraw | Confirmation naming the effect; afterwards the patient is refused immediately | P1 | Security | receptionist | Not run |
+| PP-19 | Card is hidden without permission | A role without `patient.record.create` | Open a patient | No Portal access card | P1 | Security | cashier | Not run |
+| PP-20 | Patient origin CORS | — | Preflight `/patient/hospitals` from `http://localhost:3003` | 204 with that exact origin allowed | P2 | Security | — | Not run |
+
+## 12e. AI Portal — the boundary (ADR-053)
+
+There is **no AI capability**. These cases prove the door, and that the room behind it is empty.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| AI-01 | Sign-in screen | — | Open `http://localhost:3004` | Staff sign-in; a line saying access is granted per person and patients cannot sign in | P1 | UI/UX | — | Not run |
+| AI-02 | No role grants access | Hospital admin credentials | Sign in | Forbidden panel explaining access is granted per person — **not** an empty console | P1 | Security | org_admin | Not run |
+| AI-03 | A doctor is refused too | Doctor credentials | Sign in | Same refusal — no clinical role carries AI access | P1 | Security | doctor | Not run |
+| AI-04 | API refuses without the permission | org_admin token | `POST /api/v1/ai/portal/session` | 403 | P1 | Security | org_admin | Not run |
+| AI-05 | Platform owner reaches it | super_admin | Sign in | Landing screen loads (WILDCARD covers the permission) | P2 | Functional | super_admin | Not run |
+| AI-06 | **A patient can never sign in** | A patient token | `POST /api/v1/ai/portal/session` with it | **401** — refused by principal type, before the permission is read | P1 | Security | patient | Not run |
+| AI-07 | Knowing the URL achieves nothing | No token | Same call | 401 | P1 | Security | — | Not run |
+| AI-08 | Nothing is offered | super_admin | Read the landing screen | States plainly that no AI capability is enabled. **No disabled input, no model picker, no "coming soon"** | P1 | Functional | super_admin | Not run |
+| AI-09 | Capabilities are empty | super_admin | Inspect the session response | `capabilities: []` | P1 | Functional | super_admin | Not run |
+| AI-10 | Entry is audited | super_admin | Open the portal, then check the audit trail | An `ai.portal.enter` entry at **notice**, naming the actor | P1 | Security | super_admin | Not run |
+| AI-11 | Granting access per person works | An override granting `ai.portal.access` | Grant it to a named user, then sign in as them | They reach the landing screen; removing the override refuses them again | P1 | Security | org_admin | Not run |
+| AI-12 | Origin is allowed | — | Preflight `/ai/portal/session` from `http://localhost:3004` | 204 with that exact origin | P2 | Security | — | Not run |
+| AI-13 | Nothing markets AI | — | Search all five frontends and the marketing site for AI claims | None — the capability reference keeps every AI phrase on the never-claim list | P1 | Regression | — | Not run |
 
 ## 13. Platform administration (super admin)
 

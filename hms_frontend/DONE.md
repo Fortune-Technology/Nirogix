@@ -470,3 +470,18 @@ Printed documents now carry the hospital's address, phone, registration number a
 Joined the sidebar's *Organization* group and the Hospital Configuration console's area grid. Check-in gained a department picker that offers **active departments only** — the server refuses a retired one regardless, so the form simply never presents an invalid choice.
 
 **Testing status:** typecheck clean, `next build` clean (`/departments` prerendered), 12 frontend tests pass. Lint reports the repo-wide `react-hooks/set-state-in-effect` on the data-loading effect — the same shape every other Portal list page has, and tracked in `BACKLOG.md` as repo-wide debt rather than solved differently on one screen. Manual cases DEPT-01…DEPT-21 added to `testcases.md`.
+
+## 2026-08-16 — The Portal is a hospital application again (ADR-051, BACKLOG F-1)
+
+**What:** Every platform-operator surface left this app. Removed: `/platform`, `/admin/tenants/*`, `/admin/branding`, `PlatformBrandingPanel`, the platform half of `lib/nav.ts` (`PLATFORM_NAV_GROUPS`, `isPlatformOperator`, `navForContext`, `navGroupsForContext`), the platform-operator branch in `AppShell` and the `/platform` redirect on the dashboard, plus every platform-administration function in `lib/api.ts` — tenant onboarding, module provisioning, platform analytics, support-session minting and the platform-branding writes.
+
+The point is not tidiness: while those lived here, a platform operator and a receptionist shared a JavaScript bundle, so operator code shipped to every hospital and a change to one could regress the other.
+
+**`navGroupsForContext` became `navGroupsForUser`.** There is no context to switch between any more — the Portal always renders the hospital's navigation, including for an operator inside a support session, which is exactly right: they are working as a hospital user and the banner says so.
+
+**What stayed, and why:**
+- **`/support/enter`** — it *receives* a support session the admin console mints. Its origin check is no longer `window.location.origin` (the sender is now a different origin); it accepts only `NEXT_PUBLIC_ADMIN_ORIGIN`, in the new `lib/adminOrigin.ts`.
+- **`getPlatformBranding`** — a public GET the Portal uses at bootstrap to apply the platform default before tenant branding. Only the writes are operator-only. This was removed by mistake and restored when the typechecker caught `BrandingLoader`.
+- **The support-session banner** in `AppShell` — an operator inside a hospital is in *this* app, so the banner belongs here.
+
+**Testing status:** typecheck clean, `next build` clean (31 routes, `/support/enter` present, no `/platform` or `/admin/*`), 12 tests pass.

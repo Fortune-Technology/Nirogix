@@ -1,18 +1,48 @@
 import jwt from 'jsonwebtoken';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env';
 
 // Access token: short-lived, sent as `Authorization: Bearer`. Carries the tenant so every
 // downstream request scopes RLS from the *authenticated session*, never from client input.
+/**
+ * Which KIND of principal this token belongs to (ADR-052).
+ *
+ * `staff` is a `users` row inside a tenant. `patient` is a `patient_identity`, which
+ * lives above the tenancy boundary and reaches into one tenant through a link. They
+ * are different principals, not different roles: a patient can never be granted a
+ * staff permission, and staff routes refuse a patient by TYPE rather than by an empty
+ * permission set — so a future grant cannot accidentally open one.
+ *
+ * Absent on tokens issued before this existed; treated as `staff`.
+ */
+export type PrincipalType = 'staff' | 'patient';
+
 export type AccessClaims = {
   sub: string;
   tid: string;
   roles: string[];
   /** Platform operator's user id when this is a support session (ADR-037). */
   imp?: string;
+  /** Principal type (ADR-052). Undefined = staff, for tokens minted before the split. */
+  pt?: PrincipalType;
 };
 // Refresh token: long-lived, httpOnly cookie. `sid` references the server-side session row.
-export type RefreshClaims = { sub: string; tid: string; sid: string };
+export type RefreshClaims = {
+  sub: string;
+  tid: string;
+  sid: string;
+  /** Principal type (ADR-052). Undefined = staff. A patient refresh carries `patient`. */
+  pt?: PrincipalType;
+  /**
+   * Per-issue nonce. Without it, rotation did not rotate: the payload was
+   * `{sub, tid, sid}` plus a second-resolution `iat`, so two tokens minted in the same
+   * second were byte-identical — the stored hash was replaced with the same value and a
+   * previously issued refresh token stayed valid for its whole lifetime. A stolen token
+   * could not be invalidated by the legitimate user simply continuing their session,
+   * which is the one thing rotation exists to guarantee.
+   */
+  gen?: string;
+};
 
 export function signAccessToken(claims: AccessClaims): string {
   return jwt.sign(claims, env.JWT_ACCESS_SECRET, {
@@ -20,8 +50,12 @@ export function signAccessToken(claims: AccessClaims): string {
   });
 }
 
+/**
+ * Every refresh token is unique, even two issued in the same second — see `gen` above.
+ * The nonce is generated here rather than by callers so no call site can forget it.
+ */
 export function signRefreshToken(claims: RefreshClaims): string {
-  return jwt.sign(claims, env.JWT_REFRESH_SECRET, {
+  return jwt.sign({ ...claims, gen: randomUUID() }, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_TTL as jwt.SignOptions['expiresIn'],
   });
 }

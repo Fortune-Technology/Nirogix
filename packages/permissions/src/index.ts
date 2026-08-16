@@ -28,6 +28,10 @@ export const PERMISSIONS = {
   PLATFORM_SUPPORT_IMPERSONATE: 'platform.support.impersonate', // start a support session inside a tenant
   PLATFORM_ANALYTICS_VIEW: 'platform.analytics.view', // cross-tenant aggregate metrics
   PLATFORM_BRANDING_MANAGE: 'platform.branding.platform.manage', // Super-Admin only (marketing + Nirogix platform branding); covered by WILDCARD, not granted to org_admin
+  // AI Portal access (ADR-053). Granted to NO role by default — an operator grants it
+  // deliberately, per user. A patient principal is refused before this is even consulted.
+  // The portal has no AI capability behind it yet; this is the boundary, built first.
+  AI_PORTAL_ACCESS: 'ai.portal.access',
   // Patient
   PATIENT_VIEW: 'patient.record.view',
   PATIENT_CREATE: 'patient.record.create',

@@ -4,7 +4,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 
 > **Nirogix** is an enterprise Hospital Management System (multi-tenant SaaS) by Takoriya Technology LLP, at `nirogix.com`. The authoritative product/architecture/rules live in `resources/`. This file indexes the codebase and the conventions every change must follow.
 
-> **Naming (ADR-041).** The product is **Nirogix** in every user-visible string, document, and configuration. Internal identifiers keep their `hms` prefix on purpose — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` tokens, and the `.hms-*` class names. Do not rename them opportunistically. In marketing copy, "HMS" appears only as the industry search term for *hospital management system*, never as the product's name.
+> **Naming (ADR-041).** The product is **Nirogix** in every user-visible string, document, and configuration. Internal identifiers keep their `hms` prefix on purpose — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` tokens, and the `.hms-*` class names. Do not rename them opportunistically. The frontends added in ADR-051 are named for their audience (`admin/`, `patient/`, `aiportal/`) and carry no prefix. In marketing copy, "HMS" appears only as the industry search term for *hospital management system*, never as the product's name.
 
 ## Source-of-truth documents (read before changing anything significant)
 
@@ -18,7 +18,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `resources/memory.md` | Distilled invariants & decisions; open items |
 | `resources/development-plan.md` | The primary engineering execution roadmap |
 | `resources/DESIGN.md` | **Design system** — canonical visual language (colour/type/components/theming/icons) for marketing + Portal |
-| `resources/domains.md` | **Host map** — every production / staging / local URL, what deliberately has no subdomain, and the per-environment variable matrix (ADR-042). No host is ever hard-coded elsewhere. |
+| `resources/domains.md` | **Host map** — every production / staging / local URL for all five frontends and the API, what deliberately has no subdomain, and the per-environment variable matrix (ADR-042, ADR-051). No host is ever hard-coded elsewhere. |
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
 | `testcases.md` | **The manual QA checklist for the whole platform** — every feature's test cases, by module. Updated in the same change as the feature, never at the end. |
 | `SECURITY-AUDIT.md` | **Production security review** - findings by severity with status, plus the production configuration checklist. Re-run before each release; update it in the change that fixes a finding. |
@@ -29,11 +29,17 @@ On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over
 
 ## Monorepo layout (ADR-013 — kept folder names)
 
+**Five frontends, one backend (ADR-051).** Each frontend serves one audience and owns nothing but rendering; the backend is the single source of truth for authentication, authorization, tenant resolution, permissions, business logic and audit. A frontend guard is UX, never security.
+
 ```
-hms_backend/            Node.js + Express + TypeScript API
-hms_frontend/           Next.js Nirogix Portal (all role dashboards, role-based route guards)
-marketing/              Next.js public marketing/SEO site
-packages/types          @hms/types — shared TS types & API contracts (backend + portal)
+hms_backend/            Node.js + Express + TypeScript API — the only place any boundary is enforced
+hms_frontend/           Next.js Nirogix Portal — hospital staff only (:3000 → portal.nirogix.com)
+marketing/              Next.js public marketing/SEO site (:3001 → nirogix.com)
+admin/                  Next.js platform administration — vendor operators (:3002 → admin.nirogix.com)
+patient/                Next.js patient portal — verified patients (:3003 → patient.nirogix.com)
+aiportal/               Next.js AI Portal — authorised staff + operators (:3004 → nirogix.ai)
+packages/types          @hms/types — shared TS types & API contracts (backend + every frontend)
+packages/client         @hms/client — shared frontend foundation: HTTP core, session context, guards (ADR-054)
 packages/ui             @hms/ui — design tokens (Light default + Dark), primitives, Standard DataTable
 packages/config         @hms/config — shared tsconfig/lint/build config
 packages/utils          @hms/utils — shared framework-agnostic utilities

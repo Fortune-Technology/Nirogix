@@ -1,0 +1,98 @@
+// The patient portal's endpoint surface (ADR-052, ADR-054).
+//
+// The HTTP core — token handling, error classification, the one-notification-per-call
+// rule — comes from `@hms/client`. What is here is only what a patient may call, and
+// it is deliberately tiny: two unauthenticated sign-in calls and four reads. There is
+// no write, and there is **no endpoint that grants access to anything** — a patient
+// cannot link themselves to a hospital, which is what "no public signup" means
+// structurally rather than as a missing button.
+
+import type {
+  Appointment,
+  InvoiceListItem,
+  Paginated,
+  PatientHospital,
+  PatientLabReport,
+  PatientPortalProfile,
+  PatientSession,
+} from "@hms/types";
+import { createApiClient } from "@hms/client";
+
+const client = createApiClient({
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+});
+
+const { request } = client;
+
+export const apiClient = client;
+export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
+export const { setAccessToken, getAccessToken } = client;
+
+// ---- Sign in ---------------------------------------------------------------
+
+type Contact = { mobile?: string; email?: string };
+
+/**
+ * Ask for a code. The server answers the same way whether or not the contact is
+ * registered, so this resolves identically too — the screen must not imply otherwise.
+ */
+export async function requestCode(contact: Contact): Promise<void> {
+  await request<void>("/patient/auth/request-code", { method: "POST", body: contact, feedback: false });
+}
+
+export async function verifyCode(contact: Contact, code: string): Promise<PatientSession> {
+  // Sets an httpOnly, path-scoped refresh cookie as a side effect — never visible here.
+  return request<PatientSession>("/patient/auth/verify", {
+    method: "POST",
+    body: { ...contact, code },
+    feedback: false,
+  });
+}
+
+/**
+ * Re-establish a session from the refresh cookie on a full reload.
+ *
+ * Resolves to `null` rather than throwing when there is no session: arriving with no
+ * cookie is the ordinary case for a first visit, not an error worth a toast.
+ */
+export async function restoreSession(): Promise<PatientSession | null> {
+  try {
+    return await request<PatientSession>("/patient/auth/refresh", {
+      method: "POST",
+      refreshOn401: false,
+      feedback: false,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  try {
+    await request<void>("/patient/auth/logout", { method: "POST", feedback: false });
+  } finally {
+    setAccessToken(null);
+  }
+}
+
+// ---- Reads -----------------------------------------------------------------
+
+export async function myHospitals(): Promise<PatientHospital[]> {
+  return (await request<{ hospitals: PatientHospital[] }>("/patient/hospitals")).hospitals;
+}
+
+export async function profile(tenantId: string): Promise<PatientPortalProfile> {
+  return request<PatientPortalProfile>(`/patient/hospitals/${tenantId}/profile`);
+}
+
+export async function appointments(tenantId: string): Promise<Paginated<Appointment>> {
+  return request<Paginated<Appointment>>(`/patient/hospitals/${tenantId}/appointments`);
+}
+
+export async function invoices(tenantId: string): Promise<Paginated<InvoiceListItem>> {
+  return request<Paginated<InvoiceListItem>>(`/patient/hospitals/${tenantId}/invoices`);
+}
+
+export async function labReports(tenantId: string): Promise<PatientLabReport[]> {
+  return (await request<{ reports: PatientLabReport[] }>(`/patient/hospitals/${tenantId}/lab-reports`)).reports;
+}

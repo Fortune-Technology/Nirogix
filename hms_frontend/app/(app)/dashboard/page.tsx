@@ -15,30 +15,16 @@ import { StaffDashboard } from "../../../components/dashboard/StaffDashboard";
  * title, KPI row, panel rows — so the product reads as one thing whichever seat
  * you are in.
  *
- * A platform operator does not belong here at all: their dashboard is `/platform`,
- * and this page's clinical content is exactly the duplicate-of-every-hospital's-
- * menu that ADR-037 rules out. They are redirected — unless they are inside a
- * support session, where the hospital's own view is the point.
+ * A platform operator has no dashboard here at all: theirs is the admin console on
+ * its own origin (ADR-051). If one reaches this page outside a support session they
+ * see the staff view their permissions actually reach, which is almost nothing —
+ * there is nothing to redirect to, and nothing to hide.
  */
 export default function DashboardPage() {
   const { user, can } = useAuth();
   const router = useRouter();
-  const inTenantContext = Boolean(user?.impersonatedBy);
-  const isPlatformOperator = useCan(PERMISSIONS.TENANTS_MANAGE) && !inTenantContext;
   // Administering the hospital (users, branches, roles) rather than working in it.
   const isHospitalAdmin = useCan(PERMISSIONS.USERS_MANAGE) || useCan(PERMISSIONS.BRANCHES_MANAGE);
-
-  useEffect(() => {
-    if (isPlatformOperator) router.replace("/platform");
-  }, [isPlatformOperator, router]);
-
-  if (isPlatformOperator) {
-    return (
-      <div className="flex items-center gap-2 text-fg-muted">
-        <Spinner /> Opening the platform overview…
-      </div>
-    );
-  }
 
   if (isHospitalAdmin) return <HospitalAdminDashboard fullName={user?.fullName} />;
 

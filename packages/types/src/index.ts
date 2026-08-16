@@ -310,6 +310,51 @@ export type UpdateDepartmentRequest = Partial<Omit<CreateDepartmentRequest, 'cod
   isActive?: boolean;
 };
 
+// ---- Patient portal (hms_backend/src/modules/patient-identity, ADR-052) -----
+// A patient is a DIFFERENT PRINCIPAL from a staff user, not a user with fewer
+// permissions. There is no public signup: access is granted by the hospital.
+
+export interface PatientSession {
+  accessToken: string;
+  identity: { id: string; fullName: string | null };
+}
+
+export interface PatientHospital {
+  tenantId: string;
+  name: string;
+  patientId: string;
+}
+
+export interface PatientPortalProfile {
+  uhid: string;
+  firstName: string;
+  lastName: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  phone: string | null;
+  email: string | null;
+  bloodGroup: string | null;
+  city: string | null;
+  state: string | null;
+}
+
+export interface PatientLabReport {
+  id: string;
+  status: string;
+  orderedAt: string;
+  testName: string;
+  value: string | null;
+  unit: string | null;
+  refLow: string | null;
+  refHigh: string | null;
+  /** normal | low | high | critical — shown as-is; the portal does not interpret it. */
+  flag: string | null;
+  resultedAt: string | null;
+}
+
+/** One contact, never both — the code goes to exactly one place. */
+export type PatientContact = { mobile: string; email?: never } | { email: string; mobile?: never };
+
 // ---- Platform branding (hms_backend/src/modules/platform-branding, ADR-024) ----
 // Vendor-owned, platform-global branding for two independent surfaces. Distinct
 // from per-tenant `Branding` above. The scalable token set maps to CSS variables

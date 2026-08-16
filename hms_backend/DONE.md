@@ -596,3 +596,46 @@ Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`
 **Found while building the tests:** the uppercase-code normalisation lived **only** in the Zod request schema, so `createDepartment` called from the seed stored `ortho` and the case-sensitive unique index accepted `ORTHO` beside it. Moved into the service, where every caller passes.
 
 **Testing status:** 12 new tests (uppercase normalisation, duplicate refused, the same code free in another hospital, another tenant's branch and provider both refused, branch/head resolved by name, partial update, deactivate keeps the row and leaves `activeOnly`, the notice-level audit entry, cross-tenant 404, and the setup step with its dependency). 84 backend tests pass; `openapi:validate` green. Verified live on the seeded tenants: four departments listed for CITYCARE, setup at 8/9, receptionist 200 on read and 403 on create, pharmacist 403 on read, and SUNRISE gets 404 for a CITYCARE department id that CITYCARE itself reads with 200.
+
+## 2026-08-16 — Patient identity and the patient portal API (ADR-052, BACKLOG F-2)
+
+**What:** A second authentication principal, and the read API a patient portal runs on.
+
+`patient_identity` and `patient_verification` are **platform-managed** (no `tenant_id`, no RLS — like `tenants`); `patient_identity_link` is **tenant-scoped** and picks up RLS automatically. That split is the design: a patient registered at three hospitals is one person, so the identity sits above the tenancy boundary and reaches into it through links. Migration `0019`.
+
+**The boundary, in both directions.** The access token carries a `pt` principal-type claim. `requireAuth` now refuses a patient **by type**, before any permission is read — so a future grant or a mistaken override cannot open a staff route to a patient. `requirePatientAuth` refuses a staff token on the patient routes for the same reason inverted.
+
+**No public signup, structurally.** No route lets a caller attach themselves to a chart. `POST /patients/:id/portal-access` is a staff route and is the only way a link is ever created. Granting does not verify the contact — the patient still has to prove they hold it.
+
+**The tenant is never trusted from the path.** Every patient read calls `resolvePatientAccess` first, which proves an active link and returns **the patient id from that link** — which is what the query filters on. The caller supplies no patient id, so reading someone else's chart is not refused, it is unrepresentable. Because the check is per request, revocation is immediate.
+
+**Decisions worth recording:**
+- Codes are **hashed** (a leaked table must not hand over live codes), single-use, expiring, with an attempt cap so brute force is bounded rather than merely slowed.
+- `request-code` always answers 202 with the same message. Telling an unauthenticated caller "no account for this number" would make the endpoint a directory of who is a patient somewhere.
+- Verification is sent from the **PLATFORM tenant**, never a hospital: logging it against a hospital would tell that hospital's staff, in their own notification log, that this person is signing in — including hospitals they did not choose this time.
+- Lab reports return **resulted orders only**. An in-progress sample is not a report, and showing one invites a patient to read a half-entered value as a finding.
+- **Revoke sits on the same permission as grant**, not on `patient.record.update`. The front desk provisions access during registration; if only a doctor could withdraw it, the person best placed to spot a mistake would have to find someone else to fix it. Found by testing the live route, which correctly 403'd an org_admin.
+
+**Testing status:** 11 new service tests (95 backend total); `openapi:validate` green. Verified live end to end: receptionist grants access → code requested → the stored value is a hash (recovered only by brute-forcing the 6-digit space locally) → verify mints a patient token → the patient reads their own profile at the linked hospital → **403** at an unlinked hospital → replaying the code gives **401** → the patient token gets **401** on `/patients` → a staff token gets **401** on `/patient/hospitals`.
+
+## 2026-08-16 — The AI Portal's access boundary (ADR-053, BACKLOG F-4)
+
+**What:** One endpoint, `POST /ai/portal/session`, and nothing else — because there is nothing else to build. There is no AI capability in approved scope, so what ships is the door: gated on `ai.portal.access`, audited at notice on entry, returning `capabilities: []`.
+
+**Three refusals stack, and each is deliberate.** `requireAuth` refuses a **patient principal by type** before any permission is read (ADR-052), so a patient who somehow knows the URL gets nothing — and that stays true even if someone later grants a patient a permission by mistake. `ai.portal.access` is held by **no role**: only `super_admin`'s WILDCARD reaches it, which is the documented "authorised staff + System Admin" rule rather than an accident. And entry is audited, because a surface that would one day process clinical information needs "who opened it, and when" answerable from the start — before there is anything to open, not after.
+
+**`capabilities` is empty on purpose, and a test asserts it stays that way.** If that test ever fails, an AI capability has been added, and the failure is the prompt to check it went through scope approval — plus the CDSCO classification review if it touches diagnosis or treatment — rather than arriving quietly.
+
+**Testing status:** 4 new tests (99 backend total); `openapi:validate` green. Verified live: hospital admin **403**, doctor **403**, platform owner **200** with an empty capability list, patient token **401**, no token **401**, two `ai.portal.enter` audit rows at notice severity, and CORS allowed from `http://localhost:3004`.
+
+## 2026-08-16 — Durable patient sessions, and a rotation bug they exposed (ADR-052, BACKLOG F-8, SECURITY-AUDIT H-4)
+
+**What:** A patient session that survives a reload. `patient_sessions` is its **own table** — `sessions` is foreign-keyed to `users` with a NOT NULL `tenant_id`, and a patient identity is neither. Widening that table with a nullable user and a discriminator would have put two principals in one place and weakened the constraint that guarantees every staff session belongs to a real staff user, to save a table.
+
+The refresh cookie is `hms_patient_refresh`, scoped to **`/api/v1/patient/auth`**. The path is the point: a staff cookie is never sent to a patient route and a patient's is never sent to a staff one, so the browser cannot confuse the two session models and the server does not have to re-establish that boundary per request. A staff refresh token presented on the patient refresh endpoint is refused outright.
+
+Rotation on every use, hashed storage, server-side revocation on sign-out. Existing sessions are deliberately **not** revoked when a new one is created — a patient may reasonably use a phone and a laptop, and signing them out of one by using the other would be hostile.
+
+**The bug this found — and it was not in the new code.** `signRefreshToken` signed `{ sub, tid, sid }` with a second-resolution `iat`, so **two refresh tokens minted in the same second were byte-identical**. Rotation replaced the stored hash with the same value, which meant a previously issued refresh token stayed valid for its whole lifetime: a stolen token could not be invalidated by the legitimate user continuing their session, which is the one property rotation exists to give. This had been true of **staff** sessions since the session model was built. Fixed by adding a per-issue `gen` nonce inside the signer, so no call site can forget it. Recorded as `SECURITY-AUDIT.md` H-4.
+
+**Testing status:** 3 new regression tests (102 backend total); `openapi:validate` green. Verified live for both principals: verify sets `hms_patient_refresh` with `HttpOnly; SameSite=Lax; Path=/api/v1/patient/auth`; a reload refreshes and reads succeed; after a refresh the **previous** cookie returns 401 — for staff as well as patients; sign-out revokes server-side so a later refresh returns 401; and a staff refresh token on the patient route returns 401.

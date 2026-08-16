@@ -84,7 +84,15 @@ This document states rules only. For the architecture each rule is derived from,
 
 ### Reusable UI Architecture
 
-**Build once, configure everywhere, reuse forever.** Applies to the Portal and the marketing site, to current and future work.
+**Build once, configure everywhere, reuse forever.** Applies to every frontend — the Portal, marketing, the admin console, the patient portal and the AI Portal — to current and future work.
+
+**Frontend boundaries (binding — ADR-051).** Five applications, one audience each, one backend. A frontend may render and may hide; it may never decide. Specifically:
+- **No authorization logic is duplicated into a frontend.** Every route it calls is independently re-checked server-side (`authenticated → tenant entitled → user permitted → business rule`). A guard in an app is UX only, and that matters more once URLs like `/admin` and the AI Portal exist for someone to type.
+- **No application calls an API outside its audience.** The admin console holds no clinical call; the Portal holds no platform-administration call. An operator works inside a hospital through an audited support session on the *Portal's* origin, never by rendering clinical screens on the platform origin.
+- **No cross-application session.** The refresh cookie is host-only on the API; each origin is listed individually in `CORS_ORIGINS` per environment; nothing sets `Domain=.nirogix.com`.
+- **A token never travels in a URL.** The support-session handoff uses `postMessage` with both sides naming the other's origin from configuration.
+- **No development credential appears in any frontend source or bundle.** Seed accounts live in `hms_backend/src/scripts/seed.ts` and `testcases.md`.
+- **The design system is the only thing shared by copy or import.** `@hms/ui`, `@hms/types` and `@hms/permissions` are shared; business logic is not.
 
 - **Before building any UI, check `@hms/ui` first** (then the app's own shared components). If something close exists, extend or configure it; if a pattern appears in a second place, extract it into a shared component in the same change that duplicates it.
 - **The shared layer covers the recurring patterns:** DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and action menus, cards and stat cards, forms and form fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, and navigation.

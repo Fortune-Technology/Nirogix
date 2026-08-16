@@ -261,12 +261,12 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </aside>
 <main>
 <header class="cover">
-  <div class="eyebrow">Internal · Marketing Enablement · Version 1.2</div>
+  <div class="eyebrow">Internal · Marketing Enablement · Version 1.7</div>
   <h1 class="title">Product Capability Reference</h1>
   <p class="subtitle">The single source of truth for what Nirogix can actually do today, what is being built, what is on the roadmap, and what must never be presented as a product capability. Written for the marketing team; derived from the implemented product, the approved PRD, the architecture, and the phase roadmap.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>Nirogix</dd></div>
-    <div><dt>Version</dt><dd>1.2</dd></div>
+    <div><dt>Version</dt><dd>1.7</dd></div>
     <div><dt>Last updated</dt><dd>16/08/2026</dd></div>
     <div><dt>Development phase</dt><dd>Phase 0 + MVP 0/1</dd></div>
     <div><dt>Release state</dt><dd>Pre-release</dd></div>
@@ -321,7 +321,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <div class="stat"><div class="k">Modules built</div><div class="v">7</div><div class="n">Clinic-core clinical modules</div></div>
     <div class="stat"><div class="k">Platform core</div><div class="v">14</div><div class="n">Foundation capabilities built</div></div>
     <div class="stat"><div class="k">Roles</div><div class="v">8</div><div class="n">Seeded system roles</div></div>
-    <div class="stat"><div class="k">Permission keys</div><div class="v">45</div><div class="n">Enforced server-side</div></div>
+    <div class="stat"><div class="k">Permission keys</div><div class="v">46</div><div class="n">Enforced server-side</div></div>
     <div class="stat"><div class="k">Modules planned</div><div class="v">18+</div><div class="n">Phase 2–4, none built</div></div>
     <div class="stat"><div class="k">In production</div><div class="v">No</div><div class="n">Pre-release, staging pending</div></div>
   </div>
@@ -367,6 +367,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Multi-tenant, multi-branch platform</td><td><span class="b b-built">Built</span></td><td>Database-enforced isolation per hospital; unlimited branches per tenant.</td></tr>
       <tr data-status="built"><td>Role-based access &amp; audit</td><td><span class="b b-built">Built</span></td><td>Eight seeded roles, per-user grant/deny overrides, and an append-only audit trail.</td></tr>
       <tr data-status="built"><td>Tenant branding</td><td><span class="b b-built">Built</span></td><td>Each hospital's own colour, logo and favicon across the Portal and its printed documents.</td></tr>
+      <tr data-status="built"><td>Patient portal (read-only)</td><td><span class="b b-built">Built</span></td><td>Patients sign in with a one-time code to a mobile or email the hospital has on file, and read their own record, appointments, bills and finished lab reports — across every hospital that has given them access. No signup; the hospital grants it.</td></tr>
       <tr data-status="built"><td>Departments</td><td><span class="b b-built">Built</span></td><td>The clinical departments a hospital runs, with a head of department; doctors belong to them and check-in routes by them.</td></tr>
       <tr data-status="built"><td>Hospital setup console</td><td><span class="b b-built">Built</span></td><td>One place the hospital's administrator configures the hospital, with progress measured from real records, and the registered details that print on every document.</td></tr>
       <tr data-status="no"><td>In-patient, OT, radiology, insurance, HR, telemedicine, ABDM exchange, WhatsApp, payment gateway, mobile apps, patient portal</td><td><span class="b b-no">Not available</span></td><td>None of these exist. They are roadmap scope and must be described as planned or not mentioned.</td></tr>
@@ -1632,7 +1633,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 
 <section id="roles">
   <h3>Role catalogue</h3>
-  <p class="lead">Eight roles are seeded into every hospital, holding between them 45 distinct permission keys. These are the roles the product actually defines — not an assumed org chart. A hospital's administrator can additionally grant or deny any single permission to any individual, including for a fixed period, which is how the real world's exceptions are handled without inventing a ninth role.</p>
+  <p class="lead">Eight roles are seeded into every hospital, holding between them 46 distinct permission keys. These are the roles the product actually defines — not an assumed org chart. A hospital's administrator can additionally grant or deny any single permission to any individual, including for a fixed period, which is how the real world's exceptions are handled without inventing a ninth role.</p>
   <div class="tablewrap"><table>
     <thead><tr><th style="width:17%">Role</th><th style="width:14%">Scope</th><th style="width:15%">Status</th><th>Purpose</th></tr></thead>
     <tbody>
@@ -1883,7 +1884,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <thead><tr><th style="width:30%">Control</th><th style="width:16%">Status</th><th>Evidence / limitation</th></tr></thead>
     <tbody>
       <tr data-status="built"><td>Password storage</td><td><span class="b b-built">Built</span></td><td>bcrypt at cost 12.</td></tr>
-      <tr data-status="built"><td>Session model</td><td><span class="b b-built">Built</span></td><td>Access token in memory only, never in browser storage; refresh token in an http-only, path-scoped, production-secure cookie; sessions revocable server-side.</td></tr>
+      <tr data-status="built"><td>Session model</td><td><span class="b b-built">Built</span></td><td>Access token in memory only, never in browser storage; refresh token in an http-only, path-scoped, production-secure cookie; sessions revocable server-side; and the refresh token genuinely rotates, so a previous one stops working the moment it is replaced.</td></tr>
       <tr data-status="built"><td>Login rate limiting</td><td><span class="b b-built">Built</span></td><td>Tiered: stricter on sign-in, token refresh, password change and expensive endpoints.</td></tr>
       <tr data-status="built"><td>Account-enumeration resistance</td><td><span class="b b-built">Built</span></td><td>Identical message and identical timing for unknown email and wrong password.</td></tr>
       <tr data-status="built"><td>Role-based access control</td><td><span class="b b-built">Built</span></td><td>Enforced server-side on every route; deny beats grant.</td></tr>
@@ -2068,7 +2069,9 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="no"><td>"We migrate your existing data" / "bulk import"</td><td>No import capability exists anywhere.</td></tr>
       <tr data-status="no"><td>"Two-factor authentication" / "SSO"</td><td>Neither works today.</td></tr>
       <tr data-status="no"><td>"300+ reports" / "business intelligence" / "custom report builder"</td><td>Three reports exist.</td></tr>
-      <tr data-status="no"><td>"Patient portal" / "patients see their reports online"</td><td>Patients have no account.</td></tr>
+      <tr data-status="no"><td>"Patients book appointments / pay bills / message their doctor online"</td><td>The patient portal is <strong>read-only</strong>. It shows records; it takes no action of any kind.</td></tr>
+      <tr data-status="no"><td>"Patients sign up for the portal"</td><td>There is no signup. Access is granted by the hospital during registration, and a patient cannot link themselves to a record.</td></tr>
+      <tr data-status="no"><td>"Nirogix AI" / "our AI portal" / anything at nirogix.ai</td><td><strong>The application now exists, which makes this easier to get wrong, not harder.</strong> It is an access-control boundary with <strong>no AI capability behind it</strong> — signing in shows a screen saying so — and <code>nirogix.ai</code> is not registered. Never named, never linked, never illustrated, and never described as "in development" either: no AI feature is in approved scope at all.</td></tr>
       <tr data-status="no"><td>"Drug interaction and allergy alerts"</td><td>No prescribing safety checks exist.</td></tr>
       <tr data-status="no"><td>"Trusted by N hospitals" / any customer count, logo or testimonial</td><td>The product is pre-release. Never fabricate social proof.</td></tr>
       <tr data-status="no"><td>Screenshots or illustrations showing an unbuilt capability</td><td>An image is a claim. Imagery must depict only built functionality.</td></tr>
@@ -2135,7 +2138,12 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   <div class="tablewrap"><table>
     <thead><tr><th style="width:10%">Version</th><th style="width:14%">Date</th><th>Change</th><th style="width:14%">Status</th></tr></thead>
     <tbody>
-      <tr><td>1.2</td><td>16/08/2026</td><td>Departments shipped as a real entity (ADR-050) — new module card, added to the role matrix, the action-level tree (45 keys) and the setup console's step list. Sub-departments restated as <em>not planned as a separate entity</em>. Services and packages remain the one outstanding gap in ordinary clinic billing; treatment plans stay out of scope; ward, room and bed setup stays in Phase 2 with in-patient.</td><td>Current</td></tr>
+      <tr><td>1.7</td><td>16/08/2026</td><td>Patient portal sessions now survive a reload, with their own session table, a path-scoped cookie, rotation and server-side revocation. A security defect found while testing it is fixed and recorded (SECURITY-AUDIT H-4): refresh-token rotation was not actually rotating, for staff as well as patients. No marketing claim changes — session handling was never advertised beyond "revocable sessions", which remains true and is now stronger.</td><td>Current</td></tr>
+      <tr><td>1.6</td><td>16/08/2026</td><td>The AI Portal shipped as an <strong>authorization boundary only</strong> (ADR-053) — sign-in, a permission gate held by no role, patients refused by principal type, entry audited, and a landing screen stating that no capability is enabled. <strong>Marketing status is unchanged: NOT AVAILABLE.</strong> The never-claim entry was strengthened rather than relaxed, because an application that exists is easier to overclaim than one that does not. No AI feature is in approved scope, so nothing about AI may be described even as "in development".</td><td>Superseded by 1.7</td></tr>
+      <tr><td>1.5</td><td>16/08/2026</td><td>The <strong>patient portal shipped</strong> (ADR-051, ADR-052) and moves to BUILT — sign-in by one-time code, a hospital picker, and read-only profile, appointments, bills and resulted laboratory reports, on its own origin. Two never-claim entries replace the old one: the portal is <strong>read-only</strong> (it takes no action), and <strong>there is no signup</strong> (the hospital grants access). A known limitation is documented rather than hidden — a reload signs the patient out until durable patient sessions land. The AI Portal remains NOT AVAILABLE and unchanged.</td><td>Superseded by 1.6</td></tr>
+      <tr><td>1.4</td><td>16/08/2026</td><td>Patient identity and the patient portal <strong>API</strong> shipped (ADR-052): a separate authentication principal, hospital-granted access with no public signup, and read endpoints for profile, appointments, invoices and resulted lab reports. <strong>Status is unchanged for marketing — still NOT AVAILABLE</strong>, because there is no patient-facing application and therefore nothing a patient can use. The never-claim entry was sharpened rather than relaxed. Also records the shared frontend foundation (ADR-054), which changes no capability.</td><td>Superseded by 1.5</td></tr>
+      <tr><td>1.3</td><td>16/08/2026</td><td>Five-frontend architecture (ADR-051, ADR-052, ADR-053). The platform administration console became a separate application on its own origin; its capabilities are unchanged — what moved is which app renders them, so operator code no longer ships in a hospital's bundle. The <strong>patient portal</strong> and <strong>AI Portal</strong> are recorded as explicitly NOT AVAILABLE with their designs written down, so a decision is never mistaken for a product: no patient can sign in to anything, and the AI Portal is an authorization boundary with nothing behind it. New permission <code>ai.portal.access</code> (46 keys), held by no role. Two entries added to the never-claim list.</td><td>Superseded by 1.4</td></tr>
+      <tr><td>1.2</td><td>16/08/2026</td><td>Departments shipped as a real entity (ADR-050) — new module card, added to the role matrix, the action-level tree (45 keys) and the setup console's step list. Sub-departments restated as <em>not planned as a separate entity</em>. Services and packages remain the one outstanding gap in ordinary clinic billing; treatment plans stay out of scope; ward, room and bed setup stays in Phase 2 with in-patient.</td><td>Superseded by 1.3</td></tr>
       <tr><td>1.1</td><td>16/08/2026</td><td>Hospital Setup Console and the organization profile shipped (ADR-049). New module card. The hospital's registered address, phone, email, website, registration number and GSTIN move to BUILT in the branding, printing and white-label sections, and now print in the document header. New permission <code>platform.organization.manage</code> added to the role matrix and the action-level tree (43 keys). Per-branch address, departments, sub-departments, services, packages, treatment plans and ward/bed setup are recorded as planned or unavailable rather than implied by an empty tab.</td><td>Superseded by 1.2</td></tr>
       <tr><td>1.0</td><td>16/08/2026</td><td>Initial capability catalogue. Documents Phase 0 platform core and the MVP 0/1 clinic core as built; the platform administration surface, role matrix and action-level permissions; branding, security, document and integration summaries; and the Phase 2–4 roadmap as planned or future. Adds the mandatory development rule that keeps this document synchronized with the implementation.</td><td>Superseded by 1.1</td></tr>
     </tbody>
@@ -2144,7 +2152,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </section>
 
 <footer>
-  <span>Nirogix · Marketing Product Capability Reference · v1.2</span>
+  <span>Nirogix · Marketing Product Capability Reference · v1.7</span>
   <span>Takoriya Technology LLP · Internal · 16/08/2026</span>
 </footer>
 </main>

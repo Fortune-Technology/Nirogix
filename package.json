@@ -2,7 +2,7 @@
   "name": "hms",
   "version": "0.0.0",
   "private": true,
-  "description": "Nirogix monorepo — Takoriya Technology LLP",
+  "description": "Nirogix monorepo \u2014 Takoriya Technology LLP",
   "packageManager": "npm@10.9.2",
   "engines": {
     "node": ">=20",
@@ -12,6 +12,9 @@
     "hms_backend",
     "hms_frontend",
     "marketing",
+    "admin",
+    "patient",
+    "aiportal",
     "packages/*"
   ],
   "scripts": {

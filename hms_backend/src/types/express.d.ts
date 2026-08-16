@@ -4,7 +4,14 @@
 declare global {
   namespace Express {
     interface Request {
-      auth?: { userId: string; tenantId: string; roles: string[]; impersonatedBy?: string };
+      auth?: {
+        userId: string;
+        tenantId: string;
+        roles: string[];
+        impersonatedBy?: string;
+        /** 'staff' | 'patient' (ADR-052). Staff routes refuse a patient by type. */
+        principalType: 'staff' | 'patient';
+      };
     }
   }
 }

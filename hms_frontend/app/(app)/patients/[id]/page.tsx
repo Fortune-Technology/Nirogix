@@ -18,6 +18,7 @@ import { todayApiDate } from "@hms/utils";
 import type { Patient, CreatePatientRequest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
+import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
 import { PageHeader } from "../../../../components/PageHeader";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -177,6 +178,7 @@ function Profile({ id }: { id: string }) {
               <Row label="Phone">{p.emergencyContactPhone}</Row>
             </dl>
           </Card>
+          <PortalAccessCard patient={p} />
         </div>
       )}
     </>

@@ -21,6 +21,9 @@ export * from './branding';
 export * from './organization';
 export * from './platformBranding';
 export * from './patients';
+// Patient identity is PLATFORM-managed (no tenant_id, like ./tenants) and reaches into a
+// tenant only through patient_identity_link, which IS tenant-scoped (ADR-052).
+export * from './patientIdentity';
 export * from './appointments';
 export * from './visits';
 export * from './billing';

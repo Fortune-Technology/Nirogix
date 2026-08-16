@@ -381,5 +381,64 @@ The obvious reference designs for this screen (and the one the request arrived w
 - **Two permissions, not one.** `platform.departments.view` is held by org_admin, branch_admin, doctor and receptionist - the front desk books into a department and the doctor works one. `platform.departments.manage` is org_admin only.
 **Consequence:** Departments are now a first-class part of setup (the console gained a step, and doctors depend on it), of check-in, and of the provider model. What is still deliberately absent, with the reason rather than a stub: sub-departments and procedures (folded into departments + the service catalogue when that lands), **services and packages** (the next real gap - `BACKLOG.md` E-3, and the one to build after this), treatment plans (no scope), and ward/room/bed setup (Phase 2, and only worth building as the whole IPD slice). The console derives its step list from what exists, so each of those gains a step the day its model does - and not before.
 
+## ADR-051 - Five frontends, one backend: an origin per audience
+**Status:** Accepted (this project) - **supersedes the deployment half of ADR-037** (System Admin stays a separate application *context*, but is now a separate *application*), and **supersedes `resources/domains.md` §5** rows for "Admin / backoffice" and "Customer-facing patient portal", which had decided the opposite.
+**Context:** The platform had two frontends: the Portal (`hms_frontend`, every staff role plus the System Admin context) and the marketing site. Three audiences are now recognised as needing their own front door - the vendor's own operators, patients, and an AI surface - and the owner has asked for each to be its own application.
+
+ADR-037 deliberately kept System Admin inside the Portal, and `domains.md` §5 recorded the reason: a separate host "would fork the session model and double the auth surface to protect, for a boundary the permission system already enforces server-side". That reasoning was sound and is now outweighed by three things it did not weigh. A platform operator and a receptionist share a JavaScript bundle, so a bug in operator code ships to every hospital. The two have different release cadences and different blast radii. And a patient audience makes a shared origin untenable regardless - a patient must never be one route away from a staff screen.
+**Decision:** Five frontends, one backend, one origin per audience.
+
+| App | Audience | Dev | Production |
+|---|---|---|---|
+| `marketing` | Public | `:3001` | `nirogix.com` |
+| `hms_frontend` | Hospital staff | `:3000` | `portal.nirogix.com` |
+| `admin` | Vendor operators | `:3002` | `admin.nirogix.com` |
+| `patient` | Patients | `:3003` | `patient.nirogix.com` |
+| `aiportal` | Authorised staff + operators | `:3004` | `nirogix.ai` |
+| `hms_backend` | All of them | `:4000` | `api.nirogix.com` |
+
+- **Folder names stay** (`hms_frontend`, `hms_backend`) - ADR-013 and ADR-041 hold. The new apps are `admin/`, `patient/`, `aiportal/`. A repo-wide rename buys nothing and invalidates every path in every document.
+- **The backend is the only place any boundary is enforced.** Five frontends do not mean five authorization models: each one is a rendering surface, and every route it calls still runs `authenticated → tenant entitled → user permitted → business rule`. A frontend guard remains UX only (invariant #2), and that matters more now, not less - `admin` and `aiportal` are exactly the URLs someone will type by hand.
+- **One origin per audience, host-only cookies.** Each app gets its own entry in `CORS_ORIGINS`. The refresh cookie stays host-only on the API, so no app can replay another's session, and no `Domain=.nirogix.com` cookie is ever set.
+- **The System Admin context leaves the Portal.** `hms_frontend` keeps only tenant navigation; the platform context, its routes and its sidebar move to `admin`. This is what makes the split real rather than cosmetic - otherwise operator code still ships to hospitals.
+- **`nirogix.ai` is the AI origin**, not a subdomain of `nirogix.com`. A different registrable domain means a different cookie scope by construction, which is the correct boundary for a surface with its own access rule.
+- **The design system is shared, the business logic is not.** Every app imports `@hms/ui`, `@hms/types` and `@hms/permissions`, so typography, forms, tables, dialogs, toasts, empty/error/loading states, theming and accessibility behave identically. Nothing that decides *who may do what* is duplicated into a frontend.
+**Consequence:** Five deployable apps, five origins, five `CORS_ORIGINS` entries, five certificates, and five build pipelines - real operational cost, accepted for the isolation it buys. `domains.md` is rewritten around this. What does **not** change: one backend, one database, one permission catalog, one audit trail, and tenant context that still comes only from the authenticated session and never from the URL or the app that called.
+
+## ADR-052 - Patient identity is platform-level, with a link per hospital
+**Status:** Accepted (this project) - the design the `patient` frontend is built on. Implementation follows this record.
+**Context:** Patients have no login today. `users` is staff: tenant-scoped, keyed by organization code plus email. `patients` is a clinical record with no credentials at all. The obvious move - make a patient a `user` - breaks on the first real case: **a patient registered at three hospitals is one person**. A tenant-scoped principal would give them three accounts, three passwords, and no way to see their own history across the hospitals that hold it. That collides with the platform's first invariant, which resolves tenant from the session.
+**Decision:** A patient principal that lives **above** the tenancy boundary, linked into it.
+- **`patient_identity`** is platform-managed (no `tenant_id`, like `tenants`), keyed by a **verified** mobile number or email. Verification is the whole point: an unverified contact value is a claim, not an identity, and must never unlock a medical record.
+- **`patient_identity_link`** is tenant-scoped (RLS applies) and joins one identity to one hospital's `patients` row. The link is created by the **hospital**, during its own registration flow - never by the patient. This is what "no public signup" means structurally, not just as a missing button.
+- **The session carries the identity, the request resolves the tenant.** A patient signs in once, then chooses which hospital's records to view; the backend resolves the tenant **from the link**, re-checks it on every request, and scopes reads by RLS as usual. The URL never carries tenancy.
+- **A patient principal is not a `user`.** It cannot hold staff permissions, cannot be granted one by an override, and is refused by `requireAuth` on every staff route - not by omission but by an explicit principal-type check, so a future permission grant cannot accidentally open a staff route to a patient.
+- **Read-mostly, and only their own.** The portal exposes what the hospital has already given the patient: their profile, appointments, invoices and lab reports. It writes nothing clinical.
+**Consequence:** One patient, one login, many hospitals - which is what patients actually experience. The costs are real and accepted: a second authentication principal, contact verification (OTP) with its own rate limiting and audit, a link lifecycle the hospital owns, and a cross-tenant identity table that must never leak which *other* hospitals a person attends. That last one is a genuine privacy risk and is why the identity table stores no hospital list the patient has not asked for; the link list is read per request, scoped, and audited.
+
+## ADR-053 - The AI Portal ships as an authorization boundary, with no AI behind it
+**Status:** Accepted (this project) - deliberately builds the security half and none of the product.
+**Context:** `aiportal` was requested as the fifth frontend. There is **no AI capability anywhere in approved scope**: not in the PRD, not in the architecture, not in any phase. `phases.md` places it under *Postponed / Build-as-Sold* with a condition attached - "requires a CDSCO classification check before any diagnostic-support feature is built" - and ADR-038 plus the marketing capability reference both forbid claiming AI. Building a portal whose product does not exist is how a shell becomes a promise.
+**Decision:** Ship the boundary, not the product.
+- The app exists, uses the shared design system, and has **login only** - no signup, matching every other authenticated surface.
+- Access is a real permission, **`ai.portal.access`**, checked server-side. It is granted to no role by default: an operator grants it deliberately.
+- **A patient principal is refused explicitly**, by principal type, before any permission is consulted (ADR-052). Rejection is audited. Frontend route guards are not the control and never will be.
+- The landing page states, in the product's own words, that no AI capability is enabled yet. It does not describe, illustrate or hint at one.
+- Nothing is marketed. The capability reference lists the portal's status honestly and the never-claim list keeps every AI phrase on it.
+**Consequence:** When an AI capability is scoped and approved - with the CDSCO check recorded first for anything touching diagnosis or treatment - it lands behind a boundary that already exists and has already been tested. Until then the repo contains a locked door and no room behind it, which is the honest state, and the capability reference says exactly that.
+
+## ADR-054 - `@hms/client`: one implementation of the parts that must not drift
+**Status:** Accepted (this project) - the shared frontend foundation ADR-051 made necessary.
+**Context:** Splitting into five frontends duplicated more than layout. The admin console started life with copies of the Portal's `apiErrors.ts`, `feedback.ts`, `auth.tsx` and `Can.tsx`, and the two `api.ts` files carried the same ~140 lines of plumbing: access-token handling, the single in-flight refresh, the 401-retry, canonical error unwrapping, and the one-notification-per-call rule.
+
+Two copies is tolerable. Five is a guarantee of drift - and the half most likely to drift is the security-relevant half: *when* a session is treated as expired, *whether* a failure is announced, and *whether* a message from the server is safe to render. A 5xx that leaks a backend internal into a toast is a defect that would then exist in one app and not another, which is worse than having it in both.
+**Decision:** Extract the shared foundation into **`@hms/client`**, and draw the line at the audience boundary.
+- **Shared:** typed errors; the feedback layer (ADR-026's single-notification rule and its "never render a 5xx message" guard); the HTTP core as a factory, `createApiClient({ baseUrl })`; the session endpoints every shell needs; the session/permissions context; and the `Can` / `RequirePermission` guards.
+- **Per app:** the **domain endpoints**. Each frontend builds its own client and exposes only what its audience may call - which is exactly what keeps clinical calls out of the admin console and platform-administration calls out of the Portal (ADR-051). A shared *client* must not become a shared *API surface*, or the split it supports is undone from the inside.
+- **Also per app:** the 403 panel, because each application sends a refused user somewhere different, and navigation. `RequirePermission` takes the panel as a prop rather than assuming one.
+- **The provider is parameterised over the client** (`<AuthProvider api={apiClient}>`), so session bootstrap, refresh, expiry and permission resolution have one implementation while the endpoint surface stays narrow.
+- Each app keeps thin re-export shims at the old paths (`lib/auth`, `lib/feedback`, `lib/apiErrors`) so pages import from one place and the move needed no page edits.
+**Consequence:** `patient` and `aiportal` are wired to `@hms/client` before they have a line of their own code - the point of doing this now rather than after they copied the plumbing. The cost is a package boundary to respect: anything genuinely audience-specific must **not** drift into it, and the first sign of that going wrong will be a domain endpoint appearing in `@hms/client`. The feedback tests moved with the code, so the package owns its own proof.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

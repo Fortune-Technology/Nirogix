@@ -16,6 +16,8 @@ import '../modules/provider/provider.openapi';
 import '../modules/branding/branding.openapi';
 import '../modules/organization/organization.openapi';
 import '../modules/department/department.openapi';
+import '../modules/patient-identity/patientIdentity.openapi';
+import '../modules/ai-portal/aiPortal.openapi';
 import '../modules/setup/setup.openapi';
 import '../modules/platform-branding/platformBranding.openapi';
 import '../modules/opd/opd.openapi';

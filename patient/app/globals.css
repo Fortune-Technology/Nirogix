@@ -1,26 +1,143 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Compile the Tailwind classes inside @hms/ui too — the shared components
+ * (shadcn Toast) live there, and node_modules is not scanned by default. */
+@source "../../packages/ui/src/**/*.{ts,tsx}";
 
+/*
+ * shadcn/ui is installed as a CLI + reference layer only (ADR-028): `@hms/ui`
+ * remains the canonical component kit. Anything pulled in with `shadcn add` must
+ * render on OUR tokens, so shadcn's semantic variables below are re-pointed at
+ * `--hms-*` instead of the neutral OKLCH palette its init writes.
+ *
+ * Dark mode: this app switches on `data-theme="dark"` (@hms/ui), not a `.dark`
+ * class — the variant is redefined to match, and shadcn's own `.dark` block is
+ * deliberately absent because the `--hms-*` values it maps to already flip.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Map the @hms/ui design tokens (--hms-*, defined in @hms/ui/styles.css) into
+ * Tailwind's theme so app-level layout utilities (bg-surface, text-fg-muted,
+ * border-border, bg-brand, rounded-token …) share the exact same tokens as the
+ * design-system primitives. Nothing here hardcodes a color — the values live in
+ * one place and re-theme for Light/Dark and per-tenant branding automatically.
+ */
 @theme inline {
+  --color-bg: var(--hms-bg);
+  --color-surface: var(--hms-surface);
+  --color-surface-2: var(--hms-surface-2);
+  --color-border: var(--hms-border);
+  --color-fg: var(--hms-fg);
+  --color-fg-muted: var(--hms-fg-muted);
+  --color-fg-subtle: var(--hms-fg-subtle);
+  --color-brand: var(--hms-brand);
+  --color-brand-fg: var(--hms-brand-fg);
+  --color-brand-subtle: var(--hms-brand-subtle);
+  --color-danger: var(--hms-danger);
+  --color-warning: var(--hms-warning);
+  --color-warning-subtle: var(--hms-warning-subtle);
+  /* `--hms-success` existed in @hms/ui but was never exposed to Tailwind here, so
+     `text-success` silently produced nothing (billing's paid/outstanding total). */
+  --color-success: var(--hms-success);
+  --color-success-subtle: var(--hms-success-subtle);
+  --radius-token: var(--hms-radius-md);
+  --radius-token-lg: var(--hms-radius-lg);
+  --font-sans: var(--hms-font-sans);
+  --font-heading: var(--hms-font-sans);
+
+  /* shadcn's scale, resolved from the same tokens (see :root below). */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * shadcn's semantic contract, expressed entirely in `--hms-*`. Because every
+ * value is a reference, Light/Dark and a tenant's accent override cascade into
+ * shadcn components for free — no second palette to keep in sync.
+ * `--chart-*` have no design-system equivalent yet; they derive from the brand.
+ */
+:root {
+  --background: var(--hms-bg);
+  --foreground: var(--hms-fg);
+  --card: var(--hms-surface);
+  --card-foreground: var(--hms-fg);
+  --popover: var(--hms-surface);
+  --popover-foreground: var(--hms-fg);
+  --primary: var(--hms-brand);
+  --primary-foreground: var(--hms-brand-fg);
+  --secondary: var(--hms-surface-2);
+  --secondary-foreground: var(--hms-fg);
+  --muted: var(--hms-surface-2);
+  --muted-foreground: var(--hms-fg-muted);
+  --accent: var(--hms-brand-subtle);
+  --accent-foreground: var(--hms-brand);
+  --destructive: var(--hms-danger);
+  --destructive-foreground: var(--hms-danger-fg);
+  --border: var(--hms-border);
+  --input: var(--hms-border);
+  --ring: var(--hms-ring);
+  --radius: var(--hms-radius-lg);
+  --chart-1: var(--hms-brand);
+  --chart-2: color-mix(in srgb, var(--hms-brand) 70%, var(--hms-surface));
+  --chart-3: var(--hms-success);
+  --chart-4: var(--hms-warning);
+  --chart-5: var(--hms-info);
+  --sidebar: var(--hms-surface);
+  --sidebar-foreground: var(--hms-fg);
+  --sidebar-primary: var(--hms-brand);
+  --sidebar-primary-foreground: var(--hms-brand-fg);
+  --sidebar-accent: var(--hms-brand-subtle);
+  --sidebar-accent-foreground: var(--hms-brand);
+  --sidebar-border: var(--hms-border);
+  --sidebar-ring: var(--hms-ring);
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--hms-bg);
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  -webkit-font-smoothing: antialiased;
 }

@@ -8,7 +8,7 @@ import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, NavDrawer, NavDrawe
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { mobilePrimaryNav, navForContext, navGroupsForContext } from "../lib/nav";
+import { NAV_ITEMS, mobilePrimaryNav, navGroupsForUser } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
 function initials(name: string): string {
@@ -29,23 +29,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Platform operators get the platform sidebar, not a superset of every hospital's
-  // menu (ADR-037). `inTenantContext` will be set by an active support session.
-  // A support session puts a platform operator inside a tenant (ADR-037): the
-  // tenant's own sidebar applies, and the banner below makes it impossible to
-  // forget which hospital you are acting in.
+  // One navigation, always the hospital's (ADR-051). The platform operator screens
+  // live in their own application on their own origin, so there is no context to
+  // switch between here any more. An operator inside a support session sees the
+  // hospital's own sidebar — which is the point — and the banner below makes it
+  // impossible to forget which hospital you are acting in.
   const inTenantContext = Boolean(user?.impersonatedBy);
-  const isPlatform = navForContext(can, inTenantContext) !== undefined && can("platform.tenants.manage");
-  const contextNav = navForContext(can, inTenantContext);
-  const visibleNav = contextNav.filter((item) => item.perm === null || can(item.perm));
-  // The sidebar renders the same items in labelled sections, so a new platform
-  // capability joins a group instead of lengthening one flat list (ADR-043).
-  const navGroups = navGroupsForContext(can, inTenantContext);
+  const visibleNav = NAV_ITEMS.filter((item) => item.perm === null || can(item.perm));
+  // The sidebar renders the same items in labelled sections, so a new capability
+  // joins a group instead of lengthening one flat list (ADR-043).
+  const navGroups = navGroupsForUser(can);
   // Mobile (ADR-033): five primary destinations in the bottom bar, everything else
   // in the drawer. Both derive from the same permission-filtered list as the
   // sidebar, so the phone never offers a route the user cannot open.
   const [menuOpen, setMenuOpen] = useState(false);
-  const ranked = mobilePrimaryNav(can, contextNav);
+  const ranked = mobilePrimaryNav(can);
   const primary = ranked.slice(0, BOTTOM_NAV_MAX_ITEMS);
   const secondary = visibleNav.filter((item) => !primary.some((p) => p.href === item.href));
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -83,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : (
             <BrandMark size={24} label="" />
           )}
-          <span className="font-semibold text-fg">{isPlatform ? "Nirogix Platform" : "Nirogix Portal"}</span>
+          <span className="font-semibold text-fg">Nirogix Portal</span>
         </div>
         <nav className="flex flex-1 flex-col gap-4 p-3">
           {navGroups.map((group, gi) => (

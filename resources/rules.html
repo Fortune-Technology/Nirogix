@@ -87,7 +87,17 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li><strong>Filters are reusable components</strong> (status, department, doctor, date range, branch, role, priority, payment status), configured per module — never re-implemented per page.</li>
     <li><strong>Row actions use the one shared action menu</strong>, and destructive actions always go through the shared confirmation dialog.</li>
     <li>Missing functionality is added to the shared component, never worked around locally; a genuinely specialised table documents why in its KNOWLEDGE.md.</li>
-  </ul></section><section id="s1-2a"><h3>Reusable UI Architecture</h3><p><strong>Build once, configure everywhere, reuse forever.</strong> Applies to the Portal and the marketing site, to current and future work.</p><ul>
+  </ul></section><section id="s1-2a"><h3>Reusable UI Architecture</h3><p><strong>Build once, configure everywhere, reuse forever.</strong> Applies to every frontend — the Portal, marketing, the admin console, the patient portal and the AI Portal — to current and future work.</p>
+  <div class="callout">
+    <span class="tag">Frontend boundaries — binding, ADR-051</span>
+    Five applications, one audience each, one backend. A frontend may render and may hide; it may never decide.
+    <strong>No authorization logic is duplicated into a frontend</strong> — every route is re-checked server-side.
+    <strong>No application calls an API outside its audience</strong>: the admin console holds no clinical call, the
+    Portal holds no platform-administration call. <strong>No cross-application session</strong> — the refresh cookie is
+    host-only and nothing sets <code>Domain=.nirogix.com</code>. <strong>A token never travels in a URL</strong>; the
+    support-session handoff uses <code>postMessage</code> with both sides naming the other's origin from configuration.
+    <strong>No development credential appears in any frontend source or bundle.</strong>
+  </div><p><ul>
     <li><strong>Check <code>@hms/ui</code> before building any UI</strong>, then the app's own shared components. If something close exists, extend or configure it; if a pattern appears in a second place, extract it in the same change that duplicates it.</li>
     <li><strong>The shared layer covers the recurring patterns:</strong> DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and menus, cards and stat cards, forms and fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, navigation.</li>
     <li><strong>Reusable is not uniform.</strong> Components take props/variants so a module can vary labels, icons, actions, columns, filters, data, empty-state content, loading behaviour, permissions, variants, sizes and layout — without forking. The chain is primitives → shared patterns → module configuration → page.</li>

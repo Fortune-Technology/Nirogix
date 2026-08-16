@@ -88,6 +88,13 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 - Minimal scaffold with the single Login action wired to the Portal's /login route, as decided in the architecture section
 
+**Frontend topology (added 2026-08-16, ADR-051)**
+
+- Five frontends, one backend, one origin per audience: `marketing`, `hms_frontend` (hospital staff), `admin` (vendor operators), `patient` (verified patients), `aiportal` (authorised staff + operators). The platform-operator surface moved out of the Portal, so operator code no longer ships in a hospital's bundle.
+- **`admin` is built.** Platform dashboard, tenant management, module provisioning, support sessions, platform branding and the audit viewer run on `:3002` against the same backend.
+- **`patient` is built.** Identity model and read API (ADR-052) plus the portal itself, shipped 16/08/2026: two-step sign-in with a one-time code, a hospital picker, and read-only profile, appointments, bills and resulted lab reports. Access is granted by the hospital — there is no signup. Sessions survive a reload, rotate on every refresh, and are revoked server-side on sign-out (F-8). Portals & Mobile Apps remain Phase 3 scope for anything beyond this read-only portal.
+- **`aiportal` is built as a boundary only.** Staff sign-in, an `ai.portal.access` gate held by **no role**, a patient principal refused by type, entry audited, and a landing screen that states no capability is enabled — shipped 16/08/2026 (ADR-053). **No AI capability is in approved scope**, `capabilities` is an empty list with a test asserting it stays empty, and the postponed-list condition stands: any diagnostic-support feature needs a CDSCO classification check before a line is written. `nirogix.ai` is not registered, so this is development-only.
+
 **Integration**
 
 - Portal auth flow — token storage (httpOnly refresh cookie + in-memory access token), 401 → refresh → retry handling, unauthenticated redirect to /login

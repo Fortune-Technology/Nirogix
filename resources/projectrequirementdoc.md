@@ -153,6 +153,12 @@ Everything in this list is built once, in Phase 0, and every business module in 
 
 ### Portals & Access Channels
 
+> **Delivery topology (ADR-051, 16/08/2026).** These portals are delivered as **five separate frontend applications over one backend**, one audience per origin: `marketing` (public), `hms_frontend` (hospital staff — the doctor and staff portals below), `admin` (vendor operators), `patient` (the patient portal below), and `aiportal`. The backend remains the single source of truth for authentication, authorization, tenant isolation, permissions and audit; no frontend duplicates a boundary.
+>
+> **Patient access is provisioned by the hospital, never self-registered** (ADR-052): a patient identity is keyed to a contact the hospital verified during registration and linked to that hospital's patient record. One patient may be linked to several hospitals. Nothing in this section implies a public signup.
+>
+> **The AI Portal exposes no AI capability** (ADR-053). It ships as an authorization boundary — login, `ai.portal.access`, patients refused by principal type — and nothing in this document authorises an AI feature. Any diagnostic-support capability needs the CDSCO classification check recorded in `resources/phases.md` first.
+
 ### Patient portal / app
 
 - View, book, and cancel appointments; join teleconsultations

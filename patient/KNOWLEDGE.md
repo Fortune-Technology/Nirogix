@@ -1,0 +1,46 @@
+# patient — KNOWLEDGE.md
+
+The Nirogix **patient portal**. Read after root `CLAUDE.md` and `patient/AGENTS.md`.
+
+## Purpose
+
+Patients, on their own origin (`:3003` → `patient.nirogix.com`, ADR-051). Read-only access to the records the hospitals they are registered with already hold for them.
+
+A patient is a **different principal from staff** (ADR-052), not a staff user with fewer permissions. This app shares the design system through `@hms/ui` and the HTTP core through `@hms/client`, and nothing else — a patient must never be one route away from a clinical screen.
+
+## What is built
+
+```
+app/
+  layout.tsx                 Fonts, @hms/ui styles, no-flash theme, <Providers>, <Toaster>
+  providers.tsx              ThemeProvider + SessionProvider
+  (auth)/login/page.tsx      Two-step sign-in: contact → one-time code
+  (app)/layout.tsx           Session gate + header
+  (app)/page.tsx             Hospital picker
+  (app)/h/[tenantId]/page.tsx  One hospital: profile, appointments, bills, lab reports
+lib/
+  api.ts                     Six calls. Two sign-in, four reads. No writes.
+  session.tsx                In-memory patient session (NOT the shared staff AuthProvider)
+  theme.tsx                  Light/Dark, Nirogix accent — never a hospital's
+```
+
+## Rules specific to this app
+
+- **No signup, and the screen says so.** There is no route that links a patient to a record; the hospital does it. The sign-in screen explains that in plain words rather than leaving someone hunting for a button that does not exist.
+- **The screen must not reveal who is a patient.** `request-code` answers identically whether or not a contact is registered, so the UI advances to the code step either way. "We don't recognise that number" would undo the server's uniform response.
+- **Its own session context, deliberately.** The shared `AuthProvider` in `@hms/client` is built for staff — organization code, password, and an effective permission set. A patient has none of those. Bending it to cover both would put the difference between the two principals inside a component that is about neither.
+- **The tenant in the URL is not trusted.** Every read re-checks it against an active link server-side, so editing the address bar reaches nothing.
+- **Nothing is stored on the device except the httpOnly refresh cookie.** The access token is in memory only, and the cookie is unreadable from JavaScript and path-scoped to the patient auth routes.
+- **The portal never interprets a clinical value.** Abnormal flags are shown as the lab recorded them, next to a line saying a result outside the usual range is not a diagnosis.
+
+## Sessions
+
+**A reload keeps the patient signed in** (F-8). The access token lives in memory only — never `localStorage` — and on mount the portal exchanges an httpOnly refresh cookie for a new one. The cookie is scoped to `/api/v1/patient/auth`, so it is never sent to a staff endpoint, and a staff refresh token is refused on the patient refresh route.
+
+Sessions are stored in their own `patient_sessions` table, rotate on every refresh, and are revoked server-side on sign-out. Signing in on a second device does **not** end the first session — a patient may reasonably use a phone and a laptop.
+
+The signed-in layout distinguishes *restoring* from *signed out*, and redirects only on the latter; redirecting during the restore attempt would bounce every reload to sign-in.
+
+## Verify
+
+`npm run dev --workspace=patient`, then `http://localhost:3003`. `npm run typecheck --workspace=patient` and `npm run build --workspace=patient` must pass.
