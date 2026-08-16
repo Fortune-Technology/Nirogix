@@ -214,3 +214,11 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 **And a third: the calendar rendered *behind* the table.** `z-index: 70` sat on the popup — which Base UI leaves `position: static` — and z-index does nothing on a static element. The positioned box is the Positioner, so that is where the stacking layer belongs; a sticky table header was painting straight over an open calendar until it moved. Confirmed with `elementFromPoint` at four points across the calendar: all four now hit the popover.
 
 **Testing status:** 10 new tests (ISO ↔ DD/MM/YYYY both ways, clearing, impossible dates, range refusal, the labelled calendar trigger, meridiem conversion, the noon/midnight edges, incomplete entry). 68 pass. Verified in the running Portal: typing `32/13/2026` reverts to the last good date, a valid date commits, the calendar opens, picks, and closes.
+
+## 2026-08-16 — `Field` gains a `hint` (ADR-049)
+
+**What:** `Field` now takes `hint` alongside `error`. The hospital-information form needed guidance on twelve fields at once ("6 digits", "15 characters", "include https://"), and hand-rolling a caption under each input would have been the second implementation of the same pattern — which is exactly what ADR-029 rules out.
+
+`error` replaces `hint` when both are present, so a field never shows two competing messages, and both are wired through `aria-describedby` so a screen reader announces the guidance with the field rather than leaving it as unattached text. The new `.hms-field__hint` class takes its colour from `--hms-fg-muted`, so it reads as help rather than as an error in both themes.
+
+**Testing status:** 68 tests pass (no behaviour change to existing usage — `hint` is optional and absent everywhere else). Rendered in the Portal's hospital-information form in Light and Dark.

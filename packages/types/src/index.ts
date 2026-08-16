@@ -205,6 +205,111 @@ export interface Branding {
   organization: { name: string; code: string } | null;
 }
 
+// ---- Organization profile (hms_backend/src/modules/organization, ADR-049) ---
+// The hospital's own identity: registered address, contact details and statutory
+// numbers. Every field is optional — a document prints the lines that exist and
+// omits the rest rather than inventing a placeholder.
+
+export interface OrganizationProfile {
+  /** From the tenant row — provisioned by the platform, not editable here. */
+  name: string;
+  code: string;
+  legalName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  registrationNumber: string | null;
+  gstin: string | null;
+  /** The same data pre-ordered for a printed document header. */
+  contactLines: string[];
+  /** True once the fields an invoice header needs are present. */
+  isComplete: boolean;
+}
+
+export type UpdateOrganizationProfileRequest = Partial<
+  Omit<OrganizationProfile, 'name' | 'code' | 'contactLines' | 'isComplete'>
+>;
+
+// ---- Hospital Setup Console (hms_backend/src/modules/setup, ADR-049) --------
+// Progress is derived from real tenant data on every read, never stored as a
+// flag, so it stays honest when configuration changes after setup "finishes".
+
+export type SetupStepKey =
+  | 'profile'
+  | 'branding'
+  | 'branches'
+  | 'departments'
+  | 'providers'
+  | 'staff'
+  | 'roles'
+  | 'lab_tests'
+  | 'drugs'
+  | 'modules';
+
+export interface SetupStep {
+  key: SetupStepKey;
+  label: string;
+  description: string;
+  /** Portal route that completes this step. */
+  href: string;
+  /** Permission needed to act on it; null = any authenticated user. */
+  permission: string | null;
+  /** Module entitlement this step belongs to; null = platform core. */
+  module: string | null;
+  required: boolean;
+  complete: boolean;
+  count: number;
+  dependsOn: SetupStepKey[];
+}
+
+export interface SetupStatus {
+  organization: { name: string; code: string };
+  steps: SetupStep[];
+  completedRequired: number;
+  totalRequired: number;
+  ready: boolean;
+}
+
+// ---- Departments (hms_backend/src/modules/department, ADR-050) --------------
+// The hospital's clinical organisation. `branchId` NULL = organization-wide, the
+// same convention every branch-scoped record uses. Departments are deactivated,
+// never deleted — visits and encounters reference them.
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  specialtyCode: string | null;
+  headProviderId: string | null;
+  headProviderName: string | null;
+  /** Providers assigned. Shown before deactivating, so the effect is visible first. */
+  providerCount: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateDepartmentRequest {
+  code: string;
+  name: string;
+  description?: string | null;
+  branchId?: string | null;
+  specialtyCode?: string | null;
+  headProviderId?: string | null;
+}
+
+export type UpdateDepartmentRequest = Partial<Omit<CreateDepartmentRequest, 'code'>> & {
+  isActive?: boolean;
+};
+
 // ---- Platform branding (hms_backend/src/modules/platform-branding, ADR-024) ----
 // Vendor-owned, platform-global branding for two independent surfaces. Distinct
 // from per-tenant `Branding` above. The scalable token set maps to CSS variables
@@ -400,7 +505,9 @@ export interface Visit {
   visitDate: string;
   visitType: string;
   status: string; // checked_in | in_consultation | completed | cancelled
+  /** The department's name at check-in (legacy free-text column, ADR-050). */
   department: string | null;
+  departmentId: string | null;
   reason: string | null;
   checkedInAt: string;
   completedAt: string | null;
@@ -418,7 +525,9 @@ export interface CheckInRequest {
   appointmentId?: string | null;
   providerId?: string | null;
   branchId?: string | null;
+  /** Deprecated free-text department — send `departmentId` instead (ADR-050). */
   department?: string | null;
+  departmentId?: string | null;
   reason?: string | null;
   consultationFeePaise: number;
 }

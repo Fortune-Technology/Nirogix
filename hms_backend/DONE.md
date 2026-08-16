@@ -568,3 +568,31 @@ Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`
 **Not added, deliberately:** address, phone, email, website and registration/GST number. They are not in the schema, and a tax invoice needs the real ones rather than a placeholder — `BACKLOG.md` U-8 names it as the blocker.
 
 **Testing status:** 60 tests pass; `openapi:validate` green.
+
+## 2026-08-16 — The hospital's own identity + Hospital Setup status (ADR-049)
+
+**What:** Two new modules and one new table, so a hospital's administrator can configure their own hospital and the product can say how far that has got.
+
+`organization_profile` is a new **tenant-scoped** table (registered/legal name, two address lines, city, state, PIN, country, phone, email, website, registration number, GSTIN, `version`), not columns on `tenants`: `tenants` is the tenancy boundary itself and is platform-managed, while this is data the hospital owns. Carrying `tenant_id` means it picked up the RLS policy mechanically — the migration's own log line lists it. `GET /organization/profile` needs only authentication (documents and the Portal header need it, and RLS already means "of this tenant"); `PUT` needs the new `platform.organization.manage`. Partial update: an omitted field is left alone, an empty string clears it. Every write is audited as `organization.profile.update` with the field names, because it changes what every future invoice claims about the supplier.
+
+`GET /setup/status` computes each configuration step from real rows on every read — profile, branding, branches, providers, staff, roles, plus the lab and drug catalogues **only when the tenant is entitled to those modules**. There is no stored "setup finished" flag, so a hospital that loses its last branch reports itself incomplete again. There is deliberately **no step for departments, services, packages, treatment plans, wards or beds** — none of those exist in the model, and a step for an unbuilt area is a promise the product cannot keep (`BACKLOG.md` E-1…E-8).
+
+**Found while building it:** the counts were relying on RLS alone, which read as 4 branches for a two-branch tenant on a local superuser connection. Fixed by writing the explicit `tenant_id` predicate as well — ADR-015's defence-in-depth rule, which the count queries had skipped.
+
+**Also fixed:** `provisionTenantRbac` only ever ran at onboarding, so a permission key added later was enforced by the routes while no existing customer's org_admin held it. `reconcileSystemRoles()` now runs inside `db:migrate` — additive only (never removes a role or a grant, so tenant customisation survives a deploy) and idempotent. It reconciled 3 tenants on the first run.
+
+**Testing status:** 12 new tests (empty profile, round-trip, partial update, clearing, contact-line composition, audit entry, cross-tenant isolation, derived progress, dependency ordering, entitlement-gated steps, and an assertion that no step exists for an unbuilt area). 72 backend tests pass; `openapi:validate` green. Verified live against the seeded tenants: org_admin 6/8 complete then profile saved to 7/8, receptionist 403 on `/setup/status` and on `PUT /organization/profile` but 200 on the read, SUNRISE unaffected by CITYCARE's details, and an invalid GSTIN refused with its own message.
+
+## 2026-08-16 — Departments become a real entity (ADR-050)
+
+**What:** A `departments` table (tenant-scoped → RLS applies mechanically), its module, and the links that make it worth having. Nullable `branch_id` follows the platform convention (NULL = organization-wide). Carries a code unique within the hospital, a name, a description, an optional `specialty_code` tying it to the FHIR-aligned specialty catalog, an optional head of department, and an active flag.
+
+**Why now rather than with the rest of the "setup" catalogue:** the only trace of a department in the product was `visits.department`, a free-text `varchar(80)` typed at check-in — unlistable, unreportable ("Ortho", "ortho" and "Orthopaedics" are three departments), with no head, no retirement and nothing a doctor could be attached to. That is a hole under features that already shipped, not deferred scope. Sub-departments, services, packages, treatment plans and ward/bed setup stayed out; the reasoning is in ADR-050 and the items are in `BACKLOG.md` E-3…E-8.
+
+**Not module-gated.** A department is organisational structure every entitled clinical module reads, exactly like a branch — Platform Core, not a purchasable module.
+
+**Wired in:** `practitioner_roles.department_id` (a provider works in a department), `visits.department_id` (check-in routes by one), and a `departments` step in the Hospital Setup Console that doctors now depend on. `visits.department` stays and check-in writes the department's *name* into it as well, so every existing read keeps working and the migration stays additive and reversible. Departments are deactivated, never deleted — visits and encounters reference them — and deactivation is audited at `notice`.
+
+**Found while building the tests:** the uppercase-code normalisation lived **only** in the Zod request schema, so `createDepartment` called from the seed stored `ortho` and the case-sensitive unique index accepted `ORTHO` beside it. Moved into the service, where every caller passes.
+
+**Testing status:** 12 new tests (uppercase normalisation, duplicate refused, the same code free in another hospital, another tenant's branch and provider both refused, branch/head resolved by name, partial update, deactivate keeps the row and leaves `activeOnly`, the notice-level audit entry, cross-tenant 404, and the setup step with its dependency). 84 backend tests pass; `openapi:validate` green. Verified live on the seeded tenants: four departments listed for CITYCARE, setup at 8/9, receptionist 200 on read and 403 on create, pharmacist 403 on read, and SUNRISE gets 404 for a CITYCARE department id that CITYCARE itself reads with 200.

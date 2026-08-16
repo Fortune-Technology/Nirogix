@@ -21,6 +21,7 @@ import * as api from "../../lib/api";
 import { formatDate, formatDayLabel, formatWeekday } from "@hms/utils";
 import { formatPaise } from "../../lib/money";
 import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, PanelRow, RangeChips, firstName } from "./DashboardShell";
+import { SetupProgressCard } from "../settings/SetupChecklist";
 
 /**
  * The Hospital Admin dashboard (ADR-044) — one hospital's day and its trend,
@@ -124,6 +125,11 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
         </Link>
       }
     >
+      {/* Until the hospital is configured, the most useful thing on this screen is what
+          is still missing (ADR-049). The card removes itself once setup is complete, so
+          it never becomes permanent furniture. */}
+      <SetupProgressCard />
+
       <KpiGrid>
         <StatCard
           label="In the queue now"

@@ -7,11 +7,16 @@ import {
   jsonb,
   timestamp,
   unique,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { branches } from './branches';
 import { users } from './users';
+// `departments` references `providers` (head of department) and `practitioner_roles` references
+// `departments`, so the two modules import each other. Drizzle's reference callbacks are lazy,
+// which is what makes that safe — the `AnyPgColumn` annotation is required for the circular type.
+import { departments } from './departments';
 
 // FHIR-aligned specialty-agnostic core (ADR-008). Core clinical entities stay strongly typed
 // (no EAV); specialty variation is captured by data (practitioner_roles, specialty_form_templates),
@@ -63,6 +68,10 @@ export const practitionerRoles = pgTable(
       .references(() => providers.id, { onDelete: 'cascade' }),
     specialtyCode: varchar('specialty_code', { length: 50 }).notNull(),
     branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
+    // Which department this provider works in (ADR-050). Nullable: a single-doctor clinic has
+    // no departments, and a provider added before departments existed keeps working. The
+    // reference is `set null` — deactivating a department must never orphan a doctor's record.
+    departmentId: uuid('department_id').references((): AnyPgColumn => departments.id, { onDelete: 'set null' }),
     role: varchar('role', { length: 50 }).notNull().default('consultant'),
     isPrimary: boolean('is_primary').notNull().default(false),
     periodStart: timestamp('period_start', { withTimezone: true }),

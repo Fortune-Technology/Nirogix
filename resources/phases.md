@@ -68,6 +68,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 - FileStorageService abstraction — E2E Object Storage (EOS, India-resident) as the primary store for PHI-bearing files; default-private buckets with short-lived signed URLs, server-side file-type/size validation, database stores metadata and references only, never file content
 - API conventions — Express scaffold, consistent error-response shape, Zod request validation, pagination helper, /api/v1 versioning, OpenAPI/Swagger auto-doc
 - Minimal hospital/clinic + branch setup tables, used by every module downstream
+- Departments (added 2026-08-16, ADR-050) — a real tenant-scoped entity with branch scoping, head of department and a specialty link, replacing the free-text department on a visit. Platform Core, not a purchasable module. Sub-departments, services, packages and treatment plans are **not** part of this and are tracked in `BACKLOG.md`; ward/room/bed setup stays in Phase 2 with IPD.
 - Module entitlement system — module catalog with dependency graph, tenant_entitlements table (tenant, module, optional branch), requireModule() middleware checked before permission checks
 - RBAC engine extended with user_permission_overrides (grant/deny) on top of role defaults; dot-hierarchy permission keys shared with the frontend via a packages/permissions package
 - Provider/specialty core tables aligned to FHIR Practitioner/PractitionerRole, plus a specialty_form_templates table for specialty-varying structured data

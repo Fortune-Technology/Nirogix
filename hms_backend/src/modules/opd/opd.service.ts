@@ -1,6 +1,6 @@
 import { and, count, eq } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { visits, patients, providers, appointments, invoices, type Visit as VisitRow } from '../../db/schema';
+import { visits, patients, providers, appointments, invoices, departments, type Visit as VisitRow } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
@@ -20,7 +20,10 @@ export interface CheckInInput {
   appointmentId?: string | null;
   providerId?: string | null;
   branchId?: string | null;
+  /** Deprecated free-text department. Kept for callers predating ADR-050. */
   department?: string | null;
+  /** The department this visit belongs to (ADR-050). Validated against this tenant's own list. */
+  departmentId?: string | null;
   reason?: string | null;
   consultationFeePaise: number;
 }
@@ -62,6 +65,7 @@ function toVisitDto(row: VisitRowFlat) {
     visitType: v.visitType,
     status: v.status,
     department: v.department,
+    departmentId: v.departmentId,
     reason: v.reason,
     checkedInAt: v.checkedInAt.toISOString(),
     completedAt: v.completedAt ? v.completedAt.toISOString() : null,
@@ -134,6 +138,23 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       if (!provider) throw Errors.notFound('Provider not found');
     }
 
+    // The department must be this hospital's own and still active — a visit cannot be checked
+    // into a department that belongs to another tenant or has been retired (ADR-050). Its name
+    // is copied into the legacy free-text column so screens reading `department` keep working.
+    let departmentName: string | null = null;
+    if (input.departmentId) {
+      const dept = (
+        await tx
+          .select({ name: departments.name, isActive: departments.isActive })
+          .from(departments)
+          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, input.departmentId)))
+          .limit(1)
+      )[0];
+      if (!dept) throw Errors.notFound('Department not found');
+      if (!dept.isActive) throw Errors.validation(undefined, 'That department is no longer active');
+      departmentName = dept.name;
+    }
+
     // Day's queue token for this branch (cosmetic; not a financial key).
     const branchConds = [eq(visits.tenantId, tenantId), eq(visits.visitDate, visitDate)];
     if (input.branchId) branchConds.push(eq(visits.branchId, input.branchId));
@@ -156,7 +177,8 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
           visitNumber,
           tokenNumber,
           visitDate,
-          department: input.department ?? null,
+          department: departmentName ?? input.department ?? null,
+          departmentId: input.departmentId ?? null,
           reason: input.reason ?? null,
           status: 'checked_in',
           checkedInBy: actorUserId ?? null,

@@ -6,7 +6,9 @@ import type { AuthUser } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
+import { useTheme } from "../../../lib/theme";
 import { PageHeader } from "../../../components/PageHeader";
+import { Badge, Button } from "@hms/ui";
 import {
   Field,
   ProfileEditableCard,
@@ -121,6 +123,29 @@ export default function ProfilePage() {
       </ProfileInfoCard>
 
       <ProfileSecurityCard onSubmit={changePassword} busy={changing} />
+
+      <AppearanceCard />
     </>
+  );
+}
+
+/**
+ * Appearance is a per-user preference, not hospital configuration — it moved here
+ * when Settings became the Hospital Configuration console (ADR-049). The choice is
+ * stored for this user; it never changes what a colleague sees.
+ */
+function AppearanceCard() {
+  const { theme, toggle } = useTheme();
+  return (
+    <ProfileInfoCard header="Appearance">
+      <ProfileField label="Theme">
+        <span className="flex flex-wrap items-center gap-3">
+          <Badge tone="brand">{theme === "dark" ? "Dark" : "Light"}</Badge>
+          <Button variant="secondary" size="sm" onClick={toggle}>
+            Switch to {theme === "dark" ? "Light" : "Dark"}
+          </Button>
+        </span>
+      </ProfileField>
+    </ProfileInfoCard>
   );
 }

@@ -35,6 +35,12 @@ import type {
   Branch,
   Role,
   Branding,
+  Department,
+  CreateDepartmentRequest,
+  UpdateDepartmentRequest,
+  OrganizationProfile,
+  UpdateOrganizationProfileRequest,
+  SetupStatus,
   PlatformBranding,
   PlatformBrandingScope,
   BrandingTokens,
@@ -624,6 +630,54 @@ export async function createBranch(body: { code: string; name: string }): Promis
 
 export async function updateBranch(id: string, patch: { name?: string; isActive?: boolean }): Promise<Branch> {
   return request<Branch>(`/branches/${id}`, { method: "PATCH", body: patch, feedback: { success: "Branch updated." } });
+}
+
+// ---- Departments (ADR-050) -------------------------------------------------
+
+export async function listDepartments(opts: { activeOnly?: boolean; branchId?: string } = {}): Promise<Department[]> {
+  const q = new URLSearchParams();
+  if (opts.activeOnly) q.set("activeOnly", "true");
+  if (opts.branchId) q.set("branchId", opts.branchId);
+  const qs = q.toString();
+  return (await request<{ departments: Department[] }>(`/departments${qs ? `?${qs}` : ""}`)).departments;
+}
+
+export async function createDepartment(body: CreateDepartmentRequest): Promise<Department> {
+  return request<Department>("/departments", { method: "POST", body, feedback: { success: "Department created." } });
+}
+
+export async function updateDepartment(id: string, patch: UpdateDepartmentRequest): Promise<Department> {
+  return request<Department>(`/departments/${id}`, {
+    method: "PATCH",
+    body: patch,
+    feedback: { success: "Department updated." },
+  });
+}
+
+// ---- Organization profile + Hospital Setup (ADR-049) -----------------------
+
+export async function getOrganizationProfile(): Promise<OrganizationProfile> {
+  return request<OrganizationProfile>("/organization/profile");
+}
+
+export async function updateOrganizationProfile(
+  patch: UpdateOrganizationProfileRequest,
+): Promise<OrganizationProfile> {
+  return request<OrganizationProfile>("/organization/profile", {
+    method: "PUT",
+    body: patch,
+    feedback: { success: "Hospital information saved." },
+  });
+}
+
+/** How far this hospital's configuration has got. Derived server-side from real data. */
+export async function getSetupStatus(): Promise<SetupStatus> {
+  return request<SetupStatus>("/setup/status");
+}
+
+/** The modules this hospital is entitled to. Granted by Nirogix, read-only here. */
+export async function listMyModules(): Promise<string[]> {
+  return (await request<{ modules: string[] }>("/entitlements")).modules;
 }
 
 // ---- Tenant branding -------------------------------------------------------

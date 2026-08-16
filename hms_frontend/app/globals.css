@@ -39,6 +39,10 @@
   --color-danger: var(--hms-danger);
   --color-warning: var(--hms-warning);
   --color-warning-subtle: var(--hms-warning-subtle);
+  /* `--hms-success` existed in @hms/ui but was never exposed to Tailwind here, so
+     `text-success` silently produced nothing (billing's paid/outstanding total). */
+  --color-success: var(--hms-success);
+  --color-success-subtle: var(--hms-success-subtle);
   --radius-token: var(--hms-radius-md);
   --radius-token-lg: var(--hms-radius-lg);
   --font-sans: var(--hms-font-sans);

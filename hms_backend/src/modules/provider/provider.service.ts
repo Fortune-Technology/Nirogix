@@ -5,6 +5,7 @@ import {
   providers,
   specialties,
   practitionerRoles,
+  departments,
   specialtyFormTemplates,
   type Provider,
   type PractitionerRole,
@@ -74,7 +75,7 @@ export async function createProvider(
 export async function assignSpecialty(
   tenantId: string,
   providerId: string,
-  data: { specialtyCode: string; branchId?: string; role?: string; isPrimary?: boolean },
+  data: { specialtyCode: string; branchId?: string; departmentId?: string; role?: string; isPrimary?: boolean },
   actorUserId?: string,
 ): Promise<PractitionerRole | null> {
   if (!SPECIALTY_CODES.has(data.specialtyCode)) {
@@ -89,6 +90,19 @@ export async function assignSpecialty(
         .limit(1)
     )[0];
     if (!prov) return null;
+    // A provider can only be assigned to this hospital's own department (ADR-050) — the check is
+    // here rather than left to the foreign key so the caller gets a message, not a constraint error.
+    if (data.departmentId) {
+      const dept = (
+        await tx
+          .select({ id: departments.id, isActive: departments.isActive })
+          .from(departments)
+          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, data.departmentId)))
+          .limit(1)
+      )[0];
+      if (!dept) throw Errors.validation(undefined, 'That department does not belong to your organization');
+      if (!dept.isActive) throw Errors.validation(undefined, 'That department is no longer active');
+    }
     const rows = await tx
       .insert(practitionerRoles)
       .values({
@@ -96,6 +110,7 @@ export async function assignSpecialty(
         providerId,
         specialtyCode: data.specialtyCode,
         branchId: data.branchId ?? null,
+        departmentId: data.departmentId ?? null,
         role: data.role ?? 'consultant',
         isPrimary: data.isPrimary ?? false,
       })

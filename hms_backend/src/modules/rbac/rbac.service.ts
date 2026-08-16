@@ -6,6 +6,7 @@ import {
   permissions as permissionsTable,
   roles,
   rolePermissions,
+  tenants,
   userRoles,
   userPermissionOverrides,
 } from '../../db/schema';
@@ -61,6 +62,27 @@ export async function provisionTenantRbac(tenantId: string): Promise<void> {
     }
   });
   cache.invalidateTenant(tenantId);
+}
+
+/**
+ * Brings every existing tenant's system roles up to date with `@hms/permissions`.
+ *
+ * `provisionTenantRbac` runs once, at onboarding. Without this, a permission key added
+ * later would exist in the catalog and be enforced by the routes, but no existing
+ * hospital's org_admin would hold it — the feature would 403 for every current customer
+ * and work only for hospitals onboarded afterwards.
+ *
+ * Additive only: it inserts missing roles and missing role→permission rows and never
+ * removes one, so a tenant's own customisation is not undone by a deploy. Idempotent, and
+ * run as part of `db:migrate`.
+ */
+export async function reconcileSystemRoles(): Promise<{ tenants: number }> {
+  await seedPermissionCatalog();
+  const rows = await db.select({ id: tenants.id }).from(tenants);
+  for (const t of rows) {
+    await provisionTenantRbac(t.id);
+  }
+  return { tenants: rows.length };
 }
 
 export async function assignRoleByKey(

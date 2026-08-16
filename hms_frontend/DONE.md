@@ -446,3 +446,27 @@ The migration also added the bounds each field always needed: a date of birth ca
 The shadcn scaffolding the CLI generated in `components/ui/` (calendar, popover and its own Button) was deleted after the components were promoted into `@hms/ui` — regenerable, and a second Button next to the kit's is exactly what ADR-028 rules out. `react-day-picker` and `date-fns` moved out of this app's dependencies with it.
 
 **Testing status:** typecheck + build clean.
+
+## 2026-08-16 — Settings becomes the Hospital Configuration console (ADR-049)
+
+**What:** `/settings` was a theme toggle sitting next to a colour picker. It is now the console a hospital's administrator sets the hospital up from: a tab layout (Setup overview · Hospital information · Branding · Enabled modules) over `/settings`, `/settings/organization`, `/settings/branding` and `/settings/modules`, gated on the new `platform.organization.manage`.
+
+The overview shows derived progress and a checklist. Each step reports its real count ("Done · 2"), a step whose dependency is unmet says what it is waiting on instead of hiding, and a step the user is not permitted says so rather than offering a dead link. Below it, a grid links to the areas that already have their own screens — branches, providers, users, the lab test master, the drug master. **Nothing is reimplemented here**: the console is how those are found, not a second copy of them, and no tab exists for departments, services, packages, treatment plans or wards, because the product has none.
+
+The same status feeds a dashboard card that names the next step and removes itself once setup is complete, so it never becomes permanent furniture.
+
+Printed documents now carry the hospital's address, phone, registration number and GSTIN: `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines` straight into `PrintDocument`, which already had the slot. Nothing is invented — an unconfigured hospital still prints name and logo only.
+
+**Moved:** the theme switch to `/profile`. A theme is one person's preference, not the hospital's configuration, and leaving it in Settings is what made that page read as a drawer of unrelated switches.
+
+**Found while building it:** `text-success` had never worked. `--hms-success` exists in `@hms/ui` but was never mapped into Tailwind's theme in `globals.css`, so the class generated nothing — the billing page's paid/outstanding total had been rendering in the default colour. Mapped `--color-success` and `--color-success-subtle`.
+
+**Testing status:** typecheck clean; 12 frontend tests pass. Backend contract verified live against the seeded tenants (see `hms_backend/DONE.md`). Manual cases SETUP-01…SETUP-24 added to `testcases.md`.
+
+## 2026-08-16 — Departments in the Portal (ADR-050)
+
+**What:** `/departments` — the Standard DataTable with code, department, branch, head of department, doctor count and status; a create form whose branch and head pickers offer only this hospital's own records; and a single row action. That action is a **toggle, not a delete**: departments are never deleted because visits reference them, and the confirmation states how many doctors are attached so the effect is visible before it is accepted.
+
+Joined the sidebar's *Organization* group and the Hospital Configuration console's area grid. Check-in gained a department picker that offers **active departments only** — the server refuses a retired one regardless, so the form simply never presents an invalid choice.
+
+**Testing status:** typecheck clean, `next build` clean (`/departments` prerendered), 12 frontend tests pass. Lint reports the repo-wide `react-hooks/set-state-in-effect` on the data-loading effect — the same shape every other Portal list page has, and tracked in `BACKLOG.md` as repo-wide debt rather than solved differently on one screen. Manual cases DEPT-01…DEPT-21 added to `testcases.md`.

@@ -21,18 +21,22 @@ export function useDocumentBrand(): { brand: DocumentBrand; ready: boolean } {
 
   useEffect(() => {
     let alive = true;
-    api
-      .getCurrentBranding()
-      .then((b) => {
+    // Branding and identity are two different records with two different permissions,
+    // fetched together because a document header needs both. Each is RLS-scoped to the
+    // caller's own tenant.
+    Promise.all([api.getCurrentBranding(), api.getOrganizationProfile().catch(() => null)])
+      .then(([b, profile]) => {
         if (!alive) return;
         setBrand({
-          organizationName: b.organization?.name ?? null,
+          // The registered name wins where the hospital has one, since this is the
+          // party the document is issued by.
+          organizationName: profile?.legalName ?? profile?.name ?? b.organization?.name ?? null,
           logoUrl: b.logoUrl,
           accent: b.brandColor,
-          // Address, phone, email, website and registration numbers are not in the
-          // schema yet (BACKLOG U-8). The header renders what exists rather than
-          // inventing a placeholder — a wrong address on an invoice is worse than none.
-          contactLines: [],
+          // Address, phone, email, website and registration numbers as far as the
+          // hospital has configured them (ADR-049). Lines that are not set are simply
+          // absent — a wrong address on an invoice is worse than none.
+          contactLines: profile?.contactLines ?? [],
         });
       })
       .catch(() => {

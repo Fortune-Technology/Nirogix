@@ -2,6 +2,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { db, pool } from './client';
 import { applyRls } from './rls';
 import { applyAuditProtection } from './auditProtection';
+import { reconcileSystemRoles } from '../modules/rbac/rbac.service';
 import { logger } from '../config/logger';
 
 // Runs pending Drizzle migrations, then (re)applies the RLS policy template to every
@@ -17,6 +18,13 @@ async function main(): Promise<void> {
 
   await applyAuditProtection(pool);
   logger.info('Applied audit_log append-only protection (blocks UPDATE/DELETE)');
+
+  // A permission key added to @hms/permissions has to reach the tenants that already
+  // exist, or the feature it guards 403s for every current customer and works only for
+  // hospitals onboarded afterwards. Additive and idempotent.
+  logger.info('Reconciling system roles with the permission catalog...');
+  const { tenants: reconciled } = await reconcileSystemRoles();
+  logger.info(`System roles reconciled for ${reconciled} tenant(s)`);
 
   await pool.end();
   process.exit(0);

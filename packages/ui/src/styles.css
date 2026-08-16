@@ -196,6 +196,12 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-danger);
 }
+/* Guidance under a field — format, units, or what the value is used for. Muted so it
+   reads as help rather than as an error. */
+.hms-field__hint {
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+}
 
 /* --------------------------------------------------------------------------
  * Card

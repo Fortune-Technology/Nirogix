@@ -245,8 +245,64 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | ORG-04 | Add a GRANT / DENY override | Existing user | Add each | Effective permission list updates; DENY wins over the role | P1 | Security | org_admin | Not run |
 | ORG-05 | Deactivate a user | Active user | Set inactive | They can no longer sign in | P1 | Security | org_admin | Not run |
 | ORG-06 | Create a branch | `platform.branches.manage` | Branches → New | Branch listed and selectable where branch scoping applies | P2 | Functional | org_admin | Not run |
-| ORG-07 | Tenant branding | `platform.branding.manage` | Settings → pick a colour → Save; upload a logo; Reset | Accent applies across the Portal in both themes; logo shows in the shell; reset restores the default | P2 | UI/UX | org_admin | Not run |
+| ORG-07 | Tenant branding | `platform.branding.manage` | Hospital configuration → Branding → pick a colour → Save; upload a logo; Reset | Accent applies across the Portal in both themes; logo shows in the shell; reset restores the default | P2 | UI/UX | org_admin | Not run |
 | ORG-08 | Branding is per tenant | Two tenants | Set a colour in one | The other tenant is unaffected | P1 | Security | org_admin | Not run |
+
+## 14b. Hospital Setup Console (ADR-049)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| SETUP-01 | Console opens | `platform.organization.manage` | Sidebar → Hospital setup | Console opens at `/settings` with progress, the step checklist and the configuration-area grid | P1 | Functional | org_admin | Not run |
+| SETUP-02 | Progress is real | A hospital with branches and staff | Open the console | The bar reads *completed / total*; each step shows a real count (e.g. "Done · 2" for branches) | P1 | Functional | org_admin | Not run |
+| SETUP-03 | Progress is derived, not stored | A complete step | Delete/deactivate what completed it, reload | The step reports incomplete again — no cached "setup finished" state | P1 | Functional | org_admin | Not run |
+| SETUP-04 | Dependencies are explained | A hospital with no branches | Open the console | Doctors and Staff show a lock icon and "Waiting on branches first" rather than being hidden | P2 | UI/UX | org_admin | Not run |
+| SETUP-05 | Steps link to the real screen | — | Click *Configure* on each step | Navigates to the existing screen (branches, providers, users, lab tests, drug master) — never a duplicate | P1 | Functional | org_admin | Not run |
+| SETUP-06 | Module steps follow entitlement | A tenant without Laboratory | Open the console | No laboratory test-master step appears, and progress does not count it | P1 | Functional | org_admin | Not run |
+| SETUP-07 | Complete state | Every required step done | Open the console | Success alert: *"… is ready for operations"*, and the dashboard card disappears | P2 | UI/UX | org_admin | Not run |
+| SETUP-08 | Dashboard nudge | Setup incomplete | Open the dashboard | A "Finish setting up your hospital" card shows progress and the next step; it is absent once complete | P2 | UI/UX | org_admin | Not run |
+| SETUP-09 | Permission gate (UI) | Role without `platform.organization.manage` | Open `/settings` | Forbidden panel; no "Hospital setup" item in the sidebar | P1 | Security | receptionist | Not run |
+| SETUP-10 | Permission gate (API) | Same role's token | `GET /api/v1/setup/status` | 403, not a partial response | P1 | Security | receptionist | Not run |
+| SETUP-11 | No unbuilt areas are shown | — | Read every tab and card | Nothing offers Departments, Sub-departments, Procedures, Services, Packages, Treatment plans, Wards, Rooms or Beds | P1 | Functional | org_admin | Not run |
+| SETUP-12 | Hospital information saves | `platform.organization.manage` | Hospital information → fill address, phone, GSTIN → Save | Toast confirms; values persist on reload; badge flips to *Ready for documents* | P1 | Functional | org_admin | Not run |
+| SETUP-13 | Field validation | — | Enter PIN `12`, GSTIN `NOPE`, website `example.com` | Each rejected with its own message; nothing saved | P1 | Validation | org_admin | Not run |
+| SETUP-14 | Partial update | Saved profile | Change only the phone → Save | Only the phone changes; other fields are untouched | P2 | Functional | org_admin | Not run |
+| SETUP-15 | Clearing a field | Saved profile | Empty *Address line 2* → Save | Field clears to blank rather than keeping the old value | P2 | Functional | org_admin | Not run |
+| SETUP-16 | Header preview matches print | Saved profile | Compare *How this prints* with an invoice print view | The same lines, in the same order | P2 | UI/UX | org_admin | Not run |
+| SETUP-17 | Invoice header carries the profile | Saved profile | Open an invoice → Print | Header shows legal name, address, phone/email, registration number and GSTIN | P1 | Functional | cashier | Not run |
+| SETUP-18 | Nothing is invented | Empty profile | Print an invoice | Name and logo only — no placeholder address, no empty labels | P1 | Functional | cashier | Not run |
+| SETUP-19 | Profile is per tenant | Two tenants | Set details in one, sign in to the other | The second shows its own name and an empty profile | P1 | Security | org_admin | Not run |
+| SETUP-20 | Write is gated, read is not | Receptionist token | `GET` then `PUT /api/v1/organization/profile` | 200 on read (documents need it), 403 on write | P1 | Security | receptionist | Not run |
+| SETUP-21 | Update is audited | — | Save the profile, open Audit | An `organization.profile.update` entry names the actor and the changed fields | P1 | Security | org_admin | Not run |
+| SETUP-22 | Enabled modules are read-only | — | Hospital configuration → Enabled modules | Entitled modules listed with an *Enabled* badge; no control claims to add one | P2 | UI/UX | org_admin | Not run |
+| SETUP-23 | Appearance moved | — | Open `/profile` | Theme switch is on the profile; Settings no longer offers it | P3 | UI/UX | any | Not run |
+| SETUP-24 | New permission reaches existing tenants | A tenant onboarded before this release | Run `npm run db:migrate`, sign in as its org_admin | The console opens — the role gained `platform.organization.manage` without re-onboarding | P1 | Regression | org_admin | Not run |
+| SETUP-25 | Stale session after a permission is added | Signed in before the reconcile | Stay signed in, open `/settings` | Forbidden — the client's permission snapshot is taken at sign-in. Signing out and back in resolves it | P2 | Functional | org_admin | Not run |
+
+## 14c. Departments (ADR-050)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| DEPT-01 | List departments | `platform.departments.view` | Sidebar → Departments | Table lists code, department, branch, head, doctor count and status | P1 | Functional | org_admin | Not run |
+| DEPT-02 | Create a department | `platform.departments.manage` | New department → code `ortho`, name `Orthopaedics` → Create | Created; code stored as `ORTHO`; toast confirms | P1 | Functional | org_admin | Not run |
+| DEPT-03 | Code is normalised outside the form too | An existing `ORTHO` | Re-run `npm run db:seed`, or POST `{"code":"ortho"}` to the API | Rejected as a duplicate — the uppercase rule lives in the service, not just the form | P1 | Validation | org_admin | Not run |
+| DEPT-04 | Duplicate code | An existing department | Reuse its code | 409 with a clear message; nothing created | P1 | Validation | org_admin | Not run |
+| DEPT-05 | Same code in another hospital | Two tenants | Create `ORTHO` in each | Both succeed — the code is unique per hospital, not globally | P2 | Functional | org_admin | Not run |
+| DEPT-06 | Organization-wide by default | — | Create without picking a branch | Branch column reads *Organization-wide* | P2 | Functional | org_admin | Not run |
+| DEPT-07 | Branch scoping | Two branches | Create scoped to one | Branch column names it | P2 | Functional | org_admin | Not run |
+| DEPT-08 | Another hospital's branch is refused | Two tenants | PATCH a department with the other tenant's `branchId` | Rejected: *does not belong to your organization* | P1 | Security | org_admin | Not run |
+| DEPT-09 | Another hospital's provider as head is refused | Two tenants | Create with the other tenant's `headProviderId` | Rejected with the same message | P1 | Security | org_admin | Not run |
+| DEPT-10 | Head of department | A provider exists | Assign one, reload | Head column shows the doctor's name | P2 | Functional | org_admin | Not run |
+| DEPT-11 | Deactivate | An active department with doctors | Toggle → read the confirmation | Confirmation names the doctor count; after confirming the row reads *inactive* | P1 | Functional | org_admin | Not run |
+| DEPT-12 | Deactivation is audited | Just deactivated one | Open Audit | A `department.deactivate` entry at **notice** severity | P1 | Security | org_admin | Not run |
+| DEPT-13 | Deactivated stays visible | A deactivated department | Reload the list | Still listed as inactive — departments are never deleted | P1 | Functional | org_admin | Not run |
+| DEPT-14 | Check-in offers active departments only | One active, one inactive | OPD → Check in | Only the active one is in the picker | P1 | Functional | receptionist | Not run |
+| DEPT-15 | Check-in records the department | — | Check a patient in with a department | The visit carries it, and the queue row shows it | P1 | Functional | receptionist | Not run |
+| DEPT-16 | Retired department refused at check-in | Deactivated mid-session | POST a check-in with its id | Rejected: *no longer active* | P1 | Validation | receptionist | Not run |
+| DEPT-17 | Cross-tenant read | Two tenants | `GET /api/v1/departments/{id}` with the other tenant's id | 404, not 403 — the record does not exist for this caller | P1 | Security | org_admin | Not run |
+| DEPT-18 | View gate | Role without `platform.departments.view` (pharmacist) | Open `/departments` | Forbidden panel; API returns 403; no sidebar entry | P1 | Security | pharmacist | Not run |
+| DEPT-19 | Manage gate | Receptionist | Open `/departments`, then POST to the API | List is readable; no *New department* button; POST returns 403 | P1 | Security | receptionist | Not run |
+| DEPT-20 | Setup step | No departments | Open Hospital configuration | *Departments* shows as needed; *Doctors & specialties* says it is waiting on branches and departments | P2 | Functional | org_admin | Not run |
+| DEPT-21 | Existing visits keep their department | A visit checked in before this release | Open it | The old free-text department still displays | P1 | Regression | receptionist | Not run |
 
 ## 15. Audit log
 

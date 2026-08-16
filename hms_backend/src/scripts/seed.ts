@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { and, eq } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
-import { tenants, branches, users, providers, patients as patientsTable } from '../db/schema';
+import { tenants, branches, departments, users, providers, patients as patientsTable } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
@@ -37,6 +37,8 @@ interface SeedTenant {
   /** Initial module entitlements; defaults to the MVP set. The PLATFORM org gets none (not a hospital). */
   modules?: string[];
   branches: Array<{ code: string; name: string }>;
+  /** Clinical departments (ADR-050). Organization-wide; a group could scope them per branch. */
+  departments?: Array<{ code: string; name: string; specialty?: string }>;
   /** One user per role — email, display name, and the system role key. */
   users: Array<{ email: string; fullName: string; role: string }>;
   providers: SeedProvider[];
@@ -64,6 +66,12 @@ const SEED_TENANTS: SeedTenant[] = [
     branches: [
       { code: 'KTD', name: 'Kothrud (Main)' },
       { code: 'BNR', name: 'Baner' },
+    ],
+    departments: [
+      { code: 'GENMED', name: 'General Medicine', specialty: 'general_medicine' },
+      { code: 'CARDIO', name: 'Cardiology', specialty: 'cardiology' },
+      { code: 'ORTHO', name: 'Orthopaedics', specialty: 'orthopaedics' },
+      { code: 'PAEDS', name: 'Paediatrics', specialty: 'paediatrics' },
     ],
     users: [
       // A hospital has no System Super Admin — that role belongs to the PLATFORM org (ADR-022).
@@ -167,6 +175,26 @@ async function upsertBranch(
   });
 }
 
+async function seedDepartment(
+  tenantId: string,
+  d: { code: string; name: string; specialty?: string },
+): Promise<void> {
+  await runWithTenant(tenantId, async (tx) => {
+    const existing = (
+      await tx
+        .select()
+        .from(departments)
+        .where(and(eq(departments.tenantId, tenantId), eq(departments.code, d.code)))
+        .limit(1)
+    )[0];
+    if (!existing) {
+      await tx
+        .insert(departments)
+        .values({ tenantId, code: d.code, name: d.name, specialtyCode: d.specialty ?? null });
+    }
+  });
+}
+
 async function seedTenant(t: SeedTenant): Promise<void> {
   // Tenant (platform-managed; no RLS).
   let tenant = (await db.select().from(tenants).where(eq(tenants.code, t.code)).limit(1))[0];
@@ -182,6 +210,8 @@ async function seedTenant(t: SeedTenant): Promise<void> {
   await provisionTenantRbac(tenant.id);
 
   for (const b of t.branches) await upsertBranch(tenant.id, b);
+
+  for (const d of t.departments ?? []) await seedDepartment(tenant.id, d);
 
   for (const m of t.modules ?? MVP_MODULES) await grantModule(tenant.id, m, { reason: 'demo seed' });
 

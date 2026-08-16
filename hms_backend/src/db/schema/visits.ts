@@ -4,6 +4,7 @@ import { tenants } from './tenants';
 import { patients } from './patients';
 import { providers } from './providers';
 import { appointments } from './appointments';
+import { departments } from './departments';
 
 // Visit / encounter (OPD & Check-in, development-plan §11). The record that a consultation, and
 // later every order and charge, hangs off. Created at check-in. `token_number` is the day's
@@ -28,7 +29,12 @@ export const visits = pgTable(
     tokenNumber: integer('token_number').notNull(),
     visitDate: date('visit_date').notNull(),
     visitType: varchar('visit_type', { length: 20 }).notNull().default('opd'),
+    // `department` is the original free-text field and stays for the visits that already carry
+    // one — dropping it would rewrite history. New check-ins set `departmentId` instead, and the
+    // service writes the department's name into `department` too so existing reads keep working
+    // (ADR-050). The text column is deprecated; it goes when no row needs it.
     department: varchar('department', { length: 80 }),
+    departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
     status: varchar('status', { length: 20 }).notNull().default('checked_in'), // checked_in | in_consultation | completed | cancelled
     reason: varchar('reason', { length: 500 }),
     checkedInBy: uuid('checked_in_by'),

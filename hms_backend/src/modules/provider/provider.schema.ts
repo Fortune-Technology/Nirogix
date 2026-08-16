@@ -39,6 +39,8 @@ export const AssignSpecialtyBody = z
   .object({
     specialtyCode: z.string().openapi({ example: 'cardiology' }),
     branchId: z.string().uuid().optional(),
+    /** The department this provider works in (ADR-050). Must be one of this hospital's own. */
+    departmentId: z.string().uuid().optional(),
     role: z.string().optional().openapi({ example: 'consultant' }),
     isPrimary: z.boolean().optional(),
   })

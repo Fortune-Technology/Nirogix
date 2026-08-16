@@ -225,6 +225,8 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     </ul></div>
     <div class="navgroup"><div class="navgroup-label">Organization modules</div><ul>
       <li><a href="#m-providers">Providers &amp; Specialties</a></li>
+      <li><a href="#m-departments">Departments</a></li>
+      <li><a href="#m-setup">Hospital Setup Console</a></li>
       <li><a href="#m-users">User Management</a></li>
       <li><a href="#m-branches">Branch Management</a></li>
       <li><a href="#m-profile">Self-service profile</a></li>
@@ -259,12 +261,12 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </aside>
 <main>
 <header class="cover">
-  <div class="eyebrow">Internal · Marketing Enablement · Version 1.0</div>
+  <div class="eyebrow">Internal · Marketing Enablement · Version 1.2</div>
   <h1 class="title">Product Capability Reference</h1>
   <p class="subtitle">The single source of truth for what Nirogix can actually do today, what is being built, what is on the roadmap, and what must never be presented as a product capability. Written for the marketing team; derived from the implemented product, the approved PRD, the architecture, and the phase roadmap.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>Nirogix</dd></div>
-    <div><dt>Version</dt><dd>1.0</dd></div>
+    <div><dt>Version</dt><dd>1.2</dd></div>
     <div><dt>Last updated</dt><dd>16/08/2026</dd></div>
     <div><dt>Development phase</dt><dd>Phase 0 + MVP 0/1</dd></div>
     <div><dt>Release state</dt><dd>Pre-release</dd></div>
@@ -319,7 +321,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <div class="stat"><div class="k">Modules built</div><div class="v">7</div><div class="n">Clinic-core clinical modules</div></div>
     <div class="stat"><div class="k">Platform core</div><div class="v">14</div><div class="n">Foundation capabilities built</div></div>
     <div class="stat"><div class="k">Roles</div><div class="v">8</div><div class="n">Seeded system roles</div></div>
-    <div class="stat"><div class="k">Permission keys</div><div class="v">42</div><div class="n">Enforced server-side</div></div>
+    <div class="stat"><div class="k">Permission keys</div><div class="v">45</div><div class="n">Enforced server-side</div></div>
     <div class="stat"><div class="k">Modules planned</div><div class="v">18+</div><div class="n">Phase 2–4, none built</div></div>
     <div class="stat"><div class="k">In production</div><div class="v">No</div><div class="n">Pre-release, staging pending</div></div>
   </div>
@@ -365,6 +367,8 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Multi-tenant, multi-branch platform</td><td><span class="b b-built">Built</span></td><td>Database-enforced isolation per hospital; unlimited branches per tenant.</td></tr>
       <tr data-status="built"><td>Role-based access &amp; audit</td><td><span class="b b-built">Built</span></td><td>Eight seeded roles, per-user grant/deny overrides, and an append-only audit trail.</td></tr>
       <tr data-status="built"><td>Tenant branding</td><td><span class="b b-built">Built</span></td><td>Each hospital's own colour, logo and favicon across the Portal and its printed documents.</td></tr>
+      <tr data-status="built"><td>Departments</td><td><span class="b b-built">Built</span></td><td>The clinical departments a hospital runs, with a head of department; doctors belong to them and check-in routes by them.</td></tr>
+      <tr data-status="built"><td>Hospital setup console</td><td><span class="b b-built">Built</span></td><td>One place the hospital's administrator configures the hospital, with progress measured from real records, and the registered details that print on every document.</td></tr>
       <tr data-status="no"><td>In-patient, OT, radiology, insurance, HR, telemedicine, ABDM exchange, WhatsApp, payment gateway, mobile apps, patient portal</td><td><span class="b b-no">Not available</span></td><td>None of these exist. They are roadmap scope and must be described as planned or not mentioned.</td></tr>
     </tbody>
   </table>
@@ -679,7 +683,8 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Branding on printed documents</td><td><span class="b b-built">Built</span></td><td>Automatic</td><td>Name, logo and accent on the invoice and the lab report.</td></tr>
       <tr data-status="built"><td>Light and Dark themes</td><td><span class="b b-built">Built</span></td><td>Every user</td><td>Light is the default; the choice is per user.</td></tr>
       <tr data-status="planned"><td>Per-branch branding overrides</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The schema supports a branch; there is no interface.</td></tr>
-      <tr data-status="planned"><td>Hospital address, phone, website and GST number on documents</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>Not yet fields in the product, so documents deliberately show no placeholder.</td></tr>
+      <tr data-status="built"><td>Hospital address, phone, email, website, registration number and GSTIN</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Maintained under Hospital configuration and printed in the document header. Every field is optional; an unset line is omitted rather than filled with a placeholder.</td></tr>
+      <tr data-status="planned"><td>Per-branch address and contact details</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The profile is organization-level, so every branch prints the same header today.</td></tr>
       <tr data-status="planned"><td>Custom typography per hospital</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The token layer allows it; no interface exposes it.</td></tr>
       <tr data-status="no"><td>Branded outbound email templates</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Email carries no tenant branding today.</td></tr>
       <tr data-status="no"><td>Custom domain per hospital (white-label URL)</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Every hospital signs in at the same Nirogix Portal host.</td></tr>
@@ -774,7 +779,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="planned"><td>Prescription print-out</td><td><span class="b b-planned">Planned</span></td><td>Doctor</td><td>Prescriptions are recorded and dispensed, but there is no printed prescription document.</td></tr>
       <tr data-status="planned"><td>Patient record / summary print-out</td><td><span class="b b-planned">Planned</span></td><td>Doctor</td><td>Not built.</td></tr>
       <tr data-status="planned"><td>Server-generated PDF files (attachable, emailable)</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Nothing produces a PDF file on the server today.</td></tr>
-      <tr data-status="planned"><td>Hospital address and GST number in the document header</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Those fields do not exist yet, so nothing invented is printed.</td></tr>
+      <tr data-status="built"><td>Hospital address, registration number and GSTIN in the document header</td><td><span class="b b-built">Built</span></td><td>Automatic</td><td>Taken from the hospital information the administrator maintains. A hospital that has configured nothing still prints name and logo only.</td></tr>
       <tr data-status="no"><td>GST e-invoice (IRN / QR) </td><td><span class="b b-no">Not available</span></td><td>—</td><td>Never describe our invoice as a compliant GST e-invoice.</td></tr>
       <tr data-status="no"><td>Digital or cryptographic signatures</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Signature blocks are printed lines, nothing more.</td></tr>
     </tbody>
@@ -1282,6 +1287,98 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </div>
 </section>
 
+<section id="m-departments">
+<div class="mod">
+  <div class="mod-head"><div class="top"><h3>Departments</h3><span class="b b-built">Built</span></div>
+  <p class="tagline">The clinical departments a hospital runs — doctors belong to them, check-in routes by them.</p></div>
+  <dl class="mod-facts">
+    <div><dt>Purpose</dt><dd>Organise the hospital clinically</dd></div>
+    <div><dt>Users</dt><dd>Org Admin maintains; front desk and doctors use</dd></div>
+    <div><dt>Phase</dt><dd>Platform Core</dd></div>
+    <div><dt>Depends on</dt><dd>Branches</dd></div>
+    <div><dt>Related</dt><dd>Providers, OPD, Setup Console</dd></div>
+  </dl>
+  <div class="mod-body">
+    <p>A department carries a code unique to the hospital, a name, an optional specialty, an optional head of department, and either applies organization-wide or to one branch. Doctors are assigned to departments, and the front desk routes a check-in to one.</p>
+    <p>Departments are <strong>deactivated, never deleted</strong>: visits and consultations reference them, and last year's register has to keep naming the department it happened in. Deactivating one tells you how many doctors are attached before you confirm, and the action is recorded in the audit trail.</p>
+  </div>
+  <details class="exp" open><summary>Capabilities</summary><div class="inner"><div class="tablewrap compact"><table>
+    <thead><tr><th style="width:32%">Capability</th><th style="width:15%">Status</th><th style="width:27%">Roles permitted</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr data-status="built"><td>View departments</td><td><span class="b b-built">Built</span></td><td>Org Admin, Branch Admin, Doctor, Receptionist</td><td><code>platform.departments.view</code></td></tr>
+      <tr data-status="built"><td>Search, sort, filter, choose columns</td><td><span class="b b-built">Built</span></td><td>Same as view</td><td>Shared table behaviour.</td></tr>
+      <tr data-status="built"><td>Create a department</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td><code>platform.departments.manage</code>; the code is unique within the hospital.</td></tr>
+      <tr data-status="built"><td>Edit name, description and specialty</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>—</td></tr>
+      <tr data-status="built"><td>Assign a head of department</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Must be one of the hospital's own doctors.</td></tr>
+      <tr data-status="built"><td>Scope a department to one branch</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Or leave it organization-wide, which is the default.</td></tr>
+      <tr data-status="built"><td>Activate / deactivate</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Confirmation states the attached doctor count; audited.</td></tr>
+      <tr data-status="built"><td>See how many doctors are in a department</td><td><span class="b b-built">Built</span></td><td>Same as view</td><td>Live count on the list.</td></tr>
+      <tr data-status="built"><td>Assign a doctor to a department</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Alongside their specialty and branch.</td></tr>
+      <tr data-status="built"><td>Route a check-in to a department</td><td><span class="b b-built">Built</span></td><td>Receptionist</td><td>Only active departments are offered, and a retired one is refused.</td></tr>
+      <tr data-status="planned"><td>Sub-departments</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Not planned as a separate entity — a procedure will be a service within a department once the service catalogue exists.</td></tr>
+      <tr data-status="planned"><td>Department-wise queues and registers</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>The data is now captured; the reports are not split by department yet.</td></tr>
+      <tr data-status="planned"><td>Department-level targets, revenue or costing</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Needs Financial Management (Phase 2).</td></tr>
+      <tr data-status="no"><td>Delete a department</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Deliberate — clinical records reference them.</td></tr>
+    </tbody>
+  </table></div></div></details>
+  <details class="exp"><summary>Marketing guidance</summary><div class="inner"><div class="mg">
+    <div class="box say"><div class="h">Safe to say</div>
+      <p><q>Set up the departments your hospital runs, give each one a head, assign your doctors to them, and route check-in by department. Retire a department and its history stays intact.</q></p></div>
+    <div class="box dont"><div class="h">Do not claim</div>
+      <p><q>Sub-departments and procedure catalogues</q>, <q>department-wise revenue</q>, <q>department queues and display boards</q> — none of these exist yet.</p></div>
+  </div></div></details>
+</div>
+</section>
+
+<section id="m-setup">
+<div class="mod">
+  <div class="mod-head"><div class="top"><h3>Hospital Setup Console</h3><span class="b b-built">Built</span></div>
+  <p class="tagline">One place a hospital's administrator configures the hospital, with progress measured from real data rather than remembered.</p></div>
+  <dl class="mod-facts">
+    <div><dt>Purpose</dt><dd>Get a newly onboarded hospital operational</dd></div>
+    <div><dt>Users</dt><dd>Organization Admin</dd></div>
+    <div><dt>Phase</dt><dd>Platform administration surface</dd></div>
+    <div><dt>Depends on</dt><dd>Branding, Branches, Providers, Users</dd></div>
+    <div><dt>Related</dt><dd>Printing, Entitlements</dd></div>
+  </dl>
+  <div class="mod-body">
+    <p>After Nirogix onboards a hospital, its own administrator opens <strong>Hospital configuration</strong> and works through what the platform needs: the hospital's registered details, its branding, its branches, its doctors, its staff and their roles, and the laboratory and pharmacy catalogues where those modules are enabled. Progress is computed from the hospital's real records every time the screen loads, so a hospital that later loses its last branch is told so. It is not a one-time wizard — the same console remains the permanent home of this configuration.</p>
+    <p>The console covers the areas the product genuinely has. There is no tab for departments, sub-departments, procedures, services, packages, treatment plans, wards, rooms or beds, because none of those exist in the product — see the roadmap. A screen that opened onto an unbuilt area would be the clearest kind of overclaim.</p>
+  </div>
+  <details class="exp" open><summary>Capabilities</summary><div class="inner"><div class="tablewrap compact"><table>
+    <thead><tr><th style="width:32%">Capability</th><th style="width:15%">Status</th><th style="width:27%">Roles permitted</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr data-status="built"><td>Setup progress and checklist</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td><code>platform.organization.manage</code>; derived from live data, never a stored flag.</td></tr>
+      <tr data-status="built"><td>Per-step counts ("2 branches", "3 doctors")</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Read from the hospital's own records.</td></tr>
+      <tr data-status="built"><td>Dependency order made visible</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>A step waiting on another says so rather than being hidden.</td></tr>
+      <tr data-status="built"><td>Steps follow module entitlement</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>A hospital without Laboratory is never told its test master is missing.</td></tr>
+      <tr data-status="built"><td>Maintain the hospital's registered details</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Legal name, address, city, state, PIN, country, phone, email, website, registration number, GSTIN.</td></tr>
+      <tr data-status="built"><td>Preview of how the document header will print</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>The same lines the invoice and lab report use.</td></tr>
+      <tr data-status="built"><td>See which modules are enabled</td><td><span class="b b-built">Built</span></td><td>Any signed-in user</td><td>Read-only — entitlements are granted by Nirogix.</td></tr>
+      <tr data-status="built"><td>Setup nudge on the dashboard</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Names the next step, and disappears once setup is complete.</td></tr>
+      <tr data-status="built"><td>Configuration stays editable afterwards</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>The console is not a one-way wizard.</td></tr>
+      <tr data-status="built"><td>Changes to the hospital's details are audited</td><td><span class="b b-built">Built</span></td><td>System</td><td>Actor and changed field names recorded.</td></tr>
+      <tr data-status="built"><td>Departments</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>A real entity with branch scoping, head of department and activate/deactivate. See the Departments module.</td></tr>
+      <tr data-status="planned"><td>Sub-departments</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Not a separate entity, and not planned as one: a procedure will be a service within a department once the service catalogue lands.</td></tr>
+      <tr data-status="planned"><td>Services, packages and procedures</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>The lab test master and drug master are the only priced catalogues.</td></tr>
+      <tr data-status="planned"><td>Ward, room and bed setup</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Belongs to in-patient, which is Phase 2.</td></tr>
+      <tr data-status="planned"><td>Billing, tax and payment configuration</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>No rate lists, tax profiles or numbering series.</td></tr>
+      <tr data-status="planned"><td>Appointment and scheduling configuration</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>No roster editor; nothing to configure yet.</td></tr>
+      <tr data-status="no"><td>Treatment plan configuration</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Not in the product plan at all. Never mentioned, even as roadmap.</td></tr>
+      <tr data-status="no"><td>Self-service module purchase from the console</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Entitlements are granted by Nirogix.</td></tr>
+    </tbody>
+  </table></div></div></details>
+  <details class="exp"><summary>Marketing guidance</summary><div class="inner"><div class="mg">
+    <div class="box say"><div class="h">Safe to say</div>
+      <p><q>After we set your hospital up, your administrator gets one console that shows exactly what is configured and what is next — branches, doctors, staff and access, your branding, and your hospital's registered details. Progress is measured from your real records, not a checkbox someone ticked.</q></p>
+      <p><q>Your registered address, registration number and GSTIN print on every invoice and report.</q></p></div>
+    <div class="box dont"><div class="h">Do not claim</div>
+      <p><q>Configure departments, services, packages, treatment plans, wards and beds.</q> — none of these exist. This is the single highest overclaim risk in the product, because the console looks like the place they would live.</p>
+      <p><q>Set up your hospital yourself in minutes.</q> — the tenant itself is created by our team, not by the customer.</p></div>
+  </div></div></details>
+</div>
+</section>
+
 <section id="m-users">
 <div class="mod">
   <div class="mod-head"><div class="top"><h3>User Management</h3><span class="b b-built">Built</span></div>
@@ -1535,7 +1632,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 
 <section id="roles">
   <h3>Role catalogue</h3>
-  <p class="lead">Eight roles are seeded into every hospital, holding between them 42 distinct permission keys. These are the roles the product actually defines — not an assumed org chart. A hospital's administrator can additionally grant or deny any single permission to any individual, including for a fixed period, which is how the real world's exceptions are handled without inventing a ninth role.</p>
+  <p class="lead">Eight roles are seeded into every hospital, holding between them 45 distinct permission keys. These are the roles the product actually defines — not an assumed org chart. A hospital's administrator can additionally grant or deny any single permission to any individual, including for a fixed period, which is how the real world's exceptions are handled without inventing a ninth role.</p>
   <div class="tablewrap"><table>
     <thead><tr><th style="width:17%">Role</th><th style="width:14%">Scope</th><th style="width:15%">Status</th><th>Purpose</th></tr></thead>
     <tbody>
@@ -1571,6 +1668,8 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Users &amp; roles</td><td class="c">All</td><td class="c">V C E M</td><td class="c">V</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
       <tr data-status="built"><td>Branches</td><td class="c">All</td><td class="c">V C E</td><td class="c">V</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
       <tr data-status="built"><td>Branding</td><td class="c">All</td><td class="c">M</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr data-status="built"><td>Departments</td><td class="c">All</td><td class="c">V C E M</td><td class="c">V</td><td class="c">V</td><td class="c">V</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr data-status="built"><td>Hospital information &amp; setup</td><td class="c">All</td><td class="c">V M</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
       <tr data-status="built"><td>Audit log</td><td class="c">All</td><td class="c">V</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
       <tr data-status="built"><td>Notifications</td><td class="c">All</td><td class="c">V C</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
       <tr data-status="built"><td>Files / documents (API)</td><td class="c">All</td><td class="c">V C E</td><td class="c no">—</td><td class="c">V C</td><td class="c">V C</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
@@ -1602,7 +1701,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   <h4>Organization Admin — the hospital's own administrator</h4>
   <div class="tablewrap compact"><table><tbody>
     <tr data-status="built"><td style="width:22%"><strong>Scope</strong></td><td>One hospital, all of its branches.</td></tr>
-    <tr data-status="built"><td><strong>Administrative</strong></td><td>Create and suspend staff accounts, assign and remove roles, grant or deny an individual permission (optionally time-bound), create and edit branches, manage providers and specialties, set the hospital's branding, send a test notification and read the notification log.</td></tr>
+    <tr data-status="built"><td><strong>Administrative</strong></td><td>Create and suspend staff accounts, assign and remove roles, grant or deny an individual permission (optionally time-bound), create and edit branches, manage providers and specialties, set the hospital's branding, maintain the hospital's registered details, work the Hospital Setup Console, send a test notification and read the notification log.</td></tr>
     <tr data-status="built"><td><strong>Operational visibility</strong></td><td>Read-only on patients, appointments, the OPD queue and invoices.</td></tr>
     <tr data-status="built"><td><strong>Reporting</strong></td><td>All three operational reports, with CSV export.</td></tr>
     <tr data-status="built"><td><strong>Security</strong></td><td>Full read of the hospital's audit log; can delete stored files.</td></tr>
@@ -1713,7 +1812,17 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <b>Branches &amp; branding</b>
 ├── View branches ....................... platform.branches.view ...... <b>BUILT</b>
 ├── Create / edit branch ................ platform.branches.manage .... <b>BUILT</b>
-└── Set hospital branding ............... platform.branding.manage .... <b>BUILT</b>
+├── Set hospital branding ............... platform.branding.manage .... <b>BUILT</b>
+├── Hospital identity + setup status .... platform.organization.manage  <b>BUILT</b>
+└── Departments ......................... platform.departments.view|manage <b>BUILT</b>
+    ├── view, create, edit ............................................ <b>BUILT</b>
+    ├── activate / deactivate (audited) ............................... <b>BUILT</b>
+    ├── assign a head of department ................................... <b>BUILT</b>
+    ├── scope to a branch ............................................. <b>BUILT</b>
+    └── delete ........................................................ NOT AVAILABLE
+    ├── registered address, phone, email, website ..................... <b>BUILT</b>
+    ├── registration number, GSTIN .................................... <b>BUILT</b>
+    └── per-branch override ........................................... PLANNED
 
 <b>Audit, notifications &amp; files</b>
 ├── View audit log ...................... audit.log.view .............. <b>BUILT</b>
@@ -1747,7 +1856,8 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Reset to platform default</td><td><span class="b b-built">Built</span></td><td>One action.</td></tr>
       <tr data-status="built"><td>Document branding (invoice, lab report)</td><td><span class="b b-built">Built</span></td><td>Hospital name, logo and accent on both printable documents.</td></tr>
       <tr data-status="built"><td>Light and Dark themes</td><td><span class="b b-built">Built</span></td><td>Per user; branding is verified in both.</td></tr>
-      <tr data-status="planned"><td>Organization contact details on documents (address, phone, website, GST number)</td><td><span class="b b-planned">Planned</span></td><td>Not fields in the product yet; documents show nothing rather than a placeholder.</td></tr>
+      <tr data-status="built"><td>Organization contact details on documents (address, phone, email, website, registration number, GSTIN)</td><td><span class="b b-built">Built</span></td><td>Maintained under Hospital configuration → Hospital information, printed in the document header. Optional throughout — nothing is invented to fill a gap.</td></tr>
+      <tr data-status="planned"><td>Per-branch address and contact details</td><td><span class="b b-planned">Planned</span></td><td>Organization-level today, so every branch prints the same header.</td></tr>
       <tr data-status="planned"><td>Per-branch branding</td><td><span class="b b-planned">Planned</span></td><td>Data model supports it; no interface.</td></tr>
       <tr data-status="planned"><td>Custom typography</td><td><span class="b b-planned">Planned</span></td><td>Token layer supports it; no interface.</td></tr>
       <tr data-status="planned"><td>Letterhead and document templates per hospital</td><td><span class="b b-planned">Planned</span></td><td>Documents use one shared layout.</td></tr>
@@ -2025,14 +2135,16 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   <div class="tablewrap"><table>
     <thead><tr><th style="width:10%">Version</th><th style="width:14%">Date</th><th>Change</th><th style="width:14%">Status</th></tr></thead>
     <tbody>
-      <tr><td>1.0</td><td>16/08/2026</td><td>Initial capability catalogue. Documents Phase 0 platform core and the MVP 0/1 clinic core as built; the platform administration surface, role matrix and action-level permissions; branding, security, document and integration summaries; and the Phase 2–4 roadmap as planned or future. Adds the mandatory development rule that keeps this document synchronized with the implementation.</td><td>Current</td></tr>
+      <tr><td>1.2</td><td>16/08/2026</td><td>Departments shipped as a real entity (ADR-050) — new module card, added to the role matrix, the action-level tree (45 keys) and the setup console's step list. Sub-departments restated as <em>not planned as a separate entity</em>. Services and packages remain the one outstanding gap in ordinary clinic billing; treatment plans stay out of scope; ward, room and bed setup stays in Phase 2 with in-patient.</td><td>Current</td></tr>
+      <tr><td>1.1</td><td>16/08/2026</td><td>Hospital Setup Console and the organization profile shipped (ADR-049). New module card. The hospital's registered address, phone, email, website, registration number and GSTIN move to BUILT in the branding, printing and white-label sections, and now print in the document header. New permission <code>platform.organization.manage</code> added to the role matrix and the action-level tree (43 keys). Per-branch address, departments, sub-departments, services, packages, treatment plans and ward/bed setup are recorded as planned or unavailable rather than implied by an empty tab.</td><td>Superseded by 1.2</td></tr>
+      <tr><td>1.0</td><td>16/08/2026</td><td>Initial capability catalogue. Documents Phase 0 platform core and the MVP 0/1 clinic core as built; the platform administration surface, role matrix and action-level permissions; branding, security, document and integration summaries; and the Phase 2–4 roadmap as planned or future. Adds the mandatory development rule that keeps this document synchronized with the implementation.</td><td>Superseded by 1.1</td></tr>
     </tbody>
   </table></div>
   <p class="lead">Add one row per material update. Do not rewrite history — append.</p>
 </section>
 
 <footer>
-  <span>Nirogix · Marketing Product Capability Reference · v1.0</span>
+  <span>Nirogix · Marketing Product Capability Reference · v1.2</span>
   <span>Takoriya Technology LLP · Internal · 16/08/2026</span>
 </footer>
 </main>

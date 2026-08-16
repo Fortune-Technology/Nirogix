@@ -167,6 +167,9 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET|POST /api/v1/users` · `GET|PATCH /api/v1/users/{id}` · `POST /api/v1/users/{id}/roles` · `DELETE /api/v1/users/{id}/roles/{roleKey}` · `POST /api/v1/users/{id}/overrides` · `DELETE /api/v1/users/{id}/overrides/{overrideId}` — Org-Admin user/role/override management (`platform.users.*` / `platform.rbac.manage`)
 - `GET|POST /api/v1/branches` · `PATCH /api/v1/branches/{id}` — branch management (`platform.branches.*`)
 - `GET /api/v1/branding/current` (any authed — bootstrap) · `PUT|DELETE /api/v1/branding` · `POST /api/v1/branding/logo` · `POST /api/v1/branding/favicon` — tenant branding (`platform.branding.manage`)
+- `GET /api/v1/organization/profile` (any authed — document headers) · `PUT /api/v1/organization/profile` (`platform.organization.manage`) — the hospital's own identity (ADR-049)
+- `GET /api/v1/setup/status` — Hospital Setup progress, derived from real rows (`platform.organization.manage`, ADR-049)
+- `GET|POST /api/v1/departments` · `GET|PATCH /api/v1/departments/{id}` — the hospital's clinical departments (`platform.departments.view|manage`, ADR-050)
 - `GET /api/v1/admin/stats` — platform-wide aggregates (super-admin; **aggregate-only**, ADR-023) · `GET /api/v1/dashboard/summary` — the caller's own-tenant roll-up (RLS-scoped)
 - `GET /api/v1/rbac/permissions` (my effective permissions) · `GET /api/v1/rbac/roles` (requires `platform.roles.view`)
 - `GET /api/v1/entitlements` (entitled modules) · `GET /api/v1/ipd/beds` (requireModule demonstrator — IPD is Phase 2)
@@ -184,6 +187,26 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Endpoints:** `GET /branding/current` (any authenticated user — feeds the Portal's session bootstrap), `PUT /branding` + `DELETE /branding` (reset) + `POST /branding/logo|favicon` — all editing gated by `platform.branding.manage` (org_admin). Colours validated as `#RRGGBB`.
 - The Portal applies branding by setting the `--hms-*` CSS vars from `GET /branding/current` at bootstrap — the same seam the old localStorage demo used, so nothing in the design system changed.
 - Verified live: colour update persists + reads back; logo upload returns a URL; bad hex → 422; reset clears; a receptionist → **403**.
+
+## Departments (ADR-050)
+
+- **Model:** `departments` — tenant-scoped (so RLS applies mechanically), nullable `branch_id` following the platform convention (**NULL = organization-wide**), `code` unique within the tenant, `name`, `description`, optional `specialty_code` (ties to the FHIR-aligned specialty catalog rather than starting a second taxonomy), optional `head_provider_id` (`set null` — losing a head must not make the department unreadable), `is_active`. Migration `drizzle/0018_sour_ted_forrester.sql`.
+- **Not module-gated.** A department is organisational structure every entitled clinical module reads, exactly like a branch — Platform Core, not a purchasable module. `requireModule` would be wrong here.
+- **Links:** `practitioner_roles.department_id` (a provider works in a department) and `visits.department_id` (check-in routes by one). Both nullable and `set null`.
+- **The legacy column stays.** `visits.department` is the original free-text field; check-in writes the department's *name* into it as well as setting `department_id`, so every existing read keeps working. Deprecated, and goes when no row needs it.
+- **Never deleted.** Visits and encounters reference departments and last year's register must still name one, so the only lifecycle action is activate/deactivate — audited at `notice`, with the attached doctor count in the metadata.
+- **Referential rules live in the service, not only the request schema:** a department cannot be scoped to another hospital's branch, headed by another hospital's provider, or reuse a code; a visit cannot be checked into another tenant's or a retired department. The uppercase-code normalisation is in the service for the same reason — it was in the Zod schema only, and the seed happily created `ortho` beside `ORTHO` because the unique index is case-sensitive.
+- Verified live: four seeded departments for CITYCARE, receptionist **200** on read / **403** on create, pharmacist **403** on read, and a CITYCARE department id returns **404** to SUNRISE while CITYCARE reads it with 200.
+
+## Organization profile & Hospital Setup (ADR-049)
+
+- **Model:** `organization_profile` — one row per tenant (`organization_profile_tenant_unique`), **tenant-scoped so it inherits the RLS policy automatically**. Registered/legal name, two address lines, city, state, PIN, country, phone, email, website, registration number, GSTIN, `version`. Migration `drizzle/0017_certain_silver_surfer.sql`. It is a separate table from `tenants` on purpose: `tenants` is the tenancy boundary and is platform-managed, this is data the hospital owns and edits.
+- **`organization.service`:** `getOrganizationProfile` (joins the tenant's provisioned name/code, composes `contactLines` in document order, and reports `isComplete` when the fields a tax-invoice header needs are present), `updateOrganizationProfile` (partial — an omitted field is untouched, an empty string clears it; writes an `organization.profile.update` audit entry naming the changed fields), `buildContactLines` (pure, unit-tested).
+- **Endpoints:** `GET /organization/profile` needs only authentication — printed documents and the Portal header need it, and RLS already means "of this tenant". `PUT` requires `platform.organization.manage`. Validation is Indian-context: 6-digit PIN, 15-character GSTIN, full URL for the website.
+- **`setup.service`:** `getSetupStatus` derives every step from real rows on each read — profile, branding, branches, departments, providers, staff, roles, plus the lab test master and drug master **only when the tenant is entitled to those modules**. No stored completion flag exists, so the status stays true when configuration changes later. Counts carry an explicit `tenant_id` predicate on top of RLS (ADR-015) — without it a privileged local connection counted every tenant's rows.
+- **Deliberately absent:** no step for sub-departments, procedures, services, packages, treatment plans, wards, rooms or beds. None of those exist in the model (IPD is Phase 2), and a setup step for an unbuilt area is a promise the product cannot keep — `BACKLOG.md` E-1, E-3…E-8. Departments joined the list when they became a real entity (ADR-050).
+- **`reconcileSystemRoles()`** (in `rbac.service`, run by `db:migrate`) brings every existing tenant's system roles up to date with `@hms/permissions`. Additive only and idempotent — without it, a permission key added after a tenant was onboarded is enforced by the routes but held by nobody.
+- Verified live: org_admin 6/8 → 7/8 after saving the profile; receptionist **403** on `/setup/status` and on `PUT /organization/profile` but **200** on the read; SUNRISE unaffected by CITYCARE's details; invalid GSTIN → 422 with its own message.
 
 ## Observability & Ops
 

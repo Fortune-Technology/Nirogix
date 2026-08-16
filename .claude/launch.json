@@ -8,6 +8,12 @@
       "port": 3000
     },
     {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=hms_backend"],
+      "port": 4000
+    },
+    {
       "name": "marketing",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=marketing"],

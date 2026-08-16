@@ -33,7 +33,12 @@ app/
     dashboard/page.tsx  Role-aware roll-up — platform stats (super-admin) or org summary (others)
     providers/page.tsx  Provider directory — Standard DataTable + live API (guarded by providers.view)
     audit/page.tsx      Audit log — paginated DataTable (guarded by audit.log.view)
-    settings/page.tsx   Theme + tenant-branding demonstration
+    settings/            HOSPITAL CONFIGURATION CONSOLE (ADR-049) — tabbed layout
+      layout.tsx         Page header + tab nav, shared by every tab
+      page.tsx           Setup overview: derived progress, step checklist, area grid
+      organization/      The hospital's identity — address, contact, registration, GSTIN
+      branding/          Accent colour, logo, favicon (moved out of the old settings page)
+      modules/           Entitled modules, read-only (entitlements are granted by Nirogix)
 lib/
   api.ts                Typed fetch client: Bearer + silent refresh-on-401 + canonical error unwrap
   auth.tsx              AuthProvider + useAuth + useCan — session & capabilities context
@@ -63,12 +68,22 @@ components/
 - **Keys come from `@hms/permissions`** — the same module the backend enforces with, so the menu and server never drift.
 - Verified live (CITYCARE demo): **org_admin** sees Dashboard/Providers/Audit/Settings; **receptionist** sees only Dashboard/Settings, and a direct hit to `/providers` renders the 403 panel with **no `/providers` API call made**.
 
+## Hospital Configuration console (ADR-049)
+
+- **`/settings` is the console**, not a personal settings page. A tab layout over `/settings` (setup overview), `/settings/organization` (the hospital's identity), `/settings/branding` and `/settings/modules`, gated on `platform.organization.manage`. It appears in the sidebar's *Organization* group as **Hospital setup**.
+- **Progress is derived, never stored.** `components/settings/SetupChecklist.tsx` renders `GET /setup/status`: each step shows its real count, a step whose dependency is unmet says what it is waiting on rather than hiding, and a step the user cannot perform says so instead of offering a dead link. `SetupProgressCard` puts the same status on the Hospital Admin dashboard and **removes itself once setup is complete**.
+- **The console links, it does not duplicate.** Branches, departments, providers, users, the lab test master and the drug master keep their own screens; the overview grid is how an administrator finds them. There is no tab for sub-departments, services, packages, treatment plans or wards — the product has none (`BACKLOG.md` E-1, E-3…E-8).
+- **`/departments` (ADR-050)** — the Standard DataTable plus a create form whose branch and head pickers offer only this hospital's own records. The row action is a **toggle, not a delete** (visits reference departments), and its confirmation states how many doctors are attached. Check-in offers **active departments only**.
+- **Setup is not a wizard.** There is no completion flag and no one-way flow; every area stays editable afterwards through the same console.
+- **Appearance moved to `/profile`.** A theme is one person's preference, not the hospital's configuration.
+- **Printed documents carry the hospital's identity:** `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines` into `PrintDocument`. An unconfigured hospital still prints name and logo only — nothing is invented.
+
 ## Design system & theming
 
 - **@hms/ui is the only source of visual tokens.** `import '@hms/ui/styles.css'` (once, in the root layout) defines the `--hms-*` custom properties (colour, radius, type, shadow) — **Light under `:root` (default), Dark under `[data-theme="dark"]`**. Primitives (`Button`, `Field`, `Card`, `Badge`, `Alert`, `Spinner`, `DataTable`) are built entirely on those tokens; nothing hardcodes a raw value.
 - **Tailwind shares the tokens.** `globals.css` maps `--hms-*` into Tailwind's `@theme` (`bg-surface`, `text-fg-muted`, `border-border`, `bg-brand`, `rounded-token`…), so app-level layout utilities use the exact same values as the primitives.
 - **Theme** (`lib/theme.tsx`): `data-theme` on `<html>` toggles Light/Dark; persisted to `localStorage`; a no-flash inline script applies it before first paint. Default is **Light**.
-- **Tenant branding (server-persisted, ADR-021):** the accent is a single token (`--hms-brand`). `theme.tsx` exposes `applyBranding(b)` (sets **only** `--hms-brand` — hover, pressed, subtle and the focus ring derive from it in the token layer, ADR-040 — swaps the favicon, tracks the logo URL) and `previewBrandColor(hex)` (live preview while editing). `components/BrandingLoader` (mounted in the authenticated shell) fetches `GET /branding/current` at bootstrap and applies it; a cached brand colour in `localStorage` lets the no-flash script paint it before hydration. The **Settings → Branding** editor (org_admin, `platform.branding.manage`) is a real colour picker + logo/favicon upload + reset, persisted via the branding API. `AppShell` shows the uploaded logo. No component hardcodes colour — branding is a token swap.
+- **Tenant branding (server-persisted, ADR-021):** the accent is a single token (`--hms-brand`). `theme.tsx` exposes `applyBranding(b)` (sets **only** `--hms-brand` — hover, pressed, subtle and the focus ring derive from it in the token layer, ADR-040 — swaps the favicon, tracks the logo URL) and `previewBrandColor(hex)` (live preview while editing). `components/BrandingLoader` (mounted in the authenticated shell) fetches `GET /branding/current` at bootstrap and applies it; a cached brand colour in `localStorage` lets the no-flash script paint it before hydration. The **Hospital configuration → Branding** tab (org_admin, `platform.branding.manage`) is a real colour picker + logo/favicon upload + reset, persisted via the branding API. `AppShell` shows the uploaded logo. No component hardcodes colour — branding is a token swap.
 - Verified in **Light and Dark** and under a **non-default brand**.
 
 ## shadcn/ui — CLI + reference layer (ADR-028)

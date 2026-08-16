@@ -8,7 +8,9 @@ export const CheckInBody = z
     appointmentId: z.string().uuid().nullable().optional(),
     providerId: z.string().uuid().nullable().optional(),
     branchId: z.string().uuid().nullable().optional(),
+    /** Deprecated free-text department — send `departmentId` instead (ADR-050). */
     department: z.string().max(80).nullable().optional(),
+    departmentId: z.string().uuid().nullable().optional(),
     reason: z.string().max(500).nullable().optional(),
     consultationFeePaise: z.number().int().min(0),
   })
@@ -52,6 +54,7 @@ export const VisitSchema = z
     visitType: z.string(),
     status: z.string(),
     department: z.string().nullable(),
+    departmentId: z.string().nullable(),
     reason: z.string().nullable(),
     checkedInAt: z.string(),
     completedAt: z.string().nullable(),

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Badge, Button, Card, Field } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Patient, Provider } from "@hms/types";
+import type { Department, Patient, Provider } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -19,6 +19,8 @@ function CheckInForm() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Patient[]>([]);
   const [providerId, setProviderId] = useState("");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentId, setDepartmentId] = useState("");
   const [feeRupees, setFeeRupees] = useState("500");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,8 @@ function CheckInForm() {
 
   useEffect(() => {
     api.listProviders().then(setProviders).catch(() => setProviders([]));
+    // Only active departments are offered — the server refuses a retired one anyway (ADR-050).
+    api.listDepartments({ activeOnly: true }).then(setDepartments).catch(() => setDepartments([]));
     const pid = params.get("patientId");
     if (pid) api.getPatient(pid).then(setPatient).catch(() => {});
     const prov = params.get("providerId");
@@ -63,6 +67,7 @@ function CheckInForm() {
         patientId: patient.id,
         appointmentId: appointmentId ?? undefined,
         providerId: providerId || undefined,
+        departmentId: departmentId || undefined,
         reason: reason || undefined,
         consultationFeePaise: rupeesToPaise(fee),
       });
@@ -124,6 +129,15 @@ function CheckInForm() {
 
         <Card header="Visit">
           <div className="grid gap-4 sm:grid-cols-2">
+            <label className="hms-field">
+              <span className="hms-label">Department (optional)</span>
+              <select className="hms-input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                <option value="">Not specified</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </label>
             <label className="hms-field">
               <span className="hms-label">Provider (optional)</span>
               <select className="hms-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>

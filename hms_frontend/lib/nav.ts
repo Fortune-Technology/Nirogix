@@ -17,6 +17,7 @@ import {
   GitBranch,
   ScrollText,
   Settings,
+  Network,
 } from "lucide-react";
 
 // The Portal's primary navigation. Each item names the permission required to see
@@ -112,17 +113,22 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
   {
     label: "Organization",
     items: [
+      { label: "Departments", href: "/departments", perm: PERMISSIONS.DEPARTMENT_VIEW, icon: Network },
       { label: "Providers", href: "/providers", perm: PERMISSIONS.PROVIDER_VIEW, icon: Stethoscope },
       { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW, icon: UserCog },
       { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
+      // The Hospital Configuration console (ADR-049) — where a hospital's administrator
+      // sets the organization up and sees how far that has got.
+      { label: "Hospital setup", href: "/settings", perm: PERMISSIONS.ORG_PROFILE_MANAGE, icon: Settings },
       { label: "Audit log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },
   {
     label: "Account",
     items: [
+      // Appearance is a per-user preference and lives on the profile, not in the
+      // hospital's configuration — one person's dark mode is not a hospital setting.
       { label: "My profile", href: "/profile", perm: null, icon: UserCircle },
-      { label: "Settings", href: "/settings", perm: null, icon: Settings },
     ],
   },
 ];

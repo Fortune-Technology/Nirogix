@@ -13,6 +13,15 @@ export const PERMISSIONS = {
   BRANCHES_VIEW: 'platform.branches.view',
   BRANCHES_MANAGE: 'platform.branches.manage',
   BRANDING_MANAGE: 'platform.branding.manage',
+  // The hospital's own identity — registered address, contact and statutory numbers — plus the
+  // Hospital Setup Console that reads how far configuration has got (ADR-049). Separate from
+  // BRANDING_MANAGE on purpose: a GSTIN is not a colour, and a tenant may want the person who
+  // sets its legal details to be someone other than the person who picks its logo.
+  ORG_PROFILE_MANAGE: 'platform.organization.manage',
+  // Departments — the hospital's clinical organisation (ADR-050). Viewing is wide (the front
+  // desk books into a department, the doctor works one); maintaining the list is org_admin.
+  DEPARTMENT_VIEW: 'platform.departments.view',
+  DEPARTMENT_MANAGE: 'platform.departments.manage',
   // Platform operator surface (ADR-037). Held only by the vendor's own staff in the
   // PLATFORM org — never granted to a hospital's org_admin.
   PLATFORM_SUPPORT_VIEW: 'platform.support.view', // see support sessions + tenant detail for support
@@ -103,7 +112,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Administers the organization',
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
-      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
+      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.ORG_PROFILE_MANAGE,
+      P.DEPARTMENT_VIEW, P.DEPARTMENT_MANAGE,
+      P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
       P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
@@ -114,7 +125,10 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'branch_admin',
     name: 'Branch Admin',
     description: 'Administers a branch',
-    permissions: [P.USERS_VIEW, P.BRANCHES_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW],
+    permissions: [
+      P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
+    ],
   },
   {
     key: 'doctor',
@@ -124,6 +138,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE,
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
+      P.DEPARTMENT_VIEW,
     ],
   },
   {
@@ -134,6 +149,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
       P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
+      P.DEPARTMENT_VIEW, // and the department it books into
       P.FILE_VIEW, P.FILE_UPLOAD,
     ],
   },
