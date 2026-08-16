@@ -12,6 +12,14 @@ export async function getStats(_req: Request, res: Response): Promise<void> {
   res.json(await svc.getPlatformStats());
 }
 
+// Every series is derived from real `created_at` rows and the audit log (ADR-043);
+// the window is clamped so one request cannot ask for an unbounded scan.
+export async function getTrends(req: Request, res: Response): Promise<void> {
+  const raw = Number(req.query.months ?? 12);
+  const months = Number.isFinite(raw) ? Math.min(36, Math.max(3, Math.trunc(raw))) : 12;
+  res.json(await svc.getPlatformTrends(months));
+}
+
 function toTenant(t: { id: string; code: string; name: string; status: string; createdAt: Date }) {
   return { id: t.id, code: t.code, name: t.name, status: t.status, createdAt: t.createdAt.toISOString() };
 }

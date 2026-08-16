@@ -250,6 +250,60 @@ export interface PlatformStats {
   appointments: number | null;
 }
 
+/** One period of a platform trend — the count created in it, plus the running total. */
+export interface TrendPoint {
+  /** `YYYY-MM` for a monthly series, `YYYY-MM-DD` for a daily one. */
+  period: string;
+  created: number;
+  cumulative: number;
+}
+
+export interface SeverityPoint {
+  period: string;
+  info: number;
+  warning: number;
+  critical: number;
+}
+
+/**
+ * `GET /admin/trends` — platform growth over time, derived from each record's own
+ * `created_at` (ADR-043). Aggregate-only, super-admin gated: counts per period,
+ * never another tenant's rows.
+ */
+export interface PlatformTrends {
+  from: string;
+  to: string;
+  hospitals: TrendPoint[];
+  users: TrendPoint[];
+  patients: TrendPoint[];
+  appointments: TrendPoint[];
+  /** Audit events per day for the trailing 30 days. */
+  events: SeverityPoint[];
+}
+
+/**
+ * `GET /dashboard/overview` — the caller's own tenant, RLS-scoped (ADR-044).
+ * The operational data behind every role dashboard. Amounts are in paise.
+ */
+export interface DashboardOverview {
+  /** The clinical day this describes, `YYYY-MM-DD` in the server's local time. */
+  today: string;
+  loadByHour: Array<{ hour: number; scheduled: number; walkIn: number }>;
+  today_counts: {
+    appointments: number;
+    checkedIn: number;
+    inConsultation: number;
+    completed: number;
+    newPatients: number;
+  };
+  revenue: Array<{ period: string; billed: number; collected: number }>;
+  registrations: Array<{ period: string; value: number }>;
+  outstandingPaise: number;
+  pendingLabOrders: number;
+  lowStock: Array<{ id: string; name: string; onHand: number; reorderLevel: number }>;
+  providerLoad: Array<{ providerId: string; name: string; seen: number; inProgress: number; booked: number }>;
+}
+
 /** `GET /dashboard/summary` — the caller's own tenant, RLS-scoped. */
 export interface OrgSummary {
   users: number;

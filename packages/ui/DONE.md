@@ -170,3 +170,15 @@ Append-only implementation log. Newest at the bottom.
 Both apps now carry `app/icon.svg` with the same geometry (literal colours, since a favicon renders outside the page's token scope), replacing the default Next.js `favicon.ico` in each — deleted, not left alongside.
 
 **Testing status:** typecheck + both builds clean; verified in the running apps — the mark resolves to `#0e7490` in the Portal and to the marketing accent on the marketing site, and no stray "H" remains.
+
+---
+
+## 2026-08-16 — Dashboard charts, without a charting dependency (ADR-043)
+
+**Added `src/components/charts/`:** `AreaChart` (gradient fill, hover cursor that snaps to a real data point), `BarChart` (stacked), `StatCard` (KPI tile with delta and optional sparkline), `UsageBar` (labelled proportion as a real `progressbar`), and `geometry.ts` holding the maths so it can be tested away from the DOM.
+
+**Why no library:** the platform needs a small, consistent set of visualisations. A charting package would add bundle weight and a second styling system to keep on-brand, when the whole requirement is four shapes drawn from tokens. Colours arrive as tokens from the caller, so every chart follows Light/Dark and a tenant accent for free.
+
+**Accessibility is part of the component, not a follow-up:** each chart repeats its numbers in a visually-hidden table (a `<svg>` alone tells a screen reader nothing), the cursor never reads out an interpolated value, and `UsageBar` announces its real value against its total.
+
+**Testing status:** 13 new tests (domain padding, the flat-zero case, top-down mapping, closed area paths, cursor snapping, tick endpoints, compact formatting, the accessible table, empty states, the loading skeleton in place of a false zero, inverted deltas, and the progressbar's ARIA values). 51 pass.

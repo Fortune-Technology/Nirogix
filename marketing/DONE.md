@@ -202,3 +202,17 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-16 — The "H" is gone: the Nirogix mark everywhere
 
 The header and footer wordmark still drew a hardcoded letter **"H"** from the old name in a teal tile. Both now render the shared `BrandMark` from `@hms/ui` (N monogram, 28px), which resolves through the marketing token bridge to `--mk-accent` — so it follows the marketing brand and both themes rather than carrying a literal of its own. The OG card mark, which cannot read CSS custom properties under Satori, repeats the same geometry with the documented literals. `app/icon.svg` replaces the default Next.js `favicon.ico` (deleted).
+
+---
+
+## 2026-08-16 — Staging is uncrawlable; the docs stop describing a CDN we do not have (ADR-045)
+
+**The gap.** `resources/domains.md` and the deploy config were written for a Cloudflare-fronted origin — edge TLS, WAF, Cloudflare Access on staging, `CF-Connecting-IP` as the real client address. None of that exists: `nirogix.com` is registered at GoDaddy and its nameservers stay there. Documentation that describes infrastructure you do not have is worse than none, because it is the thing you consult during an incident.
+
+**Marketing code.** `lib/seo.ts` exports `IS_STAGING` (from `NEXT_PUBLIC_ENVIRONMENT`), and `app/robots.ts` now serves `Disallow: /` with no sitemap or host on staging. Production is unchanged. With no edge access gate in front of `staging.nirogix.com`, the same copy would otherwise be reachable and indexable on two hostnames and compete with the real site.
+
+**Deploy config.** `deploy/nginx/nirogix.conf.template` terminates TLS on the origin with Let's Encrypt (certbot HTTP-01, so port 80 stays reachable for renewal) instead of a Cloudflare origin certificate, and the access gate on the staging hosts is Nginx basic auth. **`real_ip_header CF-Connecting-IP` is removed** — with no proxy in front, that header is client-supplied, so trusting it would let any caller claim an arbitrary address and walk straight through the IP-keyed rate limiters. `deploy/README.md` follows: GoDaddy DNS, no edge tier, the origin IP public with the VM firewall as the only network boundary, and the certbot command in the bring-up steps.
+
+**Storage is unchanged.** The object store is still Cloudflare R2 (ADR-017) reached through `FileStorageService`; only DNS moved out of scope. `cdn.nirogix.com` is **blocked** — an R2 custom domain requires the zone on Cloudflare DNS — and PHI documents continue to be delivered by short-lived signed URLs minted by the API, never a public bucket URL.
+
+**Testing status:** typecheck + production build clean (marketing and Portal); `npm run test` green across all four workspaces. Remaining work is on the VM and in the registrar, tracked as **I-5** in `BACKLOG.md`.

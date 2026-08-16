@@ -16,6 +16,12 @@ import { SITE } from "./site";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
 /**
+ * Staging is a public-DNS copy of the site with no edge access gate (ADR-045), so it
+ * must never be indexed. Set `NEXT_PUBLIC_ENVIRONMENT=staging` on that deployment.
+ */
+export const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === "staging";
+
+/**
  * Company facts used by Organization / LocalBusiness structured data and the
  * contact page.
  *

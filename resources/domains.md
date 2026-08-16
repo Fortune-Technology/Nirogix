@@ -12,8 +12,8 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 
 ## 1. Principles
 
-1. **One registrable domain: `nirogix.com`.** Everything is a subdomain of it, so a single wildcard certificate and a single Cloudflare zone cover the platform.
-2. **Every host is second-level** (`portal.nirogix.com`, `api-staging.nirogix.com`) and never third-level (`test.portal.nirogix.com`). Cloudflare Universal SSL and most free wildcard certificates cover `*.nirogix.com` only — a third-level host needs Advanced Certificate Manager or a per-host certificate, for no functional gain.
+1. **One registrable domain: `nirogix.com`.** Everything is a subdomain of it, so one DNS zone and one certificate strategy cover the platform. DNS is hosted at **GoDaddy** (ADR-045); there is no CDN or edge proxy in front of the origin.
+2. **Every host is second-level** (`portal.nirogix.com`, `api-staging.nirogix.com`) and never third-level (`test.portal.nirogix.com`). Most free wildcard certificates cover `*.nirogix.com` only — a third-level host needs its own certificate for no functional gain. With Let's Encrypt on the VM each host gets its own certificate anyway, so the rule keeps issuance and renewal simple rather than being a hard constraint.
 3. **Environment is a prefix on the host, not a path.** `portal-staging`, never `portal.nirogix.com/staging`. Paths belong to the application.
 4. **A new capability gets a subdomain only when it needs its own origin** — a different security boundary, a different server, or third-party delivery. Otherwise it is a route on an existing host. Subdomains are cheap to create and expensive to retire.
 5. **Cookies are host-only.** No cookie ever sets `Domain=.nirogix.com`, so a staging session can never be presented to production, and one host's compromise does not hand over another's session.
@@ -31,7 +31,7 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 | `api.nirogix.com` | REST API, `/api/v1` | `hms_backend` (Express, :4000) | Sets the refresh cookie (host-only). Serves `/api/v1/openapi.json`; the Swagger UI is env-gated. |
 | `docs.nirogix.com` | Public API reference | *(reserved)* | Swagger UI / redoc built from the same spec, for hospitals' own integrators. Read-only, no credentials. |
 | `status.nirogix.com` | Uptime and incident page | *(reserved)* | Deliberately **not** on our infrastructure — a status page hosted where the platform lives is useless during the outage it is meant to report. |
-| `cdn.nirogix.com` | File and asset delivery | *(reserved)* | Custom domain in front of Cloudflare R2. Signed, short-lived URLs for PHI documents; marketing assets alongside. Fronting storage with our own host means the storage provider can change without a single URL changing. |
+| `cdn.nirogix.com` | File and asset delivery | *(reserved, blocked)* | Intended as a custom domain in front of Cloudflare R2 — **which requires the zone to be on Cloudflare DNS**, and it is not (ADR-045). Until that changes, PHI documents are served the way they already are: short-lived signed URLs minted by the API through `FileStorageService`, never a public bucket URL. |
 | `mail.nirogix.com` | Transactional email identity | *(reserved)* | SPF / DKIM / DMARC for MSG91 sending (ADR-016). Kept off the apex so a deliverability incident never damages the main domain's reputation. Serves no HTTP traffic. |
 
 ## 3. Staging / testing
@@ -45,7 +45,7 @@ Identical topology, `-staging` suffixed, on the same zone and the same wildcard 
 | `api-staging.nirogix.com` | REST API |
 
 - **Never indexed.** Staging serves `X-Robots-Tag: noindex, nofollow` at Nginx for every host, on top of the app's own `robots.ts`. A duplicate of the marketing site in the index is an SEO defect and a leak of unreleased copy.
-- **Access-restricted.** Cloudflare Access (or HTTP basic auth at Nginx) in front of all three, so a customer or crawler never lands on unreleased work.
+- **Access-restricted.** HTTP basic auth at Nginx in front of all three hosts, plus an `X-Robots-Tag: noindex` response header, so a customer or crawler never lands on unreleased work. The marketing app additionally serves `Disallow: /` on staging (`NEXT_PUBLIC_ENVIRONMENT=staging`) — belt and braces, because staging is on public DNS with no edge gate.
 - **Its own data.** Separate database, separate R2 bucket, separate secrets, and the notification provider in `log` mode or against a test sender — never the production DLT sender.
 
 ## 4. Development
@@ -72,8 +72,9 @@ A shared cloud dev tier is **not** provisioned. Two deployed environments are th
 
 ## 6. TLS, DNS, and edge
 
-- **One Cloudflare zone** for `nirogix.com`, proxied (orange-cloud) for every HTTP host. `mail` stays DNS-only.
-- **Universal SSL** covers the apex and all `*.nirogix.com` hosts. TLS terminates at Cloudflare (Full-Strict) with an origin certificate securing Cloudflare ↔ VM — the arrangement `deploy/nginx/nirogix.conf.template` already assumes.
+- **One GoDaddy DNS zone** for `nirogix.com` (nameservers `ns27`/`ns28.domaincontrol.com`). Every HTTP host is a plain `A` record to the VM's public IP — no proxy, so the origin IP is public and the VM's firewall is the only network boundary. `mail` is DNS-only records (SPF/DKIM/DMARC), no host.
+- **Let's Encrypt per host**, issued and renewed on the VM by certbot (HTTP-01, so port 80 must stay reachable). TLS terminates at Nginx on the origin; there is no edge tier. Issue one certificate covering the hosts that share a VM, e.g. `certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com`.
+- **No WAF, no DDoS absorption, no edge caching.** Rate limiting is the application's own (ADR-036) and it is the only such control in the path. Revisit if abuse or traffic makes an edge worthwhile — moving to a proxy later is a nameserver change, not a re-architecture.
 - **HSTS** on production hosts once the certificate chain is verified end to end; staging is excluded while access control is in front.
 - **Real client IP** is restored from `CF-Connecting-IP` so rate limiting and audit records see the visitor, not the edge (already in the Nginx template).
 - **Nothing is served from an IP or a provider-generated hostname.** Every URL a customer or integrator can see is a `nirogix.com` host.
@@ -99,9 +100,9 @@ Every one of these is read from configuration. No host appears in application co
 
 ## 9. Cutover checklist
 
-1. Register the DNS records for the production and staging hosts in the Cloudflare zone; verify Universal SSL covers each.
+1. Add the `A` records for the production and staging hosts in the GoDaddy zone, pointing at the VM's public IP; confirm each resolves before requesting certificates.
 2. Set the environment matrix above on each host; confirm `CORS_ORIGINS` lists that environment's origins only.
-3. Put Cloudflare Access (or basic auth) in front of the three staging hosts, and add the `X-Robots-Tag: noindex` header there.
+3. Put Nginx basic auth in front of the three staging hosts, add the `X-Robots-Tag: noindex` header, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app also serves `Disallow: /`.
 4. Confirm `www` → apex is a 301 and that the marketing canonical URLs resolve to the apex.
 5. Confirm the refresh cookie arrives with `Secure; HttpOnly; SameSite=Lax` and **no** `Domain`, on the API host only.
 6. Publish DKIM/SPF/DMARC for `mail.nirogix.com` before the first real notification send (this is also blocked on MSG91 DLT registration — `BACKLOG.md` I-1).

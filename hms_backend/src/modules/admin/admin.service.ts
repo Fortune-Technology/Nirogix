@@ -1,8 +1,17 @@
 import { randomBytes } from 'node:crypto';
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, gte } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { tenants, users, branches, providers, patients, appointments, type Tenant } from '../../db/schema';
+import {
+  tenants,
+  users,
+  branches,
+  providers,
+  patients,
+  appointments,
+  auditLog,
+  type Tenant,
+} from '../../db/schema';
 import { Errors } from '../../http/error';
 import { hashPassword } from '../auth/password';
 import { provisionTenantRbac, assignRoleByKey, listUserRoles } from '../rbac/rbac.service';
@@ -282,6 +291,130 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     patients: patientTotal,
     appointments: appointmentTotal,
   };
+}
+
+// ---- Platform trends (System Admin dashboard) --------------------------------
+// Every series below is DERIVED FROM REAL ROWS — `created_at` on the tenant, user,
+// patient and appointment tables, and the audit log's own timestamps. Nothing here
+// is estimated or projected: a metric with no data source does not get a tile
+// (ADR-037, ADR-043). Aggregate-only and super-admin gated like `getPlatformStats`
+// (ADR-023) — counts per period, never another tenant's rows.
+
+export type TrendPoint = { period: string; created: number; cumulative: number };
+export type SeverityPoint = { period: string; info: number; warning: number; critical: number };
+
+export type PlatformTrends = {
+  /** Inclusive month range actually covered, `YYYY-MM`. */
+  from: string;
+  to: string;
+  hospitals: TrendPoint[];
+  users: TrendPoint[];
+  patients: TrendPoint[];
+  appointments: TrendPoint[];
+  /** Audit events per day for the trailing window, split by severity. */
+  events: SeverityPoint[];
+};
+
+/** `YYYY-MM` for a date, in UTC — the bucket key for a monthly series. */
+export function monthKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** The last `months` month keys, oldest first, ending with the current month. Exported for unit tests. */
+export function monthWindow(months: number, now: Date): string[] {
+  const keys: string[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    keys.push(monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))));
+  }
+  return keys;
+}
+
+/**
+ * Buckets `created_at` values into the month window and carries a running total.
+ * `priorTotal` is everything created BEFORE the window, so the cumulative line
+ * starts from the real total rather than zero.
+ */
+export function toSeries(dates: Date[], window: string[]): TrendPoint[] {
+  const byMonth = new Map<string, number>();
+  let priorTotal = 0;
+  const first = window[0] ?? '';
+  for (const d of dates) {
+    const key = monthKey(d);
+    if (key < first) priorTotal += 1;
+    else byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+  }
+  let running = priorTotal;
+  return window.map((period) => {
+    const created = byMonth.get(period) ?? 0;
+    running += created;
+    return { period, created, cumulative: running };
+  });
+}
+
+export async function getPlatformTrends(months: number, now = new Date()): Promise<PlatformTrends> {
+  const window = monthWindow(months, now);
+  const all = await db.select().from(tenants);
+  const hospitalRows = all.filter((t) => t.code !== PLATFORM_CODE);
+
+  const userDates: Date[] = [];
+  const patientDates: Date[] = [];
+  const appointmentDates: Date[] = [];
+
+  for (const t of all) {
+    await runWithTenant(t.id, async (tx) => {
+      const u = await tx.select({ at: users.createdAt }).from(users).where(eq(users.tenantId, t.id));
+      for (const r of u) if (r.at) userDates.push(new Date(r.at));
+      const p = await tx
+        .select({ at: patients.createdAt })
+        .from(patients)
+        .where(eq(patients.tenantId, t.id));
+      for (const r of p) if (r.at) patientDates.push(new Date(r.at));
+      const a = await tx
+        .select({ at: appointments.createdAt })
+        .from(appointments)
+        .where(eq(appointments.tenantId, t.id));
+      for (const r of a) if (r.at) appointmentDates.push(new Date(r.at));
+    });
+  }
+
+  return {
+    from: window[0] ?? monthKey(now),
+    to: window[window.length - 1] ?? monthKey(now),
+    hospitals: toSeries(
+      hospitalRows.map((t) => new Date(t.createdAt)),
+      window,
+    ),
+    users: toSeries(userDates, window),
+    patients: toSeries(patientDates, window),
+    appointments: toSeries(appointmentDates, window),
+    events: await auditSeverityByDay(30, now),
+  };
+}
+
+/** Audit events per day for the trailing `days`, split by severity. */
+async function auditSeverityByDay(days: number, now: Date): Promise<SeverityPoint[]> {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)));
+  const rows = await db
+    .select({ at: auditLog.createdAt, severity: auditLog.severity })
+    .from(auditLog)
+    .where(gte(auditLog.createdAt, start));
+
+  const buckets = new Map<string, SeverityPoint>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * 86_400_000);
+    const period = d.toISOString().slice(0, 10);
+    buckets.set(period, { period, info: 0, warning: 0, critical: 0 });
+  }
+  for (const r of rows) {
+    if (!r.at) continue;
+    const period = new Date(r.at).toISOString().slice(0, 10);
+    const b = buckets.get(period);
+    if (!b) continue;
+    if (r.severity === 'critical') b.critical += 1;
+    else if (r.severity === 'warning') b.warning += 1;
+    else b.info += 1;
+  }
+  return [...buckets.values()];
 }
 
 // Guard: does this tenant exist? (base db, no RLS)

@@ -538,3 +538,23 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Unchanged on purpose:** the local database name and role stay `hms`, an internal identifier nobody outside the repository sees (ADR-041).
 
 **Testing status:** 49 tests pass; typecheck green.
+
+---
+
+## 2026-08-16 — `GET /admin/trends`: platform growth from real rows (ADR-043)
+
+**Added** the System Admin dashboard's time-series endpoint. Monthly hospital / staff / patient / appointment series derived from each record's own `created_at`, each carrying a running cumulative **seeded by everything created before the window** so the line opens at the real total rather than zero, plus audit events per day by severity for the trailing 30 days. `months` is clamped to 3–36 server-side, so one request cannot ask for an unbounded scan.
+
+Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`), aggregate-only (ADR-023) — counts per period, never another tenant's rows. Documented in OpenAPI in the same change; `openapi:validate` green.
+
+**Testing status:** 6 new unit tests over the series maths (month window including a year boundary, UTC bucketing, running totals, pre-window rows seeding the cumulative, and an empty platform producing zeros rather than an empty array). 55 tests pass.
+
+---
+
+## 2026-08-16 — `GET /dashboard/overview`: the hospital's own operational picture (ADR-044)
+
+**Added** the endpoint every role dashboard reads. RLS-scoped to the caller's own tenant: today's check-ins bucketed by hour and split into scheduled vs walk-in, today's queue counts (booked, waiting, in consultation, completed, newly registered), billed vs collected per day over the window, registrations per day, total outstanding across every open invoice, pending lab orders, low-stock drugs by batch quantity against their reorder level, and today's load per provider. `days` is clamped to 7–90.
+
+**The clinical day is bucketed in server-local time, not UTC** — an India-hosted deployment must not push the evening clinic into tomorrow's column. That is the one piece of logic here worth a test, and it has three.
+
+**Testing status:** 5 new unit tests (local-day keying across the UTC boundary, zero padding, the window ending today, a month-boundary crossing, single-day windows). 60 tests pass; `openapi:validate` green.

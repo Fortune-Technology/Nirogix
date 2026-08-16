@@ -89,6 +89,31 @@ Every tabular view renders through `DataTable` from `@hms/ui` (ADR-029) — a **
 - **Row actions use the shared Action column** (ADR-039): `actionsColumn()` + `TableActions`, with `ViewAction` / `EditAction` / `ToggleAction` / `TableAction` / `MoreActions` inside it. Permission gating is a prop (`permitted`), not a hand-rolled conditional, and every destructive or state-changing action carries its own confirmation copy. Live today on patients (view / edit), branches and users and tenants (view + suspend/activate switch), appointments (check in / cancel), OPD (open visit / start consult / complete), pharmacy stock (receive), billing (view invoice), the tenant's module list (revoke) and a user's roles and overrides (remove / revoke). Dates in cells come from `@hms/utils` (`DD/MM/YYYY`).
 - The remaining screens (audit, appointments, billing, opd, laboratory, pharmacy, users, branches, tenants, reports) still pass the original `{ key, header, cell }` columns — valid, since the API is a superset — and gain sorting/filters by adding flags. Tracked in root `BACKLOG.md`.
 
+## System Admin dashboard (ADR-043)
+
+`/platform` is the operator's home — the whole platform, never one hospital, and **every tile is a real query**: `GET /admin/stats` for the counts, `GET /admin/trends` for month-by-month growth derived from each record's own `created_at`, the audit trail for security activity by day and severity, and the API's own liveness/readiness probes for health. Metrics with no data source (revenue, subscriptions, storage, uptime history, support tickets) are listed as pending on the screen rather than estimated.
+
+- **Charts come from `@hms/ui`** (`AreaChart`, `BarChart`, `StatCard`, `UsageBar`) — token-driven SVG, no charting dependency, and each repeats its data in a visually-hidden table.
+- **A range control (6 / 12 / 24 months)** re-queries every series at once; the API clamps `months` to 3–36.
+- **`/dashboard` is the hospital's dashboard only.** A platform operator hitting it is redirected to `/platform`, unless they are inside a support session — where the tenant's own view is the whole point (ADR-037).
+
+## Role dashboards (ADR-044)
+
+`/dashboard` picks a dashboard from **what the user is permitted to do**, never from a role name — a hospital can rename its roles, but permissions are the truth:
+
+| Who | Gets | Built from |
+|---|---|---|
+| Platform operator | redirect to `/platform` | ADR-037 — an operator has no clinical dashboard |
+| Can manage users or branches | `HospitalAdminDashboard` | revenue billed vs collected, today's OPD load by hour, doctors on duty, low stock, registrations, capacity, quick actions |
+| Clinical permission | `ClinicalDashboard` with `role=doctor \| receptionist \| pharmacist \| lab` | one component, four configurations — the queue, the worklist, prescriptions, arrivals |
+| Anyone else | `StaffDashboard` | degrades to exactly what their permissions reach |
+
+All of them are configurations of `components/dashboard/DashboardShell` (`DashboardShell` · `KpiGrid` · `DashboardRow` · `RangeChips` · `PanelRow` · `PanelEmpty`), which is also the shape `/platform` uses — so every dashboard in the product reads the same way. One endpoint feeds them: `GET /dashboard/overview` (RLS-scoped, real rows only, clinical day bucketed in server-local time).
+
+## Navigation (ADR-043)
+
+The shell **scrolls in two panes**: the sidebar is `sticky top-0 h-screen overflow-y-auto` with `data-lenis-prevent`, so a long menu scrolls inside itself instead of with the page, and the topbar is sticky too. `lib/nav.ts` exports **grouped** navigation — `PLATFORM_NAV_GROUPS` (Customers · Platform · Account) and `TENANT_NAV_GROUPS` (Clinical · Revenue · Organization · Account) — with `navGroupsForContext()` filtering by permission and dropping any group left empty. `PLATFORM_NAV` / `NAV_ITEMS` stay as flattened lists for the mobile bar. A new screen joins a group; a new area of the product adds one. Never add an item for a screen that does not exist yet.
+
 ## API feedback (ADR-026)
 
 **One** notification path: the shared `@hms/ui` toast, raised inside the API client. Pages never write toast logic.

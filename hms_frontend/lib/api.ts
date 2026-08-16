@@ -38,7 +38,9 @@ import type {
   PlatformBranding,
   PlatformBrandingScope,
   BrandingTokens,
+  DashboardOverview,
   PlatformStats,
+  PlatformTrends,
   OrgSummary,
   Patient,
   CreatePatientRequest,
@@ -188,24 +190,42 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
 // ---- Session ---------------------------------------------------------------
 
+/**
+ * The one in-flight refresh. A dashboard fires several requests at once, so an
+ * expired access token used to produce one `POST /auth/refresh` **per request** —
+ * each rotating the same `sessions` row in its own transaction, serialising on
+ * that row lock and draining the connection pool until every request timed out.
+ * Callers now share a single refresh: the first starts it, the rest await it.
+ */
+let inFlightRefresh: Promise<boolean> | null = null;
+
 /** Exchange the refresh cookie for a new access token. Returns true on success. */
 export async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!res.ok) {
+  if (inFlightRefresh) return inFlightRefresh;
+
+  inFlightRefresh = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        accessToken = null;
+        return false;
+      }
+      const data = (await res.json()) as { accessToken: string };
+      accessToken = data.accessToken;
+      return true;
+    } catch {
       accessToken = null;
       return false;
+    } finally {
+      // Cleared in `finally` so a failed refresh does not wedge every later call.
+      inFlightRefresh = null;
     }
-    const data = (await res.json()) as { accessToken: string };
-    accessToken = data.accessToken;
-    return true;
-  } catch {
-    accessToken = null;
-    return false;
-  }
+  })();
+
+  return inFlightRefresh;
 }
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
@@ -342,6 +362,27 @@ export async function startSupportSession(body: StartSupportSessionRequest): Pro
 
 export async function getPlatformStats(): Promise<PlatformStats> {
   return request<PlatformStats>("/admin/stats");
+}
+
+export async function getPlatformTrends(months = 12): Promise<PlatformTrends> {
+  return request<PlatformTrends>(`/admin/trends?months=${months}`);
+}
+
+/**
+ * Liveness + readiness for the health tile. Deliberately tolerant: a failure here
+ * is itself the signal, so it resolves to a status rather than throwing into the
+ * shared error toast.
+ */
+export async function getSystemHealth(): Promise<{ api: boolean; db: boolean }> {
+  const api = await request<{ status: string }>('/health').then(() => true).catch(() => false);
+  const db = api
+    ? await request<{ status: string }>('/health/ready').then(() => true).catch(() => false)
+    : false;
+  return { api, db };
+}
+
+export async function getDashboardOverview(days = 14): Promise<DashboardOverview> {
+  return request<DashboardOverview>(`/dashboard/overview?days=${days}`);
 }
 
 export async function getOrgSummary(): Promise<OrgSummary> {

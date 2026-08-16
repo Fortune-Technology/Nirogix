@@ -539,6 +539,27 @@ Only #5 and the auto-deploy half of #6 remain, both **blocked on real infrastruc
 - **Depends on:** the counted entities exist — tenants/branches/users/providers today; patients/appointments/revenue arrive with the Stage 1 clinical modules, so those tiles light up as their modules land (build the dashboard to degrade gracefully for not-yet-present modules).
 - **Exit:** the System Admin lands on a platform roll-up across all tenants (aggregate-only, verified it never returns cross-tenant rows); an Org Admin lands on their own hospital's roll-up; both are permission-gated and audited.
 
+### 20B.1 — Built (ADR-043)
+
+The System Admin dashboard is live at `/platform`: KPI tiles, a 6/12/24-month growth chart, monthly onboarding, module adoption, security activity per day by severity, live API/database health, quick actions, and the recent warning-level audit table. Growth comes from `GET /admin/trends`, which derives monthly series from each record's own `created_at` — no estimation, no interpolation. Navigation is grouped (`PLATFORM_NAV_GROUPS`), so new platform capability joins a section instead of lengthening a flat list.
+
+### 20B.2 — Platform areas not yet built
+
+Each of these is a **future group member**, not a placeholder: nothing appears in the sidebar until the screen exists, and no dashboard tile is drawn until the metric has a data source. In rough order of when the platform will need them:
+
+| Area | Waiting on | Where it lands |
+|---|---|---|
+| **Plans & subscriptions**, **billing & payments (tenant-facing)**, revenue metrics (MRR/ARR, plan mix, churn) | A subscription/plan/tenant-invoice model — none exists; paid plans are Enterprise/Scale track (§25, ADR-020) | New "Revenue" group |
+| **Support tickets & inbox** | A ticketing model, or an integration with whatever support tool is chosen | "Customers" group, beside Hospitals |
+| **Platform reporting & analytics workspace** | Enough history for cohort/retention questions the dashboard cannot answer inline | "Platform" group |
+| **Integrations & API keys** (per-tenant credentials, webhooks, delivery logs) | The integration surface itself (ABDM, gateways, ERP export — all planned modules) | New "Developer" group |
+| **System configuration** (feature flags, module catalogue editing, default entitlements) | Configuration Engine (§20A scope guard) | "Platform" group |
+| **Usage metering & storage** | Metering the file/object store and per-tenant request volume | Dashboard tiles + "Platform" group |
+| **Uptime & incident history** | An external monitor (`status.nirogix.com`, `resources/domains.md`) | Dashboard tile, replacing the live-probe-only health card |
+| **Notifications console** (platform-wide announcements, delivery failures) | Notification history worth browsing — the send abstraction exists, the console does not | "Platform" group |
+
+**Deliberately never a platform screen:** per-hospital clinical work. An operator reaches a hospital's data only through an audited support session (ADR-037), which switches them to that tenant's own navigation.
+
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
 *Maps to MVP 0. Goal: a real clinic runs registration → appointment → consultation → payment entirely on the platform.*

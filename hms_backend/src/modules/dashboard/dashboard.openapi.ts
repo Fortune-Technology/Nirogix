@@ -26,3 +26,53 @@ registry.registerPath({
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
   },
 });
+
+const HourPoint = z.object({ hour: z.number(), scheduled: z.number(), walkIn: z.number() });
+const RevenuePoint = z.object({ period: z.string(), billed: z.number(), collected: z.number() });
+const CountPoint = z.object({ period: z.string(), value: z.number() });
+
+const DashboardOverviewSchema = z
+  .object({
+    today: z.string().openapi({ example: '2026-08-16' }),
+    loadByHour: z.array(HourPoint),
+    today_counts: z.object({
+      appointments: z.number(),
+      checkedIn: z.number(),
+      inConsultation: z.number(),
+      completed: z.number(),
+      newPatients: z.number(),
+    }),
+    revenue: z.array(RevenuePoint),
+    registrations: z.array(CountPoint),
+    outstandingPaise: z.number(),
+    pendingLabOrders: z.number(),
+    lowStock: z.array(
+      z.object({ id: z.string(), name: z.string(), onHand: z.number(), reorderLevel: z.number() }),
+    ),
+    providerLoad: z.array(
+      z.object({
+        providerId: z.string(),
+        name: z.string(),
+        seen: z.number(),
+        inProgress: z.number(),
+        booked: z.number(),
+      }),
+    ),
+  })
+  .openapi('DashboardOverview');
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/dashboard/overview',
+  operationId: 'getDashboardOverview',
+  tags: ['Reports'],
+  summary: "The caller's own-tenant operational overview, behind every role dashboard",
+  description:
+    'RLS-scoped to the caller’s tenant. Today’s OPD load by hour (check-ins split into scheduled and walk-in), today’s queue counts, billed vs collected per day, registrations per day, total outstanding, pending lab orders, low-stock drugs, and today’s load per provider. Amounts are in paise. `days` is clamped to 7–90.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ days: z.coerce.number().int().min(7).max(90).optional() }) },
+  responses: {
+    200: { description: 'Dashboard overview', ...json(DashboardOverviewSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+  },
+});

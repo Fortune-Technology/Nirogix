@@ -1,10 +1,11 @@
 # Nginx reverse-proxy template for the Nirogix VM (staging/production). Versioned baseline —
 # copy to /etc/nginx/sites-available/nirogix.conf, substitute the ${...} placeholders, symlink
-# into sites-enabled, and `nginx -t && systemctl reload nginx`. TLS terminates at Cloudflare
-# in front (Full-Strict); an origin cert secures Cloudflare↔VM. See deploy/README.md.
+# into sites-enabled, and `nginx -t && systemctl reload nginx`. TLS terminates HERE, on the
+# origin, with Let's Encrypt certificates issued by certbot (ADR-045) — there is no edge
+# proxy in front. See deploy/README.md.
 #
-# Hosts come from resources/domains.md — every one is second-level, so the `*.nirogix.com`
-# certificate covers it:
+# Hosts come from resources/domains.md. Issue one certificate covering the hosts on this VM:
+#   certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com
 #   Production  PORTAL_HOST=portal.nirogix.com          MARKETING_HOST=nirogix.com
 #               API_HOST=api.nirogix.com
 #   Staging     PORTAL_HOST=portal-staging.nirogix.com  MARKETING_HOST=staging.nirogix.com
@@ -15,9 +16,11 @@
 #   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :3001)
 #   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :4000)
 
-# Restore the real client IP from Cloudflare (so logs/rate-limits see the visitor, not CF).
-# Keep the CF ranges current: https://www.cloudflare.com/ips/
-real_ip_header CF-Connecting-IP;
+# NO `real_ip_header CF-Connecting-IP` here. With no trusted proxy in front, honouring a
+# client-supplied IP header would let any caller spoof their own address and walk straight
+# past the API's IP-keyed rate limits (ADR-036). Nginx sees the real peer address already;
+# re-add real_ip_header ONLY together with a `set_real_ip_from` allowlist for a proxy that
+# actually exists.
 
 upstream nirogix_backend  { server 127.0.0.1:4000; keepalive 16; }
 upstream nirogix_portal   { server 127.0.0.1:3000; keepalive 16; }
@@ -97,13 +100,14 @@ server {
 # --- Staging only -----------------------------------------------------------
 # Uncomment on the staging VM. Belt-and-braces on top of each app's robots.ts: an
 # indexed staging copy is both an SEO defect and a leak of unreleased copy. Access
-# control (Cloudflare Access or basic auth) sits in front of all three hosts as well.
+# control (Nginx basic auth, ADR-045) sits in front of all three hosts as well.
 #
 #   add_header X-Robots-Tag "noindex, nofollow" always;
 #
 # Add it inside each server block above, not here.
 
-# Redirect any plain HTTP to HTTPS (Cloudflare also enforces this at the edge).
+# Redirect plain HTTP to HTTPS. Keep the ACME challenge path reachable over HTTP so
+# certbot can renew (HTTP-01) — that exception is below.
 server {
   listen 80;
   server_name ${API_HOST} ${PORTAL_HOST} ${MARKETING_HOST};

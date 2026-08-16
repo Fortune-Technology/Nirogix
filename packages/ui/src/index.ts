@@ -68,6 +68,9 @@ export { EmptyState, ErrorState, Skeleton } from './components/States';
 export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
 export { BottomNav, NavDrawer, NavDrawerItem, NavDrawerSection, BOTTOM_NAV_MAX_ITEMS } from './components/MobileNav';
 export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components/MobileNav';
+// Dashboard data visualisation — token-driven, dependency-free (ADR-043).
+export { AreaChart, BarChart, StatCard, UsageBar, ChartTable, compact } from './components/charts';
+export type { AreaChartProps, BarChartProps, StatCardProps, UsageBarProps, Series } from './components/charts';
 export { BrandMark } from './components/BrandMark';
 export type { BrandMarkProps } from './components/BrandMark';
 export { BackToTop } from './components/BackToTop';

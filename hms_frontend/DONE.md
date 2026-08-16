@@ -383,3 +383,38 @@ Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.
 The login card and the app shell (desktop sidebar fallback and mobile header) were drawing plain teal squares where a logo belongs. All three now render the shared `BrandMark` from `@hms/ui` — 40px on the login card, 24px in the sidebar, 20px in the mobile header — so the product has an actual mark, drawn from `--hms-brand` and therefore following Dark mode and a tenant accent. A tenant's uploaded logo still wins wherever one exists.
 
 `app/icon.svg` replaces the default Next.js `favicon.ico` (deleted), so a browser tab shows the Nirogix mark instead of the framework's. Tenant branding still swaps the favicon at runtime for that hospital's own.
+
+---
+
+## 2026-08-16 — The System Admin dashboard, rebuilt (ADR-043)
+
+**What changed.** `/platform` went from a column of stat tiles to a dashboard an operator can actually run the platform from: a 6/12/24-month range control driving every series at once, four KPI tiles with sparklines and real month-over-month deltas, a cumulative growth chart (hospitals + staff accounts), monthly onboarding bars with added/suspended counts, module adoption as proportion bars, security activity per day by severity with the recent warning-level audit table beneath it, live API and database health, and a quick-action list.
+
+**Every tile is a query.** Growth comes from the new `GET /admin/trends`, which derives monthly series from each record's own `created_at` and seeds the cumulative from everything created before the window. Adoption reads live entitlements, security reads the audit trail, health calls the API's own liveness and readiness probes. A period with no rows renders a zero — nothing is interpolated, and the metrics with no data source (revenue, subscriptions, storage, uptime history, support tickets) are still listed as pending on the screen rather than drawn.
+
+**Navigation is grouped now** (`PLATFORM_NAV_GROUPS` / `TENANT_NAV_GROUPS`, rendered by the sidebar and the mobile drawer): Customers · Platform · Account for an operator, Clinical · Revenue · Organization · Account inside a hospital. A group whose every item is denied disappears rather than heading an empty list. Adding a platform capability is now adding a group member, not redesigning a flat menu.
+
+**Fixed on the way:** `/dashboard` was rendering a second, weaker platform dashboard **plus** the clinical quick links ADR-037 exists to prevent. It is the hospital's dashboard only; a platform operator is redirected to `/platform`, except inside a support session where the tenant's view is the point.
+
+**Testing status:** typecheck + build clean; verified against the running stack signed in as the platform owner — the range control re-queries, the growth series matches the seeded tenants, module adoption reads 2-of-2 hospitals, health probes report operational, and `/dashboard` redirects.
+
+---
+
+## 2026-08-16 — One dashboard layout for every role (ADR-044)
+
+**Added a shared dashboard layout** (`components/dashboard/DashboardShell`) — context line, title, range chips, KPI grid, panel rows, panel rows and empty states — and rebuilt every hospital dashboard as a *configuration* of it, matching the shape `/platform` already used.
+
+- **Hospital admin** (`HospitalAdminDashboard`): revenue billed vs collected per day, today's OPD load by hour split scheduled/walk-in, doctors on duty with seen/booked, low stock, registrations per day, capacity bars, quick actions.
+- **Clinical roles** (`ClinicalDashboard`): doctor, receptionist, pharmacist and lab technician from **one** component parameterised by role — same skeleton, different work. Each fetches only what its own panels show.
+- **Everyone else** (`StaffDashboard`): degrades to what the user's permissions actually reach.
+- **Which one you get is permission-derived, not role-name-derived** — a hospital can rename its roles; what someone may do is the truth.
+
+The reference design's bed board, IPD admissions, theatre list, department table and approvals queue are deliberately absent: there is no in-patient, theatre, department or approval model in the product, and drawing them would be inventing data (ADR-043).
+
+**Shell scrolling fixed.** The sidebar is now `sticky top-0 h-screen overflow-y-auto` with `data-lenis-prevent`, so a long menu scrolls **inside itself** rather than dragging with the page; the topbar sticks as well. Sidebar sections gained an "Overview" label and a hairline divider above each group, so Overview / Clinical / Revenue / Organization / Account read as separate blocks.
+
+**Two defects found and fixed while verifying:**
+1. **`tryRefresh()` was not de-duplicated.** A dashboard fires several requests at once, so one expired access token produced one `POST /auth/refresh` per request; each rotated the same `sessions` row in its own transaction, serialised on that row lock, and drained the connection pool until everything timed out. Refreshes now share one in-flight promise. The server-side half is logged in `BACKLOG.md`.
+2. **The staff fallback listed routes the user could not open** — every tenant nav item rather than the permitted ones, so a cashier saw Pharmacy, Users and Branches links that would only 403.
+
+**Testing status:** typecheck + build clean; verified against the running stack as four different users — hospital admin (Ananya), doctor (Rajesh), pharmacist (Meena) and cashier (Pooja) — each landing on the right dashboard with real seeded figures (₹820 billed / ₹500 collected / ₹320 outstanding over 14 days).

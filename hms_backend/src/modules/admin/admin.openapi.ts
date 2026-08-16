@@ -37,6 +37,38 @@ const PlatformStatsSchema = z
   })
   .openapi('PlatformStats');
 
+const TrendPoint = z.object({ period: z.string(), created: z.number(), cumulative: z.number() });
+const SeverityPoint = z.object({
+  period: z.string(),
+  info: z.number(),
+  warning: z.number(),
+  critical: z.number(),
+});
+const PlatformTrendsSchema = z
+  .object({
+    from: z.string().openapi({ example: '2025-09' }),
+    to: z.string().openapi({ example: '2026-08' }),
+    hospitals: z.array(TrendPoint),
+    users: z.array(TrendPoint),
+    patients: z.array(TrendPoint),
+    appointments: z.array(TrendPoint),
+    events: z.array(SeverityPoint),
+  })
+  .openapi('PlatformTrends');
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/trends',
+  operationId: 'getPlatformTrends',
+  tags: ['Admin'],
+  summary: 'Platform growth and activity over time (aggregate-only)',
+  description:
+    'Super-admin only. Monthly hospital / user / patient / appointment series derived from the records’ own `created_at`, each with a running cumulative, plus audit events per day by severity for the trailing 30 days. Counts only — never another tenant’s row-level data (ADR-023). `months` is clamped to 3–36.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ months: z.coerce.number().int().min(3).max(36).optional() }) },
+  responses: { 200: { description: 'Platform trends', ...json(PlatformTrendsSchema) }, 401: notAuthed, 403: forbidden },
+});
+
 registry.registerPath({
   method: 'get',
   path: '/api/v1/admin/stats',

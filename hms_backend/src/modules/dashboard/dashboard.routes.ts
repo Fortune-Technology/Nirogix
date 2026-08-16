@@ -7,3 +7,4 @@ import * as c from './dashboard.controller';
 export const dashboardRouter = Router();
 
 dashboardRouter.get('/dashboard/summary', requireAuth, asyncHandler(c.getSummary));
+dashboardRouter.get('/dashboard/overview', requireAuth, asyncHandler(c.getOverview));

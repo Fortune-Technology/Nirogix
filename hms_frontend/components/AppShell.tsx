@@ -8,7 +8,7 @@ import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, NavDrawer, NavDrawe
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { mobilePrimaryNav, navForContext } from "../lib/nav";
+import { mobilePrimaryNav, navForContext, navGroupsForContext } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
 function initials(name: string): string {
@@ -38,6 +38,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isPlatform = navForContext(can, inTenantContext) !== undefined && can("platform.tenants.manage");
   const contextNav = navForContext(can, inTenantContext);
   const visibleNav = contextNav.filter((item) => item.perm === null || can(item.perm));
+  // The sidebar renders the same items in labelled sections, so a new platform
+  // capability joins a group instead of lengthening one flat list (ADR-043).
+  const navGroups = navGroupsForContext(can, inTenantContext);
   // Mobile (ADR-033): five primary destinations in the bottom bar, everything else
   // in the drawer. Both derive from the same permission-filtered list as the
   // sidebar, so the phone never offers a route the user cannot open.
@@ -54,8 +57,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-5">
+      {/*
+       * The sidebar owns its own scroll: it sticks to the top for the full viewport
+       * height, and a long menu scrolls INSIDE it rather than with the page.
+       * `data-lenis-prevent` keeps the shared smooth-scroll off it, so a wheel over
+       * the menu moves the menu (DESIGN.md §9.3).
+       */}
+      <aside
+        data-lenis-prevent
+        className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface md:flex"
+      >
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-5">
           {logoUrl ? (
             // Tenant-uploaded asset: the origin is per-deployment object storage, so it
             // cannot be enumerated in `images.remotePatterns` — `unoptimized` keeps
@@ -73,24 +85,39 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           <span className="font-semibold text-fg">{isPlatform ? "Nirogix Platform" : "Nirogix Portal"}</span>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 p-3">
-          {visibleNav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
-                )}
-              >
-                <Icon size={17} strokeWidth={1.75} className="shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex flex-1 flex-col gap-4 p-3">
+          {navGroups.map((group, gi) => (
+            <div
+              key={group.label ?? `group-${gi}`}
+              // A hairline above every group but the first draws the section boundary
+              // without adding a heavy divider to a narrow column.
+              className={cn("flex flex-col gap-1", gi > 0 && "border-t border-border pt-4")}
+            >
+              {group.label ? (
+                <span className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.07em] text-fg-subtle">
+                  {group.label}
+                </span>
+              ) : null}
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
+                      active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+                    )}
+                  >
+                    <Icon size={17} strokeWidth={1.75} className="shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -106,7 +133,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Button>
           </div>
         ) : null}
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
+        {/* Sticks while the page scrolls, so the account menu and the theme toggle
+            are always one click away — the sidebar does the same on its side. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
           <div className="flex items-center gap-2 text-sm text-fg-muted md:hidden">
             <BrandMark size={20} label="" />
             <span className="font-semibold text-fg">Nirogix</span>
@@ -158,20 +187,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} title="Menu">
-        <NavDrawerSection title="All modules">
-          {visibleNav.map((item) => (
-            <NavDrawerItem
-              key={item.href}
-              linkAs={Link}
-              href={item.href}
-              icon={item.icon}
-              active={isActive(item.href)}
-              onClick={() => setMenuOpen(false)}
-            >
-              {item.label}
-            </NavDrawerItem>
-          ))}
-        </NavDrawerSection>
+        {navGroups.map((group, gi) => (
+          <NavDrawerSection key={group.label ?? `group-${gi}`} title={group.label ?? "Overview"}>
+            {group.items.map((item) => (
+              <NavDrawerItem
+                key={item.href}
+                linkAs={Link}
+                href={item.href}
+                icon={item.icon}
+                active={isActive(item.href)}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </NavDrawerItem>
+            ))}
+          </NavDrawerSection>
+        ))}
         {secondary.length === 0 ? null : (
           <p className="px-2 pt-2 text-xs text-fg-subtle">
             The bar below shows your most-used destinations; the rest live here.

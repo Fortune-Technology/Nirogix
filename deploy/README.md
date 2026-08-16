@@ -17,7 +17,7 @@ code hard-codes one — every URL comes from that environment's configuration.
 | Env | Purpose | Hosts | Deploy trigger |
 |---|---|---|---|
 | **Local** | Development | `localhost` (api :4000, portal :3000, marketing :3001) | `npm run dev` |
-| **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, Cloudflare edge | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
+| **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, GoDaddy DNS, Let's Encrypt TLS, basic auth (ADR-045) | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
 | **Production** | Live | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB | controlled, reviewed promotion |
 
 Staging carries its own database, object-storage bucket, secrets, and notification sender, sits
@@ -26,14 +26,15 @@ state with production and is never indexable.
 
 ## Topology (single VM, per architecture)
 
-- **Nginx** terminates the Cloudflare origin TLS and reverse-proxies to three PM2 apps
+- **Nginx** terminates TLS on the origin (Let's Encrypt via certbot) and reverse-proxies to three PM2 apps
   (`deploy/nginx/nirogix.conf.template`): API→:4000, Portal→:3000, Marketing→:3001.
 - **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`, `nirogix-marketing`
   (`deploy/pm2.ecosystem.cjs`).
 - **PostgreSQL** = managed E2E DBaaS, provisioned **separately** from the app VM. The app
   connects as a **non-superuser** role (RLS `FORCE` is bypassed by superusers — see
-  hms_backend RLS notes). **Redis** runs on the app VM for BullMQ. **Cloudflare** is the edge
-  (CDN/WAF/DNS); the object store is Cloudflare R2.
+  hms_backend RLS notes). **Redis** runs on the app VM for BullMQ. **DNS is GoDaddy** with no
+  edge proxy, so the origin IP is public and the VM firewall is the only network boundary
+  (ADR-045); the object store is still Cloudflare R2, reached over the API with signed URLs.
 
 ## First-time VM provisioning (baseline checklist)
 
@@ -47,7 +48,11 @@ state with production and is never indexable.
 7. `pm2 start deploy/pm2.ecosystem.cjs --env staging && pm2 save && pm2 startup`.
 8. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
    `nginx -t && systemctl reload nginx`.
-9. Point Cloudflare DNS at the VM; set SSL mode Full (Strict) with an origin cert. Verify
+9. Point the GoDaddy `A` records at the VM, then issue certificates on the box:
+   `certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com`
+   (HTTP-01 needs port 80 open). Add basic auth + `X-Robots-Tag: noindex` on the staging
+   hosts, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app serves
+   `Disallow: /`. Verify
    Universal SSL covers each host — all of them are second-level, so `*.nirogix.com` does.
 10. Work `resources/domains.md` §9 (cutover checklist): `CORS_ORIGINS` for the environment, the
     `www` → apex redirect in production, access control + `noindex` on staging, and the refresh

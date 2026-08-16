@@ -208,6 +208,32 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | ADM-04 | Suspend a tenant | Active tenant | Set status suspended | Its users can no longer sign in | P1 | Security | super_admin | Not run |
 | ADM-05 | Platform branding scopes | — | Admin → Branding → change marketing, then the Nirogix Portal default | Each scope changes only its own surface; the other is untouched | P2 | Functional | super_admin | Not run |
 | ADM-06 | Non-super-admin is refused | org_admin token | Open `/admin/tenants`; call the API directly | Forbidden panel; API 403 | P1 | Security | org_admin | Not run |
+| PLT-01 | The dashboard is the operator's landing page | super_admin | Sign in, then open `/dashboard` directly | Both land on `/platform`; the clinical quick-link list never appears for an operator (ADR-037) | P1 | Functional | super_admin | Not run |
+| PLT-02 | Sidebar groups | super_admin | Read the sidebar | Sections read Customers · Platform · Account with no clinical items; a section with no permitted item is absent, not empty | P1 | UI/UX | super_admin | Not run |
+| PLT-03 | Range control re-queries | super_admin | Switch 6 → 12 → 24 months | Every series redraws for the chosen window; the caption shows the real first and last month | P2 | Functional | super_admin | Not run |
+| PLT-04 | Growth matches reality | super_admin, a known tenant count | Compare the cumulative line's last point with the hospital count on the Hospitals screen | They agree; a month with no onboarding shows zero, never an interpolated rise | P1 | Functional | super_admin | Not run |
+| PLT-05 | Onboarding a hospital moves the numbers | super_admin | Onboard a tenant, then reload the dashboard | "Added this month" and the current month's bar both increase by one | P1 | Functional | super_admin | Not run |
+| PLT-06 | Charts are readable without sight | Screen reader | Tab through each chart | Each is announced with its label and its numbers are available as a table; the hover readout snaps to a real period | P1 | Accessibility | super_admin | Not run |
+| PLT-07 | Charts follow the theme and the accent | super_admin | View in Dark, then with a platform accent set | Lines, fills, bars and tooltips all use the accent and stay legible; no hardcoded blue survives | P2 | UI/UX | super_admin | Not run |
+| PLT-08 | No invented metrics | super_admin | Read the whole dashboard | Revenue, subscriptions, storage, uptime history and support tickets appear only in the "Not reported yet" list — never as a figure | P1 | Functional | super_admin | Not run |
+| PLT-09 | Health tile tells the truth | super_admin | Stop the API, reload; restart it, reload | Unreachable is shown while it is down and Operational when it is back — never a stale "Operational" | P1 | Functional | super_admin | Not run |
+| PLT-10 | Trends stay aggregate-only | org_admin token | Call `GET /admin/trends` directly | 403; and as super_admin the response contains counts only — no patient, staff or tenant rows | P1 | Security | org_admin | Not run |
+
+## 13b. Role dashboards (ADR-044)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| DASH-01 | The clinical day is local, not UTC | A check-in after 18:30 local | Open the admin dashboard | The visit appears in today's hourly chart at its local hour, not tomorrow's | P1 | Functional | org_admin | Not run |
+| DASH-02 | Each role lands on its own dashboard | Seeded staff accounts | Sign in as org_admin, doctor, receptionist, pharmacist, lab technician, cashier | Hospital operations · Your clinic today · Front desk · Pharmacy · Laboratory · Welcome — each with its own KPI row, all on the same layout | P1 | Functional | any | Not run |
+| DASH-03 | Dashboards show only permitted work | Cashier | Read every panel and link | Nothing links to a module the cashier cannot open; the panels match their sidebar exactly | P1 | Security | cashier | Not run |
+| DASH-04 | Revenue matches billing | org_admin | Compare the revenue chart total with the Billing screen for the same window | Billed and collected agree; outstanding equals the sum of open invoice balances | P1 | Functional | org_admin | Not run |
+| DASH-05 | Today's numbers move with the day | Receptionist | Check a patient in, then reload | Waiting count and the current hour's bar both increase by one | P1 | Functional | receptionist | Not run |
+| DASH-06 | Low stock is real | Pharmacist | Drop a drug below its reorder level | It appears in Low stock with the correct on-hand figure; zero stock reads as danger | P2 | Functional | pharmacist | Not run |
+| DASH-07 | Empty states, not empty boxes | A tenant with no activity today | Open any role dashboard | Every panel explains what is missing ("Nobody has checked in yet today"), never a blank card or a false zero | P2 | UI/UX | any | Not run |
+| DASH-08 | One refresh under load | Any role, expired access token | Open a dashboard and watch the network panel | Exactly **one** `POST /auth/refresh` is sent, not one per request; every panel then loads | P1 | Functional | any | Not run |
+| DASH-09 | Sidebar and page scroll independently | Any role, a long page | Scroll the main content; then scroll with the pointer over the sidebar | The sidebar stays put while the page scrolls; a menu taller than the viewport scrolls inside itself; the topbar stays visible | P2 | UI/UX | any | Not run |
+| DASH-10 | Sidebar sections are legible | Any role | Read the sidebar | Overview · Clinical · Revenue · Organization · Account (or the platform set) with a divider between each; no section without items | P2 | UI/UX | any | Not run |
+| DASH-11 | Greeting handles an honorific | A user named "Dr. Ananya Sharma" | Open the dashboard | Greets "Ananya", never "Dr." | P3 | UI/UX | doctor | Not run |
 
 ## 14. Org administration (users, roles, branches, branding)
 
