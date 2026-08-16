@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { LifeBuoy } from "lucide-react";
 import { Card, Spinner } from "@hms/ui";
 import * as api from "../../../../lib/api";
-import { ADMIN_ORIGIN } from "../../../../lib/adminOrigin";
+import { ADMIN_ORIGIN } from "../../../../lib/origins";
 import { useAuth } from "../../../../lib/auth";
 
 /**

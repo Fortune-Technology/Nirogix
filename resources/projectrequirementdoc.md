@@ -258,6 +258,8 @@ All 25 modules list **Platform Core** as an implicit prerequisite (omitted from 
 - Family linking; corporate and insurance patient categories
 - Unique Patient ID (UHID) with barcode/QR for wristbands and case files
 
+> **QR-code registration, as built (16/08/2026, ADR-056).** The hospital displays a QR carrying an opaque per-tenant token; the backend resolves the hospital from that token server-side, so a QR can only ever register with the hospital that owns it. A scan produces a **registration request**, not a patient — the front desk verifies the person, checks for a duplicate, and converts it into a chart under `patient.record.create`. This is not public self-signup, and it does not create portal access: that remains the hospital's to grant (ADR-052). Aadhaar/ABHA registration and automatic duplicate detection are separate items and are not part of it.
+
 ### Patient profile
 
 - Demographics, contact details, and emergency contacts

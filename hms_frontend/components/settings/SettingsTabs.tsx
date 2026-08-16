@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, ListChecks, Palette, Layers, type LucideIcon } from "lucide-react";
+import { Building2, FileText, ListChecks, Palette, Layers, QrCode, type LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@hms/permissions";
 import { useCan } from "../../lib/auth";
 
@@ -23,7 +23,9 @@ type Tab = { href: string; label: string; icon: LucideIcon; perm: string | null 
 const TABS: Tab[] = [
   { href: "/settings", label: "Setup overview", icon: ListChecks, perm: null },
   { href: "/settings/organization", label: "Hospital information", icon: Building2, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/settings/documents", label: "Letterhead", icon: FileText, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/settings/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
+  { href: "/settings/registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/settings/modules", label: "Enabled modules", icon: Layers, perm: null },
 ];
 

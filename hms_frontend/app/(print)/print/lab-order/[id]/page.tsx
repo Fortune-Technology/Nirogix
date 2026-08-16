@@ -83,7 +83,7 @@ function LabReportDocument({ id }: { id: string }) {
             <PrintTable
               columns={[
                 { key: "test", header: "Investigation", cell: (r: typeof result) => order.testName },
-                { key: "value", header: "Result", align: "right", cell: (r) => r.value },
+                { key: "value", header: "Result", cell: (r) => r.value },
                 { key: "unit", header: "Unit", cell: (r) => r.unit ?? "—" },
                 { key: "range", header: "Reference range", cell: () => range },
                 {

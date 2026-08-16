@@ -150,8 +150,14 @@ function InvoiceDocument({ id }: { id: string }) {
           </PrintNote>
         ) : null}
 
+        {/* The hospital's side falls back to its configured signatory (ADR-056); the
+            patient's line has no name by definition. */}
         <PrintSignatures
-          signatures={[{ label: "Patient / attendant" }, { label: "For " + (brand.organizationName ?? "the hospital") }]}
+          brand={brand}
+          signatures={[
+            { label: "Patient / attendant" },
+            { label: "For " + (brand.organizationName ?? "the hospital"), useDefaultSignatory: true },
+          ]}
         />
       </PrintDocument>
     </>

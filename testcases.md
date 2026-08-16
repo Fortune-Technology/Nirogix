@@ -86,7 +86,17 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | TOAST-03 | No duplicate stacking | — | Press Save colours three times quickly | One toast, refreshed — not three | P2 | UI/UX | org_admin | Not run |
 | TOAST-04 | Server errors reveal nothing internal | Force a 500 | — | Generic copy; no stack trace, SQL, hostname, or PHI anywhere in the toast | P1 | Security | any | Not run |
 | TOAST-05 | Offline / timeout | Disable the network → trigger any action | — | "Can't reach the server" (or timeout) toast; the app does not hang silently | P1 | Functional | any | Not run |
-| TOAST-06 | Dismissal | Raise any toast | Press the close control, then Esc on another | Toast dismisses both ways; success ones auto-dismiss after ~5s; errors do not | P2 | UI/UX | any | Not run |
+| TOAST-06 | Dismissal | Raise any toast | Press the close control | The toast dismisses; success and info auto-dismiss after ~5s, a warning after ~7s, errors do not | P2 | UI/UX | any | Not run |
+| TOAST-07 | Position | Raise any toast on desktop | Look at where it appears | Top-right, clear of the app bar — it never covers navigation or the primary action | P1 | UI/UX | any | Not run |
+| TOAST-08 | Position on a phone | Below 480px wide | Raise any toast | Spans the width inside the safe-area inset, below the app bar, and never causes horizontal scroll | P1 | UI/UX | any | Not run |
+| TOAST-09 | Status is not colour-only | Raise one of each variant | View in greyscale, or read the text alone | Each carries a distinct icon **and** a word ("Success", "Warning", "Something went wrong") | P1 | Accessibility | any | Not run |
+| TOAST-10 | Screen-reader semantics | A screen reader running | Raise a success, then an error | The success is announced politely (`role="status"`), the error interrupts (`role="alert"`); the region is labelled "Notifications" | P1 | Accessibility | any | Not run |
+| TOAST-11 | Follows the tenant's branding | A tenant with a non-default accent | Raise an info toast in Light, then Dark | The icon, accent edge and progress bar are the tenant's accent; the surface, text and border follow the theme. Nothing is hardcoded | P1 | UI/UX | org_admin | Not run |
+| TOAST-12 | Stacking and the cap | — | Raise six toasts quickly | Four are visible, newest at the top, the rest queue — the page is never buried | P2 | UI/UX | any | Not run |
+| TOAST-13 | Pauses while unattended | A success toast on screen | Hover it, then switch browser tab and come back | The timer pauses on hover and while the tab is inactive, so a toast is never missed | P2 | UI/UX | any | Not run |
+| TOAST-14 | A loading toast resolves | An operation using a loading toast | Start it and wait | The same toast becomes success or error — one toast, updated, never a spinner left behind or a second toast | P1 | Functional | any | Not run |
+| TOAST-15 | No duplicate notification per event | A page that handles a failure inline | Trigger that failure | One message only — either the inline treatment or the toast, never both for the same event | P1 | UI/UX | any | Not run |
+| TOAST-16 | One toast system | — | Grep the repo for `react-toastify` | It is imported only inside `@hms/ui` (`src/toast.tsx` and `src/components/Toaster.tsx`); no app, page or module imports it, and no second toast library is installed | P1 | Regression | — | Not run |
 | DATE-01 | Date format everywhere | Any screen showing dates | Compare tables, detail pages, filters | Every user-facing date reads `DD/MM/YYYY` (with time: `DD/MM/YYYY HH:mm`) regardless of the machine's locale | P1 | UI/UX | any | Not run |
 | DATE-02 | Missing dates | Record with an empty date | View it | Renders an em dash, never "Invalid Date" or blank | P3 | UI/UX | any | Not run |
 
@@ -411,8 +421,77 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | DEPT-17 | Cross-tenant read | Two tenants | `GET /api/v1/departments/{id}` with the other tenant's id | 404, not 403 — the record does not exist for this caller | P1 | Security | org_admin | Not run |
 | DEPT-18 | View gate | Role without `platform.departments.view` (pharmacist) | Open `/departments` | Forbidden panel; API returns 403; no sidebar entry | P1 | Security | pharmacist | Not run |
 | DEPT-19 | Manage gate | Receptionist | Open `/departments`, then POST to the API | List is readable; no *New department* button; POST returns 403 | P1 | Security | receptionist | Not run |
+| SETUP-D1 | The dashboard reminder can be dismissed | Setup incomplete | Dashboard → press the × on *Finish setting up your hospital* | The card disappears; nothing else on the dashboard moves or breaks | P2 | UI/UX | org_admin | Not run |
+| SETUP-D2 | Dismissal survives a reload | Just dismissed it | Reload the dashboard | The card stays hidden — the reminder is not repeated every visit | P2 | UI/UX | org_admin | Not run |
+| SETUP-D3 | Dismissal is per person, not per browser | A shared machine | Dismiss as one user, sign out, sign in as another with the same permission | The second user still sees the card — one person hiding a nudge must not hide it from the next | P1 | UI/UX | org_admin | Not run |
+| SETUP-D4 | Dismissal syncs across tabs | The dashboard open in two tabs | Dismiss in one, look at the other | The card disappears in both | P3 | UI/UX | org_admin | Not run |
+| SETUP-D5 | Hiding the reminder hides nothing else | Reminder dismissed | Open Hospital configuration | The full checklist and progress are unchanged and still reachable from the sidebar | P1 | Functional | org_admin | Not run |
+| SETUP-D6 | The close control is reachable and named | Reminder showing | Tab to the ×, and inspect it | It is focusable with a visible focus ring and is announced as *Hide this reminder* | P2 | Accessibility | org_admin | Not run |
 | DEPT-20 | Setup step | No departments | Open Hospital configuration | *Departments* shows as needed; *Doctors & specialties* says it is waiting on branches and departments | P2 | Functional | org_admin | Not run |
 | DEPT-21 | Existing visits keep their department | A visit checked in before this release | Open it | The old free-text department still displays | P1 | Regression | receptionist | Not run |
+
+## 14d. Patient self-registration by QR (ADR-056)
+
+*The product's only unauthenticated write path. QR-01 to QR-06 are the security cases — run them on every release that touches this module.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| QR-01 | **A hospital's QR never reaches another hospital** | Both hospitals have registration on | Copy Hospital A's link, submit a person through it | The request appears in A's queue and **not** in B's; the patient created on approval belongs to A | P1 | Security | public | Not run |
+| QR-02 | **The QR carries nothing sensitive** | Registration on | Decode the QR image with any reader | A URL plus an opaque token — no tenant id, patient data, configuration, credentials or internal identifier | P1 | Security | public | Not run |
+| QR-03 | **The hospital cannot be named by the caller** | A valid token | POST to `/public/registration/{token}` with an extra `tenantId` of the *other* hospital in the body | Ignored entirely; the request lands in the token's hospital | P1 | Security | public | Not run |
+| QR-04 | **Unknown, retired and disabled fail identically** | One valid token | Request a made-up token; regenerate then reuse the old one; switch registration off and reuse the current one | All three return the same 404 and the same message — nothing reveals which hospitals exist or which are open | P1 | Security | public | Not run |
+| QR-05 | **A submission creates no patient** | Registration on | Submit the form, then check the patient list and the database | Nothing in `patients`; one row in `registration_requests` with status *pending* | P1 | Security | receptionist | Not run |
+| QR-06 | **Another hospital cannot act on the queue** | A pending request in A | As B's receptionist, POST approve with A's request id | 404 — the record does not exist for this caller; A's request is untouched | P1 | Security | receptionist | Not run |
+| QR-07 | Off by default | A newly onboarded hospital | Hospital configuration → Patient registration | Status reads *Disabled*; no QR is shown | P1 | Functional | org_admin | Not run |
+| QR-08 | Turning it on issues a QR | Registration off | Turn on | A QR and a link appear; status reads *Enabled* | P1 | Functional | org_admin | Not run |
+| QR-09 | Disabling keeps the token | Registration on; note the link | Turn off, then on again | The link is identical — pausing does not require reprinting posters | P1 | Functional | org_admin | Not run |
+| QR-10 | The public form is refused while off | Registration off | Open the link | *This registration link is not active*; a POST returns 404 | P1 | Security | public | Not run |
+| QR-11 | Regenerating retires the poster | Registration on; note the link | Regenerate → read the confirmation | The confirmation states printed posters stop working; the new link differs; the old one returns 404 | P1 | Functional | org_admin | Not run |
+| QR-12 | Enable, disable and regenerate are audited | Just done all three | Open Audit | `patient.registration.enabled` / `.disabled` / `.token_regenerated` at **notice** | P1 | Security | org_admin | Not run |
+| QR-13 | Copy, download and print | A QR is shown | Copy link; Download QR; Print poster | Link copies with a toast; a PNG downloads; Print poster opens `/print/registration-qr` with no application chrome | P2 | Functional | org_admin | Not run |
+| QR-27 | The poster carries the hospital's branding | A logo and brand colour configured | Print poster | The hospital's logo, name and address print in the header, in its own accent — the same header an invoice uses | P2 | Functional | org_admin | Not run |
+| QR-28 | The code is drawn in the hospital's colour | A brand colour configured | Look at the QR on screen and on the poster | Both are the hospital's accent, and both are identical — one definition drives the screen and the paper | P2 | Functional | org_admin | Not run |
+| QR-29 | A pale brand colour still scans | Set the accent to a light yellow, e.g. `#fde047` | Regenerate nothing; just reload and scan the QR with a phone | The code prints in a darkened yellow rather than the pale one, and scans. A colour already dark enough (deep teal) prints unchanged | P1 | Functional | org_admin | Not run |
+| QR-30 | The poster route needs the same permission | Receptionist | Open `/print/registration-qr` directly | Forbidden panel; the settings API returns 403 | P1 | Security | receptionist | Not run |
+| QR-31 | No token in the poster's URL | — | Open Print poster and read the address bar | `/print/registration-qr` with no query string — the page reads the token server-side under its own permission | P1 | Security | org_admin | Not run |
+| QR-32 | The poster says so when registration is off | Registration off | Open `/print/registration-qr` | An explanation and no poster, rather than a blank sheet | P2 | Functional | org_admin | Not run |
+| QR-14 | The form names the right hospital | A valid link | Open it | The hospital's display name (or its name) and city, and nothing else about the hospital | P1 | Functional | public | Not run |
+| QR-15 | The form is honest about what it does | A valid link | Read the page and submit | Both the form and the success screen say the details go to the front desk and that no account, appointment or record access is created | P1 | Functional | public | Not run |
+| QR-16 | Date of birth is `DD/MM/YYYY` | A valid link | Open the date field | `DateField`, not a native picker; typed and displayed as `DD/MM/YYYY`; a future date is refused | P2 | Functional | public | Not run |
+| QR-17 | Validation | A valid link | Submit with no name, then a bad phone | 422 with a field-level message; nothing created | P2 | Validation | public | Not run |
+| QR-18 | Rate limiting | A valid link | Submit rapidly, repeatedly | Throttled at the sign-in tier with a 429 | P2 | Security | public | Not run |
+| QR-19 | **The configurer can see the queue** | A pending request | Sign in as org_admin → Clinical → Registration requests | The queue is visible and lists the request — org_admin does **not** hold `patient.record.create`, and gating the screen on it hid this page from the person who printed the QR | P1 | Security | org_admin | Not run |
+| QR-20 | ...but cannot act on it | As QR-19 | Look for the row actions, then POST approve directly | No approve or reject action is rendered; the API returns 403 | P1 | Security | org_admin | Not run |
+| QR-21 | The front desk can act | A pending request | Sign in as receptionist → Registration requests → Register as a patient → confirm | A patient record with a UHID is created; the browser lands on it | P1 | Functional | receptionist | Not run |
+| QR-22 | Approving twice is refused | A just-approved request | POST approve again with the same id | 409 *already reviewed*; no second patient | P1 | Validation | receptionist | Not run |
+| QR-23 | Rejecting keeps the row | A pending request | Reject → confirm | No patient created; the request is retained with status *rejected* and the reason | P1 | Functional | receptionist | Not run |
+| QR-24 | Review is audited | Just approved and rejected one each | Open Audit | `patient.registration.approved` and `.rejected` at **notice**; the approval names the created patient | P1 | Security | org_admin | Not run |
+| QR-25 | The list leaks nothing internal | A pending request | Inspect the `GET /registration-requests` response | No `tenantId`, no submitted IP, no reviewer id — only the documented fields | P2 | Security | receptionist | Not run |
+| QR-26 | Pending count on the settings page | One pending request | Hospital configuration → Patient registration | A badge reads *1 awaiting review* | P2 | Functional | org_admin | Not run |
+
+## 14e. Hospital letterhead (ADR-056)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| LTR-01 | Letterhead is a tab of the same console | `platform.organization.manage` | Hospital configuration → Letterhead | Header line, footer text, signatory and designation, with a live preview | P1 | Functional | org_admin | Not run |
+| LTR-02 | It prints | Letterhead saved | Print an invoice | Header line under the hospital name; footer line above the confidentiality notice; the hospital's signature line carries the signatory and designation | P1 | Functional | cashier | Not run |
+| LTR-03 | The patient's signature line stays blank | As LTR-02 | Look at the patient/attendant line | No name printed there — the default signatory fills only the hospital's line | P1 | Functional | cashier | Not run |
+| LTR-04 | Empty fields print nothing | Letterhead cleared | Print an invoice | No empty label, no placeholder — the lines simply do not appear | P1 | Functional | cashier | Not run |
+| LTR-05 | One record, two screens | — | Save the letterhead, then open Hospital information | The address, phone and GSTIN are unchanged — a partial update never blanks fields another screen owns | P1 | Regression | org_admin | Not run |
+| LTR-06 | Public identity fields | — | Hospital information | Display name, alternate phone and patient support email are present and save | P2 | Functional | org_admin | Not run |
+| LTR-07 | Another hospital is unaffected | Two tenants | Set a letterhead in A, print in B | B prints its own (or none) — never A's | P1 | Security | org_admin | Not run |
+
+## 14f. Table and navigation consistency
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| TBL-01 | A column's heading aligns with its values | — | Open Billing and look at Total and Balance | Heading and figures are both right-aligned, in the same column edge | P1 | Functional | cashier | Not run |
+| TBL-02 | Label columns read left | — | Open Patients (Age), Appointments (Duration), Audit (Status) | Heading and values are both left-aligned — a label containing a digit is not a magnitude | P2 | Functional | org_admin | Not run |
+| TBL-03 | The Actions heading sits over its buttons | Any table with row actions | Look at the Actions column | Heading and action buttons share the right edge | P2 | Functional | org_admin | Not run |
+| TBL-04 | Sorting does not move the heading | A sortable right-aligned column | Sort it ascending, then descending | The heading and its sort arrow stay at the column's edge in every state | P2 | Functional | cashier | Not run |
+| NAV-01 | One nav item is active at a time | — | Open `/patients/registrations` | *Registration requests* is highlighted and *Patients* is not | P1 | Functional | receptionist | Not run |
+| NAV-02 | A detail page keeps its parent active | A patient exists | Open `/patients/{id}` | *Patients* is highlighted — the route has no nav item of its own | P1 | Functional | receptionist | Not run |
+| NAV-03 | The same holds on mobile | Below the breakpoint | Open `/patients/registrations` | The bottom bar and drawer highlight exactly one destination | P2 | Functional | receptionist | Not run |
 
 ## 15. Audit log
 

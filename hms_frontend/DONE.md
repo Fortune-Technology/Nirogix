@@ -485,3 +485,51 @@ The point is not tidiness: while those lived here, a platform operator and a rec
 - **The support-session banner** in `AppShell` — an operator inside a hospital is in *this* app, so the banner belongs here.
 
 **Testing status:** typecheck clean, `next build` clean (31 routes, `/support/enter` present, no `/platform` or `/admin/*`), 12 tests pass.
+
+## 2026-08-16 — Hospital identity, letterhead, and the patient-registration QR (ADR-056)
+
+**What:** Three additions to the Hospital Configuration console plus the front desk's review queue.
+
+**Hospital information** gained the public identity fields (display name, alternate phone, patient support email) alongside the registered ones. The form itself was extracted to `components/settings/ProfileForm.tsx`, because the letterhead screen edits the same record and a second copy of the load/dirty/save/partial-update logic would have been the drift the reusable-UI rule exists to prevent. Each screen declares the subset of fields it owns and sends only those, so saving a letterhead can never blank an address the administrator was not looking at.
+
+**Letterhead** (`/settings/documents`) — header line, footer text, default signatory and designation, with a preview of where each lands on a page. Wired through `useDocumentBrand` into `PrintDocument`, which gained `headerLine`, `footerLine` and an **opt-in** `useDefaultSignatory` per signature line. Opt-in matters: an invoice has the patient's signature line beside the hospital's, and printing the Medical Superintendent's name over the patient's would be worse than printing nothing.
+
+**Patient registration** (`/settings/registration`) — the QR rendered client-side from `qrcode` at 512px with high error correction and no centre logo, because this ends up photocopied onto a poster and a decorated QR that fails to scan is worse than a plain one that works. Copy link, download PNG, print a poster (its own minimal window, per ADR-047's principle — the document, not the app), preview, and a confirmed regenerate that says plainly that every printed poster stops working. The QR is held **with the URL it encodes**, so a regenerated token can never briefly show the retired code beside the new link.
+
+The screen is emphatic about one thing: nothing is added to the patient list automatically. If it implied otherwise, a hospital would reasonably expect scanned strangers to appear in its records.
+
+**Review queue** (`/patients/registrations`, Clinical → Registration requests) — a Standard DataTable configuration with approve/reject through `TableAction` and the shared confirmation. Approving routes straight to the new patient, because the desk almost always corrects something typed on a phone.
+
+**A permission bug caught in review, not by a test.** The queue was gated on `patient.record.create` end to end. `org_admin` does not hold it — so the administrator who turns registration on, prints the QR and puts it on the wall got no nav item and no screen. Reading the queue is now `patient.record.view`; approving and rejecting stay `patient.record.create` and their buttons simply do not render without it. The lesson is the ordinary one: the person who *configures* a feature and the person who *works* it are often not the same, and gating the whole screen on the working permission hides it from the configurer.
+
+**Also:** `Textarea` added to `@hms/ui` (there was no multi-line field), and `packages/client/tsconfig.json` gained the `jsx`/`DOM` settings it always needed — `npm run typecheck` had been failing there since the package was created.
+
+**Testing status:** typecheck clean across the monorepo, `npm run build` clean (all six workspaces; `/settings/documents`, `/settings/registration` and `/patients/registrations` present). Verified live against a running API for `org_admin` and `receptionist` in two tenants.
+
+## 2026-08-16 — Three fixes from a look at the running Portal
+
+**Every table's heading was misaligned with its own column.** Reported against Patients → Age, but it was in the shared DataTable and therefore everywhere: the `align` class landed on the sort control inside the `th` rather than on the `th`, so cells moved and headings did not. Fixed in `@hms/ui` — one change, every table.
+
+While there, the columns using `align: "right"` were audited against what right alignment is *for* — magnitudes a reader compares down a column. Money and stock counts keep it. **Age**, **Duration**, the audit **Status** code and the printed lab **Result** value move to the default left: each is a label that happens to contain a digit, and reads better next to its heading. `resources/rules.md` now states the rule so the next column does not have to guess.
+
+**Two nav items lit up at once.** `/patients/registrations` is a prefix match for both *Patients* and *Registration requests*, and the active test was a plain `startsWith`. `activeNavHref` in `lib/nav.ts` now picks the **longest** matching href, so the specific destination wins while `/patients/{id}` — which has no item of its own — still highlights *Patients*. Sidebar, bottom bar and drawer all derive from it.
+
+**The QR is the hospital's colour, and the poster is a real document.** The code is drawn in the tenant's accent through `ensureContrast` from `@hms/utils`, which darkens a pale accent until it scans while keeping its hue — a QR is read by a camera off a photocopy, so a colour that looks right and does not scan is worse than no colour at all. Light modules stay pure white; narrowing the reflectance difference would buy nothing anyone would notice.
+
+The Print poster action now opens **`/print/registration-qr`**, a route under `(print)` built from the document kit, carrying the hospital's logo, name, address and accent from the same `useDocumentBrand` an invoice uses. It replaces a `window.open` with hand-written HTML that I should not have written — ADR-047 says print prints the *document*, and that popup was a printed screenshot with none of the hospital's identity on it. The route reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**, and `useRegistrationQr` is shared by the screen and the poster so a preview cannot differ from the paper.
+
+**Testing status:** typecheck and build clean (`/print/registration-qr` present); 31 `@hms/utils` tests (11 new), 68 `@hms/ui`, 119 backend. 12 new manual cases in `testcases.md` (QR-27…QR-32, TBL-01…TBL-04, NAV-01…NAV-03).
+
+## 2026-08-16 — The dashboard setup reminder is dismissible
+
+**What:** A close control on *Finish setting up your hospital*. The card already removed itself once setup was complete; what was missing was a way to say "not now" — and a nudge that cannot be dismissed stops being a nudge and becomes furniture.
+
+Three decisions worth recording:
+
+- **Keyed by user id, not by browser.** A shared reception machine is the normal case in a hospital, and one person hiding a reminder must not hide it from whoever signs in next.
+- **`localStorage`, not the database.** This is a view preference on one device that changes nothing anyone else can see — the same reasoning the theme preference already uses. It does not deserve a column, a migration, or a call on every dashboard load.
+- **`useSyncExternalStore`, not an effect.** Storage is genuinely an external store: reading it this way keeps the server render honest (it has none, and says so) rather than papering over a hydration mismatch, and it means dismissing in one tab hides the card in another — which is what someone with the dashboard open twice expects.
+
+Dismissing hides the *reminder*, never the work: the full checklist stays under Hospital configuration, which is in the sidebar, and the close control's tooltip says so. An in-memory fallback covers a browser with storage disabled, so the click always does something visible — swallowing it silently would be worse than not offering the button.
+
+**Testing status:** typecheck, lint and build clean. Six manual cases added (`SETUP-D1`…`SETUP-D6`), including the per-user and cross-tab behaviour. Not verified in a running browser — the card needs an authenticated org_admin session, and I do not sign in on the user's behalf.

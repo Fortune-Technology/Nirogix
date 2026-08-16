@@ -2,7 +2,7 @@
 
 Target environment: **`NODE_ENV=production`**. Scope: `hms_backend`, `hms_frontend`, `marketing`, shared packages, configuration and dependencies.
 
-Reviewed 15/08/2026, updated 16/08/2026 (H-4, patient session model) against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
+Reviewed 15/08/2026, updated 16/08/2026 (H-4, patient session model, and the public registration endpoints) against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
 
 **Status legend:** `Fixed` in this pass · `Open` needs work · `Accepted` deliberate, with the reason · `Blocked` needs infrastructure.
 
@@ -105,6 +105,7 @@ The new self-service change enforces ≥10 characters and rejects reuse of the c
 | **Session model** | Access token in memory only (never `localStorage`), refresh token in an `httpOnly`, `Secure`-in-production, `SameSite=Lax`, path-scoped cookie; server-side session rows support revocation, and a password change revokes all of them. Rotation is now genuine (H-4). **Patients have their own session table and their own cookie path** (`/api/v1/patient/auth`), so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint (ADR-052). |
 | **PHI in logs/analytics** | No analytics is installed in either app; the audit middleware records method/path/actor, not bodies. |
 | **Payload limits** | JSON capped at 1 MB; uploads capped by size and count. |
+| **The one unauthenticated write path** | `GET|POST /public/registration/:token` (ADR-056) is the only route that writes without a session. Reviewed against each way it could be abused: the tenant is resolved **server-side from the token in the path**, so a caller cannot name a hospital; unknown / regenerated / disabled all return an identical 404, so it cannot enumerate tenants; both routes carry `authLimiter`; it writes to `registration_requests` and never to `patients`, so it cannot create a chart or portal access; the list response is projected field by field, so `tenant_id`, the submitted IP and the reviewer id never leave the server; and submissions are audited against the tenant with no actor. Verified live across two tenants. |
 | **Browser credential saving** | Login uses `autocomplete="username"` / `"current-password"` and the profile uses `"new-password"`; no `autocomplete="off"` anywhere, so password managers work normally. |
 
 ---
@@ -123,6 +124,7 @@ Before the first production deploy, confirm each of these. Items marked **Blocke
 - [ ] R2 bucket jurisdiction-pinned to India for PHI (ADR-017, `BACKLOG.md` I-4). **Blocked**
 - [ ] Backup + restore drill executed against the real database (`BACKLOG.md` I-3). **Blocked**
 - [ ] Rate limits observed under real traffic and tuned (`RATE_LIMIT_IN_DEV=true` locally to exercise them).
+- [ ] **Patient self-registration reviewed per tenant before go-live** (ADR-056): it is off by default and each hospital opts in deliberately. Confirm the pilot hospital knows that a submission is a *request*, that someone works the queue daily, and that regenerating the token invalidates every poster already printed.
 
 ---
 

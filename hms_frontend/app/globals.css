@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Compile the Tailwind classes inside @hms/ui too — the shared components
- * (shadcn Toast) live there, and node_modules is not scanned by default. */
+/* Compile the Tailwind classes inside @hms/ui too — some shared components
+ * (the charts) use them, and node_modules is not scanned by default. */
 @source "../../packages/ui/src/**/*.{ts,tsx}";
 
 /*

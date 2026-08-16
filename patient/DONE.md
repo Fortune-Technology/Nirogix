@@ -30,3 +30,13 @@ Signing out calls the server, so the refresh token is **revoked** rather than me
 The hospital picker's note changed with the behaviour: it no longer says the session ends with the tab, and instead reminds the patient to sign out on a shared computer — which is now the thing that actually matters.
 
 **Testing status:** typecheck and `next build` clean. The flow was verified end to end against the API (see `hms_backend/DONE.md`), including that replaying a previous refresh cookie returns 401.
+
+## 2026-08-16 — The public registration form (ADR-056)
+
+**What:** `/register/[token]` in a new `(public)` route group — deliberately outside `(app)`, so nothing here mounts the session provider or the portal navigation and a public page cannot accidentally render something that assumes a signed-in patient.
+
+The URL carries an opaque token and nothing else. The hospital's name comes back from the backend, which resolved it from that token; the form never sends a hospital identifier, because there is no field for one. An unknown token, a regenerated one and a hospital with registration switched off all render the same "this link is not active" screen — the page must not reveal which it was.
+
+The copy does the work the security model needs it to do. Submitting sends details to the front desk; it does not create an account, book an appointment, or grant access to records, and the success screen says so rather than leaving the person to assume they are registered. Date of birth uses `DateField` (ADR-048) — never a native date input, which renders in the browser's locale — and the free-text note asks the person **not** to put medical details in it.
+
+**Testing status:** typecheck and `next build` clean. Verified end to end against CityCare's real token: the submission appeared in that hospital's queue and nowhere else, and became patient `UHID-000005` only after reception approved it.

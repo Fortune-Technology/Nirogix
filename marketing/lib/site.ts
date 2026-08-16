@@ -98,9 +98,11 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "Reception registration with demographics, ABHA number, and contact details",
       "Tenant-unique UHID generated on registration",
       "Search by name, phone, or UHID, with a patient profile you can edit",
+      // ADR-056. Worded carefully: patients send details, the hospital registers them.
+      // "Patients register themselves" would be the overclaim (ADR-038).
+      "Your own QR code so patients can send their details ahead, reviewed and completed by your front desk",
     ],
     planned: [
-      "Online and QR self-registration",
       "UHID barcode / QR printing and duplicate detection",
       "Family and dependant linking",
     ],

@@ -15,6 +15,8 @@ export { Button } from './components/Button';
 export type { ButtonProps } from './components/Button';
 export { Field } from './components/Input';
 export type { FieldProps } from './components/Input';
+export { Textarea } from './components/Textarea';
+export type { TextareaFieldProps } from './components/Textarea';
 export { PasswordField } from './components/PasswordField';
 export type { PasswordFieldProps } from './components/PasswordField';
 export { Card } from './components/Card';

@@ -25,6 +25,8 @@ import type {
   OrganizationProfile,
   UpdateOrganizationProfileRequest,
   SetupStatus,
+  RegistrationSettings,
+  RegistrationRequestItem,
   PlatformBranding,
   PlatformBrandingScope,
   DashboardOverview,
@@ -126,6 +128,49 @@ export async function listAudit(
 
 export async function listRoles(): Promise<Role[]> {
   return (await request<{ roles: Role[] }>("/rbac/roles")).roles;
+}
+
+// ---- Patient self-registration (ADR-056) -----------------------------------
+// A submission is a REQUEST, not a patient. The front desk converts it after
+// verifying the person, so ADR-052's rule that the hospital decides who becomes a
+// patient record still holds.
+
+export async function getRegistrationSettings(): Promise<RegistrationSettings> {
+  return request<RegistrationSettings>("/organization/registration");
+}
+
+export async function setSelfRegistration(enabled: boolean): Promise<RegistrationSettings> {
+  return request<RegistrationSettings>("/organization/registration", {
+    method: "PUT",
+    body: { enabled },
+    feedback: { success: enabled ? "Self-registration is on." : "Self-registration is off." },
+  });
+}
+
+export async function regenerateRegistrationToken(): Promise<RegistrationSettings> {
+  return request<RegistrationSettings>("/organization/registration/regenerate", {
+    method: "POST",
+    feedback: { success: "New QR issued. Printed posters no longer work." },
+  });
+}
+
+export async function listRegistrationRequests(status = "pending"): Promise<RegistrationRequestItem[]> {
+  return (await request<{ requests: RegistrationRequestItem[] }>(`/registration-requests?status=${status}`)).requests;
+}
+
+export async function approveRegistrationRequest(id: string): Promise<{ patientId: string }> {
+  return request<{ patientId: string }>(`/registration-requests/${id}/approve`, {
+    method: "POST",
+    feedback: { success: "Patient registered." },
+  });
+}
+
+export async function rejectRegistrationRequest(id: string, reason?: string): Promise<void> {
+  await request<void>(`/registration-requests/${id}/reject`, {
+    method: "POST",
+    body: { reason },
+    feedback: { success: "Request rejected." },
+  });
 }
 
 // ---- Patient portal access (ADR-052) ---------------------------------------

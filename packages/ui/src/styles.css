@@ -509,6 +509,14 @@
   cursor: pointer;
   border-radius: var(--hms-radius-sm);
 }
+/* A non-default alignment makes the sort control fill its cell, so `justify-content`
+   has room to work — as an inline-flex it would otherwise shrink to its label and sit
+   wherever the cell's text-align left it. */
+.hms-th__sort--center,
+.hms-th__sort--right {
+  display: flex;
+  width: 100%;
+}
 .hms-th__sort--center {
   justify-content: center;
 }
@@ -964,15 +972,145 @@
 }
 
 /* --------------------------------------------------------------------------
- * Toast / notifications — shadcn/ui Base UI Toast (ADR-032).
- * The component carries its own Tailwind classes, which resolve to --hms-*
- * through the app-level token remap; only the close button needs our styling
- * (shadcn's default renders its own Button, which this package does not use).
+ * Toast / notifications — React Toastify (ADR-057).
+ * The library supplies placement, timing, stacking, hover/focus pausing,
+ * drag-to-dismiss and the live region. Everything visible is defined here, on
+ * the design tokens, so a toast follows Light/Dark and the tenant accent with
+ * no colour in any component and no second palette.
  * ------------------------------------------------------------------------ */
-.hms-toast-close-btn {
+.hms-toast-container {
+  /* React Toastify's entire palette, re-pointed at the design tokens (ADR-057).
+     This is the only place the two systems meet: a tenant changes `--hms-brand`, or a
+     user switches to Dark, and every toast follows without a second definition and
+     without any component knowing a colour. */
+  --toastify-color-light: var(--hms-surface);
+  --toastify-color-dark: var(--hms-surface);
+  --toastify-toast-background: var(--hms-surface);
+  --toastify-text-color-light: var(--hms-fg);
+  --toastify-text-color-dark: var(--hms-fg);
+
+  --toastify-color-success: var(--hms-success);
+  --toastify-color-error: var(--hms-danger);
+  --toastify-color-warning: var(--hms-warning);
+  --toastify-color-info: var(--hms-brand);
+
+  --toastify-icon-color-success: var(--hms-success);
+  --toastify-icon-color-error: var(--hms-danger);
+  --toastify-icon-color-warning: var(--hms-warning);
+  --toastify-icon-color-info: var(--hms-brand);
+
+  --toastify-color-progress-success: var(--hms-success);
+  --toastify-color-progress-error: var(--hms-danger);
+  --toastify-color-progress-warning: var(--hms-warning);
+  --toastify-color-progress-info: var(--hms-brand);
+  --toastify-color-progress-light: var(--hms-brand);
+  --toastify-color-progress-dark: var(--hms-brand);
+
+  --toastify-spinner-color: var(--hms-brand);
+  --toastify-font-family: inherit;
+  --toastify-toast-bd-radius: var(--hms-radius-md);
+  --toastify-toast-shadow: var(--hms-shadow-md);
+  --toastify-toast-padding: 0.875rem 1rem;
+  --toastify-toast-min-height: 0;
+  --toastify-toast-max-height: none;
+  --toastify-toast-width: 22rem;
+
+  /* Clear of the sticky app bar (3.5rem) so a toast never covers navigation. */
+  --toastify-toast-top: 4.25rem;
+  --toastify-toast-right: 1rem;
+  --toastify-z-index: 60;
+}
+
+.hms-toast {
+  border: 1px solid var(--hms-border);
+  color: var(--hms-fg);
+  font-family: inherit;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+.hms-toast .Toastify__toast-body {
+  align-items: flex-start;
+  padding: 0;
+  margin: 0;
+  gap: 0.625rem;
+}
+/* A tinted left edge doubles the icon's signal without being the only carrier of it. */
+.hms-toast--success {
+  border-left: 3px solid var(--hms-success);
+}
+.hms-toast--error {
+  border-left: 3px solid var(--hms-danger);
+}
+.hms-toast--warning {
+  border-left: 3px solid var(--hms-warning);
+}
+.hms-toast--info,
+.hms-toast--loading {
+  border-left: 3px solid var(--hms-brand);
+}
+
+.hms-toast__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+}
+.hms-toast__icon--success {
+  color: var(--hms-success);
+}
+.hms-toast__icon--error {
+  color: var(--hms-danger);
+}
+.hms-toast__icon--warning {
+  color: var(--hms-warning);
+}
+.hms-toast__icon--info,
+.hms-toast__icon--loading {
+  color: var(--hms-brand);
+}
+.hms-toast__spin {
+  animation: hms-toast-spin 0.9s linear infinite;
+}
+@keyframes hms-toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hms-toast__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+.hms-toast__text {
+  min-width: 0;
+  flex: 1;
+}
+.hms-toast__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--hms-fg);
+}
+.hms-toast__desc {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--hms-fg-muted);
+  overflow-wrap: anywhere;
+}
+.hms-toast__action {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.hms-toast__close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 1.5rem;
   height: 1.5rem;
   padding: 0;
@@ -981,14 +1119,54 @@
   background: none;
   color: var(--hms-fg-subtle);
   cursor: pointer;
+  align-self: flex-start;
 }
-.hms-toast-close-btn:hover {
+.hms-toast__close:hover {
   color: var(--hms-fg);
   background: color-mix(in srgb, var(--hms-fg) 8%, transparent);
 }
-.hms-toast-close-btn:focus-visible {
+.hms-toast__close:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
+}
+
+.hms-toast__progress {
+  height: 2px;
+  opacity: 0.85;
+}
+
+/* Phones. The library's own <=480px rule sets `top`, `left` and `width` as literal
+   values rather than through its variables — so overriding the variables alone leaves a
+   toast pinned to the very top, covering the app bar. These override the properties,
+   matching the same breakpoint, and keep the safe-area inset a notch needs. */
+@media only screen and (max-width: 480px) {
+  .hms-toast-container.Toastify__toast-container--top-right {
+    top: calc(env(safe-area-inset-top) + 3.75rem);
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    width: auto;
+    padding: 0 0.5rem;
+  }
+  /* Scoped through the container so it outranks the library's own
+     `.Toastify__toast { border-radius: 0 }` at this breakpoint, whichever
+     stylesheet the bundler happens to emit last. */
+  .hms-toast-container .hms-toast {
+    margin-bottom: 0.5rem;
+    border-radius: var(--hms-radius-md);
+  }
+}
+
+/* Someone who asked for less motion gets the toast without the slide. */
+@media (prefers-reduced-motion: reduce) {
+  .Toastify__bounce-enter--top-right,
+  .Toastify__bounce-exit--top-right,
+  .Toastify__slide-enter--top-right,
+  .Toastify__slide-exit--top-right {
+    animation: none !important;
+  }
+  .hms-toast__spin {
+    animation-duration: 2s;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1604,6 +1782,14 @@
   font-size: 8.5pt;
   color: var(--doc-muted);
 }
+/* The letterhead line the hospital writes for itself — sits between the name and
+   the address block, and reads as part of the identity rather than another contact. */
+.hms-doc__tagline {
+  font-size: 9pt;
+  font-style: italic;
+  color: var(--doc-muted);
+  margin-bottom: 0.5mm;
+}
 .hms-doc__title-block {
   text-align: right;
   flex-shrink: 0;
@@ -1737,6 +1923,36 @@
   font-size: 9.5pt;
   break-inside: avoid;
 }
+/* The registration poster (ADR-056). Deliberately the largest thing on its page:
+   it is read from across a waiting room, not held at arm's length. */
+.hms-qr-poster {
+  text-align: center;
+  padding: 6mm 0;
+}
+.hms-qr-poster__lead {
+  font-size: 20pt;
+  font-weight: 700;
+  color: var(--doc-ink);
+  margin: 0 0 2mm;
+}
+.hms-qr-poster__sub {
+  font-size: 11pt;
+  color: var(--doc-muted);
+  margin: 0 0 6mm;
+}
+.hms-qr-poster__code {
+  width: 92mm;
+  height: 92mm;
+  display: block;
+  margin: 0 auto;
+}
+.hms-qr-poster__url {
+  margin: 5mm auto 0;
+  max-width: 120mm;
+  font-size: 9pt;
+  color: var(--doc-muted);
+  word-break: break-all;
+}
 .hms-doc__note-title {
   font-weight: 700;
   margin-bottom: 1mm;
@@ -1747,6 +1963,15 @@
   border-top: 1px solid var(--doc-rule);
   font-size: 8.5pt;
   color: var(--doc-muted);
+}
+/* The hospital's own letterhead footer, when configured — full width and centred,
+   above the platform's confidentiality line rather than competing with it. */
+.hms-doc__letterfoot {
+  text-align: center;
+  margin-bottom: 2mm;
+  white-space: pre-line;
+}
+.hms-doc__footer-row {
   display: flex;
   justify-content: space-between;
   gap: 4mm;

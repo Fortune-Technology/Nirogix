@@ -310,7 +310,15 @@ export function DataTable<Row>({
                     | undefined;
                   const sortIndex = sorting.findIndex((s) => s.id === header.column.id) + 1;
                   return (
-                    <th key={header.id} style={meta?.width ? { width: meta.width } : undefined}>
+                    // The alignment belongs on the `th` itself, not only on the control
+                    // inside it: a shrink-to-fit button cannot move itself to the right
+                    // edge of a cell, so a right-aligned column used to show its heading
+                    // on the left and its values on the right.
+                    <th
+                      key={header.id}
+                      className={meta?.align && meta.align !== "left" ? `hms-cell--${meta.align}` : undefined}
+                      style={meta?.width ? { width: meta.width } : undefined}
+                    >
                       <DataTableColumnHeader
                         sortable={header.column.getCanSort()}
                         direction={header.column.getIsSorted()}

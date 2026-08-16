@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, boolean, integer, timestamp, unique, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 
@@ -43,6 +43,29 @@ export const organizationProfile = pgTable(
     registrationNumber: varchar('registration_number', { length: 100 }),
     // GSTIN — 15 characters, validated at the edge, stored uppercase.
     gstin: varchar('gstin', { length: 15 }),
+    // The name shown to patients where the legal name would be unhelpful.
+    displayName: varchar('display_name', { length: 200 }),
+    secondaryPhone: varchar('secondary_phone', { length: 32 }),
+    supportEmail: varchar('support_email', { length: 255 }),
+    // Letterhead (ADR-056). Reuses this row and the tenant's branding rather than starting a
+    // second identity store — a document's header IS the organization's identity, and having
+    // two places to change a hospital's address is how they end up disagreeing.
+    letterheadHeader: varchar('letterhead_header', { length: 300 }),
+    letterheadFooter: varchar('letterhead_footer', { length: 500 }),
+    signatoryName: varchar('signatory_name', { length: 200 }),
+    signatoryDesignation: varchar('signatory_designation', { length: 200 }),
+    /**
+     * Patient self-registration (ADR-056).
+     *
+     * `selfRegistrationToken` is an opaque random string, NOT the tenant id: a QR on a
+     * poster is public, and printing an internal identifier on it would hand every
+     * passer-by a key to guess with. It is regenerable, which is the only way to retire a
+     * poster that has been photographed or altered.
+     *
+     * Off by default. A hospital opts in.
+     */
+    selfRegistrationEnabled: boolean('self_registration_enabled').notNull().default(false),
+    selfRegistrationToken: varchar('self_registration_token', { length: 64 }),
     // Optimistic locking, same shape as tenant_branding.
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -51,8 +74,59 @@ export const organizationProfile = pgTable(
   (t) => ({
     // One organization-level profile per tenant.
     tenantUnique: unique('organization_profile_tenant_unique').on(t.tenantId),
+    // The public registration endpoint resolves a tenant FROM this token, so it must be
+    // unique platform-wide and indexed — it is the lookup key on an unauthenticated route.
+    regTokenUnique: unique('organization_profile_reg_token_unique').on(t.selfRegistrationToken),
   }),
 );
+
+/**
+ * A patient's self-registration submission (ADR-056).
+ *
+ * **This is a request, not a patient.** The hospital still decides who becomes a patient
+ * record — ADR-052's invariant survives, because nothing here writes to `patients`. A
+ * stranger scanning a poster can put a row in this table and nothing else; the front desk
+ * verifies the person, checks for a duplicate, and converts it.
+ *
+ * That distinction is the whole design. A public form that wrote straight into `patients`
+ * would let anyone fill a hospital's chart list with junk, and duplicate charts are the
+ * expensive kind of mistake — there is no merge tool.
+ *
+ * Tenant-scoped, so RLS applies: the tenant comes from the token the submitter scanned,
+ * resolved server-side, never from the request body.
+ */
+export const registrationRequests = pgTable(
+  'registration_requests',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'restrict' }),
+    firstName: varchar('first_name', { length: 100 }).notNull(),
+    lastName: varchar('last_name', { length: 100 }),
+    gender: varchar('gender', { length: 20 }),
+    dateOfBirth: varchar('date_of_birth', { length: 10 }),
+    phone: varchar('phone', { length: 32 }).notNull(),
+    email: varchar('email', { length: 255 }),
+    city: varchar('city', { length: 100 }),
+    /** What the person came in for, in their own words. Free text, never clinical. */
+    note: varchar('note', { length: 500 }),
+    // pending | approved | rejected
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    /** Set when approved — the patient record this became. */
+    patientId: uuid('patient_id'),
+    reviewedBy: uuid('reviewed_by'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    rejectionReason: varchar('rejection_reason', { length: 300 }),
+    submittedIp: varchar('submitted_ip', { length: 64 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ byTenantStatus: index('registration_requests_tenant_status_idx').on(t.tenantId, t.status) }),
+);
+
+export type RegistrationRequest = typeof registrationRequests.$inferSelect;
 
 export type OrganizationProfile = typeof organizationProfile.$inferSelect;
 export type NewOrganizationProfile = typeof organizationProfile.$inferInsert;

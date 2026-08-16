@@ -33,6 +33,20 @@ export const UpdateOrganizationProfileBody = z
     email: z.string().trim().email('Enter a valid email address').max(255).nullable().optional(),
     website: z.string().trim().url('Enter a full URL, including https://').max(255).nullable().optional(),
     registrationNumber: text(100),
+    displayName: text(200),
+    secondaryPhone: z
+      .string()
+      .trim()
+      .max(32)
+      .regex(/^[0-9+\-() ]{6,32}$/, 'Enter a valid phone number')
+      .nullable()
+      .optional(),
+    supportEmail: z.string().trim().email('Enter a valid email address').max(255).nullable().optional(),
+    // Letterhead — reuses this record rather than a second identity store (ADR-056).
+    letterheadHeader: text(300),
+    letterheadFooter: text(500),
+    signatoryName: text(200),
+    signatoryDesignation: text(200),
     gstin: z
       .string()
       .trim()
@@ -60,6 +74,13 @@ export const OrganizationProfileSchema = z
     website: z.string().nullable(),
     registrationNumber: z.string().nullable(),
     gstin: z.string().nullable(),
+    displayName: z.string().nullable(),
+    secondaryPhone: z.string().nullable(),
+    supportEmail: z.string().nullable(),
+    letterheadHeader: z.string().nullable(),
+    letterheadFooter: z.string().nullable(),
+    signatoryName: z.string().nullable(),
+    signatoryDesignation: z.string().nullable(),
     /** Address / contact / registration lines, already ordered for a document header. */
     contactLines: z.array(z.string()),
     /** True when the fields a tax invoice header needs are all present. */

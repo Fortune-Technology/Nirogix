@@ -8,7 +8,7 @@ import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, NavDrawer, NavDrawe
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { NAV_ITEMS, mobilePrimaryNav, navGroupsForUser } from "../lib/nav";
+import { NAV_ITEMS, activeNavHref, mobilePrimaryNav, navGroupsForUser } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
 function initials(name: string): string {
@@ -46,7 +46,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const ranked = mobilePrimaryNav(can);
   const primary = ranked.slice(0, BOTTOM_NAV_MAX_ITEMS);
   const secondary = visibleNav.filter((item) => !primary.some((p) => p.href === item.href));
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  // The longest matching nav href wins, so a destination nested under another’s path
+  // (`/patients/registrations` under `/patients`) highlights one item, not two — while
+  // `/patients/{id}`, which has no item of its own, still highlights Patients.
+  const active = activeNavHref(pathname);
+  const isActive = (href: string) => active === href;
 
   async function handleLogout() {
     await logout();

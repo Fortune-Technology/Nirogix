@@ -9,6 +9,7 @@
 
 import type {
   Appointment,
+  PublicRegistrationContext,
   InvoiceListItem,
   Paginated,
   PatientHospital,
@@ -95,4 +96,39 @@ export async function invoices(tenantId: string): Promise<Paginated<InvoiceListI
 
 export async function labReports(tenantId: string): Promise<PatientLabReport[]> {
   return (await request<{ reports: PatientLabReport[] }>(`/patient/hospitals/${tenantId}/lab-reports`)).reports;
+}
+
+// ---- Public self-registration (ADR-056) ------------------------------------
+//
+// The only unauthenticated write in this app, and the only place the patient portal
+// touches a specific hospital without a session. The hospital is resolved by the
+// **backend, from the token in the path** — never sent from here, which is what makes a
+// QR for one hospital unable to register someone at another.
+//
+// Neither call creates a patient. A submission is a request the hospital's front desk
+// reviews, so "no public signup" (ADR-052) still holds exactly as before.
+
+export async function registrationContext(token: string): Promise<PublicRegistrationContext> {
+  return request<PublicRegistrationContext>(`/public/registration/${encodeURIComponent(token)}`, {
+    feedback: false,
+  });
+}
+
+export type RegistrationSubmission = {
+  firstName: string;
+  lastName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  phone: string;
+  email?: string | null;
+  city?: string | null;
+  note?: string | null;
+};
+
+export async function submitRegistration(token: string, body: RegistrationSubmission): Promise<void> {
+  await request<void>(`/public/registration/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body,
+    feedback: false,
+  });
 }

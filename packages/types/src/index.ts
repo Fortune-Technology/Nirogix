@@ -226,10 +226,45 @@ export interface OrganizationProfile {
   website: string | null;
   registrationNumber: string | null;
   gstin: string | null;
+  displayName: string | null;
+  secondaryPhone: string | null;
+  supportEmail: string | null;
+  /** Letterhead — reuses this record rather than a second identity store (ADR-056). */
+  letterheadHeader: string | null;
+  letterheadFooter: string | null;
+  signatoryName: string | null;
+  signatoryDesignation: string | null;
   /** The same data pre-ordered for a printed document header. */
   contactLines: string[];
   /** True once the fields an invoice header needs are present. */
   isComplete: boolean;
+}
+
+export interface RegistrationSettings {
+  enabled: boolean;
+  /** Null until self-registration is switched on for the first time. */
+  token: string | null;
+  pendingCount: number;
+}
+
+export interface RegistrationRequestItem {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  phone: string;
+  email: string | null;
+  city: string | null;
+  note: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface PublicRegistrationContext {
+  hospitalName: string;
+  city: string | null;
+  enabled: boolean;
 }
 
 export type UpdateOrganizationProfileRequest = Partial<

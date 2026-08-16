@@ -1,4 +1,11 @@
 {
   "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    // This package ships React providers and guards, and pulls the shared toast in from
+    // @hms/ui's source — so it needs the same JSX and DOM settings @hms/ui has. Without
+    // them `npm run typecheck` fails on files this package does not even own.
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
   "include": ["src"]
 }

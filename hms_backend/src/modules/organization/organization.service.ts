@@ -26,6 +26,13 @@ export type ResolvedOrganizationProfile = {
   website: string | null;
   registrationNumber: string | null;
   gstin: string | null;
+  displayName: string | null;
+  secondaryPhone: string | null;
+  supportEmail: string | null;
+  letterheadHeader: string | null;
+  letterheadFooter: string | null;
+  signatoryName: string | null;
+  signatoryDesignation: string | null;
   contactLines: string[];
   isComplete: boolean;
 };
@@ -58,7 +65,8 @@ export function buildContactLines(p: Partial<OrganizationProfile>): string[] {
   const locality = [p.city, p.state, p.postalCode].filter(Boolean).join(', ');
   if (locality) lines.push([locality, p.country].filter(Boolean).join(', '));
   else if (p.country) lines.push(p.country);
-  const reach = [p.phone && `Tel ${p.phone}`, p.email, p.website].filter(Boolean).join(' · ');
+  const phones = [p.phone, p.secondaryPhone].filter(Boolean).join(' / ');
+  const reach = [phones && `Tel ${phones}`, p.email, p.website].filter(Boolean).join(' · ');
   if (reach) lines.push(reach);
   const statutory = [
     p.registrationNumber && `Reg. no. ${p.registrationNumber}`,
@@ -86,6 +94,13 @@ export async function getOrganizationProfile(tenantId: string): Promise<Resolved
     website: row?.website ?? null,
     registrationNumber: row?.registrationNumber ?? null,
     gstin: row?.gstin ?? null,
+    displayName: row?.displayName ?? null,
+    secondaryPhone: row?.secondaryPhone ?? null,
+    supportEmail: row?.supportEmail ?? null,
+    letterheadHeader: row?.letterheadHeader ?? null,
+    letterheadFooter: row?.letterheadFooter ?? null,
+    signatoryName: row?.signatoryName ?? null,
+    signatoryDesignation: row?.signatoryDesignation ?? null,
     contactLines: buildContactLines(p),
     isComplete: REQUIRED_FOR_DOCUMENTS.every((f) => Boolean(row?.[f])),
   };

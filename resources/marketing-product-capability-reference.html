@@ -262,12 +262,12 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </aside>
 <main>
 <header class="cover">
-  <div class="eyebrow">Internal · Marketing Enablement · Version 1.9</div>
+  <div class="eyebrow">Internal · Marketing Enablement · Version 2.1</div>
   <h1 class="title">Product Capability Reference</h1>
   <p class="subtitle">The single source of truth for what Nirogix can actually do today, what is being built, what is on the roadmap, and what must never be presented as a product capability. Written for the marketing team; derived from the implemented product, the approved PRD, the architecture, and the phase roadmap.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>Nirogix</dd></div>
-    <div><dt>Version</dt><dd>1.9</dd></div>
+    <div><dt>Version</dt><dd>2.1</dd></div>
     <div><dt>Last updated</dt><dd>16/08/2026</dd></div>
     <div><dt>Development phase</dt><dd>Phase 0 + MVP 0/1</dd></div>
     <div><dt>Release state</dt><dd>Pre-release</dd></div>
@@ -686,6 +686,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Light and Dark themes</td><td><span class="b b-built">Built</span></td><td>Every user</td><td>Light is the default; the choice is per user.</td></tr>
       <tr data-status="planned"><td>Per-branch branding overrides</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The schema supports a branch; there is no interface.</td></tr>
       <tr data-status="built"><td>Hospital address, phone, email, website, registration number and GSTIN</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Maintained under Hospital configuration and printed in the document header. Every field is optional; an unset line is omitted rather than filled with a placeholder.</td></tr>
+      <tr data-status="built"><td>Letterhead — header line, footer text and default signatory</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>What the hospital writes for itself, printed on every invoice, receipt and report. One shared document layout still — this is the hospital’s own wording within it, not a template designer.</td></tr>
       <tr data-status="planned"><td>Per-branch address and contact details</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The profile is organization-level, so every branch prints the same header today.</td></tr>
       <tr data-status="planned"><td>Custom typography per hospital</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>The token layer allows it; no interface exposes it.</td></tr>
       <tr data-status="no"><td>Branded outbound email templates</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Email carries no tenant branding today.</td></tr>
@@ -697,7 +698,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <div class="box say"><div class="h">Safe to say</div>
       <p><q>Each hospital applies its own logo, favicon and brand colour, and they carry through the Portal and onto printed documents.</q></p></div>
     <div class="box dont"><div class="h">Do not claim</div>
-      <p><q>Fully white-labelled</q>, <q>your own domain</q>, <q>branded emails</q>, <q>branded letterheads per branch</q> — none of these are available.</p></div>
+      <p><q>Fully white-labelled</q>, <q>your own domain</q>, <q>branded emails</q>, <q>letterhead templates</q> or <q>a different letterhead per branch</q> — none of these are available. A hospital sets <em>one</em> letterhead (header line, footer, signatory) that prints inside the one shared document layout.</p></div>
   </div></div></details>
 </div>
 </section>
@@ -782,6 +783,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="planned"><td>Patient record / summary print-out</td><td><span class="b b-planned">Planned</span></td><td>Doctor</td><td>Not built.</td></tr>
       <tr data-status="planned"><td>Server-generated PDF files (attachable, emailable)</td><td><span class="b b-planned">Planned</span></td><td>—</td><td>Nothing produces a PDF file on the server today.</td></tr>
       <tr data-status="built"><td>Hospital address, registration number and GSTIN in the document header</td><td><span class="b b-built">Built</span></td><td>Automatic</td><td>Taken from the hospital information the administrator maintains. A hospital that has configured nothing still prints name and logo only.</td></tr>
+      <tr data-status="built"><td>Hospital letterhead on printed documents</td><td><span class="b b-built">Built</span></td><td>Automatic</td><td>The header line prints under the hospital’s name, the footer along the bottom of the page, and the default signatory on the hospital’s signature line — the patient’s line is never filled in. An unset field simply does not print.</td></tr>
       <tr data-status="no"><td>GST e-invoice (IRN / QR) </td><td><span class="b b-no">Not available</span></td><td>—</td><td>Never describe our invoice as a compliant GST e-invoice.</td></tr>
       <tr data-status="no"><td>Digital or cryptographic signatures</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Signature blocks are printed lines, nothing more.</td></tr>
     </tbody>
@@ -872,7 +874,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Column visibility and page-size control</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Per user, per table.</td></tr>
       <tr data-status="built"><td>Consistent row actions with confirmation</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Nothing destructive happens without a confirmation dialog.</td></tr>
       <tr data-status="built"><td>Loading, empty and error states everywhere</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>No blank screens.</td></tr>
-      <tr data-status="built"><td>One notification (toast) for every action's outcome</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Success and failure are always announced; never a silent failure.</td></tr>
+      <tr data-status="built"><td>One notification (toast) for every action's outcome</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Success and failure are always announced; never a silent failure. Notifications follow the hospital’s own branding and the active theme, and never signal status by colour alone.</td></tr>
       <tr data-status="built"><td>Light and Dark themes</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Verified under a non-default hospital accent.</td></tr>
       <tr data-status="built"><td>Mobile app shell (bottom bar + drawer)</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>The Portal is responsive on a phone browser.</td></tr>
       <tr data-status="built"><td>Date and time pickers in Indian format</td><td><span class="b b-built">Built</span></td><td>Every role</td><td>Never the browser's own locale-dependent input.</td></tr>
@@ -923,23 +925,27 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Edit / update a patient</td><td><span class="b b-built">Built</span></td><td>Doctor (Receptionist by override)</td><td><code>patient.record.update</code> — not in the receptionist's default role.</td></tr>
       <tr data-status="built"><td>Audit trail on patient changes</td><td><span class="b b-built">Built</span></td><td>System</td><td>Visible to administrators.</td></tr>
       <tr data-status="planned"><td>Patient photograph capture</td><td><span class="b b-planned">Planned</span></td><td>Receptionist</td><td>File storage exists; no capture screen.</td></tr>
-      <tr data-status="planned"><td>Duplicate-patient detection and merge</td><td><span class="b b-planned">Planned</span></td><td>Receptionist</td><td>Search-before-create is the current mitigation.</td></tr>
+      <tr data-status="planned"><td>Duplicate-patient detection and merge</td><td><span class="b b-planned">Planned</span></td><td>Receptionist</td><td>Search-before-create is the current mitigation, including when approving a QR registration request — nothing matches automatically.</td></tr>
       <tr data-status="planned"><td>Family / dependant linking</td><td><span class="b b-planned">Planned</span></td><td>Receptionist</td><td>PRD scope, not built.</td></tr>
       <tr data-status="planned"><td>UHID barcode or QR printing</td><td><span class="b b-planned">Planned</span></td><td>Receptionist</td><td>Not built.</td></tr>
       <tr data-status="planned"><td>Patient documents (upload, view, download)</td><td><span class="b b-planned">Planned</span></td><td>Doctor, Receptionist</td><td>API exists; no screen.</td></tr>
       <tr data-status="planned"><td>Export patient list</td><td><span class="b b-planned">Planned</span></td><td>Org Admin</td><td>No export from this screen today.</td></tr>
       <tr data-status="no"><td>Delete, archive or restore a patient</td><td><span class="b b-no">Not available</span></td><td>—</td><td>No delete, archive or restore exists anywhere in the module.</td></tr>
       <tr data-status="no"><td>Bulk import of an existing patient database</td><td><span class="b b-no">Not available</span></td><td>—</td><td>No import capability of any kind. Migration is a manual conversation, never a promised feature.</td></tr>
-      <tr data-status="no"><td>Patient self-registration, online or by QR</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Registration is a front-desk action only.</td></tr>
+      <tr data-status="built"><td>Patient self-registration by QR code or link</td><td><span class="b b-built">Built</span></td><td>Org Admin configures · Receptionist reviews</td><td>Off by default; a hospital switches it on. The QR is specific to that hospital and resolves server-side, so it can only ever register with the hospital that printed it. <strong>A scan creates a registration request, not a patient record</strong> — the front desk verifies the person and completes the registration.</td></tr>
+      <tr data-status="built"><td>Registration review queue (approve or reject a request)</td><td><span class="b b-built">Built</span></td><td>Receptionist, Doctor (act) · Org Admin (view)</td><td>Approving creates the patient record and issues a UHID; both approving and rejecting are audited. A rejected request is kept, never deleted.</td></tr>
+      <tr data-status="no"><td>Patient self-<em>service</em> account signup</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Sending details through the QR form is not an account and grants no access to records. Portal access remains the hospital’s to grant.</td></tr>
       <tr data-status="no"><td>Patient-facing portal or app access to the record</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Patients have no login.</td></tr>
     </tbody>
   </table></div></div></details>
   <details class="exp"><summary>Marketing guidance</summary><div class="inner"><div class="mg">
     <div class="box say"><div class="h">Safe to say</div>
-      <p><q>Register a patient once and find them instantly by name, phone or UHID. Every patient gets a hospital-unique UHID, and their record follows them through appointment, consultation, pharmacy, lab and bill.</q></p></div>
+      <p><q>Register a patient once and find them instantly by name, phone or UHID. Every patient gets a hospital-unique UHID, and their record follows them through appointment, consultation, pharmacy, lab and bill.</q></p>
+      <p><q>Put your own QR code at reception and patients can send their details before they reach the desk. Your front desk reviews each one and completes the registration, so you stay in control of who is in your records.</q></p></div>
     <div class="box dont"><div class="h">Do not claim</div>
       <p><q>We migrate your existing patient database</q> or <q>bulk import</q> — no import exists.</p>
-      <p><q>Patients register themselves online</q>, <q>duplicate detection</q>, <q>family accounts</q>, <q>ABDM-linked records</q>.</p></div>
+      <p><q>Duplicate detection</q>, <q>family accounts</q>, <q>ABDM-linked records</q>.</p>
+      <p><q>Patients register themselves</q> or <q>self-service registration</q> — this is the one claim to get exactly right. A scan sends details to the front desk; <strong>the hospital still creates the record</strong>. Say <q>patients send their details ahead</q>, never <q>patients add themselves to your system</q>.</p></div>
   </div></div></details>
 </div>
 </section>
@@ -1397,6 +1403,10 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="built"><td>Steps follow module entitlement</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>A hospital without Laboratory is never told its test master is missing.</td></tr>
       <tr data-status="built"><td>Maintain the hospital's registered details</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Legal name, address, city, state, PIN, country, phone, email, website, registration number, GSTIN.</td></tr>
       <tr data-status="built"><td>Preview of how the document header will print</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>The same lines the invoice and lab report use.</td></tr>
+      <tr data-status="built"><td>Public identity — display name, alternate phone, patient support email</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>What patients see, kept on the same record as the registered details so the two cannot disagree.</td></tr>
+      <tr data-status="built"><td>Letterhead — header line, footer text, default signatory</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Its own tab, with a preview of where each line lands on a printed page.</td></tr>
+      <tr data-status="built"><td>Patient registration QR — switch on, print, preview, regenerate</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Off by default. Download the code, print a poster, or copy the link. Regenerating retires every poster already printed, and the confirmation says so.</td></tr>
+      <tr data-status="built"><td>The QR carries the hospital’s branding</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>The printable poster uses the hospital’s logo, name and address, and the code itself is drawn in its accent colour — darkened automatically if the accent is too pale to scan reliably, so it stays readable off a photocopy.</td></tr>
       <tr data-status="built"><td>See which modules are enabled</td><td><span class="b b-built">Built</span></td><td>Any signed-in user</td><td>Read-only — entitlements are granted by Nirogix.</td></tr>
       <tr data-status="built"><td>Setup nudge on the dashboard</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>Names the next step, and disappears once setup is complete.</td></tr>
       <tr data-status="built"><td>Configuration stays editable afterwards</td><td><span class="b b-built">Built</span></td><td>Org Admin</td><td>The console is not a one-way wizard.</td></tr>
@@ -1903,7 +1913,9 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="planned"><td>Per-branch address and contact details</td><td><span class="b b-planned">Planned</span></td><td>Organization-level today, so every branch prints the same header.</td></tr>
       <tr data-status="planned"><td>Per-branch branding</td><td><span class="b b-planned">Planned</span></td><td>Data model supports it; no interface.</td></tr>
       <tr data-status="planned"><td>Custom typography</td><td><span class="b b-planned">Planned</span></td><td>Token layer supports it; no interface.</td></tr>
-      <tr data-status="planned"><td>Letterhead and document templates per hospital</td><td><span class="b b-planned">Planned</span></td><td>Documents use one shared layout.</td></tr>
+      <tr data-status="built"><td>Letterhead wording per hospital (header line, footer, default signatory)</td><td><span class="b b-built">Built</span></td><td>Maintained under Hospital configuration → Letterhead. Prints on every document.</td></tr>
+      <tr data-status="planned"><td>Document <em>templates</em> — choosing or designing a layout</td><td><span class="b b-planned">Planned</span></td><td>Every document still uses one shared layout. The hospital controls its wording and branding within it, not its structure.</td></tr>
+      <tr data-status="no"><td>A different letterhead per branch</td><td><span class="b b-no">Not available</span></td><td>One letterhead per hospital.</td></tr>
       <tr data-status="no"><td>Email branding</td><td><span class="b b-no">Not available</span></td><td>Outbound email carries no tenant branding.</td></tr>
       <tr data-status="no"><td>SMS sender identity per hospital</td><td><span class="b b-no">Not available</span></td><td>Sender identity is a provider-level, DLT-registered matter.</td></tr>
       <tr data-status="no"><td>Custom domain per hospital</td><td><span class="b b-no">Not available</span></td><td>Every hospital signs in at the same Nirogix Portal host.</td></tr>
@@ -1912,7 +1924,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   </table></div>
   <div class="mg">
     <div class="box say"><div class="h">Safe to say</div><p><q>Your logo, your favicon, your colour — across the Portal and on the invoices and reports your patients take home.</q></p></div>
-    <div class="box dont"><div class="h">Do not claim</div><p><q>White-label</q>, <q>your own domain</q>, <q>branded emails</q>, <q>custom letterheads</q>, <q>rebrand and resell</q>.</p></div>
+    <div class="box dont"><div class="h">Do not claim</div><p><q>White-label</q>, <q>your own domain</q>, <q>branded emails</q>, <q>custom letterhead <em>templates</em></q> (the wording is the hospital’s, the layout is not), <q>rebrand and resell</q>.</p></div>
   </div>
 </section>
 
@@ -2107,7 +2119,9 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="no"><td>"iOS and Android apps"</td><td>The Portal is a responsive web application.</td></tr>
       <tr data-status="no"><td>"Works offline"</td><td>Architectural aspiration only.</td></tr>
       <tr data-status="no"><td>"Available in Hindi and Gujarati"</td><td>The product is English-only.</td></tr>
-      <tr data-status="no"><td>"White-label with your own domain"</td><td>Branding is logo, favicon and colour only.</td></tr>
+      <tr data-status="no"><td>"White-label with your own domain"</td><td>Branding is logo, favicon, colour and letterhead wording only.</td></tr>
+      <tr data-status="no"><td>"Patients register themselves" / "self-service patient signup"</td><td>The QR form sends details to the front desk; <strong>the hospital creates the record</strong>. Say <q>patients send their details ahead</q>. It creates no account and grants no access to records.</td></tr>
+      <tr data-status="no"><td>"Patients book their own appointments from the QR"</td><td>The form collects registration details only. It books nothing.</td></tr>
       <tr data-status="no"><td>"We migrate your existing data" / "bulk import"</td><td>No import capability exists anywhere.</td></tr>
       <tr data-status="no"><td>"Two-factor authentication" / "SSO"</td><td>Neither works today.</td></tr>
       <tr data-status="no"><td>"300+ reports" / "business intelligence" / "custom report builder"</td><td>Three reports exist.</td></tr>
@@ -2180,7 +2194,9 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   <div class="tablewrap"><table>
     <thead><tr><th style="width:10%">Version</th><th style="width:14%">Date</th><th>Change</th><th style="width:14%">Status</th></tr></thead>
     <tbody>
-      <tr><td>1.9</td><td>16/08/2026</td><td>AI Portal access widened from "granted per person" to <strong>every staff role</strong> (ADR-055) — the portal is for the whole hospital team and platform operators, never patients, and patients are kept out by the principal-type check rather than by this permission. <strong>No marketing status changes:</strong> the portal still exposes no AI capability, the AI items remain FUTURE, and the AI Portal stays off the public site. Widening who may open an empty room does not make the room a product.</td><td>Current</td></tr>
+      <tr><td>2.1</td><td>16/08/2026</td><td>Internal change with one marketing-visible consequence: the notification system was rebuilt on React Toastify (ADR-057) and now renders in the hospital’s own accent colour and the active theme, top-right, with status carried by an icon and a word rather than colour alone. <strong>No capability status changes</strong> — notifications were already BUILT, and this is the same capability on a different engine. Recorded so the accessibility and branding wording in this row is accurate.</td><td>Current</td></tr>
+      <tr><td>2.0</td><td>16/08/2026</td><td><strong>Patient self-registration by QR moves to BUILT</strong> (ADR-056), replacing a NOT AVAILABLE row — with the wording tightly constrained, because this is the easiest capability in the product to overclaim. A hospital displays its own QR; a scan opens that hospital’s form; submitting creates a <strong>registration request</strong> that the front desk reviews and converts into a patient record. It is <strong>not</strong> self-service signup, it creates no account, and it grants no access to records — a separate NOT AVAILABLE row now says so explicitly, and the never-claim guidance names the exact phrasing to avoid. Also adds the registration review queue, the branded QR poster (the hospital’s logo and address, with the code drawn in its own accent and darkened only as far as scanning requires), and <strong>hospital letterhead</strong> (header line, footer text, default signatory) to the branding and document sections. Duplicate detection stays PLANNED and is explicitly <em>not</em> implied by the new flow.</td><td>Superseded by 2.1</td></tr>
+      <tr><td>1.9</td><td>16/08/2026</td><td>AI Portal access widened from "granted per person" to <strong>every staff role</strong> (ADR-055) — the portal is for the whole hospital team and platform operators, never patients, and patients are kept out by the principal-type check rather than by this permission. <strong>No marketing status changes:</strong> the portal still exposes no AI capability, the AI items remain FUTURE, and the AI Portal stays off the public site. Widening who may open an empty room does not make the room a product.</td><td>Superseded by 2.0</td></tr>
       <tr><td>1.8</td><td>16/08/2026</td><td><strong>Corrects an error in 1.6</strong>, which stated that no AI feature was in approved scope. AI <em>is</em> in the PRD — AI-assisted EMR aids (diagnosis suggestions, documentation, voice transcription, ICD coding assistance) and the Advanced BI &amp; AI-Assisted Features add-on — but sits in Postponed / Build-as-Sold with a CDSCO classification gate, which is <strong>FUTURE / CONSIDERATION</strong>, not "not in scope". The marketing conclusion is unchanged: a FUTURE capability is never advertised, so the AI Portal stays off the public site. Adds an AI capability section stating each item and its status, and records the AI Portal's access experience (sign-in landing, and a distinct access-restricted screen for an authorised account without the permission).</td><td>Superseded by 1.9</td></tr>
       <tr><td>1.7</td><td>16/08/2026</td><td>Patient portal sessions now survive a reload, with their own session table, a path-scoped cookie, rotation and server-side revocation. A security defect found while testing it is fixed and recorded (SECURITY-AUDIT H-4): refresh-token rotation was not actually rotating, for staff as well as patients. No marketing claim changes — session handling was never advertised beyond "revocable sessions", which remains true and is now stronger.</td><td>Superseded by 1.8</td></tr>
       <tr><td>1.6</td><td>16/08/2026</td><td>The AI Portal shipped as an <strong>authorization boundary only</strong> (ADR-053) — sign-in, a permission gate held by no role, patients refused by principal type, entry audited, and a landing screen stating that no capability is enabled. <strong>Marketing status is unchanged: NOT AVAILABLE.</strong> The never-claim entry was strengthened rather than relaxed, because an application that exists is easier to overclaim than one that does not. No AI feature is in approved scope, so nothing about AI may be described even as "in development".</td><td>Superseded by 1.7</td></tr>
@@ -2196,7 +2212,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </section>
 
 <footer>
-  <span>Nirogix · Marketing Product Capability Reference · v1.9</span>
+  <span>Nirogix · Marketing Product Capability Reference · v2.1</span>
   <span>Takoriya Technology LLP · Internal · 16/08/2026</span>
 </footer>
 </main>

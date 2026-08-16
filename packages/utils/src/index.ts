@@ -25,3 +25,9 @@ export {
   addDays,
 } from "./date";
 export type { DateInput } from "./date";
+
+// Colour: only for places a brand colour must be used where the design tokens cannot
+// reach — today, the dark modules of a printed QR code (ADR-056). Components still use
+// the tokens and never a literal.
+export { parseHexColor, toHexColor, relativeLuminance, contrastRatio, ensureContrast } from "./color";
+export type { Rgb } from "./color";

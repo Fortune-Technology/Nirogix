@@ -95,7 +95,6 @@ function AppointmentsTable() {
     {
       key: "dur",
       header: "Duration",
-      align: "right",
       accessor: (a) => a.durationMinutes,
       cell: (a) => `${a.durationMinutes}m`,
     },

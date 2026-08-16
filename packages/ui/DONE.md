@@ -231,3 +231,41 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 `error` replaces `hint` when both are present, and whichever renders is wired through `aria-describedby` — identical behaviour to `Field`, which is the point.
 
 **Testing status:** 68 tests pass; `hint` is optional and absent everywhere else, so nothing changed for existing usage.
+
+## 2026-08-16 — `Textarea`, and letterhead in the print kit (ADR-056)
+
+**What:** `Textarea` — the multi-line counterpart to `Field`, with the same label / error / hint contract and the same `aria-describedby` wiring, on the same `hms-input` definition so a form can mix single and multi-line inputs without a second set of conventions. There was no shared multi-line field; the letterhead footer would otherwise have been the first hand-rolled one.
+
+`DocumentBrand` gained `headerLine`, `footerLine`, `signatoryName` and `signatoryDesignation`. The header line prints between the hospital's name and its address block (it reads as identity, not another contact); the footer line prints full-width above the platform's confidentiality notice rather than replacing it — one is the hospital speaking, the other is ours, and neither should silence the other. `PrintSignatures` takes `brand` and an **opt-in** `useDefaultSignatory` per line, so a patient's signature line is never filled in with the hospital's signatory.
+
+**Testing status:** 68 tests pass; every new field is optional, so existing documents render exactly as before.
+
+## 2026-08-16 — Column alignment was only ever half applied
+
+**What:** `align` on a DataTable column moved the **cells** and left the **heading** behind, in every table in the product. The class was going onto the sort control inside the `th` — an `inline-flex` button that shrinks to its label, so `justify-content: flex-end` had no space to work in and the `th` itself was never told to align anything. Billing's Total sat right while "Total" sat left; the Actions heading sat left of its own buttons.
+
+Fixed in one place: the alignment class goes on the `th`, and a non-left alignment makes the sort control `display: flex; width: 100%` so it can justify. Heading and values now move together, for every column of every table.
+
+Also added `.hms-qr-poster` to the document kit, for the patient-registration poster (ADR-056).
+
+**Testing status:** 68 tests pass; typecheck and build clean across the monorepo.
+
+## 2026-08-16 — React Toastify replaces the shadcn/Base UI Toast (ADR-057)
+
+**What:** The engine changed. The API did not.
+
+`react-toastify` is now known to exactly two modules, both inside this package — the adapter `src/toast.tsx` and the viewport `src/components/Toaster.tsx` — and the adapter exposes exactly the same surface it did before — `toast.success | error | warning | info | loading`, `dismiss`, `update`, the same `ToastOptions`. **No page changed, and no page could have**: every notification already goes through the shared API client, which is what ADR-026 is for. A migration that touched call sites would have been evidence that ADR-026 was not being followed.
+
+**What went away:** `src/components/toast/toast.tsx` (~200 lines of generated shadcn source) and its Tailwind-class styling, which resolved to `--hms-*` only indirectly through each app's shadcn token remap. `@base-ui/react` stays a dependency — `DateField` uses its Popover.
+
+**De-duplication got simpler and more correct.** The de-dupe key *is* the toast id now, and liveness is read back with `toast.isActive`, so the adapter keeps no state. The old version held its own key→id map that could retain an entry for a toast the user had already dismissed.
+
+**Theming is one commented block.** Every `--toastify-*` variable points at a `--hms-*` token, and the library's own `theme` prop is pinned and neutralised so Light/Dark is one definition rather than two. Verified in the browser with `data-theme="dark"` and an accent of `#c026d3`: surface `#112128`, text `#e7eff0`, border `#22353c`, and the icon, accent edge and progress bar all `rgb(192,38,211)` — the whole chain, tenant brand → tokens → toast, with no colour at any call site.
+
+**Two things found by looking rather than assuming:**
+- React Toastify's own `<=480px` rule sets `top`, `left` and `width` as **literal values, not through its variables** — so overriding the variables left a phone toast pinned at the very top, covering the app bar. The mobile block overrides the properties directly and keeps the safe-area inset.
+- At the same breakpoint the library forces `border-radius: 0`; the override needed container scoping to outrank it regardless of stylesheet order.
+
+**Accessibility:** each variant renders a distinct icon *and* a title in words, so status never rests on colour; errors and warnings take `role="alert"` and everything else `role="status"`; the region is labelled; the close control has an accessible name. Verified in the DOM.
+
+**Testing status:** 19 tests (was 14), covering variant and role mapping, durations, de-duplication, the loading → outcome transition, and dismissal — 73 in this package. Verified live in the Portal across all five variants, a four-deep stack, an action button, Light and Dark, a non-default accent, and a 375px viewport.

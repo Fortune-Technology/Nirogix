@@ -25,3 +25,11 @@ Append-only implementation log. Newest at the bottom.
 **What:** `Department`, `CreateDepartmentRequest`, `UpdateDepartmentRequest`; `departments` added to `SetupStepKey`; `departmentId` added to `CheckInRequest` and `Visit`. `Visit.department` stays as the legacy free-text name so existing screens keep compiling and rendering.
 
 **Testing status:** `typecheck` green in both the backend and the Portal.
+
+## 2026-08-16 — Registration and letterhead contracts (ADR-056)
+
+**What:** `RegistrationSettings`, `RegistrationRequestItem`, `PublicRegistrationContext`; `OrganizationProfile` extended with the public identity and letterhead fields (`displayName`, `secondaryPhone`, `supportEmail`, `letterheadHeader`, `letterheadFooter`, `signatoryName`, `signatoryDesignation`).
+
+`PublicRegistrationContext` carries a hospital name, a city and the on/off flag — nothing else, because it is served to an unauthenticated caller. `RegistrationRequestItem` deliberately has no `tenantId`: the backend projects it away, and leaving it out of the type keeps a frontend from expecting it back.
+
+**Testing status:** `typecheck` green across the backend, the Portal and the patient app.

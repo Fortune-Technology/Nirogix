@@ -61,7 +61,8 @@ function patientColumns(canEdit: boolean, onView: (p: Patient) => void, onEdit: 
       cell: (p) => <span className="font-medium text-fg">{[p.firstName, p.lastName].filter(Boolean).join(" ")}</span>,
     },
     { key: "gender", header: "Gender", filterable: true, accessor: (p) => p.gender ?? "—", cell: (p) => p.gender ?? "—" },
-    { key: "age", header: "Age", align: "right", accessor: (p) => p.dateOfBirth, cell: (p) => age(p.dateOfBirth) },
+    // Left, like every other label: "24y" is not a magnitude anyone compares down the column.
+    { key: "age", header: "Age", accessor: (p) => p.dateOfBirth, cell: (p) => age(p.dateOfBirth) },
     { key: "phone", header: "Phone", accessor: (p) => p.phone, cell: (p) => p.phone ?? "—" },
     { key: "city", header: "City", filterable: true, accessor: (p) => p.city ?? "—", cell: (p) => p.city ?? "—" },
     {

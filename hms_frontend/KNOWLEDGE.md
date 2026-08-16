@@ -39,8 +39,12 @@ app/
       layout.tsx         Page header + tab nav, shared by every tab
       page.tsx           Setup overview: derived progress, step checklist, area grid
       organization/      The hospital's identity — address, contact, registration, GSTIN
+      documents/         Letterhead — header line, footer, default signatory (ADR-056)
       branding/          Accent colour, logo, favicon (moved out of the old settings page)
+      registration/      Patient self-registration QR — token, poster, regenerate (ADR-056)
       modules/           Entitled modules, read-only (entitlements are granted by Nirogix)
+    patients/
+      registrations/     Self-registration review queue — front desk converts a request
 lib/
   api.ts                Typed fetch client: Bearer + silent refresh-on-401 + canonical error unwrap
   auth.tsx              AuthProvider + useAuth + useCan — session & capabilities context
@@ -68,6 +72,7 @@ components/
 - **`<Can perm>`**: hides buttons/fragments (e.g. a "New provider" action).
 - **`<RequirePermission perm>`**: wraps a protected page's body; renders the standard **Forbidden** panel when the permission is missing, so a direct URL hit gets a clean 403 instead of a broken screen (and the API would 403 the data calls anyway).
 - **Keys come from `@hms/permissions`** — the same module the backend enforces with, so the menu and server never drift.
+- **The active nav item is the longest matching href** (`activeNavHref` in `lib/nav.ts`). A plain prefix test lit up both *Patients* and *Registration requests* on `/patients/registrations`; the longest match picks the specific one, while `/patients/{id}` — which has no item of its own — still resolves to *Patients*, which is what a detail page wants.
 - Verified live (CITYCARE demo): **org_admin** sees Dashboard/Providers/Audit/Settings; **receptionist** sees only Dashboard/Settings, and a direct hit to `/providers` renders the 403 panel with **no `/providers` API call made**.
 - **There is no platform context here (ADR-051).** `navGroupsForUser(can)` renders the hospital's navigation for everyone, including an operator inside a support session — they are working as a hospital user, and the banner says so. `lib/api.ts` holds no platform-administration call; `admin` does.
 
@@ -80,12 +85,17 @@ components/
 ## Hospital Configuration console (ADR-049)
 
 - **`/settings` is the console**, not a personal settings page. A tab layout over `/settings` (setup overview), `/settings/organization` (the hospital's identity), `/settings/branding` and `/settings/modules`, gated on `platform.organization.manage`. It appears in the sidebar's *Organization* group as **Hospital setup**.
-- **Progress is derived, never stored.** `components/settings/SetupChecklist.tsx` renders `GET /setup/status`: each step shows its real count, a step whose dependency is unmet says what it is waiting on rather than hiding, and a step the user cannot perform says so instead of offering a dead link. `SetupProgressCard` puts the same status on the Hospital Admin dashboard and **removes itself once setup is complete**.
+- **Progress is derived, never stored.** `components/settings/SetupChecklist.tsx` renders `GET /setup/status`: each step shows its real count, a step whose dependency is unmet says what it is waiting on rather than hiding, and a step the user cannot perform says so instead of offering a dead link. `SetupProgressCard` puts the same status on the Hospital Admin dashboard, **removes itself once setup is complete**, and can be **dismissed** before then — an administrator who has decided to finish later should not be nagged every morning. The dismissal is keyed by **user id** in `localStorage`, because a shared reception machine is the normal case and one person hiding a nudge must not hide it from the next; it is read through `useSyncExternalStore`, so the server render stays honest and dismissing in one tab hides the card in the others. Hiding the reminder hides nothing else — the full checklist stays under Hospital configuration, which is in the sidebar.
 - **The console links, it does not duplicate.** Branches, departments, providers, users, the lab test master and the drug master keep their own screens; the overview grid is how an administrator finds them. There is no tab for sub-departments, services, packages, treatment plans or wards — the product has none (`BACKLOG.md` E-1, E-3…E-8).
 - **`/departments` (ADR-050)** — the Standard DataTable plus a create form whose branch and head pickers offer only this hospital's own records. The row action is a **toggle, not a delete** (visits reference departments), and its confirmation states how many doctors are attached. Check-in offers **active departments only**.
 - **Setup is not a wizard.** There is no completion flag and no one-way flow; every area stays editable afterwards through the same console.
 - **Appearance moved to `/profile`.** A theme is one person's preference, not the hospital's configuration.
-- **Printed documents carry the hospital's identity:** `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines` into `PrintDocument`. An unconfigured hospital still prints name and logo only — nothing is invented.
+- **Printed documents carry the hospital's identity:** `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines`, the letterhead lines and the default signatory into `PrintDocument`. An unconfigured hospital still prints name and logo only — nothing is invented.
+- **One record, two screens (ADR-056).** `/settings/organization` and `/settings/documents` both edit `organization_profile` through the shared `components/settings/ProfileForm.tsx`; each declares the fields it owns and sends only those, so saving the letterhead cannot blank an address. There is no second identity store to drift.
+- **`/settings/registration` (ADR-056)** — the patient-registration QR. Copy link, download PNG, print poster, preview, and a confirmed regenerate that says every printed poster stops working. The page states plainly that nothing is added to the patient list automatically.
+- **The QR is drawn in the hospital's own accent**, through `components/print/useRegistrationQr.ts` — one definition shared by the settings screen and the printable poster, so a preview and the printed sheet cannot differ. The colour passes through `ensureContrast` from `@hms/utils` first: a pale accent is darkened until it scans, keeping its hue, because a QR is read by a camera off a photocopy and a code that looks pretty but does not scan is worthless. Light modules stay pure white. The code is held **with the URL it encodes**, so a regenerated token never shows the retired code beside the new link.
+- **`/print/registration-qr`** is the poster — a real document route with the hospital's logo, name, address and colour from `useDocumentBrand`, not a hand-built popup (ADR-047). It reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**.
+- **`/patients/registrations` is the review queue**, in the *Clinical* nav group. Gated on `patient.record.view` — deliberately **not** `patient.record.create`, which `org_admin` does not hold; the approve/reject actions carry `permitted={canReview}` so an administrator sees the queue read-only. The server re-checks both regardless.
 
 ## Design system & theming
 

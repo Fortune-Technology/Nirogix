@@ -94,10 +94,18 @@ This document states rules only. For the architecture each rule is derived from,
 - **No development credential appears in any frontend source or bundle.** Seed accounts live in `hms_backend/src/scripts/seed.ts` and `testcases.md`.
 - **The design system is the only thing shared by copy or import.** `@hms/ui`, `@hms/types` and `@hms/permissions` are shared; business logic is not.
 
+**Public (unauthenticated) endpoints (binding — ADR-056).** There is one unauthenticated write path in the product and there must not casually be a second. Any endpoint that accepts a request without a session obeys all of:
+- **The tenant is resolved server-side from an opaque token in the path** — never from a body field, a header, a query parameter, or a subdomain. A caller must have no way to name a tenant.
+- **The token is high-entropy, opaque and derived from nothing internal.** It may be printed on a poster, so treat everything encoded in it as published: no tenant id, no record id, no configuration, nothing authenticating.
+- **It never writes to a clinical table.** It may create a request for a human to review; a patient, encounter, order or invoice is created only by an authenticated, permitted user.
+- **Every failure mode returns the same status and message.** Unknown token, retired token and feature-disabled are indistinguishable, so the endpoint cannot be used to enumerate tenants.
+- **It is rate-limited at the sign-in tier** and audited against the tenant with no actor.
+
 - **Before building any UI, check `@hms/ui` first** (then the app's own shared components). If something close exists, extend or configure it; if a pattern appears in a second place, extract it into a shared component in the same change that duplicates it.
 - **The shared layer covers the recurring patterns:** DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and action menus, cards and stat cards, forms and form fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, and navigation.
 - **Reusable is not uniform.** Components take props/variants so a module can vary labels, icons, actions, columns, filters, data, empty-state content, loading behaviour, permissions, variants, sizes, and layout — without forking the component. The chain is: primitives → shared patterns → module configuration → page.
 - **Use shadcn/ui as the scaffolding source** for standard primitives rather than reinventing them (ADR-028), then restyle onto the design tokens before shipping.
+- **Column alignment is a property of the column, not of the cell.** `align` on a DataTable column governs the heading and the values together — a heading that sits left over right-aligned values is a defect, not a style choice. Reserve `right` for magnitudes a reader compares down the column (money, quantities, stock counts) and the actions column; a label that merely contains a digit — an age, a duration, a status code, a lab value that may be text — stays left, where it reads next to its heading.
 - **Organisation:** shared primitives and the DataTable parts live in `@hms/ui` (`src/components/`, `src/components/data-table/`); app-specific compositions live under that app's `components/`. Generated shadcn source lands in `hms_frontend/components/ui/` or `marketing/components/shadcn/` for review before promotion.
 
 ### Dates & Formatting
@@ -289,15 +297,21 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 
 ### API Feedback & Notification Rules
 
-- **One shared notification/Toast system in `@hms/ui`**, consumed by both the Portal and the Marketing site. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
-- Its API and behaviour follow the **shadcn/ui Toast** pattern (https://ui.shadcn.com/docs/components/base/toast) as a *design and ergonomics reference*. It is implemented on `@hms/ui` design tokens with Lucide icons per `resources/DESIGN.md`; shadcn/Radix is **not** added as a dependency (see Dependency Rules and ADR-026).
+- **One shared notification/Toast system in `@hms/ui`**, built on **React Toastify** (ADR-057), consumed by every frontend that needs one. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
+- **All user-facing toast notifications must use the centralized reusable notification system.** No new toast library, and no page-specific toast implementation, without an explicit ADR. `react-toastify` is imported **only inside `@hms/ui`** — by the adapter (`src/toast.tsx`) and the viewport it mounts (`src/components/Toaster.tsx`) — and importing it anywhere else is the defect this rule exists to prevent.
+- **The API is `toast.success | error | warning | info | loading`**, plus `dismiss` and `update`, taking either a message string or `{ title, description, duration, action, dedupeKey }`. It is callable from plain TypeScript with no React mounted, because the shared API client raises every notification and is not a component.
+- **Position: top-right**, below the app bar, on every application and every breakpoint. Auto-close on success and info, longer on a warning, persist on an error and while loading. Pause on hover and while the tab is inactive, a close button, a progress indicator on anything timed, a stack limit, and de-duplication so a retry refreshes its toast instead of adding another.
+- **Theme and branding come from the design tokens, never from a call site or a component.** The library's `--toastify-*` variables are re-pointed at `--hms-*` in one block in `@hms/ui/styles.css`; Light/Dark and the active tenant accent follow automatically, and an app that scopes the tokens differently is served by the same mapping. Passing a colour to a toast is prohibited.
+- **A loading toast must be resolved.** Update it to its outcome or dismiss it — a spinner left on screen after the operation finished is a defect.
 - **Every state-changing API call produces user-visible feedback, and every failure does** — a silently failed request is a defect. Background/read-only refreshes may be silent on success but never on error.
 - **Feedback is centralized in the shared API client**, not written per call site. The `if (success) toast(...) / if (error) toast(...)` pattern repeated in pages is prohibited; the client extracts the message, classifies the outcome, and raises one notification.
 - **Show the backend's message when it provides one.** Success responses carrying a `message` (e.g. `"Hospital registered successfully."`) are displayed verbatim; failures use `error.message` from the canonical `{ error: { code, message, details? } }` envelope. Generic fallback copy is used **only** when the response carries nothing usable — never as a blanket replacement.
 - **Variants** map to the semantic tokens in `resources/DESIGN.md` §2 — success (green), error (danger red), warning (amber), info (blue/neutral), loading/processing (neutral) — never a hardcoded colour.
 - **The layer handles every failure mode:** network failure, timeout, validation (field errors rendered on the fields plus one summary notification), 401 (session expired → silent refresh, then the re-auth path — never a bare "Unauthorized"), 403 (the standard Forbidden panel at page level), 409/optimistic-lock conflict, 429, 5xx, and unstructured or non-JSON responses.
 - **Never surface internals.** No stack traces, SQL, raw provider errors, internal hostnames, or developer-facing `details` reach the user; full detail goes to the structured logger / `errorTracker`. **Never render PHI in a notification.**
-- **Accessible by construction:** `role="status"` (polite) for routine messages and `role="alert"` (assertive) for errors, keyboard-focusable and Esc-dismissible, auto-dismiss for success, errors persist until dismissed, honours `prefers-reduced-motion`, positioned so it never covers the primary action, with a stack limit and de-duplication.
+- **Accessible by construction:** `role="status"` (polite) for routine messages and `role="alert"` (assertive) for errors and warnings, keyboard-reachable with a labelled close control, auto-dismiss for success, errors persist until dismissed, honours `prefers-reduced-motion`, positioned so it never covers the app bar or the primary action, with a stack limit and de-duplication.
+- **Status is never carried by colour alone.** Every variant renders a distinct icon *and* a title in words, so the state survives greyscale, colour-blindness, and a screen reader reading the text with no styling at all.
+- **One layer owns each message.** The API client raises the notification for a request's outcome; a page that has already handled the same failure inline (a field error, an inline error panel) passes `feedback: false` rather than letting a second toast say the same thing. Two notifications for one event is the failure mode this rule prevents.
 - **Idempotent retries produce one notification, not one per attempt.**
 
 ### Frontend Performance & Next.js Optimization Rules
@@ -397,7 +411,8 @@ The repository root holds **`testcases.md`** — the complete manual QA checklis
 - Do not physically delete entitlement, permission-override, or audit records.
 - Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by `npm run openapi:validate` in CI).
 - Do not write per-call success/error notification logic in a page or component instead of using the shared API-feedback layer.
-- Do not build a second notification/toast implementation — extend `@hms/ui`. (shadcn is installed as scaffolding only, ADR-028; its toast does not replace the shared one.)
+- Do not build a second notification/toast implementation, add a second toast library, or import `react-toastify` outside `@hms/ui` — extend `@hms/ui` instead, and record an ADR if the engine itself must change (ADR-057).
+- Do not pass a colour, or any style, to a toast call: variants resolve through the design tokens so a tenant's branding and the active theme apply automatically.
 - Do not ship a `shadcn add` component as-is: unreviewed, on shadcn's own palette, or unverified in Dark and under a tenant accent.
 - Do not build a module-specific table, toolbar, pagination, column-visibility, filter, action menu, empty/loading/error state, or confirmation dialog when the shared one exists — configure it instead.
 - Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.

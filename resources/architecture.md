@@ -418,6 +418,19 @@ None of these is a security control. The backend refuses the request in every un
 - **The platform surface is not in the Portal.** Tenant onboarding, module provisioning, platform analytics, support sessions and platform branding live only in `admin`, so operator code never ships in a hospital's bundle. The Portal keeps `/support/enter`, which *receives* a session the admin console mints.
 - **The support-session handoff is cross-origin and explicit.** The token travels by `postMessage` — never a URL, which lands in history, referrers and logs — with each side naming the other's origin from configuration. The Portal accepts a session only from the configured admin origin.
 
+### Notifications (ADR-026, ADR-057)
+
+One notification system for the platform, and one path into it:
+
+```
+API request  →  shared API client  →  @hms/client feedback layer  →  @hms/ui toast()  →  React Toastify
+```
+
+- **The engine is React Toastify**, imported only inside `@hms/ui` — by the adapter (`src/toast.tsx`) and the viewport it mounts (`src/components/Toaster.tsx`). Everything else — pages, modules, the API client — calls the adapter's `toast.success | error | warning | info | loading`, so swapping the engine again is a one-file change and no feature can configure its own.
+- **Branding flows one way and only one way**: `tenant brand → --hms-* design tokens → --toastify-* mapping → the rendered toast`. Light/Dark and a tenant accent apply with nothing to update per app, and no colour is written at a call site or held by a component.
+- **`@hms/ui` owns the system; each app mounts its own `<Toaster />`** and brings its own token scope, permissions and routing. The marketing site mounts none — it has no authenticated API surface and no notifications, and giving it one would push tenant behaviour onto a public page.
+- **One layer owns each message.** The API client raises the notification for a request's outcome; a page that already handles a failure inline opts out with `feedback: false` rather than producing a second toast for the same event.
+
 ### Patient Identity (ADR-052)
 
 Patients authenticate as a **different principal from staff**, not as a staff user with fewer permissions.
@@ -429,6 +442,24 @@ Patients authenticate as a **different principal from staff**, not as a staff us
 - **Tenant is resolved from an active link on every request**, never from the URL. The patient id every query filters on comes from that link, so reading another person's record is unrepresentable rather than merely refused, and revocation takes effect immediately.
 - The portal is read-only: profile, appointments, invoices and resulted laboratory reports. It writes nothing clinical.
 - **Patients have their own session model.** `patient_sessions` is a separate table, because `sessions` is foreign-keyed to staff `users`. The refresh cookie is scoped to `/api/v1/patient/auth`, so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint. Rotation on every use, hashed storage, server-side revocation on sign-out.
+
+### Patient self-registration by QR (ADR-056)
+
+The product's **only unauthenticated write path**. Two properties carry it, and both are structural rather than procedural.
+
+- **The tenant comes from an opaque token in the URL path, resolved server-side on every call** — never from a body field, header or query parameter. There is no field in which a caller could name a different hospital, so "scan Hospital A's poster, land in Hospital B" is unrepresentable rather than merely validated against. The token is 24 random bytes, base64url, unique, indexed, and derived from nothing internal; a QR is printed in a public corridor, so anything encoded in it is published.
+- **A submission creates a `registration_request`, never a patient.** ADR-052 holds unchanged: the hospital still decides who enters its patient list. The front desk verifies the person, checks for a duplicate, and converts — that conversion is the moment a chart exists.
+
+| Concern | How it is handled |
+|---|---|
+| Unknown token / retired token / registration switched off | All fail identically with **404**, so the endpoint never reveals which hospitals exist or which are open |
+| Abuse | Rate-limited at the sign-in tier; a public form behind a printed poster is what a script finds |
+| Seeing the queue | `patient.record.view` — the administrator who switched registration on can tell whether anything arrived |
+| Approving / rejecting | `patient.record.create`, the same permission as registering a patient by hand. Both audited at **notice** |
+| Provenance | The request row is kept and marked `approved` / `rejected`, never deleted — it is the origin of a chart nobody on staff typed |
+| Retiring a printed QR | A separate, confirmed, audited `regenerate`. Disabling keeps the token, so pausing over a holiday does not mean reprinting posters |
+
+Letterhead (header line, footer text, default signatory) lives on the same `organization_profile` record as the address it prints above, so a hospital maintains one identity rather than two that can disagree.
 
 ### Marketing Site → Portal Authentication Flow
 

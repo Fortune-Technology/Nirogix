@@ -37,6 +37,14 @@ export function useDocumentBrand(): { brand: DocumentBrand; ready: boolean } {
           // hospital has configured them (ADR-049). Lines that are not set are simply
           // absent — a wrong address on an invoice is worse than none.
           contactLines: profile?.contactLines ?? [],
+          // The letterhead the hospital wrote for itself (ADR-056). Same record, same
+          // permission, same tenant scope — there is no second place to configure it,
+          // so a document can never print a letterhead that disagrees with the address
+          // above it.
+          headerLine: profile?.letterheadHeader ?? null,
+          footerLine: profile?.letterheadFooter ?? null,
+          signatoryName: profile?.signatoryName ?? null,
+          signatoryDesignation: profile?.signatoryDesignation ?? null,
         });
       })
       .catch(() => {

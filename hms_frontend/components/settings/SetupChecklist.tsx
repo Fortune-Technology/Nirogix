@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Check, CircleDashed, Lock } from "lucide-react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { ArrowRight, Check, CircleDashed, Lock, X } from "lucide-react";
 import { Alert, Badge, Card, ErrorState, Skeleton, UsageBar } from "@hms/ui";
 import type { SetupStatus, SetupStep } from "@hms/types";
 import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+import { useAuth, useCan } from "../../lib/auth";
 
 /**
  * Hospital setup progress (ADR-049).
@@ -131,20 +131,106 @@ export function SetupProgress({ status }: { status: SetupStatus }) {
 }
 
 /**
- * The compact card for the dashboard: progress only, with a way in. Disappears once
- * setup is complete so it does not become permanent furniture on the dashboard.
+ * Remembering that this person hid the setup reminder.
+ *
+ * **Keyed by user id**, because a shared reception machine is the normal case in a
+ * hospital — one person dismissing a nudge must not hide it from whoever signs in next.
+ * `localStorage` is the right store precisely because this is *not* hospital
+ * configuration: it is one person's view preference on one device, it changes nothing
+ * anyone else can see, and it is not worth a row in the database or a call on every
+ * dashboard load. The same reasoning the theme preference already uses.
+ */
+const DISMISS_KEY = "hms:setup-nudge-dismissed";
+
+function keyFor(userId: string): string {
+  return `${DISMISS_KEY}:${userId}`;
+}
+
+/**
+ * Dismissed in this tab, whether or not it could be written down. Without this, a
+ * browser with storage disabled would swallow the click entirely — the user presses
+ * close and the card stays, which is worse than not offering the button.
+ */
+const dismissedThisSession = new Set<string>();
+
+function readDismissed(userId: string | undefined): boolean {
+  if (typeof window === "undefined" || !userId) return false;
+  if (dismissedThisSession.has(userId)) return true;
+  try {
+    return window.localStorage.getItem(keyFor(userId)) === "1";
+  } catch {
+    // Private browsing, or storage disabled. Showing the nudge is the safe failure.
+    return false;
+  }
+}
+
+// `localStorage` is an external store, so it is read through `useSyncExternalStore`
+// rather than copied into state inside an effect. That keeps the server render honest
+// (it has no storage, and says so), and it means dismissing in one tab hides the card
+// in the others — which is what someone with the dashboard open twice expects.
+const listeners = new Set<() => void>();
+
+function subscribeToDismissal(onChange: () => void): () => void {
+  listeners.add(onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    listeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function setDismissedFor(userId: string): void {
+  dismissedThisSession.add(userId);
+  try {
+    window.localStorage.setItem(keyFor(userId), "1");
+  } catch {
+    // Storage unavailable — the card is still hidden for this session by the set above.
+    // Persisting is a convenience, and a nudge that returns on the next visit is not a
+    // failure worth interrupting anyone about.
+  }
+  listeners.forEach((notify) => notify());
+}
+
+/**
+ * The compact card for the dashboard: progress only, with a way in.
+ *
+ * It disappears on its own once setup is complete, and can be dismissed before then —
+ * an administrator who has decided to finish later should not be nagged every morning.
+ * Dismissing hides the *reminder*, never the work: the full checklist stays under
+ * Hospital configuration, which is in the sidebar, and the card says so on its way out.
  */
 export function SetupProgressCard() {
   const { status, error } = useSetupStatus();
+  const { user } = useAuth();
+  const dismissed = useSyncExternalStore(
+    subscribeToDismissal,
+    () => readDismissed(user?.id),
+    () => false, // The server has no storage; it renders the card as not dismissed.
+  );
 
   if (error) return null; // A user without the permission simply does not see the card.
   if (!status) return <Skeleton height="6rem" />;
-  if (status.ready) return null;
+  if (status.ready || dismissed) return null;
 
   const next = status.steps.find((s) => s.required && !s.complete);
 
   return (
-    <Card header="Finish setting up your hospital">
+    <Card
+      header={
+        <div className="flex items-center justify-between gap-3">
+          <span>Finish setting up your hospital</span>
+          <button
+            type="button"
+            onClick={() => user?.id && setDismissedFor(user.id)}
+            aria-label="Hide this reminder"
+            title="Hide this reminder — setup stays available under Hospital configuration"
+            className="-my-1 -mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-token text-fg-subtle transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            <X size={16} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+      }
+    >
       <UsageBar
         label="Setup progress"
         value={status.completedRequired}

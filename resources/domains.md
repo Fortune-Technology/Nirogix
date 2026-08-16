@@ -29,7 +29,7 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 | `www.nirogix.com` | 301 → `nirogix.com` | Nginx | Redirect only. Never serves content, so there is one canonical URL for SEO. |
 | `portal.nirogix.com` | Nirogix Portal — hospital staff only | `hms_frontend` (Next.js, :3000) | `noindex, nofollow` end to end (ADR-027). **No platform-operator screens** — they moved to `admin` (ADR-051). |
 | `admin.nirogix.com` | Platform administration | `admin` (Next.js, :3002) | Vendor operators only. `noindex, nofollow`. Its own bundle, so operator code never ships to a hospital. |
-| `patient.nirogix.com` | Patient portal | `patient` (Next.js, :3003) | Verified, hospital-provisioned patients only (ADR-052). `noindex, nofollow`. **No public signup.** |
+| `patient.nirogix.com` | Patient portal | `patient` (Next.js, :3003) | Verified, hospital-provisioned patients only (ADR-052). `noindex, nofollow`. **No public signup.** Also serves `/register/{token}` — the one **unauthenticated** route on this host, a hospital’s own registration form reached from its printed QR (ADR-056). It creates a request for the front desk, never an account. |
 | `nirogix.ai` | AI Portal | `aiportal` (Next.js, :3004) | Authorised staff + operators, `ai.portal.access` (ADR-053). Patients refused server-side by principal type. Separate registrable domain = separate cookie scope. |
 | `api.nirogix.com` | REST API, `/api/v1` | `hms_backend` (Express, :4000) | Sets the refresh cookie (host-only). Serves `/api/v1/openapi.json`; the Swagger UI is env-gated. |
 | `docs.nirogix.com` | Public API reference | *(reserved)* | Swagger UI / redoc built from the same spec, for hospitals' own integrators. Read-only, no credentials. |
@@ -107,6 +107,8 @@ Every one of these is read from configuration. No host appears in application co
 | `CORS_ORIGINS` (backend) | *(permissive in dev)* | `https://portal-staging.nirogix.com,https://staging.nirogix.com,https://admin-staging.nirogix.com,https://patient-staging.nirogix.com,https://ai-staging.nirogix.com` | `https://portal.nirogix.com,https://nirogix.com,https://admin.nirogix.com,https://patient.nirogix.com,https://nirogix.ai` |
 | `OPENAPI_UI_ENABLED` (backend) | `true` | `true` | `false` — the JSON spec is always served; the interactive UI is not exposed in production |
 | `NEXT_PUBLIC_API_BASE_URL` (Portal) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
+| `NEXT_PUBLIC_ADMIN_ORIGIN` (Portal) | `http://localhost:3002` | `https://admin-staging.nirogix.com` | `https://admin.nirogix.com` — the only origin the Portal accepts a support-session token from (ADR-051) |
+| `NEXT_PUBLIC_PATIENT_URL` (Portal) | `http://localhost:3003` | `https://patient-staging.nirogix.com` | `https://patient.nirogix.com` — composes the public patient-registration link printed on a hospital's QR poster (ADR-056) |
 | `NEXT_PUBLIC_SITE_URL` (marketing) | `http://localhost:3001` | `https://staging.nirogix.com` | `https://nirogix.com` |
 | `NEXT_PUBLIC_PORTAL_LOGIN_URL` (marketing) | `http://localhost:3000/login` | `https://portal-staging.nirogix.com/login` | `https://portal.nirogix.com/login` |
 | `NEXT_PUBLIC_API_BASE_URL` (admin) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |

@@ -5,6 +5,7 @@ import {
   Building2,
   Palette,
   Users,
+  UserPlus,
   CalendarDays,
   ClipboardList,
   Pill,
@@ -62,6 +63,8 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
     label: "Clinical",
     items: [
       { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users },
+      // Visible to anyone who may see patients; only the front desk can act on a request.
+      { label: "Registration requests", href: "/patients/registrations", perm: PERMISSIONS.PATIENT_VIEW, icon: UserPlus },
       { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays },
       { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList },
       { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_STOCK_VIEW, icon: Pill },
@@ -100,6 +103,26 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
 
 /** Flattened tenant navigation — the mobile bar and permission checks use this. */
 export const NAV_ITEMS: NavItem[] = TENANT_NAV_GROUPS.flatMap((g) => g.items);
+
+/**
+ * Which nav item the current route belongs to — **the longest matching href wins**.
+ *
+ * A prefix match alone is not enough once one destination lives under another’s path.
+ * `/patients/registrations` is a prefix match for both *Patients* and *Registration
+ * requests*, and highlighting both tells the user nothing about where they are. The
+ * longest match is the specific one, while `/patients/{id}` — which has no nav item of
+ * its own — still resolves to *Patients*, which is the behaviour a detail page wants.
+ *
+ * Returns the winning href, or `null` on a route no nav item covers.
+ */
+export function activeNavHref(pathname: string, items: NavItem[] = NAV_ITEMS): string | null {
+  let best: string | null = null;
+  for (const item of items) {
+    const matches = pathname === item.href || pathname.startsWith(item.href + "/");
+    if (matches && (best === null || item.href.length > best.length)) best = item.href;
+  }
+  return best;
+}
 
 /**
  * The day-to-day destinations that earn a slot in the mobile bottom bar

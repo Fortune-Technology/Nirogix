@@ -18,8 +18,10 @@ app/
   (app)/layout.tsx           Session gate + header
   (app)/page.tsx             Hospital picker
   (app)/h/[tenantId]/page.tsx  One hospital: profile, appointments, bills, lab reports
+  (public)/layout.tsx        Shell for pages reached WITHOUT a session — no session provider
+  (public)/register/[token]/  A hospital’s own registration form (ADR-056)
 lib/
-  api.ts                     Six calls. Two sign-in, four reads. No writes.
+  api.ts                     Eight calls. Two sign-in, four reads, two public registration.
   session.tsx                In-memory patient session (NOT the shared staff AuthProvider)
   theme.tsx                  Light/Dark, Nirogix accent — never a hospital's
 ```
@@ -32,6 +34,8 @@ lib/
 - **The tenant in the URL is not trusted.** Every read re-checks it against an active link server-side, so editing the address bar reaches nothing.
 - **Nothing is stored on the device except the httpOnly refresh cookie.** The access token is in memory only, and the cookie is unreadable from JavaScript and path-scoped to the patient auth routes.
 - **The portal never interprets a clinical value.** Abnormal flags are shown as the lab recorded them, next to a line saying a result outside the usual range is not a diagnosis.
+- **The public registration form is outside `(app)` on purpose (ADR-056).** Nothing in `(public)` mounts the session provider or the portal navigation, so a page served to a stranger cannot accidentally render something that assumes a signed-in patient. The hospital is named by the backend, resolved from the opaque token in the path — the form never sends a hospital identifier, because there is no field for one. An unknown token, a regenerated one and a hospital with registration switched off all render the same “this link is not active” screen.
+- **Submitting the form is not signing up, and the copy says so.** It sends details to the hospital’s front desk; it creates no account, books no appointment and grants no access to records. This is the same rule as the sign-in screen, on the one page most likely to be misread.
 
 ## Sessions
 

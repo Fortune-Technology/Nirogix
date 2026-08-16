@@ -60,7 +60,6 @@ const columns: Array<Column<AuditEntry>> = [
   {
     key: "statusCode",
     header: "Status",
-    align: "right",
     accessor: (r) => r.statusCode,
     cell: (r) => (r.statusCode === null ? "—" : <Badge tone={statusTone(r.statusCode)}>{r.statusCode}</Badge>),
   },
