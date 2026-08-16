@@ -11,7 +11,7 @@ The public-facing product site (unauthenticated). It presents the product across
 ## Stack
 
 - **Next.js 16** (App Router, Turbopack) + **React 19** + TypeScript, **Tailwind v4**
-- **Design language:** the canonical **HMS Design System** (`resources/DESIGN.md`) — deep-teal signature on cool-neutral surfaces, clinical precision, minimal ornament. Implemented as a **marketing** token layer (`--mk-*` in `app/globals.css`, Light-only), the same language the Portal uses (via `@hms/ui`'s `--hms-*`).
+- **Design language:** the canonical **Nirogix Design System** (`resources/DESIGN.md`) — deep-teal signature on cool-neutral surfaces, clinical precision, minimal ornament. Implemented as a **marketing** token layer (`--mk-*` in `app/globals.css`, Light-only), the same language the Portal uses (via `@hms/ui`'s `--hms-*`).
 - **`@hms/ui`** is still imported (`@hms/ui/styles.css`) so that real product-UI previews (framed `@hms/ui` components) render as the genuine Portal.
 - **Icons:** `lucide-react` only (project-wide icon library).
 - Static — all pages prerender; no backend calls, no auth.
@@ -99,7 +99,7 @@ This site owns **all** product SEO; the Portal is never indexed. Reference stand
 
 **Required of every new/edited public route:** a unique title + meta description (no duplicates across routes), a canonical URL, exactly one `<h1>` with unskipped heading levels, semantic landmarks, OG/Twitter metadata, `alt` on every non-decorative image, a sitemap entry in the same change, a real internal link in (no orphans), a descriptive kebab-case URL (a rename ships a 301), and JSON-LD only for what the page actually shows — `SoftwareApplication` (product/platform/module), `LocalBusiness` (contact/about — Ahmedabad, Gujarat), `BreadcrumbList` (nested routes), `FAQPage` (only a real, visible FAQ). Never fabricated reviews/ratings.
 
-**Keyword → page intent map** (used naturally in title/H1/body, or not at all — never stuffed):
+**Keyword → page intent map** (used naturally in title/H1/body, or not at all — never stuffed). Note "HMS" below is the **industry search term** for a hospital management system, which hospitals genuinely type; our product is **Nirogix** and is never called HMS in copy (ADR-041):
 
 | Page | Primary intent | Supporting terms |
 |---|---|---|

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Daily logical backup of the HMS PostgreSQL database (Phase 0 Ops — resources/development-plan.md
+# Daily logical backup of the Nirogix PostgreSQL database (Phase 0 Ops — resources/development-plan.md
 # §18 Backups & DR). This complements the managed-Postgres provider's automated daily backups +
 # PITR; it gives an application-owned, portable dump that the restore drill (restore-drill.sh)
 # exercises. Run from cron on the VM (or a dedicated backup host):

@@ -1,4 +1,4 @@
-// PM2 process definitions for the HMS staging/production VM (Nginx + PM2, dedicated service
+// PM2 process definitions for the Nirogix staging/production VM (Nginx + PM2, dedicated service
 // user — resources/development-plan.md §16/§18). Versioned config so environments are
 // reproducible and the later container migration has a documented baseline.
 //
@@ -8,12 +8,12 @@
 //
 //   pm2 start deploy/pm2.ecosystem.cjs --env production
 //   pm2 reload deploy/pm2.ecosystem.cjs           # zero-downtime redeploy
-//   pm2 logs hms-backend
+//   pm2 logs nirogix-backend
 
 module.exports = {
   apps: [
     {
-      name: 'hms-backend',
+      name: 'nirogix-backend',
       cwd: './hms_backend',
       // Built output from `npm run build` (tsc → dist/). Runs the compiled server.
       script: 'dist/server.js',
@@ -24,7 +24,7 @@ module.exports = {
       env_staging: { NODE_ENV: 'staging', PORT: '4000' },
     },
     {
-      name: 'hms-portal',
+      name: 'nirogix-portal',
       cwd: './hms_frontend',
       // `next start` serves the production build on :3000.
       script: 'npm',
@@ -33,7 +33,7 @@ module.exports = {
       env_staging: { NODE_ENV: 'staging' },
     },
     {
-      name: 'hms-marketing',
+      name: 'nirogix-marketing',
       cwd: './marketing',
       script: 'npm',
       args: 'run start',

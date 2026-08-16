@@ -208,7 +208,7 @@ export const SPECIALTY_PROMISE = {
   eyebrow: "By specialty",
   title: "One platform, configured for how your specialty actually works",
   lede:
-    "The HMS is not a different product per specialty. It is one multi-tenant platform whose modules, consultation templates, catalogues, schedules and price lists are configured per hospital, so a dental clinic, a cardiology practice and a multi-specialty hospital each run the workflow they need on the same core.",
+    "Nirogix is not a different product per specialty. It is one multi-tenant platform whose modules, consultation templates, catalogues, schedules and price lists are configured per hospital, so a dental clinic, a cardiology practice and a multi-specialty hospital each run the workflow they need on the same core.",
   disclaimer:
     "Specialties differ in configuration, not in code: the same modules are enabled and set up differently. Where a specialty needs a capability the platform does not have yet, we say so during the demo rather than after you buy.",
 } as const;

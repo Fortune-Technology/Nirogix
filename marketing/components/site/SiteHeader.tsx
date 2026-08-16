@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
+import { BrandMark } from "@hms/ui";
 import { Button } from "../ui/Button";
 import { Container } from "../ui/primitives";
 import { NAV_LINKS, SITE } from "../../lib/site";
@@ -48,9 +49,7 @@ function ThemeToggle({ full = false }: { full?: boolean }) {
 function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2" aria-label={`${SITE.wordmark} home`}>
-      <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-[13px] font-semibold text-accent-ink">
-        H
-      </span>
+      <BrandMark size={28} label="" />
       <span className="text-[17px] font-semibold tracking-tight text-ink">{SITE.wordmark}</span>
     </Link>
   );

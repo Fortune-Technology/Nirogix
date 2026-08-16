@@ -7,14 +7,14 @@ export const metadata: Metadata = pageMetadata({
   path: "/legal/privacy",
   title: "Privacy Policy",
   description:
-    "How the HMS platform handles data: what is collected, how it is used, India data residency, security, and data-subject rights aligned with the DPDP Act.",
+    "How Nirogix handles data: what is collected, how it is used, India data residency, security, and data-subject rights aligned with the DPDP Act.",
 });
 
 const SECTIONS: LegalSection[] = [
   {
     heading: "Who this covers",
     body: [
-      `This summary describes how ${SITE.legalName} handles data on the HMS platform. Each hospital is the controller of its patients' health data; we process that data on the hospital's behalf as its technology provider.`,
+      `This summary describes how ${SITE.legalName} handles data on Nirogix. Each hospital is the controller of its patients' health data; we process that data on the hospital's behalf as its technology provider.`,
     ],
   },
   {

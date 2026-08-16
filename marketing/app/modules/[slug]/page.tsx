@@ -75,7 +75,7 @@ export async function generateMetadata({
   return pageMetadata({
     path: `/modules/${slug}`,
     title: seo?.title ?? mod.name,
-    description: seo?.description ?? `${mod.name}. ${mod.tagline} Part of the modular HMS platform.`,
+    description: seo?.description ?? `${mod.name}. ${mod.tagline} Part of the modular Nirogix platform.`,
   });
 }
 

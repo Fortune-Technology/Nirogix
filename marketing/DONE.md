@@ -184,3 +184,21 @@ Append-only implementation log. Newest at the bottom.
 **Also — shared components now follow the marketing brand (ADR-040).** `globals.css` maps the `--hms-*` slots that `@hms/ui` components consume onto `--mk-*` for both themes. The back-to-top button had been rendering the Portal's default teal and ignoring a platform-branding override entirely; it, the bottom nav, the drawer and the toast now follow the marketing accent in Light and Dark.
 
 **Testing status:** typecheck + production build clean. Manual cases added to `testcases.md` (MKT-01…MKT-08).
+
+---
+
+## 2026-08-16 — The product is Nirogix (ADR-041, ADR-042)
+
+**Renamed.** `SITE.name` / `SITE.wordmark` are **Nirogix**, so the header, footer, OG cards, the `· Nirogix` title suffix and every JSON-LD publisher reference follow from one place. Page copy that named the product — security, pricing, contact, platform, legal, specialties, module descriptions and the two OG `alt` strings — now says Nirogix.
+
+**Deliberately not renamed:** "HMS" where it is the **industry search term** hospitals actually type (`/modules` title "HMS Software Modules for Hospitals", the `HMS` and `multi-tenant HMS` keywords, the keyword map in `KNOWLEDGE.md`). That is search intent, not our product's name, and the distinction is now written down in the keyword map itself.
+
+**Environment URLs.** `.env.example` documents `NEXT_PUBLIC_SITE_URL` (which drives `metadataBase`, canonicals, the sitemap and every absolute JSON-LD URL) and `NEXT_PUBLIC_PORTAL_LOGIN_URL` for all three environments: `nirogix.com` / `staging.nirogix.com` / localhost, and `portal.nirogix.com` / `portal-staging.nirogix.com` / localhost. Staging is access-controlled and `noindex` at Nginx, so the marketing site can never be indexed twice.
+
+**Testing status:** typecheck + production build clean.
+
+---
+
+## 2026-08-16 — The "H" is gone: the Nirogix mark everywhere
+
+The header and footer wordmark still drew a hardcoded letter **"H"** from the old name in a teal tile. Both now render the shared `BrandMark` from `@hms/ui` (N monogram, 28px), which resolves through the marketing token bridge to `--mk-accent` — so it follows the marketing brand and both themes rather than carrying a literal of its own. The OG card mark, which cannot read CSS custom properties under Satori, repeats the same geometry with the documented literals. `app/icon.svg` replaces the default Next.js `favicon.ico` (deleted).

@@ -42,11 +42,11 @@ export function canonicalUrl(path: string): string {
 export interface PageSeo {
   /** Route path, leading slash (e.g. `/pricing`). */
   path: string;
-  /** Unique, intent-matched page title — rendered as `<title> · HMS` unless `absoluteTitle`. */
+  /** Unique, intent-matched page title — rendered as `<title> · Nirogix` unless `absoluteTitle`. */
   title: string;
   /** Unique meta description, ~150–160 characters, written for the same intent. */
   description: string;
-  /** Set for the home page, whose title should not carry the `· HMS` suffix twice. */
+  /** Set for the home page, whose title should not carry the `· Nirogix` suffix twice. */
   absoluteTitle?: boolean;
 }
 

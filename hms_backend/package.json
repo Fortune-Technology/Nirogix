@@ -2,7 +2,7 @@
   "name": "hms_backend",
   "version": "1.0.0",
   "private": true,
-  "description": "HMS backend API (Node.js + Express + TypeScript + Drizzle). See resources/development-plan.md §9.",
+  "description": "Nirogix backend API (Node.js + Express + TypeScript + Drizzle). See resources/development-plan.md §9.",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

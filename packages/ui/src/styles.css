@@ -11,7 +11,7 @@
  */
 
 :root {
-  /* Brand / accent — the deep-teal HMS signature; the per-tenant overridable slot
+  /* Brand / accent — the deep-teal Nirogix signature; the per-tenant overridable slot
    * (resources/DESIGN.md §7). Only --hms-brand is a literal: hover and subtle are
    * derived from it, so overriding the single brand value re-skins every state —
    * resting, hover, pressed, focus ring, active nav, badges and tints — instead of

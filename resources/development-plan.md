@@ -11,7 +11,7 @@
 
 ## How to Read This Document
 
-This is the **primary engineering execution roadmap** for the HMS platform. It exists to answer one question the four upstream documents deliberately leave open: *"Given the architecture, the rules, and the phase sequencing, exactly how does an engineering team execute this, week by week, without re-deriving decisions already made?"*
+This is the **primary engineering execution roadmap** for the Nirogix platform. It exists to answer one question the four upstream documents deliberately leave open: *"Given the architecture, the rules, and the phase sequencing, exactly how does an engineering team execute this, week by week, without re-deriving decisions already made?"*
 
 **Precedence.** If this document ever appears to contradict the Architecture Document, Project Requirements Document, Rules & Engineering Standards, or the Development Phases & Roadmap, **those documents win** and this one is defective and must be corrected. This plan is intentionally *additive* — it never overrides an upstream decision.
 
@@ -164,7 +164,7 @@ Per **ADR-013** (kept folder names) and **ADR-014** (npm over pnpm), the reposit
 
 ```
 hms_backend            Node.js/Express API (the backend)
-hms_frontend           Next.js HMS Portal — all role dashboards, role-based route guards
+hms_frontend           Next.js Nirogix Portal — all role dashboards, role-based route guards
 marketing              Next.js public marketing/SEO site
 packages/types         shared TS types & API contracts (backend + portal)
 packages/ui            shared design-system components + tokens + Standard DataTable (portal + marketing)
@@ -361,7 +361,7 @@ Per Phases → Frontend (Portal) and Rules → Engineering Standards.
 ## 15. Marketing Site Implementation
 
 - Minimal Next.js scaffold whose **single Login action** points to the Portal's `/login`. No auth logic on the marketing site.
-- The visual system is **`resources/DESIGN.md` — the canonical HMS Design System** (deep-teal signature on cool-neutral surfaces, Lucide icons, Geist), expressed through the marketing token scope (`--mk-*`), independent from the Portal's `--hms-*`. It supersedes the earlier `Default-DESIGN-intercom.md` exploration; where they differ, `DESIGN.md` wins.
+- The visual system is **`resources/DESIGN.md` — the canonical Nirogix Design System** (deep-teal signature on cool-neutral surfaces, Lucide icons, Geist), expressed through the marketing token scope (`--mk-*`), independent from the Portal's `--hms-*`. It supersedes the earlier `Default-DESIGN-intercom.md` exploration; where they differ, `DESIGN.md` wins.
 - Marketing content, landing pages, and SEO live here; the site deploys independently on the root domain.
 - **SEO/AEO/GEO is this site's job (ADR-027, Rules → SEO / AEO / GEO Rules).** Unique per-page title/description, canonical from `NEXT_PUBLIC_SITE_URL`, one `<h1>` + semantic structure, OG/Twitter metadata, JSON-LD only for what the page shows (`Organization`, `SoftwareApplication`, `LocalBusiness`, `BreadcrumbList`, real `FAQPage`), sitemap/robots in sync with the route table, descriptive URLs, deliberate internal linking, alt text on every non-decorative image, mobile-first + Core Web Vitals. Keywords are mapped per page to matching intent (mapping recorded in `marketing/KNOWLEDGE.md`) — never stuffed, never hidden, never fabricated trust signals, and always inside the PRD content guardrails (no prices, no certification claims, no invented customers).
 
@@ -656,7 +656,7 @@ Each milestone runs the six-step loop and must satisfy the Global Definition of 
 | Biomedical Waste Management §31 | — | Demand-driven; BMW Rules 2016 (Pending Verification). |
 | Housekeeping & Laundry §28 | IPD (ward context) | Demand-driven. |
 | Dietary & Kitchen §27 | IPD | Demand-driven. |
-| HR, Payroll & Doctor Scheduling §32 | — | Significant statutory lift (PF/ESIC/PT/TDS); confirm hospitals want this from HMS rather than existing HR software before committing. |
+| HR, Payroll & Doctor Scheduling §32 | — | Significant statutory lift (PF/ESIC/PT/TDS); confirm hospitals want this from Nirogix rather than existing HR software before committing. |
 
 ## 27. Enterprise-Hardening Track
 
@@ -750,4 +750,4 @@ A consolidated gate — the platform is enterprise-ready for a given customer se
 - [ ] Staging demo of the full journey by a non-developer.
 
 ---
-*Development Plan — v1.0 — Takoriya Technology LLP — August 2026. Execution layer over the Enterprise HMS documentation set (PRD, Architecture, Phases, Rules, Memory). Subordinate to those documents on any conflict.*
+*Development Plan — v1.0 — Takoriya Technology LLP — August 2026. Execution layer over the Nirogix documentation set (PRD, Architecture, Phases, Rules, Memory). Subordinate to those documents on any conflict.*

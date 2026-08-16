@@ -178,7 +178,7 @@ This document states rules only. For the architecture each rule is derived from,
 
 ### API Documentation Rules
 
-OpenAPI/Swagger documentation is part of backend implementation — not an optional or final-stage task — and is **mandatory for the entire HMS lifecycle**, from the first endpoint to the final production release.
+OpenAPI/Swagger documentation is part of backend implementation — not an optional or final-stage task — and is **mandatory for the entire Nirogix lifecycle**, from the first endpoint to the final production release.
 
 - **No undocumented production API.** Every backend route under `/api/v1` has a corresponding OpenAPI operation before the change is complete. Automated coverage (`npm run openapi:validate`) fails the build on any undocumented route.
 - **Docs change with the code, in the same change.** New route → add its operation; controller/request DTO/response DTO changed → update the corresponding schema; authentication changed → update `security`; permission changed → update the authorization note; endpoint deprecated → mark `deprecated`; endpoint removed → remove its operation; API version changed → document it under the new version.

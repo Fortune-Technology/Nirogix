@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=hms_frontend"],
+      "port": 3000
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=marketing"],
+      "port": 3001
+    }
+  ]
+}

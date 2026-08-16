@@ -41,9 +41,9 @@ import {
 } from "lucide-react";
 
 export const SITE = {
-  name: "HMS",
+  name: "Nirogix",
   legalName: "Takoriya Technology LLP",
-  wordmark: "HMS",
+  wordmark: "Nirogix",
   tagline: "The hospital management system built for multi-tenant scale.",
   description:
     "A multi-tenant, India-resident hospital management system. Run patients, appointments, OPD/EMR, pharmacy, lab, and billing on one platform, and turn on only the modules each hospital needs.",

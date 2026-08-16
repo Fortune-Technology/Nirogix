@@ -18,7 +18,7 @@ export const PERMISSIONS = {
   PLATFORM_SUPPORT_VIEW: 'platform.support.view', // see support sessions + tenant detail for support
   PLATFORM_SUPPORT_IMPERSONATE: 'platform.support.impersonate', // start a support session inside a tenant
   PLATFORM_ANALYTICS_VIEW: 'platform.analytics.view', // cross-tenant aggregate metrics
-  PLATFORM_BRANDING_MANAGE: 'platform.branding.platform.manage', // Super-Admin only (marketing + HMS platform branding); covered by WILDCARD, not granted to org_admin
+  PLATFORM_BRANDING_MANAGE: 'platform.branding.platform.manage', // Super-Admin only (marketing + Nirogix platform branding); covered by WILDCARD, not granted to org_admin
   // Patient
   PATIENT_VIEW: 'patient.record.view',
   PATIENT_CREATE: 'patient.record.create',

@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/modules",
   title: "HMS Software Modules for Hospitals",
   description:
-    "The full HMS module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, and hospital billing, plus the hospital-grade and operational modules and ABDM add-ons.",
+    "The full Nirogix module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, and hospital billing, plus the hospital-grade and operational modules and ABDM add-ons.",
 });
 
 function CatalogueCard({ module }: { module: ModuleEntry }) {

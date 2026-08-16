@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { BOTTOM_NAV_MAX_ITEMS, BottomNav, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
+import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
@@ -69,9 +69,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="h-6 w-6 rounded-token object-contain"
             />
           ) : (
-            <span className="inline-block h-6 w-6 rounded-token bg-brand" aria-hidden />
+            <BrandMark size={24} label="" />
           )}
-          <span className="font-semibold text-fg">{isPlatform ? "HMS Platform" : "HMS Portal"}</span>
+          <span className="font-semibold text-fg">{isPlatform ? "Nirogix Platform" : "Nirogix Portal"}</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {visibleNav.map((item) => {
@@ -108,8 +108,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
           <div className="flex items-center gap-2 text-sm text-fg-muted md:hidden">
-            <span className="inline-block h-5 w-5 rounded-token bg-brand" aria-hidden />
-            <span className="font-semibold text-fg">HMS</span>
+            <BrandMark size={20} label="" />
+            <span className="font-semibold text-fg">Nirogix</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
             <ThemeToggle />

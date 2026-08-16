@@ -526,3 +526,15 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 - **M-2** report date ranges are validated server-side (format + ordering) and capped at **366 days**, closing an unbounded multi-year scan; `expensiveLimiter` now covers the report and file-upload routes, completing H-1.
 
 **Testing status:** `typecheck` green · 49 backend tests pass · `openapi:validate` green.
+
+---
+
+## 2026-08-16 — Nirogix naming + environment host map (ADR-041, ADR-042)
+
+**Renamed** the API's public identity: `OPENAPI_TITLE` defaults to **Nirogix API** (was "Enterprise HMS API"), the OpenAPI description and the tag-taxonomy comment follow, and the package description reads Nirogix.
+
+**`.env.example` became the environment contract** rather than a list of placeholders: `API_PUBLIC_URL` and the optional Swagger server URLs point at `api.nirogix.com` / `api-staging.nirogix.com`; `CORS_ORIGINS` is documented as the per-environment allowlist it must be in production (ADR-036), with the exact origin lists for staging and production; the R2 bucket and the MSG91 sending identity (`mail.nirogix.com`) are named per environment, never shared. `OPENAPI_UI_ENABLED` carries a note that production serves the JSON spec but not the interactive UI — the public reference belongs on `docs.nirogix.com`.
+
+**Unchanged on purpose:** the local database name and role stay `hms`, an internal identifier nobody outside the repository sees (ADR-041).
+
+**Testing status:** 49 tests pass; typecheck green.

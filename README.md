@@ -1,8 +1,10 @@
-# Enterprise HMS — Monorepo
+# Nirogix — Monorepo
 
-Multi-tenant Hospital Management System (SaaS) for **Takoriya Technology LLP**. This is an **npm workspaces + Turborepo** monorepo — everything is driven from the repository root.
+**Nirogix** is a multi-tenant Hospital Management System (SaaS) by **Takoriya Technology LLP**, at [nirogix.com](https://nirogix.com). This is an **npm workspaces + Turborepo** monorepo — everything is driven from the repository root.
 
-> Product, architecture, rules, phases, and the engineering roadmap live in [`resources/`](resources/). Start with [`CLAUDE.md`](CLAUDE.md) (monorepo index) and [`resources/development-plan.md`](resources/development-plan.md) (execution roadmap). Architectural decisions are in [`DECISIONS.md`](DECISIONS.md).
+> Product, architecture, rules, phases, and the engineering roadmap live in [`resources/`](resources/). Start with [`CLAUDE.md`](CLAUDE.md) (monorepo index) and [`resources/development-plan.md`](resources/development-plan.md) (execution roadmap). Environment host names come from [`resources/domains.md`](resources/domains.md). Architectural decisions are in [`DECISIONS.md`](DECISIONS.md).
+
+> **Naming.** The product is Nirogix everywhere a person can see it. Internal identifiers — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` design tokens and `.hms-*` class names — deliberately keep their prefix (ADR-041): they are invisible outside the repository, and renaming them would touch nearly every file for no user-visible gain. "HMS" also survives in marketing copy where it is the industry search term for *hospital management system*, never as our product's name.
 
 ## Requirements
 
@@ -35,7 +37,7 @@ That's it — one install, one dev command. No need to `cd` into each app.
 | Workspace | What it is | Dev URL | Port |
 |---|---|---|---|
 | `hms_backend` | Node.js + Express + TypeScript API (Drizzle/PostgreSQL) | http://localhost:4000/api/v1 | **4000** |
-| `hms_frontend` | Next.js **HMS Portal** (all role dashboards) | http://localhost:3000 | **3000** |
+| `hms_frontend` | Next.js **Nirogix Portal** (all role dashboards) | http://localhost:3000 | **3000** |
 | `marketing` | Next.js public marketing/SEO site | http://localhost:3001 | **3001** |
 
 Shared libraries (not servers): `packages/types` (`@hms/types`), `packages/ui` (`@hms/ui`), `packages/config` (`@hms/config`), `packages/utils` (`@hms/utils`), `packages/permissions` (`@hms/permissions`).
@@ -119,7 +121,7 @@ The backend validates its environment at boot (Zod) and exits with a clear messa
 ```
 HMS/
 ├── hms_backend/     Express + Drizzle API        (:4000)
-├── hms_frontend/    Next.js HMS Portal           (:3000)
+├── hms_frontend/    Next.js Nirogix Portal       (:3000)
 ├── marketing/       Next.js marketing site       (:3001)
 ├── packages/
 │   ├── types/       @hms/types

@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return pageMetadata({
     path: `/specialties/${slug}`,
     title: `Hospital Management Software for ${specialty.name}`,
-    description: `${specialty.summary} See how the HMS supports ${specialty.name.toLowerCase()} through configurable patient records, appointments, consultations, ${specialty.modules?.includes("Laboratory") ? "diagnostics, " : ""}billing and reporting.`,
+    description: `${specialty.summary} See how Nirogix supports ${specialty.name.toLowerCase()} through configurable patient records, appointments, consultations, ${specialty.modules?.includes("Laboratory") ? "diagnostics, " : ""}billing and reporting.`,
   });
 }
 
@@ -47,7 +47,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
     <>
       <JsonLd
         data={softwareApplicationJsonLd({
-          name: `HMS for ${specialty.name}`,
+          name: `Nirogix for ${specialty.name}`,
           description: specialty.summary,
           path: `/specialties/${specialty.slug}`,
         })}

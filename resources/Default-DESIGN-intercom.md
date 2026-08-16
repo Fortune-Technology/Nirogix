@@ -252,7 +252,7 @@ components:
     padding: 64px 32px
 ---
 
-> ⚠ **Superseded.** This is an earlier design exploration (an Intercom analysis) kept for reference only. The canonical HMS design system is **`resources/DESIGN.md`** (custom, deep-teal signature, cool-neutral surfaces). Where they differ, `DESIGN.md` wins.
+> ⚠ **Superseded.** This is an earlier design exploration (an Intercom analysis) kept for reference only. The canonical Nirogix design system is **`resources/DESIGN.md`** (custom, deep-teal signature, cool-neutral surfaces). Where they differ, `DESIGN.md` wins.
 
 ## Overview
 

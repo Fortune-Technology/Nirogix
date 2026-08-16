@@ -1,6 +1,6 @@
-# HMS — Deployment & Ops Runbook
+# Nirogix — Deployment & Ops Runbook
 
-Versioned operations baseline for the HMS platform (Phase 0 / Task #14). Even though the real
+Versioned operations baseline for the Nirogix platform (Phase 0 / Task #14). Even though the real
 E2E Networks infrastructure is provisioned outside this repo, the plan requires the VM config,
 Nginx, PM2, deploy pipeline, and backup/restore procedure to be **captured as versioned config
 from the start** (resources/development-plan.md §16 IaC posture, §18 DevOps). This directory is
@@ -11,17 +11,24 @@ that baseline; substitute real hosts/secrets at deploy time.
 
 ## Environments
 
-| Env | Purpose | Host | Deploy trigger |
+Hosts are defined once, in **`resources/domains.md`** (ADR-042). Nothing here or in application
+code hard-codes one — every URL comes from that environment's configuration.
+
+| Env | Purpose | Hosts | Deploy trigger |
 |---|---|---|---|
 | **Local** | Development | `localhost` (api :4000, portal :3000, marketing :3001) | `npm run dev` |
-| **Staging** | Milestone demos + tenant-isolation checks | E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, Cloudflare edge | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
-| **Production** | Live | Same shape as staging, separate VM + DB | controlled, reviewed promotion |
+| **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, Cloudflare edge | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
+| **Production** | Live | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB | controlled, reviewed promotion |
+
+Staging carries its own database, object-storage bucket, secrets, and notification sender, sits
+behind access control, and adds `X-Robots-Tag: noindex, nofollow` at Nginx. It never shares
+state with production and is never indexable.
 
 ## Topology (single VM, per architecture)
 
 - **Nginx** terminates the Cloudflare origin TLS and reverse-proxies to three PM2 apps
-  (`deploy/nginx/hms.conf.template`): API→:4000, Portal→:3000, Marketing→:3001.
-- **PM2** (dedicated non-root service user) runs `hms-backend`, `hms-portal`, `hms-marketing`
+  (`deploy/nginx/nirogix.conf.template`): API→:4000, Portal→:3000, Marketing→:3001.
+- **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`, `nirogix-marketing`
   (`deploy/pm2.ecosystem.cjs`).
 - **PostgreSQL** = managed E2E DBaaS, provisioned **separately** from the app VM. The app
   connects as a **non-superuser** role (RLS `FORCE` is bypassed by superusers — see
@@ -38,9 +45,13 @@ that baseline; substitute real hosts/secrets at deploy time.
 5. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
 6. `npm run db:seed -w hms_backend` (staging only — demo tenants; never in production).
 7. `pm2 start deploy/pm2.ecosystem.cjs --env staging && pm2 save && pm2 startup`.
-8. Install the Nginx site from `deploy/nginx/hms.conf.template` (substitute hosts + cert paths),
+8. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
    `nginx -t && systemctl reload nginx`.
-9. Point Cloudflare DNS at the VM; set SSL mode Full (Strict) with an origin cert.
+9. Point Cloudflare DNS at the VM; set SSL mode Full (Strict) with an origin cert. Verify
+   Universal SSL covers each host — all of them are second-level, so `*.nirogix.com` does.
+10. Work `resources/domains.md` §9 (cutover checklist): `CORS_ORIGINS` for the environment, the
+    `www` → apex redirect in production, access control + `noindex` on staging, and the refresh
+    cookie arriving `Secure; HttpOnly; SameSite=Lax` with **no** `Domain` attribute.
 
 ## Deploy flow (staging, automated)
 

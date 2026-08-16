@@ -1,6 +1,6 @@
 # hms_frontend — KNOWLEDGE.md
 
-Current state of the HMS Portal (staff-facing web app). Read after root `CLAUDE.md` and `hms_frontend/AGENTS.md`. See `DONE.md` for the chronological log.
+Current state of the Nirogix Portal (staff-facing web app). Read after root `CLAUDE.md` and `hms_frontend/AGENTS.md`. See `DONE.md` for the chronological log.
 
 > ⚠ **This is Next.js 16 (App Router, Turbopack, React 19).** APIs differ from older Next. `AGENTS.md` points at the version-matched docs bundled in `node_modules/next/dist/docs/` — read them before writing routing/rendering code.
 

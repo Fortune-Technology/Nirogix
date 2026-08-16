@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Card, Field, PasswordField } from "@hms/ui";
+import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
 import { useAuth } from "../../../lib/auth";
 
 export default function LoginPage() {
@@ -33,8 +33,8 @@ export default function LoginPage() {
   return (
     <Card>
       <div className="mb-5 flex flex-col items-center gap-2 text-center">
-        <span className="inline-block h-9 w-9 rounded-token-lg bg-brand" aria-hidden />
-        <h1 className="text-lg font-semibold text-fg">Sign in to HMS Portal</h1>
+        <BrandMark size={40} />
+        <h1 className="text-lg font-semibold text-fg">Sign in to Nirogix Portal</h1>
         <p className="text-sm text-fg-muted">Use your organization code and staff credentials.</p>
       </div>
 

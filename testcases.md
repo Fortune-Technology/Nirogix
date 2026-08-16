@@ -1,4 +1,4 @@
-# testcases.md — HMS manual QA checklist
+# testcases.md — Nirogix manual QA checklist
 
 The complete manual test pass for the platform, organised by module. A tester who has never seen the code should be able to execute any case here from the steps alone.
 
@@ -206,7 +206,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | ADM-02 | Duplicate org code | Existing code | Reuse it | Rejected with a clear message | P2 | Validation | super_admin | Not run |
 | ADM-03 | Grant / revoke a module | Existing tenant | Toggle a module | Entitlement changes; the tenant's menu reflects it after re-login; hard dependencies are enforced | P1 | Functional | super_admin | Not run |
 | ADM-04 | Suspend a tenant | Active tenant | Set status suspended | Its users can no longer sign in | P1 | Security | super_admin | Not run |
-| ADM-05 | Platform branding scopes | — | Admin → Branding → change marketing, then HMS | Each scope changes only its own surface; the other is untouched | P2 | Functional | super_admin | Not run |
+| ADM-05 | Platform branding scopes | — | Admin → Branding → change marketing, then the Nirogix Portal default | Each scope changes only its own surface; the other is untouched | P2 | Functional | super_admin | Not run |
 | ADM-06 | Non-super-admin is refused | org_admin token | Open `/admin/tenants`; call the API directly | Forbidden panel; API 403 | P1 | Security | org_admin | Not run |
 
 ## 14. Org administration (users, roles, branches, branding)
@@ -253,6 +253,24 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | MKT-08 | Theme toggle | — | Switch Light/Dark; reload | Choice persists; no flash of the wrong theme on load | P2 | UI/UX | anonymous | Not run |
 | MKT-09 | Contact form | — | Submit the demo form | Confirmation state shown. **Known limitation: the form does not transmit yet** (`BACKLOG.md` U-2) | P1 | Functional | anonymous | Not run |
 | MKT-10 | Back to top & smooth scroll | Long page | Scroll down, press Back to top | Smooth return to top; routes always open scrolled to the top | P3 | UI/UX | anonymous | Not run |
+| MKT-16 | The product is called Nirogix | — | Read the header, footer, titles, legal pages and OG cards | Nirogix everywhere the product is named; "HMS" appears only as the industry term in search-intent copy, never as our name | P1 | Functional | anonymous | Not run |
+| MKT-17 | The brand mark renders | — | Check the marketing header and footer, a browser tab, and an OG card; then the Portal's login card and app shell | The N monogram appears at each place — no stray letter from the old name, no blank tile, no default framework favicon. It follows the accent in Light and Dark, and a tenant's own logo replaces it in the Portal where one is uploaded | P2 | UI/UX | anonymous | Not run |
+
+## 16b. Environments & domains (ADR-042, `resources/domains.md`)
+
+Run at staging bring-up and again before each production release. Every case here fails the release if it fails.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| DOM-01 | Every host resolves over TLS | DNS + certificates in place | Open each production and staging host | All load over HTTPS with a valid `*.nirogix.com` certificate; no browser warning, no IP or provider hostname anywhere | P1 | Functional | anonymous | Not run |
+| DOM-02 | `www` redirects to the apex | Production | Request `https://www.nirogix.com/pricing` | 301 to `https://nirogix.com/pricing`; `www` never serves content | P1 | Functional | anonymous | Not run |
+| DOM-03 | Canonicals match the environment | Staging and production | Compare `<link rel=canonical>`, sitemap URLs and JSON-LD `url` on each | All use that environment's own origin; staging never emits a production URL | P1 | Functional | anonymous | Not run |
+| DOM-04 | Staging is not indexable | Staging | Fetch any staging page and `/robots.txt` | `X-Robots-Tag: noindex, nofollow` on the response and access control in front; the staging site cannot be reached anonymously | P1 | Security | anonymous | Not run |
+| DOM-05 | CORS allowlist is environment-specific | Any deployed API | Call the API with `Origin: https://evil.example`, then with that environment's Portal origin | The first is refused, the second allowed; no wildcard reflected, and no production origin listed in staging | P1 | Security | anonymous | Not run |
+| DOM-06 | The refresh cookie is host-only | Deployed Portal | Sign in and inspect the cookie | `Secure; HttpOnly; SameSite=Lax` with **no** `Domain` attribute, on the API host only; it is never sent to the marketing or Portal host | P1 | Security | any | Not run |
+| DOM-07 | Staging cannot reach production data | Staging | Check the database URL, R2 bucket and notification sender in use | Each is the staging one; a staging session cannot authenticate against production | P1 | Security | super_admin | Not run |
+| DOM-08 | Swagger UI is closed in production | Production | Open `/api/v1/docs`, then `/api/v1/openapi.json` | The interactive UI is not served; the JSON spec is | P2 | Security | anonymous | Not run |
+| DOM-09 | No hard-coded host | Repository | Grep the apps for `nirogix.com` | Only configuration, documentation and comments match — never application logic | P2 | Functional | any | Not run |
 
 ## 17. Specializations (marketing)
 

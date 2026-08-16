@@ -1,6 +1,6 @@
 # @hms/ui — KNOWLEDGE.md
 
-The shared design system for the HMS monorepo. Consumed by `hms_frontend` (Portal) and `marketing`. Read after root `CLAUDE.md`.
+The shared design system for the Nirogix monorepo. Consumed by `hms_frontend` (Portal) and `marketing`. Read after root `CLAUDE.md`.
 
 ## What's here
 
@@ -11,6 +11,7 @@ The shared design system for the HMS monorepo. Consumed by `hms_frontend` (Porta
 - **`Menu` / `MenuItem` / `MenuCheckboxItem`** — the one dropdown primitive (Esc + outside-click close, arrow-key roving focus); `MoreActions` and `ConfirmDialog` (focus-trapped, scroll-locked) build on it. `triggerBase` swaps the trigger's base classes so a row action's "…" matches the other icon actions.
 - **The Action column** (`src/components/table-actions/`, ADR-039) — `actionsColumn()` defines the column (last, right-aligned, headed "Actions", never sortable or hideable); `TableActions` groups up to three inline icon actions built from `ViewAction` / `EditAction` / `DeleteAction` / `ToggleAction`, plus `TableAction` for a module's own operation ("Check in", "Start consult", "Revoke module"), with `MoreActions` for the overflow. The components own the icons, sizing, hover/active/focus, tooltips, accessible names, `disabledReason`, loading spinner, confirmation, and permission gating (`permitted={false}` renders nothing); a page passes intent only. `DeleteAction` always confirms; `ToggleAction` is a real `role="switch"`. Supersedes the old `ActionMenu`, which was migrated into `MoreActions` and deleted.
 - **`EmptyState` / `ErrorState` / `Skeleton`** — the shared states, used by the DataTable and directly by pages.
+- **`BrandMark`** — the Nirogix mark (N monogram on a rounded tile), drawn from `--hms-brand` / `--hms-brand-fg`. One implementation for the Portal shell, the login card, the marketing header and footer; both apps' `app/icon.svg` favicons repeat the same geometry with literal colours, since a favicon renders outside the token scope.
 - **`cn`** — tiny classname joiner (no clsx dependency).
 - Behaviour helpers: `SmoothScroll` (Lenis), `useScrollLock`, `BackToTop`, `LottiePlayer`/`LottiePreloader`, `lottieRecolor`.
 

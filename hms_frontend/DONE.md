@@ -363,3 +363,23 @@ Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.
 **Fixed — tenant branding stopped at rest.** `applyBrandColor` (and the no-flash script) wrote the same hex into `--hms-brand` and `--hms-brand-hover`, so a tenant's accent flattened the moment a control was hovered and had no pressed state at all. Both now set the brand slot only; the token layer derives the rest (ADR-040).
 
 **Testing status:** typecheck + build clean; `@hms/ui` suite 38 passed. Manual cases added to `testcases.md` (ACT-01…ACT-10, BRD-05…BRD-07).
+
+---
+
+## 2026-08-16 — The Portal is the Nirogix Portal (ADR-041, ADR-042)
+
+**Renamed** every user-visible string: the document title, the app-shell wordmark and its "Nirogix Platform" / "Nirogix Portal" context label, the login heading, and the platform-branding screen's copy and panel title.
+
+**Deliberately unchanged:** the `hms_frontend/` directory, the `@hms/*` imports, and the `--hms-*` / `.hms-*` tokens and classes. They are invisible outside the repository and renaming them would touch nearly every file for no user-visible gain (ADR-041).
+
+**Environment URLs.** `.env.example` now spells out `NEXT_PUBLIC_API_BASE_URL` for all three environments (`api.nirogix.com` / `api-staging.nirogix.com` / localhost). The Portal reads its API base from configuration only, which is what lets `api.nirogix.com` move or gain an `id.` sibling later without a code change.
+
+**Testing status:** typecheck + build clean; 12 tests pass.
+
+---
+
+## 2026-08-16 — The Nirogix mark replaces the placeholder squares
+
+The login card and the app shell (desktop sidebar fallback and mobile header) were drawing plain teal squares where a logo belongs. All three now render the shared `BrandMark` from `@hms/ui` — 40px on the login card, 24px in the sidebar, 20px in the mobile header — so the product has an actual mark, drawn from `--hms-brand` and therefore following Dark mode and a tenant accent. A tenant's uploaded logo still wins wherever one exists.
+
+`app/icon.svg` replaces the default Next.js `favicon.ico` (deleted), so a browser tab shows the Nirogix mark instead of the framework's. Tenant branding still swaps the favicon at runtime for that hospital's own.

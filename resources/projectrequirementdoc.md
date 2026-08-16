@@ -656,7 +656,7 @@ Security by Design and Privacy by Design. The platform stores sensitive patient 
 Every regulatory statement in this document falls into exactly one of three categories:
 
 - **Confirmed requirement** — supported by an authoritative primary source (the Act, Rule, or official policy document itself)
-- **Design decision** — a conservative architectural choice made by the HMS team, not a claim of legal obligation
+- **Design decision** — a conservative architectural choice made by the Nirogix team, not a claim of legal obligation
 - **Pending verification** — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement
 
 > **General rule:** Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.

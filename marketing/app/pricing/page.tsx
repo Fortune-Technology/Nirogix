@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/pricing",
   title: "Hospital Management Software Pricing in India",
   description:
-    "HMS pricing follows the modules you enable. Start with a single module, take the clinic bundle, or run the full set, and talk to us for a quote tailored to your hospital.",
+    "Nirogix pricing follows the modules you enable. Start with a single module, take the clinic bundle, or run the full set, and talk to us for a quote tailored to your hospital.",
 });
 
 export default function PricingPage() {

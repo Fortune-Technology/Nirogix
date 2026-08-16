@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@hms/ui";
 import { Container } from "../ui/primitives";
 import { SITE } from "../../lib/site";
 import { PORTAL_LOGIN_URL } from "../../lib/portal";
@@ -47,9 +48,7 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="max-w-xs">
             <div className="flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-[13px] font-semibold text-accent-ink">
-                H
-              </span>
+              <BrandMark size={28} label="" />
               <span className="text-[17px] font-semibold tracking-tight text-ink">
                 {SITE.wordmark}
               </span>

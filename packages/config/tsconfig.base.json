@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "HMS base tsconfig",
+  "display": "Nirogix base tsconfig",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",

@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 // and never advertises anything about a tenant (ADR-027). Product SEO lives on the
 // marketing site. No patient/tenant/staff data may enter this metadata.
 export const metadata: Metadata = {
-  title: "HMS Portal",
-  description: "Hospital Management System staff portal",
+  title: "Nirogix Portal",
+  description: "Nirogix staff portal",
   robots: {
     index: false,
     follow: false,

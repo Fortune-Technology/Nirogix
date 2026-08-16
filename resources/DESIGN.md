@@ -1,6 +1,6 @@
-# HMS Design System
+# Nirogix Design System
 
-**The canonical visual language for all HMS surfaces** — the public marketing site (`marketing/`) and the clinical Portal (`hms_frontend/` + `packages/ui`). This document is the source of truth for colour, typography, spacing, radii, components, iconography, motion, and theming. Any new UI work follows it.
+**The canonical visual language for every Nirogix surface** — the public marketing site (`marketing/`) and the clinical Portal (`hms_frontend/` + `packages/ui`). This document is the source of truth for colour, typography, spacing, radii, components, iconography, motion, and theming. Any new UI work follows it.
 
 > Supersedes `resources/Default-DESIGN-intercom.md` (an earlier reference exploration). Where they differ, **this document wins.**
 
@@ -42,7 +42,7 @@ Values are the spec. In code they live as CSS custom properties: `--mk-*` in `ma
 | Ink subtle | `#7a888d` | Helper / meta. |
 | Ink faint | `#9aa8ac` | Footnotes, disabled. |
 | Ink inverse | `#ffffff` | Text on accent / surface-ink. |
-| **Accent** | `#0e7490` | Deep teal. The HMS signature and the Portal's tenant-overridable slot. |
+| **Accent** | `#0e7490` | Deep teal. The Nirogix signature and the Portal's tenant-overridable slot. |
 | Accent hover | `#0b5f76` | |
 | Accent ink | `#ffffff` | Text on accent. |
 | Accent subtle | `#e3f2f5` | Accent tint (badges, active nav). |
@@ -111,6 +111,7 @@ Values are the spec. In code they live as CSS custom properties: `--mk-*` in `ma
 
 The shared primitives live in `@hms/ui` (`Button`, `Field`, `PasswordField`, `Card`, `Badge`, `Alert`, `Spinner`, `DataTable`) and are consumed by the Portal; marketing has a parallel token-driven kit in the same language. All derive from tokens.
 
+- **BrandMark:** the Nirogix mark — an N monogram in a rounded tile (radius 8 on a 32 viewBox), tile in `--hms-brand`, letter in `--hms-brand-fg`. Drawn from tokens, so it follows the theme, the marketing accent, and a tenant override with no asset to ship. Used at 40px on the Portal's login card, 24/20px in the app shell, 28px in the marketing header and footer, and as both apps' `app/icon.svg` favicon. A tenant's uploaded logo replaces it wherever one exists.
 - **Button:** `primary` = accent fill / accent-ink; `secondary` = surface + hairline; `ghost` = transparent; `danger` = danger fill. Radius md. Tactile `:active` (translateY 1px). Label ≤ 3 words for primary CTAs.
 - **Badge / status pill:** radius pill; `brand` (accent-subtle), `neutral`, `success`, `warning`, `danger`, `info`.
 - **Card:** surface + hairline + radius lg. Optional header with a bottom hairline.
@@ -138,7 +139,7 @@ The shared primitives live in `@hms/ui` (`Button`, `Field`, `PasswordField`, `Ca
 
 - **Theme:** `data-theme` on `<html>` (`light` default, `dark` explicit + persisted; first visit honours `prefers-color-scheme`). **Both surfaces support Light + Dark.** Every colour is a token with a Light and Dark value; never define a colour only inside a `[data-theme]` block. A pre-hydration script paints the stored/preferred theme before first paint (no flash). Marketing persists under `mk-theme`, the Portal under `hms-theme`.
 - **Per-tenant branding (Portal):** the accent is applied at runtime by overriding `--hms-brand` (derived tints via `color-mix`) inline on `<html>` from server-persisted per-tenant branding (ADR-021). Components never hardcode the teal — always `var(--hms-brand)` — so a tenant re-skin is a single token change. Logo + favicon are per-tenant.
-- **Platform branding (System Admin, ADR-024):** two **independent** platform-global scopes — **Marketing** (`--mk-*`, `marketing/app/globals.css`) and **HMS** (`--hms-*`, `packages/ui/src/styles.css`). Editing one never affects the other. Marketing reads its scope dynamically (ISR) and injects `--mk-*`; the Portal applies the `hms` scope as the product default, under any per-tenant override.
+- **Platform branding (System Admin, ADR-024):** two **independent** platform-global scopes — **Marketing** (`--mk-*`, `marketing/app/globals.css`) and the **Portal** (`--hms-*`, `packages/ui/src/styles.css`). Editing one never affects the other. Marketing reads its scope dynamically (ISR) and injects `--mk-*`; the Portal applies the `hms` scope as the product default, under any per-tenant override.
 - **Scalable branding token contract.** Both scopes and both branding levels use one JSONB `tokens` shape, each key mapping to a CSS variable so new tokens need no schema change:
 
   | token key | Marketing var | Portal var | notes |

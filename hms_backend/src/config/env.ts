@@ -21,7 +21,7 @@ const EnvSchema = z.object({
 
   // OpenAPI / Swagger — environment-aware, never hard-coded (see resources/rules.md
   // API Documentation Rules). Server URLs come from config per environment.
-  OPENAPI_TITLE: z.string().default('Enterprise HMS API'),
+  OPENAPI_TITLE: z.string().default('Nirogix API'),
   API_VERSION: z.string().default('1.0.0'),
   // Base URL of THIS running instance's API host. Falls back to http://localhost:${PORT}.
   API_PUBLIC_URL: z.string().url().optional(),

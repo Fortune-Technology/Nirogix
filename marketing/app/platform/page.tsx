@@ -26,9 +26,9 @@ export default function PlatformPage() {
     <>
       <JsonLd
         data={softwareApplicationJsonLd({
-          name: "HMS Platform, hospital ERP software",
+          name: "Nirogix, hospital ERP software",
           description:
-            "The multi-tenant platform underneath every HMS module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.",
+            "The multi-tenant platform underneath every Nirogix module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.",
           path: "/platform",
         })}
       />

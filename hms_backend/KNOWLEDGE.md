@@ -1,10 +1,10 @@
 # hms_backend — KNOWLEDGE.md
 
-Current state of the HMS backend API. Read after root `CLAUDE.md`. See `DONE.md` for the chronological log.
+Current state of the Nirogix backend API. Read after root `CLAUDE.md`. See `DONE.md` for the chronological log.
 
 ## Purpose
 
-Node.js + Express + TypeScript REST API for the HMS platform. Modular monolith: each business module owns `routes → controller → service → repository`. Versioned under `/api/v1`.
+Node.js + Express + TypeScript REST API for the Nirogix platform. Modular monolith: each business module owns `routes → controller → service → repository`. Versioned under `/api/v1`.
 
 ## Stack
 

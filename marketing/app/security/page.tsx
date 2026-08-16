@@ -24,7 +24,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/security",
   title: "Security, Tenant Isolation & India Data Residency",
   description:
-    "How the HMS protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.",
+    "How Nirogix protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.",
 });
 
 // Split deliberately (rules.md → Marketing Content & Claim Accuracy): `enforced` is

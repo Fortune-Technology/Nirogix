@@ -12,7 +12,7 @@ export default function PlatformBrandingPage() {
     <RequirePermission perm={PERMISSIONS.PLATFORM_BRANDING_MANAGE}>
       <PageHeader
         title="Platform branding"
-        description="Brand the public marketing website and the HMS Portal default independently. Leave a field blank to use the built-in default; a hospital's own branding still overrides the HMS default for its users."
+        description="Brand the public marketing website and the Nirogix Portal default independently. Leave a field blank to use the built-in default; a hospital's own branding still overrides the Nirogix default for its users."
       />
       <div className="grid gap-5 lg:grid-cols-2">
         <PlatformBrandingPanel
@@ -22,7 +22,7 @@ export default function PlatformBrandingPage() {
         />
         <PlatformBrandingPanel
           scope="hms"
-          title="HMS Portal (default)"
+          title="Nirogix Portal (default)"
           description="The Portal's default palette, before any per-tenant branding."
         />
       </div>

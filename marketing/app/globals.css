@@ -20,7 +20,7 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * Marketing design system — implements the canonical HMS Design System
+ * Marketing design system — implements the canonical Nirogix Design System
  * (resources/DESIGN.md) for the public marketing surface: deep-teal signature on
  * cool-neutral surfaces, clinical precision, minimal ornament. Tokens are
  * namespaced --mk-* so they never collide with the --hms-* tokens that real
@@ -47,7 +47,7 @@
   --mk-ink-faint: #9aa8ac;
   --mk-ink-inverse: #ffffff;
 
-  /* Accent — the deep-teal HMS signature (single confident colour). The tints derive
+  /* Accent — the deep-teal Nirogix signature (single confident colour). The tints derive
    * from --mk-accent via color-mix, so a platform-branding override of --mk-accent
    * (ADR-024) cascades to hover / subtle / border with one value. */
   --mk-accent: #0e7490;

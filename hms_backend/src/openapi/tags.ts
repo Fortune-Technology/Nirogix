@@ -1,4 +1,4 @@
-// Tag taxonomy = the HMS module map. Every documented operation carries one of these tags
+// Tag taxonomy = the Nirogix module map. Every documented operation carries one of these tags
 // so Swagger UI groups the API by module. Add a tag here when a new module is introduced;
 // the coverage validator requires every operation to be tagged.
 export const OPENAPI_TAGS = [

@@ -1,8 +1,10 @@
-# CLAUDE.md — HMS Monorepo Index
+# CLAUDE.md — Nirogix Monorepo Index
 
 Root guide for humans and AI agents working in this repository. **Read this first**, then the relevant app/package `KNOWLEDGE.md`, then its `DONE.md`, then the source.
 
-> This is an enterprise Hospital Management System (multi-tenant SaaS) for Takoriya Technology LLP. The authoritative product/architecture/rules live in `resources/`. This file indexes the codebase and the conventions every change must follow.
+> **Nirogix** is an enterprise Hospital Management System (multi-tenant SaaS) by Takoriya Technology LLP, at `nirogix.com`. The authoritative product/architecture/rules live in `resources/`. This file indexes the codebase and the conventions every change must follow.
+
+> **Naming (ADR-041).** The product is **Nirogix** in every user-visible string, document, and configuration. Internal identifiers keep their `hms` prefix on purpose — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` tokens, and the `.hms-*` class names. Do not rename them opportunistically. In marketing copy, "HMS" appears only as the industry search term for *hospital management system*, never as the product's name.
 
 ## Source-of-truth documents (read before changing anything significant)
 
@@ -16,6 +18,7 @@ Root guide for humans and AI agents working in this repository. **Read this firs
 | `resources/memory.md` | Distilled invariants & decisions; open items |
 | `resources/development-plan.md` | The primary engineering execution roadmap |
 | `resources/DESIGN.md` | **Design system** — canonical visual language (colour/type/components/theming/icons) for marketing + Portal |
+| `resources/domains.md` | **Host map** — every production / staging / local URL, what deliberately has no subdomain, and the per-environment variable matrix (ADR-042). No host is ever hard-coded elsewhere. |
 | `DECISIONS.md` | Numbered ADRs (why) — append-only |
 | `testcases.md` | **The manual QA checklist for the whole platform** — every feature's test cases, by module. Updated in the same change as the feature, never at the end. |
 | `SECURITY-AUDIT.md` | **Production security review** - findings by severity with status, plus the production configuration checklist. Re-run before each release; update it in the change that fixes a finding. |
@@ -27,7 +30,7 @@ On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over
 
 ```
 hms_backend/            Node.js + Express + TypeScript API
-hms_frontend/           Next.js HMS Portal (all role dashboards, role-based route guards)
+hms_frontend/           Next.js Nirogix Portal (all role dashboards, role-based route guards)
 marketing/              Next.js public marketing/SEO site
 packages/types          @hms/types — shared TS types & API contracts (backend + portal)
 packages/ui             @hms/ui — design tokens (Light default + Dark), primitives, Standard DataTable

@@ -7,14 +7,14 @@ export const metadata: Metadata = pageMetadata({
   path: "/legal/terms",
   title: "Terms of Use",
   description:
-    "A plain-language summary of the terms for using the HMS platform: accounts, acceptable use, availability, and how changes are communicated.",
+    "A plain-language summary of the terms for using Nirogix: accounts, acceptable use, availability, and how changes are communicated.",
 });
 
 const SECTIONS: LegalSection[] = [
   {
     heading: "Using the platform",
     body: [
-      `The HMS platform is provided by ${SITE.legalName} to hospitals and clinics under an agreement made during onboarding. Access is for authorised staff of a subscribing hospital.`,
+      `Nirogix is provided by ${SITE.legalName} to hospitals and clinics under an agreement made during onboarding. Access is for authorised staff of a subscribing hospital.`,
     ],
   },
   {

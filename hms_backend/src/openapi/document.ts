@@ -30,7 +30,7 @@ export function buildOpenApiDocument() {
       title: env.OPENAPI_TITLE,
       version: env.API_VERSION,
       description:
-        'Enterprise HMS REST API. This specification is generated from route definitions ' +
+        'Nirogix REST API. This specification is generated from route definitions ' +
         '(Zod + zod-to-openapi) and is never hand-maintained. See resources/rules.md ' +
         '(API Documentation Rules) and resources/architecture.md (API Architecture).',
     },

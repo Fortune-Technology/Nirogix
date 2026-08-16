@@ -160,3 +160,13 @@ Append-only implementation log. Newest at the bottom.
 **Styles:** `.hms-rowactions` / `.hms-rowaction` (2rem icon button, accent-subtle hover, danger tint for destructive, ring focus, 45% disabled, spinner) and `.hms-switch` (brand-filled track, `brand-fg` thumb). `.hms-actions__trigger` was deleted with `ActionMenu`. All of it reduced-motion aware.
 
 **Testing status:** 38 passed (11 new in `TableActions.test.tsx` — permission gating, group labelling, disabled reason surfaced as the tooltip, no input while loading, delete requiring the confirmation, cancel leaving the record alone, switch semantics and its confirm gate, `MoreActions` rendering nothing when nothing is permitted, and the generic action using the same control). Both apps build.
+
+---
+
+## 2026-08-16 — `BrandMark`: one Nirogix mark, drawn from tokens
+
+**Added `BrandMark`** — an N monogram in a rounded tile, inline SVG with the tile in `--hms-brand` and the letter in `--hms-brand-fg`. It replaces four separate placeholders: a hardcoded letter **"H"** left over from the old name in the marketing header and footer, and blank teal squares on the Portal's login card and in the app shell (desktop sidebar and mobile header). Because it reads the tokens, it follows Light/Dark, a tenant accent, and — through the marketing token bridge (ADR-040) — the marketing accent, with no asset to ship and nothing to re-export when the brand colour changes.
+
+Both apps now carry `app/icon.svg` with the same geometry (literal colours, since a favicon renders outside the page's token scope), replacing the default Next.js `favicon.ico` in each — deleted, not left alongside.
+
+**Testing status:** typecheck + both builds clean; verified in the running apps — the mark resolves to `#0e7490` in the Portal and to the marketing accent on the marketing site, and no stray "H" remains.

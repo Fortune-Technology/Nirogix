@@ -1,4 +1,4 @@
-# HMS — Testing Credentials
+# Nirogix — Testing Credentials
 
 > ⚠ **NON-PRODUCTION / DEV ONLY.** These are the known default demo accounts created by
 > `npm run db:seed -w hms_backend`. The password is a hard-coded dev default — never use
@@ -17,7 +17,7 @@ Login needs three fields: **Organization code**, **Email**, **Password**.
 - **Organization codes:** `PLATFORM` (the vendor) · `CITYCARE` · `SUNRISE` (hospitals)
 
 Two tiers (ADR-022): **Tier 0 = the platform owner** (the `PLATFORM` org — the vendor who provisions
-the HMS to hospitals). **Tier 1+ = each hospital** (`org_admin` down to the operational roles). A
+Nirogix to hospitals). **Tier 1+ = each hospital** (`org_admin` down to the operational roles). A
 hospital never contains a System Super Admin.
 
 ---

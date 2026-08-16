@@ -12,7 +12,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/specialties",
   title: "Hospital Management Software by Specialty",
   description:
-    "One HMS, configured per specialty: cardiology, dentistry, pediatrics, gynecology, physiotherapy, radiology and more. See how configurable modules, templates, schedules and billing map to each specialty's workflow.",
+    "One platform, configured per specialty: cardiology, dentistry, pediatrics, gynecology, physiotherapy, radiology and more. See how configurable modules, templates, schedules and billing map to each specialty's workflow.",
 });
 
 const others = SPECIALTIES.filter((s) => !s.featured);

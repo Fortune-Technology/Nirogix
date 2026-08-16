@@ -1,6 +1,6 @@
 # @hms/types — KNOWLEDGE.md
 
-Shared TypeScript types and API contracts for the HMS monorepo. Consumed by `hms_backend` (API) and `hms_frontend` (Portal) so request/response shapes stay in sync across the wire. Read after root `CLAUDE.md`.
+Shared TypeScript types and API contracts for the Nirogix monorepo. Consumed by `hms_backend` (API) and `hms_frontend` (Portal) so request/response shapes stay in sync across the wire. Read after root `CLAUDE.md`.
 
 ## What's here
 

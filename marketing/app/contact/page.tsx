@@ -10,7 +10,7 @@ import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "..
 export const metadata: Metadata = pageMetadata({
   path: "/contact",
   title: `Book a Demo: Hospital Software in ${COMPANY.city}`,
-  description: `Book a walkthrough of the HMS platform with our team in ${COMPANY.city}, ${COMPANY.region}. We map your clinic or hospital onto the platform module by module. Onboarding is guided, not self-serve.`,
+  description: `Book a walkthrough of Nirogix with our team in ${COMPANY.city}, ${COMPANY.region}. We map your clinic or hospital onto the platform module by module. Onboarding is guided, not self-serve.`,
 });
 
 const STEPS = [

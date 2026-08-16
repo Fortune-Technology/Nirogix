@@ -527,7 +527,7 @@ Security by Design and Privacy by Design. The platform stores sensitive patient 
 Every regulatory statement in this document falls into exactly one of three categories:
 
 - **Confirmed requirement** — supported by an authoritative primary source (the Act, Rule, or official policy document itself)
-- **Design decision** — a conservative architectural choice made by the HMS team, not a claim of legal obligation
+- **Design decision** — a conservative architectural choice made by the Nirogix team, not a claim of legal obligation
 - **Pending verification** — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement
 
 > **General rule:** Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.
@@ -575,7 +575,7 @@ Every regulatory area this platform touches, with its verification status tracke
 ### Deployment Topology
 
 - Reuses the existing Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner pattern already in production for the StoreVeu platform
-- Subdomain-per-application convention — Marketing Site on the root domain, HMS Portal on a portal subdomain, backend API on an api subdomain
+- Subdomain-per-application convention — Marketing Site on the root domain, Nirogix Portal on a portal subdomain, backend API on an api subdomain. The concrete host map, per environment, is **`resources/domains.md`** (ADR-042): `nirogix.com` / `portal.nirogix.com` / `api.nirogix.com` in production and the `-staging` counterparts alongside, every host second-level so one wildcard certificate covers the platform. No host name appears in application code.
 - CI/CD builds and deploys only the application(s) affected by a given push, using Turborepo's affected-package detection
 - This topology is right-sized for pilot customers and early revenue; meeting the horizontal auto-scaling, multi-region, and 99.5%+ uptime targets in §57 will require a later migration to managed PostgreSQL (with read replicas) and containerized horizontal scaling — a deliberate future-stage step, not a day-one requirement
 
@@ -597,7 +597,7 @@ Every regulatory area this platform touches, with its verification status tracke
 
 ### Technology Stack
 
-- Frontend — Next.js (App Router), TypeScript; used for both the HMS Portal and the Marketing Site
+- Frontend — Next.js (App Router), TypeScript; used for both the Nirogix Portal and the Marketing Site
 - Backend — Node.js + Express.js, TypeScript; versioned REST API (/api/v1) with OpenAPI/Swagger documentation
 - Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)
 - Package manager / build system — npm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds (ADR-014 — npm chosen over pnpm; Turborepo retained)
@@ -605,7 +605,7 @@ Every regulatory area this platform touches, with its verification status tracke
 ### Monorepo Structure
 
 - hms_backend — Node.js/Express API, authentication, business logic, database integration
-- hms_frontend — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
+- hms_frontend — Next.js Nirogix Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
 - marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content
 - packages/types — shared TypeScript types and API contracts consumed by both backend and portal
 - packages/ui — shared design-system components used by portal and marketing

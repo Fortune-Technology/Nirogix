@@ -1,4 +1,4 @@
-# HMS — User Journeys & End-to-End Flow
+# Nirogix — User Journeys & End-to-End Flow
 
 **The spine of the product.** Before any module is built, this document defines *who does what first,
 what happens next, and what each actor sees and does at every step* — from Platform Owner → Organization/Hospital
@@ -16,7 +16,7 @@ what happens next, and what each actor sees and does at every step* — from Pla
 
 ```
 TIER 0 — PLATFORM (the vendor: Takoriya Technology LLP)          ── org code PLATFORM
-   └─ System Super Admin ── owns the HMS, provisions it to hospitals, sees EVERYTHING
+   └─ System Super Admin ── owns Nirogix, provisions it to hospitals, sees EVERYTHING
         │  creates each hospital + its first Org Admin, assigns modules
         ▼
 TIER 1 — ORGANIZATION / HOSPITAL (each customer tenant)          ── org code per hospital

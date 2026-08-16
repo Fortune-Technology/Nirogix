@@ -1,4 +1,6 @@
-// @hms/ui — shared design system for the HMS monorepo.
+// @hms/ui — shared design system for the Nirogix monorepo.
+// (The `@hms/*` scope and the `--hms-*` token prefix are internal identifiers kept
+//  deliberately at the rename — ADR-041. The product is Nirogix everywhere a person looks.)
 //
 // The single design-token set (Light default + Dark, tokens in `styles.css`) plus
 // one canonical implementation per UI primitive and the Standard DataTable. No
@@ -66,6 +68,8 @@ export { EmptyState, ErrorState, Skeleton } from './components/States';
 export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
 export { BottomNav, NavDrawer, NavDrawerItem, NavDrawerSection, BOTTOM_NAV_MAX_ITEMS } from './components/MobileNav';
 export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components/MobileNav';
+export { BrandMark } from './components/BrandMark';
+export type { BrandMarkProps } from './components/BrandMark';
 export { BackToTop } from './components/BackToTop';
 export type { BackToTopProps } from './components/BackToTop';
 export { SmoothScroll } from './components/SmoothScroll';

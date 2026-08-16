@@ -1,6 +1,6 @@
 # @hms/config — KNOWLEDGE.md
 
-Shared build/TypeScript configuration for the HMS monorepo. Read after root `CLAUDE.md`.
+Shared build/TypeScript configuration for the Nirogix monorepo. Read after root `CLAUDE.md`.
 
 ## What's here
 
