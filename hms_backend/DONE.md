@@ -558,3 +558,13 @@ Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`
 **The clinical day is bucketed in server-local time, not UTC** — an India-hosted deployment must not push the evening clinic into tomorrow's column. That is the one piece of logic here worth a test, and it has three.
 
 **Testing status:** 5 new unit tests (local-day keying across the UTC boundary, zero padding, the window ending today, a month-boundary crossing, single-day windows). 60 tests pass; `openapi:validate` green.
+
+---
+
+## 2026-08-16 — Branding carries the hospital's identity (ADR-047)
+
+`GET /branding/current` now returns `organization: { name, code }` alongside the colours and logo. Printed documents need the hospital's own name in their header, and this was already the endpoint answering "who am I branded as". Read from the caller's own tenant row by id — a caller can only ever ask for the tenant their session belongs to.
+
+**Not added, deliberately:** address, phone, email, website and registration/GST number. They are not in the schema, and a tax invoice needs the real ones rather than a placeholder — `BACKLOG.md` U-8 names it as the blocker.
+
+**Testing status:** 60 tests pass; `openapi:validate` green.

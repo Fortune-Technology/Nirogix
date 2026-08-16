@@ -94,9 +94,12 @@ This document states rules only. For the architecture each rule is derived from,
 
 ### Dates & Formatting
 
-- **Every user-facing date is `DD/MM/YYYY`** — Portal and marketing, in tables, forms, date pickers, appointments, patient and staff records, billing, reports, notifications, activity logs, dashboards, filters, and search results. Never `2026-08-15`, `08/15/2026`, `15-08-2026`, or `Aug 15, 2026` in the UI. Date+time reads `DD/MM/YYYY HH:mm`.
+- **Every user-facing date is `DD/MM/YYYY`, every time `hh:mm AM/PM`, and the two together `DD/MM/YYYY, hh:mm AM/PM`** (ADR-046) — Portal, marketing, print documents and PDFs, in tables, forms, date pickers, appointments, patient and staff records, billing, invoices, reports, audit logs, notifications, activity timelines, dashboards, filters, and search results. Never `2026-08-15`, `08/15/2026`, `15-08-2026`, `Aug 15, 2026`, or a 24-hour `16:45` in the UI. Days and months are always zero-padded and the meridiem is always shown.
+- **Entry uses the shared fields, never a native date/time input** (ADR-048): `DateField`, `TimeField` and `DateTimeField` from `@hms/ui`. A native `<input type="date">` renders in the *browser's* locale, so the same field reads differently machine to machine — the standard has to hold at the keyboard, not only on the screen. The value crossing the boundary is always ISO.
+- **The meridiem may be rendered as a badge** in schedules, time pickers and dense components — `formatTimeParts()` splits it out for exactly that, styled from the design tokens.
+- **Chart axes are the one abbreviated exception**, and even they go through the central layer: `formatMonthLabel()` (`Aug 26`) and `formatDayLabel()` (`16/08`) exist because twelve full dates cannot fit across an axis. No other abbreviated date form exists anywhere in the platform.
 - **Display format is separate from transport format.** APIs, the database, and query parameters keep their machine-readable format (ISO-8601); conversion happens once, at the display boundary.
-- **All of it goes through the centralized date utility** (`@hms/utils`): formatting, parsing, comparison, ranges, validation, and input↔output conversion. No component calls `toLocaleDateString()`, hand-rolls a format, or adds a date library of its own. A new date-bearing component uses the utility or extends it.
+- **All of it goes through the centralized date utility** (`@hms/utils`): formatting, parsing, comparison, ranges, validation, and input↔output conversion — and is *rendered* through `DateDisplay` / `TimeDisplay` / `DateTimeDisplay` in `@hms/ui`, which also emit the machine-readable `<time datetime>` value. No component calls `toLocaleDateString()`, hand-rolls a format, or adds a date library of its own. A new date-bearing component uses the utility or extends it, so a future change to the standard is one edit rather than a sweep of every module.
 
 ### Light & Dark Theme
 
@@ -264,6 +267,18 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 - **No stock photography and no generic healthcare imagery** (smiling clinicians, stethoscope-on-desk, abstract "medical technology") without a stated reason that survives review.
 - Every non-decorative image carries meaningful `alt` text and follows the performance rules (`next/image`, correct `sizes`, one LCP `priority` image per route at most).
 
+### Printing & Document Generation
+
+**Print prints the document, not the application** (ADR-047). A printed or exported HMS document — invoice, receipt, laboratory report, prescription, discharge summary, statement, certificate — is a standalone, hospital-branded document. The interface used to reach it never appears on it.
+
+- **A printable document is its own route**, in the `(print)` route group with no application shell. Never `window.print()` on an application page, and never a `@media print` rule that merely hides the sidebar: the shell stays in the DOM, screen styles leak, and nobody can see what will print until it prints.
+- **Never on the page:** sidebar, navigation, topbar, filters, page controls, action buttons, row actions, edit/delete controls, toasts, or any other screen-only element.
+- **One document kit** in `@hms/ui` (`PrintDocument` + `PrintSection` / `PrintFields` / `PrintTable` / `PrintTotals` / `PrintSignatures` / `PrintNote`) owns the page geometry, `@page` margins, repeating table headers across pages, break-avoidance, signature blocks, the confidentiality notice and the footer. A module supplies content only, and a new document is a template — never a new print system.
+- **Structure follows the document type.** An invoice is not a lab report; the kit is shared, the layout is not.
+- **Branding is the hospital's own** — name, logo and accent from the tenant's configured branding, resolved before the dialog opens so a document is never produced without its header. With nothing configured, the platform default applies. A document must never carry another tenant's branding or data: the branding call is RLS-scoped like every other read.
+- **Print and PDF come from the same definition.** "Save as PDF" is the browser dialog over the same markup; a server-rendered PDF, if added, renders the same template headlessly rather than defining the document twice.
+- **Authorization is re-checked, not inherited from the link.** The document route carries the same permission as the screen and reads the same RLS-scoped endpoint, so a user cannot print what they could not open. Only that record's data appears — no application state, no other patients, and nothing sensitive in logs.
+
 ### API Feedback & Notification Rules
 
 - **One shared notification/Toast system in `@hms/ui`**, consumed by both the Portal and the Marketing site. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
@@ -378,7 +393,8 @@ The repository root holds **`testcases.md`** — the complete manual QA checklis
 - Do not ship a `shadcn add` component as-is: unreviewed, on shadcn's own palette, or unverified in Dark and under a tenant accent.
 - Do not build a module-specific table, toolbar, pagination, column-visibility, filter, action menu, empty/loading/error state, or confirmation dialog when the shared one exists — configure it instead.
 - Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.
-- Do not render a user-facing date in any format other than `DD/MM/YYYY` (`DD/MM/YYYY HH:mm` with a time), and do not format dates outside `@hms/utils`.
+- Do not render a user-facing date or time in any format other than `DD/MM/YYYY`, `hh:mm AM/PM`, or `DD/MM/YYYY, hh:mm AM/PM`, and do not format dates or times outside `@hms/utils` (ADR-046).
+- Do not print an application page. A printable document is its own route with its own template, carrying the hospital's branding and none of the interface (ADR-047).
 - Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.
 - Do not ship a feature without its automated tests and its `testcases.md` entries, and do not mark one complete while a known test is failing without documenting the acceptance.
 - Do not render the mobile bottom bar on desktop, put more than five destinations in it, or offer a destination the signed-in user has no permission to open.

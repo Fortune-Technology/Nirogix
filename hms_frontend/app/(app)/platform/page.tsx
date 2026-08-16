@@ -30,7 +30,7 @@ import {
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AuditEntry, PlatformStats, PlatformTrends } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
+import { formatDateTime, formatDayLabel, formatMonthLabel } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -72,19 +72,6 @@ const BRAND = "var(--hms-brand)";
 const INFO = "var(--hms-info)";
 const WARNING = "var(--hms-warning)";
 const DANGER = "var(--hms-danger)";
-
-/** `2026-08` → `Aug 26`, for an axis that has to fit twelve of them. */
-function monthLabel(period: string): string {
-  const [y, m] = period.split("-");
-  const month = new Date(Date.UTC(Number(y), Number(m) - 1, 1)).toLocaleString("en-GB", { month: "short" });
-  return `${month} ${y?.slice(2)}`;
-}
-
-/** `2026-08-16` → `16/08`, matching the platform's DD/MM date convention (ADR-030). */
-function dayLabel(period: string): string {
-  const [, m, d] = period.split("-");
-  return `${d}/${m}`;
-}
 
 const securityColumns: Array<Column<AuditEntry>> = [
   {
@@ -146,8 +133,8 @@ function PlatformOverview() {
     void load(months);
   }, [load, months]);
 
-  const monthLabels = useMemo(() => (trends?.hospitals ?? []).map((p) => monthLabel(p.period)), [trends]);
-  const dayLabels = useMemo(() => (trends?.events ?? []).map((p) => dayLabel(p.period)), [trends]);
+  const monthLabels = useMemo(() => (trends?.hospitals ?? []).map((p) => formatMonthLabel(p.period)), [trends]);
+  const dayLabels = useMemo(() => (trends?.events ?? []).map((p) => formatDayLabel(p.period)), [trends]);
 
   /** Growth of the customer base and the people in it — the platform's core story. */
   const growthSeries: Series[] = useMemo(
@@ -208,7 +195,7 @@ function PlatformOverview() {
         </div>
         {trends ? (
           <span className="text-xs text-fg-subtle">
-            {monthLabel(trends.from)} — {monthLabel(trends.to)}
+            {formatMonthLabel(trends.from)} — {formatMonthLabel(trends.to)}
           </span>
         ) : null}
       </div>

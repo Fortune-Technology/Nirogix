@@ -97,6 +97,15 @@ Every tabular view renders through `DataTable` from `@hms/ui` (ADR-029) — a **
 - **A range control (6 / 12 / 24 months)** re-queries every series at once; the API clamps `months` to 3–36.
 - **`/dashboard` is the hospital's dashboard only.** A platform operator hitting it is redirected to `/platform`, unless they are inside a support session — where the tenant's own view is the whole point (ADR-037).
 
+## Printable documents (ADR-047)
+
+`app/(print)/` is an authenticated route group with **no application shell** — printing an app page would put the sidebar, topbar and action buttons on the invoice. `/print/invoice/[id]` and `/print/lab-order/[id]` exist today; a new document is a template under the same group.
+
+- Built from the `@hms/ui` document kit; the page supplies content, the kit supplies geometry, repeating table headers, page breaks, signatures and the footer.
+- `components/print/useDocumentBrand.ts` resolves the hospital's own name, logo and accent from `GET /branding/current` (RLS-scoped), falling back to the Nirogix default. Printing waits for it, so a document never appears without its header.
+- The route carries the same `RequirePermission` as the screen and reads the same endpoint — a user cannot print what they could not open.
+- **Not yet available in the header:** address, phone, email, website, registration/GST numbers — not in the schema (`BACKLOG.md` U-8). The header renders what exists rather than a placeholder.
+
 ## Role dashboards (ADR-044)
 
 `/dashboard` picks a dashboard from **what the user is permitted to do**, never from a role name — a hospital can rename its roles, but permissions are the truth:

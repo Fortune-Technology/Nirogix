@@ -418,3 +418,31 @@ The reference design's bed board, IPD admissions, theatre list, department table
 2. **The staff fallback listed routes the user could not open** — every tenant nav item rather than the permitted ones, so a cashier saw Pharmacy, Users and Branches links that would only 403.
 
 **Testing status:** typecheck + build clean; verified against the running stack as four different users — hospital admin (Ananya), doctor (Rajesh), pharmacist (Meena) and cashier (Pooja) — each landing on the right dashboard with real seeded figures (₹820 billed / ₹500 collected / ₹320 outstanding over 14 days).
+
+---
+
+## 2026-08-16 — Print prints the document, and one date/time standard (ADR-046, ADR-047)
+
+**Printing was printing the application.** The invoice and lab-report screens called `window.print()` on themselves, so the output carried the sidebar, topbar, page header, collect-payment form and the table's action buttons — a screenshot of an interface, not a document a hospital can hand to a patient.
+
+**Added `app/(print)/`** — an authenticated route group with **no application shell**, so what you see on screen is exactly what prints. `/print/invoice/[id]` and `/print/lab-order/[id]` today; a new document is a template under the same group. Both screens' Print buttons now open the document instead of the browser dialog. Deliberately not a `@media print` rule on the app pages: the shell would stay in the DOM, screen styles would keep leaking, and nobody could see the real output until it printed.
+
+Documents are built from the new `@hms/ui` kit (`PrintDocument` + sections, fields, tables, totals, signatures, notes) which owns A4 geometry, repeating table headers across pages, break-avoidance and the footer. Structure is per document type: the invoice has line items, totals, payments and a receipt note; the lab report has results with reference ranges, an interpretation note and a verifying signature.
+
+`components/print/useDocumentBrand.ts` resolves the hospital's own name, logo and accent from `GET /branding/current` (RLS-scoped, so one tenant's identity can never reach another's paperwork), falling back to the Nirogix default when nothing is configured. Printing waits for it. The route carries the same `RequirePermission` and reads the same endpoint as the screen — a user cannot print what they could not open.
+
+**Date and time have one standard now** (ADR-046, superseding the time half of ADR-030): `DD/MM/YYYY`, `hh:mm AM/PM`, and `DD/MM/YYYY, hh:mm AM/PM` together. `@hms/utils` still owns formatting; `DateDisplay` / `TimeDisplay` / `DateTimeDisplay` in `@hms/ui` own rendering and emit `<time datetime>` with the ISO value. The two chart-axis abbreviations moved into the same utility (`formatMonthLabel`, `formatDayLabel`) so no module hand-rolls a date format — the dashboard's long-form context line became `Sunday · 16/08/2026`.
+
+**Testing status:** typecheck + build clean, 150 tests pass. Manual cases DOC-01…10 and FMT-01…06 added.
+
+---
+
+## 2026-08-16 — Every date and time input is now the shared field (ADR-048)
+
+The six native controls are gone: date of birth on patient create and edit, batch expiry in pharmacy stock, the reports From/To range, and the appointment date-and-time. Each is now `DateField` or `DateTimeField` from `@hms/ui`, so the `DD/MM/YYYY` standard holds at the keyboard and not only on the screen — a native `<input type="date">` renders in the browser's locale, which is how the same field ends up reading `08/16/2026` on someone else's machine.
+
+The migration also added the bounds each field always needed: a date of birth cannot be in the future, a batch cannot expire before today, and the reports range cannot invert.
+
+The shadcn scaffolding the CLI generated in `components/ui/` (calendar, popover and its own Button) was deleted after the components were promoted into `@hms/ui` — regenerable, and a second Button next to the kit's is exactly what ADR-028 rules out. `react-day-picker` and `date-fns` moved out of this app's dependencies with it.
+
+**Testing status:** typecheck + build clean.

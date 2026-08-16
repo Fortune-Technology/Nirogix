@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Field, Spinner, type Column } from "@hms/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  DateField,
+  Field,
+  Spinner,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { OpdRegisterRow, CollectionsReport, PendingLabRow } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
@@ -125,8 +135,8 @@ function Reports() {
         ))}
         {tab !== "pending" && (
           <div className="ml-auto flex items-end gap-2">
-            <Field label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Field label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <DateField label="From" value={from || null} max={to || undefined} onChange={(v) => setFrom(v ?? "")} />
+            <DateField label="To" value={to || null} min={from || undefined} onChange={(v) => setTo(v ?? "")} />
           </div>
         )}
       </div>

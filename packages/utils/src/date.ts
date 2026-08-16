@@ -1,7 +1,7 @@
-// The platform's date layer (ADR-030).
+// The platform's date layer (ADR-030, time format revised by ADR-046).
 //
-// Every user-facing date in the Portal and the marketing site is rendered as
-// DD/MM/YYYY (DD/MM/YYYY HH:mm with a time) — and only from here. Components never
+// Every user-facing date and time in the Portal and the marketing site is rendered
+// as `DD/MM/YYYY`, `hh:mm AM/PM`, and `DD/MM/YYYY, hh:mm AM/PM` — and only from here. Components never
 // call toLocaleDateString(): that renders in the *viewer's* machine locale, so the
 // same appointment reads 15/08/2026 in India and 08/15/2026 in the US, and
 // 08/09/2026 becomes ambiguous on a clinical record.
@@ -74,18 +74,73 @@ export function formatDate(value: DateInput, fallback = PLACEHOLDER): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
-/** `14:05` (24-hour — unambiguous on a clinical record). */
-export function formatTime(value: DateInput, fallback = PLACEHOLDER): string {
+/**
+ * The clock parts of a time, so a caller can render the meridiem differently from
+ * the numerals — the AM/PM badge in schedules and pickers (ADR-046).
+ * `{ time: "02:05", meridiem: "PM" }`.
+ */
+export function formatTimeParts(
+  value: DateInput,
+): { time: string; meridiem: "AM" | "PM" } | null {
   const d = parseDate(value);
-  if (!d) return fallback;
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (!d) return null;
+  const hours24 = d.getHours();
+  const meridiem = hours24 < 12 ? "AM" : "PM";
+  // 00:xx is 12 AM and 12:xx is 12 PM — the two cases a naive `% 12` gets wrong.
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return { time: `${pad(hours12)}:${pad(d.getMinutes())}`, meridiem };
 }
 
-/** `15/08/2026 14:05`. */
+/** `02:05 PM` (12-hour with an explicit meridiem — ADR-046). */
+export function formatTime(value: DateInput, fallback = PLACEHOLDER): string {
+  const parts = formatTimeParts(value);
+  if (!parts) return fallback;
+  return `${parts.time} ${parts.meridiem}`;
+}
+
+/** `15/08/2026, 02:05 PM`. The comma is part of the standard, not decoration. */
 export function formatDateTime(value: DateInput, fallback = PLACEHOLDER): string {
   const d = parseDate(value);
   if (!d) return fallback;
-  return `${formatDate(d)} ${formatTime(d)}`;
+  return `${formatDate(d)}, ${formatTime(d)}`;
+}
+
+/** `14:05` — the value shape `<input type="time">` requires. Never shown as text. */
+export function toApiTime(value: DateInput): string | null {
+  const d = parseDate(value);
+  if (!d) return null;
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * The weekday name, for a context line that also carries a real date
+ * ("Sunday · 16/08/2026"). Never a substitute for the date itself.
+ */
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+export function formatWeekday(value: DateInput, fallback = PLACEHOLDER): string {
+  const d = parseDate(value);
+  return d ? WEEKDAYS[d.getDay()]! : fallback;
+}
+
+/**
+ * Compact axis labels for charts, where a full `DD/MM/YYYY` cannot fit twelve
+ * across (ADR-046). These are the ONLY abbreviated date forms in the platform, and
+ * they live here so a module never hand-rolls one:
+ *   `formatMonthLabel("2026-08")` → `Aug 26`
+ *   `formatDayLabel("2026-08-16")` → `16/08`
+ */
+export function formatMonthLabel(period: string, fallback = PLACEHOLDER): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!m) return fallback;
+  const month = MONTHS_SHORT[Number(m[2]) - 1];
+  return month ? `${month} ${m[1]!.slice(2)}` : fallback;
+}
+
+export function formatDayLabel(period: string, fallback = PLACEHOLDER): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+  return m ? `${m[3]}/${m[2]}` : fallback;
 }
 
 /**

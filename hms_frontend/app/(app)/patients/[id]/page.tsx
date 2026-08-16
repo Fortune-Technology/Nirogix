@@ -4,8 +4,17 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DateField,
+  Field,
+  Spinner,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
+import { todayApiDate } from "@hms/utils";
 import type { Patient, CreatePatientRequest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
@@ -111,7 +120,12 @@ function Profile({ id }: { id: string }) {
                   <option value="">—</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                 </select>
               </label>
-              <Field label="Date of birth" type="date" value={form.dateOfBirth ?? ""} onChange={(e) => set("dateOfBirth", e.target.value)} />
+              <DateField
+                label="Date of birth"
+                value={form.dateOfBirth ?? null}
+                max={todayApiDate()}
+                onChange={(v) => set("dateOfBirth", v ?? "")}
+              />
               <label className="hms-field"><span className="hms-label">Blood group</span>
                 <select className="hms-input" value={form.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>
                   <option value="">—</option>{BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}

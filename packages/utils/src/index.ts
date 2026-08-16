@@ -3,18 +3,24 @@
 // no module reimplements them.
 // See resources/development-plan.md §6.
 
-// Dates: DD/MM/YYYY for every user-facing value, ISO-8601 for transport (ADR-030).
+// Dates: DD/MM/YYYY, hh:mm AM/PM for every user-facing value; ISO-8601 for transport
+// (ADR-030, time format revised by ADR-046).
 export {
   formatDate,
   formatDateTime,
   formatTime,
+  formatTimeParts,
   formatDateRange,
+  formatWeekday,
+  formatMonthLabel,
+  formatDayLabel,
   parseDate,
   isValidDate,
   compareDates,
   isSameDay,
   toApiDate,
   toApiDateTime,
+  toApiTime,
   todayApiDate,
   addDays,
 } from "./date";

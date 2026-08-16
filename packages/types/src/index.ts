@@ -201,6 +201,8 @@ export interface Branding {
   logoUrl: string | null;
   faviconUrl: string | null;
   typography: unknown;
+  /** The hospital's own identity, for document headers (ADR-047). */
+  organization: { name: string; code: string } | null;
 }
 
 // ---- Platform branding (hms_backend/src/modules/platform-branding, ADR-024) ----

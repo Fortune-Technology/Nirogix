@@ -6,11 +6,13 @@ import {
   formatDateRange,
   formatDateTime,
   formatTime,
+  formatTimeParts,
   isSameDay,
   isValidDate,
   parseDate,
   toApiDate,
   toApiDateTime,
+  toApiTime,
 } from "../date";
 
 /**
@@ -49,14 +51,27 @@ describe("formatDate", () => {
 });
 
 describe("formatDateTime / formatTime", () => {
-  it("renders DD/MM/YYYY HH:mm in 24-hour time", () => {
-    expect(formatDateTime(new Date(2026, 7, 15, 14, 5))).toBe("15/08/2026 14:05");
-    expect(formatTime(new Date(2026, 7, 15, 9, 0))).toBe("09:00");
+  it("renders DD/MM/YYYY, hh:mm AM/PM (ADR-046)", () => {
+    expect(formatDateTime(new Date(2026, 7, 15, 14, 5))).toBe("15/08/2026, 02:05 PM");
+    expect(formatTime(new Date(2026, 7, 15, 9, 0))).toBe("09:00 AM");
   });
 
-  it("keeps midnight and noon unambiguous", () => {
-    expect(formatTime(new Date(2026, 7, 15, 0, 0))).toBe("00:00");
-    expect(formatTime(new Date(2026, 7, 15, 12, 0))).toBe("12:00");
+  it("keeps midnight and noon unambiguous — the two a naive %12 gets wrong", () => {
+    expect(formatTime(new Date(2026, 7, 15, 0, 0))).toBe("12:00 AM");
+    expect(formatTime(new Date(2026, 7, 15, 0, 30))).toBe("12:30 AM");
+    expect(formatTime(new Date(2026, 7, 15, 12, 0))).toBe("12:00 PM");
+    expect(formatTime(new Date(2026, 7, 15, 23, 59))).toBe("11:59 PM");
+  });
+
+  it("splits the meridiem out for the AM/PM badge", () => {
+    expect(formatTimeParts(new Date(2026, 7, 15, 16, 45))).toEqual({ time: "04:45", meridiem: "PM" });
+    expect(formatTimeParts(new Date(2026, 7, 15, 0, 5))).toEqual({ time: "12:05", meridiem: "AM" });
+    expect(formatTimeParts(null)).toBeNull();
+  });
+
+  it("keeps a machine-readable 24-hour value for time inputs", () => {
+    expect(toApiTime(new Date(2026, 7, 15, 16, 45))).toBe("16:45");
+    expect(toApiTime(null)).toBeNull();
   });
 });
 

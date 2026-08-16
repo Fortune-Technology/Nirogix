@@ -3,8 +3,15 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Card, Field } from "@hms/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  DateField,
+  Field,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
+import { todayApiDate } from "@hms/utils";
 import type { CreatePatientRequest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
@@ -58,7 +65,12 @@ function RegisterForm() {
                 <option value="other">Other</option>
               </select>
             </label>
-            <Field label="Date of birth" type="date" value={f.dateOfBirth ?? ""} onChange={(e) => set("dateOfBirth", e.target.value)} />
+            <DateField
+              label="Date of birth"
+              value={f.dateOfBirth ?? null}
+              max={todayApiDate()}
+              onChange={(v) => set("dateOfBirth", v ?? "")}
+            />
             <label className="hms-field">
               <span className="hms-label">Blood group</span>
               <select className="hms-input" value={f.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>

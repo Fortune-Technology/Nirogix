@@ -71,6 +71,24 @@ export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components
 // Dashboard data visualisation — token-driven, dependency-free (ADR-043).
 export { AreaChart, BarChart, StatCard, UsageBar, ChartTable, compact } from './components/charts';
 export type { AreaChartProps, BarChartProps, StatCardProps, UsageBarProps, Series } from './components/charts';
+// The document/print layer — print prints the document, not the application (ADR-047).
+export {
+  PrintDocument,
+  PrintSection,
+  PrintFields,
+  PrintTable,
+  PrintTotals,
+  PrintSignatures,
+  PrintNote,
+  PrintToolbar,
+} from './components/print';
+export type { PrintDocumentProps, DocumentBrand } from './components/print';
+// Date & time ENTRY — the one date/time input set (ADR-048).
+export { Calendar, DateField, TimeField, DateTimeField } from './components/datetime';
+export type { CalendarProps, DateFieldProps, TimeFieldProps, DateTimeFieldProps } from './components/datetime';
+// Date/time display — the one place a user-facing date or time is rendered (ADR-046).
+export { DateDisplay, TimeDisplay, DateTimeDisplay } from './components/DateTimeDisplay';
+export type { DateDisplayProps, TimeDisplayProps, DateTimeDisplayProps } from './components/DateTimeDisplay';
 export { BrandMark } from './components/BrandMark';
 export type { BrandMarkProps } from './components/BrandMark';
 export { BackToTop } from './components/BackToTop';

@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { tenantBranding, type TenantBranding } from '../../db/schema';
+import { tenantBranding, tenants, type TenantBranding } from '../../db/schema';
 import { getDownloadUrl } from '../file/file.service';
 import { writeAudit } from '../audit/audit.service';
 
@@ -32,14 +33,30 @@ export type ResolvedBranding = {
   logoUrl: string | null;
   faviconUrl: string | null;
   typography: unknown;
+  /**
+   * Who this branding belongs to. Printed documents need the hospital's own
+   * identity in their header, and this is the only place the Portal already asks
+   * for "who am I branded as" (ADR-047). Read from the caller's OWN tenant row.
+   */
+  organization: { name: string; code: string } | null;
 };
 
 // The branding the Portal applies at session bootstrap. Logo/favicon file ids are resolved to
 // short-lived URLs (re-fetched on each load). Returns nulls when nothing is configured, so the
 // Portal falls back to the default `--hms-*` tokens.
 export async function getCurrentBranding(tenantId: string): Promise<ResolvedBranding> {
+  const organization = await getOrganization(tenantId);
   const row = await getOrgRow(tenantId);
-  if (!row) return { brandColor: null, secondaryColor: null, logoUrl: null, faviconUrl: null, typography: null };
+  if (!row) {
+    return {
+      brandColor: null,
+      secondaryColor: null,
+      logoUrl: null,
+      faviconUrl: null,
+      typography: null,
+      organization,
+    };
+  }
   const [logo, favicon] = await Promise.all([
     row.logoFileId ? getDownloadUrl(tenantId, row.logoFileId) : Promise.resolve(null),
     row.faviconFileId ? getDownloadUrl(tenantId, row.faviconFileId) : Promise.resolve(null),
@@ -50,7 +67,20 @@ export async function getCurrentBranding(tenantId: string): Promise<ResolvedBran
     logoUrl: logo?.url ?? null,
     faviconUrl: favicon?.url ?? null,
     typography: row.typography,
+    organization,
   };
+}
+
+/**
+ * The caller's own organization identity. `tenants` is the platform-managed table
+ * (no RLS), so this is scoped explicitly by id — a caller can only ever ask for the
+ * tenant their session already belongs to.
+ */
+async function getOrganization(tenantId: string): Promise<{ name: string; code: string } | null> {
+  const row = (
+    await db.select({ name: tenants.name, code: tenants.code }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  )[0];
+  return row ? { name: row.name, code: row.code } : null;
 }
 
 export async function updateBranding(

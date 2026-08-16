@@ -18,6 +18,7 @@ import {
 import { AreaChart, BarChart, Card, StatCard, UsageBar, type Series } from "@hms/ui";
 import type { DashboardOverview, OrgSummary } from "@hms/types";
 import * as api from "../../lib/api";
+import { formatDate, formatDayLabel, formatWeekday } from "@hms/utils";
 import { formatPaise } from "../../lib/money";
 import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, PanelRow, RangeChips, firstName } from "./DashboardShell";
 
@@ -43,12 +44,6 @@ const RANGES = [
   { value: 30, label: "30 days" },
 ] as const;
 
-/** `2026-08-16` → `16/08` (ADR-030 — DD/MM everywhere a person reads a date). */
-function dayLabel(period: string): string {
-  const [, m, d] = period.split("-");
-  return `${d}/${m}`;
-}
-
 /** Clinic hours only: a 24-bar axis of mostly zeros hides the shape of the day. */
 const CLINIC_HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 … 20:00
 
@@ -73,7 +68,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
     void load(days);
   }, [load, days]);
 
-  const revenueLabels = useMemo(() => (overview?.revenue ?? []).map((p) => dayLabel(p.period)), [overview]);
+  const revenueLabels = useMemo(() => (overview?.revenue ?? []).map((p) => formatDayLabel(p.period)), [overview]);
   const revenueSeries: Series[] = useMemo(
     () => [
       { key: "billed", label: "Billed", values: (overview?.revenue ?? []).map((p) => p.billed / 100), color: BRAND },
@@ -118,7 +113,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
     <DashboardShell
       context={
         overview
-          ? `${new Date(overview.today).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · today's clinic`
+          ? `${formatWeekday(overview.today)} · ${formatDate(overview.today)} · today's clinic`
           : "Loading today's clinic…"
       }
       title={`Hospital operations${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}

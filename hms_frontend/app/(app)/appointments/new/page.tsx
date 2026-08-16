@@ -3,8 +3,16 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Badge, Button, Card, Field } from "@hms/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DateTimeField,
+  Field,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
+import { todayApiDate } from "@hms/utils";
 import type { Patient, Provider } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
@@ -110,7 +118,12 @@ function BookForm() {
                 ))}
               </select>
             </label>
-            <Field label="Date & time" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+            <DateTimeField
+              label="Date & time"
+              value={scheduledAt || null}
+              minDate={todayApiDate()}
+              onChange={(v) => setScheduledAt(v ?? "")}
+            />
             <label className="hms-field">
               <span className="hms-label">Duration</span>
               <select className="hms-input" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>

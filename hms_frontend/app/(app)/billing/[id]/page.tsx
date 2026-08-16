@@ -140,10 +140,14 @@ function InvoiceDetail({ id }: { id: string }) {
         title={inv.invoiceNumber}
         description={`For ${inv.patientName} · ${inv.patientUhid}`}
         actions={
-          <div className="print:hidden flex items-center gap-2">
-            <Button variant="secondary" onClick={() => window.print()}>
-              <Printer size={16} strokeWidth={2} /> Print
-            </Button>
+          <div className="flex items-center gap-2">
+            {/* Opens the invoice DOCUMENT (ADR-047), not this screen. Printing the
+                page would put the sidebar and the collect-payment form on the bill. */}
+            <Link href={`/print/invoice/${id}`}>
+              <Button variant="secondary">
+                <Printer size={16} strokeWidth={2} /> Print / PDF
+              </Button>
+            </Link>
             {inv.balancePaise > 0 && inv.status !== "void" && (
               <Can perm={PERMISSIONS.BILLING_PAYMENT}>
                 <Button onClick={openCollect}>Collect payment</Button>

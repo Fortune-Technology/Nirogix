@@ -4,18 +4,20 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, PackagePlus, Plus } from "lucide-react";
 import {
+  actionsColumn,
   Alert,
   Badge,
   Button,
   Card,
   DataTable,
+  DateField,
   Field,
   TableAction,
   TableActions,
-  actionsColumn,
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
+import { todayApiDate } from "@hms/utils";
 import type { Drug } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
@@ -105,7 +107,7 @@ function ReceivePanel({ drug, onDone, onError }: { drug: Drug; onDone: () => voi
     <form className="flex flex-wrap items-end gap-2" onSubmit={submit}>
       <Field label="Quantity" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
       <Field label="Batch" value={batch} onChange={(e) => setBatch(e.target.value)} />
-      <Field label="Expiry" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+      <DateField label="Expiry" value={expiry || null} min={todayApiDate()} onChange={(v) => setExpiry(v ?? "")} />
       <Button type="submit" loading={busy}>Receive</Button>
     </form>
   );

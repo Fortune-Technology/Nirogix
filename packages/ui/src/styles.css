@@ -1488,3 +1488,634 @@
     transition: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * Date & time (ADR-046) — `DD/MM/YYYY`, `hh:mm AM/PM`, `DD/MM/YYYY, hh:mm AM/PM`.
+ * The meridiem chip keeps AM/PM from reading as part of the numerals in dense
+ * schedules and pickers.
+ * ------------------------------------------------------------------------ */
+.hms-time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hms-meridiem {
+  display: inline-block;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--hms-radius-sm);
+  background: var(--hms-surface-2);
+  border: 1px solid var(--hms-border);
+  color: var(--hms-fg-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+ * Printable documents (ADR-047) — invoices, reports, prescriptions, receipts.
+ *
+ * These styles serve two masters: the on-screen preview, and the printed page.
+ * The document is sized in millimetres and set in a serif-free print stack, so
+ * what the preview shows is what the paper (or the PDF) gets.
+ * ------------------------------------------------------------------------ */
+.hms-print-page {
+  min-height: 100vh;
+  background: var(--hms-surface-2);
+  padding: 1.5rem 1rem 3rem;
+}
+.hms-print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 210mm;
+  margin: 0 auto 1rem;
+}
+.hms-print-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hms-print-toolbar__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-subtle);
+}
+
+/* The sheet itself. A4 width, generous inner margin, always on white — a document
+ * is a document in Dark mode too. */
+.hms-doc {
+  --doc-accent: var(--hms-brand);
+  --doc-ink: #111827;
+  --doc-muted: #4b5563;
+  --doc-rule: #d1d5db;
+  box-sizing: border-box;
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 16mm 14mm;
+  background: #ffffff;
+  color: var(--doc-ink);
+  font-family: var(--hms-font-sans);
+  font-size: 11pt;
+  line-height: 1.45;
+  box-shadow: var(--hms-shadow-md);
+}
+.hms-doc__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-bottom: 4mm;
+  border-bottom: 2px solid var(--doc-accent);
+}
+.hms-doc__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 3mm;
+  min-width: 0;
+}
+.hms-doc__logo {
+  height: 16mm;
+  width: auto;
+  max-width: 45mm;
+  object-fit: contain;
+}
+.hms-doc__org {
+  font-size: 15pt;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--doc-ink);
+}
+.hms-doc__contact {
+  font-size: 8.5pt;
+  color: var(--doc-muted);
+}
+.hms-doc__title-block {
+  text-align: right;
+  flex-shrink: 0;
+}
+.hms-doc__title {
+  margin: 0;
+  font-size: 14pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--doc-accent);
+}
+.hms-doc__reference {
+  margin-top: 1mm;
+  font-size: 9.5pt;
+  color: var(--doc-muted);
+}
+.hms-doc__meta {
+  margin-top: 5mm;
+}
+.hms-doc__body {
+  margin-top: 6mm;
+}
+.hms-doc__section {
+  margin-top: 6mm;
+}
+.hms-doc__section--break {
+  break-before: page;
+}
+.hms-doc__section-title {
+  margin: 0 0 2mm;
+  font-size: 10pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--doc-muted);
+}
+.hms-doc__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2mm 8mm;
+  margin: 0;
+}
+.hms-doc__field {
+  display: flex;
+  gap: 2mm;
+  font-size: 10pt;
+  break-inside: avoid;
+}
+.hms-doc__field dt {
+  color: var(--doc-muted);
+  min-width: 32mm;
+}
+.hms-doc__field dd {
+  margin: 0;
+  font-weight: 600;
+}
+.hms-doc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+.hms-doc__table th {
+  padding: 2mm 2mm;
+  border-bottom: 1px solid var(--doc-accent);
+  font-size: 9pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--doc-muted);
+}
+.hms-doc__table td {
+  padding: 2mm;
+  border-bottom: 1px solid var(--doc-rule);
+  vertical-align: top;
+}
+.hms-doc__empty {
+  font-size: 10pt;
+  color: var(--doc-muted);
+}
+.hms-doc__totals {
+  margin-top: 4mm;
+  margin-left: auto;
+  width: 70mm;
+  break-inside: avoid;
+}
+.hms-doc__total {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  padding: 1.5mm 0;
+  font-size: 10pt;
+  border-bottom: 1px solid var(--doc-rule);
+}
+.hms-doc__total--strong {
+  border-bottom: none;
+  border-top: 2px solid var(--doc-accent);
+  margin-top: 1mm;
+  padding-top: 2mm;
+  font-size: 12pt;
+  font-weight: 700;
+}
+.hms-doc__signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 10mm;
+  margin-top: 16mm;
+  break-inside: avoid;
+}
+.hms-doc__signature {
+  min-width: 50mm;
+  text-align: center;
+}
+.hms-doc__signature-line {
+  border-top: 1px solid var(--doc-ink);
+  margin-bottom: 1.5mm;
+}
+.hms-doc__signature-label {
+  font-size: 9pt;
+  color: var(--doc-muted);
+}
+.hms-doc__signature-name {
+  font-size: 10pt;
+  font-weight: 600;
+}
+.hms-doc__note {
+  margin-top: 5mm;
+  padding: 3mm;
+  border: 1px solid var(--doc-rule);
+  border-left: 3px solid var(--doc-accent);
+  font-size: 9.5pt;
+  break-inside: avoid;
+}
+.hms-doc__note-title {
+  font-weight: 700;
+  margin-bottom: 1mm;
+}
+.hms-doc__footer {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--doc-rule);
+  font-size: 8.5pt;
+  color: var(--doc-muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+}
+.hms-doc__generated {
+  white-space: nowrap;
+}
+
+/* What the printer actually gets: the sheet, nothing else. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  /* The application shell and any screen-only control never reach the paper. */
+  .hms-print-hide,
+  .hms-print-toolbar,
+  aside,
+  nav,
+  header.hms-appbar,
+  .hms-bottomnav,
+  .hms-backtotop,
+  [data-print="hide"] {
+    display: none !important;
+  }
+  .hms-print-page {
+    padding: 0;
+    background: #ffffff;
+  }
+  .hms-doc {
+    width: auto;
+    padding: 0;
+    box-shadow: none;
+    font-size: 10.5pt;
+  }
+  /* Repeat the header of a table that spans pages, and never split a row. */
+  .hms-doc__table thead {
+    display: table-header-group;
+  }
+  .hms-doc__table tr {
+    break-inside: avoid;
+  }
+  .hms-doc__footer {
+    break-inside: avoid;
+  }
+  /* Keep the brand rules and tints — a document without its accent is not the
+   * hospital's document. Browsers strip backgrounds unless told otherwise. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Date & time entry (ADR-048) — the calendar, the date field, the time field.
+ * shadcn/ui's Base UI date picker, restyled onto the tokens: no shadcn palette,
+ * no second button system, and the platform's own DD/MM/YYYY + AM/PM format.
+ * ------------------------------------------------------------------------ */
+.hms-field__hint {
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-subtle);
+}
+
+/* The popup the calendar lives in.
+ *
+ * The transition is load-bearing, not decoration: Base UI marks a closing popup
+ * with `data-ending-style` and unmounts it only once the exit animation COMPLETES.
+ * With no transition declared there is no completion event, so a "closed" popup
+ * stays in the DOM and on screen forever. Any non-zero duration fixes it — this one
+ * is also the open/close animation. */
+/* The stacking layer. Base UI positions the POSITIONER (`position: absolute`) and
+ * leaves the popup inside it static — and `z-index` does nothing on a static
+ * element, so putting it on the popup let sticky table headers and the app header
+ * paint straight over an open calendar. It belongs here, on the positioned box. */
+.hms-popover-positioner {
+  z-index: 70;
+}
+.hms-popover {
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-lg);
+  box-shadow: var(--hms-shadow-md);
+  padding: 0.5rem;
+  font-family: var(--hms-font-sans);
+  transform-origin: var(--transform-origin);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+/* Keyed off `data-closed` ONLY, never `data-ending-style`. Base UI closes some
+ * interactions instantly (`data-instant`); with no animation to complete it leaves
+ * `data-ending-style` behind, which then makes the NEXT open render invisible.
+ * `data-open` / `data-closed` are the attributes that stay truthful.
+ *
+ * `visibility` matters as much as opacity: it takes a closed popup out of the
+ * accessibility tree and out of reach, whether or not Base UI has unmounted it yet. */
+.hms-popover[data-closed] {
+  opacity: 0;
+  transform: scale(0.97);
+  visibility: hidden;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Still a duration — without one the popup would never unmount (see above). */
+  .hms-popover {
+    transition-duration: 0.01s;
+  }
+  .hms-popover[data-starting-style],
+  .hms-popover[data-ending-style] {
+    transform: none;
+  }
+}
+
+/* Date field: text input + calendar trigger, sharing one focus ring. */
+.hms-datefield,
+.hms-timefield {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.375rem 0 0.75rem;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.hms-datefield:focus-within,
+.hms-timefield:focus-within {
+  border-color: var(--hms-brand);
+  box-shadow: 0 0 0 3px var(--hms-brand-subtle);
+}
+.hms-datefield--error,
+.hms-timefield--error {
+  border-color: var(--hms-danger);
+}
+.hms-datefield--disabled,
+.hms-timefield--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hms-datefield__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  font-variant-numeric: tabular-nums;
+}
+.hms-datefield__input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+.hms-datefield__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: transparent;
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.hms-datefield__trigger:hover:not(:disabled) {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+}
+.hms-datefield__trigger:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+
+/* Time field: hh : mm + the AM/PM toggle. */
+.hms-timefield {
+  padding: 0 0.375rem 0 0.5rem;
+  gap: 0.125rem;
+}
+.hms-timefield__part {
+  width: 2.25rem;
+  padding: 0.5rem 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.hms-timefield__part::placeholder {
+  color: var(--hms-fg-subtle);
+}
+.hms-timefield__sep {
+  color: var(--hms-fg-subtle);
+}
+.hms-timefield__meridiem {
+  display: inline-flex;
+  margin-left: 0.375rem;
+  padding: 2px;
+  border-radius: var(--hms-radius-sm);
+  background: var(--hms-surface-2);
+}
+.hms-timefield__mer-btn {
+  padding: 0.2rem 0.45rem;
+  border: none;
+  border-radius: calc(var(--hms-radius-sm) - 1px);
+  background: transparent;
+  color: var(--hms-fg-subtle);
+  font-family: var(--hms-font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.hms-timefield__mer-btn--on {
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+}
+.hms-timefield__mer-btn:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+
+.hms-datetimefield {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.hms-datetimefield__date {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+.hms-datetimefield__time {
+  flex: 0 0 auto;
+}
+
+/* Calendar — react-day-picker, wearing the design system. */
+.hms-calendar {
+  --rdp-cell-size: 2rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg);
+}
+/* react-day-picker renders the nav as a SIBLING of the month, inside `months` —
+ * not inside the caption. So `months` is the containing block, and the nav is
+ * pinned to the caption's own strip at the top; positioning it against anything
+ * else stretches it over the day grid and floats the arrows across the dates. */
+.hms-calendar__months {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+}
+.hms-calendar__month {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.hms-calendar__caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  /* Room for the arrows on both sides, so a long month name never runs under them. */
+  padding: 0 2.25rem;
+}
+.hms-calendar__caption-label {
+  font-weight: 600;
+  color: var(--hms-fg);
+  white-space: nowrap;
+}
+.hms-calendar__nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.hms-calendar__nav-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-sm);
+  background: var(--hms-surface);
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+}
+.hms-calendar__nav-btn:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+.hms-calendar__nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.hms-calendar__nav-btn:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+.hms-calendar__grid {
+  border-collapse: collapse;
+}
+.hms-calendar__weekday {
+  width: var(--rdp-cell-size);
+  padding-bottom: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--hms-fg-subtle);
+  text-transform: uppercase;
+}
+.hms-calendar__day {
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  padding: 1px;
+  text-align: center;
+}
+.hms-calendar__day-btn {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: transparent;
+  color: var(--hms-fg);
+  font-family: inherit;
+  font-size: var(--hms-text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.hms-calendar__day-btn:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+}
+.hms-calendar__day-btn:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: -1px;
+}
+.hms-calendar__day--today .hms-calendar__day-btn {
+  box-shadow: inset 0 0 0 1px var(--hms-brand);
+  font-weight: 600;
+}
+.hms-calendar__day--selected .hms-calendar__day-btn {
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+  font-weight: 600;
+}
+.hms-calendar__day--outside .hms-calendar__day-btn {
+  color: var(--hms-fg-subtle);
+  opacity: 0.6;
+}
+.hms-calendar__day--disabled .hms-calendar__day-btn {
+  color: var(--hms-fg-subtle);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.hms-calendar__day--hidden {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-calendar__day-btn,
+  .hms-timefield__mer-btn,
+  .hms-datefield__trigger {
+    transition: none;
+  }
+}

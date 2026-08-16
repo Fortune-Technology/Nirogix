@@ -182,3 +182,35 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 **Accessibility is part of the component, not a follow-up:** each chart repeats its numbers in a visually-hidden table (a `<svg>` alone tells a screen reader nothing), the cursor never reads out an interpolated value, and `UsageBar` announces its real value against its total.
 
 **Testing status:** 13 new tests (domain padding, the flat-zero case, top-down mapping, closed area paths, cursor snapping, tick endpoints, compact formatting, the accessible table, empty states, the loading skeleton in place of a false zero, inverted deltas, and the progressbar's ARIA values). 51 pass.
+
+---
+
+## 2026-08-16 — The document kit, and date/time display components (ADR-046, ADR-047)
+
+**Added `src/components/print/`** — `PrintDocument` (branded header, title, reference, meta block, confidentiality footer, generated-at stamp) plus `PrintSection`, `PrintFields`, `PrintTable`, `PrintTotals`, `PrintSignatures`, `PrintNote` and `PrintToolbar`. The stylesheet owns what makes a document a document: A4 `@page` margins, millimetre geometry, **repeating table headers across pages**, rows and totals that never split across a break, and `print-color-adjust: exact` so the hospital's accent survives the printer's default of stripping backgrounds. Branding is passed in — the kit never assumes whose document it is, which is what lets tenant branding and the platform default share one implementation.
+
+**Added `DateDisplay` / `TimeDisplay` / `DateTimeDisplay`** for the new universal format: `DD/MM/YYYY`, `hh:mm AM/PM`, `DD/MM/YYYY, hh:mm AM/PM`. Each renders `<time datetime="…">` carrying the ISO instant, so assistive technology gets something unambiguous while the reader gets the platform format. `badge` renders the meridiem as a token-styled chip for schedules and pickers.
+
+`@hms/utils` became a dependency of this package — the render layer and the formatting layer belong together, and duplicating the format here is exactly what ADR-046 exists to prevent.
+
+**Testing status:** 7 new tests (format, the ISO attribute, the badge, midnight as 12 AM). 58 pass.
+
+---
+
+## 2026-08-16 — Date and time entry: shadcn's picker, promoted into the kit (ADR-048)
+
+**Added `src/components/datetime/`** — `Calendar`, `DateField`, `TimeField`, `DateTimeField`.
+
+`Calendar` is shadcn/ui's Base UI calendar (generated with the CLI, `react-day-picker` engine) restyled onto `--hms-*` and wired to this package's `cn`. The generator also pulled in shadcn's own `Button` and `lib/utils`; both were dropped and the generated copies deleted, because keeping them would have been the second button system ADR-028 exists to prevent.
+
+`DateField` owns its own text and its own calendar: typed and picked in `DD/MM/YYYY`, emitting ISO. An impossible date (`32/13/2026`) or one outside `min`/`max` restores the last good value rather than leaving the form with something it would submit. `TimeField` is `hh:mm` plus an AM/PM toggle and emits 24-hour `HH:mm`. `DateTimeField` composes the two into one ISO instant.
+
+**`react-day-picker` is the one new dependency**, and it belongs to this package rather than an app. It earns its place: an accessible month grid with roving focus, keyboard navigation and disabled ranges is hard to get right and expensive to get wrong. Its internal `date-fns` never formats anything the platform displays — that remains `@hms/utils` (ADR-046).
+
+**One defect found in the browser, not by the tests.** The calendar opened and never closed — not on selecting a day, not on the trigger, not on Escape. Base UI marks a closing popup with `data-ending-style` and unmounts it once the exit animation *completes*; our stylesheet declared no transition, so nothing ever completed. Adding one surfaced the second half: Base UI closes some interactions instantly (`data-instant`), leaving `data-ending-style` behind, which then rendered the **next** open invisible. The popup's visibility is now keyed off `data-closed` alone — the attribute that stays truthful — with `visibility: hidden` so a closed popup is out of the accessibility tree whether or not it has been unmounted yet. Worth remembering for the next Base UI surface we style.
+
+**A second layout defect, also only visible in a browser.** The month arrows floated across the middle of the day grid, covering the first week. `react-day-picker` renders its `nav` as a **sibling of the month**, inside `months` — not inside the caption — so `position: absolute; inset: 0` resolved against the popup and stretched the nav over the whole calendar. `months` is now the containing block and the nav is pinned to the caption's own 2rem strip, with the caption padded so a long month name never runs under an arrow.
+
+**And a third: the calendar rendered *behind* the table.** `z-index: 70` sat on the popup — which Base UI leaves `position: static` — and z-index does nothing on a static element. The positioned box is the Positioner, so that is where the stacking layer belongs; a sticky table header was painting straight over an open calendar until it moved. Confirmed with `elementFromPoint` at four points across the calendar: all four now hit the popover.
+
+**Testing status:** 10 new tests (ISO ↔ DD/MM/YYYY both ways, clearing, impossible dates, range refusal, the labelled calendar trigger, meridiem conversion, the noon/midnight edges, incomplete entry). 68 pass. Verified in the running Portal: typing `32/13/2026` reverts to the last good date, a valid date commits, the calendar opens, picks, and closes.

@@ -309,6 +309,37 @@ Run at staging bring-up and again before each production release. Every case her
 | SPC-05 | Honest claims | — | Read any specialty page | States that specialties differ in configuration, not code; no claim of a specialty-specific module | P1 | Functional | anonymous | Not run |
 | SPC-06 | Navigation entry | — | Desktop nav and mobile bar | Specialties is reachable from both | P2 | UI/UX | anonymous | Not run |
 
+## 17b. Printable documents (ADR-047)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| DOC-01 | Print prints the document | An invoice | Billing → open an invoice → Print / PDF | A standalone document opens: no sidebar, no topbar, no filters, no action buttons, no collect-payment form | P1 | Functional | cashier | Not run |
+| DOC-02 | The printed page matches the preview | Same | Use the browser's print preview | What the screen shows is what the preview shows; only the toolbar disappears | P1 | UI/UX | cashier | Not run |
+| DOC-03 | Tenant branding is applied | A hospital with a logo and brand colour configured | Open any document | The hospital's name, logo and accent appear in the header — never Nirogix's | P1 | Functional | org_admin | Not run |
+| DOC-04 | Default branding fallback | A hospital with no branding configured | Open any document | The Nirogix default is used; the document still looks finished, with no empty logo slot | P1 | Functional | org_admin | Not run |
+| DOC-05 | Never another tenant's branding | Two hospitals with different logos | Print the same document type from each | Each carries its own hospital's identity; no leakage in either direction | P1 | Security | org_admin | Not run |
+| DOC-06 | Multi-page tables | An invoice with enough line items to span pages | Print preview | The table header repeats on each page, no row is split across a break, and the totals block stays whole | P1 | UI/UX | cashier | Not run |
+| DOC-07 | Save as PDF matches print | Any document | Print → Save as PDF | The PDF is identical to the printed output; both carry the branding | P1 | Functional | cashier | Not run |
+| DOC-08 | Permission is re-checked | A user without `billing.invoice.view` | Open `/print/invoice/{id}` directly | Forbidden panel; no document data is rendered, and the API refuses the fetch | P1 | Security | receptionist | Not run |
+| DOC-09 | Document types differ | An invoice and a lab report | Print each | The invoice has items, totals, payments and a receipt note; the report has results, reference ranges, interpretation and a verifying signature — same kit, different structure | P2 | UI/UX | any | Not run |
+| DOC-10 | Only relevant data | Any document | Read every line | Only that record's information appears — no other patients, no application state, no debug output | P1 | Security | any | Not run |
+
+## 17c. Date & time format (ADR-046)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FMT-01 | Dates everywhere | — | Walk tables, forms, dashboards, audit, invoices and printed documents | Every date reads `DD/MM/YYYY` with zero padding; no ISO, US or long-form date survives | P1 | UI/UX | any | Not run |
+| FMT-02 | Times everywhere | — | Same walk | Every time reads `hh:mm AM/PM`; no 24-hour clock survives | P1 | UI/UX | any | Not run |
+| FMT-03 | Date and time together | Audit log, appointment list | Read a timestamp | `DD/MM/YYYY, hh:mm AM/PM` — comma included | P1 | UI/UX | any | Not run |
+| FMT-04 | Midnight and noon | A record created at 00:05 and one at 12:05 | Compare | `12:05 AM` and `12:05 PM` — never `00:05` or a swapped meridiem | P1 | Functional | any | Not run |
+| FMT-05 | Meridiem badge | A schedule or picker using `badge` | Inspect | AM/PM renders as a chip on the design tokens, legible in Light and Dark | P3 | UI/UX | any | Not run |
+| FMT-07 | Date entry is DD/MM/YYYY on every machine | Patients → New | Type `05/01/2027` into Date of birth | Accepted as 5 January 2027; the field shows `05/01/2027` regardless of the browser's locale, and the API receives `2027-01-05` | P1 | Functional | receptionist | Not run |
+| FMT-08 | Calendar picker | Same field | Open the calendar and pick a day | The chosen date fills the field in `DD/MM/YYYY`; today is outlined; the calendar follows the tenant accent in Light and Dark | P2 | UI/UX | receptionist | Not run |
+| FMT-09 | Impossible and out-of-range dates | Same field | Type `32/13/2026`, then a future date of birth | Neither is accepted; the last good value returns; no invalid date reaches the form | P1 | Validation | receptionist | Not run |
+| FMT-10 | Time entry with AM/PM | Appointments → New | Enter `04:45` and press PM | The stored value is 16:45; switching to AM stores 04:45; 12 AM and 12 PM behave correctly | P1 | Functional | receptionist | Not run |
+| FMT-11 | No native date input survives | Repository / UI | Grep for `type="date"`, `type="time"`, `type="datetime-local"`; walk every form | None remain; every date or time field is the shared component | P1 | UI/UX | any | Not run |
+| FMT-06 | Transport is unchanged | Any list with a date filter | Watch the request | The API still receives ISO-8601; only the display is localised | P2 | Functional | any | Not run |
+
 ## 18. Cross-cutting: accessibility, theming, performance
 
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |

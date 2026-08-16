@@ -87,9 +87,12 @@ function Report({ id }: { id: string }) {
         title="Lab report"
         description={`${order.patientName} · ${order.patientUhid}`}
         actions={
-          <Button variant="secondary" className="print:hidden" onClick={() => window.print()}>
-            <Printer size={16} strokeWidth={2} /> Print
-          </Button>
+          // Opens the report DOCUMENT (ADR-047) rather than printing this screen.
+          <Link href={`/print/lab-order/${id}`}>
+            <Button variant="secondary">
+              <Printer size={16} strokeWidth={2} /> Print / PDF
+            </Button>
+          </Link>
         }
       />
 

@@ -20,6 +20,8 @@ export const BrandingSchema = z
     logoUrl: z.string().nullable(),
     faviconUrl: z.string().nullable(),
     typography: z.unknown().nullable(),
+    // The hospital's own identity — printed documents put it in their header (ADR-047).
+    organization: z.object({ name: z.string(), code: z.string() }).nullable(),
   })
   .openapi('Branding');
 
