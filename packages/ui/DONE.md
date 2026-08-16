@@ -222,3 +222,12 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 `error` replaces `hint` when both are present, so a field never shows two competing messages, and both are wired through `aria-describedby` so a screen reader announces the guidance with the field rather than leaving it as unattached text. The new `.hms-field__hint` class takes its colour from `--hms-fg-muted`, so it reads as help rather than as an error in both themes.
 
 **Testing status:** 68 tests pass (no behaviour change to existing usage — `hint` is optional and absent everywhere else). Rendered in the Portal's hospital-information form in Light and Dark.
+
+
+## 2026-08-16 — `PasswordField` gains `hint`
+
+**What:** The same `hint` prop `Field` got with the hospital-information form. The AI Portal's sign-in needed to explain that there is no self-service password reset, and reaching for a hand-rolled caption under one input while `Field` had a proper prop would have been the second implementation of the same pattern.
+
+`error` replaces `hint` when both are present, and whichever renders is wired through `aria-describedby` — identical behaviour to `Field`, which is the point.
+
+**Testing status:** 68 tests pass; `hint` is optional and absent everywhere else, so nothing changed for existing usage.

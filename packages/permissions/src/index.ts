@@ -28,9 +28,10 @@ export const PERMISSIONS = {
   PLATFORM_SUPPORT_IMPERSONATE: 'platform.support.impersonate', // start a support session inside a tenant
   PLATFORM_ANALYTICS_VIEW: 'platform.analytics.view', // cross-tenant aggregate metrics
   PLATFORM_BRANDING_MANAGE: 'platform.branding.platform.manage', // Super-Admin only (marketing + Nirogix platform branding); covered by WILDCARD, not granted to org_admin
-  // AI Portal access (ADR-053). Granted to NO role by default — an operator grants it
-  // deliberately, per user. A patient principal is refused before this is even consulted.
-  // The portal has no AI capability behind it yet; this is the boundary, built first.
+  // AI Portal access (ADR-053, widened by ADR-055). Held by EVERY staff role: the portal
+  // is for the whole hospital team plus platform operators. The boundary that matters is
+  // the principal type — a patient is refused before this key is ever consulted — not a
+  // narrow permission. Still a real key, so a tenant can DENY it for an individual.
   AI_PORTAL_ACCESS: 'ai.portal.access',
   // Patient
   PATIENT_VIEW: 'patient.record.view',
@@ -123,6 +124,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
+      P.AI_PORTAL_ACCESS,
     ],
   },
   {
@@ -132,6 +134,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
       P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
+      P.AI_PORTAL_ACCESS,
     ],
   },
   {
@@ -143,6 +146,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
       P.DEPARTMENT_VIEW,
+      P.AI_PORTAL_ACCESS,
     ],
   },
   {
@@ -155,24 +159,31 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into
       P.FILE_VIEW, P.FILE_UPLOAD,
+      P.AI_PORTAL_ACCESS,
     ],
   },
   {
     key: 'pharmacist',
     name: 'Pharmacist',
     description: 'Pharmacy dispensing',
-    permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PHARMACY_MANAGE, P.PATIENT_VIEW],
+    permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PHARMACY_MANAGE, P.PATIENT_VIEW,
+      P.AI_PORTAL_ACCESS,
+    ],
   },
   {
     key: 'lab_technician',
     name: 'Lab Technician',
     description: 'Laboratory',
-    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_MANAGE, P.PATIENT_VIEW],
+    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_MANAGE, P.PATIENT_VIEW,
+      P.AI_PORTAL_ACCESS,
+    ],
   },
   {
     key: 'cashier',
     name: 'Cashier',
     description: 'Billing counter',
-    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW],
+    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW,
+      P.AI_PORTAL_ACCESS,
+    ],
   },
 ];

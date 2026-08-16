@@ -440,5 +440,18 @@ Two copies is tolerable. Five is a guarantee of drift - and the half most likely
 - Each app keeps thin re-export shims at the old paths (`lib/auth`, `lib/feedback`, `lib/apiErrors`) so pages import from one place and the move needed no page edits.
 **Consequence:** `patient` and `aiportal` are wired to `@hms/client` before they have a line of their own code - the point of doing this now rather than after they copied the plumbing. The cost is a package boundary to respect: anything genuinely audience-specific must **not** drift into it, and the first sign of that going wrong will be a domain endpoint appearing in `@hms/client`. The feedback tests moved with the code, so the package owns its own proof.
 
+## ADR-055 - AI Portal access is every staff role; the patient boundary is what matters
+**Status:** Accepted (this project) - **supersedes the access-grant decision in ADR-053.** Everything else in ADR-053 stands: no AI capability, empty `capabilities`, audited entry, patients refused by type.
+**Context:** ADR-053 granted `ai.portal.access` to **no role**, so an operator had to grant it per person. The reasoning was that a surface which may one day process clinical information should start closed.
+
+In practice that made the portal unreachable for the people it is for. Every seeded role got the *Access restricted* screen; only `super_admin` reached it, and only incidentally, through WILDCARD. The owner's intent is that the AI Portal is for **the whole hospital team plus platform operators — everyone except patients**.
+
+The per-person model also mis-identified where the risk actually is. The thing that must never happen is a **patient** reading AI tooling over their own records, and that was never enforced by this permission: it is enforced by the **principal-type check**, which refuses a patient before any permission is consulted (ADR-052). Keeping the key narrow bought no protection against the threat it appeared to address, while guaranteeing that the first person to open the portal saw a refusal.
+**Decision:** Grant `ai.portal.access` to every system role - org_admin, branch_admin, doctor, receptionist, pharmacist, lab_technician, cashier - with super_admin covered by WILDCARD.
+- **The key stays.** Widening the default does not remove the lever: an org_admin can still **DENY** it for one person, and an explicit deny beats the role grant (invariant #3). A hospital that wants to withhold AI tooling from a particular account still can.
+- **Nothing else about the boundary changes.** A patient principal is refused by type, entry is still audited at notice, and `capabilities` is still empty with a test asserting it stays empty.
+- **`reconcileSystemRoles()` carries it to existing tenants** on the next `db:migrate`, so hospitals onboarded before this change get it without re-onboarding.
+**Consequence:** The portal is reachable by the team it was built for, and the access-restricted screen now means what it should - a deliberate denial, not the default state. The cost is that "who may open the AI Portal" is now a role-level answer rather than a per-person one; when a real AI capability lands, that question should be re-examined **per capability** rather than assumed to inherit this grant. A capability touching diagnosis or treatment may well deserve its own key, and the CDSCO classification check is still required before any such feature is built.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

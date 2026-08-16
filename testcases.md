@@ -287,10 +287,11 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
 |---|---|---|---|---|---|---|---|---|
 | AI-01 | Sign-in screen | — | Open `http://localhost:3004` | Staff sign-in; a line saying access is granted per person and patients cannot sign in | P1 | UI/UX | — | Not run |
-| AI-02 | No role grants access | Hospital admin credentials | Sign in | Forbidden panel explaining access is granted per person — **not** an empty console | P1 | Security | org_admin | Not run |
-| AI-03 | A doctor is refused too | Doctor credentials | Sign in | Same refusal — no clinical role carries AI access | P1 | Security | doctor | Not run |
-| AI-04 | API refuses without the permission | org_admin token | `POST /api/v1/ai/portal/session` | 403 | P1 | Security | org_admin | Not run |
+| AI-02 | Every staff role can enter (ADR-055) | Any seeded staff account | Sign in as each of the seven hospital roles | All reach the landing screen — the portal is for the whole team | P1 | Functional | any staff | Not run |
+| AI-03 | An individual can still be denied | org_admin | Add a DENY override for `ai.portal.access` on one account, sign in as them | *Access restricted* screen — explicit deny beats the role grant | P1 | Security | org_admin | Not run |
+| AI-04 | API refuses a denied account | A token for the denied account | `POST /api/v1/ai/portal/session` | 403 | P1 | Security | org_admin | Not run |
 | AI-05 | Platform owner reaches it | super_admin | Sign in | Landing screen loads (WILDCARD covers the permission) | P2 | Functional | super_admin | Not run |
+| AI-05b | Existing tenants get the grant | A tenant onboarded before ADR-055 | Run `npm run db:migrate`, sign in as its receptionist | Reaches the portal — `reconcileSystemRoles()` carried the grant without re-onboarding | P1 | Regression | receptionist | Not run |
 | AI-06 | **A patient can never sign in** | A patient token | `POST /api/v1/ai/portal/session` with it | **401** — refused by principal type, before the permission is read | P1 | Security | patient | Not run |
 | AI-07 | Knowing the URL achieves nothing | No token | Same call | 401 | P1 | Security | — | Not run |
 | AI-08 | Nothing is offered | super_admin | Read the landing screen | States plainly that no AI capability is enabled. **No disabled input, no model picker, no "coming soon"** | P1 | Functional | super_admin | Not run |
@@ -299,6 +300,13 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | AI-11 | Granting access per person works | An override granting `ai.portal.access` | Grant it to a named user, then sign in as them | They reach the landing screen; removing the override refuses them again | P1 | Security | org_admin | Not run |
 | AI-12 | Origin is allowed | — | Preflight `/ai/portal/session` from `http://localhost:3004` | 204 with that exact origin | P2 | Security | — | Not run |
 | AI-13 | Nothing markets AI | — | Search all five frontends and the marketing site for AI claims | None — the capability reference keeps every AI phrase on the never-claim list | P1 | Regression | — | Not run |
+| AI-14 | Signed-out landing | — | Open `:3004` while signed out | The AI Portal landing: heading, who it is for, sign-in form, **no sign-up button**, links to the Portal and the public site | P1 | UI/UX | — | Not run |
+| AI-15 | No dead password link | — | Read the password field | A hint saying an administrator issues a new password — **no "forgot password" link**, because self-service reset is not built | P2 | UI/UX | — | Not run |
+| AI-16 | Access-restricted screen | An account with a DENY override on `ai.portal.access` | Sign in | A dedicated screen naming the signed-in account, with **Return to Nirogix Portal** and **Sign out** — not a bare 403 | P1 | UI/UX | org_admin | Not run |
+| AI-17 | Return route works | On the restricted screen | Click *Return to Nirogix Portal* | Lands on the configured Portal origin, not a hard-coded localhost URL | P1 | Functional | org_admin | Not run |
+| AI-18 | Sign out from the restricted screen | On the restricted screen | Sign out | Session ends and the sign-in landing is shown | P1 | Functional | org_admin | Not run |
+| AI-19 | Sign-in copy sets expectations | — | Read the landing | It states that access is granted per account and that signing in is not the same as having access | P2 | UI/UX | — | Not run |
+| AI-20 | No AI on the public site | — | Browse the marketing site end to end | No AI section, no AI nav item, no "Explore Nirogix AI" call to action, no ecosystem diagram containing AI | P1 | Regression | public | Not run |
 
 ## 13. Platform administration (super admin)
 

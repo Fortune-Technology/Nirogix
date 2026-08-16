@@ -401,7 +401,17 @@ Each frontend serves **one audience** and owns nothing but rendering. The backen
 | `hms_frontend` (Nirogix Portal) | Hospital staff | Authenticated staff user, tenant-scoped |
 | `admin` | Vendor operators | Authenticated **and** `platform.tenants.manage`, held only by a super_admin in the PLATFORM org |
 | `patient` | Patients | A verified patient principal, never a staff `user` (ADR-052) |
-| `aiportal` | Authorised staff + operators | `ai.portal.access`, held by **no role** — granted per person. A patient principal is refused by type before the permission is read (ADR-052). Entry is audited. **No AI capability exists behind it** (ADR-053) |
+| `aiportal` | All staff + operators, never patients | `ai.portal.access`, held by **every staff role** (ADR-055); a hospital may DENY it for an individual. A patient principal is refused **by type** before the permission is read (ADR-052) — that, not the permission, is what keeps patients out. Entry is audited. **No AI capability exists behind it** (ADR-053) |
+
+The AI Portal's access experience has three distinct states, because they are three different situations and one message cannot serve them:
+
+| State | What the person sees |
+|---|---|
+| Not signed in | The AI Portal sign-in landing: what the portal is, who it is for, the sign-in form, and that there is **no sign-up**. Links back to the Portal and the public site. |
+| Signed in, not authorised | A dedicated *Access restricted* screen naming the account they used, explaining that access is granted per account rather than by role, who to ask, and offering **Return to Nirogix Portal** and **Sign out**. |
+| Signed in and authorised | The portal, which states that **no AI capability is enabled yet**. |
+
+None of these is a security control. The backend refuses the request in every unauthorised case regardless, and a patient principal never reaches any of them.
 
 - **One origin per audience.** A different audience is a different security boundary, a different release cadence and a different blast radius. The concrete host map is `resources/domains.md`.
 - **No shared session between applications.** The refresh cookie is host-only on the API origin, so one application's session cannot be replayed against another's. Each origin is listed individually in `CORS_ORIGINS` per environment.

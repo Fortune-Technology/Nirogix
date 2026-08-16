@@ -226,6 +226,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <div class="navgroup"><div class="navgroup-label">Organization modules</div><ul>
       <li><a href="#m-providers">Providers &amp; Specialties</a></li>
       <li><a href="#m-departments">Departments</a></li>
+      <li><a href="#m-ai">Nirogix AI Portal</a></li>
       <li><a href="#m-setup">Hospital Setup Console</a></li>
       <li><a href="#m-users">User Management</a></li>
       <li><a href="#m-branches">Branch Management</a></li>
@@ -261,12 +262,12 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </aside>
 <main>
 <header class="cover">
-  <div class="eyebrow">Internal · Marketing Enablement · Version 1.7</div>
+  <div class="eyebrow">Internal · Marketing Enablement · Version 1.9</div>
   <h1 class="title">Product Capability Reference</h1>
   <p class="subtitle">The single source of truth for what Nirogix can actually do today, what is being built, what is on the roadmap, and what must never be presented as a product capability. Written for the marketing team; derived from the implemented product, the approved PRD, the architecture, and the phase roadmap.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>Nirogix</dd></div>
-    <div><dt>Version</dt><dd>1.7</dd></div>
+    <div><dt>Version</dt><dd>1.9</dd></div>
     <div><dt>Last updated</dt><dd>16/08/2026</dd></div>
     <div><dt>Development phase</dt><dd>Phase 0 + MVP 0/1</dd></div>
     <div><dt>Release state</dt><dd>Pre-release</dd></div>
@@ -1331,6 +1332,47 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </div>
 </section>
 
+<section id="m-ai">
+<div class="mod future">
+  <div class="mod-head"><div class="top"><h3>Nirogix AI Portal</h3><span class="b b-no">Not available</span> <span class="b b-future">Capabilities: future</span></div>
+  <p class="tagline">A working access boundary with no AI capability behind it. The application exists; the product does not.</p></div>
+  <dl class="mod-facts">
+    <div><dt>Purpose</dt><dd>Control access to AI tools before any exist</dd></div>
+    <div><dt>Users</dt><dd>Authorised staff + platform operators</dd></div>
+    <div><dt>Phase</dt><dd>Postponed / build-as-sold</dd></div>
+    <div><dt>Depends on</dt><dd>Authentication, RBAC</dd></div>
+    <div><dt>Domain</dt><dd>nirogix.ai (not registered)</dd></div>
+  </dl>
+  <div class="mod-body">
+    <p><strong>Read this before writing a single word about AI.</strong> AI is genuinely in the approved product documentation — the PRD lists AI-assisted aids under Clinical Workflow, and an "Advanced BI &amp; AI-Assisted Features" add-on. But it sits in <em>Postponed / Build-as-Sold</em>, is assigned to no phase, and anything touching diagnosis or decision support is gated on a CDSCO classification check that has not been done. Under this document's own status system that is <span class="b b-future">Future / consideration</span>, and the legend is unambiguous: a FUTURE capability is <strong>never advertised as a product capability</strong>.</p>
+    <p>So the position is not "we have no AI plans" — it is "AI is documented scope we have deliberately not committed to, and nothing is being built". Both halves matter: the first stops us denying a real roadmap item to a customer who asks; the second stops us selling it.</p>
+  </div>
+  <details class="exp" open><summary>Capabilities</summary><div class="inner"><div class="tablewrap compact"><table>
+    <thead><tr><th style="width:32%">Capability</th><th style="width:15%">Status</th><th style="width:27%">Who</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr data-status="built"><td>Access boundary: sign-in, permission gate, audit</td><td><span class="b b-built">Built</span></td><td>All staff roles + operators</td><td><code>ai.portal.access</code>, held by <strong>every staff role</strong> (ADR-055); a hospital may deny it for an individual. Entry audited. This is a security control, <strong>not a customer-facing feature</strong> — do not market it either.</td></tr>
+      <tr data-status="built"><td>Patients refused by principal type</td><td><span class="b b-built">Built</span></td><td>—</td><td>Refused before any permission is read, so a permission grant cannot open it.</td></tr>
+      <tr data-status="no"><td>Any AI capability whatsoever</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Signing in shows a screen saying no capability is enabled. There is nothing behind the door.</td></tr>
+      <tr data-status="future"><td>AI-assisted clinical documentation</td><td><span class="b b-future">Future</span></td><td>—</td><td>PRD scope (Clinical Workflow). Postponed / build-as-sold. Not started.</td></tr>
+      <tr data-status="future"><td>Voice transcription of consultation notes</td><td><span class="b b-future">Future</span></td><td>—</td><td>PRD scope. Postponed. Not started.</td></tr>
+      <tr data-status="future"><td>ICD coding assistance</td><td><span class="b b-future">Future</span></td><td>—</td><td>PRD scope. Postponed. Not started.</td></tr>
+      <tr data-status="future"><td>Diagnosis suggestions (reference-only aid)</td><td><span class="b b-future">Future</span></td><td>—</td><td>PRD scope, and <strong>the most regulated of these</strong>: needs the CDSCO classification check recorded before a line is written.</td></tr>
+      <tr data-status="future"><td>Advanced BI &amp; AI-assisted analytics</td><td><span class="b b-future">Future</span></td><td>—</td><td>PRD add-on, extends the Reporting Architecture. Not started.</td></tr>
+      <tr data-status="no"><td>AI diagnosis, treatment recommendations, autonomous clinical decisions, AI prescribing, AI radiology</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Not in scope in any form. Never claim, never imply, never illustrate — regardless of what the portal's existence might suggest.</td></tr>
+      <tr data-status="no"><td>The <code>nirogix.ai</code> domain</td><td><span class="b b-no">Not available</span></td><td>—</td><td>Not registered. No public link may point at it.</td></tr>
+    </tbody>
+  </table></div></div></details>
+  <details class="exp"><summary>Marketing guidance</summary><div class="inner"><div class="mg">
+    <div class="box say"><div class="h">Safe to say</div>
+      <p><strong>Nothing on the public site.</strong> The AI Portal is not named, linked, illustrated or listed in navigation.</p>
+      <p>Only if a customer asks directly: <q>AI-assisted aids are in our product plan — clinical documentation, transcription and coding assistance — but we have not committed them to a release, and anything touching diagnosis needs a regulatory classification review first. We would rather tell you that than sell you a date.</q></p></div>
+    <div class="box dont"><div class="h">Do not claim</div>
+      <p><q>Nirogix AI</q> as a product · <q>AI-powered healthcare operations</q> · <q>AI capabilities are being developed</q> — <strong>nothing is being developed</strong>, and "in development" is a status this document reserves for work actually under way.</p>
+      <p>No <q>Explore Nirogix AI</q> call to action, no AI nav item, no ecosystem diagram with an AI box in it.</p></div>
+  </div></div></details>
+</div>
+</section>
+
 <section id="m-setup">
 <div class="mod">
   <div class="mod-head"><div class="top"><h3>Hospital Setup Console</h3><span class="b b-built">Built</span></div>
@@ -2071,7 +2113,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
       <tr data-status="no"><td>"300+ reports" / "business intelligence" / "custom report builder"</td><td>Three reports exist.</td></tr>
       <tr data-status="no"><td>"Patients book appointments / pay bills / message their doctor online"</td><td>The patient portal is <strong>read-only</strong>. It shows records; it takes no action of any kind.</td></tr>
       <tr data-status="no"><td>"Patients sign up for the portal"</td><td>There is no signup. Access is granted by the hospital during registration, and a patient cannot link themselves to a record.</td></tr>
-      <tr data-status="no"><td>"Nirogix AI" / "our AI portal" / anything at nirogix.ai</td><td><strong>The application now exists, which makes this easier to get wrong, not harder.</strong> It is an access-control boundary with <strong>no AI capability behind it</strong> — signing in shows a screen saying so — and <code>nirogix.ai</code> is not registered. Never named, never linked, never illustrated, and never described as "in development" either: no AI feature is in approved scope at all.</td></tr>
+      <tr data-status="no"><td>"Nirogix AI" / "our AI portal" / anything at nirogix.ai</td><td><strong>The application exists, which makes this easier to get wrong, not harder.</strong> It is an access-control boundary with <strong>no AI capability behind it</strong> — signing in shows a screen saying so — and <code>nirogix.ai</code> is not registered. AI <em>is</em> real scope in the PRD, but it sits in Postponed / Build-as-Sold behind a CDSCO gate, which is <span class="b b-future">Future</span> — and a FUTURE capability is never advertised as a product capability. Never named on the site, never linked, never illustrated, and not described as "in development" either, because no AI work is under way.</td></tr>
       <tr data-status="no"><td>"Drug interaction and allergy alerts"</td><td>No prescribing safety checks exist.</td></tr>
       <tr data-status="no"><td>"Trusted by N hospitals" / any customer count, logo or testimonial</td><td>The product is pre-release. Never fabricate social proof.</td></tr>
       <tr data-status="no"><td>Screenshots or illustrations showing an unbuilt capability</td><td>An image is a claim. Imagery must depict only built functionality.</td></tr>
@@ -2138,7 +2180,9 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
   <div class="tablewrap"><table>
     <thead><tr><th style="width:10%">Version</th><th style="width:14%">Date</th><th>Change</th><th style="width:14%">Status</th></tr></thead>
     <tbody>
-      <tr><td>1.7</td><td>16/08/2026</td><td>Patient portal sessions now survive a reload, with their own session table, a path-scoped cookie, rotation and server-side revocation. A security defect found while testing it is fixed and recorded (SECURITY-AUDIT H-4): refresh-token rotation was not actually rotating, for staff as well as patients. No marketing claim changes — session handling was never advertised beyond "revocable sessions", which remains true and is now stronger.</td><td>Current</td></tr>
+      <tr><td>1.9</td><td>16/08/2026</td><td>AI Portal access widened from "granted per person" to <strong>every staff role</strong> (ADR-055) — the portal is for the whole hospital team and platform operators, never patients, and patients are kept out by the principal-type check rather than by this permission. <strong>No marketing status changes:</strong> the portal still exposes no AI capability, the AI items remain FUTURE, and the AI Portal stays off the public site. Widening who may open an empty room does not make the room a product.</td><td>Current</td></tr>
+      <tr><td>1.8</td><td>16/08/2026</td><td><strong>Corrects an error in 1.6</strong>, which stated that no AI feature was in approved scope. AI <em>is</em> in the PRD — AI-assisted EMR aids (diagnosis suggestions, documentation, voice transcription, ICD coding assistance) and the Advanced BI &amp; AI-Assisted Features add-on — but sits in Postponed / Build-as-Sold with a CDSCO classification gate, which is <strong>FUTURE / CONSIDERATION</strong>, not "not in scope". The marketing conclusion is unchanged: a FUTURE capability is never advertised, so the AI Portal stays off the public site. Adds an AI capability section stating each item and its status, and records the AI Portal's access experience (sign-in landing, and a distinct access-restricted screen for an authorised account without the permission).</td><td>Superseded by 1.9</td></tr>
+      <tr><td>1.7</td><td>16/08/2026</td><td>Patient portal sessions now survive a reload, with their own session table, a path-scoped cookie, rotation and server-side revocation. A security defect found while testing it is fixed and recorded (SECURITY-AUDIT H-4): refresh-token rotation was not actually rotating, for staff as well as patients. No marketing claim changes — session handling was never advertised beyond "revocable sessions", which remains true and is now stronger.</td><td>Superseded by 1.8</td></tr>
       <tr><td>1.6</td><td>16/08/2026</td><td>The AI Portal shipped as an <strong>authorization boundary only</strong> (ADR-053) — sign-in, a permission gate held by no role, patients refused by principal type, entry audited, and a landing screen stating that no capability is enabled. <strong>Marketing status is unchanged: NOT AVAILABLE.</strong> The never-claim entry was strengthened rather than relaxed, because an application that exists is easier to overclaim than one that does not. No AI feature is in approved scope, so nothing about AI may be described even as "in development".</td><td>Superseded by 1.7</td></tr>
       <tr><td>1.5</td><td>16/08/2026</td><td>The <strong>patient portal shipped</strong> (ADR-051, ADR-052) and moves to BUILT — sign-in by one-time code, a hospital picker, and read-only profile, appointments, bills and resulted laboratory reports, on its own origin. Two never-claim entries replace the old one: the portal is <strong>read-only</strong> (it takes no action), and <strong>there is no signup</strong> (the hospital grants access). A known limitation is documented rather than hidden — a reload signs the patient out until durable patient sessions land. The AI Portal remains NOT AVAILABLE and unchanged.</td><td>Superseded by 1.6</td></tr>
       <tr><td>1.4</td><td>16/08/2026</td><td>Patient identity and the patient portal <strong>API</strong> shipped (ADR-052): a separate authentication principal, hospital-granted access with no public signup, and read endpoints for profile, appointments, invoices and resulted lab reports. <strong>Status is unchanged for marketing — still NOT AVAILABLE</strong>, because there is no patient-facing application and therefore nothing a patient can use. The never-claim entry was sharpened rather than relaxed. Also records the shared frontend foundation (ADR-054), which changes no capability.</td><td>Superseded by 1.5</td></tr>
@@ -2152,7 +2196,7 @@ footer{margin-top:44px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </section>
 
 <footer>
-  <span>Nirogix · Marketing Product Capability Reference · v1.7</span>
+  <span>Nirogix · Marketing Product Capability Reference · v1.9</span>
   <span>Takoriya Technology LLP · Internal · 16/08/2026</span>
 </footer>
 </main>

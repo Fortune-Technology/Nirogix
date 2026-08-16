@@ -7,7 +7,7 @@ import { BrandMark, Button, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { useAuth } from "../../lib/auth";
 import { useTheme } from "../../lib/theme";
-import { Forbidden } from "../../components/Forbidden";
+import { AccessRestricted } from "../../components/AccessRestricted";
 
 /**
  * The AI Portal's gate (ADR-053).
@@ -38,11 +38,19 @@ export default function AiAppLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  // Signed in, but not authorised. A dedicated screen rather than a bare 403: this person
+  // has a valid account, did nothing wrong, and is on an origin with no navigation — they
+  // need to know who grants access and how to get back to work.
   if (!can(PERMISSIONS.AI_PORTAL_ACCESS)) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-bg p-6">
         <div className="w-full max-w-md">
-          <Forbidden />
+          <AccessRestricted
+            onSignOut={async () => {
+              await logout();
+              router.replace("/login");
+            }}
+          />
         </div>
       </div>
     );

@@ -536,6 +536,11 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
   No session is shared between applications: the refresh cookie is host-only on the API origin, and each origin is
   listed individually in <code>CORS_ORIGINS</code> per environment. The platform-operator surface is <em>not</em> in the
   Portal, so operator code never ships in a hospital's bundle.
+  <br><br>
+  <strong>The AI Portal has three access states</strong> — signed out (a sign-in landing explaining who it is for, with
+  no sign-up), signed in but unauthorised (a dedicated <em>Access restricted</em> screen with a route back to the
+  Portal and a sign-out), and authorised (which states that no AI capability is enabled yet). None is a security
+  control: the backend refuses every unauthorised request regardless, and a patient principal reaches none of them.
 </div>
 <ul>
     <li>hms_backend — Node.js/Express API, authentication, business logic, database integration</li>

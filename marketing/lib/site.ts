@@ -317,6 +317,48 @@ export const ADDONS: ModuleEntry[] = [
   },
 ];
 
+/**
+ * The Nirogix ecosystem — the surfaces a customer actually meets (ADR-051).
+ *
+ * Each carries an availability status like everything else on this site. Two rules
+ * decided what is here:
+ *
+ * 1. **Platform administration is not listed.** It is the console *we* use to onboard
+ *    and support a hospital — an internal operator tool, not something a customer buys
+ *    or logs into. Presenting it as a product pillar would be padding the list.
+ * 2. **The AI Portal is not listed.** AI is real scope in the PRD (EMR aids; the
+ *    Advanced BI & AI add-on) but sits in Postponed / Build-as-Sold with a CDSCO gate,
+ *    which is `FUTURE / CONSIDERATION` — and the status rules say a FUTURE capability is
+ *    never advertised as a product capability. The portal exists as an access boundary
+ *    with nothing behind it; saying otherwise would be selling a locked door.
+ */
+export type EcosystemEntry = {
+  name: string;
+  icon: LucideIcon;
+  audience: string;
+  blurb: string;
+  status: Availability;
+};
+
+export const ECOSYSTEM: EcosystemEntry[] = [
+  {
+    name: "Nirogix HMS",
+    icon: Building2,
+    audience: "Hospital administrators, doctors and staff",
+    blurb:
+      "The hospital's own system: patients, appointments, OPD, the consultation record, pharmacy, laboratory and billing, with role-based access across the whole team.",
+    status: "built",
+  },
+  {
+    name: "Nirogix Patient Portal",
+    icon: Users,
+    audience: "Patients registered at a Nirogix hospital",
+    blurb:
+      "Patients sign in with a one-time code to a contact their hospital already holds, and read their own record, appointments, bills and finished laboratory reports — across every hospital that has given them access. Read-only, and there is no public sign-up: the hospital grants access.",
+    status: "built",
+  },
+];
+
 // Platform Core — always included, never a line item. Good "in every plan" content.
 export type CoreService = { name: string; icon: LucideIcon; blurb: string };
 

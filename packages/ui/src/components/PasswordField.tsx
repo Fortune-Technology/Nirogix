@@ -8,6 +8,8 @@ import { cn } from "../cn";
 export interface PasswordFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: ReactNode;
   error?: string;
+  /** Guidance under the input — matches `Field`, so the two behave the same way. */
+  hint?: ReactNode;
 }
 
 /**
@@ -16,9 +18,11 @@ export interface PasswordFieldProps extends Omit<InputHTMLAttributes<HTMLInputEl
  * reset, change-password, admin user forms) — never a bare `<input type="password">`
  * — so the reveal affordance and styling stay consistent everywhere.
  */
-export function PasswordField({ label, error, className, id, ...rest }: PasswordFieldProps) {
+export function PasswordField({ label, error, hint, className, id, ...rest }: PasswordFieldProps) {
   const autoId = useId();
   const inputId = id ?? autoId;
+  const messageId = `${inputId}-msg`;
+  const hasMessage = Boolean(error || hint);
   const [visible, setVisible] = useState(false);
 
   return (
@@ -34,6 +38,7 @@ export function PasswordField({ label, error, className, id, ...rest }: Password
           type={visible ? "text" : "password"}
           className={cn("hms-input", className)}
           aria-invalid={!!error}
+          aria-describedby={hasMessage ? messageId : undefined}
           {...rest}
         />
         <button
@@ -51,7 +56,17 @@ export function PasswordField({ label, error, className, id, ...rest }: Password
           )}
         </button>
       </div>
-      {error && <span className="hms-field__error">{error}</span>}
+      {/* `error` replaces `hint` when both are present, so the field never shows two
+          competing messages — same rule as `Field`. */}
+      {error ? (
+        <span id={messageId} className="hms-field__error">
+          {error}
+        </span>
+      ) : hint ? (
+        <span id={messageId} className="hms-field__hint">
+          {hint}
+        </span>
+      ) : null}
     </div>
   );
 }

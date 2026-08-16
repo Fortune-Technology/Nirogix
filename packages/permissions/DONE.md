@@ -35,3 +35,16 @@ Append-only implementation log. Newest at the bottom.
 **What:** `DEPARTMENT_VIEW` and `DEPARTMENT_MANAGE`. View is deliberately wide — org_admin, branch_admin, doctor and receptionist — because the front desk books into a department and the doctor works one. Manage is org_admin only.
 
 **Testing status:** `typecheck` green; gates verified live (receptionist 200 on read / 403 on create, pharmacist 403 on both).
+
+
+## 2026-08-16 — `ai.portal.access` widened to every staff role (ADR-055)
+
+**What:** The key moved from "held by no role, granted per person" (ADR-053) to **held by every system role** — org_admin, branch_admin, doctor, receptionist, pharmacist, lab_technician, cashier, with super_admin covered by WILDCARD.
+
+**Why the original was wrong in practice:** it made the portal unreachable for the people it is for. Every seeded role hit the *Access restricted* screen; only super_admin got in, and only incidentally through WILDCARD. It also mis-identified the risk — the thing that must never happen is a **patient** reaching AI tooling, and that is enforced by the principal-type check, not by this key. Keeping it narrow bought no protection against the actual threat while guaranteeing a refusal on first use.
+
+**The lever survives.** An org_admin can still DENY the key for an individual, and an explicit deny beats a role grant. Widening a default is not the same as removing control.
+
+**Reaches existing tenants** via `reconcileSystemRoles()` on the next `db:migrate` — verified against all three seeded tenants.
+
+**Testing status:** the test that asserted no role held it now asserts every staff role does, and a second test pins that the key remains in the catalog so it can still be denied. Verified live: all seven hospital roles plus the platform owner get **200**; a patient token still gets **401**, as does no token at all.

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { PERMISSIONS, SYSTEM_ROLES, WILDCARD } from '@hms/permissions';
+import { ALL_PERMISSIONS, PERMISSIONS, SYSTEM_ROLES, WILDCARD } from '@hms/permissions';
 import { pool } from '../../../db/client';
 import { seedPermissionCatalog } from '../../rbac/rbac.service';
 import { onboardTenant } from '../../admin/admin.service';
@@ -59,14 +59,21 @@ afterAll(async () => {
 });
 
 describe('AI Portal access control', () => {
-  test('no seeded role holds ai.portal.access', () => {
-    // The whole design: access is granted per person, deliberately, by an operator.
-    // Only super_admin reaches it, and only because WILDCARD covers everything — which
-    // is the documented "authorised staff + System Admin" rule, not an accident.
+  test('every staff role holds ai.portal.access (ADR-055)', () => {
+    // Widened from "no role by default" (ADR-053) to the whole hospital team plus
+    // platform operators. The boundary that keeps patients out was never this key —
+    // it is the principal-type check, which is unchanged and tested below.
     for (const role of SYSTEM_ROLES) {
-      if (role.permissions.includes(WILDCARD)) continue;
-      expect(role.permissions).not.toContain(PERMISSIONS.AI_PORTAL_ACCESS);
+      if (role.permissions.includes(WILDCARD)) continue; // super_admin covers everything
+      expect(role.permissions).toContain(PERMISSIONS.AI_PORTAL_ACCESS);
     }
+  });
+
+  test('the key still exists, so a tenant can deny it for an individual', () => {
+    // Widening the default does not remove the lever: an org_admin can still DENY this
+    // key for one person, and an explicit deny beats the role grant.
+    expect(PERMISSIONS.AI_PORTAL_ACCESS).toBe('ai.portal.access');
+    expect(ALL_PERMISSIONS).toContain(PERMISSIONS.AI_PORTAL_ACCESS);
   });
 
   test('the permission key exists in the catalog', () => {
