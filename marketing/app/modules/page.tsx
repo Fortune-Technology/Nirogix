@@ -6,6 +6,7 @@ import { CtaSection } from "../../components/site/CtaSection";
 import { Container } from "../../components/ui/primitives";
 import { MODULE_GROUPS, CATALOGUE_ADDONS } from "../../lib/catalogue";
 import { COUNTS, type ModuleEntry } from "../../lib/site";
+import { AvailabilityBadge, ReleaseNote } from "../../components/site/AvailabilityBadge";
 import { JsonLd } from "../../components/site/JsonLd";
 import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
 
@@ -31,7 +32,10 @@ function CatalogueCard({ module }: { module: ModuleEntry }) {
       >
         <Icon size={22} strokeWidth={1.6} />
       </span>
-      <h3 className="mt-4 text-base font-semibold tracking-tight text-ink">{module.name}</h3>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <h3 className="text-base font-semibold tracking-tight text-ink">{module.name}</h3>
+        <AvailabilityBadge status={module.status} />
+      </div>
       <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">{module.tagline}</p>
       {module.flagship && (
         <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent opacity-0 transition-opacity group-hover:opacity-100">
@@ -60,8 +64,12 @@ export default function ModulesPage() {
       <PageHeader
         eyebrow="Modules"
         title={`${COUNTS.modules} modules. Turn on only what you need.`}
-        lede="Every module installs and bills on its own, on top of the shared platform core. Start with one, or run the full set. The seven clinic-core modules are available now; hospital-grade and operational modules extend the platform as you grow."
+        lede="Every module installs and bills on its own, on top of the shared platform core. The seven clinic-core modules are built; the hospital-grade and operational modules are planned scope from our product plan, and every card below says which it is."
       />
+
+      <Container className="pt-2">
+        <ReleaseNote />
+      </Container>
 
       {MODULE_GROUPS.map((group, i) => (
         <section
@@ -93,7 +101,7 @@ export default function ModulesPage() {
           <div className="max-w-2xl">
             <h2 className="mk-heading text-2xl text-ink sm:text-3xl">Add-ons</h2>
             <p className="mk-lede mt-3 text-lg leading-relaxed">
-              Capabilities that layer onto the clinical modules when a hospital needs them.
+              Capabilities planned to layer onto the clinical modules. Neither is built yet.
             </p>
           </div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2">

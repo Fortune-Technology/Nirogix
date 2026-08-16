@@ -24,6 +24,10 @@ export type LoginResult =
   | { status: 'mfa_required'; userId: string }
   | { status: 'ok'; accessToken: string; refreshToken: string; user: PublicUser };
 
+export function toPublicUserRow(u: User): PublicUser {
+  return toPublicUser(u);
+}
+
 function toPublicUser(u: User): PublicUser {
   return {
     id: u.id,
@@ -201,20 +205,32 @@ export async function refresh(
 }
 
 // Revokes the session behind a refresh token. Best-effort — an already-invalid token is a no-op.
-export async function logout(refreshTokenRaw: string | undefined): Promise<void> {
-  if (!refreshTokenRaw) return;
+/**
+ * Revokes the presented session and reports what it was, so the caller can audit
+ * it. The support-session flag comes from the SESSION ROW rather than the access
+ * token, because `/auth/logout` is deliberately unauthenticated — a client with an
+ * expired access token must still be able to sign out.
+ */
+export async function logout(
+  refreshTokenRaw: string | undefined,
+): Promise<{ tenantId: string; userId: string; impersonatedBy: string | null } | null> {
+  if (!refreshTokenRaw) return null;
   let claims: RefreshClaims;
   try {
     claims = verifyRefreshToken(refreshTokenRaw);
   } catch {
-    return;
+    return null;
   }
-  await runWithTenant(claims.tid, (tx) =>
-    tx
+  return runWithTenant(claims.tid, async (tx) => {
+    const revoked = await tx
       .update(sessions)
       .set({ revokedAt: new Date(), updatedAt: new Date() })
-      .where(eq(sessions.id, claims.sid)),
-  );
+      .where(eq(sessions.id, claims.sid))
+      .returning();
+    const row = revoked[0];
+    if (!row) return null;
+    return { tenantId: row.tenantId, userId: row.userId, impersonatedBy: row.impersonatedBy ?? null };
+  });
 }
 
 export async function getUserById(tenantId: string, userId: string): Promise<PublicUser | null> {
@@ -285,4 +301,35 @@ export async function changeOwnPassword(
       .set({ revokedAt: new Date() })
       .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
   });
+}
+
+/**
+ * Mints a session for `userId` on behalf of a platform operator (ADR-037). The
+ * tokens carry the TARGET's roles — the operator's privileges never travel into
+ * the tenant — plus `imp`, so every request and the UI can tell this is a support
+ * session. Provenance is stored on the session row, so it survives refresh.
+ */
+export async function issueImpersonatedSession(
+  tenantId: string,
+  userId: string,
+  roles: string[],
+  meta: ClientMeta & { impersonatedBy: string; reason: string },
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const sid = randomUUID();
+  const refreshToken = signRefreshToken({ sub: userId, tid: tenantId, sid });
+  const accessToken = signAccessToken({ sub: userId, tid: tenantId, roles, imp: meta.impersonatedBy });
+  await runWithTenant(tenantId, (tx) =>
+    tx.insert(sessions).values({
+      id: sid,
+      tenantId,
+      userId,
+      tokenHash: hashToken(refreshToken),
+      userAgent: meta.userAgent?.slice(0, 300) ?? null,
+      ip: meta.ip?.slice(0, 64) ?? null,
+      impersonatedBy: meta.impersonatedBy,
+      impersonationReason: meta.reason.slice(0, 300),
+      expiresAt: tokenExpiry(refreshToken),
+    }),
+  );
+  return { accessToken, refreshToken };
 }

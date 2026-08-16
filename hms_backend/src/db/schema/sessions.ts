@@ -21,6 +21,11 @@ export const sessions = pgTable('sessions', {
   tokenHash: varchar('token_hash', { length: 64 }).notNull(),
   userAgent: varchar('user_agent', { length: 300 }),
   ip: varchar('ip', { length: 64 }),
+  // Support session (ADR-037). Non-null means this session was created by a platform
+  // operator impersonating `userId` — never by that user signing in. Kept on the
+  // session row so every refresh carries the provenance, not just the first request.
+  impersonatedBy: uuid('impersonated_by').references(() => users.id, { onDelete: 'restrict' }),
+  impersonationReason: varchar('impersonation_reason', { length: 300 }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

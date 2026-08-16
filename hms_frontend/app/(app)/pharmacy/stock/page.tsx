@@ -2,8 +2,19 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Field, type Column } from "@hms/ui";
+import { ArrowLeft, PackagePlus, Plus } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Field,
+  TableAction,
+  TableActions,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Drug } from "@hms/types";
 import * as api from "../../../../lib/api";
@@ -170,18 +181,16 @@ function Stock() {
       accessor: (d) => (d.lowStock ? "Low" : "OK"),
       cell: (d) => (d.lowStock ? <Badge tone="warning">Low</Badge> : <span className="text-fg-muted">OK</span>),
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      hideable: false,
-      cell: (d) =>
-        canManage ? (
-          <Button variant="secondary" size="sm" onClick={() => setReceiving((r) => (r === d.id ? null : d.id))}>
-            {receiving === d.id ? "Close" : "Receive"}
-          </Button>
-        ) : null,
-    },
+    actionsColumn<Drug>((d) => (
+      <TableActions label={`Actions for ${d.name}`}>
+        <TableAction
+          label={receiving === d.id ? "Close receive panel" : "Receive stock"}
+          icon={<PackagePlus size={16} strokeWidth={2} aria-hidden />}
+          permitted={canManage}
+          onSelect={() => setReceiving((r) => (r === d.id ? null : d.id))}
+        />
+      </TableActions>
+    )),
   ];
 
   return (

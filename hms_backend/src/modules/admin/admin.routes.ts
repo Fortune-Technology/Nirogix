@@ -37,3 +37,12 @@ adminRouter.post(
   asyncHandler(c.grantModule),
 );
 adminRouter.delete('/admin/tenants/:id/modules/:key', ...guard, asyncHandler(c.revokeModule));
+
+// Support sessions (ADR-037). Gated by its own permission so a future support role
+// can be granted this WITHOUT full tenant management.
+adminRouter.post(
+  '/admin/support-sessions',
+  requireAuth,
+  requirePermission(PERMISSIONS.PLATFORM_SUPPORT_IMPERSONATE),
+  asyncHandler(c.postSupportSession),
+);

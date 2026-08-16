@@ -13,7 +13,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   const token = header.slice('Bearer '.length).trim();
   try {
     const claims = verifyAccessToken(token);
-    req.auth = { userId: claims.sub, tenantId: claims.tid, roles: claims.roles ?? [] };
+    req.auth = { userId: claims.sub, tenantId: claims.tid, roles: claims.roles ?? [], impersonatedBy: claims.imp };
     next();
   } catch {
     next(Errors.unauthorized('Invalid or expired token'));

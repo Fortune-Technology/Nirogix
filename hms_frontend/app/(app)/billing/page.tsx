@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Badge, DataTable, type Column, type DataTableQuery } from "@hms/ui";
+import {
+  Badge,
+  DataTable,
+  TableActions,
+  ViewAction,
+  actionsColumn,
+  type Column,
+  type DataTableQuery,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { InvoiceListItem } from "@hms/types";
 import { formatDate } from "@hms/utils";
@@ -104,6 +112,11 @@ function InvoicesTable() {
       accessor: (i) => i.createdAt,
       cell: (i) => <span className="whitespace-nowrap text-fg-muted">{formatDate(i.createdAt)}</span>,
     },
+    actionsColumn<InvoiceListItem>((i) => (
+      <TableActions label={`Actions for invoice ${i.invoiceNumber}`}>
+        <ViewAction label="View invoice" href={`/billing/${i.id}`} />
+      </TableActions>
+    )),
   ];
 
   return (

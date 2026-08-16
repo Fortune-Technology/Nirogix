@@ -4,7 +4,13 @@ import { env } from '../../config/env';
 
 // Access token: short-lived, sent as `Authorization: Bearer`. Carries the tenant so every
 // downstream request scopes RLS from the *authenticated session*, never from client input.
-export type AccessClaims = { sub: string; tid: string; roles: string[] };
+export type AccessClaims = {
+  sub: string;
+  tid: string;
+  roles: string[];
+  /** Platform operator's user id when this is a support session (ADR-037). */
+  imp?: string;
+};
 // Refresh token: long-lived, httpOnly cookie. `sid` references the server-side session row.
 export type RefreshClaims = { sub: string; tid: string; sid: string };
 

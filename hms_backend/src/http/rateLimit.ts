@@ -1,4 +1,4 @@
-import rateLimit, { type Options } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit';
 import type { Request } from 'express';
 import { isProd } from '../config/env';
 import { Errors } from './error';
@@ -14,8 +14,13 @@ import { Errors } from './error';
  * shared hospital NAT.
  */
 
+/**
+ * `ipKeyGenerator` normalises IPv6 to its /64 prefix. Using `req.ip` raw would let
+ * an attacker with an IPv6 allocation rotate addresses and get a fresh allowance
+ * per request, which defeats the limit entirely.
+ */
 function keyGenerator(req: Request): string {
-  return req.auth?.userId ?? req.ip ?? 'unknown';
+  return req.auth?.userId ?? ipKeyGenerator(req.ip ?? '');
 }
 
 const shared: Partial<Options> = {
@@ -39,7 +44,7 @@ export const authLimiter = rateLimit({
   ...shared,
   windowMs: 15 * 60_000,
   limit: 10,
-  keyGenerator: (req: Request) => req.ip ?? 'unknown',
+  keyGenerator: (req: Request) => ipKeyGenerator(req.ip ?? ''),
   skipSuccessfulRequests: true, // a working login should not consume the allowance
 });
 

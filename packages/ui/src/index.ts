@@ -39,8 +39,27 @@ export {
 export type { Column, DataTableProps, DataTableQuery, ServerMode, SortState } from './components/data-table';
 export { Menu, MenuItem, MenuCheckboxItem, MenuSeparator } from './components/Menu';
 export type { MenuProps, MenuItemProps } from './components/Menu';
-export { ActionMenu } from './components/ActionMenu';
-export type { ActionMenuProps, RowAction } from './components/ActionMenu';
+// The one Action-column system — every table's row actions (rules.md → Table Row Actions).
+export {
+  TableActions,
+  TableAction,
+  ViewAction,
+  EditAction,
+  DeleteAction,
+  ToggleAction,
+  MoreActions,
+  actionsColumn,
+} from './components/table-actions';
+export type {
+  TableActionsProps,
+  TableActionProps,
+  GenericTableActionProps,
+  DeleteActionProps,
+  ToggleActionProps,
+  MoreActionsProps,
+  MoreAction,
+  ActionConfirm,
+} from './components/table-actions';
 export { ConfirmDialog } from './components/ConfirmDialog';
 export type { ConfirmDialogProps } from './components/ConfirmDialog';
 export { EmptyState, ErrorState, Skeleton } from './components/States';

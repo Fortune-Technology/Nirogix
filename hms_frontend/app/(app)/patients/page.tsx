@@ -3,8 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Plus } from "lucide-react";
-import { ActionMenu, Badge, Button, DataTable, type Column, type DataTableQuery } from "@hms/ui";
+import { Plus } from "lucide-react";
+import {
+  Badge,
+  Button,
+  DataTable,
+  EditAction,
+  TableActions,
+  ViewAction,
+  actionsColumn,
+  type Column,
+  type DataTableQuery,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Patient } from "@hms/types";
 import { formatDate } from "@hms/utils";
@@ -69,20 +79,12 @@ function patientColumns(canEdit: boolean, onView: (p: Patient) => void, onEdit: 
       accessor: (p) => p.status,
       cell: (p) => <Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status}</Badge>,
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      hideable: false,
-      cell: (p) => (
-        <ActionMenu
-          actions={[
-            { label: "View record", icon: <Eye size={15} strokeWidth={1.75} />, onSelect: () => onView(p) },
-            { label: "Edit details", icon: <Pencil size={15} strokeWidth={1.75} />, visible: canEdit, onSelect: () => onEdit(p) },
-          ]}
-        />
-      ),
-    },
+    actionsColumn<Patient>((p) => (
+      <TableActions label={`Actions for ${[p.firstName, p.lastName].filter(Boolean).join(" ")}`}>
+        <ViewAction label="View record" onSelect={() => onView(p)} />
+        <EditAction label="Edit details" permitted={canEdit} onSelect={() => onEdit(p)} />
+      </TableActions>
+    )),
   ];
 }
 

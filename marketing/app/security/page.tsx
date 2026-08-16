@@ -27,13 +27,44 @@ export const metadata: Metadata = pageMetadata({
     "How the HMS protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.",
 });
 
-const PRACTICES: { name: string; icon: typeof Lock; body: string }[] = [
-  { name: "Encryption everywhere", icon: Lock, body: "AES-256 at rest and TLS 1.2+ in transit for data moving between every service." },
-  { name: "Role-based access", icon: KeyRound, body: "Fine-grained permissions, per-user overrides, and time-bound grants. Explicit deny always wins." },
-  { name: "Tested against OWASP", icon: ShieldAlert, body: "OWASP Top 10 protections, input validation, rate limiting, and periodic security testing." },
-  { name: "Backups and recovery", icon: HardDriveDownload, body: "Automated backups with defined recovery objectives, drill-tested before go-live." },
-  { name: "PII masking", icon: EyeOff, body: "Personal data is masked in logs and outside production, on a least-privilege architecture." },
-  { name: "PCI-aligned payments", icon: CreditCard, body: "Payments follow PCI DSS-aligned practices, with no card data stored on the platform." },
+// Split deliberately (rules.md → Marketing Content & Claim Accuracy): `enforced` is
+// what the product does today; `commitment` is a standard from resources/architecture.md
+// that becomes verifiable at deployment, and is never written as already proven.
+const PRACTICES: { name: string; icon: typeof Lock; body: string; commitment?: boolean }[] = [
+  {
+    name: "Role-based access",
+    icon: KeyRound,
+    body: "Fine-grained permissions, per-user overrides, and time-bound grants. Explicit deny always wins, and every endpoint re-checks on the server.",
+  },
+  {
+    name: "Validated and rate-limited",
+    icon: ShieldAlert,
+    body: "Every request is schema-validated at the server boundary, and credential routes are rate-limited tighter than ordinary reads.",
+  },
+  {
+    name: "Encryption everywhere",
+    icon: Lock,
+    commitment: true,
+    body: "AES-256 at rest and TLS 1.2+ in transit is the platform's encryption standard, applied at deployment.",
+  },
+  {
+    name: "Backups and recovery",
+    icon: HardDriveDownload,
+    commitment: true,
+    body: "Automated backups with defined recovery objectives. The restore drill runs against real infrastructure before go-live.",
+  },
+  {
+    name: "PII masking",
+    icon: EyeOff,
+    commitment: true,
+    body: "Personal data masked in logs and outside production, on a least-privilege architecture.",
+  },
+  {
+    name: "PCI-aligned payments",
+    icon: CreditCard,
+    commitment: true,
+    body: "The payment gateway is planned scope. When it ships, card data is never stored on the platform and handling follows PCI DSS-aligned practice.",
+  },
 ];
 
 const ALIGNED = [
@@ -89,10 +120,11 @@ export default function SecurityPage() {
             </div>
             <div className="lg:col-span-2">
               <p className="text-lg leading-relaxed text-ink-muted">
-                The platform runs on E2E Networks, an India-headquartered, MeitY-empanelled cloud
-                provider, and health data is kept in-region. Object storage for files is
-                jurisdiction-pinned to India. Data residency is a deliberate design decision for
-                hospitals that need their patient data to stay in the country.
+                The platform is built to run on E2E Networks, an India-headquartered,
+                MeitY-empanelled cloud provider, with health data kept in-region and file storage
+                pinned to an India jurisdiction. Residency is a deliberate design decision for
+                hospitals that need their patient data to stay in the country, taken ahead of any
+                legal requirement rather than in response to one.
               </p>
             </div>
           </div>
@@ -128,7 +160,10 @@ export default function SecurityPage() {
       {/* Practices */}
       <section className="border-t border-hairline bg-surface">
         <Container className="py-20 sm:py-24">
-          <SectionHeading title="Security practices" />
+          <SectionHeading
+            title="Security practices"
+            lede="What the product enforces today, and what is a standard we hold ourselves to at deployment. We label which is which."
+          />
           <div className="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
             {PRACTICES.map((p) => {
               const Icon = p.icon;
@@ -137,7 +172,19 @@ export default function SecurityPage() {
                   <span className="grid h-10 w-10 place-items-center rounded-lg bg-surface text-accent ring-1 ring-hairline">
                     <Icon size={20} strokeWidth={1.6} />
                   </span>
-                  <h3 className="mt-4 text-base font-semibold text-ink">{p.name}</h3>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-ink">{p.name}</h3>
+                    <span
+                      className={
+                        "rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                        (p.commitment
+                          ? "border border-hairline bg-surface-2 text-ink-muted"
+                          : "border border-accent-border bg-accent-subtle text-accent")
+                      }
+                    >
+                      {p.commitment ? "Commitment" : "Enforced today"}
+                    </span>
+                  </div>
                   <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">{p.body}</p>
                 </div>
               );
@@ -171,8 +218,8 @@ export default function SecurityPage() {
               </ul>
               <p className="mt-6 text-sm leading-relaxed text-ink-subtle">
                 These describe how the platform is designed and aligned. They are not claims of
-                formal certification. We are happy to walk your compliance team through our controls
-                during onboarding.
+                formal certification, audit, or accreditation, and no third party has certified them.
+                We are happy to walk your compliance team through our controls during onboarding.
               </p>
             </div>
           </div>

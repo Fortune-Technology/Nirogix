@@ -30,10 +30,23 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard },
+/**
+ * PLATFORM context (ADR-037) — the vendor's own operators, in the PLATFORM org.
+ * Deliberately contains **no clinical navigation**: a System Admin does not get a
+ * duplicate of every hospital's HMS. To work inside a hospital they enter that
+ * tenant explicitly through a support session, which switches them to TENANT_NAV.
+ */
+export const PLATFORM_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/platform", perm: null, icon: LayoutDashboard },
   { label: "Tenants", href: "/admin/tenants", perm: PERMISSIONS.TENANTS_MANAGE, icon: Building2 },
   { label: "Branding", href: "/admin/branding", perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE, icon: Palette },
+  { label: "Security & Audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
+  { label: "My Profile", href: "/profile", perm: null, icon: UserCircle },
+];
+
+/** TENANT context — a hospital's own staff, and what a support session shows. */
+export const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard },
   { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users },
   { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays },
   { label: "OPD Queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList },
@@ -71,12 +84,34 @@ export const MOBILE_PRIMARY_ORDER = [
 ] as const;
 
 /** The bottom bar's items for this user: permitted, in priority order, capped by the caller. */
-export function mobilePrimaryNav(can: (perm: string) => boolean): NavItem[] {
-  const permitted = NAV_ITEMS.filter((item) => item.perm === null || can(item.perm));
+export function mobilePrimaryNav(can: (perm: string) => boolean, source: NavItem[] = NAV_ITEMS): NavItem[] {
+  const permitted = source.filter((item) => item.perm === null || can(item.perm));
   const ranked = [...permitted].sort((a, b) => {
     const ia = MOBILE_PRIMARY_ORDER.indexOf(a.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
     const ib = MOBILE_PRIMARY_ORDER.indexOf(b.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
   return ranked;
+}
+
+/**
+ * Which application context this user belongs in (ADR-037).
+ *
+ * A platform operator is identified by `platform.tenants.manage`, which only the
+ * vendor's super_admin resolves (via WILDCARD in the PLATFORM org, ADR-020/022) —
+ * never a hospital's org_admin. This is UX routing only: every endpoint still
+ * re-checks permissions server-side.
+ */
+export function isPlatformOperator(can: (perm: string) => boolean): boolean {
+  return can(PERMISSIONS.TENANTS_MANAGE);
+}
+
+/**
+ * The sidebar for the context the user is in. A System Admin gets platform
+ * navigation and **no clinical menu** — to work inside a hospital they enter that
+ * tenant explicitly through a support session, which is an audited transition
+ * rather than a silently broader sidebar.
+ */
+export function navForContext(can: (perm: string) => boolean, inTenantContext: boolean): NavItem[] {
+  return isPlatformOperator(can) && !inTenantContext ? PLATFORM_NAV : NAV_ITEMS;
 }

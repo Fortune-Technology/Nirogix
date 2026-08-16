@@ -109,6 +109,43 @@
   --mk-illustration-stage: #e9eff1; /* soft light medallion for the doctor on dark */
 }
 
+/*
+ * @hms/ui bridge — the shared components this site uses (BackToTop, BottomNav,
+ * NavDrawer, Toast) are styled on `--hms-*`, which default to the Portal's palette.
+ * Marketing branding lives in `--mk-*`, so the slots those components consume are
+ * pointed at this scope once, here, rather than each component learning about two
+ * token sets (rules.md → Branding & Multi-Tenant Customization).
+ *
+ * Both selectors are listed so this wins over @hms/ui's own `:root` *and* its
+ * `[data-theme='dark']` block regardless of theme; every value is a reference, so a
+ * platform-branding override of `--mk-accent` (ADR-024) re-skins them for free.
+ * Product-UI previews that deliberately show the Portal's own palette scope their
+ * `--hms-*` locally and are unaffected.
+ */
+:root,
+:root[data-theme="dark"] {
+  --hms-brand: var(--mk-accent);
+  --hms-brand-hover: var(--mk-accent-hover);
+  --hms-brand-fg: var(--mk-accent-ink);
+  --hms-brand-subtle: var(--mk-accent-subtle);
+  --hms-ring: var(--mk-accent);
+
+  --hms-bg: var(--mk-canvas);
+  --hms-surface: var(--mk-surface);
+  --hms-surface-2: var(--mk-surface-2);
+  --hms-border: var(--mk-hairline);
+  --hms-fg: var(--mk-ink);
+  --hms-fg-muted: var(--mk-ink-muted);
+  --hms-fg-subtle: var(--mk-ink-subtle);
+
+  --hms-success: var(--mk-success);
+  --hms-danger: var(--mk-danger);
+
+  --hms-radius-sm: var(--mk-radius-sm);
+  --hms-radius-md: var(--mk-radius-md);
+  --hms-radius-lg: var(--mk-radius-lg);
+}
+
 /* Map the marketing tokens into Tailwind's theme so utilities (bg-canvas, text-ink,
  * text-accent, rounded-lg, font-sans …) resolve to the design system. */
 @theme inline {

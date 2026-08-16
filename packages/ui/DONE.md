@@ -146,3 +146,17 @@ Append-only implementation log. Newest at the bottom.
 **Defect found and fixed:** every sortable header announced as **"Column, not sorted"** to a screen reader, because `children` is a React node rather than a string. `DataTableColumnHeader` gained an explicit `name` prop, and `DataTable` passes the column label from its meta — so headers now announce "Patient, not sorted. Activate to sort." This was invisible to sighted testing and only surfaced because the test asked for the control by its accessible name.
 
 **Testing status:** 27 passed; both apps still build.
+
+---
+
+## 2026-08-16 — One Action column, and branding that survives a hover (ADR-039, ADR-040)
+
+**Added — `src/components/table-actions/`:** the single row-actions system. `actionsColumn()` fixes the column (last, right-aligned, "Actions", never sortable or hideable); `TableActions` groups the controls; `ViewAction` / `EditAction` / `DeleteAction` / `ToggleAction` cover the common set, `TableAction` carries a module's own operation with its own icon and label, and `MoreActions` holds the overflow. One internal control implements all of them, so iconography, sizing, spacing, hover / active / focus, tooltips, accessible names, `disabledReason`, the loading spinner, confirmation, and permission gating exist once. `permitted={false}` renders nothing; `DeleteAction` always routes through `ConfirmDialog`; `ToggleAction` is a real `role="switch"` on the brand token.
+
+**Migrated and deleted:** `ActionMenu` became `MoreActions` (its `RowAction` type is now `MoreAction`, with `visible` renamed to `permitted`), and `ActionMenu.tsx` was removed rather than left alongside. `Menu` gained `triggerBase` so the "…" trigger can wear the row-action shape instead of the secondary-button one.
+
+**Fixed — branding held at rest and broke on interaction.** `--hms-brand-hover` was a second literal in both themes, and the Portal's tenant-branding path wrote the *same* hex into brand and brand-hover, so a branded control flattened on hover and had no pressed state. Hover and subtle now derive from `--hms-brand` via `color-mix` (darken on Light, lighten on Dark), `BackToTop` gained an `:active` state, and only `--hms-brand` is ever set at runtime.
+
+**Styles:** `.hms-rowactions` / `.hms-rowaction` (2rem icon button, accent-subtle hover, danger tint for destructive, ring focus, 45% disabled, spinner) and `.hms-switch` (brand-filled track, `brand-fg` thumb). `.hms-actions__trigger` was deleted with `ActionMenu`. All of it reduced-motion aware.
+
+**Testing status:** 38 passed (11 new in `TableActions.test.tsx` — permission gating, group labelling, disabled reason surfaced as the tooltip, no input while loading, delete requiring the confirmation, cancel leaving the record alone, switch semantics and its confirm gate, `MoreActions` rendering nothing when nothing is permitted, and the generic action using the same control). Both apps build.

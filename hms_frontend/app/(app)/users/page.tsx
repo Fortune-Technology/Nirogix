@@ -3,12 +3,25 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, DataTable, type Column } from "@hms/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Field,
+  DataTable,
+  TableActions,
+  ToggleAction,
+  ViewAction,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { UserListItem, Role } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
+import { useCan } from "../../../lib/auth";
 
 function statusTone(s: string): "success" | "warning" | "neutral" {
   if (s === "active") return "success";
@@ -16,7 +29,12 @@ function statusTone(s: string): "success" | "warning" | "neutral" {
   return "neutral";
 }
 
-const columns: Array<Column<UserListItem>> = [
+function userColumns(
+  canManage: boolean,
+  busy: boolean,
+  onSetStatus: (u: UserListItem, status: string) => void,
+): Array<Column<UserListItem>> {
+  return [
   {
     key: "email",
     header: "Email",
@@ -54,13 +72,40 @@ const columns: Array<Column<UserListItem>> = [
     accessor: (u) => u.status,
     cell: (u) => <Badge tone={statusTone(u.status)}>{u.status}</Badge>,
   },
-];
+  actionsColumn<UserListItem>((u) => (
+    <TableActions label={`Actions for ${u.fullName}`}>
+      <ViewAction label="View user" href={`/users/${u.id}`} />
+      <ToggleAction
+        on={u.status === "active"}
+        onLabel="Suspend user"
+        offLabel="Reactivate user"
+        // Roles, overrides and everything else live on the user's own page; the
+        // row carries only the active ↔ suspended switch.
+        permitted={canManage && (u.status === "active" || u.status === "suspended")}
+        loading={busy}
+        confirm={
+          u.status === "active"
+            ? {
+                title: `Suspend ${u.fullName}?`,
+                description: `${u.email} is signed out and cannot sign in until the account is reactivated.`,
+                confirmLabel: "Suspend",
+              }
+            : undefined
+        }
+        onToggle={(next) => onSetStatus(u, next ? "active" : "suspended")}
+      />
+    </TableActions>
+  )),
+  ];
+}
 
 function UsersTable() {
   const [rows, setRows] = useState<UserListItem[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const canManage = useCan(PERMISSIONS.USERS_MANAGE);
 
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState("");
@@ -85,6 +130,18 @@ function UsersTable() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function setStatus(u: UserListItem, status: string) {
+    setBusy(true);
+    try {
+      await api.updateUser(u.id, { status });
+      await load();
+    } catch {
+      // The shared API-feedback layer has already told the user.
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -158,7 +215,7 @@ function UsersTable() {
       )}
 
       <DataTable
-        columns={columns}
+        columns={userColumns(canManage, busy, (u, status) => void setStatus(u, status))}
         rows={rows}
         rowKey={(u) => u.id}
         loading={loading}

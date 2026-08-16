@@ -36,7 +36,7 @@ const noFlashScript = `(function(){try{
   var t=localStorage.getItem('hms-theme');
   document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light');
   var b=localStorage.getItem('hms-brand');
-  if(b){var s=document.documentElement.style;s.setProperty('--hms-brand',b);s.setProperty('--hms-brand-hover',b);}
+  if(b){document.documentElement.style.setProperty('--hms-brand',b);}
 }catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

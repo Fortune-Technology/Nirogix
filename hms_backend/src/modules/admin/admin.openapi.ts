@@ -156,3 +156,49 @@ registry.registerPath({
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
   },
 });
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/support-sessions',
+  operationId: 'startSupportSession',
+  tags: ['Admin'],
+  summary: 'Start a support session inside a tenant (impersonation)',
+  description:
+    'Requires `platform.support.impersonate`. Mints a session for the target user WITHOUT their password, ' +
+    'carrying only that target user roles, so the operator privileges never enter the tenant. Refuses to target a ' +
+    'platform operator, an inactive user, an inactive tenant, or to nest inside an existing support session. ' +
+    'Start and end are both written to the TARGET tenant audit trail with the operator, reason and ticket reference.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            tenantId: z.string().uuid(),
+            userId: z.string().uuid(),
+            reason: z.string().min(10).max(300).openapi({ description: 'Recorded in the audit trail; required' }),
+            ticketRef: z.string().max(80).optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Support session started; refresh cookie now belongs to the target tenant',
+      content: {
+        'application/json': {
+          schema: z.object({
+            accessToken: z.string(),
+            user: z.object({ id: z.string(), email: z.string(), fullName: z.string() }),
+            tenant: z.object({ id: z.string(), name: z.string() }),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    403: { description: 'Missing platform.support.impersonate, or the target is a platform operator', content: { 'application/json': { schema: ErrorResponseSchema } } },
+    404: { description: 'Tenant or user not found', content: { 'application/json': { schema: ErrorResponseSchema } } },
+    422: { description: 'Validation failed (reason too short, inactive tenant/user)', content: { 'application/json': { schema: ErrorResponseSchema } } },
+  },
+});

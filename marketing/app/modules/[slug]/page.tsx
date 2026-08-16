@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Check, Puzzle } from "lucide-react";
+import { ArrowRight, Check, Clock, Puzzle } from "lucide-react";
 import { PageHeader } from "../../../components/site/PageHeader";
 import { CtaSection } from "../../../components/site/CtaSection";
 import { Button } from "../../../components/ui/Button";
@@ -10,6 +10,7 @@ import { Reveal } from "../../../components/ui/Reveal";
 import { ProductFrame } from "../../../components/product/ProductFrame";
 import { AppointmentsPreview } from "../../../components/product/previews";
 import { CLINIC_MODULES } from "../../../lib/site";
+import { AvailabilityBadge } from "../../../components/site/AvailabilityBadge";
 import { JsonLd } from "../../../components/site/JsonLd";
 import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../../lib/seo";
 
@@ -24,37 +25,37 @@ const MODULE_SEO: Record<string, { title: string; description: string }> = {
   patients: {
     title: "Patient Management System",
     description:
-      "Patient management software for hospitals and clinics: one record per patient with UHID, duplicate detection, family linking, and a complete medical timeline.",
+      "Patient management software for hospitals and clinics: one record per patient with a tenant-unique UHID, demographics and ABHA number, and search by name, phone, or UHID.",
   },
   appointments: {
     title: "Hospital Appointment Management Software",
     description:
-      "Hospital appointment management: slot and availability control per doctor, multi-channel booking, reminders, rescheduling, waitlists, and no-show tracking.",
+      "Hospital appointment management: booking against each doctor's slots with conflict prevention, cancellation that frees the slot, and check-in straight from the booking.",
   },
   opd: {
     title: "OPD Management & Patient Check-in Software",
     description:
-      "OPD software from check-in to consult: token queues, live waiting lists, doctor-wise flow, and a consultation bill opened automatically at check-in.",
+      "OPD software from check-in to consult: token queues, a live waiting list in token order, and a consultation bill opened automatically at check-in.",
   },
   emr: {
-    title: "EMR Software: Clinical Workflow & E-Prescriptions",
+    title: "EMR Software: Clinical Workflow & Prescriptions",
     description:
-      "EMR for outpatient care: structured SOAP notes, ICD-10 coding, e-prescriptions, and lab orders raised from the consultation itself.",
+      "EMR for outpatient care: structured SOAP notes and vitals, ICD-10 diagnosis coding, and prescriptions and lab orders raised from the consultation itself.",
   },
   pharmacy: {
     title: "Pharmacy Management Software for Hospitals",
     description:
-      "Hospital pharmacy management: dispensing against prescriptions, batch and expiry-aware stock, reorder levels, and GST-correct pharmacy billing.",
+      "Hospital pharmacy management: dispensing against prescriptions, batch and expiry-aware stock issued first-expiry-first-out, reorder levels, and charges on the patient's bill.",
   },
   laboratory: {
     title: "Laboratory Management System (LIS)",
     description:
-      "Laboratory management for hospitals and diagnostic centres: order to signed report, sample tracking, reference ranges, and lab charges on the patient's bill.",
+      "Laboratory management for hospitals and diagnostic centres: order to result, sample collection tracking, reference ranges with abnormal flags, and lab charges on the patient's bill.",
   },
   billing: {
     title: "Hospital Billing Software",
     description:
-      "Hospital billing software: one invoice across consultation, pharmacy, and lab, with part payments, GST handling, receipts, and a complete collections trail.",
+      "Hospital billing software: one invoice across consultation, pharmacy, and lab, with line-level tax, part payments, a running balance, and a complete collections trail.",
   },
 };
 
@@ -106,6 +107,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
         eyebrow="Module"
         title={mod.name}
         lede={mod.tagline}
+        badge={<AvailabilityBadge status={mod.status} />}
         actions={
           <>
             <Button href="/contact" size="lg">
@@ -128,15 +130,37 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
                   Available as a standalone module
                 </Pill>
               )}
-              <h2 className="mk-heading mt-5 text-2xl text-ink sm:text-3xl">What it does</h2>
+              <h2 className="mk-heading mt-5 text-2xl text-ink sm:text-3xl">What it does today</h2>
               <ul className="mt-6 flex flex-col gap-4">
-                {mod.points.map((point) => (
+                {mod.live.map((point) => (
                   <li key={point} className="flex items-start gap-3">
                     <Check size={20} strokeWidth={2} className="mt-0.5 shrink-0 text-accent" />
                     <span className="text-[0.975rem] leading-relaxed text-ink">{point}</span>
                   </li>
                 ))}
               </ul>
+
+              {/* Planned scope is stated as planned — never mixed into the list above
+                  (rules.md → Marketing Content & Claim Accuracy). */}
+              {mod.planned.length > 0 && (
+                <div className="mt-10 rounded-xl border border-hairline bg-surface p-6">
+                  <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
+                    Planned for this module
+                    <AvailabilityBadge status="planned" />
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-subtle">
+                    Scheduled in our product plan. Not available yet.
+                  </p>
+                  <ul className="mt-4 flex flex-col gap-3">
+                    {mod.planned.map((point) => (
+                      <li key={point} className="flex items-start gap-3">
+                        <Clock size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-ink-faint" />
+                        <span className="text-sm leading-relaxed text-ink-muted">{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {slug === "appointments" ? (

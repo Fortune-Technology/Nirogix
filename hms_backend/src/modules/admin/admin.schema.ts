@@ -73,5 +73,16 @@ export const TenantDetailSchema = z
       z.object({ id: z.string().uuid(), code: z.string(), name: z.string(), isActive: z.boolean() }),
     ),
     userCount: z.number().int(),
+    // Identity only — never clinical data. Used for tenant administration and for
+    // choosing a support-session target (ADR-037).
+    users: z.array(
+      z.object({
+        id: z.string().uuid(),
+        email: z.string(),
+        fullName: z.string(),
+        status: z.string(),
+        roles: z.array(z.string()),
+      }),
+    ),
   })
   .openapi('TenantDetail');

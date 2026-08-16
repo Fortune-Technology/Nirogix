@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { UserCheck } from "lucide-react";
-import { Badge, Button, DataTable, type Column } from "@hms/ui";
+import { CheckCircle2, Stethoscope, UserCheck } from "lucide-react";
+import {
+  Badge,
+  Button,
+  DataTable,
+  TableAction,
+  TableActions,
+  ViewAction,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Visit } from "@hms/types";
 import { formatTime } from "@hms/utils";
@@ -127,33 +136,29 @@ function OpdQueue() {
           <span className="text-fg-subtle">—</span>
         ),
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      hideable: false,
-      cell: (v) => (
-        <div className="flex justify-end gap-2">
-          {canConsult && v.status !== "cancelled" && (
-            <Link href={`/opd/${v.id}`}>
-              <Button variant="secondary" size="sm">
-                {v.status === "completed" ? "View" : "Open"}
-              </Button>
-            </Link>
-          )}
-          {canUpdate && v.status === "checked_in" && (
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "in_consultation")}>
-              Start consult
-            </Button>
-          )}
-          {canUpdate && v.status === "in_consultation" && (
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => advance(v, "completed")}>
-              Complete
-            </Button>
-          )}
-        </div>
-      ),
-    },
+    actionsColumn<Visit>((v) => (
+      <TableActions label={`Actions for token #${v.tokenNumber}`}>
+        <ViewAction
+          label={v.status === "completed" ? "View visit" : "Open visit"}
+          permitted={canConsult && v.status !== "cancelled"}
+          href={`/opd/${v.id}`}
+        />
+        <TableAction
+          label="Start consult"
+          icon={<Stethoscope size={16} strokeWidth={2} aria-hidden />}
+          permitted={canUpdate && v.status === "checked_in"}
+          loading={busy}
+          onSelect={() => void advance(v, "in_consultation")}
+        />
+        <TableAction
+          label="Complete visit"
+          icon={<CheckCircle2 size={16} strokeWidth={2} aria-hidden />}
+          permitted={canUpdate && v.status === "in_consultation"}
+          loading={busy}
+          onSelect={() => void advance(v, "completed")}
+        />
+      </TableActions>
+    )),
   ];
 
   return (

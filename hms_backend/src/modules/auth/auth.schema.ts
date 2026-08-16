@@ -23,6 +23,7 @@ export const PublicUserSchema = z
     createdAt: z.string().datetime(),
     /** Role keys held in this tenant; present on /auth/me, omitted elsewhere. */
     roles: z.array(z.string()).optional(),
+    impersonatedBy: z.string().nullable().optional(),
   })
   .openapi('User');
 export type PublicUser = z.infer<typeof PublicUserSchema>;

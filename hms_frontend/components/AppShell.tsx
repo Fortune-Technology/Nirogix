@@ -5,10 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { BOTTOM_NAV_MAX_ITEMS, BottomNav, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
-import { Menu } from "lucide-react";
+import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { NAV_ITEMS, mobilePrimaryNav } from "../lib/nav";
+import { mobilePrimaryNav, navForContext } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
 function initials(name: string): string {
@@ -29,12 +29,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const visibleNav = NAV_ITEMS.filter((item) => item.perm === null || can(item.perm));
+  // Platform operators get the platform sidebar, not a superset of every hospital's
+  // menu (ADR-037). `inTenantContext` will be set by an active support session.
+  // A support session puts a platform operator inside a tenant (ADR-037): the
+  // tenant's own sidebar applies, and the banner below makes it impossible to
+  // forget which hospital you are acting in.
+  const inTenantContext = Boolean(user?.impersonatedBy);
+  const isPlatform = navForContext(can, inTenantContext) !== undefined && can("platform.tenants.manage");
+  const contextNav = navForContext(can, inTenantContext);
+  const visibleNav = contextNav.filter((item) => item.perm === null || can(item.perm));
   // Mobile (ADR-033): five primary destinations in the bottom bar, everything else
   // in the drawer. Both derive from the same permission-filtered list as the
   // sidebar, so the phone never offers a route the user cannot open.
   const [menuOpen, setMenuOpen] = useState(false);
-  const ranked = mobilePrimaryNav(can);
+  const ranked = mobilePrimaryNav(can, contextNav);
   const primary = ranked.slice(0, BOTTOM_NAV_MAX_ITEMS);
   const secondary = visibleNav.filter((item) => !primary.some((p) => p.href === item.href));
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -63,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : (
             <span className="inline-block h-6 w-6 rounded-token bg-brand" aria-hidden />
           )}
-          <span className="font-semibold text-fg">HMS Portal</span>
+          <span className="font-semibold text-fg">{isPlatform ? "HMS Platform" : "HMS Portal"}</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {visibleNav.map((item) => {
@@ -87,6 +95,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {inTenantContext ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-warning-subtle px-5 py-2.5 text-sm">
+            <span className="flex items-center gap-2 font-medium text-warning">
+              <ShieldAlert size={16} strokeWidth={2} aria-hidden />
+              Support session — you are acting as {user?.fullName} and every action is audited in this tenant.
+            </span>
+            <Button variant="secondary" size="sm" onClick={handleLogout}>
+              Exit support session
+            </Button>
+          </div>
+        ) : null}
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
           <div className="flex items-center gap-2 text-sm text-fg-muted md:hidden">
             <span className="inline-block h-5 w-5 rounded-token bg-brand" aria-hidden />

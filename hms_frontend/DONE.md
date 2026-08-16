@@ -344,3 +344,22 @@ Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.
 - `successMessage` prefers the API's own message, then the call's copy or formatter, then a verb-appropriate default.
 
 **Testing status:** 12 passed. Root `npm run test` now runs all four workspaces: **106 tests green** (backend 49, `@hms/ui` 27, `@hms/utils` 18, Portal 12).
+
+---
+
+## 2026-08-16 — Every table gets the same Action column, and a tenant accent that survives hover (ADR-039, ADR-040)
+
+**Migrated to the shared Action column** (`actionsColumn()` + `TableActions` from `@hms/ui`), replacing five different presentations of the same idea:
+
+- **Patients** — the old `ActionMenu` became inline `ViewAction` + permission-gated `EditAction`.
+- **Branches** — a secondary "Activate/Deactivate" button became a `ToggleAction`, which now **confirms before deactivating** and names the consequence.
+- **Users** and **Tenants** — gained an Action column they never had: view, plus an active ↔ suspended `ToggleAction` (permission-gated on users, confirmed when suspending, since it signs the account out).
+- **Appointments** — "Check in" and "Cancel" buttons became `TableAction`s; cancelling now confirms, naming the patient, time, and provider.
+- **OPD queue** — "Open/View", "Start consult" and "Complete" became icon actions with tooltips, keeping the one-click clinical flow.
+- **Pharmacy stock** — "Receive" became a `TableAction` toggling the receive panel.
+- **Billing** — an invoice `ViewAction` on every row.
+- **Tenant detail → Modules** and **User detail → Roles / Permission overrides** — chip lists whose bare `X` buttons revoked an entitlement, a role, or an override **on one click** are now real DataTables with the shared Action column, and every one of those actions confirms first, naming what the user loses.
+
+**Fixed — tenant branding stopped at rest.** `applyBrandColor` (and the no-flash script) wrote the same hex into `--hms-brand` and `--hms-brand-hover`, so a tenant's accent flattened the moment a control was hovered and had no pressed state at all. Both now set the brand slot only; the token layer derives the rest (ADR-040).
+
+**Testing status:** typecheck + build clean; `@hms/ui` suite 38 passed. Manual cases added to `testcases.md` (ACT-01…ACT-10, BRD-05…BRD-07).

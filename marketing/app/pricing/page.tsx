@@ -5,6 +5,7 @@ import { CtaSection } from "../../components/site/CtaSection";
 import { Button } from "../../components/ui/Button";
 import { Container, SectionHeading } from "../../components/ui/primitives";
 import { PACKAGES, PRICING_FAQ } from "../../lib/catalogue";
+import { ReleaseNote } from "../../components/site/AvailabilityBadge";
 import { JsonLd } from "../../components/site/JsonLd";
 import { breadcrumbJsonLd, faqJsonLd, pageMetadata } from "../../lib/seo";
 
@@ -55,9 +56,9 @@ export default function PricingPage() {
                     >
                       <Icon size={22} strokeWidth={1.6} />
                     </span>
-                    {featured && (
+                    {pkg.badge && (
                       <span className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-ink">
-                        Most popular
+                        {pkg.badge}
                       </span>
                     )}
                   </div>
@@ -102,7 +103,9 @@ export default function PricingPage() {
             })}
           </div>
 
-          <div className="mt-8 flex items-start gap-3 rounded-xl border border-hairline bg-surface p-5">
+          <ReleaseNote className="mt-8" />
+
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-hairline bg-surface p-5">
             <Plus size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-accent" />
             <p className="text-sm leading-relaxed text-ink-muted">
               Every package includes the platform core: tenant isolation, role-based access, audit

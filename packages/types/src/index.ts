@@ -38,6 +38,23 @@ export interface AuthUser {
   createdAt: string;
   /** Role keys in this tenant. Present on /auth/me; omitted on the login response. */
   roles?: string[];
+  /** Set when this session was started by a platform operator (ADR-037). */
+  impersonatedBy?: string | null;
+}
+
+/** `POST /admin/support-sessions` (ADR-037). */
+export interface StartSupportSessionRequest {
+  tenantId: string;
+  userId: string;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface StartSupportSessionResponse {
+  accessToken: string;
+  user: AuthUser;
+  tenant: { id: string; name: string };
+  message: string;
 }
 
 export interface LoginRequest {
@@ -109,6 +126,8 @@ export interface TenantDetail extends Tenant {
   modules: string[];
   branches: Branch[];
   userCount: number;
+  /** Identity only, for tenant administration and support-session targeting (ADR-037). */
+  users: Array<{ id: string; email: string; fullName: string; status: string; roles: string[] }>;
 }
 
 export interface ModuleCatalogItem {

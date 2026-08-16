@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { z } from '../../openapi/registry';
 import { Errors } from '../../http/error';
 import { MODULE_CATALOG } from '../entitlement/moduleCatalog';
 import * as svc from './admin.service';
@@ -36,6 +37,8 @@ export async function getTenant(req: Request, res: Response): Promise<void> {
     modules: detail.modules,
     branches: detail.branches,
     userCount: detail.userCount,
+    // Identity only, for tenant administration and support-session targeting (ADR-037).
+    users: detail.users,
   });
 }
 
@@ -54,4 +57,41 @@ export async function revokeModule(req: Request, res: Response): Promise<void> {
   if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
   await svc.revokeTenantModule(req.params.id!, req.params.key!, req.auth!.userId);
   res.json({ tenant: req.params.id, module: req.params.key, status: 'revoked' });
+}
+
+const SupportSessionBody = z.object({
+  tenantId: z.string().uuid(),
+  userId: z.string().uuid(),
+  /** Written into the audit trail in the target tenant — required, not optional. */
+  reason: z.string().trim().min(10).max(300),
+  ticketRef: z.string().trim().max(80).optional(),
+});
+
+/**
+ * Starts a support session. The response sets the refresh cookie for the TARGET
+ * tenant, so the operator's browser continues as that user until they exit.
+ */
+export async function postSupportSession(req: Request, res: Response): Promise<void> {
+  const input = SupportSessionBody.parse(req.body);
+  const operator = req.auth!;
+  if (operator.impersonatedBy) {
+    // No nesting: a support session cannot launch another one.
+    throw Errors.forbidden('You are already in a support session');
+  }
+  const result = await svc.startSupportSession(
+    { userId: operator.userId, tenantId: operator.tenantId },
+    input,
+    { userAgent: req.headers['user-agent'], ip: req.ip },
+  );
+  // NO refresh cookie for a support session (ADR-037). Cookies are shared across
+  // tabs, so setting one would hijack the operator's own platform session in every
+  // other tab — a silent tenant switch, which is exactly what must never happen.
+  // The support session therefore lives only as an in-memory access token in the
+  // tab that opened it, and expires with that token rather than being refreshable.
+  res.json({
+    accessToken: result.accessToken,
+    user: result.user,
+    tenant: result.tenant,
+    message: `Support session started in ${result.tenant.name}.`,
+  });
 }

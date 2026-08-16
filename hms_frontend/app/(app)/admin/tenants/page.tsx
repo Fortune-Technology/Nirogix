@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Badge, Button, DataTable, type Column } from "@hms/ui";
+import {
+  Badge,
+  Button,
+  DataTable,
+  TableActions,
+  ToggleAction,
+  ViewAction,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Tenant } from "@hms/types";
 import { formatDate } from "@hms/utils";
@@ -18,7 +27,8 @@ function statusTone(s: string): "success" | "warning" | "danger" | "neutral" {
   return "neutral";
 }
 
-const columns: Array<Column<Tenant>> = [
+function tenantColumns(busy: boolean, onSetStatus: (t: Tenant, status: string) => void): Array<Column<Tenant>> {
+  return [
   {
     key: "code",
     header: "Code",
@@ -44,24 +54,65 @@ const columns: Array<Column<Tenant>> = [
     accessor: (t) => t.createdAt,
     cell: (t) => <span className="text-fg-muted">{formatDate(t.createdAt)}</span>,
   },
-];
+  actionsColumn<Tenant>((t) => (
+    <TableActions label={`Actions for ${t.name}`}>
+      <ViewAction label="View tenant" href={`/admin/tenants/${t.id}`} />
+      <ToggleAction
+        on={t.status === "active"}
+        onLabel="Suspend tenant"
+        offLabel="Reactivate tenant"
+        // Only the active ↔ suspended transition belongs on a list row; cancelled
+        // and deactivated tenants are handled on the tenant's own page.
+        permitted={t.status === "active" || t.status === "suspended"}
+        loading={busy}
+        confirm={
+          t.status === "active"
+            ? {
+                title: `Suspend ${t.name}?`,
+                description: "Everyone in this organization is signed out and cannot sign in until it is reactivated.",
+                confirmLabel: "Suspend",
+              }
+            : undefined
+        }
+        onToggle={(next) => onSetStatus(t, next ? "active" : "suspended")}
+      />
+    </TableActions>
+  )),
+  ];
+}
 
 function TenantsTable() {
   const [rows, setRows] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await api.listTenants());
+      setError(null);
+    } catch (e) {
+      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load tenants.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    api
-      .listTenants()
-      .then((d) => alive && setRows(d))
-      .catch((e) => alive && setError(e instanceof api.ApiRequestError ? e.message : "Failed to load tenants."))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  async function setStatus(t: Tenant, status: string) {
+    setBusy(true);
+    try {
+      await api.setTenantStatus(t.id, status);
+      await load();
+    } catch {
+      // The shared API-feedback layer has already told the user.
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -75,11 +126,12 @@ function TenantsTable() {
         }
       />
       <DataTable
-        columns={columns}
+        columns={tenantColumns(busy, (t, status) => void setStatus(t, status))}
         rows={rows}
         rowKey={(t) => t.id}
         loading={loading}
         error={error}
+        onRetry={() => void load()}
         emptyMessage="No tenants yet."
       />
     </>

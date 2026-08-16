@@ -28,7 +28,7 @@ const PRINCIPLES = [
   {
     icon: MapPin,
     title: "Built for India",
-    body: "India-resident hosting, Indian coding and compliance frameworks, and Indian payment rails, with room to expand later.",
+    body: "India-resident hosting, Indian clinical coding and compliance frameworks, and rupee billing built around how Indian hospitals collect, with room to expand later.",
   },
   {
     icon: Target,

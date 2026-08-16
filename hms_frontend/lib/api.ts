@@ -66,6 +66,8 @@ import type {
   OpdRegisterRow,
   CollectionsReport,
   PendingLabRow,
+  StartSupportSessionRequest,
+  StartSupportSessionResponse,
 } from "@hms/types";
 import { ApiRequestError, NetworkError, TimeoutError } from "./apiErrors";
 import { notifyError, notifySuccess, successMessage } from "./feedback";
@@ -328,6 +330,14 @@ export async function revokeTenantModule(id: string, key: string): Promise<void>
 
 export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
   return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+}
+
+/**
+ * Starts a support session (ADR-037). The response's access token belongs to the
+ * TARGET user in the TARGET tenant — the caller continues as them until they exit.
+ */
+export async function startSupportSession(body: StartSupportSessionRequest): Promise<StartSupportSessionResponse> {
+  return request<StartSupportSessionResponse>("/admin/support-sessions", { method: "POST", body });
 }
 
 export async function getPlatformStats(): Promise<PlatformStats> {

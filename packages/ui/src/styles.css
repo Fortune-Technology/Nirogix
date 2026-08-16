@@ -12,10 +12,12 @@
 
 :root {
   /* Brand / accent — the deep-teal HMS signature; the per-tenant overridable slot
-   * (resources/DESIGN.md §7). --hms-brand-subtle is derived so a tenant accent
-   * override also re-skins active nav, badges, and tints. */
+   * (resources/DESIGN.md §7). Only --hms-brand is a literal: hover and subtle are
+   * derived from it, so overriding the single brand value re-skins every state —
+   * resting, hover, pressed, focus ring, active nav, badges and tints — instead of
+   * a tenant accent reverting to the default teal the moment a control is hovered. */
   --hms-brand: #0e7490;
-  --hms-brand-hover: #0b5f76;
+  --hms-brand-hover: color-mix(in srgb, var(--hms-brand) 84%, #000);
   --hms-brand-fg: #ffffff;
   --hms-brand-subtle: color-mix(in srgb, var(--hms-brand) 12%, var(--hms-surface));
 
@@ -59,11 +61,12 @@
 }
 
 [data-theme='dark'] {
-  /* Brand brightens on the dark ground for contrast; subtle re-derives from it.
-   * --hms-ring is inherited from :root (var(--hms-brand)) and resolves to the
-   * dark brand automatically. */
+  /* Brand brightens on the dark ground for contrast; hover and subtle re-derive
+   * from it — on dark the hover lightens rather than darkens. --hms-ring is
+   * inherited from :root (var(--hms-brand)) and resolves to the dark brand
+   * automatically. */
   --hms-brand: #22b8cf;
-  --hms-brand-hover: #3bc9db;
+  --hms-brand-hover: color-mix(in srgb, var(--hms-brand) 82%, #fff);
   --hms-brand-fg: #052027;
   --hms-brand-subtle: color-mix(in srgb, var(--hms-brand) 18%, var(--hms-surface));
 
@@ -403,6 +406,9 @@
 .hms-backtotop:hover {
   background: var(--hms-brand-hover);
 }
+.hms-backtotop:active {
+  background: color-mix(in srgb, var(--hms-brand-hover) 88%, var(--hms-fg));
+}
 .hms-backtotop:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
@@ -702,8 +708,125 @@
   margin: 0.25rem 0;
   background: var(--hms-border);
 }
-.hms-actions__trigger {
-  padding: 0.25rem 0.375rem;
+/* --------------------------------------------------------------------------
+ * Action column — the one row-actions system (rules.md → Table Row Actions).
+ * Every colour here is a token, so a tenant accent or a marketing-brand
+ * override re-skins every table's actions with no component change.
+ * ------------------------------------------------------------------------ */
+.hms-rowactions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.125rem;
+  white-space: nowrap;
+}
+.hms-rowaction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--hms-radius-sm);
+  background: transparent;
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.hms-rowaction:hover {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+}
+.hms-rowaction:active {
+  background: color-mix(in srgb, var(--hms-brand) 22%, var(--hms-surface));
+}
+.hms-rowaction:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+.hms-rowaction[aria-expanded='true'] {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+}
+.hms-rowaction--danger:hover {
+  background: var(--hms-danger-subtle);
+  color: var(--hms-danger);
+}
+.hms-rowaction--danger:active {
+  background: color-mix(in srgb, var(--hms-danger) 22%, var(--hms-surface));
+}
+.hms-rowaction--inert,
+.hms-rowaction:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.hms-rowaction--inert:hover,
+.hms-rowaction:disabled:hover {
+  background: transparent;
+  color: var(--hms-fg-muted);
+}
+.hms-rowaction__spin {
+  animation: hms-spin 0.6s linear infinite;
+}
+
+/* Enable/Disable — Activate/Deactivate. One switch for every module. */
+.hms-switch {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 1.25rem;
+  margin: 0 0.25rem;
+  padding: 2px;
+  border: 1px solid var(--hms-border);
+  border-radius: 9999px;
+  background: var(--hms-surface-2);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.hms-switch__thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  background: var(--hms-surface);
+  box-shadow: var(--hms-shadow-sm);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.hms-switch--on {
+  background: var(--hms-brand);
+  border-color: var(--hms-brand);
+}
+.hms-switch--on .hms-switch__thumb {
+  transform: translateX(1rem);
+  background: var(--hms-brand-fg);
+}
+.hms-switch:hover:not(.hms-switch--inert) {
+  border-color: var(--hms-brand);
+}
+.hms-switch--on:hover:not(.hms-switch--inert) {
+  background: var(--hms-brand-hover);
+  border-color: var(--hms-brand-hover);
+}
+.hms-switch:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+.hms-switch--inert,
+.hms-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-rowaction,
+  .hms-switch,
+  .hms-switch__thumb {
+    transition: none;
+  }
+  .hms-rowaction__spin {
+    animation-duration: 1.6s;
+  }
 }
 
 /* --------------------------------------------------------------------------

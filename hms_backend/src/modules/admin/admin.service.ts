@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, branches, providers, patients, appointments, type Tenant } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { hashPassword } from '../auth/password';
-import { provisionTenantRbac, assignRoleByKey } from '../rbac/rbac.service';
+import { provisionTenantRbac, assignRoleByKey, listUserRoles } from '../rbac/rbac.service';
 import {
   grantModule,
   setModuleStatus,
@@ -13,6 +13,8 @@ import {
 } from '../entitlement/entitlement.service';
 import { MODULE_CATALOG, moduleDef } from '../entitlement/moduleCatalog';
 import { writeAudit } from '../audit/audit.service';
+import { issueImpersonatedSession, toPublicUserRow } from '../auth/auth.service';
+import type { PublicUser } from '../auth/auth.schema';
 
 // The MVP module set a new clinic gets by default (development-plan §20A). Order-independent;
 // dependency closure + hard-dependency ordering are handled below.
@@ -118,6 +120,8 @@ export async function listTenants(): Promise<Tenant[]> {
 }
 
 export type TenantDetail = Tenant & {
+  /** Identity only, for tenant administration and support-session targeting (ADR-037). */
+  users: Array<{ id: string; email: string; fullName: string; status: string; roles: string[] }>;
   modules: string[];
   branches: Array<{ id: string; code: string; name: string; isActive: boolean }>;
   userCount: number;
@@ -128,7 +132,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   if (!tenant) return null;
 
   const modules = Array.from(await listEntitledModules(tenantId)).sort();
-  const { branchRows, userCount } = await runWithTenant(tenantId, async (tx) => {
+  const { branchRows, userCount, userRows } = await runWithTenant(tenantId, async (tx) => {
     const branchRows = await tx
       .select()
       .from(branches)
@@ -136,14 +140,26 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     const c = (
       await tx.select({ c: count() }).from(users).where(eq(users.tenantId, tenantId))
     )[0];
-    return { branchRows, userCount: Number(c?.c ?? 0) };
+    // Identity only — never clinical data. The operator needs this to choose a
+    // support-session target (ADR-037) and to see who administers the tenant.
+    const userRows = await tx
+      .select({ id: users.id, email: users.email, fullName: users.fullName, status: users.status })
+      .from(users)
+      .where(eq(users.tenantId, tenantId))
+      .limit(100);
+    return { branchRows, userCount: Number(c?.c ?? 0), userRows };
   });
+
+  const withRoles = await Promise.all(
+    userRows.map(async (u) => ({ ...u, roles: (await listUserRoles(tenantId, u.id)).map((r) => r.key) })),
+  );
 
   return {
     ...tenant,
     modules,
     branches: branchRows.map((b) => ({ id: b.id, code: b.code, name: b.name, isActive: b.isActive })),
     userCount,
+    users: withRoles,
   };
 }
 
@@ -272,4 +288,86 @@ export async function getPlatformStats(): Promise<PlatformStats> {
 export async function tenantExists(tenantId: string): Promise<boolean> {
   const row = (await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0];
   return !!row;
+}
+
+/** The tenants table is platform-managed (no RLS), so this reads outside runWithTenant. */
+async function getTenantRow(tenantId: string): Promise<Tenant | null> {
+  const rows = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ---- Support sessions / impersonation (ADR-037) -----------------------------
+// A platform operator troubleshoots inside a hospital without ever holding the
+// customer's password. The rules that make this safe, all enforced here:
+//   * the caller must hold platform.support.impersonate (checked at the route);
+//   * the target tenant and user must both be active;
+//   * a platform operator can never be impersonated — no escalation path;
+//   * the session grants exactly the target's roles, never the operator's;
+//   * start and end are both audited, in the target tenant, with a reason.
+
+export type SupportSessionInput = {
+  tenantId: string;
+  userId: string;
+  reason: string;
+  ticketRef?: string;
+};
+
+export async function startSupportSession(
+  operator: { userId: string; tenantId: string },
+  input: SupportSessionInput,
+  meta: { userAgent?: string; ip?: string },
+): Promise<{ accessToken: string; refreshToken: string; user: PublicUser; tenant: { id: string; name: string } }> {
+  const tenant = await getTenantRow(input.tenantId);
+  if (!tenant) throw Errors.notFound('Tenant not found');
+  if (tenant.status !== 'active') throw Errors.validation(undefined, 'That tenant is not active');
+
+  const target = await runWithTenant(input.tenantId, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.id, input.userId), eq(users.tenantId, input.tenantId)))
+      .limit(1);
+    return rows[0] ?? null;
+  });
+  if (!target) throw Errors.notFound('User not found in that tenant');
+  if (target.status !== 'active') throw Errors.validation(undefined, 'That user account is not active');
+  if (target.id === operator.userId) throw Errors.validation(undefined, 'You cannot impersonate yourself');
+
+  // No escalation: a support session may never target another platform operator.
+  const targetRoles = (await listUserRoles(input.tenantId, target.id)).map((r) => r.key);
+  if (targetRoles.includes('super_admin')) {
+    throw Errors.forbidden('A platform operator cannot be impersonated');
+  }
+
+  const session = await issueImpersonatedSession(input.tenantId, target.id, targetRoles, {
+    ...meta,
+    impersonatedBy: operator.userId,
+    reason: input.reason,
+  });
+
+  // Audited in the TARGET tenant, so the hospital's own audit trail shows that an
+  // outside operator was inside it, with who, why and when.
+  await writeAudit({
+    tenantId: input.tenantId,
+    actorUserId: operator.userId,
+    action: 'support.session.start',
+    severity: 'warning',
+    resourceType: 'user',
+    resourceId: target.id,
+    metadata: {
+      operatorUserId: operator.userId,
+      operatorTenantId: operator.tenantId,
+      targetUserEmail: target.email,
+      reason: input.reason,
+      ticketRef: input.ticketRef ?? null,
+    },
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+
+  return {
+    ...session,
+    user: toPublicUserRow(target),
+    tenant: { id: tenant.id, name: tenant.name },
+  };
 }

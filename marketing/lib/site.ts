@@ -6,8 +6,12 @@
 //   - No certified-compliance claims — the platform is "designed for / aligned with"
 //     DPDP / ABDM / GST and "hosted in India"; never assert certification.
 //   - Onboarding is operator-driven (demo / sales led), not public self-serve signup.
+//   - Nothing is described as available unless it is built. Every module and
+//     integration carries an availability status (./availability), and planned
+//     scope is written as planned (rules.md → Marketing Content & Claim Accuracy).
 
 import type { LucideIcon } from "lucide-react";
+import type { Availability } from "./availability";
 import {
   Users,
   CalendarDays,
@@ -64,15 +68,23 @@ export type ModuleEntry = {
   slug: string;
   name: string;
   icon: LucideIcon;
+  /** Describes only what the module's `status` allows — see lib/availability.ts. */
   tagline: string;
-  points: string[];
+  /** What the module does in the product today. Empty for a module not built yet. */
+  live: string[];
+  /** PRD scope for this module that is scheduled but not built. Never written as available. */
+  planned: string[];
+  status: Availability;
   /** True for the seven MVP clinic-core modules that get dedicated pages. */
   flagship?: boolean;
   /** Sold as a standalone module (no hard dependency on another). */
   standalone?: boolean;
 };
 
-// The seven MVP clinic-core modules (dedicated pages). One-liners drawn from the PRD.
+// The seven MVP clinic-core modules (dedicated pages). `live` is what the Portal
+// does today (Phase 0 + MVP 0/1, resources/phases.md); `planned` is the rest of the
+// PRD scope for that module. The split is the claim-accuracy rule made concrete —
+// a bullet moves from `planned` to `live` only when the feature ships.
 export const CLINIC_MODULES: ModuleEntry[] = [
   {
     slug: "patients",
@@ -80,11 +92,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     icon: Users,
     flagship: true,
     standalone: true,
+    status: "built",
     tagline: "One record per patient, from first visit onward.",
-    points: [
-      "Walk-in, online, and QR self-registration",
-      "UHID with barcode / QR and duplicate detection",
-      "Family linking and a full medical timeline",
+    live: [
+      "Reception registration with demographics, ABHA number, and contact details",
+      "Tenant-unique UHID generated on registration",
+      "Search by name, phone, or UHID, with a patient profile you can edit",
+    ],
+    planned: [
+      "Online and QR self-registration",
+      "UHID barcode / QR printing and duplicate detection",
+      "Family and dependant linking",
     ],
   },
   {
@@ -92,11 +110,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     name: "Appointment Management",
     icon: CalendarDays,
     flagship: true,
-    tagline: "Booking across every channel, without double-booking.",
-    points: [
-      "Slot and availability management per provider",
-      "Reminders, rescheduling, and waitlist estimates",
-      "No-show tracking and queue visibility",
+    status: "built",
+    tagline: "Booking against a doctor's slots, without double-booking.",
+    live: [
+      "Booking against a provider's slots, with conflict prevention",
+      "Cancellation that releases the slot",
+      "Status-filtered appointment list, and check-in straight from a booking",
+    ],
+    planned: [
+      "Online, mobile, WhatsApp, and call-centre booking channels",
+      "Automated reminders, rescheduling, and waitlist estimates",
+      "No-show tracking",
     ],
   },
   {
@@ -104,11 +128,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     name: "OPD & Check-in",
     icon: ClipboardList,
     flagship: true,
-    tagline: "Kiosk to consult, with live queues.",
-    points: [
-      "Reception, kiosk, and mobile check-in",
-      "Token generation and department / doctor queues",
-      "Priority handling and digital signage",
+    status: "built",
+    tagline: "Front desk to consult, with a live token queue.",
+    live: [
+      "Reception check-in that opens the visit and its token",
+      "Live queue in token order, with the consultation status on every row",
+      "A draft consultation-fee invoice opened automatically at check-in",
+    ],
+    planned: [
+      "Self-service kiosk and mobile check-in",
+      "Department-wise queues and priority handling",
+      "Waiting-area display boards and voice announcements",
     ],
   },
   {
@@ -116,11 +146,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     name: "Clinical Workflow (EMR)",
     icon: Stethoscope,
     flagship: true,
-    tagline: "SOAP notes, coding, and e-prescriptions.",
-    points: [
-      "Specialty templates with ICD-10 / 11 coding",
-      "Vitals trends and a longitudinal record",
-      "E-prescribing with interaction and allergy alerts",
+    status: "built",
+    tagline: "Consultation notes, ICD-10 coding, and prescriptions.",
+    live: [
+      "Consultation screen with vitals, notes, and ICD-10 diagnosis lookup",
+      "Prescriptions and lab orders raised from the consultation itself",
+      "Sign-off that closes the encounter for editing",
+    ],
+    planned: [
+      "Specialty note templates and ICD-11 coding",
+      "Vitals trends across a longitudinal record",
+      "Drug interaction and allergy alerts on prescribing",
     ],
   },
   {
@@ -129,11 +165,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     icon: Pill,
     flagship: true,
     standalone: true,
-    tagline: "Dispensing, inventory, and compliant billing.",
-    points: [
-      "Batch, expiry, and rack-level inventory",
+    status: "built",
+    tagline: "Dispensing against prescriptions, on batch-aware stock.",
+    live: [
+      "Drug master with unit price and reorder level, and a low-stock flag",
+      "Stock received by batch and expiry, issued first-expiry-first-out",
+      "Dispensing against a prescription, billed onto the patient's invoice",
+    ],
+    planned: [
       "Purchase orders, GRN, and vendor management",
-      "Schedule H / H1 / X registers and GST billing",
+      "Rack-level inventory",
+      "Schedule H / H1 / X registers and full GST pharmacy billing",
     ],
   },
   {
@@ -142,11 +184,17 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     icon: FlaskConical,
     flagship: true,
     standalone: true,
-    tagline: "Order to signed report, sample tracked throughout.",
-    points: [
-      "Test catalogue with LOINC coding",
-      "Barcoded samples and abnormal-value flags",
-      "Pathologist sign-off and digital report delivery",
+    status: "built",
+    tagline: "Order to result, tracked through the worklist.",
+    live: [
+      "Test master with price and reference ranges",
+      "Worklist from ordered to sample collected to resulted",
+      "Result entry with abnormal-value flags, and a printable report view",
+    ],
+    planned: [
+      "LOINC coding on the test catalogue",
+      "Barcoded sample tracking",
+      "Pathologist sign-off and digital report delivery to patients",
     ],
   },
   {
@@ -155,73 +203,96 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     icon: ReceiptIndianRupee,
     flagship: true,
     standalone: true,
-    tagline: "Unified billing across every department.",
-    points: [
-      "GST and e-invoice with HSN / SAC",
-      "Cash, card, UPI, net-banking, and payment links",
+    status: "built",
+    tagline: "One invoice across consultation, pharmacy, and lab.",
+    live: [
+      "One invoice per visit, with line-level tax and a running balance",
+      "Part payments recorded against the invoice, with a collections trail",
+      "Consultation, pharmacy, and lab charges landing on the same bill",
+    ],
+    planned: [
+      "GST e-invoice with HSN / SAC mapping",
+      "Card, net-banking, and shareable payment links through a gateway",
       "Payer-wise rate lists and package billing",
     ],
   },
 ];
 
 // A representative slice of the wider catalogue for the Modules index. The PRD
-// defines 25 modules plus add-ons; the full set is enumerated on /modules.
+// defines 25 modules plus add-ons; the full set is enumerated on /modules. All of
+// these are planned scope from resources/phases.md (Phase 2-4) — none are built.
 export const MORE_MODULES: ModuleEntry[] = [
   {
     slug: "nursing",
     name: "Nursing",
     icon: HeartPulse,
+    status: "planned",
     tagline: "Assigned-patient dashboards, vitals, and shift handover.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "radiology",
     name: "Radiology & PACS",
     icon: Scan,
+    status: "planned",
     tagline: "Imaging orders, radiologist sign-off, DICOM viewer.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "ipd",
     name: "Admission (IPD)",
     icon: BedDouble,
+    status: "planned",
     tagline: "Bed board, ward management, and discharge.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "emergency",
     name: "Emergency (ER)",
     icon: Ambulance,
+    status: "planned",
     tagline: "Rapid registration, triage, and ER-to-IPD conversion.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "ot",
     name: "Operation Theatre",
     icon: Syringe,
+    status: "planned",
     tagline: "Surgery scheduling, checklists, and consumable billing.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "inventory",
     name: "Inventory & Procurement",
     icon: Boxes,
+    status: "planned",
     tagline: "Indent to PO to GRN, with inter-branch transfers.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "insurance",
     name: "Insurance & Schemes",
     icon: Landmark,
+    status: "planned",
     tagline: "Pre-auth, cashless claims, PM-JAY and state schemes.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "hr-payroll",
     name: "HR & Payroll",
     icon: UserCog,
+    status: "planned",
     tagline: "Rosters, attendance, payroll, and doctor payouts.",
-    points: [],
+    live: [],
+    planned: [],
   },
 ];
 
@@ -230,15 +301,19 @@ export const ADDONS: ModuleEntry[] = [
     slug: "telemedicine",
     name: "Telemedicine",
     icon: Video,
+    status: "planned",
     tagline: "Video consults with in-call e-prescription and virtual queue.",
-    points: [],
+    live: [],
+    planned: [],
   },
   {
     slug: "abdm",
     name: "ABDM & Health Records",
     icon: Network,
+    status: "planned",
     tagline: "ABHA linking and consent-based record exchange over FHIR R4.",
-    points: [],
+    live: [],
+    planned: [],
   },
 ];
 
@@ -273,8 +348,10 @@ export const PLATFORM_CORE: CoreService[] = [
   {
     name: "Notifications",
     icon: Bell,
+    // SMS + email are implemented behind the provider abstraction; WhatsApp is a
+    // PRD add-on channel (projectrequirementdoc.md) and is not built.
     blurb:
-      "SMS, WhatsApp, and email behind one provider abstraction, with idempotency on every send.",
+      "SMS and email behind one provider abstraction, with idempotency on every send. WhatsApp is planned as an additional channel.",
   },
   {
     name: "Financial infrastructure",
@@ -294,9 +371,11 @@ export const TRUST_FACTS: TrustFact[] = [
     body: "PostgreSQL row-level security keeps one hospital's data unreachable from another. Tested on every module, not assumed.",
   },
   {
-    title: "Hosted in India",
+    // Deployment target from resources/architecture.md; the platform is not in
+    // production yet, so this is written as the commitment it is.
+    title: "India-resident by design",
     icon: Building2,
-    body: "Runs on E2E Networks, a MeitY-empanelled, India-headquartered cloud, with health data kept in-region.",
+    body: "Built to run on E2E Networks, a MeitY-empanelled, India-headquartered cloud, with health data kept in-region.",
   },
   {
     title: "Auditable by design",
@@ -304,9 +383,9 @@ export const TRUST_FACTS: TrustFact[] = [
     body: "An append-only audit trail records every meaningful action and is retained, tamper-evident, and queryable.",
   },
   {
-    title: "Encrypted end to end",
+    title: "Encryption and least privilege",
     icon: ShieldCheck,
-    body: "AES-256 at rest and TLS 1.2+ in transit, with least-privilege access and PII masking outside production.",
+    body: "TLS in transit and AES-256 at rest are the platform's encryption standard, on a least-privilege architecture with PII masked outside production.",
   },
 ];
 
@@ -322,22 +401,22 @@ export const ROLES: Role[] = [
   {
     name: "Doctor",
     icon: Stethoscope,
-    blurb: "Open an encounter, record SOAP notes, and issue e-prescriptions with safety alerts.",
+    blurb: "Open an encounter, record vitals and SOAP notes with ICD-10 coding, and issue prescriptions and lab orders.",
   },
   {
     name: "Pharmacist",
     icon: Pill,
-    blurb: "Dispense against prescriptions, manage batch and expiry, and keep compliant registers.",
+    blurb: "Dispense against prescriptions and manage stock by batch and expiry, first-expiry-first-out.",
   },
   {
     name: "Lab technician",
     icon: Microscope,
-    blurb: "Collect and track barcoded samples, enter results, and route reports for sign-off.",
+    blurb: "Work the order-to-result worklist, record collection, and enter results against reference ranges.",
   },
   {
     name: "Cashier",
     icon: ReceiptIndianRupee,
-    blurb: "Raise GST invoices, collect across payment methods, and reconcile at day end.",
+    blurb: "Raise the visit invoice, record part payments, and see the day's collections in the reports.",
   },
   {
     name: "Hospital admin",
@@ -347,6 +426,8 @@ export const ROLES: Role[] = [
 ];
 
 // Facility segments — drives by-facility solutions content (PRD target segments).
+// These describe who the platform is *for*, in the order we are building for them —
+// not a claim that every segment's modules exist today (see ./availability).
 export type Facility = { name: string; icon: LucideIcon; blurb: string };
 
 export const FACILITIES: Facility[] = [
@@ -363,17 +444,17 @@ export const FACILITIES: Facility[] = [
   {
     name: "Multi-specialty hospitals",
     icon: Building2,
-    blurb: "Multi-branch organisations running the full clinical and operational module set.",
+    blurb: "Multi-branch organisations that will run the full clinical and operational set as each module is released.",
   },
   {
     name: "Diagnostic centres",
     icon: FlaskConical,
-    blurb: "Lab and radiology-led centres with sample tracking and digital report delivery.",
+    blurb: "Lab-led centres running the order-to-result worklist today, with radiology and report delivery planned.",
   },
   {
     name: "Standalone pharmacies",
     icon: Pill,
-    blurb: "Retail pharmacies running inventory, procurement, and GST-compliant billing on their own.",
+    blurb: "Retail pharmacies running the drug master, batch stock, and dispensing, with procurement planned.",
   },
 ];
 

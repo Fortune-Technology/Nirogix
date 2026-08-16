@@ -62,6 +62,12 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - Per-branch branding overrides (schema supports `branch_id`; no UI).
 - Custom-role editor; branch-scoped entitlement management UI.
 
+**Platform (ADR-037 — System Admin context)**
+- **Support sessions / impersonation** — the whole flow: `POST /admin/support-sessions` minting a session for a named tenant+user with `impersonatedBy` recorded, audit events on start and end, a persistent "support session" banner with an explicit exit, re-authentication or MFA before starting, and refusal to impersonate another platform operator. Security-critical, so it ships whole or not at all.
+- **Platform dashboard needs a data source before it can be honest.** Real today: tenants, active/inactive, new registrations, platform users, doctors, branches, module distribution, failed logins, security events, recent activity. **No data exists** for revenue, MRR, ARR, subscription distribution, storage/infrastructure usage, uptime or support tickets — there is no subscription/plan/tenant-billing table at all. Building those tiles requires the Enterprise-track billing model first (ADR-020).
+- **Scoped support roles** — different support staff with different cross-tenant reach, using the new `platform.support.*` keys rather than WILDCARD.
+- **Platform sidebar depth** — Subscriptions & Billing, Revenue, Platform Users, Support Sessions, Analytics, System Health, Feature Flags, Integrations, Platform Settings. Each needs its own data source; add them as the data becomes real.
+
 **Platform**
 - `platform_metrics` snapshot for cross-tenant analytics at scale (ADR-023 currently aggregates per tenant in a loop).
 - Break-glass emergency access — architecture and insertion point reserved (ADR-011), feature not built.

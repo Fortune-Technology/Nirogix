@@ -11,6 +11,11 @@ export interface MenuProps {
   align?: "start" | "end";
   label?: string;
   triggerClassName?: string;
+  /**
+   * Base classes for the trigger. Defaults to the small secondary button; row
+   * actions pass `hms-rowaction` so the "…" matches the other icon actions.
+   */
+  triggerBase?: string;
   panelClassName?: string;
   disabled?: boolean;
 }
@@ -18,7 +23,7 @@ export interface MenuProps {
 /**
  * The one dropdown/popover primitive (resources/rules.md → Reusable UI Architecture).
  * Used by the DataTable's column-visibility and faceted-filter controls and by
- * `ActionMenu`; reach for it before hand-rolling another dropdown.
+ * `MoreActions`; reach for it before hand-rolling another dropdown.
  *
  * Accessible by construction: `aria-expanded` / `aria-haspopup` on the trigger,
  * Esc and outside-click close, focus returns to the trigger on close, and
@@ -30,6 +35,7 @@ export function Menu({
   align = "end",
   label,
   triggerClassName,
+  triggerBase = "hms-btn hms-btn--secondary hms-btn--sm",
   panelClassName,
   disabled,
 }: MenuProps) {
@@ -86,7 +92,7 @@ export function Menu({
       <button
         ref={triggerRef}
         type="button"
-        className={cn("hms-btn hms-btn--secondary hms-btn--sm", triggerClassName)}
+        className={cn(triggerBase, triggerClassName)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}

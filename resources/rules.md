@@ -17,6 +17,7 @@ This document states rules only. For the architecture each rule is derived from,
 - **Engineering Standards**
   - [Design System & UI Consistency](#design-system--ui-consistency)
   - [Standard DataTable](#standard-datatable)
+  - [Table Row Actions](#table-row-actions)
   - [Light & Dark Theme](#light--dark-theme)
   - [Branding & Multi-Tenant Customization](#branding--multi-tenant-customization)
 - **Development Rules**
@@ -28,6 +29,8 @@ This document states rules only. For the architecture each rule is derived from,
   - [UI / UX Rules](#ui--ux-rules)
   - [Frontend Delivery Workflow](#frontend-delivery-workflow)
   - [SEO / AEO / GEO Rules](#seo--aeo--geo-rules)
+  - [Marketing Content & Claim Accuracy](#marketing-content--claim-accuracy)
+  - [Marketing Imagery](#marketing-imagery)
   - [API Feedback & Notification Rules](#api-feedback--notification-rules)
   - [Frontend Performance & Next.js Optimization Rules](#frontend-performance--nextjs-optimization-rules)
   - [Security Rules](#security-rules)
@@ -68,6 +71,17 @@ This document states rules only. For the architecture each rule is derived from,
 - **Row actions use the one shared action menu/button.** Same affordance in every module; destructive actions always go through the shared confirmation dialog.
 - Missing DataTable functionality is added to the shared component, never worked around locally. A module needing a genuinely specialised table documents why in its `KNOWLEDGE.md`.
 
+### Table Row Actions
+
+**One Action column, everywhere.** Every table in the Portal and in the System Admin / tenant interfaces that has row-level operations renders them through the shared action components in `@hms/ui` — `TableActions` with `ViewAction`, `EditAction`, `DeleteAction`, `ToggleAction`, `MoreActions`. No table implements its own action button, icon set, menu, or confirmation.
+
+- **The column is the last column, headed "Actions"**, and holds only the actions that row supports: View/Details (eye), Edit (pencil), Delete (trash), Enable/Disable and Activate/Deactivate (the shared toggle), plus `MoreActions` (`…`) for anything beyond the primary set or context-specific operations.
+- **The shared components own the presentation and behaviour** — iconography, size, spacing, hover, active and focus states, tooltips, accessible labels, disabled reasons, loading state, confirmation behaviour, and permission handling. A module supplies intent (label, handler, permission, disabled reason), never styling.
+- **Permission-aware by construction.** An action the signed-in user is not permitted is not rendered; an action that is temporarily unavailable is disabled with a reason, never silently inert. This is a UX affordance — the server still re-checks (see Authorization Rules).
+- **Destructive actions always confirm** through the shared `ConfirmDialog`, naming the record and the consequence. No table deletes on a single click.
+- **Overflow rule:** at most three inline icon actions per row; everything beyond that moves into `MoreActions`, so the column stays a fixed, predictable width on every screen size.
+- **Missing capability is added to the shared components**, never worked around in a page.
+
 ### Reusable UI Architecture
 
 **Build once, configure everywhere, reuse forever.** Applies to the Portal and the marketing site, to current and future work.
@@ -98,6 +112,10 @@ This document states rules only. For the architecture each rule is derived from,
 
 - Brand colors, logos, and typography are tenant-configurable values consumed from the centralized branding system, never hardcoded into a component
 - A new UI component works correctly for any tenant's branding without a module-specific redesign — this is what makes the tenant-level branding requirement in §4 hold at the component level, not just the page level
+- **Branding comes from the theme, not from a component.** No component-level colour literal — not in a class, an inline style, an SVG fill, or a shadow. A brand-coloured surface reads the semantic token (`--hms-brand` / `--hms-brand-hover` / `--hms-brand-fg` / `--hms-ring` in the Portal, `--mk-accent…` on marketing); changing the brand value re-skins it with no code change.
+- **Both token scopes stay independent, and shared components work in both.** A component from `@hms/ui` used on the marketing site must resolve to the marketing accent, not to the Portal's default — the app maps the `--hms-*` slots it consumes onto its own scope once, in its global stylesheet, rather than each component learning about two token sets.
+- **Every interactive state is branded, not just the resting one** — hover, active/pressed, focus ring, selected, and disabled — for buttons, links, navigation, table actions, the back-to-top control, and every other interactive control. A control that follows the brand at rest but reverts to a default colour on hover or focus is a defect.
+- **Verification is per change:** the control is checked in Light and Dark, and under a non-default tenant accent (Portal) / a platform-branding override (marketing), before it is done.
 
 ### Responsive & Mobile Navigation
 
@@ -222,6 +240,30 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 - Every authenticated Portal route is **`noindex, nofollow`**, and the Portal serves a `robots.ts` disallowing crawling. Public auth routes (`/login`) are noindex too — product SEO lives on the marketing site.
 - **No patient, tenant, staff, clinical, or operational data ever appears** in a title, meta description, OG image, URL path, sitemap, or any crawler-visible surface.
 
+### Marketing Content & Claim Accuracy
+
+**The marketing site describes the product we actually have.** It never advertises, claims, implies, or visually suggests a feature, capability, integration, workflow, certification, security capability, or service that is not in the approved product scope. Accuracy outranks looking feature-rich.
+
+- **Every claim is traceable** to at least one of: `resources/projectrequirementdoc.md`, `resources/architecture.md`, `resources/development-plan.md`, a defined phase in `resources/phases.md`, or already-implemented functionality. If it cannot be traced, it is not published.
+- **No claim from assumption.** Not from "common HMS features", not from a competitor's site, not from "it would be useful", not from what the roadmap will probably contain.
+- **Never claim, unless traced and available:** integrations, certifications, compliance guarantees, AI capabilities, automation, mobile apps, payment capabilities, analytics/reporting, clinical workflows, security capabilities, communication channels, third-party services.
+- **Planned ≠ available.** A capability scheduled for a future phase is labelled as planned, in the phase's own language, and never written in the present tense or shown as a working screen. Roadmap wording carries no date we have not committed to.
+- **Validate before adding anything** — section, feature card, headline, sub-headline, CTA, comparison, table, screenshot, mockup, animation, illustration, diagram, statistic, or promotional sentence. Verification means naming the source document or the shipped code, not recognising the phrase.
+- **Screenshots and mockups are claims.** A UI shown on the marketing site depicts a screen that exists, with fields and states the product really has. An illustrative mockup of a planned screen is labelled as such.
+- **Numbers are claims too** — uptime, response time, tenant counts, savings, adoption. No metric without a source we can produce on request.
+- This extends, and never relaxes, the PRD content guardrails (no invented customers, no certification claims, no published prices) and the SEO prohibitions above.
+- The test is the complaint we are preventing: *"your website says you have this, the product does not."* If a sentence could produce it, rewrite the sentence.
+
+### Marketing Imagery
+
+**No image for decoration.** The marketing site's default visual language is typography, product UI screenshots, UI mockups, abstract brand elements, simple vector graphics, product diagrams, data visualisations, geometric brand patterns, and subtle motion — a clean, premium, product-focused design.
+
+- **Default: no image.** An image ships only where it demonstrably improves communication over the type and layout already there.
+- **When an image is genuinely required, it is proposed before it is produced**, stating: the page/section that needs it, why the visual communicates better than text, the required aspect ratio, a detailed generation prompt written for that exact use, and how it stays consistent with the Nirogix brand.
+- **An image is subject to the claim-accuracy rules.** A visual must not imply a capability the product does not have — no fabricated dashboards, device mockups of apps that do not exist, integration logos we do not integrate with, or badges resembling certifications.
+- **No stock photography and no generic healthcare imagery** (smiling clinicians, stethoscope-on-desk, abstract "medical technology") without a stated reason that survives review.
+- Every non-decorative image carries meaningful `alt` text and follows the performance rules (`next/image`, correct `sizes`, one LCP `priority` image per route at most).
+
 ### API Feedback & Notification Rules
 
 - **One shared notification/Toast system in `@hms/ui`**, consumed by both the Portal and the Marketing site. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
@@ -340,6 +382,10 @@ The repository root holds **`testcases.md`** — the complete manual QA checklis
 - Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.
 - Do not ship a feature without its automated tests and its `testcases.md` entries, and do not mark one complete while a known test is failing without documenting the acceptance.
 - Do not render the mobile bottom bar on desktop, put more than five destinations in it, or offer a destination the signed-in user has no permission to open.
+- Do not build a per-table action button, icon set, row menu, toggle, or delete confirmation when the shared `TableActions` components exist, and do not delete a row without the shared confirmation flow.
+- Do not render an action the signed-in user has no permission to perform.
+- Do not publish a marketing claim, section, card, headline, CTA, comparison, screenshot, mockup, animation, illustration, or statistic that cannot be traced to the PRD, architecture, development plan, a defined phase, or shipped functionality — and do not present a planned capability in the present tense.
+- Do not add a decorative image to the marketing site, and do not use stock or generic healthcare photography, without a stated communication benefit agreed first.
 - Do not hyphenate words that are not a compound in user-facing copy (and do not bulk-remove legitimate hyphens).
 - Do not replace a usable backend message with generic copy, and do not show a raw technical error, stack trace, or backend internal to a user.
 - Do not let any authenticated Portal route be indexable, and do not place patient/tenant/staff/operational data in metadata, URLs, OG images, or a sitemap.

@@ -2,39 +2,41 @@
 
 import { useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
-import { Menu, MenuItem, MenuSeparator } from "./Menu";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { Menu, MenuItem, MenuSeparator } from "../Menu";
+import { ConfirmDialog } from "../ConfirmDialog";
 
-export interface RowAction {
-  /** Menu label — "View", "Edit", "Delete", "Approve", … */
+export interface MoreAction {
+  /** Menu label — "Duplicate", "Reset password", "Archive", … */
   label: string;
   onSelect: () => void;
   icon?: ReactNode;
   disabled?: boolean;
-  /** Hidden entirely when false — use for permission gating. */
-  visible?: boolean;
+  /** Permission gate — hidden entirely when false. */
+  permitted?: boolean;
   tone?: "default" | "danger";
-  /** Destructive actions confirm first; pass `true` for the default copy or override it. */
+  /** Destructive items confirm first; pass `true` for the default copy or override it. */
   confirm?: boolean | { title: string; description?: ReactNode; confirmLabel?: string };
   /** Draws a divider above this item. */
   separatorBefore?: boolean;
 }
 
-export interface ActionMenuProps {
-  actions: RowAction[];
+export interface MoreActionsProps {
+  actions: MoreAction[];
   label?: string;
   align?: "start" | "end";
 }
 
 /**
- * The one row-actions affordance (resources/rules.md → Reusable UI Architecture):
- * a "…" trigger opening the shared Menu, with destructive items routed through the
- * shared ConfirmDialog. Every module's table uses this, so View/Edit/Delete look
- * and behave identically platform-wide.
+ * The overflow half of the Action column (rules.md → Table Row Actions): a "…"
+ * trigger opening the shared `Menu`, with destructive items routed through the
+ * shared `ConfirmDialog`. Anything past the three inline icon actions lives here,
+ * so every module's secondary operations are found in the same place.
+ *
+ * Renders nothing when the user is permitted none of the actions.
  */
-export function ActionMenu({ actions, label = "Row actions", align = "end" }: ActionMenuProps) {
-  const [pending, setPending] = useState<RowAction | null>(null);
-  const visible = actions.filter((a) => a.visible !== false);
+export function MoreActions({ actions, label = "More actions", align = "end" }: MoreActionsProps) {
+  const [pending, setPending] = useState<MoreAction | null>(null);
+  const visible = actions.filter((a) => a.permitted !== false);
   if (visible.length === 0) return null;
 
   const confirmCopy =
@@ -47,7 +49,7 @@ export function ActionMenu({ actions, label = "Row actions", align = "end" }: Ac
       <Menu
         align={align}
         label={label}
-        triggerClassName="hms-actions__trigger"
+        triggerBase="hms-rowaction"
         trigger={<MoreHorizontal size={16} strokeWidth={2} aria-hidden />}
       >
         {(close) => (

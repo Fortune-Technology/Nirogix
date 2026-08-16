@@ -5,6 +5,7 @@ import { Container, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 import { ProductFrame } from "../product/ProductFrame";
 import { EntitlementsPreview, AuditPreview } from "../product/previews";
+import { AvailabilityBadge, ReleaseNote } from "../site/AvailabilityBadge";
 import {
   CLINIC_MODULES,
   PLATFORM_CORE,
@@ -102,7 +103,10 @@ function ModuleCard({ module, className }: { module: ModuleEntry; className?: st
       <span className="grid h-11 w-11 place-items-center rounded-lg bg-surface-2 text-ink transition-colors group-hover:bg-accent-subtle group-hover:text-accent">
         <Icon size={22} strokeWidth={1.6} />
       </span>
-      <h3 className="mt-4 text-lg font-medium tracking-tight text-ink">{module.name}</h3>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <h3 className="text-lg font-medium tracking-tight text-ink">{module.name}</h3>
+        <AvailabilityBadge status={module.status} />
+      </div>
       <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">{module.tagline}</p>
       <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent opacity-0 transition-opacity group-hover:opacity-100">
         Learn more <ArrowRight size={15} strokeWidth={2} />
@@ -119,8 +123,9 @@ export function ModulesBento() {
         <SectionHeading
           eyebrow="Modules"
           title="Everything a clinic needs on day one."
-          lede="The seven core modules cover the full outpatient journey, from the front desk to the pharmacy counter. Twenty-five modules and two add-ons are available in all."
+          lede="The seven core modules cover the full outpatient journey, from the front desk to the pharmacy counter. They are what we have built; the wider catalogue of twenty-five modules and two add-ons is planned scope from our product plan."
         />
+        <ReleaseNote className="mt-8 max-w-[46rem]" />
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
           {/* overview tile — tinted for bento diversity */}
           <div className="rounded-xl border border-accent-border bg-accent-subtle p-6 sm:col-span-2 lg:col-span-6">
@@ -158,7 +163,8 @@ export function ModulesBento() {
               See all {COUNTS.modules} modules
             </p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">
-              Nursing, radiology, IPD, OT, insurance, HR, and more, plus telemedicine and ABDM.
+              Nursing, radiology, IPD, OT, insurance, HR, and more, plus telemedicine and ABDM — each
+              marked with what is built and what is planned.
             </p>
             <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink">
               Explore the catalogue

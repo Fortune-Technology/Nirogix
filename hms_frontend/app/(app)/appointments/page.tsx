@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Badge, Button, DataTable, type Column, type DataTableQuery } from "@hms/ui";
+import { CalendarX, LogIn, Plus } from "lucide-react";
+import {
+  Badge,
+  Button,
+  DataTable,
+  TableAction,
+  TableActions,
+  actionsColumn,
+  type Column,
+  type DataTableQuery,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Appointment } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
@@ -97,25 +106,29 @@ function AppointmentsTable() {
       accessor: (a) => a.status,
       cell: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge>,
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      hideable: false,
-      cell: (a) =>
-        a.status === "booked" ? (
-          <div className="flex justify-end gap-2">
-            {canCheckIn && (
-              <Link href={`/opd/check-in?appointmentId=${a.id}&patientId=${a.patientId}&providerId=${a.providerId}`}>
-                <Button size="sm">Check in</Button>
-              </Link>
-            )}
-            {canCancel && (
-              <Button variant="secondary" size="sm" disabled={busy} onClick={() => cancel(a.id)}>Cancel</Button>
-            )}
-          </div>
-        ) : null,
-    },
+    actionsColumn<Appointment>((a) => (
+      <TableActions label={`Actions for ${a.patientName}'s appointment`}>
+        <TableAction
+          label="Check in"
+          icon={<LogIn size={16} strokeWidth={2} aria-hidden />}
+          permitted={canCheckIn && a.status === "booked"}
+          href={`/opd/check-in?appointmentId=${a.id}&patientId=${a.patientId}&providerId=${a.providerId}`}
+        />
+        <TableAction
+          label="Cancel appointment"
+          icon={<CalendarX size={16} strokeWidth={2} aria-hidden />}
+          tone="danger"
+          permitted={canCancel && a.status === "booked"}
+          loading={busy}
+          confirm={{
+            title: `Cancel ${a.patientName}'s appointment?`,
+            description: `${formatDateTime(a.scheduledAt)} with ${a.providerName}. The slot is released and the patient is not checked in.`,
+            confirmLabel: "Cancel appointment",
+          }}
+          onSelect={() => void cancel(a.id)}
+        />
+      </TableActions>
+    )),
   ];
 
   return (

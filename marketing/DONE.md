@@ -163,3 +163,24 @@ Append-only implementation log. Newest at the bottom.
 **Mobile navigation:** `components/site/MobileNav.tsx` — bottom bar with five destinations chosen from this site's IA (Home · Modules · Specialties · Pricing · Demo) plus a top-right hamburger opening the shared drawer (full nav, legal links, sign-in / demo actions). The header's old inline mobile panel was **deleted**; below `lg` the header keeps only the wordmark and the hamburger. `main` carries `.hms-bottomnav-offset` so the fixed bar never covers content.
 
 **Testing status:** `typecheck` + `next build` green (53 static routes). **Live-verified at 375px:** the bar renders with the active destination marked, the drawer opens from the top right, background scroll locks (`overflow: hidden`) and restores on close, Esc closes it; `/specialties/cardiology` renders all four content sections with correct title, `<h1>` and JSON-LD.
+
+---
+
+## 2026-08-16 — Claim accuracy: the site now says what is built and what is planned (ADR-038)
+
+**The problem.** Every claim on the site traced to the PRD, and the site was still misleading: 25 modules, FHIR, ABDM, DICOM, WhatsApp, payment gateways and a "Most popular" pricing badge were all written in the present tense, while what exists is Phase 0 plus the MVP 0/1 clinic core, verified locally and not deployed anywhere. A visitor could not tell the roadmap from the product.
+
+**Added — an availability model.** `lib/availability.ts` (`built` / `planned` + the shared `RELEASE_NOTE`) and `components/site/AvailabilityBadge.tsx` (badge + `ReleaseNote`). Every module and integration carries a status; badges appear on the home bento, `/modules`, each module page header and `/integrations`, and the release note wherever the catalogue is shown, including `/pricing`.
+
+**Rewritten — the seven clinic-core modules** now carry `live` (what the Portal does today) and `planned` (the rest of their PRD scope) instead of one blended `points` list, and `/modules/[slug]` renders them as "What it does today" and a separate "Planned for this module". Taglines and per-module SEO descriptions were rewritten to describe only what is built — out went kiosk and QR self-registration, duplicate detection, family linking, multi-channel booking, reminders and no-show tracking, digital signage, specialty templates, interaction and allergy alerts, purchase orders and GRN, Schedule H/H1/X registers, LOINC coding, barcoded samples, pathologist sign-off, GST e-invoice with HSN/SAC, and payer-wise rate lists — all of which now read as planned scope.
+
+**Corrected claims elsewhere:**
+- **Integrations** — ICD-10 coding and DLT-compliant SMS/email are marked built; FHIR APIs, SNOMED/LOINC, DICOM/PACS, ABDM/ABHA, scan-and-share, WhatsApp, the payment gateway and Tally export are marked planned. The FHIR entry now says precisely what exists (a FHIR-modelled clinical core) and what does not (the APIs).
+- **Security** — practices split into "Enforced today" (RBAC with overrides, server-side validation, tiered rate limiting) and "Commitment" (AES-256 at rest / TLS 1.2+, backups and the restore drill, PII masking, PCI-aligned payments, which needs the unbuilt gateway). "The platform runs on E2E Networks" became "is built to run on", since nothing is deployed. The no-certification note now also rules out audit and accreditation.
+- **Pricing** — "Most popular" (we have no customers) became "What we have built"; the enterprise tier's isolation upgrade is labelled planned; a new first FAQ answers "which modules can we actually use today"; the residency answer is future tense.
+- **Home / solutions / trust strip** — the module bento, role blurbs and facility blurbs now describe today's behaviour, and the hosting and encryption trust facts are written as the design commitments they are. Notifications say SMS and email, with WhatsApp planned.
+- **Specialties** — cardiology, dentistry, pediatrics, gynecology, physiotherapy and radiology no longer claim reminders, waitlists, no-show tracking, family linking, specialty form templates, package draw-down billing, or imaging. The radiology page states plainly that an imaging centre cannot run its studies on the platform yet.
+
+**Also — shared components now follow the marketing brand (ADR-040).** `globals.css` maps the `--hms-*` slots that `@hms/ui` components consume onto `--mk-*` for both themes. The back-to-top button had been rendering the Portal's default teal and ignoring a platform-branding override entirely; it, the bottom nav, the drawer and the toast now follow the marketing accent in Light and Dark.
+
+**Testing status:** typecheck + production build clean. Manual cases added to `testcases.md` (MKT-01…MKT-08).

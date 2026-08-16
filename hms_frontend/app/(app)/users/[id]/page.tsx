@@ -3,8 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
+import { ArrowLeft, Ban, UserMinus } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Spinner,
+  TableAction,
+  TableActions,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS, ALL_PERMISSIONS } from "@hms/permissions";
 import type { UserDetail, Role } from "@hms/types";
 import { formatDate } from "@hms/utils";
@@ -61,6 +72,82 @@ function Detail({ id }: { id: string }) {
   const roleKeysHeld = new Set(user.roles.map((r) => r.key));
   const assignable = roles.filter((r) => !roleKeysHeld.has(r.key));
 
+  // Roles and overrides are lists with row-level operations, so they render
+  // through the Standard DataTable and the shared Action column, like every other
+  // list in the platform (rules.md → Table Row Actions).
+  const roleColumns: Array<Column<UserDetail["roles"][number]>> = [
+    {
+      key: "name",
+      header: "Role",
+      hideable: false,
+      accessor: (r) => r.name,
+      cell: (r) => <span className="text-fg">{r.name}</span>,
+    },
+    {
+      key: "key",
+      header: "Key",
+      accessor: (r) => r.key,
+      cell: (r) => <span className="font-mono text-xs text-fg-muted">{r.key}</span>,
+    },
+    actionsColumn<UserDetail["roles"][number]>((r) => (
+      <TableActions label={`Actions for the ${r.name} role`}>
+        <TableAction
+          label="Remove role"
+          icon={<UserMinus size={16} strokeWidth={2} aria-hidden />}
+          tone="danger"
+          permitted={canManageRbac}
+          loading={busy}
+          confirm={{
+            title: `Remove ${r.name} from ${user.fullName}?`,
+            description: "They lose every permission this role grants, unless another role grants it too.",
+            confirmLabel: "Remove role",
+          }}
+          onSelect={() => void run(() => api.removeUserRole(id, r.key))}
+        />
+      </TableActions>
+    )),
+  ];
+
+  const overrideColumns: Array<Column<UserDetail["overrides"][number]>> = [
+    {
+      key: "effect",
+      header: "Effect",
+      hideable: false,
+      accessor: (o) => o.effect,
+      cell: (o) => <Badge tone={o.effect === "DENY" ? "danger" : "success"}>{o.effect}</Badge>,
+    },
+    {
+      key: "permission",
+      header: "Permission",
+      hideable: false,
+      accessor: (o) => o.permission,
+      cell: (o) => <span className="font-mono text-xs text-fg">{o.permission}</span>,
+    },
+    {
+      key: "until",
+      header: "Valid until",
+      accessor: (o) => o.validUntil,
+      cell: (o) => <span className="text-fg-muted">{o.validUntil ? formatDate(o.validUntil) : "Permanent"}</span>,
+    },
+    actionsColumn<UserDetail["overrides"][number]>((o) => (
+      <TableActions label={`Actions for the ${o.effect} override on ${o.permission}`}>
+        <TableAction
+          label="Revoke override"
+          icon={<Ban size={16} strokeWidth={2} aria-hidden />}
+          tone="danger"
+          permitted={canManageRbac}
+          loading={busy}
+          confirm={{
+            title: `Revoke this ${o.effect} override?`,
+            description: `${o.permission} goes back to whatever ${user.fullName}'s roles decide. The override record is kept for audit.`,
+            confirmLabel: "Revoke",
+          }}
+          onSelect={() => void run(() => api.revokeUserOverride(id, o.id))}
+        />
+      </TableActions>
+    )),
+  ];
+
   return (
     <>
       <PageHeader
@@ -92,19 +179,16 @@ function Detail({ id }: { id: string }) {
       </Card>
 
       <Card header="Roles">
-        <div className="flex flex-wrap gap-2">
-          {user.roles.map((r) => (
-            <span key={r.key} className="inline-flex items-center gap-2 rounded-token bg-brand-subtle px-3 py-1.5 text-sm text-brand">
-              {r.name}
-              {canManageRbac && (
-                <button type="button" className="text-danger hover:opacity-80" disabled={busy} title="Remove" onClick={() => run(() => api.removeUserRole(id, r.key))}>
-                  <X size={14} strokeWidth={2} aria-hidden />
-                </button>
-              )}
-            </span>
-          ))}
-          {user.roles.length === 0 && <span className="text-sm text-fg-muted">No roles.</span>}
-        </div>
+        <DataTable
+          columns={roleColumns}
+          rows={user.roles}
+          rowKey={(r) => r.key}
+          pagination={false}
+          searchable={false}
+          columnVisibility={false}
+          emptyMessage="No roles."
+          emptyDescription="Assign one below to give this account its permissions."
+        />
         <Can perm={PERMISSIONS.RBAC_MANAGE}>
           {assignable.length > 0 && (
             <div className="mt-4 flex items-center gap-2">
@@ -136,24 +220,18 @@ function Detail({ id }: { id: string }) {
       </Card>
 
       <Card header="Permission overrides">
-        {user.overrides.length ? (
-          <ul className="mb-3 flex flex-col gap-2 text-sm">
-            {user.overrides.map((o) => (
-              <li key={o.id} className="flex items-center gap-2">
-                <Badge tone={o.effect === "DENY" ? "danger" : "success"}>{o.effect}</Badge>
-                <span className="font-mono text-fg">{o.permission}</span>
-                {o.validUntil && <span className="text-fg-muted">until {formatDate(o.validUntil)}</span>}
-                {canManageRbac && (
-                  <button type="button" className="ml-auto text-danger hover:opacity-80" disabled={busy} title="Revoke" onClick={() => run(() => api.revokeUserOverride(id, o.id))}>
-                    <X size={14} strokeWidth={2} aria-hidden />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mb-3 text-sm text-fg-muted">No overrides. DENY always wins over role grants.</p>
-        )}
+        <div className="mb-3">
+          <DataTable
+            columns={overrideColumns}
+            rows={user.overrides}
+            rowKey={(o) => o.id}
+            pagination={false}
+            searchable={false}
+            columnVisibility={false}
+            emptyMessage="No overrides."
+            emptyDescription="DENY always wins over role grants."
+          />
+        </div>
         <Can perm={PERMISSIONS.RBAC_MANAGE}>
           <div className="flex flex-wrap items-center gap-2">
             <select className="hms-input max-w-[18rem]" value={ovPerm} onChange={(e) => setOvPerm(e.target.value)}>

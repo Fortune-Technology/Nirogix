@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, DataTable, type Column } from "@hms/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Field,
+  DataTable,
+  TableActions,
+  ToggleAction,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch } from "@hms/types";
 import * as api from "../../../lib/api";
@@ -72,18 +83,27 @@ function BranchesTable() {
       accessor: (b) => (b.isActive ? "active" : "inactive"),
       cell: (b) => <Badge tone={b.isActive ? "success" : "neutral"}>{b.isActive ? "active" : "inactive"}</Badge>,
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      hideable: false,
-      cell: (b) =>
-        canManage ? (
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => api.updateBranch(b.id, { isActive: !b.isActive }))}>
-            {b.isActive ? "Deactivate" : "Activate"}
-          </Button>
-        ) : null,
-    },
+    actionsColumn<Branch>((b) => (
+      <TableActions label={`Actions for ${b.name}`}>
+        <ToggleAction
+          on={b.isActive}
+          onLabel="Deactivate branch"
+          offLabel="Activate branch"
+          permitted={canManage}
+          loading={busy}
+          confirm={
+            b.isActive
+              ? {
+                  title: `Deactivate ${b.name}?`,
+                  description: "Staff will no longer be able to work in this branch until it is activated again.",
+                  confirmLabel: "Deactivate",
+                }
+              : undefined
+          }
+          onToggle={(next) => void run(() => api.updateBranch(b.id, { isActive: next }))}
+        />
+      </TableActions>
+    )),
   ];
 
   return (

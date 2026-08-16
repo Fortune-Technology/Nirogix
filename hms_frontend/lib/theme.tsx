@@ -32,15 +32,13 @@ function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
+// Only the brand slot is set: hover, pressed, subtle and the focus ring are derived
+// from it in the token layer, so a tenant accent carries through every state
+// (rules.md → Branding & Multi-Tenant Customization).
 function applyBrandColor(hex: string | null): void {
   const root = document.documentElement;
-  if (hex) {
-    root.style.setProperty("--hms-brand", hex);
-    root.style.setProperty("--hms-brand-hover", hex);
-  } else {
-    root.style.removeProperty("--hms-brand");
-    root.style.removeProperty("--hms-brand-hover");
-  }
+  if (hex) root.style.setProperty("--hms-brand", hex);
+  else root.style.removeProperty("--hms-brand");
 }
 
 function applyFavicon(url: string | null): void {

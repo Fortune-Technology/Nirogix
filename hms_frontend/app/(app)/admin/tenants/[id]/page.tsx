@@ -3,8 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Spinner } from "@hms/ui";
+import { ArrowLeft, Ban, LifeBuoy } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  DataTable,
+  Field,
+  Spinner,
+  TableAction,
+  TableActions,
+  actionsColumn,
+  type Column,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { ModuleCatalogItem, TenantDetail } from "@hms/types";
 import * as api from "../../../../../lib/api";
@@ -15,6 +28,13 @@ const STATUSES = ["active", "suspended", "cancelled", "deactivated"];
 
 function Detail({ id }: { id: string }) {
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
+  // Support session (ADR-037)
+  const [targetUser, setTargetUser] = useState("");
+  const [reason, setReason] = useState("");
+  const [ticketRef, setTicketRef] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const [catalog, setCatalog] = useState<ModuleCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,10 +77,98 @@ function Detail({ id }: { id: string }) {
       </div>
     );
   }
+  /**
+   * Starts the session and hands it to a NEW TAB (ADR-037), so the operator keeps
+   * their platform context here. The token travels by `postMessage` rather than in
+   * the URL, and the popup is opened synchronously on the click so browsers do not
+   * treat it as an unsolicited pop-up.
+   */
+  async function startSession() {
+    if (!tenant) return;
+    setStarting(true);
+    const tab = window.open("/support/enter", "_blank");
+    try {
+      const res = await api.startSupportSession({
+        tenantId: tenant.id,
+        userId: targetUser,
+        reason: reason.trim(),
+        ticketRef: ticketRef.trim() || undefined,
+      });
+
+      if (!tab) {
+        // Pop-up blocked: say so instead of leaving a session running invisibly.
+        setPopupBlocked(true);
+        return;
+      }
+
+      // The new tab announces itself when it is ready; only then is the token sent.
+      const handOver = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        if ((event.data as { type?: string })?.type !== "hms:support-ready") return;
+        tab.postMessage({ type: "hms:support-session", accessToken: res.accessToken }, window.location.origin);
+        window.removeEventListener("message", handOver);
+      };
+      window.addEventListener("message", handOver);
+
+      setConfirming(false);
+      setTargetUser("");
+      setReason("");
+      setTicketRef("");
+    } catch {
+      tab?.close();
+      /* reported by the shared API-feedback layer */
+    } finally {
+      setStarting(false);
+    }
+  }
+
+
   if (error && !tenant) return <Alert tone="danger">{error}</Alert>;
   if (!tenant) return null;
 
   const grantable = catalog.filter((m) => !tenant.modules.includes(m.key));
+
+  // Entitled modules render through the Standard DataTable with the shared Action
+  // column, like every other list in the platform (rules.md → Table Row Actions).
+  const moduleRows = tenant.modules.map((key) => ({
+    key,
+    name: catalog.find((m) => m.key === key)?.name ?? key,
+  }));
+  const moduleColumns: Array<Column<{ key: string; name: string }>> = [
+    {
+      key: "name",
+      header: "Module",
+      hideable: false,
+      accessor: (m) => m.name,
+      cell: (m) => <span className="text-fg">{m.name}</span>,
+    },
+    {
+      key: "code",
+      header: "Key",
+      accessor: (m) => m.key,
+      cell: (m) => <span className="font-mono text-xs text-fg-muted">{m.key}</span>,
+    },
+    actionsColumn<{ key: string; name: string }>((m) => (
+      <TableActions label={`Actions for ${m.name}`}>
+        <TableAction
+          label="Revoke module"
+          icon={<Ban size={16} strokeWidth={2} aria-hidden />}
+          tone="danger"
+          loading={busy}
+          confirm={{
+            title: `Revoke ${m.name}?`,
+            description:
+              "Everyone in this hospital loses access to the module immediately. The entitlement record is kept and the module can be granted again.",
+            confirmLabel: "Revoke",
+          }}
+          onSelect={() => void run(() => api.revokeTenantModule(id, m.key))}
+        />
+      </TableActions>
+    )),
+  ];
+  // Support-session targets: a platform operator can never be impersonated (the
+  // server refuses it too — this only keeps them out of the picker).
+  const targets = (tenant.users ?? []).filter((u) => u.status === "active" && !u.roles.includes("super_admin"));
 
   return (
     <>
@@ -94,23 +202,16 @@ function Detail({ id }: { id: string }) {
       </Card>
 
       <Card header={`Modules (${tenant.modules.length})`}>
-        <div className="flex flex-wrap gap-2">
-          {tenant.modules.map((m) => (
-            <span key={m} className="inline-flex items-center gap-2 rounded-token bg-brand-subtle px-3 py-1.5 text-sm text-brand">
-              {m}
-              <button
-                type="button"
-                className="text-danger hover:opacity-80"
-                disabled={busy}
-                title="Revoke"
-                onClick={() => run(() => api.revokeTenantModule(id, m))}
-              >
-                <X size={14} strokeWidth={2} aria-hidden />
-              </button>
-            </span>
-          ))}
-          {tenant.modules.length === 0 && <span className="text-sm text-fg-muted">No modules entitled.</span>}
-        </div>
+        <DataTable
+          columns={moduleColumns}
+          rows={moduleRows}
+          rowKey={(m) => m.key}
+          pagination={false}
+          searchable={false}
+          columnVisibility={false}
+          emptyMessage="No modules entitled."
+          emptyDescription="Grant one below to switch it on for this hospital."
+        />
         {grantable.length > 0 && (
           <div className="mt-4 flex items-center gap-2">
             <select className="hms-input max-w-[16rem]" value={grantKey} onChange={(e) => setGrantKey(e.target.value)}>
@@ -127,6 +228,77 @@ function Detail({ id }: { id: string }) {
           </div>
         )}
       </Card>
+
+      <Card
+        header={
+          <span className="flex items-center gap-2">
+            <LifeBuoy size={16} strokeWidth={1.75} aria-hidden /> Support access
+          </span>
+        }
+      >
+        <p className="text-sm text-fg-muted">
+          Enter this hospital as one of its users to reproduce a problem. You never see or need their password. The
+          session grants exactly that user&apos;s permissions, and both its start and its end are written to this
+          tenant&apos;s audit trail with your name and the reason you give.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="hms-field">
+            <span className="hms-label">Act as</span>
+            <select className="hms-input" value={targetUser} onChange={(e) => setTargetUser(e.target.value)}>
+              <option value="">Select a user…</option>
+              {targets.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName} · {u.email}
+                  {u.roles.length ? ` (${u.roles.join(", ")})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field
+            label="Ticket reference (optional)"
+            value={ticketRef}
+            onChange={(e) => setTicketRef(e.target.value)}
+            placeholder="e.g. SUP-1042"
+          />
+          <div className="sm:col-span-2">
+            <Field
+              label="Reason (recorded in the audit trail)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why do you need to enter this hospital?"
+              error={reason.length > 0 && reason.trim().length < 10 ? "At least 10 characters." : undefined}
+            />
+          </div>
+        </div>
+
+        {popupBlocked ? (
+          <Alert tone="danger">
+            Your browser blocked the new tab. Allow pop-ups for this site and start the session again.
+          </Alert>
+        ) : null}
+
+        <div className="mt-4">
+          <Button
+            variant="secondary"
+            disabled={!targetUser || reason.trim().length < 10}
+            onClick={() => setConfirming(true)}
+          >
+            Start support session in a new tab
+          </Button>
+        </div>
+      </Card>
+
+      <ConfirmDialog
+        open={confirming}
+        title={`Enter ${tenant.name} as this user?`}
+        description="This opens in a new tab so your platform session stays here. You will act as them until you exit, and everything you do is audited in this tenant under your name."
+        confirmLabel="Start session"
+        tone="default"
+        busy={starting}
+        onCancel={() => setConfirming(false)}
+        onConfirm={startSession}
+      />
 
       <Card header={`Branches (${tenant.branches.length})`}>
         {tenant.branches.length ? (

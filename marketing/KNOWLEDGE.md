@@ -69,8 +69,23 @@ lib/
 
 - **No prices / named tiers.** Pricing presents the packaging model (single module / clinic bundle / enterprise) with a "Talk to sales" CTA, never numbers.
 - **No compliance-certification claims.** Security says "designed for / aligned with" DPDP / ABDM / GST and "hosted in India". HIPAA is never mentioned.
-- **No fabricated social proof.** No fake customers, logos, or testimonials (there are no reference customers yet). Trust = honest architecture facts.
+- **No fabricated social proof.** No fake customers, logos, or testimonials (there are no reference customers yet), and no popularity or adoption badge — the emphasised pricing package is labelled with a fact ("What we have built"), never "Most popular". Trust = honest architecture facts.
 - **Onboarding is demo / sales led** (operator-driven), not public self-serve signup.
+
+## Claim accuracy — the availability model (binding — ADR-038)
+
+Nothing on this site is described as available unless it is built. Traceability to the PRD is necessary but **not sufficient**: the catalogue is a roadmap, and a roadmap read as an inventory is exactly the complaint this rule exists to prevent.
+
+- **`lib/availability.ts`** is the single source of truth: `built` (implemented in the product, verified ahead of the first release) or `planned` (PRD scope scheduled in `resources/phases.md`, not built), plus `RELEASE_NOTE`, the one sentence that states the product's stage.
+- **Every module and integration carries a `status`**, surfaced by `components/site/AvailabilityBadge.tsx` on the home bento, `/modules`, each module page header, and `/integrations`. `ReleaseNote` appears wherever the catalogue is presented (home, `/modules`, `/integrations`, `/pricing`).
+- **Each clinic-core module splits `live` from `planned`** in `lib/site.ts`. `/modules/[slug]` renders "What it does today" from `live`, and planned PRD scope in a separate, clearly labelled block. The two lists never mix, and per-module SEO descriptions describe `live` only.
+- **`/security` splits the same way** — "Enforced today" (RBAC, server-side validation and tiered rate limiting) vs "Commitment" (encryption standard, backups and the restore drill, PII masking, PCI-aligned payments). Hosting is written as a design commitment, because nothing is deployed yet.
+- **Specialty content** (`lib/specialties.ts`) may only claim built capability; where a specialty needs something we do not have (imaging, reminders, family linking, package billing, form templates), the page says so in the same breath.
+- **A status changes in the change that ships the feature** — moving a bullet from `planned` to `live`, or a module from `planned` to `built`, is part of that feature's Definition of Done, never a later marketing pass.
+
+## Imagery (binding — ADR-038)
+
+Default: **no image**. The visual language is typography, real product UI (framed `@hms/ui` previews), mockups, diagrams, data visualisation, brand geometry, and restrained motion. An image ships only when it communicates better than the type already there — and it is proposed first, stating the page/section, why it helps, the aspect ratio, the generation prompt, and how it stays on brand. No stock or generic healthcare photography, and no visual that implies a capability the product does not have.
 
 ## SEO / AEO / GEO (binding — ADR-027, `resources/rules.md` → SEO / AEO / GEO Rules)
 

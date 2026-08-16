@@ -5,10 +5,11 @@
 // /specialties/[slug] page with real, differentiated content.
 //
 // CONTENT RULE: every claim here must map to a capability that actually exists
-// (see resources/projectrequirementdoc.md and the module catalogue). We describe
-// how configurable modules serve a specialty's workflow — never "we have a
-// cardiology module". Thin pages that only swap the specialty name are worse than
-// no page at all (rules.md → SEO / AEO / GEO Rules).
+// today (see ./availability and the module catalogue). We describe how
+// configurable modules serve a specialty's workflow — never "we have a cardiology
+// module". Anything the platform does not do yet is written as planned, in so many
+// words (rules.md → Marketing Content & Claim Accuracy). Thin pages that only swap
+// the specialty name are worse than no page at all (rules.md → SEO / AEO / GEO).
 
 import type { LucideIcon } from "lucide-react";
 import {
@@ -67,15 +68,15 @@ export const SPECIALTIES: Specialty[] = [
     ],
     support: [
       "One patient record with a full visit timeline, so a returning patient's history opens in a single view rather than being reassembled from paper.",
-      "Consultation templates configured per specialty capture the fields a cardiologist actually records, without forcing a generic form on them.",
       "Lab orders raised inside the consultation come back to the same encounter, and the charge lands on the patient's existing invoice.",
-      "Follow-up appointments are booked from the consultation, with reminders through the notification service.",
+      "The test catalogue carries each investigation's reference range, so an out-of-range result is flagged when it is entered.",
+      "Follow-up appointments are booked against the cardiologist's own slots. Specialty consultation templates and automated reminders are planned.",
     ],
     modules: ["Patient Management", "Appointment Management", "OPD & Check-in", "Clinical Workflow (EMR)", "Laboratory", "Billing & Payments"],
     configuration: [
-      "Specialty-specific consultation form templates",
       "Diagnostic test catalogue with reference ranges",
-      "Procedure and package price lists",
+      "Provider slots for follow-up-heavy schedules",
+      "Consultation fee and investigation pricing",
     ],
   },
   {
@@ -90,13 +91,13 @@ export const SPECIALTIES: Specialty[] = [
       "Billing is per procedure, often part-paid across visits.",
     ],
     support: [
-      "Provider-wise slot management maps to chairs and dentists, with waitlists and no-show tracking so gaps get refilled.",
+      "Provider-wise slot management maps to chairs and dentists, and a cancellation frees the slot immediately.",
       "The consultation record carries findings, procedures performed, and the prescription, visit after visit, under one patient.",
       "Part payments and running balances are native to the billing engine, so a multi-visit treatment plan bills honestly across visits.",
-      "Reminders reduce no-shows on a schedule where every slot is a chair standing empty.",
+      "Waitlists, no-show tracking, and automated reminders are planned, not built.",
     ],
     modules: ["Patient Management", "Appointment Management", "OPD & Check-in", "Clinical Workflow (EMR)", "Billing & Payments"],
-    configuration: ["Chair/operatory-wise provider slots", "Procedure catalogue and price list", "Multi-visit treatment notes"],
+    configuration: ["Chair/operatory-wise provider slots", "Procedure pricing on the invoice", "Multi-visit treatment notes"],
   },
   {
     slug: "pediatrics",
@@ -110,13 +111,13 @@ export const SPECIALTIES: Specialty[] = [
       "Weight-based dosing has to be right every time.",
     ],
     support: [
-      "Family linking ties siblings and guardians to one household, and the guardian's phone is the contact for reminders.",
+      "The guardian's phone and contact details sit on the child's record, so the front desk always reaches the right adult.",
       "Vitals captured at every visit (weight, height, temperature) build the growth record inside the same encounter history.",
-      "Scheduled follow-ups plus SMS/WhatsApp reminders cover recall for the next visit in a course.",
       "Prescriptions record dose, frequency, duration and route explicitly, so weight-based dosing is written down, not remembered.",
+      "Follow-ups are booked from the front desk. Family and dependant linking, and automated recall reminders, are planned.",
     ],
     modules: ["Patient Management", "Appointment Management", "Clinical Workflow (EMR)", "Pharmacy", "Billing & Payments"],
-    configuration: ["Guardian/family links", "Vitals captured per visit", "Recall and reminder templates"],
+    configuration: ["Guardian contact on the patient record", "Vitals captured per visit", "Immunisation and review visit scheduling"],
   },
   {
     slug: "gynecology",
@@ -131,12 +132,12 @@ export const SPECIALTIES: Specialty[] = [
     ],
     support: [
       "A continuous patient timeline holds the whole episode: visits, diagnoses, prescriptions and lab results, rather than isolated appointments.",
-      "Lab and imaging orders raised in the consultation return to the same encounter and bill to the same invoice.",
-      "Access is permission-gated per user and every read/write of a record is written to an immutable audit trail.",
-      "Appointment reminders keep a scheduled visit series on track.",
+      "Lab orders raised in the consultation return to the same encounter and bill to the same invoice.",
+      "Access is permission-gated per user, and mutating actions are written to an append-only audit trail.",
+      "The antenatal visit series is booked appointment by appointment today; imaging orders arrive with the planned Radiology module, and automated reminders are planned too.",
     ],
-    modules: ["Patient Management", "Appointment Management", "Clinical Workflow (EMR)", "Laboratory", "Radiology & PACS", "Billing & Payments"],
-    configuration: ["Visit-series scheduling", "Specialty consultation templates", "Role-based access to sensitive records"],
+    modules: ["Patient Management", "Appointment Management", "Clinical Workflow (EMR)", "Laboratory", "Billing & Payments"],
+    configuration: ["Visit scheduling across a long episode", "Role-based access to sensitive records", "Investigation catalogue and pricing"],
   },
   {
     slug: "physiotherapy",
@@ -152,31 +153,31 @@ export const SPECIALTIES: Specialty[] = [
     support: [
       "Providers are modelled as practitioners with their own schedules, so a therapist's day books like a doctor's.",
       "Each session is an encounter on the patient's timeline, so progress notes read in sequence.",
-      "Package and part payments are handled by the billing engine, so a block of sessions can be paid up front and drawn down.",
-      "Staff roles and permissions decide who can record a session and who can see it.",
+      "Part payments and a running balance are native to the billing engine, so a block of sessions can be paid down over time.",
+      "Staff roles and permissions decide who can record a session and who can see it. Package billing that draws down a prepaid block is planned.",
     ],
-    modules: ["Patient Management", "Appointment Management", "Clinical Workflow (EMR)", "Billing & Payments", "HR & Doctor Scheduling"],
-    configuration: ["Therapist schedules", "Session package price lists", "Session note templates"],
+    modules: ["Patient Management", "Appointment Management", "Clinical Workflow (EMR)", "Billing & Payments"],
+    configuration: ["Therapist schedules", "Session pricing on the invoice", "Session notes per encounter"],
   },
   {
     slug: "radiology",
     name: "Radiology & Imaging",
     icon: Scan,
     featured: true,
-    summary: "Order to report, with the study tracked from request through sign-off.",
+    summary: "Order to report. The diagnostic worklist runs today for labs; the imaging module is planned.",
     challenges: [
-      "An order arrives from another department and has to be tracked to a signed report.",
+      "An order arrives from another department and has to be tracked to a reported result.",
       "The report, not the appointment, is the deliverable.",
       "Imaging is billed per study, often per modality.",
     ],
     support: [
-      "Orders raised in a consultation appear on the department worklist with their status, so nothing sits unclaimed.",
-      "Results are entered against the order and become a signed, printable report on the patient's record.",
+      "The order-to-result worklist exists today for laboratory: an order raised in a consultation appears with its status, so nothing sits unclaimed.",
+      "Results are entered against the order and open as a printable report on the patient's record.",
       "The charge is added to the patient's existing invoice rather than a separate bill.",
-      "DICOM/PACS integration is an add-on for viewing studies alongside the record.",
+      "Imaging itself — modality worklists, radiologist sign-off, and the DICOM viewer — is the planned Radiology & PACS module. It is not built, so an imaging centre cannot run its studies on the platform yet.",
     ],
-    modules: ["Radiology & PACS", "Clinical Workflow (EMR)", "Patient Management", "Billing & Payments"],
-    configuration: ["Modality and study catalogue", "Report templates", "Per-study pricing"],
+    modules: ["Patient Management", "Clinical Workflow (EMR)", "Laboratory", "Billing & Payments"],
+    configuration: ["Investigation catalogue and reference ranges", "Per-study pricing on the invoice", "Worklist roles and permissions"],
   },
   { slug: "psychiatry", name: "Psychiatry", icon: Brain, summary: "Confidential long-term records, recurring reviews, and controlled prescribing." },
   { slug: "psychology", name: "Psychology & Counselling", icon: Sparkles, summary: "Session-based care with private notes and therapist-owned schedules." },
