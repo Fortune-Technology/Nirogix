@@ -12,7 +12,8 @@ export async function createTest(req: Request, res: Response): Promise<void> {
 
 export async function worklist(req: Request, res: Response): Promise<void> {
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-  res.json(await svc.listWorklist(req.auth!.tenantId, status));
+  const patientId = typeof req.query.patientId === 'string' ? req.query.patientId : undefined;
+  res.json(await svc.listWorklist(req.auth!.tenantId, status, patientId));
 }
 
 export async function getOrder(req: Request, res: Response): Promise<void> {

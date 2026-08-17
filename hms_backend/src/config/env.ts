@@ -56,6 +56,21 @@ const EnvSchema = z.object({
   // Background jobs — Redis + BullMQ. When unset, jobs run inline in-process (dev/CI) instead of
   // on a queue; the same call sites work either way. No module creates its own cron/scheduler.
   REDIS_URL: z.string().optional(),
+}).superRefine((val, ctx) => {
+  // When R2 is the chosen provider, its connection details stop being optional. Catch a
+  // half-configured bucket at boot with a precise message, not at the first upload with a
+  // cryptic storage/auth error.
+  if (val.FILE_STORAGE_PROVIDER === 'r2') {
+    for (const key of ['R2_ENDPOINT', 'R2_BUCKET', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'] as const) {
+      if (!val[key] || String(val[key]).trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required when FILE_STORAGE_PROVIDER=r2`,
+        });
+      }
+    }
+  }
 });
 
 export type Env = z.infer<typeof EnvSchema>;

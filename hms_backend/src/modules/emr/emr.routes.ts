@@ -13,6 +13,15 @@ export const emrRouter = Router();
 const mod = requireModule('emr');
 
 emrRouter.get('/icd10', requireAuth, mod, requirePermission(PERMISSIONS.EMR_VIEW), asyncHandler(c.searchIcd10));
+// Read-only chart access: view one encounter / a patient's signed-encounter history.
+emrRouter.get('/encounters/:id', requireAuth, mod, requirePermission(PERMISSIONS.EMR_VIEW), asyncHandler(c.getEncounter));
+emrRouter.get(
+  '/patients/:id/encounters',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.EMR_VIEW),
+  asyncHandler(c.listPatientEncounters),
+);
 emrRouter.post(
   '/encounters/open',
   requireAuth,

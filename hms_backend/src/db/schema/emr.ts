@@ -78,6 +78,9 @@ export const prescriptions = pgTable('prescriptions', {
     .notNull()
     .references(() => patients.id, { onDelete: 'restrict' }),
   drugName: varchar('drug_name', { length: 200 }).notNull(),
+  // Drug-master link (plain uuid, no FK — pharmacy imports this table for dispenses, an FK back
+  // would cycle the schema modules). Validated in the service; drug_name stays the snapshot.
+  drugId: uuid('drug_id'),
   dose: varchar('dose', { length: 80 }),
   frequency: varchar('frequency', { length: 80 }),
   duration: varchar('duration', { length: 80 }),
@@ -101,6 +104,10 @@ export const labOrders = pgTable('lab_orders', {
     .notNull()
     .references(() => patients.id, { onDelete: 'restrict' }),
   testName: varchar('test_name', { length: 200 }).notNull(),
+  // Test-master link (plain uuid, no FK — lab_results already references lab_orders, an FK back
+  // to lab_tests would cycle the schema modules). Validated in the service; name is the snapshot,
+  // and this is what prices the order at sample collection.
+  testId: uuid('test_id'),
   testCode: varchar('test_code', { length: 40 }),
   priority: varchar('priority', { length: 20 }).notNull().default('routine'), // routine | urgent
   status: varchar('status', { length: 20 }).notNull().default('ordered'), // ordered | collected | resulted | cancelled

@@ -52,18 +52,24 @@ function OpdQueue() {
   const [busy, setBusy] = useState(false);
   const canUpdate = useCan(PERMISSIONS.OPD_UPDATE);
   const canConsult = useCan(PERMISSIONS.EMR_VIEW);
+  const canWrite = useCan(PERMISSIONS.EMR_WRITE);
+  const canCheckin = useCan(PERMISSIONS.OPD_CHECKIN);
+  // A clinician (writes encounters, doesn't run the front desk) lands on their own list;
+  // anyone can widen it. The scope is also enforced server-side (`mine` resolves the
+  // provider linked to the login — no provider record, no personal queue).
+  const [mine, setMine] = useState(canWrite && !canCheckin);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await api.listVisits({ status: status || undefined }));
+      setRows(await api.listVisits({ status: status || undefined, mine }));
       setError(null);
     } catch (e) {
       setError(e instanceof api.ApiRequestError ? e.message : "Failed to load the queue.");
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [status, mine]);
 
   useEffect(() => {
     void load();
@@ -72,10 +78,12 @@ function OpdQueue() {
   async function advance(v: Visit, next: "in_consultation" | "completed") {
     setBusy(true);
     try {
-      await api.updateVisitStatus(v.id, { status: next, version: undefined });
+      // The row's version rides along so a concurrent change 409s instead of clobbering.
+      await api.updateVisitStatus(v.id, { status: next, version: v.version });
       await load();
     } catch (e) {
       setError(e instanceof api.ApiRequestError ? e.message : "Could not update the visit.");
+      await load();
     } finally {
       setBusy(false);
     }
@@ -176,21 +184,35 @@ function OpdQueue() {
           </Can>
         }
       />
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-fg-muted">Status:</span>
-        <select
-          className="hms-input max-w-[14rem]"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">All</option>
-          <option value="checked_in">Checked in</option>
-          <option value="in_consultation">In consultation</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-fg-muted">Status:</span>
+          <select
+            className="hms-input max-w-[14rem]"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="checked_in">Checked in</option>
+            <option value="in_consultation">In consultation</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
+          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
+          My patients only
+        </label>
       </div>
-      <DataTable columns={columns} rows={rows} rowKey={(v) => v.id} loading={loading} error={error} emptyMessage="No patients in the queue today." />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(v) => v.id}
+        loading={loading}
+        error={error}
+        emptyMessage={mine ? "No patients assigned to you today." : "No patients in the queue today."}
+        emptyDescription={mine ? "Untick “My patients only” to see the whole queue." : undefined}
+      />
     </>
   );
 }

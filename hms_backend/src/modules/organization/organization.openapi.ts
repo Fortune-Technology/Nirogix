@@ -9,6 +9,7 @@ import {
   RegistrationSettingsSchema,
   SetSelfRegistrationBody,
   RejectRegistrationBody,
+  ApproveRegistrationBody,
 } from './registration.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -150,13 +151,13 @@ registry.registerPath({
   description:
     'The moment the hospital takes responsibility for the record, so it needs the same permission as creating a patient by hand and is audited at notice. The request row is kept and marked approved — it is the provenance of a chart nobody on staff typed.',
   security: [{ bearerAuth: [] }],
-  request: { params: idParam },
+  request: { params: idParam, body: json(ApproveRegistrationBody) },
   responses: {
-    200: { description: 'Created patient', ...json(z.object({ patientId: z.string() })) },
+    200: { description: 'Created (or linked) patient', ...json(z.object({ patientId: z.string() })) },
     401: notAuthed,
     403: { description: 'Missing patient.record.create', ...json(ErrorResponseSchema) },
     404: { description: 'Request not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Already reviewed', ...json(ErrorResponseSchema) },
+    409: { description: 'Already reviewed, or DUPLICATE_PATIENT with matching charts', ...json(ErrorResponseSchema) },
   },
 });
 

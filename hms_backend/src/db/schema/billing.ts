@@ -42,25 +42,32 @@ export const invoices = pgTable(
   (t) => [unique('invoices_tenant_number_unique').on(t.tenantId, t.invoiceNumber)],
 );
 
-export const invoiceLineItems = pgTable('invoice_line_items', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenants.id, { onDelete: 'restrict' }),
-  invoiceId: uuid('invoice_id')
-    .notNull()
-    .references(() => invoices.id, { onDelete: 'cascade' }),
-  itemType: varchar('item_type', { length: 30 }).notNull(), // consultation | pharmacy | lab | procedure | other
-  description: varchar('description', { length: 300 }).notNull(),
-  quantity: integer('quantity').notNull().default(1),
-  unitPricePaise: bigint('unit_price_paise', { mode: 'number' }).notNull(),
-  taxRateBps: integer('tax_rate_bps').notNull().default(0), // basis points (1800 = 18%)
-  taxPaise: bigint('tax_paise', { mode: 'number' }).notNull().default(0),
-  lineTotalPaise: bigint('line_total_paise', { mode: 'number' }).notNull(),
-  sourceModule: varchar('source_module', { length: 30 }), // opd | pharmacy | lab | ...
-  sourceRef: uuid('source_ref'), // originating record id (e.g. visit_id)
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const invoiceLineItems = pgTable(
+  'invoice_line_items',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'restrict' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    itemType: varchar('item_type', { length: 30 }).notNull(), // consultation | pharmacy | lab | procedure | other
+    description: varchar('description', { length: 300 }).notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    unitPricePaise: bigint('unit_price_paise', { mode: 'number' }).notNull(),
+    taxRateBps: integer('tax_rate_bps').notNull().default(0), // basis points (1800 = 18%)
+    taxPaise: bigint('tax_paise', { mode: 'number' }).notNull().default(0),
+    lineTotalPaise: bigint('line_total_paise', { mode: 'number' }).notNull(),
+    sourceModule: varchar('source_module', { length: 30 }), // opd | pharmacy | lab | ...
+    sourceRef: uuid('source_ref'), // originating record id (e.g. visit_id)
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // One billed line per originating clinical record (consultation per visit, lab charge per
+  // order, pharmacy charge per prescription). NULLs are distinct in Postgres, so ad-hoc lines
+  // without a source never collide. Backstop for the service-level dedupe check.
+  (t) => [unique('invoice_line_source_unique').on(t.tenantId, t.sourceModule, t.sourceRef)],
+);
 
 export const payments = pgTable(
   'payments',

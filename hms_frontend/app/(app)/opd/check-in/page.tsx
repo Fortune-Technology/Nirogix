@@ -21,7 +21,8 @@ function CheckInForm() {
   const [providerId, setProviderId] = useState("");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [departmentId, setDepartmentId] = useState("");
-  const [feeRupees, setFeeRupees] = useState("500");
+  // Blank = use the provider's configured default fee (the server decides); typing overrides.
+  const [feeRupees, setFeeRupees] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +50,10 @@ function CheckInForm() {
     return () => clearTimeout(t);
   }, [search, patient]);
 
+  const selectedProvider = providers.find((p) => p.id === providerId);
+  const providerFeeRupees =
+    selectedProvider?.consultationFeePaise != null ? selectedProvider.consultationFeePaise / 100 : null;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -56,8 +61,9 @@ function CheckInForm() {
       setError("Select a patient.");
       return;
     }
+    const feeTyped = feeRupees.trim() !== "";
     const fee = Number(feeRupees);
-    if (!Number.isFinite(fee) || fee < 0) {
+    if (feeTyped && (!Number.isFinite(fee) || fee < 0)) {
       setError("Enter a valid consultation fee.");
       return;
     }
@@ -69,7 +75,8 @@ function CheckInForm() {
         providerId: providerId || undefined,
         departmentId: departmentId || undefined,
         reason: reason || undefined,
-        consultationFeePaise: rupeesToPaise(fee),
+        // Blank field → omit: the server charges the provider's configured default fee.
+        consultationFeePaise: feeTyped ? rupeesToPaise(fee) : undefined,
       });
       router.replace("/opd");
     } catch (err) {
@@ -142,19 +149,30 @@ function CheckInForm() {
               <span className="hms-label">Provider (optional)</span>
               <select className="hms-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
                 <option value="">Assign later</option>
-                {providers.map((p) => (
-                  <option key={p.id} value={p.id}>{p.fullName}</option>
+                {providers.filter((p) => p.isActive).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName}
+                    {p.consultationFeePaise != null ? ` — ₹${p.consultationFeePaise / 100}` : ""}
+                  </option>
                 ))}
               </select>
             </label>
-            <Field
-              label="Consultation fee (₹)"
-              type="number"
-              min={0}
-              step="0.01"
-              value={feeRupees}
-              onChange={(e) => setFeeRupees(e.target.value)}
-            />
+            <div>
+              <Field
+                label="Consultation fee (₹)"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder={providerFeeRupees != null ? String(providerFeeRupees) : "0"}
+                value={feeRupees}
+                onChange={(e) => setFeeRupees(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-fg-subtle">
+                {providerFeeRupees != null
+                  ? `Blank charges the doctor's fee (₹${providerFeeRupees}).`
+                  : "Blank charges the doctor's configured fee, or ₹0 if none."}
+              </p>
+            </div>
             <Field label="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
         </Card>

@@ -7,7 +7,7 @@ import { requirePermission } from '../../http/requirePermission';
 import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
 import { uploadSingle } from '../file/file.upload';
 import { UpdateOrganizationProfileBody } from './organization.schema';
-import { SubmitRegistrationBody, SetSelfRegistrationBody, RejectRegistrationBody } from './registration.schema';
+import { SubmitRegistrationBody, SetSelfRegistrationBody, RejectRegistrationBody, ApproveRegistrationBody } from './registration.schema';
 import * as c from './organization.controller';
 import * as reg from './registration.controller';
 
@@ -88,6 +88,7 @@ organizationRouter.post(
   '/registration-requests/:id/approve',
   requireAuth,
   requirePermission(PERMISSIONS.PATIENT_CREATE),
+  validate({ body: ApproveRegistrationBody }),
   asyncHandler(reg.approve),
 );
 organizationRouter.post(

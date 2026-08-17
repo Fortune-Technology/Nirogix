@@ -4,7 +4,7 @@ import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
-import { CreateProviderBody, AssignSpecialtyBody, CreateFormTemplateBody } from './provider.schema';
+import { CreateProviderBody, UpdateProviderBody, AssignSpecialtyBody, CreateFormTemplateBody } from './provider.schema';
 import * as c from './provider.controller';
 
 export const providerRouter = Router();
@@ -30,6 +30,13 @@ providerRouter.get(
   requireAuth,
   requirePermission(PERMISSIONS.PROVIDER_VIEW),
   asyncHandler(c.getProvider),
+);
+providerRouter.patch(
+  '/providers/:id',
+  requireAuth,
+  requirePermission(PERMISSIONS.PROVIDER_MANAGE),
+  validate({ body: UpdateProviderBody }),
+  asyncHandler(c.updateProvider),
 );
 providerRouter.post(
   '/providers/:id/specialties',

@@ -40,7 +40,13 @@ export async function listRequests(req: Request, res: Response): Promise<void> {
 }
 
 export async function approve(req: Request, res: Response): Promise<void> {
-  res.json(await svc.approveRegistrationRequest(req.auth!.tenantId, req.params.id!, req.auth!.userId));
+  const body = (req.body ?? {}) as { allowDuplicate?: boolean; existingPatientId?: string };
+  res.json(
+    await svc.approveRegistrationRequest(req.auth!.tenantId, req.params.id!, req.auth!.userId, {
+      allowDuplicate: body.allowDuplicate,
+      existingPatientId: body.existingPatientId,
+    }),
+  );
 }
 
 export async function reject(req: Request, res: Response): Promise<void> {

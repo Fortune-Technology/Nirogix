@@ -20,6 +20,7 @@ import type { Patient, CreatePatientRequest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
+import { PatientHistory } from "../../../../components/patients/PatientHistory";
 import { PageHeader } from "../../../../components/PageHeader";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -53,6 +54,18 @@ function Profile({ id }: { id: string }) {
   }, [id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // The patients-list "Edit details" action lands here with ?edit=1 — open the form as
+  // soon as the record is in (once; closing it stays closed).
+  const [autoEditDone, setAutoEditDone] = useState(false);
+  useEffect(() => {
+    if (!p || autoEditDone) return;
+    if (new URLSearchParams(window.location.search).get("edit") === "1") {
+      setAutoEditDone(true);
+      startEdit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p, autoEditDone]);
 
   function startEdit() {
     if (!p) return;
@@ -182,6 +195,11 @@ function Profile({ id }: { id: string }) {
           <PortalAccessCard patient={p} />
         </div>
       )}
+
+      {/* The record's story across visits — what "maintain patient history" means in the UI.
+          Each block is permission-gated, so a receptionist sees visits and bills while the
+          clinical history stays with EMR-permitted roles. */}
+      {!editing && <PatientHistory patientId={p.id} />}
     </>
   );
 }

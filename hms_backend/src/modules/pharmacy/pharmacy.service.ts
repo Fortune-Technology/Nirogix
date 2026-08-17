@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, ilike, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { drugs, drugBatches, dispenses, prescriptions, visits, patients } from '../../db/schema';
+import { drugs, drugBatches, dispenses, prescriptions, encounters, visits, patients } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import * as billing from '../billing/billing.service';
@@ -96,7 +96,9 @@ export async function receiveStock(tenantId: string, drugId: string, input: Rece
   return listDrugs(tenantId).then((d) => d.find((x) => x.id === drugId));
 }
 
-// The dispensing worklist — prescriptions still awaiting dispense (status 'ordered').
+// The dispensing worklist — prescriptions awaiting dispense (status 'ordered') from SIGNED
+// encounters only. A draft consultation is still being written: its rows are not yet orders,
+// and surfacing them would let pharmacy act on medication the doctor may still change.
 export async function listPendingPrescriptions(tenantId: string) {
   return runWithTenant(tenantId, async (tx) => {
     const rows = await tx
@@ -108,10 +110,12 @@ export async function listPendingPrescriptions(tenantId: string) {
       })
       .from(prescriptions)
       .innerJoin(patients, eq(patients.id, prescriptions.patientId))
-      .where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.status, 'ordered')))
+      .innerJoin(encounters, eq(encounters.id, prescriptions.encounterId))
+      .where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.status, 'ordered'), eq(encounters.status, 'signed')))
       .orderBy(asc(prescriptions.createdAt));
     return rows.map((r) => ({
       id: r.p.id,
+      drugId: r.p.drugId,
       drugName: r.p.drugName,
       dose: r.p.dose,
       frequency: r.p.frequency,
@@ -139,20 +143,43 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
 
   // 1) Deduct stock (FEFO), mark the prescription dispensed, record the dispense.
   const ctx = await runWithTenant(tenantId, async (tx) => {
+    // Row lock: two concurrent dispenses of the same prescription must serialize here, so the
+    // status check below cannot be raced past (double-dispense guard is a lock, not a hope).
     const rx = (
-      await tx.select().from(prescriptions).where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.id, input.prescriptionId))).limit(1)
+      await tx
+        .select()
+        .from(prescriptions)
+        .where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.id, input.prescriptionId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!rx) throw Errors.notFound('Prescription not found');
     if (rx.status !== 'ordered') throw Errors.conflict('This prescription has already been dispensed or cancelled');
 
+    // Only signed consultations are dispensable — the worklist filters drafts out, and this
+    // re-checks it server-side so a direct API call cannot jump the rule.
+    const enc = (
+      await tx
+        .select({ status: encounters.status })
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, rx.encounterId)))
+        .limit(1)
+    )[0];
+    if (!enc || enc.status !== 'signed') {
+      throw Errors.conflict('This prescription belongs to a consultation that is not signed yet');
+    }
+
     const drug = (await tx.select().from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, input.drugId))).limit(1))[0];
     if (!drug) throw Errors.notFound('Drug not found');
 
+    // Lock the batches being drawn down — concurrent dispenses of the same drug otherwise
+    // read the same quantities and both deduct.
     const batches = await tx
       .select()
       .from(drugBatches)
       .where(and(eq(drugBatches.tenantId, tenantId), eq(drugBatches.drugId, input.drugId), gt(drugBatches.quantity, 0)))
-      .orderBy(asc(drugBatches.expiryDate)); // FEFO (Postgres ASC → NULLs last, so dated batches go first)
+      .orderBy(asc(drugBatches.expiryDate)) // FEFO (Postgres ASC → NULLs last, so dated batches go first)
+      .for('update');
 
     const onHand = batches.reduce((s, b) => s + b.quantity, 0);
     if (onHand < input.quantity) throw Errors.conflict(`Insufficient stock — ${onHand} in hand, ${input.quantity} requested`);
@@ -193,6 +220,8 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
       unitPricePaise: drug.unitPricePaise,
       taxRateBps: drug.taxRateBps,
       prescriptionId: rx.id,
+      // The doctor picked a specific drug and the pharmacist dispensed a different one.
+      substituted: rx.drugId !== null && rx.drugId !== input.drugId,
     };
   });
 
@@ -228,7 +257,7 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
     action: 'pharmacy.dispense',
     resourceType: 'dispense',
     resourceId: ctx.dispenseId,
-    metadata: { prescriptionId: ctx.prescriptionId, drugId: input.drugId, quantity: input.quantity, invoiceId },
+    metadata: { prescriptionId: ctx.prescriptionId, drugId: input.drugId, quantity: input.quantity, invoiceId, substituted: ctx.substituted },
   });
 
   return { dispenseId: ctx.dispenseId, invoiceId, drugName: ctx.drugName, quantity: input.quantity, totalPaise: ctx.unitPricePaise * input.quantity };

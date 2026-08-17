@@ -21,6 +21,8 @@ export const CreatePatientBody = z
     emergencyContactName: nn(z.string().max(150)),
     emergencyContactPhone: nn(z.string().max(20)),
     branchId: nn(z.string().uuid()),
+    /** Register anyway after reviewing the DUPLICATE_PATIENT candidates from a 409. */
+    allowDuplicate: z.boolean().optional(),
   })
   .openapi('CreatePatientBody');
 

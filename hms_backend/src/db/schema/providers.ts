@@ -4,6 +4,7 @@ import {
   varchar,
   boolean,
   integer,
+  bigint,
   jsonb,
   timestamp,
   unique,
@@ -39,6 +40,9 @@ export const providers = pgTable('providers', {
   qualification: varchar('qualification', { length: 200 }),
   email: varchar('email', { length: 255 }),
   phone: varchar('phone', { length: 32 }),
+  // Default OPD consultation fee in integer paise (billing convention). NULL = not configured;
+  // check-in falls back to it when the caller does not supply a fee.
+  consultationFeePaise: bigint('consultation_fee_paise', { mode: 'number' }),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

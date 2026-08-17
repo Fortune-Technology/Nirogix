@@ -146,6 +146,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
       P.DEPARTMENT_VIEW,
+      // Read the drug master while prescribing — the formulary picker needs the list (and its
+      // stock levels) even though dispensing stays with the pharmacist.
+      P.PHARMACY_STOCK_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },

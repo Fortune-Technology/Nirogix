@@ -131,6 +131,12 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | PAT-05 | Open a patient record | — | Click a UHID | Detail view with demographics and history; dates in `DD/MM/YYYY` | P1 | Functional | doctor | Not run |
 | PAT-06 | Edit a patient | `patient.create` | Change a field → Save | Change persists after reload; success toast | P2 | Functional | receptionist | Not run |
 | PAT-07 | Permission gate | Role without `patient.view` | Open `/patients` | Forbidden panel | P1 | Security | pharmacist | Not run |
+| PAT-08 | Duplicate warning on registration | A patient with the same phone + name (or phone + DOB) exists | Register with those details | 409 dialog lists the matching charts with UHID/phone/DOB; nothing created yet | P1 | Validation | receptionist | Not run |
+| PAT-09 | Register anyway / use existing | Duplicate dialog open | Choose "Use this patient" or "Register anyway" | Use → navigates to the existing chart, nothing created; anyway → new chart with its own UHID | P1 | Functional | receptionist | Not run |
+| PAT-10 | Archive and reactivate | Active patient | Row action → Deactivate, then Reactivate | Status becomes archived then active again; record and history untouched; both changes audited | P1 | Functional | receptionist | Not run |
+| PAT-11 | Edit from the list | — | Patients list → row action "Edit details" | Lands on the record with the edit form already open | P2 | UI/UX | receptionist | Not run |
+| PAT-12 | Record history | Patient with visits/bills | Open the record | History cards show visits, consultations, invoices and lab orders — each card only for roles holding that module's view permission | P1 | Functional | doctor | Not run |
+| PAT-13 | QR approval duplicate → link existing chart | Pending request matching an existing patient | Approve it | Duplicate dialog offers "Link this chart"; linking marks the request approved against the existing patient — no second chart | P1 | Functional | receptionist | Not run |
 
 ## 6. Appointments
 
@@ -154,6 +160,10 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | OPD-04 | Status transitions | Visit in queue | Move waiting → in consultation → completed | Each transition persists and is reflected in the queue | P1 | Functional | doctor | Not run |
 | OPD-05 | Check-in without permission | Role lacking `opd.checkin` | — | Action hidden; API refuses a direct call | P1 | Security | pharmacist | Not run |
 | OPD-06 | Bill link from the queue | Visit with an invoice | Click the bill badge | Opens that patient's invoice | P2 | Functional | cashier | Not run |
+| OPD-07 | Provider default fee | Provider has a configured consultation fee | Check in with the fee field blank | Invoice opens with exactly the provider's fee; the field's hint names that fee | P1 | Functional | receptionist | Not run |
+| OPD-08 | Second walk-in blocked | Patient already checked in today (live visit) | Check the same patient in again | Refused with the existing visit number; no second visit or invoice | P1 | Validation | receptionist | Not run |
+| OPD-09 | My patients only | Doctor linked to a provider; other doctors have patients today | Open the OPD queue as the doctor | Defaults to their own patients; unticking shows the whole queue; a login with no provider record sees an empty personal list | P1 | Functional | doctor | Not run |
+| OPD-10 | Start consult blocked while unpaid | Checked-in visit, unpaid invoice | Row action → Start consult | Refused with "consultation fee is unpaid"; status unchanged | P1 | Validation | doctor | Not run |
 
 ## 8. Clinical workflow (EMR)
 
@@ -167,6 +177,11 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | EMR-06 | Sign the consultation | Draft encounter | Sign | Confirmation first; record locks; visit marked completed; further edits refused | P1 | Functional | doctor | Not run |
 | EMR-07 | Concurrent edit | Same encounter open twice | Save in both | The second save is refused with a conflict message, not silently overwritten | P2 | Validation | doctor | Not run |
 | EMR-08 | Access control | Role without EMR permission | Open the encounter URL | Forbidden panel; no clinical data rendered | P1 | Security | cashier | Not run |
+| EMR-09 | Payment gate on opening | Unpaid checked-in visit | Open the visit as the doctor | "Payment pending" panel with the balance and a Collect payment link; no draft encounter created | P1 | Validation | doctor | Not run |
+| EMR-10 | Prescribe from the drug master | Drugs in the master | Pick a drug from the picker | Row shows stock and unit price; after save the prescription carries the master link and the exact master name | P1 | Functional | doctor | Not run |
+| EMR-11 | Order from the test master | Tests in the master | Pick a test from the picker | Row shows the price and "billed at sample collection"; the saved order carries the master link | P1 | Functional | doctor | Not run |
+| EMR-12 | Re-save never destroys progressed work | Lab order collected/resulted on a draft encounter | Edit notes and save again | The collected/resulted order and its result survive; only still-ordered rows follow the edit; dispensed prescriptions stay locked in the form | P1 | Integration | doctor | Not run |
+| EMR-13 | Past consultations panel | Patient with earlier signed encounters | Open a new consultation | Earlier signed visits listed with date, doctor, complaint and diagnoses; current visit excluded | P2 | Functional | doctor | Not run |
 
 ## 9. Pharmacy
 
@@ -178,6 +193,9 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | PHR-04 | Dispense against a prescription | Signed prescription | Pharmacy → dispense | Stock decreases; charge is added to the patient's bill; toast names the drug, quantity and amount added | P1 | Integration | pharmacist | Not run |
 | PHR-05 | Dispense more than stock | Quantity > on hand | Attempt it | Rejected with a clear message; stock unchanged | P1 | Validation | pharmacist | Not run |
 | PHR-06 | Invalid quantity | — | Enter 0 or a negative number | Client-side validation message; no request sent | P2 | Validation | pharmacist | Not run |
+| PHR-07 | Draft prescriptions never reach pharmacy | Encounter saved but not signed | Open the pharmacy worklist | The prescription is absent; a direct dispense call is refused ("not signed") | P1 | Security | pharmacist | Not run |
+| PHR-08 | No double dispense | Prescription already dispensed | Dispense it again (second tab / direct call) | Refused with a conflict; stock deducted exactly once; one pharmacy line on the bill | P1 | Validation | pharmacist | Not run |
+| PHR-09 | Master-linked prescription pre-selects the drug | Prescription made from the drug picker | Open its dispense card | The exact prescribed drug is pre-selected by id, not guessed from the name | P2 | Functional | pharmacist | Not run |
 
 ## 10. Laboratory
 
@@ -190,6 +208,8 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | LAB-05 | View the report | Result entered | Open the order | Printable report with patient, test, result, reference range and flag | P1 | Functional | doctor | Not run |
 | LAB-06 | Lab charge on the bill | Result entered | Open the patient's invoice | The lab charge is a line item on the existing invoice, not a separate bill | P1 | Integration | cashier | Not run |
 | LAB-07 | Result without a value | — | Save an empty result | Validation message; nothing saved | P2 | Validation | lab_tech | Not run |
+| LAB-08 | Result before collection is refused | Ordered (not collected) test | Enter a result directly | Refused with "collect the sample first"; status unchanged | P1 | Validation | lab_tech | Not run |
+| LAB-09 | Billed once, at collection | Master-linked order | Collect the sample, then enter the result | The lab line lands on the visit's invoice at collection, at the master price — and exactly once after the result too | P1 | Integration | cashier | Not run |
 
 ## 11. Billing & payments
 
@@ -204,6 +224,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | BIL-07 | Filter by status | Mixed invoices | Use the status filter | Only matching invoices; paging resets to page 1 | P2 | Functional | cashier | Not run |
 | BIL-08 | Print a receipt | Paid invoice | Print | Print view shows the receipt only, without navigation chrome | P2 | UI/UX | cashier | Not run |
 | BIL-09 | Money formatting | Any invoice | Inspect amounts | Indian rupee formatting, two decimals, aligned right in tables | P2 | UI/UX | any | Not run |
+| BIL-10 | Settled invoice takes no more | Fully paid invoice | Attempt another payment (direct call) | Refused with "already settled"; the Collect button is gone from the screen | P1 | Validation | cashier | Not run |
 
 ## 12. Reports
 

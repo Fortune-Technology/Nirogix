@@ -63,3 +63,13 @@ export const SetSelfRegistrationBody = z.object({ enabled: z.boolean() }).openap
 export const RejectRegistrationBody = z
   .object({ reason: z.string().trim().max(300).optional() })
   .openapi('RejectRegistrationBody');
+/**
+ * Approving after the duplicate warning: either link the request to the existing chart the
+ * reviewer matched, or knowingly register a new one anyway. Empty body = plain approval.
+ */
+export const ApproveRegistrationBody = z
+  .object({
+    allowDuplicate: z.boolean().optional(),
+    existingPatientId: z.string().uuid().optional(),
+  })
+  .openapi('ApproveRegistrationBody');

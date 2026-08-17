@@ -3,6 +3,7 @@ import { ErrorResponseSchema } from '../../openapi/schemas';
 import {
   SpecialtiesResponseSchema,
   CreateProviderBody,
+  UpdateProviderBody,
   ProviderSchema,
   ProvidersResponseSchema,
   AssignSpecialtyBody,
@@ -70,6 +71,23 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/providers/{id}',
+  operationId: 'updateProvider',
+  tags: ['Doctors'],
+  summary: 'Update a provider (details, default consultation fee, active flag)',
+  security: [{ bearerAuth: [] }],
+  request: { ...idParam, body: json(UpdateProviderBody) },
+  responses: {
+    200: { description: 'Updated provider', ...json(ProviderSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
 

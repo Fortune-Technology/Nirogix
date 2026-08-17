@@ -1,14 +1,25 @@
 import 'dotenv/config';
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
-import { tenants, branches, departments, users, providers, patients as patientsTable } from '../db/schema';
+import {
+  tenants,
+  branches,
+  departments,
+  users,
+  providers,
+  patients as patientsTable,
+  labTests as labTestsTable,
+  drugs as drugsTable,
+} from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 import { createPatient, countPatients, type PatientInput } from '../modules/patient/patient.service';
 import { bookAppointment, countAppointments } from '../modules/appointment/appointment.service';
+import { createTest, type CreateTestInput } from '../modules/laboratory/laboratory.service';
+import { createDrug, receiveStock, type CreateDrugInput } from '../modules/pharmacy/pharmacy.service';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
 // Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
@@ -30,7 +41,30 @@ interface SeedProvider {
   specialty: string;
   /** Email of the seeded user to link this provider to (optional). */
   userEmail?: string;
+  /** Default OPD consultation fee in paise — what check-in charges when no override is given. */
+  consultationFeePaise?: number;
 }
+
+type SeedDrug = CreateDrugInput & { stockQty: number; batchNo: string; expiryDate: string };
+
+// Shared demo catalogs (Indian OPD context, prices in paise, taxes kept at 0 for clean demo
+// receipts). Every hospital entitled to the module gets them, so a fresh seed can run the whole
+// journey — prescribe from a drug master, order from a test master, dispense against stock.
+const SEED_LAB_TESTS: CreateTestInput[] = [
+  { name: 'Hemoglobin', code: 'HB', sampleType: 'blood', unit: 'g/dL', refLow: '12', refHigh: '17', pricePaise: 20000 },
+  { name: 'Fasting Blood Sugar', code: 'FBS', sampleType: 'blood', unit: 'mg/dL', refLow: '70', refHigh: '110', pricePaise: 15000 },
+  { name: 'Lipid Profile', code: 'LIPID', sampleType: 'blood', unit: null, refLow: null, refHigh: null, pricePaise: 60000 },
+  { name: 'Thyroid Stimulating Hormone', code: 'TSH', sampleType: 'blood', unit: 'µIU/mL', refLow: '0.4', refHigh: '4.2', pricePaise: 35000 },
+  { name: 'Urine Routine', code: 'URINE-R', sampleType: 'urine', unit: null, refLow: null, refHigh: null, pricePaise: 12000 },
+];
+
+const SEED_DRUGS: SeedDrug[] = [
+  { name: 'Paracetamol 500 mg', form: 'tablet', strength: '500 mg', unit: 'tablet', unitPricePaise: 200, stockQty: 500, batchNo: 'PCM-2601', expiryDate: '2027-03-31' },
+  { name: 'Amoxicillin 500 mg', form: 'capsule', strength: '500 mg', unit: 'capsule', unitPricePaise: 1200, stockQty: 300, batchNo: 'AMX-2602', expiryDate: '2027-06-30' },
+  { name: 'Cetirizine 10 mg', form: 'tablet', strength: '10 mg', unit: 'tablet', unitPricePaise: 300, stockQty: 400, batchNo: 'CTZ-2603', expiryDate: '2027-01-31' },
+  { name: 'Pantoprazole 40 mg', form: 'tablet', strength: '40 mg', unit: 'tablet', unitPricePaise: 800, stockQty: 350, batchNo: 'PAN-2604', expiryDate: '2026-12-31' },
+  { name: 'ORS Sachet 21 g', form: 'sachet', strength: '21 g', unit: 'sachet', unitPricePaise: 1800, stockQty: 200, batchNo: 'ORS-2605', expiryDate: '2027-05-31' },
+];
 
 interface SeedTenant {
   code: string;
@@ -71,8 +105,10 @@ const SEED_TENANTS: SeedTenant[] = [
     departments: [
       { code: 'GENMED', name: 'General Medicine', specialty: 'general_medicine' },
       { code: 'CARDIO', name: 'Cardiology', specialty: 'cardiology' },
-      { code: 'ORTHO', name: 'Orthopaedics', specialty: 'orthopaedics' },
-      { code: 'PAEDS', name: 'Paediatrics', specialty: 'paediatrics' },
+      // Specialty codes come from the catalog (US-spelled there): the display name stays Indian
+      // English, the code must match `SPECIALTY_CODES` or providers can never be matched to it.
+      { code: 'ORTHO', name: 'Orthopaedics', specialty: 'orthopedics' },
+      { code: 'PAEDS', name: 'Paediatrics', specialty: 'pediatrics' },
     ],
     users: [
       // A hospital has no System Super Admin — that role belongs to the PLATFORM org (ADR-022).
@@ -92,6 +128,7 @@ const SEED_TENANTS: SeedTenant[] = [
         registrationNumber: 'MMC-2011-04821',
         specialty: 'cardiology',
         userEmail: 'admin@citycare.example',
+        consultationFeePaise: 80000, // ₹800
       },
       {
         fullName: 'Dr. Rajesh Gupta',
@@ -99,6 +136,7 @@ const SEED_TENANTS: SeedTenant[] = [
         registrationNumber: 'MMC-2014-11733',
         specialty: 'general_medicine',
         userEmail: 'doctor@citycare.example',
+        consultationFeePaise: 50000, // ₹500
       },
     ],
     patients: [
@@ -114,6 +152,10 @@ const SEED_TENANTS: SeedTenant[] = [
     branches: [
       { code: 'STL', name: 'Satellite (Main)' },
       { code: 'MNG', name: 'Maninagar' },
+    ],
+    departments: [
+      { code: 'GENMED', name: 'General Medicine', specialty: 'general_medicine' },
+      { code: 'RADIO', name: 'Radiology', specialty: 'radiology' },
     ],
     users: [
       { email: 'admin@sunrise.example', fullName: 'Dr. Priya Patel', role: 'org_admin' },
@@ -131,6 +173,7 @@ const SEED_TENANTS: SeedTenant[] = [
         registrationNumber: 'GMC-2012-07655',
         specialty: 'radiology',
         userEmail: 'doctor@sunrise.example',
+        consultationFeePaise: 60000, // ₹600
       },
     ],
     patients: [
@@ -243,12 +286,49 @@ async function seedTenant(t: SeedTenant): Promise<void> {
         userId: linkedUserId,
         qualification: p.qualification,
         registrationNumber: p.registrationNumber,
+        consultationFeePaise: p.consultationFeePaise ?? null,
       });
       await assignSpecialty(tenant.id, prov.id, { specialtyCode: p.specialty, isPrimary: true });
+    } else if (existing[0] && existing[0].consultationFeePaise === null && p.consultationFeePaise !== undefined) {
+      // Idempotent upgrade for databases seeded before fees existed.
+      await runWithTenant(tenant.id, (tx) =>
+        tx
+          .update(providers)
+          .set({ consultationFeePaise: p.consultationFeePaise, updatedAt: new Date() })
+          .where(and(eq(providers.id, existing[0]!.id), isNull(providers.consultationFeePaise))),
+      );
     }
   }
   // eslint-disable-next-line no-console
   console.log(`  ${t.providers.length} providers seeded`);
+
+  // Clinical catalogs — the lab test master and drug master (with opening stock) every demo of
+  // the full journey needs. Idempotent: seeded only while the tenant's catalog is empty.
+  const modulesGranted = t.modules ?? MVP_MODULES;
+  if (modulesGranted.includes('laboratory')) {
+    const testCount = Number(
+      (await runWithTenant(tenant.id, (tx) => tx.select({ c: count() }).from(labTestsTable).where(eq(labTestsTable.tenantId, tenant.id))))[0]?.c ?? 0,
+    );
+    if (testCount === 0) {
+      for (const lt of SEED_LAB_TESTS) await createTest(tenant.id, lt);
+      // eslint-disable-next-line no-console
+      console.log(`  ${SEED_LAB_TESTS.length} lab tests seeded`);
+    }
+  }
+  if (modulesGranted.includes('pharmacy')) {
+    const drugCount = Number(
+      (await runWithTenant(tenant.id, (tx) => tx.select({ c: count() }).from(drugsTable).where(eq(drugsTable.tenantId, tenant.id))))[0]?.c ?? 0,
+    );
+    if (drugCount === 0) {
+      for (const d of SEED_DRUGS) {
+        const { stockQty, batchNo, expiryDate, ...drugInput } = d;
+        const created = await createDrug(tenant.id, drugInput);
+        if (created) await receiveStock(tenant.id, created.id, { batchNo, expiryDate, quantity: stockQty });
+      }
+      // eslint-disable-next-line no-console
+      console.log(`  ${SEED_DRUGS.length} drugs seeded with opening stock`);
+    }
+  }
 
   // Demo patients — only when the tenant has none (idempotent; UHIDs auto-assigned).
   if (t.patients?.length && (await countPatients(tenant.id)) === 0) {

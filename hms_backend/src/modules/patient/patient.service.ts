@@ -1,7 +1,7 @@
-import { and, count, desc, eq, gte, ilike, inArray, lte, or, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { patients, type Patient } from '../../db/schema';
-import { Errors } from '../../http/error';
+import { AppError, Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
 
@@ -21,7 +21,37 @@ export type PatientInput = {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   branchId?: string | null;
+  /** Register anyway after the duplicate warning was reviewed (never a silent default). */
+  allowDuplicate?: boolean;
 };
+
+/**
+ * Likely-duplicate lookup: same phone number AND (same name, case-insensitive, or same date of
+ * birth). Loose enough to catch the family-shared-phone re-registration, tight enough that a
+ * spouse on the same number with a different name and DOB registers cleanly.
+ */
+async function findDuplicateCandidates(
+  tenantId: string,
+  data: Pick<PatientInput, 'phone' | 'firstName' | 'lastName' | 'dateOfBirth'>,
+): Promise<Patient[]> {
+  const phone = data.phone?.trim();
+  if (!phone) return [];
+  return runWithTenant(tenantId, async (tx) => {
+    const sameName = and(
+      sql`lower(${patients.firstName}) = lower(${data.firstName.trim()})`,
+      data.lastName?.trim()
+        ? sql`lower(coalesce(${patients.lastName}, '')) = lower(${data.lastName.trim()})`
+        : sql`coalesce(${patients.lastName}, '') = ''`,
+    );
+    const conds = [
+      eq(patients.tenantId, tenantId),
+      eq(patients.status, 'active'),
+      eq(patients.phone, phone),
+      data.dateOfBirth ? or(sameName, eq(patients.dateOfBirth, data.dateOfBirth)) : sameName,
+    ];
+    return tx.select().from(patients).where(and(...conds)).limit(5);
+  });
+}
 
 // Allocates a per-tenant UHID (`UHID-000001`, …) and inserts. The unique (tenant, uhid) constraint
 // guards against a race: on conflict we retry the next number. Core clinical entity — strongly typed.
@@ -30,7 +60,28 @@ export async function createPatient(
   data: PatientInput,
   actorUserId?: string,
 ): Promise<Patient> {
+  // Duplicate guard: registration stops with the matching charts unless the caller explicitly
+  // reviewed them and chose to register anyway ("search and select, don't re-create").
+  if (!data.allowDuplicate) {
+    const candidates = await findDuplicateCandidates(tenantId, data);
+    if (candidates.length > 0) {
+      throw new AppError(409, 'DUPLICATE_PATIENT', 'A patient with these details already exists', {
+        candidates: candidates.map((c) => ({
+          id: c.id,
+          uhid: c.uhid,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          phone: c.phone,
+          dateOfBirth: c.dateOfBirth,
+          gender: c.gender,
+        })),
+      });
+    }
+  }
+
   const patient = await runWithTenant(tenantId, async (tx) => {
+    // Serialize UHID allocation per tenant; the unique-conflict retry loop stays as the backstop.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:uhid`}))`);
     const existing = Number(
       (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId)))[0]?.c ?? 0,
     );

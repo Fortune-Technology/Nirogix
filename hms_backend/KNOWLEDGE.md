@@ -156,6 +156,20 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Permissions:** `appointment.booking.view|create|cancel` — receptionist has all three; doctor view+create; org_admin view.
 - Verified live: book → 201; overlapping slot → **409**; cancel → 200; re-book freed slot → **201**; the wildcard super-admin is blocked by **MODULE_NOT_ENTITLED** (PLATFORM not entitled); the dashboard appointment count updates.
 
+## Clinical workflow stack (MVP 0/1 — OPD, EMR, Billing, Pharmacy, Laboratory, Reports)
+
+Shipped as slices 1.3–1.7 (see DONE 14–15/08/2026) and hardened end-to-end by **ADR-066** (17/08/2026). One module per concern, every cross-module money movement through Billing Core (ADR-025), everything tenant-scoped + RLS + audited. The two-patient journey suite (`src/modules/opd/__tests__/clinical-journey.test.ts`) is the executable description of the rules below.
+
+- **OPD (`visits`)** — check-in creates the visit (`V-`-numbered, daily token) and opens a draft consultation-fee invoice via `billing.createInvoice`; the fee defaults from `providers.consultation_fee_paise` when the caller sends none. One live visit per patient per day (walk-in double check-in → 409); token/visit numbers serialize on a per-tenant advisory lock; a billing failure compensates by deleting the just-created visit. Status machine `checked_in → in_consultation → completed|cancelled`, compare-and-swap on `version`; **`in_consultation` requires the invoice settled**. `GET /visits` filters by branch/provider/date/status + `patientId` (all-dates history) + `mine=true` (provider linked to the login → a doctor's own queue). Completing a visit (either path) marks its `booked` appointment `completed`.
+- **EMR (`encounters`, `diagnoses`, `prescriptions`, `lab_orders`)** — one encounter per visit; open creates the draft **only if the visit is live and its invoice settled**; saves are CAS on `version`, author-only, draft-only. A save syncs collections **by row id**: still-`ordered` rows update/insert/delete; anything progressed downstream is immutable and survives (lab results can no longer be cascade-deleted by an edit). Prescriptions carry optional `drug_id`, lab orders `test_id` (validated against the masters, names snapshotted). Sign = CAS to `signed` + visit completed through the state machine. Reads: `GET /encounters/:id`, `GET /patients/:id/encounters` (signed history) under `emr.encounter.view`.
+- **Billing (`invoices`, `invoice_line_items`, `payments`)** — integer paise, tax in bps, totals recomputed from the ledger. `recordPayment` locks the invoice row, answers an idempotency-key retry with the original result, refuses overpayment and settled invoices; method `cash|upi|card|netbanking|other`. `addInvoiceLine` locks the invoice and enforces **one line per source record** (`hasSourceLine` + unique `(tenant_id, source_module, source_ref)`).
+- **Pharmacy (`drugs`, `drug_batches`, `dispenses`)** — FEFO batch deduction under `FOR UPDATE` (prescription row + batches), **signed encounters only** (worklist filters drafts and `dispense` re-checks), all-or-nothing per prescription, pharmacy line billed to the visit's invoice, substitution recorded in audit metadata.
+- **Laboratory (`lab_tests`, `lab_results`)** — `ordered → collected → resulted`; result entry requires collection (re-entry on `resulted` is the ADR-060 correction path); a master-linked order is **billed at collection** (cash before testing) with the result path as fallback; abnormal flag derived from the reference range; worklist filters by status + `patientId`.
+- **Patients dedupe (ADR-066)** — registration 409s `DUPLICATE_PATIENT` (candidates in `error.details`) on same phone + same name-or-DOB unless `allowDuplicate`; QR approval accepts `existingPatientId` to link the chart instead. UHID allocation takes the per-tenant advisory lock.
+- **Providers** — `PATCH /providers/:id` edits details / default fee / `is_active`; `user_id` links a login for the personal queue. The doctor role reads the drug master (`pharmacy.stock.view`).
+- **Reports** — OPD register, collections, pending labs, EOD; read-only over the same tables.
+- **Known leftovers** are in `BACKLOG.md → Clinical-workflow hardening (ADR-066)`: lab result file upload, PHI read auditing, billing outbox, post-sign cancel, appointment `no_show`.
+
 ## Endpoints (current)
 
 - `GET /api/v1/health` — liveness
@@ -181,7 +195,13 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - `GET /api/v1/audit` (audit trail, paginated; requires `audit.log.view`)
 - `POST /api/v1/notifications/test` (send; `notifications.send`) · `GET /api/v1/notifications` (log; `notifications.log.view`)
 - `POST /api/v1/files` (upload) · `GET /api/v1/files/{id}` (download URL) · `GET /api/v1/files/content/{id}` (token stream) · `DELETE /api/v1/files/{id}` — `files.document.*`
-- `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `providers.view|manage`
+- `GET /api/v1/specialties` · `GET|POST /api/v1/providers` · `GET|PATCH /api/v1/providers/{id}` · `POST /api/v1/providers/{id}/specialties` · `GET|POST /api/v1/specialty-templates` — `providers.view|manage`
+- `GET /api/v1/visits` (queue/history: branch/provider/date/status/`patientId`/`mine`) · `GET /api/v1/visits/{id}` · `POST /api/v1/visits/check-in` · `PATCH /api/v1/visits/{id}/status` — OPD, module-gated (`opd.visit.view|checkin|update`)
+- `GET /api/v1/icd10` · `GET /api/v1/encounters/{id}` · `GET /api/v1/patients/{id}/encounters` (`emr.encounter.view`) · `POST /api/v1/encounters/open` · `PUT /api/v1/encounters/{id}` · `POST /api/v1/encounters/{id}/sign` (`emr.encounter.write`) — EMR, module-gated
+- `GET /api/v1/invoices` (patient/status/amount-range, paginated) · `GET|POST /api/v1/invoices/{id}` · `POST /api/v1/invoices/{id}/payments` — Billing Core (`billing.invoice.view|create`, `billing.payment.collect`)
+- `GET|POST /api/v1/drugs` · `POST /api/v1/drugs/{id}/stock` · `GET /api/v1/prescriptions/pending` · `POST /api/v1/dispense` — Pharmacy (`pharmacy.stock.view|manage`, `pharmacy.dispense.create`)
+- `GET|POST /api/v1/lab-tests` · `GET /api/v1/lab-orders` (status/`patientId`) · `GET /api/v1/lab-orders/{id}` · `POST /api/v1/lab-orders/{id}/collect` · `POST /api/v1/lab-orders/{id}/result` — Laboratory (`laboratory.order.view`, `laboratory.test.manage`, `laboratory.result.enter`)
+- `GET /api/v1/reports/opd-register|collections|pending-labs` (+ EOD) — Reports (`reports.view`)
 
 ## Tenant branding (ADR-021)
 

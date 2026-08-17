@@ -40,6 +40,7 @@ export async function createProvider(
     email?: string;
     phone?: string;
     userId?: string;
+    consultationFeePaise?: number | null;
   },
   actorUserId?: string,
 ): Promise<Provider> {
@@ -55,6 +56,7 @@ export async function createProvider(
         email: data.email ?? null,
         phone: data.phone ?? null,
         userId: data.userId ?? null,
+        consultationFeePaise: data.consultationFeePaise ?? null,
       })
       .returning();
     return rows[0]!;
@@ -68,6 +70,54 @@ export async function createProvider(
     metadata: { fullName: data.fullName },
   });
   return provider;
+}
+
+// Edit / deactivate a provider (ADR-060 — a record that can be displayed incorrectly must have
+// a permitted way to be corrected). Only provided keys change; `isActive: false` retires the
+// doctor from new work without touching any clinical history.
+export async function updateProvider(
+  tenantId: string,
+  providerId: string,
+  patch: {
+    fullName?: string;
+    gender?: string | null;
+    registrationNumber?: string | null;
+    qualification?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    userId?: string | null;
+    consultationFeePaise?: number | null;
+    isActive?: boolean;
+  },
+  actorUserId?: string,
+): Promise<Provider> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  const fields = [
+    'fullName', 'gender', 'registrationNumber', 'qualification', 'email', 'phone',
+    'userId', 'consultationFeePaise', 'isActive',
+  ] as const;
+  for (const f of fields) {
+    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+  }
+  const updated = (
+    await runWithTenant(tenantId, (tx) =>
+      tx
+        .update(providers)
+        .set(set)
+        .where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId)))
+        .returning(),
+    )
+  )[0];
+  if (!updated) throw Errors.notFound('Provider not found');
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'provider.update',
+    resourceType: 'provider',
+    resourceId: providerId,
+    metadata: { fields: Object.keys(set).filter((k) => k !== 'updatedAt') },
+  });
+  return updated;
 }
 
 // FHIR PractitionerRole: attach a specialty (+ optional branch/role) to a provider — a data change,

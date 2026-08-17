@@ -42,8 +42,12 @@ import type {
   InvoiceListItem,
   RecordPaymentRequest,
   Encounter,
+  EncounterSummary,
   SaveEncounterRequest,
   Icd10Code,
+  CreateProviderRequest,
+  UpdateProviderRequest,
+  AssignSpecialtyRequest,
   Drug,
   PendingPrescription,
   CreateDrugRequest,
@@ -99,6 +103,18 @@ export async function changeOwnPassword(body: {
 export async function listProviders(): Promise<Provider[]> {
   const data = await request<{ providers: Provider[] }>("/providers");
   return data.providers;
+}
+
+export async function createProvider(body: CreateProviderRequest): Promise<Provider> {
+  return request<Provider>("/providers", { method: "POST", body, feedback: { success: "Doctor added." } });
+}
+
+export async function updateProvider(id: string, patch: UpdateProviderRequest): Promise<Provider> {
+  return request<Provider>(`/providers/${id}`, { method: "PATCH", body: patch, feedback: { success: "Doctor updated." } });
+}
+
+export async function assignProviderSpecialty(id: string, body: AssignSpecialtyRequest): Promise<void> {
+  await request(`/providers/${id}/specialties`, { method: "POST", body, feedback: { success: "Specialty assigned." } });
 }
 
 export async function listSpecialties(): Promise<Specialty[]> {
@@ -158,10 +174,14 @@ export async function listRegistrationRequests(status = "pending"): Promise<Regi
   return (await request<{ requests: RegistrationRequestItem[] }>(`/registration-requests?status=${status}`)).requests;
 }
 
-export async function approveRegistrationRequest(id: string): Promise<{ patientId: string }> {
+export async function approveRegistrationRequest(
+  id: string,
+  opts: { allowDuplicate?: boolean; existingPatientId?: string } = {},
+): Promise<{ patientId: string }> {
   return request<{ patientId: string }>(`/registration-requests/${id}/approve`, {
     method: "POST",
-    feedback: { success: "Patient registered." },
+    body: opts,
+    feedback: { success: opts.existingPatientId ? "Linked to the existing patient." : "Patient registered." },
   });
 }
 
@@ -297,13 +317,15 @@ export async function cancelAppointment(id: string, reason?: string): Promise<{ 
 // ---- OPD / visits (hms_backend/src/modules/opd) ----------------------------
 
 export async function listVisits(
-  opts: { date?: string; branchId?: string; providerId?: string; status?: string } = {},
+  opts: { date?: string; branchId?: string; providerId?: string; patientId?: string; status?: string; mine?: boolean } = {},
 ): Promise<Visit[]> {
   const q = new URLSearchParams();
   if (opts.date) q.set("date", opts.date);
   if (opts.branchId) q.set("branchId", opts.branchId);
   if (opts.providerId) q.set("providerId", opts.providerId);
+  if (opts.patientId) q.set("patientId", opts.patientId);
   if (opts.status) q.set("status", opts.status);
+  if (opts.mine) q.set("mine", "true");
   const qs = q.toString();
   return request<Visit[]>(`/visits${qs ? `?${qs}` : ""}`);
 }
@@ -369,6 +391,16 @@ export async function searchIcd10(q: string): Promise<Icd10Code[]> {
   return request<Icd10Code[]>(`/icd10?q=${encodeURIComponent(q)}`);
 }
 
+/** Read-only chart view — never creates a draft (that is `openEncounter`'s job). */
+export async function getEncounter(id: string): Promise<Encounter> {
+  return request<Encounter>(`/encounters/${id}`);
+}
+
+/** A patient's clinical history: signed encounters, newest first. */
+export async function listPatientEncounters(patientId: string): Promise<EncounterSummary[]> {
+  return request<EncounterSummary[]>(`/patients/${patientId}/encounters`);
+}
+
 // ---- Pharmacy (hms_backend/src/modules/pharmacy) ---------------------------
 
 export async function listDrugs(search?: string): Promise<Drug[]> {
@@ -410,9 +442,12 @@ export async function createLabTest(body: CreateLabTestRequest): Promise<LabTest
   return request<LabTest>("/lab-tests", { method: "POST", body, feedback: { success: "Lab test added." } });
 }
 
-export async function listLabOrders(status?: string): Promise<LabOrder[]> {
-  const q = status ? `?status=${status}` : "";
-  return request<LabOrder[]>(`/lab-orders${q}`);
+export async function listLabOrders(status?: string, patientId?: string): Promise<LabOrder[]> {
+  const q = new URLSearchParams();
+  if (status) q.set("status", status);
+  if (patientId) q.set("patientId", patientId);
+  const qs = q.toString();
+  return request<LabOrder[]>(`/lab-orders${qs ? `?${qs}` : ""}`);
 }
 
 export async function getLabOrder(id: string): Promise<LabOrder> {

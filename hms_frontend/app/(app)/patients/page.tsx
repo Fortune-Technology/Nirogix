@@ -151,7 +151,8 @@ function PatientsTable() {
    */
   async function toggleStatus(p: Patient) {
     try {
-      await api.updatePatient(p.id, { status: p.status === "active" ? "inactive" : "active" });
+      // The API's patient states are `active` | `archived` (never deleted, ADR-060).
+      await api.updatePatient(p.id, { status: p.status === "active" ? "archived" : "active" });
       await load(query, registered);
     } catch {
       /* reported by the shared API-feedback layer */

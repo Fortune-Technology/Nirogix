@@ -41,6 +41,8 @@ export const SaveEncounterBody = z
     prescriptions: z
       .array(
         z.object({
+          id: z.string().uuid().nullable().optional(),
+          drugId: z.string().uuid().nullable().optional(),
           drugName: z.string().min(1).max(200),
           dose: z.string().max(80).nullable().optional(),
           frequency: z.string().max(80).nullable().optional(),
@@ -53,6 +55,8 @@ export const SaveEncounterBody = z
     labOrders: z
       .array(
         z.object({
+          id: z.string().uuid().nullable().optional(),
+          testId: z.string().uuid().nullable().optional(),
           testName: z.string().min(1).max(200),
           testCode: z.string().max(40).nullable().optional(),
           priority: z.enum(['routine', 'urgent']).optional(),
@@ -78,6 +82,7 @@ export const DiagnosisSchema = z
 export const PrescriptionSchema = z
   .object({
     id: z.string(),
+    drugId: z.string().nullable(),
     drugName: z.string(),
     dose: z.string().nullable(),
     frequency: z.string().nullable(),
@@ -91,6 +96,7 @@ export const PrescriptionSchema = z
 export const LabOrderSchema = z
   .object({
     id: z.string(),
+    testId: z.string().nullable(),
     testName: z.string(),
     testCode: z.string().nullable(),
     priority: z.string(),
@@ -134,3 +140,20 @@ export const EncounterSchema = z
 
 export const Icd10Schema = z.object({ code: z.string(), term: z.string() }).openapi('Icd10Code');
 export const Icd10ListSchema = z.array(Icd10Schema).openapi('Icd10List');
+
+// One row of a patient's clinical history (signed encounters only).
+export const EncounterSummarySchema = z
+  .object({
+    id: z.string(),
+    visitId: z.string(),
+    visitNumber: z.string(),
+    visitDate: z.string(),
+    providerName: z.string().nullable(),
+    signedAt: z.string().nullable(),
+    chiefComplaint: z.string().nullable(),
+    diagnoses: z.array(z.object({ icd10Code: z.string(), icd10Term: z.string(), isPrimary: z.boolean() })),
+    prescriptionCount: z.number(),
+    labOrderCount: z.number(),
+  })
+  .openapi('EncounterSummary');
+export const EncounterSummaryListSchema = z.array(EncounterSummarySchema).openapi('EncounterSummaryList');

@@ -44,7 +44,7 @@ registry.registerPath({
   tags: ['Laboratory'],
   summary: 'Lab worklist (orders from the EMR, with results)',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ status: z.string().optional() }) },
+  request: { query: z.object({ status: z.string().optional(), patientId: z.string().uuid().optional() }) },
   responses: { 200: { description: 'Lab orders', ...json(LabWorklistSchema) }, 401: notAuthed, 403: notEntitled },
 });
 

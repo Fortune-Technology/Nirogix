@@ -162,6 +162,13 @@
       "when": 1786966021966,
       "tag": "0022_open_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786970313219,
+      "tag": "0023_low_blink",
+      "breakpoints": true
     }
   ]
 }

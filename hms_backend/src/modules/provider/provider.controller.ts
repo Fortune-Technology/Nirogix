@@ -12,6 +12,8 @@ function toProvider(p: Provider & { specialties: string[] }) {
     qualification: p.qualification,
     email: p.email,
     phone: p.phone,
+    userId: p.userId,
+    consultationFeePaise: p.consultationFeePaise,
     isActive: p.isActive,
     specialties: p.specialties,
   };
@@ -46,6 +48,13 @@ export async function getProvider(req: Request, res: Response): Promise<void> {
   const p = await svc.getProviderWithRoles(req.auth!.tenantId, req.params.id!);
   if (!p) throw Errors.notFound('Provider not found');
   const specialtiesList = p.roles.filter((r) => r.isActive).map((r) => r.specialtyCode);
+  res.json(toProvider({ ...p, specialties: specialtiesList }));
+}
+
+export async function updateProvider(req: Request, res: Response): Promise<void> {
+  const p = await svc.updateProvider(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId);
+  const withRoles = await svc.getProviderWithRoles(req.auth!.tenantId, p.id);
+  const specialtiesList = (withRoles?.roles ?? []).filter((r) => r.isActive).map((r) => r.specialtyCode);
   res.json(toProvider({ ...p, specialties: specialtiesList }));
 }
 

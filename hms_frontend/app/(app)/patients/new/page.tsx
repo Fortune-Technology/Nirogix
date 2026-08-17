@@ -5,15 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Alert,
+  Badge,
   Button,
   Card,
   DateField,
+  Dialog,
   Field,
   PhoneField,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import { todayApiDate } from "@hms/utils";
-import type { CreatePatientRequest } from "@hms/types";
+import { formatDate, todayApiDate } from "@hms/utils";
+import type { CreatePatientRequest, DuplicatePatientCandidate } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -25,26 +27,42 @@ function RegisterForm() {
   const [f, setF] = useState<CreatePatientRequest>({ firstName: "" });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The DUPLICATE_PATIENT 409: matching charts to review before anything is created.
+  const [duplicates, setDuplicates] = useState<DuplicatePatientCandidate[] | null>(null);
 
   function set<K extends keyof CreatePatientRequest>(key: K, value: CreatePatientRequest[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  function buildBody(allowDuplicate?: boolean): CreatePatientRequest {
+    // Drop empty strings so optional fields validate cleanly.
+    const body = Object.fromEntries(
+      Object.entries(f).filter(([, v]) => v !== "" && v != null),
+    ) as CreatePatientRequest;
+    if (allowDuplicate) body.allowDuplicate = true;
+    return body;
+  }
+
+  async function submit(allowDuplicate?: boolean) {
     setError(null);
     setSubmitting(true);
     try {
-      // Drop empty strings so optional fields validate cleanly.
-      const body = Object.fromEntries(
-        Object.entries(f).filter(([, v]) => v !== "" && v != null),
-      ) as CreatePatientRequest;
-      const created = await api.createPatient(body);
+      const created = await api.createPatient(buildBody(allowDuplicate));
       router.replace(`/patients/${created.id}`);
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "Could not register the patient.");
+      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+        const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
+        setDuplicates(details?.candidates ?? []);
+      } else {
+        setError(err instanceof api.ApiRequestError ? err.message : "Could not register the patient.");
+      }
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await submit();
   }
 
   return (
@@ -106,6 +124,54 @@ function RegisterForm() {
           <Link href="/patients"><Button variant="ghost" type="button">Cancel</Button></Link>
         </div>
       </form>
+
+      {/* "Search and select, don't re-create": the server found charts matching this
+          phone/name/DOB. The default action is using the existing chart; registering a
+          duplicate anyway is the deliberate, secondary choice. */}
+      <Dialog
+        open={duplicates !== null}
+        onClose={() => setDuplicates(null)}
+        title="This patient may already be registered"
+        description="A chart with the same phone and name (or date of birth) already exists. Use it instead of creating a second record."
+        size="md"
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="ghost" type="button" onClick={() => setDuplicates(null)}>
+              Back to the form
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              loading={submitting}
+              onClick={() => {
+                setDuplicates(null);
+                void submit(true);
+              }}
+            >
+              Register anyway
+            </Button>
+          </div>
+        }
+      >
+        <ul className="flex flex-col divide-y divide-border text-sm">
+          {(duplicates ?? []).map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
+                <p className="text-xs text-fg-muted">
+                  {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"}
+                  {c.gender ? ` · ${c.gender}` : ""}
+                </p>
+              </div>
+              <Link href={`/patients/${c.id}`}>
+                <Button size="sm">Use this patient</Button>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {(duplicates ?? []).length === 0 && <Badge tone="neutral">No candidate details available</Badge>}
+      </Dialog>
     </>
   );
 }

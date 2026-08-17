@@ -134,9 +134,8 @@ export function activeNavHref(pathname: string, items: NavItem[] = NAV_ITEMS): s
  * (ADR-033), most-used first. The bar shows the first four the user is actually
  * permitted to see — Dashboard is always one of them — and everything else stays
  * reachable through the hamburger drawer. Ordering is deliberate: a receptionist
- * lands on Patients/Appointments/OPD, a pharmacist on Pharmacy, and a
- * super-admin (who has no clinical permissions in a customer tenant) falls
- * through to Tenants and Branding.
+ * lands on Patients/Appointments/OPD, a pharmacist on Pharmacy. (Tenant
+ * administration left this app for the admin console in ADR-051.)
  */
 export const MOBILE_PRIMARY_ORDER = [
   "/dashboard",
@@ -146,7 +145,6 @@ export const MOBILE_PRIMARY_ORDER = [
   "/billing",
   "/pharmacy",
   "/laboratory",
-  "/admin/tenants",
   "/users",
 ] as const;
 

@@ -45,6 +45,10 @@ registry.registerPath({
     201: { description: 'Created', ...json(PatientSchema) },
     401: notAuthed,
     403: forbidden,
+    409: {
+      description: 'DUPLICATE_PATIENT — matching charts in error.details.candidates; review, then link or resend with allowDuplicate',
+      ...json(ErrorResponseSchema),
+    },
     422: invalid,
   },
 });

@@ -27,8 +27,12 @@ function DispenseCard({
   /** Client-side validation only — API failures come from the shared toast. */
   onError: (msg: string) => void;
 }) {
-  // Pre-match a stocked drug against the prescribed name.
-  const matched = drugs.find((d) => firstWord(d.name) === firstWord(rx.drugName)) ?? drugs[0];
+  // Pre-match: the drug the doctor actually picked from the master (exact, by id) when the
+  // prescription carries one; the name heuristic only covers free-text prescriptions.
+  const matched =
+    (rx.drugId ? drugs.find((d) => d.id === rx.drugId) : undefined) ??
+    drugs.find((d) => firstWord(d.name) === firstWord(rx.drugName)) ??
+    drugs[0];
   const [drugId, setDrugId] = useState(matched?.id ?? "");
   const [qty, setQty] = useState("1");
   const [busy, setBusy] = useState(false);

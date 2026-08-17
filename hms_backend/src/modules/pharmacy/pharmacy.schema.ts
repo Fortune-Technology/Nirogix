@@ -55,6 +55,7 @@ export const DrugListSchema = z.array(DrugSchema).openapi('DrugList');
 export const PendingPrescriptionSchema = z
   .object({
     id: z.string(),
+    drugId: z.string().nullable(),
     drugName: z.string(),
     dose: z.string().nullable(),
     frequency: z.string().nullable(),

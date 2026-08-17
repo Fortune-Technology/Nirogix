@@ -78,6 +78,7 @@ function toWorklistRow(r: {
   const o = r.o;
   return {
     id: o.id,
+    testId: o.testId,
     testName: o.testName,
     testCode: o.testCode,
     priority: o.priority,
@@ -108,10 +109,11 @@ const worklistColumns = {
   resultNotes: labResults.notes,
 };
 
-export async function listWorklist(tenantId: string, status?: string) {
+export async function listWorklist(tenantId: string, status?: string, patientId?: string) {
   return runWithTenant(tenantId, async (tx) => {
     const conds = [eq(labOrders.tenantId, tenantId)];
     if (status) conds.push(eq(labOrders.status, status));
+    if (patientId) conds.push(eq(labOrders.patientId, patientId));
     const rows = await tx
       .select(worklistColumns)
       .from(labOrders)
@@ -137,13 +139,62 @@ export async function getLabOrder(tenantId: string, labOrderId: string) {
   });
 }
 
+// Add the lab charge for this order to the visit's invoice (creating one if the visit has
+// none), exactly once — `hasSourceLine` + the invoice_line_source_unique index keep every
+// path (collect, result, retries) from billing the same order twice.
+async function billLabOrder(
+  tenantId: string,
+  order: { id: string; visitId: string; patientId: string },
+  charge: { pricePaise: number; taxRateBps: number; testName: string },
+  actorUserId?: string,
+) {
+  if (charge.pricePaise <= 0) return;
+  if (await billing.hasSourceLine(tenantId, 'laboratory', order.id)) return;
+
+  const line = {
+    itemType: 'lab',
+    description: `Lab: ${charge.testName}`,
+    quantity: 1,
+    unitPricePaise: charge.pricePaise,
+    taxRateBps: charge.taxRateBps,
+    sourceModule: 'laboratory',
+    sourceRef: order.id,
+  };
+  const visitRow = await runWithTenant(tenantId, (tx) =>
+    tx.select({ invoiceId: visits.invoiceId }).from(visits).where(eq(visits.id, order.visitId)).limit(1),
+  );
+  let invoiceId = visitRow[0]?.invoiceId ?? null;
+  if (invoiceId) {
+    await billing.addInvoiceLine(tenantId, invoiceId, line, actorUserId);
+  } else {
+    const inv = await billing.createInvoice(tenantId, { patientId: order.patientId, visitId: order.visitId, lineItems: [line] }, actorUserId);
+    invoiceId = inv.id;
+    await runWithTenant(tenantId, (tx) => tx.update(visits).set({ invoiceId }).where(eq(visits.id, order.visitId)));
+  }
+}
+
 export async function collectSample(tenantId: string, labOrderId: string, actorUserId?: string) {
-  await runWithTenant(tenantId, async (tx) => {
-    const order = (await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1))[0];
+  const ctx = await runWithTenant(tenantId, async (tx) => {
+    // Row lock so two concurrent collects serialize on the status check.
+    const order = (
+      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+    )[0];
     if (!order) throw Errors.notFound('Lab order not found');
     if (order.status !== 'ordered') throw Errors.conflict(`Cannot collect a ${order.status} order`);
     await tx.update(labOrders).set({ status: 'collected' }).where(eq(labOrders.id, labOrderId));
+
+    // Price from the linked test master (when the doctor picked from it) — this is what lets
+    // the lab charge land on the bill at collection, so payment can be taken before testing.
+    let charge: { pricePaise: number; taxRateBps: number; testName: string } | null = null;
+    if (order.testId) {
+      const test = (await tx.select().from(labTests).where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, order.testId))).limit(1))[0];
+      if (test) charge = { pricePaise: test.pricePaise, taxRateBps: test.taxRateBps, testName: test.name };
+    }
+    return { order: { id: order.id, visitId: order.visitId, patientId: order.patientId }, charge };
   });
+
+  if (ctx.charge) await billLabOrder(tenantId, ctx.order, ctx.charge, actorUserId);
+
   await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.collect', resourceType: 'lab_order', resourceId: labOrderId, metadata: {} });
   return getLabOrder(tenantId, labOrderId);
 }
@@ -172,8 +223,14 @@ export interface EnterResultInput {
 
 export async function enterResult(tenantId: string, labOrderId: string, input: EnterResultInput, actorUserId?: string) {
   const ctx = await runWithTenant(tenantId, async (tx) => {
-    const order = (await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1))[0];
+    const order = (
+      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+    )[0];
     if (!order) throw Errors.notFound('Lab order not found');
+    // Transition rule: results are entered on a collected sample, or re-entered to correct an
+    // already-resulted order (ADR-060 correction path). Never on ordered/cancelled.
+    if (order.status === 'ordered') throw Errors.conflict('Collect the sample before entering a result');
+    if (order.status === 'cancelled') throw Errors.conflict('Cannot enter a result on a cancelled order');
     const wasResulted = order.status === 'resulted';
 
     let pricePaise = 0;
@@ -182,8 +239,11 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     let refHigh = input.refHigh ?? null;
     let unit = input.unit ?? null;
     let testName = order.testName;
-    if (input.testId) {
-      const test = (await tx.select().from(labTests).where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, input.testId))).limit(1))[0];
+    // The master to price/reference against: the technician's explicit pick wins, else the
+    // test the doctor ordered from the catalogue.
+    const effectiveTestId = input.testId ?? order.testId ?? null;
+    if (effectiveTestId) {
+      const test = (await tx.select().from(labTests).where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, effectiveTestId))).limit(1))[0];
       if (!test) throw Errors.notFound('Lab test not found');
       pricePaise = test.pricePaise;
       taxRateBps = test.taxRateBps;
@@ -198,7 +258,7 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     await tx.insert(labResults).values({
       tenantId,
       labOrderId,
-      testId: input.testId ?? null,
+      testId: effectiveTestId,
       value: input.value,
       unit,
       refLow,
@@ -212,29 +272,14 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     return { wasResulted, visitId: order.visitId, patientId: order.patientId, pricePaise, taxRateBps, testName, flag };
   });
 
-  // Bill once, on first result, if the test carries a price (extends Billing Core).
-  if (!ctx.wasResulted && ctx.pricePaise > 0) {
-    const line = {
-      itemType: 'lab',
-      description: `Lab: ${ctx.testName}`,
-      quantity: 1,
-      unitPricePaise: ctx.pricePaise,
-      taxRateBps: ctx.taxRateBps,
-      sourceModule: 'laboratory',
-      sourceRef: labOrderId,
-    };
-    const visitRow = await runWithTenant(tenantId, (tx) =>
-      tx.select({ invoiceId: visits.invoiceId }).from(visits).where(eq(visits.id, ctx.visitId)).limit(1),
-    );
-    let invoiceId = visitRow[0]?.invoiceId ?? null;
-    if (invoiceId) {
-      await billing.addInvoiceLine(tenantId, invoiceId, line, actorUserId);
-    } else {
-      const inv = await billing.createInvoice(tenantId, { patientId: ctx.patientId, visitId: ctx.visitId, lineItems: [line] }, actorUserId);
-      invoiceId = inv.id;
-      await runWithTenant(tenantId, (tx) => tx.update(visits).set({ invoiceId }).where(eq(visits.id, ctx.visitId)));
-    }
-  }
+  // Bill once if not already billed at collection (free-text orders get priced here, when the
+  // technician matches the master). `billLabOrder` dedupes, so this is safe on re-entry too.
+  await billLabOrder(
+    tenantId,
+    { id: labOrderId, visitId: ctx.visitId, patientId: ctx.patientId },
+    { pricePaise: ctx.pricePaise, taxRateBps: ctx.taxRateBps, testName: ctx.testName },
+    actorUserId,
+  );
 
   if (!ctx.wasResulted) {
     eventBus.publish('lab.result_ready', { tenantId, labOrderId, patientId: ctx.patientId });

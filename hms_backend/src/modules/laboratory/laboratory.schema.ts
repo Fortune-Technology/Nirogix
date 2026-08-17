@@ -60,6 +60,7 @@ export const LabResultSchema = z
 export const LabOrderSchema = z
   .object({
     id: z.string(),
+    testId: z.string().nullable(),
     testName: z.string(),
     testCode: z.string().nullable(),
     priority: z.string(),

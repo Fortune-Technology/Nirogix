@@ -108,8 +108,43 @@ export interface Provider {
   qualification: string | null;
   email: string | null;
   phone: string | null;
+  /** Login user this doctor is linked to (gives them a personal OPD queue). */
+  userId: string | null;
+  /** Default OPD consultation fee in paise; check-in uses it when no override is typed. */
+  consultationFeePaise: number | null;
   isActive: boolean;
   specialties: string[];
+}
+
+export interface CreateProviderRequest {
+  fullName: string;
+  gender?: string;
+  registrationNumber?: string;
+  qualification?: string;
+  email?: string;
+  phone?: string;
+  userId?: string;
+  consultationFeePaise?: number | null;
+}
+
+export interface UpdateProviderRequest {
+  fullName?: string;
+  gender?: string | null;
+  registrationNumber?: string | null;
+  qualification?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  userId?: string | null;
+  consultationFeePaise?: number | null;
+  isActive?: boolean;
+}
+
+export interface AssignSpecialtyRequest {
+  specialtyCode: string;
+  branchId?: string;
+  departmentId?: string;
+  role?: string;
+  isPrimary?: boolean;
 }
 
 // ---- Admin / onboarding (hms_backend/src/modules/admin) --------------------
@@ -555,6 +590,19 @@ export interface CreatePatientRequest {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   branchId?: string | null;
+  /** Register anyway after reviewing the DUPLICATE_PATIENT candidates from a 409. */
+  allowDuplicate?: boolean;
+}
+
+/** A matching chart surfaced by the DUPLICATE_PATIENT 409 (error.details.candidates). */
+export interface DuplicatePatientCandidate {
+  id: string;
+  uhid: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
 }
 
 // ---- Appointments (hms_backend/src/modules/appointment) --------------------
@@ -599,6 +647,8 @@ export interface Visit {
   visitDate: string;
   visitType: string;
   status: string; // checked_in | in_consultation | completed | cancelled
+  /** Optimistic-lock version — send it back with a status change. */
+  version: number;
   /** The department's name at check-in (legacy free-text column, ADR-050). */
   department: string | null;
   departmentId: string | null;
@@ -623,7 +673,8 @@ export interface CheckInRequest {
   department?: string | null;
   departmentId?: string | null;
   reason?: string | null;
-  consultationFeePaise: number;
+  /** Optional override — omitted, the provider's configured default fee applies. */
+  consultationFeePaise?: number | null;
 }
 
 export interface UpdateVisitStatusRequest {
@@ -717,6 +768,7 @@ export interface Diagnosis {
 
 export interface Prescription {
   id: string;
+  drugId: string | null;
   drugName: string;
   dose: string | null;
   frequency: string | null;
@@ -728,6 +780,7 @@ export interface Prescription {
 
 export interface LabOrder {
   id: string;
+  testId: string | null;
   testName: string;
   testCode: string | null;
   priority: string;
@@ -772,6 +825,10 @@ export interface SaveEncounterRequest {
   vitals?: Partial<Vitals>;
   diagnoses: Array<{ icd10Code: string; icd10Term: string; isPrimary?: boolean; notes?: string | null }>;
   prescriptions: Array<{
+    /** Present on rows that already exist — a re-save updates them in place. */
+    id?: string | null;
+    /** Drug-master link; the server snapshots the master's name when set. */
+    drugId?: string | null;
     drugName: string;
     dose?: string | null;
     frequency?: string | null;
@@ -779,7 +836,29 @@ export interface SaveEncounterRequest {
     route?: string | null;
     instructions?: string | null;
   }>;
-  labOrders: Array<{ testName: string; testCode?: string | null; priority?: string | null; notes?: string | null }>;
+  labOrders: Array<{
+    id?: string | null;
+    /** Test-master link; prices the order at sample collection. */
+    testId?: string | null;
+    testName: string;
+    testCode?: string | null;
+    priority?: string | null;
+    notes?: string | null;
+  }>;
+}
+
+/** One row of a patient's clinical history (signed encounters only). */
+export interface EncounterSummary {
+  id: string;
+  visitId: string;
+  visitNumber: string;
+  visitDate: string;
+  providerName: string | null;
+  signedAt: string | null;
+  chiefComplaint: string | null;
+  diagnoses: Array<{ icd10Code: string; icd10Term: string; isPrimary: boolean }>;
+  prescriptionCount: number;
+  labOrderCount: number;
 }
 
 // ---- Pharmacy (hms_backend/src/modules/pharmacy) ---------------------------
@@ -800,6 +879,7 @@ export interface Drug {
 
 export interface PendingPrescription {
   id: string;
+  drugId: string | null;
   drugName: string;
   dose: string | null;
   frequency: string | null;
@@ -872,6 +952,7 @@ export interface LabResult {
 
 export interface LabOrder {
   id: string;
+  testId: string | null;
   testName: string;
   testCode: string | null;
   priority: string;

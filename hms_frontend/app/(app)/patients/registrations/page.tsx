@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
-import { Alert, DataTable, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
+import { Alert, Button, DataTable, Dialog, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { RegistrationRequestItem } from "@hms/types";
+import type { DuplicatePatientCandidate, RegistrationRequestItem } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
@@ -130,14 +131,21 @@ function ReviewQueue() {
     void load();
   }, [load]);
 
-  async function approve(r: RegistrationRequestItem) {
+  // A DUPLICATE_PATIENT 409 on approval: the person very likely already has a chart.
+  const [dupFor, setDupFor] = useState<{ request: RegistrationRequestItem; candidates: DuplicatePatientCandidate[] } | null>(null);
+
+  async function approve(r: RegistrationRequestItem, opts: { allowDuplicate?: boolean; existingPatientId?: string } = {}) {
     setBusyId(r.id);
     try {
-      const { patientId } = await api.approveRegistrationRequest(r.id);
-      // Straight to the new record — the desk almost always needs to correct or complete
+      const { patientId } = await api.approveRegistrationRequest(r.id, opts);
+      // Straight to the record — the desk almost always needs to correct or complete
       // something the patient typed on a phone.
       router.push(`/patients/${patientId}`);
-    } catch {
+    } catch (err) {
+      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+        const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
+        setDupFor({ request: r, candidates: details?.candidates ?? [] });
+      }
       await load();
     } finally {
       setBusyId(null);
@@ -183,6 +191,65 @@ function ReviewQueue() {
         emptyDescription="Requests appear here when someone fills in your hospital's registration form."
         urlState
       />
+
+      {/* The duplicate gate on approval: link the request to the chart that already
+          exists (no second record), or knowingly create a new one. */}
+      <Dialog
+        open={dupFor !== null}
+        onClose={() => setDupFor(null)}
+        title="Probably already registered"
+        description="A chart matching this request's phone and name (or date of birth) exists. Linking keeps one chart per person — the request is marked approved either way."
+        size="md"
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="ghost" type="button" onClick={() => setDupFor(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => {
+                const r = dupFor!.request;
+                setDupFor(null);
+                void approve(r, { allowDuplicate: true });
+              }}
+            >
+              Create a new chart anyway
+            </Button>
+          </div>
+        }
+      >
+        <ul className="flex flex-col divide-y divide-border text-sm">
+          {(dupFor?.candidates ?? []).map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
+                <p className="text-xs text-fg-muted">
+                  {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Link href={`/patients/${c.id}`} target="_blank">
+                  <Button size="sm" variant="ghost">
+                    View
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const r = dupFor!.request;
+                    setDupFor(null);
+                    void approve(r, { existingPatientId: c.id });
+                  }}
+                >
+                  Link this chart
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
     </>
   );
 }

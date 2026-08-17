@@ -44,7 +44,7 @@ const TENANT = {
     { code: 'QA-ANNEX', name: 'QA Annexe Clinic' },
   ],
   departments: [
-    { code: 'QA-GEN', name: 'General Medicine', specialty: 'general-medicine' },
+    { code: 'QA-GEN', name: 'General Medicine', specialty: 'general_medicine' },
     { code: 'QA-CARD', name: 'Cardiology', specialty: 'cardiology' },
   ],
   // One account per role, so every permission boundary is testable in both directions.
@@ -61,7 +61,7 @@ const TENANT = {
       fullName: 'Dr QA Physician',
       qualification: 'MBBS, MD',
       registrationNumber: 'QA-REG-0001',
-      specialty: 'general-medicine',
+      specialty: 'general_medicine',
       userEmail: 'qa.doctor@qahospital.example',
     },
   ],
@@ -76,7 +76,7 @@ const TENANT = {
 const PLATFORM = {
   code: 'PLATFORM',
   name: 'Takoriya Technology LLP',
-  users: [{ email: 'qa.owner@takoriya.example', fullName: 'QA Platform Owner', role: 'super_admin' }],
+  users: [{ email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' }],
 };
 
 async function upsertTenant(code: string, name: string): Promise<string> {
@@ -177,7 +177,7 @@ async function main(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log(
     `\nDone. Deterministic staging dataset: ${TENANT.code} with ${TENANT.users.length} role accounts, ` +
-      `${TENANT.branches.length} branches, ${TENANT.departments.length} departments, ${TENANT.patients.length} patients.`,
+    `${TENANT.branches.length} branches, ${TENANT.departments.length} departments, ${TENANT.patients.length} patients.`,
   );
   // eslint-disable-next-line no-console
   console.log(`Sign in with ${TENANT.code} / qa.admin@qahospital.example and the staging password.`);

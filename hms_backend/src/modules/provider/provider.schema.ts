@@ -15,8 +15,26 @@ export const CreateProviderBody = z
     qualification: z.string().optional().openapi({ example: 'MBBS, MD (Cardiology)' }),
     email: z.string().email().optional(),
     phone: z.string().optional(),
+    /** Link to a login user — gives the doctor a personal queue (`GET /visits?mine=true`). */
+    userId: z.string().uuid().optional(),
+    /** Default OPD consultation fee in paise; check-in uses it when no override is supplied. */
+    consultationFeePaise: z.number().int().min(0).nullable().optional(),
   })
   .openapi('CreateProviderRequest');
+
+export const UpdateProviderBody = z
+  .object({
+    fullName: z.string().min(1).optional(),
+    gender: z.string().nullable().optional(),
+    registrationNumber: z.string().nullable().optional(),
+    qualification: z.string().nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    userId: z.string().uuid().nullable().optional(),
+    consultationFeePaise: z.number().int().min(0).nullable().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .openapi('UpdateProviderRequest');
 
 export const ProviderSchema = z
   .object({
@@ -27,6 +45,8 @@ export const ProviderSchema = z
     qualification: z.string().nullable(),
     email: z.string().nullable(),
     phone: z.string().nullable(),
+    userId: z.string().nullable(),
+    consultationFeePaise: z.number().nullable(),
     isActive: z.boolean(),
     specialties: z.array(z.string()).openapi({ example: ['cardiology'] }),
   })

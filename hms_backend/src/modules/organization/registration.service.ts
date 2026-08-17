@@ -5,7 +5,7 @@ import { runWithTenant } from '../../db/tenantContext';
 import { organizationProfile, registrationRequests, tenants } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
-import { createPatient } from '../patient/patient.service';
+import { createPatient, getPatient } from '../patient/patient.service';
 
 /**
  * Patient self-registration by QR (ADR-056).
@@ -152,6 +152,7 @@ export async function approveRegistrationRequest(
   tenantId: string,
   requestId: string,
   actorUserId: string,
+  opts?: { allowDuplicate?: boolean; existingPatientId?: string },
 ): Promise<{ patientId: string }> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
@@ -164,24 +165,37 @@ export async function approveRegistrationRequest(
   if (!req) throw Errors.notFound('Registration request not found');
   if (req.status !== 'pending') throw Errors.conflict('That request has already been reviewed');
 
-  const patient = await createPatient(
-    tenantId,
-    {
-      firstName: req.firstName,
-      lastName: req.lastName ?? undefined,
-      gender: req.gender ?? undefined,
-      dateOfBirth: req.dateOfBirth ?? undefined,
-      phone: req.phone,
-      email: req.email ?? undefined,
-      city: req.city ?? undefined,
-    },
-    actorUserId,
-  );
+  // The duplicate path: the reviewer matched the request to a chart that already exists, so the
+  // request links to it instead of minting a second chart for the same person.
+  let patientId: string;
+  if (opts?.existingPatientId) {
+    const existing = await getPatient(tenantId, opts.existingPatientId);
+    if (!existing) throw Errors.notFound('That patient record was not found');
+    patientId = existing.id;
+  } else {
+    // createPatient itself raises DUPLICATE_PATIENT (409 + candidates) unless allowDuplicate —
+    // the reviewer sees the matching charts and chooses: link one, or knowingly create anyway.
+    const patient = await createPatient(
+      tenantId,
+      {
+        firstName: req.firstName,
+        lastName: req.lastName ?? undefined,
+        gender: req.gender ?? undefined,
+        dateOfBirth: req.dateOfBirth ?? undefined,
+        phone: req.phone,
+        email: req.email ?? undefined,
+        city: req.city ?? undefined,
+        allowDuplicate: opts?.allowDuplicate,
+      },
+      actorUserId,
+    );
+    patientId = patient.id;
+  }
 
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(registrationRequests)
-      .set({ status: 'approved', patientId: patient.id, reviewedBy: actorUserId, reviewedAt: new Date() })
+      .set({ status: 'approved', patientId, reviewedBy: actorUserId, reviewedAt: new Date() })
       .where(eq(registrationRequests.id, requestId)),
   );
 
@@ -191,11 +205,11 @@ export async function approveRegistrationRequest(
     action: 'patient.registration.approved',
     severity: 'notice',
     resourceType: 'patient',
-    resourceId: patient.id,
-    metadata: { requestId },
+    resourceId: patientId,
+    metadata: { requestId, linkedExisting: Boolean(opts?.existingPatientId) },
   });
 
-  return { patientId: patient.id };
+  return { patientId };
 }
 
 export async function rejectRegistrationRequest(

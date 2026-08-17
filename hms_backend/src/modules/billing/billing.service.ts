@@ -123,7 +123,9 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
       .limit(1);
     if (!patientRows[0]) throw Errors.notFound('Patient not found');
 
-    // Allocate a tenant-monotonic invoice number, retrying on the unique conflict (race-safe).
+    // Serialize number allocation per tenant (transaction-scoped advisory lock), then allocate a
+    // tenant-monotonic invoice number — the unique-conflict retry stays as the belt-and-braces.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:invoice_no`}))`);
     const existing = Number((await tx.select({ c: count() }).from(invoices).where(eq(invoices.tenantId, tenantId)))[0]?.c ?? 0);
     let row: InvoiceRow | undefined;
     for (let i = 1; i <= 8; i++) {
@@ -182,16 +184,56 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
   return getInvoice(tenantId, invoice.id);
 }
 
+// Has this clinical record already been billed (on any invoice)? Revenue modules use this to
+// keep "bill once" idempotent across their retry paths; the DB unique index is the backstop.
+export async function hasSourceLine(tenantId: string, sourceModule: string, sourceRef: string): Promise<boolean> {
+  return runWithTenant(tenantId, async (tx) => {
+    const row = (
+      await tx
+        .select({ id: invoiceLineItems.id })
+        .from(invoiceLineItems)
+        .where(
+          and(
+            eq(invoiceLineItems.tenantId, tenantId),
+            eq(invoiceLineItems.sourceModule, sourceModule),
+            eq(invoiceLineItems.sourceRef, sourceRef),
+          ),
+        )
+        .limit(1)
+    )[0];
+    return Boolean(row);
+  });
+}
+
 // Billing-Core extension point (invariant #8): a revenue module (Pharmacy, Lab, …) adds a line
 // to an existing invoice and totals are recomputed from the ledger. Never reimplemented downstream.
 export async function addInvoiceLine(tenantId: string, invoiceId: string, item: LineItemInput, actorUserId?: string) {
   const { taxPaise, lineTotalPaise } = computeLine(item);
   await runWithTenant(tenantId, async (tx) => {
+    // Lock the invoice row: concurrent line adds would otherwise race the total recompute.
     const inv = (
-      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1)
+      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1).for('update')
     )[0];
     if (!inv) throw Errors.notFound('Invoice not found');
     if (inv.status === 'void') throw Errors.conflict('Cannot add a line to a void invoice');
+
+    // One billed line per originating clinical record (unique index invoice_line_source_unique).
+    if (item.sourceModule && item.sourceRef) {
+      const dup = (
+        await tx
+          .select({ id: invoiceLineItems.id })
+          .from(invoiceLineItems)
+          .where(
+            and(
+              eq(invoiceLineItems.tenantId, tenantId),
+              eq(invoiceLineItems.sourceModule, item.sourceModule),
+              eq(invoiceLineItems.sourceRef, item.sourceRef),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (dup) throw Errors.conflict('This item has already been billed');
+    }
 
     await tx.insert(invoiceLineItems).values({
       tenantId,
@@ -308,11 +350,33 @@ export async function recordPayment(tenantId: string, invoiceId: string, input: 
   if (input.amountPaise <= 0) throw Errors.validation(undefined, 'Payment amount must be positive');
 
   const { paymentId, deduped } = await runWithTenant(tenantId, async (tx) => {
+    // Lock the invoice row: serializes concurrent collections so the balance check below cannot
+    // be raced past by a second cashier (two fresh idempotency keys would otherwise overpay).
     const inv = (
-      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1)
+      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1).for('update')
     )[0];
     if (!inv) throw Errors.notFound('Invoice not found');
     if (inv.status === 'void') throw Errors.conflict('Cannot collect against a void invoice');
+
+    // A retried request (same idempotency key) is answered with the original result — checked
+    // before the balance guards so a retry of a settling payment is not mistaken for overpay.
+    const priorForKey = (
+      await tx
+        .select({ id: payments.id })
+        .from(payments)
+        .where(and(eq(payments.tenantId, tenantId), eq(payments.idempotencyKey, input.idempotencyKey)))
+        .limit(1)
+    )[0];
+    if (priorForKey) return { paymentId: null as string | null, deduped: true };
+
+    const balancePaise = inv.totalPaise - inv.amountPaidPaise;
+    if (balancePaise <= 0) throw Errors.conflict('This invoice is already settled');
+    if (input.amountPaise > balancePaise) {
+      throw Errors.validation(
+        { balancePaise },
+        'Payment exceeds the outstanding balance — collect at most the balance due',
+      );
+    }
 
     // Idempotent insert: a repeated (tenant, idempotency_key) hits the unique constraint and
     // returns no row, so we treat it as a duplicate and skip re-applying it.

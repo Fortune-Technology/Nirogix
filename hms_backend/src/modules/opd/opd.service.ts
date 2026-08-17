@@ -1,4 +1,4 @@
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { visits, patients, providers, appointments, invoices, departments, type Visit as VisitRow } from '../../db/schema';
 import { Errors } from '../../http/error';
@@ -25,7 +25,8 @@ export interface CheckInInput {
   /** The department this visit belongs to (ADR-050). Validated against this tenant's own list. */
   departmentId?: string | null;
   reason?: string | null;
-  consultationFeePaise: number;
+  /** Optional override — omitted, the provider's configured default fee applies (0 if none). */
+  consultationFeePaise?: number | null;
 }
 
 // Flat column selection — predictable nullability (left-joined columns are nullable).
@@ -64,6 +65,7 @@ function toVisitDto(row: VisitRowFlat) {
     visitDate: v.visitDate,
     visitType: v.visitType,
     status: v.status,
+    version: v.version,
     department: v.department,
     departmentId: v.departmentId,
     reason: v.reason,
@@ -109,7 +111,11 @@ export async function getVisit(tenantId: string, visitId: string) {
 export async function checkIn(tenantId: string, input: CheckInInput, actorUserId?: string) {
   const visitDate = today();
 
-  const { visitId, existing } = await runWithTenant(tenantId, async (tx) => {
+  const { visitId, existing, feePaise } = await runWithTenant(tenantId, async (tx) => {
+    // Serialize this tenant's check-ins for the day: token numbers and the walk-in duplicate
+    // guard below are read-then-write, so concurrent check-ins must queue behind the lock.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:check_in`}))`);
+
     // Validate the patient (tenant-scoped).
     const patient = (
       await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, input.patientId))).limit(1)
@@ -127,15 +133,43 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       const already = (
         await tx.select({ id: visits.id }).from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.appointmentId, input.appointmentId))).limit(1)
       )[0];
-      if (already) return { visitId: already.id, existing: true }; // idempotent — already checked in
+      if (already) return { visitId: already.id, existing: true, feePaise: 0 }; // idempotent — already checked in
       if (!providerId) providerId = appt.providerId;
     }
 
+    // A patient can only be in the OPD once at a time: block a second check-in while an
+    // earlier visit today is still live (a completed or cancelled visit does not block a
+    // genuine same-day return).
+    const liveToday = (
+      await tx
+        .select({ id: visits.id, visitNumber: visits.visitNumber })
+        .from(visits)
+        .where(
+          and(
+            eq(visits.tenantId, tenantId),
+            eq(visits.patientId, input.patientId),
+            eq(visits.visitDate, visitDate),
+            inArray(visits.status, ['checked_in', 'in_consultation']),
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (liveToday) {
+      throw Errors.conflict(`This patient is already checked in today (${liveToday.visitNumber})`);
+    }
+
+    let providerFeePaise: number | null = null;
     if (providerId) {
       const provider = (
-        await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId))).limit(1)
+        await tx
+          .select({ id: providers.id, consultationFeePaise: providers.consultationFeePaise, isActive: providers.isActive })
+          .from(providers)
+          .where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId)))
+          .limit(1)
       )[0];
       if (!provider) throw Errors.notFound('Provider not found');
+      if (!provider.isActive) throw Errors.validation(undefined, 'That doctor is no longer active');
+      providerFeePaise = provider.consultationFeePaise;
     }
 
     // The department must be this hospital's own and still active — a visit cannot be checked
@@ -191,35 +225,45 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       }
     }
     if (!row) throw Errors.conflict('Could not allocate a visit number — please retry');
-    return { visitId: row.id, existing: false };
+    // The fee: an explicit amount from the caller wins; otherwise the provider's configured
+    // default. Nobody typing a number is no longer the only thing deciding the price.
+    const fee = input.consultationFeePaise ?? providerFeePaise ?? 0;
+    return { visitId: row.id, existing: false, feePaise: fee };
   });
 
   if (existing) return getVisit(tenantId, visitId);
 
   // Open the bill via the Financial Transaction Infrastructure (draft consultation-fee invoice).
-  if (input.consultationFeePaise > 0) {
-    const invoice = await billing.createInvoice(
-      tenantId,
-      {
-        patientId: input.patientId,
-        branchId: input.branchId ?? null,
-        visitId,
-        lineItems: [
-          {
-            itemType: 'consultation',
-            description: 'Consultation fee',
-            quantity: 1,
-            unitPricePaise: input.consultationFeePaise,
-            sourceModule: 'opd',
-            sourceRef: visitId,
-          },
-        ],
-      },
-      actorUserId,
-    );
-    await runWithTenant(tenantId, (tx) =>
-      tx.update(visits).set({ invoiceId: invoice.id, updatedAt: new Date() }).where(eq(visits.id, visitId)),
-    );
+  if (feePaise > 0) {
+    try {
+      const invoice = await billing.createInvoice(
+        tenantId,
+        {
+          patientId: input.patientId,
+          branchId: input.branchId ?? null,
+          visitId,
+          lineItems: [
+            {
+              itemType: 'consultation',
+              description: 'Consultation fee',
+              quantity: 1,
+              unitPricePaise: feePaise,
+              sourceModule: 'opd',
+              sourceRef: visitId,
+            },
+          ],
+        },
+        actorUserId,
+      );
+      await runWithTenant(tenantId, (tx) =>
+        tx.update(visits).set({ invoiceId: invoice.id, updatedAt: new Date() }).where(eq(visits.id, visitId)),
+      );
+    } catch (err) {
+      // Never leave an unbilled visit behind: the visit was created in this request and nothing
+      // references it yet, so compensate by removing it and surface the billing failure.
+      await runWithTenant(tenantId, (tx) => tx.delete(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))));
+      throw err;
+    }
   }
 
   eventBus.publish('visit.checked_in', { tenantId, visitId, patientId: input.patientId });
@@ -237,14 +281,17 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
 export interface ListQueueFilter {
   branchId?: string;
   providerId?: string;
+  patientId?: string;
   date?: string;
   status?: string;
 }
 
 export async function listQueue(tenantId: string, filter: ListQueueFilter) {
-  const visitDate = filter.date ?? today();
   return runWithTenant(tenantId, async (tx) => {
-    const conds = [eq(visits.tenantId, tenantId), eq(visits.visitDate, visitDate)];
+    const conds = [eq(visits.tenantId, tenantId)];
+    // The queue is a day view; a patient-history query spans all dates unless one is given.
+    if (!filter.patientId || filter.date) conds.push(eq(visits.visitDate, filter.date ?? today()));
+    if (filter.patientId) conds.push(eq(visits.patientId, filter.patientId));
     if (filter.branchId) conds.push(eq(visits.branchId, filter.branchId));
     if (filter.providerId) conds.push(eq(visits.providerId, filter.providerId));
     if (filter.status) conds.push(eq(visits.status, filter.status));
@@ -256,7 +303,7 @@ export async function listQueue(tenantId: string, filter: ListQueueFilter) {
       .leftJoin(providers, eq(providers.id, visits.providerId))
       .leftJoin(invoices, eq(invoices.id, visits.invoiceId))
       .where(and(...conds))
-      .orderBy(visits.tokenNumber);
+      .orderBy(...(filter.patientId ? [sql`${visits.visitDate} desc`, sql`${visits.checkedInAt} desc`] : [visits.tokenNumber]));
 
     return rows.map(toVisitDto);
   });
@@ -287,7 +334,25 @@ export async function updateStatus(
     if (!(NEXT_STATUS[visit.status] ?? []).includes(status)) {
       throw Errors.conflict(`Cannot move a ${visit.status} visit to ${status}`);
     }
-    await tx
+
+    // Payment before consultation (same rule the EMR enforces when the encounter opens):
+    // a visit cannot start consulting while its consultation fee is outstanding.
+    if (status === 'in_consultation' && visit.invoiceId) {
+      const inv = (
+        await tx
+          .select({ totalPaise: invoices.totalPaise, amountPaidPaise: invoices.amountPaidPaise })
+          .from(invoices)
+          .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, visit.invoiceId)))
+          .limit(1)
+      )[0];
+      if (inv && inv.totalPaise > inv.amountPaidPaise) {
+        throw Errors.conflict('Consultation fee is unpaid — collect the payment before the consultation starts');
+      }
+    }
+
+    // Compare-and-swap on the stored version: the predicate rejects a concurrent transition
+    // even when the caller did not supply a version (queue row actions).
+    const moved = await tx
       .update(visits)
       .set({
         status,
@@ -295,7 +360,17 @@ export async function updateStatus(
         version: visit.version + 1,
         updatedAt: new Date(),
       })
-      .where(eq(visits.id, visitId));
+      .where(and(eq(visits.id, visitId), eq(visits.version, visit.version)))
+      .returning({ id: visits.id });
+    if (!moved[0]) throw Errors.conflict('This visit was updated by someone else — please refresh');
+
+    // Completing the visit fulfils the originating appointment (if it is still just booked).
+    if (status === 'completed' && visit.appointmentId) {
+      await tx
+        .update(appointments)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(appointments.id, visit.appointmentId), eq(appointments.status, 'booked')));
+    }
   });
 
   await writeAudit({

@@ -12,7 +12,8 @@ export const CheckInBody = z
     department: z.string().max(80).nullable().optional(),
     departmentId: z.string().uuid().nullable().optional(),
     reason: z.string().max(500).nullable().optional(),
-    consultationFeePaise: z.number().int().min(0),
+    /** Optional override — omitted, the provider's configured default fee applies. */
+    consultationFeePaise: z.number().int().min(0).nullable().optional(),
   })
   .openapi('CheckInBody');
 
@@ -27,8 +28,11 @@ export const ListVisitsQuery = z
   .object({
     branchId: z.string().uuid().optional(),
     providerId: z.string().uuid().optional(),
+    patientId: z.string().uuid().optional(),
     date: z.string().optional(),
     status: z.enum(['checked_in', 'in_consultation', 'completed', 'cancelled']).optional(),
+    /** "true" scopes the queue to the provider linked to the signed-in user (a doctor's own list). */
+    mine: z.enum(['true', 'false']).optional(),
   })
   .openapi('ListVisitsQuery');
 
@@ -53,6 +57,7 @@ export const VisitSchema = z
     visitDate: z.string(),
     visitType: z.string(),
     status: z.string(),
+    version: z.number(),
     department: z.string().nullable(),
     departmentId: z.string().nullable(),
     reason: z.string().nullable(),
