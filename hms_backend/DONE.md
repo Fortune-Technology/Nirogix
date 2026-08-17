@@ -759,3 +759,13 @@ Migration 0024 (`services`, `referrals`, `provider_schedules`, `appointment_requ
 - Doctor role gains `opd.referral.*`; receptionist `opd.referral.view`; lab_technician `laboratory.result.verify`; org_admin `billing.services.*` + `opd.referral.view`; cashier `billing.services.view`.
 
 **Testing status:** 150 backend tests pass (+5: `workflow-extensions.test.ts` — server-priced/deduped service lines, referral consumed exactly once and cancel blocks use, roster overlap/window/slot-grid rules, public-token uniform failure + request→duplicate→link conversion, verify lifecycle incl. re-entry clearing sign-off, ledgered adjustment refusing negative stock — against a real PostgreSQL); typecheck, build and OpenAPI validation clean across all workspaces.
+
+## 2026-08-17 — Deploy baseline hardened for a SHARED staging VM
+
+The staging VM turns out to host four other projects (`/var/www`: CSV_Filter_Project, Storv_POS_All, The-Fortune-Tech, rapidrunner) deployed as `github-runner`, so port squatting is real. Changes:
+
+- **deploy/README.md** gains a mandatory pre-flight: audit what already listens (`ss -tulpn`), what every user's PM2 manages (`pm2 ls` per user incl. `sudo -u github-runner`), what Nginx already routes (`server_name`/`proxy_pass` grep across sites-enabled + conf.d), and any systemd Node services — BEFORE assigning any Nirogix port. Provisioning steps renumbered around it (step 0), deploy under `/var/www/nirogix` as a separate service user, `pm2 save` isolation, staging seeder corrected to `db:seed:staging`.
+- **Ports live in exactly one place now:** the five `next start -p <port>` flags were removed from the frontends' `start` scripts (dev scripts unchanged) — `next start` reads `PORT`, which `deploy/pm2.ecosystem.cjs` supplies from six `NIROGIX_PORT_*` env variables with the domains.md defaults. The ecosystem file also carries ready-commented entries for patient/admin/aiportal (F-5) and keeps every process name `nirogix-`-prefixed.
+- **deploy/nginx/nirogix.conf.template** upstream ports became the same `${NIROGIX_PORT_*}` placeholders, with shared-box rules written into the header: add `*.nirogix.com` server_names only, never touch another project's block or `default_server`, `nginx -t` before reload.
+
+**Testing status:** config/docs change; ports env resolution is plain `process.env` fallbacks. To validate on the VM: run the audit, export the six variables, `pm2 start --env staging`, then `ss -tulpn` confirms each app bound where the site file points.

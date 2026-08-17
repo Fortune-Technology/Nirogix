@@ -12,9 +12,15 @@
 #               API_HOST=api-staging.nirogix.com
 #
 # Routing:
-#   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :3001)
-#   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :3000)
-#   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :4000)
+#   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :${NIROGIX_PORT_PORTAL})
+#   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :${NIROGIX_PORT_MARKETING})
+#   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :${NIROGIX_PORT_API})
+#
+# SHARED VM (deploy/README.md → "Shared VM: audit ports first"): the upstream ports below are
+# PLACEHOLDERS substituted at install time with the SAME NIROGIX_PORT_* values the PM2 ecosystem
+# reads — after the port audit, never before. This file only ADDS the *.nirogix.com
+# server_names: never edit another project's server block, never claim default_server, and
+# always `nginx -t` before reloading — a duplicate server_name silently steals traffic.
 
 # NO `real_ip_header CF-Connecting-IP` here. With no trusted proxy in front, honouring a
 # client-supplied IP header would let any caller spoof their own address and walk straight
@@ -22,9 +28,9 @@
 # re-add real_ip_header ONLY together with a `set_real_ip_from` allowlist for a proxy that
 # actually exists.
 
-upstream nirogix_backend  { server 127.0.0.1:4000; keepalive 16; }
-upstream nirogix_portal   { server 127.0.0.1:3001; keepalive 16; }
-upstream nirogix_marketing{ server 127.0.0.1:3000; keepalive 16; }
+upstream nirogix_backend  { server 127.0.0.1:${NIROGIX_PORT_API}; keepalive 16; }
+upstream nirogix_portal   { server 127.0.0.1:${NIROGIX_PORT_PORTAL}; keepalive 16; }
+upstream nirogix_marketing{ server 127.0.0.1:${NIROGIX_PORT_MARKETING}; keepalive 16; }
 
 # --- API -------------------------------------------------------------------
 server {

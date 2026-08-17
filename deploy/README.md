@@ -38,16 +38,87 @@ state with production and is never indexable.
   edge proxy, so the origin IP is public and the VM firewall is the only network boundary
   (ADR-045); the object store is still Cloudflare R2, reached over the API with signed URLs.
 
+## Shared VM: audit ports first (MANDATORY pre-flight)
+
+The staging VM is **not ours alone** — `/var/www` already hosts other deployments
+(`CSV_Filter_Project`, `Storv_POS_All`, `The-Fortune-Tech`, `rapidrunner`, plus the default
+`html` site), each with its own Node processes, PM2 lists and Nginx server blocks. **Never bind
+a Nirogix port, PM2 name or Nginx server block without auditing what is already taken.** A
+collision does not fail loudly — PM2 happily starts a Next app that then crash-loops on
+`EADDRINUSE`, and a duplicate Nginx `server_name` silently steals another project's traffic.
+
+**1 · What is listening right now (the authoritative check):**
+
+```bash
+ss -tulpn | grep LISTEN            # every bound port + owning process
+```
+
+**2 · What PM2 already manages** — PM2 lists are **per user**, so check every deploy user, not
+just your own:
+
+```bash
+pm2 ls                             # the current user's apps
+sudo -u github-runner pm2 ls       # the user owning the other /var/www projects
+ls /home/*/.pm2 /root/.pm2 2>/dev/null   # any other users with a PM2 daemon
+```
+
+**3 · What Nginx already routes** (ports 80/443 are shared — our conflict surface there is
+`server_name`, not the port):
+
+```bash
+grep -rE "listen|server_name|proxy_pass" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null
+```
+
+**4 · Anything under systemd outside PM2:**
+
+```bash
+systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
+```
+
+**Then, and only then, assign ports:**
+
+- Record the taken ports, pick six free ones for Nirogix (defaults `4000` API +
+  `3000–3004` frontends — **`3000` is the single most commonly squatted Node port, expect to
+  move**). Prefer claiming one clean contiguous block (e.g. `4100–4105`) over scattering.
+- Set them in **one place**: export `NIROGIX_PORT_API`, `NIROGIX_PORT_MARKETING`,
+  `NIROGIX_PORT_PORTAL`, `NIROGIX_PORT_PATIENT`, `NIROGIX_PORT_ADMIN`, `NIROGIX_PORT_AIPORTAL`
+  in the service user's environment (e.g. a root-only `/etc/nirogix/ports.env` sourced from the
+  user's profile) before `pm2 start`. `deploy/pm2.ecosystem.cjs` reads them and passes `PORT` to
+  each app; no `start` script and no source file carries a port any more.
+- The Nginx `proxy_pass` upstream ports in the site file **must be the same values** — substitute
+  them when installing `deploy/nginx/nirogix.conf.template`, and re-run `ss -tulpn` after
+  `pm2 start` to confirm each app landed where the site file points.
+- Nginx rules on a shared box: our server blocks add **new `server_name`s only**
+  (`*.nirogix.com` hosts) — never edit another project's block, never claim
+  `default_server`, and always finish with `nginx -t` before `systemctl reload nginx`.
+- PM2 rules on a shared box: all our processes are prefixed `nirogix-` (already in the
+  ecosystem file); never `pm2 delete all`, `pm2 kill`, `pm2 save` from a user owning other
+  projects' processes without listing first — `pm2 save` snapshots **everything** that user runs.
+- Update the port matrix in `resources/domains.md` (§ per-environment variables) with the ports
+  actually claimed, so the next deploy reads them instead of re-deriving them.
+
 ## First-time VM provisioning (baseline checklist)
 
-1. Create a dedicated service user (e.g. `hms`); never deploy as root.
-2. Install Node ≥20, npm ≥10, PM2 (`npm i -g pm2`), Nginx, PostgreSQL client tools, `rclone`.
-3. Clone the repo to `${STAGING_PATH}`; create per-app env files (`hms_backend/.env`,
-   `hms_frontend/.env.local`, `marketing/.env.local`) from each `.env.example`.
-4. `npm ci && npm run build`.
-5. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
-6. `npm run db:seed -w hms_backend` (staging only — demo tenants; never in production).
-7. `pm2 start deploy/pm2.ecosystem.cjs --env staging && pm2 save && pm2 startup`.
+> Step 0 is the port audit above. Nothing binds before it.
+
+1. **Run the shared-VM port audit above**; export the six `NIROGIX_PORT_*` variables with the
+   free ports it found.
+2. Create a dedicated service user (e.g. `hms`); never deploy as root. On this VM the other
+   projects deploy as `github-runner` — a separate user keeps our PM2 list, env and `pm2 save`
+   snapshot isolated from theirs.
+3. Install (or reuse — check versions first, the box already runs Node projects) Node ≥20,
+   npm ≥10, PM2 (`npm i -g pm2`), Nginx, PostgreSQL client tools, `rclone`.
+4. Clone the repo to `${STAGING_PATH}` (e.g. `/var/www/nirogix` — sibling of the existing
+   projects, never inside one); create per-app env files (`hms_backend/.env`,
+   `hms_frontend/.env.local`, `marketing/.env.local`) from each `.env.example`. The frontends'
+   `NEXT_PUBLIC_*` origins use the staging hosts from `resources/domains.md`, never ports.
+5. `npm ci && npm run build`.
+6. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
+7. `npm run db:seed:staging -w hms_backend` (staging only — deterministic QA dataset; the
+   development and production seeders refuse to run here by design, ADR-058).
+8. `pm2 start deploy/pm2.ecosystem.cjs --env staging && pm2 save && pm2 startup` **as the
+   Nirogix service user** (so `pm2 save` snapshots only our apps), then
+   `ss -tulpn | grep -E "<the six ports>"` to confirm each app bound where expected.
 8. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
    `nginx -t && systemctl reload nginx`.
 9. Point the GoDaddy `A` records at the VM, then issue certificates on the box:
