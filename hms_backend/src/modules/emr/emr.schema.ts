@@ -141,6 +141,37 @@ export const EncounterSchema = z
 export const Icd10Schema = z.object({ code: z.string(), term: z.string() }).openapi('Icd10Code');
 export const Icd10ListSchema = z.array(Icd10Schema).openapi('Icd10List');
 
+// ---- AI prescription draft (ADR-070) ----------------------------------------
+
+export const AiDraftBody = z
+  .object({
+    chiefComplaint: z.string().max(500).nullable().optional(),
+    diagnoses: z.array(z.object({ icd10Code: z.string().max(10), icd10Term: z.string().max(300) })).default([]),
+    ageYears: z.number().int().min(0).max(130).nullable().optional(),
+    gender: z.string().max(20).nullable().optional(),
+    vitalsSummary: z.string().max(300).nullable().optional(),
+  })
+  .openapi('AiDraftBody');
+
+export const AiDraftResponseSchema = z
+  .object({
+    prescriptions: z.array(
+      z.object({
+        drugName: z.string(),
+        dose: z.string().nullable(),
+        frequency: z.string().nullable(),
+        duration: z.string().nullable(),
+        route: z.string().nullable(),
+        instructions: z.string().nullable(),
+        drugId: z.string().nullable(),
+      }),
+    ),
+    note: z.string().nullable(),
+  })
+  .openapi('AiDraftResponse');
+
+export const AiCapabilitiesSchema = z.object({ prescriptionDraft: z.boolean() }).openapi('AiCapabilities');
+
 // One row of a patient's clinical history (signed encounters only).
 export const EncounterSummarySchema = z
   .object({

@@ -5,6 +5,8 @@ import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
 import * as billing from '../billing/billing.service';
+import { referrals } from '../../db/schema';
+import { completeReferralTx } from '../referral/referral.service';
 
 // OPD & Check-in (development-plan §11). The visit/encounter is the clinical record everything
 // hangs off. Check-in also opens the patient's bill by asking the Financial Transaction
@@ -27,6 +29,9 @@ export interface CheckInInput {
   reason?: string | null;
   /** Optional override — omitted, the provider's configured default fee applies (0 if none). */
   consultationFeePaise?: number | null;
+  /** Check in against a pending referral (ADR-068): patient/department/provider default from
+   * it, and creating the visit is what completes it. */
+  referralId?: string | null;
 }
 
 // Flat column selection — predictable nullability (left-joined columns are nullable).
@@ -111,18 +116,33 @@ export async function getVisit(tenantId: string, visitId: string) {
 export async function checkIn(tenantId: string, input: CheckInInput, actorUserId?: string) {
   const visitDate = today();
 
-  const { visitId, existing, feePaise } = await runWithTenant(tenantId, async (tx) => {
+  const { visitId, existing, feePaise, patientId: effectivePatientId } = await runWithTenant(tenantId, async (tx) => {
     // Serialize this tenant's check-ins for the day: token numbers and the walk-in duplicate
     // guard below are read-then-write, so concurrent check-ins must queue behind the lock.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:check_in`}))`);
 
+    // A referral pre-answers who/where: the patient comes FROM the referral (never trusted
+    // from the client alongside it), and department/provider default from it.
+    let referral: typeof referrals.$inferSelect | null = null;
+    let patientId = input.patientId;
+    let departmentIdInput = input.departmentId ?? null;
+    if (input.referralId) {
+      referral = (
+        await tx.select().from(referrals).where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, input.referralId))).limit(1)
+      )[0] ?? null;
+      if (!referral) throw Errors.notFound('Referral not found');
+      if (referral.status !== 'pending') throw Errors.conflict('This referral has already been used or cancelled');
+      patientId = referral.patientId;
+      departmentIdInput = departmentIdInput ?? referral.toDepartmentId;
+    }
+
     // Validate the patient (tenant-scoped).
     const patient = (
-      await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, input.patientId))).limit(1)
+      await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId))).limit(1)
     )[0];
     if (!patient) throw Errors.notFound('Patient not found');
 
-    let providerId = input.providerId ?? null;
+    let providerId = input.providerId ?? referral?.toProviderId ?? null;
 
     // If checking in against an appointment: validate it, dedupe, and default the provider.
     if (input.appointmentId) {
@@ -133,7 +153,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       const already = (
         await tx.select({ id: visits.id }).from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.appointmentId, input.appointmentId))).limit(1)
       )[0];
-      if (already) return { visitId: already.id, existing: true, feePaise: 0 }; // idempotent — already checked in
+      if (already) return { visitId: already.id, existing: true, feePaise: 0, patientId: input.patientId }; // idempotent — already checked in
       if (!providerId) providerId = appt.providerId;
     }
 
@@ -147,7 +167,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
         .where(
           and(
             eq(visits.tenantId, tenantId),
-            eq(visits.patientId, input.patientId),
+            eq(visits.patientId, patientId),
             eq(visits.visitDate, visitDate),
             inArray(visits.status, ['checked_in', 'in_consultation']),
           ),
@@ -176,12 +196,12 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     // into a department that belongs to another tenant or has been retired (ADR-050). Its name
     // is copied into the legacy free-text column so screens reading `department` keep working.
     let departmentName: string | null = null;
-    if (input.departmentId) {
+    if (departmentIdInput) {
       const dept = (
         await tx
           .select({ name: departments.name, isActive: departments.isActive })
           .from(departments)
-          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, input.departmentId)))
+          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, departmentIdInput)))
           .limit(1)
       )[0];
       if (!dept) throw Errors.notFound('Department not found');
@@ -205,15 +225,15 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
         .values({
           tenantId,
           branchId: input.branchId ?? null,
-          patientId: input.patientId,
+          patientId,
           providerId,
           appointmentId: input.appointmentId ?? null,
           visitNumber,
           tokenNumber,
           visitDate,
           department: departmentName ?? input.department ?? null,
-          departmentId: input.departmentId ?? null,
-          reason: input.reason ?? null,
+          departmentId: departmentIdInput,
+          reason: input.reason ?? referral?.reason ?? null,
           status: 'checked_in',
           checkedInBy: actorUserId ?? null,
         })
@@ -225,10 +245,15 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       }
     }
     if (!row) throw Errors.conflict('Could not allocate a visit number — please retry');
+
+    // Consuming the referral is part of the same transaction: the visit exists if and
+    // only if the referral moved to completed (CAS on pending — two desks cannot both use it).
+    if (referral) await completeReferralTx(tx, tenantId, referral.id, row.id);
+
     // The fee: an explicit amount from the caller wins; otherwise the provider's configured
     // default. Nobody typing a number is no longer the only thing deciding the price.
     const fee = input.consultationFeePaise ?? providerFeePaise ?? 0;
-    return { visitId: row.id, existing: false, feePaise: fee };
+    return { visitId: row.id, existing: false, feePaise: fee, patientId };
   });
 
   if (existing) return getVisit(tenantId, visitId);
@@ -239,7 +264,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       const invoice = await billing.createInvoice(
         tenantId,
         {
-          patientId: input.patientId,
+          patientId: effectivePatientId,
           branchId: input.branchId ?? null,
           visitId,
           lineItems: [
@@ -266,14 +291,14 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     }
   }
 
-  eventBus.publish('visit.checked_in', { tenantId, visitId, patientId: input.patientId });
+  eventBus.publish('visit.checked_in', { tenantId, visitId, patientId: effectivePatientId });
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
     action: 'visit.check_in',
     resourceType: 'visit',
     resourceId: visitId,
-    metadata: { patientId: input.patientId, appointmentId: input.appointmentId ?? null },
+    metadata: { patientId: effectivePatientId, appointmentId: input.appointmentId ?? null, referralId: input.referralId ?? null },
   });
   return getVisit(tenantId, visitId);
 }

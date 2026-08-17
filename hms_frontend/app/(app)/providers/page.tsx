@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus, Stethoscope } from "lucide-react";
+import { CalendarClock, Plus, Stethoscope, X } from "lucide-react";
 import {
   Badge,
   Button,
@@ -17,7 +17,7 @@ import {
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Provider, Specialty, Department, UserListItem } from "@hms/types";
+import type { Provider, ScheduleWindow, Specialty, Department, UserListItem } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -56,6 +56,22 @@ function feeToPaise(feeRupees: string): number | null | undefined {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : undefined; // undefined = invalid
 }
 
+/** A `ScheduleWindow` while it is being edited — slot minutes stay text until save. */
+type ScheduleRow = {
+  id: string | undefined;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  slotMinutes: string;
+  branchId: string | null | undefined;
+};
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+/** Wall-clock `HH:mm`, 24-hour — a roster time is a string, never a Date (ADR-048). */
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const SCHEDULE_GRID = "grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2";
+
 function ProvidersTable() {
   const canManage = useCan(PERMISSIONS.PROVIDER_MANAGE);
   const [rows, setRows] = useState<Provider[]>([]);
@@ -78,6 +94,15 @@ function ProvidersTable() {
   const [specialtyFor, setSpecialtyFor] = useState<Provider | null>(null);
   const [specialtyCode, setSpecialtyCode] = useState("");
   const [specialtyDept, setSpecialtyDept] = useState("");
+
+  // Weekly-schedule dialog (ADR-069).
+  const [scheduleFor, setScheduleFor] = useState<Provider | null>(null);
+  const [scheduleRows, setScheduleRows] = useState<ScheduleRow[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  // False until the roster loads — saving before then could wipe windows we never saw.
+  const [scheduleReady, setScheduleReady] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,6 +227,78 @@ function ProvidersTable() {
     }
   }
 
+  function openSchedule(p: Provider) {
+    setScheduleFor(p);
+    setScheduleRows([]);
+    setScheduleError(null);
+    setScheduleReady(false);
+    setScheduleLoading(true);
+    api
+      .listProviderSchedules(p.id)
+      .then((ws) => {
+        setScheduleRows(
+          ws.map((w) => ({
+            id: w.id,
+            weekday: w.weekday,
+            startTime: w.startTime,
+            endTime: w.endTime,
+            slotMinutes: String(w.slotMinutes ?? 15),
+            branchId: w.branchId,
+          })),
+        );
+        setScheduleReady(true);
+      })
+      .catch((err) => {
+        setScheduleError(err instanceof api.ApiRequestError ? err.message : "Could not load the schedule.");
+      })
+      .finally(() => setScheduleLoading(false));
+  }
+
+  function setScheduleRow(index: number, patch: Partial<ScheduleRow>) {
+    setScheduleRows((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  async function submitSchedule(e: FormEvent) {
+    e.preventDefault();
+    if (!scheduleFor || !scheduleReady) return;
+    setScheduleError(null);
+
+    const windows: ScheduleWindow[] = [];
+    for (let i = 0; i < scheduleRows.length; i++) {
+      const row = scheduleRows[i];
+      const startTime = row.startTime.trim();
+      const endTime = row.endTime.trim();
+      if (!HHMM.test(startTime) || !HHMM.test(endTime)) {
+        setScheduleError(`Window ${i + 1}: times must be 24-hour HH:mm — e.g. 09:00 or 17:30.`);
+        return;
+      }
+      // Zero-padded HH:mm compares correctly as a string.
+      if (endTime <= startTime) {
+        setScheduleError(`Window ${i + 1}: the end time must be after the start time.`);
+        return;
+      }
+      const slotMinutes = row.slotMinutes.trim() === "" ? 15 : Number(row.slotMinutes);
+      if (!Number.isInteger(slotMinutes) || slotMinutes < 1) {
+        setScheduleError(`Window ${i + 1}: slot minutes must be a whole number of minutes.`);
+        return;
+      }
+      const win: ScheduleWindow = { weekday: row.weekday, startTime, endTime, slotMinutes };
+      if (row.id) win.id = row.id;
+      if (row.branchId !== undefined) win.branchId = row.branchId;
+      windows.push(win);
+    }
+
+    setSavingSchedule(true);
+    try {
+      await api.setProviderSchedules(scheduleFor.id, windows);
+      setScheduleFor(null);
+    } catch (err) {
+      setScheduleError(err instanceof api.ApiRequestError ? err.message : "Could not save the schedule.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
   async function toggleActive(p: Provider) {
     try {
       await api.updateProvider(p.id, { isActive: !p.isActive });
@@ -265,6 +362,12 @@ function ProvidersTable() {
             setSpecialtyCode("");
             setSpecialtyDept("");
           }}
+        />
+        <TableAction
+          label="Weekly schedule"
+          icon={<CalendarClock size={16} strokeWidth={2} aria-hidden />}
+          permitted={canManage}
+          onSelect={() => openSchedule(p)}
         />
         {/* Deactivate, never delete — the doctor's name is on encounters and prescriptions. */}
         <ToggleAction
@@ -453,6 +556,120 @@ function ProvidersTable() {
               ))}
             </select>
           </label>
+        </form>
+      </Dialog>
+
+      <Dialog
+        open={scheduleFor !== null}
+        onClose={() => !savingSchedule && setScheduleFor(null)}
+        title={scheduleFor ? `Weekly schedule — ${scheduleFor.fullName}` : "Weekly schedule"}
+        description="No windows = free-form booking; with windows, appointments must fall inside them."
+        size="lg"
+        busy={savingSchedule}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" type="button" disabled={savingSchedule} onClick={() => setScheduleFor(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="schedule-form" loading={savingSchedule} disabled={!scheduleReady}>
+              Save schedule
+            </Button>
+          </div>
+        }
+      >
+        <form id="schedule-form" onSubmit={submitSchedule} className="flex flex-col gap-4">
+          {scheduleError && <p className="text-sm text-danger">{scheduleError}</p>}
+          {scheduleLoading ? (
+            <p className="text-sm text-fg-muted">Loading schedule…</p>
+          ) : (
+            <>
+              {scheduleRows.length === 0 ? (
+                <p className="text-sm text-fg-muted">
+                  No windows yet — this doctor can be booked at any time. Add a window to limit bookings to roster
+                  hours.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className={`${SCHEDULE_GRID} text-xs font-medium text-fg-muted`} aria-hidden>
+                    <span>Weekday</span>
+                    <span>Start</span>
+                    <span>End</span>
+                    <span>Slot (min)</span>
+                    <span />
+                  </div>
+                  {scheduleRows.map((row, i) => (
+                    <div key={row.id ?? `new-${i}`} className={SCHEDULE_GRID}>
+                      <select
+                        className="hms-input"
+                        aria-label={`Window ${i + 1} weekday`}
+                        value={row.weekday}
+                        onChange={(e) => setScheduleRow(i, { weekday: Number(e.target.value) })}
+                      >
+                        {WEEKDAYS.map((day, weekday) => (
+                          <option key={day} value={weekday}>
+                            {day}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="hms-input"
+                        aria-label={`Window ${i + 1} start time (HH:mm)`}
+                        value={row.startTime}
+                        placeholder="09:00"
+                        autoComplete="off"
+                        onChange={(e) => setScheduleRow(i, { startTime: e.target.value })}
+                      />
+                      <input
+                        className="hms-input"
+                        aria-label={`Window ${i + 1} end time (HH:mm)`}
+                        value={row.endTime}
+                        placeholder="17:00"
+                        autoComplete="off"
+                        onChange={(e) => setScheduleRow(i, { endTime: e.target.value })}
+                      />
+                      <input
+                        className="hms-input"
+                        type="number"
+                        min={1}
+                        step={5}
+                        aria-label={`Window ${i + 1} slot minutes`}
+                        value={row.slotMinutes}
+                        placeholder="15"
+                        onChange={(e) => setScheduleRow(i, { slotMinutes: e.target.value })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        aria-label={`Remove window ${i + 1}`}
+                        className="px-2"
+                        onClick={() => setScheduleRows((rows) => rows.filter((_, idx) => idx !== i))}
+                      >
+                        <X size={16} strokeWidth={2} aria-hidden />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  disabled={!scheduleReady}
+                  onClick={() =>
+                    setScheduleRows((rows) => [
+                      ...rows,
+                      { id: undefined, weekday: 1, startTime: "09:00", endTime: "17:00", slotMinutes: "15", branchId: undefined },
+                    ])
+                  }
+                >
+                  <Plus size={16} strokeWidth={2} /> Add window
+                </Button>
+                <p className="text-xs text-fg-subtle">Times are 24-hour HH:mm — 09:00, 13:30, 17:45.</p>
+              </div>
+            </>
+          )}
         </form>
       </Dialog>
     </>

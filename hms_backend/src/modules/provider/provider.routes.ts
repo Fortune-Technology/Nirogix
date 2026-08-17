@@ -4,7 +4,7 @@ import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
-import { CreateProviderBody, UpdateProviderBody, AssignSpecialtyBody, CreateFormTemplateBody } from './provider.schema';
+import { CreateProviderBody, UpdateProviderBody, AssignSpecialtyBody, CreateFormTemplateBody, SetSchedulesBody } from './provider.schema';
 import * as c from './provider.controller';
 
 export const providerRouter = Router();
@@ -44,6 +44,26 @@ providerRouter.post(
   requirePermission(PERMISSIONS.PROVIDER_MANAGE),
   validate({ body: AssignSpecialtyBody }),
   asyncHandler(c.assignSpecialty),
+);
+// Weekly roster (ADR-069): read wide, write with provider management.
+providerRouter.get(
+  '/providers/:id/schedules',
+  requireAuth,
+  requirePermission(PERMISSIONS.PROVIDER_VIEW),
+  asyncHandler(c.listSchedules),
+);
+providerRouter.put(
+  '/providers/:id/schedules',
+  requireAuth,
+  requirePermission(PERMISSIONS.PROVIDER_MANAGE),
+  validate({ body: SetSchedulesBody }),
+  asyncHandler(c.setSchedules),
+);
+providerRouter.get(
+  '/providers/:id/slots',
+  requireAuth,
+  requirePermission(PERMISSIONS.PROVIDER_VIEW),
+  asyncHandler(c.listFreeSlots),
 );
 
 providerRouter.get(

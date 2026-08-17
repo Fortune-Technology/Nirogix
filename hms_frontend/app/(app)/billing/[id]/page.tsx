@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Field, Spinner, type Column } from "@hms/ui";
+import { ArrowLeft, Plus, Printer } from "lucide-react";
+import { Alert, Badge, Button, Card, DataTable, Dialog, Field, Spinner, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Invoice } from "@hms/types";
+import type { AddInvoiceLineRequest, Invoice, Service } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
@@ -66,6 +66,18 @@ function InvoiceDetail({ id }: { id: string }) {
   const [idemKey, setIdemKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Add-item dialog — a catalogue service (server-priced) or a custom one-off line.
+  const [adding, setAdding] = useState(false);
+  const [services, setServices] = useState<Service[] | null>(null); // null = not loaded yet
+  const [mode, setMode] = useState<"service" | "custom">("service");
+  const [serviceId, setServiceId] = useState("");
+  const [qty, setQty] = useState("1");
+  const [itemDesc, setItemDesc] = useState("");
+  const [itemPriceRupees, setItemPriceRupees] = useState("");
+  const [itemTaxPercent, setItemTaxPercent] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addingBusy, setAddingBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -117,6 +129,71 @@ function InvoiceDetail({ id }: { id: string }) {
     }
   }
 
+  function openAddItem() {
+    setMode("service");
+    setServiceId("");
+    setQty("1");
+    setItemDesc("");
+    setItemPriceRupees("");
+    setItemTaxPercent("");
+    setAddError(null);
+    setAdding(true);
+    if (services === null) {
+      api.listServices({ activeOnly: true }).then(setServices).catch(() => setServices([]));
+    }
+  }
+
+  async function submitAddItem(e: FormEvent) {
+    e.preventDefault();
+    if (!inv) return;
+    setAddError(null);
+    const q = Number(qty);
+    if (!Number.isInteger(q) || q < 1) {
+      setAddError("Quantity must be a whole number of at least 1.");
+      return;
+    }
+    let body: AddInvoiceLineRequest;
+    if (mode === "service") {
+      if (!serviceId) {
+        setAddError("Choose a service from the catalogue.");
+        return;
+      }
+      // Catalogue lines are priced by the server from the service — never send a price.
+      body = { serviceId, quantity: q };
+    } else {
+      if (!itemDesc.trim()) {
+        setAddError("Describe the item.");
+        return;
+      }
+      const price = Number(itemPriceRupees);
+      if (itemPriceRupees.trim() === "" || !Number.isFinite(price) || price < 0) {
+        setAddError("Enter a valid unit price.");
+        return;
+      }
+      const pct = itemTaxPercent.trim() === "" ? 0 : Number(itemTaxPercent);
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        setAddError("Enter a valid tax percentage (0–100).");
+        return;
+      }
+      body = {
+        description: itemDesc.trim(),
+        unitPricePaise: rupeesToPaise(price),
+        quantity: q,
+        taxRateBps: Math.round(pct * 100),
+      };
+    }
+    setAddingBusy(true);
+    try {
+      const updated = await api.addInvoiceLine(inv.id, body);
+      setInv(updated); // the API returns the recalculated invoice
+      setAdding(false);
+    } catch (err) {
+      setAddError(err instanceof api.ApiRequestError ? err.message : "Could not add the item.");
+    } finally {
+      setAddingBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-fg-muted">
@@ -145,6 +222,13 @@ function InvoiceDetail({ id }: { id: string }) {
                 <Printer size={16} strokeWidth={2} /> Print / PDF
               </Button>
             </Link>
+            {inv.status !== "void" && (
+              <Can perm={PERMISSIONS.BILLING_CREATE}>
+                <Button variant="secondary" onClick={openAddItem}>
+                  <Plus size={16} strokeWidth={2} /> Add item
+                </Button>
+              </Can>
+            )}
             {inv.balancePaise > 0 && inv.status !== "void" && (
               <Can perm={PERMISSIONS.BILLING_PAYMENT}>
                 <Button onClick={openCollect}>Collect payment</Button>
@@ -246,6 +330,99 @@ function InvoiceDetail({ id }: { id: string }) {
           </ul>
         </Card>
       )}
+
+      <Dialog
+        open={adding}
+        onClose={() => !addingBusy && setAdding(false)}
+        title="Add item"
+        description={`Adds a line to ${inv.invoiceNumber}. Catalogue items are priced from the services list by the server.`}
+        size="md"
+        busy={addingBusy}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" type="button" disabled={addingBusy} onClick={() => setAdding(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="add-line-form" loading={addingBusy}>
+              Add to bill
+            </Button>
+          </div>
+        }
+      >
+        <form id="add-line-form" onSubmit={submitAddItem} className="flex flex-col gap-4">
+          {addError && <Alert tone="danger">{addError}</Alert>}
+          <div className="flex gap-2" role="group" aria-label="Item source">
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "service" ? "secondary" : "ghost"}
+              aria-pressed={mode === "service"}
+              onClick={() => setMode("service")}
+            >
+              From catalogue
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "custom" ? "secondary" : "ghost"}
+              aria-pressed={mode === "custom"}
+              onClick={() => setMode("custom")}
+            >
+              Custom
+            </Button>
+          </div>
+          {mode === "service" ? (
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
+              <label className="hms-field">
+                <span className="hms-label">Service</span>
+                <select className="hms-input" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+                  <option value="">
+                    {services === null ? "Loading catalogue…" : services.length ? "Choose a service…" : "No active services"}
+                  </option>
+                  {(services ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code}) — {formatPaise(s.pricePaise)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field label="Qty" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-3">
+                <Field
+                  label="Description"
+                  required
+                  value={itemDesc}
+                  onChange={(e) => setItemDesc(e.target.value)}
+                  placeholder="Dressing kit"
+                />
+              </div>
+              <Field
+                label="Unit price (₹)"
+                required
+                type="number"
+                min={0}
+                step="0.01"
+                value={itemPriceRupees}
+                onChange={(e) => setItemPriceRupees(e.target.value)}
+              />
+              <Field label="Qty" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+              <Field
+                label="Tax (%)"
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={itemTaxPercent}
+                onChange={(e) => setItemTaxPercent(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          )}
+        </form>
+      </Dialog>
     </>
   );
 }

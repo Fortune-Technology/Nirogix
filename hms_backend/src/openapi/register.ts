@@ -29,3 +29,4 @@ import '../modules/reports/reports.openapi';
 import '../modules/dashboard/dashboard.openapi';
 import '../modules/patient/patient.openapi';
 import '../modules/appointment/appointment.openapi';
+import '../modules/referral/referral.openapi';

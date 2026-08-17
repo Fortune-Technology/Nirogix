@@ -88,12 +88,21 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - Map `testcases.md` cases to automated coverage so the handover states which cases the suite already proves.
 
 **Clinical-workflow hardening (ADR-066) — deliberate leftovers**
-- **Lab result file upload.** A result is one value + notes today; attaching a PDF/image report means a `file_id` on `lab_results` wired through the existing `file` module, and a download surface in the Portal + patient portal. The PRD's "upload the report" reading of lab results is not met until this lands.
+- ~~**Lab result file upload.**~~ **Done 17/08/2026 (ADR-070):** `lab_results.file_id` through the file module, attach on result entry, staff + patient-portal download via short-lived URLs. *Remaining refinement:* multi-analyte panels are still one value per order.
 - **PHI read auditing.** `writeAudit` fires on every write, but viewing a chart, a result or an invoice leaves no trace — `GET`s are not audited anywhere. A clinical system ultimately needs read auditing (who opened whose chart); needs a sampling/volume decision before switching on.
 - **Cross-service billing is not transactional.** Dispense and lab-collect deduct stock / move status in one transaction and bill in another; a billing failure in between leaves clinically-done-but-unbilled work (dedupe guarantees it can never double-bill, and check-in now compensates by deleting the visit). A tiny outbox or retry queue is the proper fix.
 - **`cancelled` is still unreachable** for prescriptions and lab orders once an encounter is signed (while draft, removing the row is the cancel). A post-sign cancel endpoint (who may, and what it does to an already-billed line) is a product decision tied to the credit-note question (ADR-060 / E-6).
 - **Appointment `no_show`** is never set — visits complete their appointment now, but nothing marks the patient who never arrived. Needs a cutoff rule (end of day? staff action?).
 - **Token numbers serialize on a per-tenant advisory lock.** Correct and simple; if a very large hospital ever finds check-in throughput limited by it, move the counter to a `visit_counters` row per (tenant, date) with `UPDATE … RETURNING`.
+
+**ADR-067…070 follow-ups (deliberate leftovers, 17/08/2026)**
+- **Packages** on top of the services catalogue (E-3's remainder).
+- **Roster exceptions** — per-date leave/holiday overrides on `provider_schedules`; today a day off means editing the week.
+- **Booking-request notifications** — nobody is told a request arrived (same gap as registration requests); joins the ADR-059 transactional audit.
+- **Referral notifications** — the receiving department polls its worklist; a notify-on-refer belongs to the same audit.
+- **AI drafting needs a deployment decision** — feature exists only where `ANTHROPIC_API_KEY` is configured; before any production enablement: data-processing review (clinical text leaves the VPC), cost ceiling, and a marketing-claims check (the capability reference row must say "on configured deployments").
+- **Dictation is Chrome-engine dependent** (Web Speech API): renders only where an engine exists; quality varies by device/mic. A server-side transcription path would be an ADR of its own.
+- **Stock adjustments target one batch** (named or newest). A recount that spans batches is N adjustments; a batch-spread "set on-hand to X" helper is additive if pharmacists ask.
 
 **Security follow-ups (from `SECURITY-AUDIT.md`)**
 - **H-3** account-level brute-force lockout with backoff + an audit event at threshold (rate limiting alone does not stop a slow attack on one known email).
@@ -110,13 +119,13 @@ These are the tabs a hospital administrator expects from other HMS products and 
 
 - **E-1 · Per-branch profile override.** The organization profile is one row per tenant. A multi-branch group that prints each branch's own address and phone needs a nullable `branch_id` plus a resolve-branch-then-organization read in the document layer. Additive; blocked on nothing but demand.
 - ~~**E-2 · Departments**~~ — **Done 2026-08-16 (ADR-050).** Real tenant-scoped entity with branch scoping, head of department, specialty link, activate/deactivate, a setup step, a provider link and a check-in picker. **Sub-departments are still not built and are not planned as a separate entity** — once the service catalogue lands (E-3), a "procedure" is a service in a department, and a third level would be taxonomy for its own sake. Reopen only with a customer case.
-- **E-3 · Services and packages — the next real gap.** The only priced catalogues are the lab test master and the drug master, so a clinic cannot bill a dressing, an injection, a procedure, or distinguish a new consultation from a follow-up. Needs a `services` catalogue (code, name, department, price, tax, active) that Billing consumes as a line-item source, then packages on top of it. This is the one remaining item that blocks ordinary clinic billing; everything else below is genuinely later. *Narrowed 17/08/2026 (ADR-066): the consultation fee is no longer client-typed — `providers.consultation_fee_paise` is the check-in default, and lab orders price themselves from the test master at collection. The catalogue is still needed for everything that is not a consultation, a drug or a lab test.*
+- ~~**E-3 · Services and packages — the next real gap.**~~ **Catalogue half done 17/08/2026 (ADR-067).** A tenant-scoped `services` catalogue (code/name/department/price/tax/active) now exists with a Portal screen, server-priced invoice lines (`POST /invoices/:id/lines`), custom one-off lines, and manual invoice creation. **Still open: packages** (bundled services at a bundle price) — additive on top of the catalogue when a customer asks.
 
 - **E-4 · Treatment plans.** Not in the PRD or any phase. Do not build without a scope decision first.
 - **E-5 · Ward, room and bed setup.** Belongs to IPD (Phase 2). No infrastructure hierarchy exists.
 - **E-6 · Billing, tax and payment configuration.** Tax is per invoice line today; there is no rate list, tax profile, payer catalogue or numbering-series configuration.
 - **E-7 · Custom-role editor and the permission matrix screen.** Roles are seeded and assignable, and individual overrides work, but a hospital cannot clone or edit a role in the interface (also listed under Portal features).
-- **E-8 · Appointment, scheduling and notification configuration.** Provider availability is data with no roster editor; no notification is triggered by a workflow, so there is nothing to configure yet.
+- **E-8 · Appointment, scheduling and notification configuration.** *Roster half done 17/08/2026 (ADR-069):* weekly windows per provider with a Portal editor, slot derivation, and booking validation (opt-in — no roster keeps free-form booking). **Still open:** per-date exceptions (leave, holidays), and workflow-triggered notifications (blocked on the ADR-059 transactional-coverage audit + MSG91 DLT).
 
 **Five-frontend architecture (ADR-051, ADR-052, ADR-053) — ordered**
 

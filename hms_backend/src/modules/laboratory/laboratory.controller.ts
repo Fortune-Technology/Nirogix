@@ -27,3 +27,12 @@ export async function collect(req: Request, res: Response): Promise<void> {
 export async function enterResult(req: Request, res: Response): Promise<void> {
   res.json(await svc.enterResult(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
 }
+
+export async function verifyResult(req: Request, res: Response): Promise<void> {
+  res.json(await svc.verifyResult(req.auth!.tenantId, req.params.id!, req.auth!.userId));
+}
+
+export async function reportAttachment(req: Request, res: Response): Promise<void> {
+  const url = await svc.getReportAttachmentUrl(req.auth!.tenantId, req.params.id!);
+  res.json({ url });
+}

@@ -11,6 +11,15 @@ import {
   RejectRegistrationBody,
   ApproveRegistrationBody,
 } from './registration.schema';
+import {
+  SubmitBookingBody,
+  PublicBookingContextSchema,
+  BookingRequestListSchema,
+  ApproveBookingBody,
+  RejectBookingBody,
+  SetOnlineBookingBody,
+  BookingSettingsSchema,
+} from './booking.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
@@ -213,6 +222,132 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: { description: 'Settings with the new token', ...json(RegistrationSettingsSchema) },
+    401: notAuthed,
+    403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+  },
+});
+
+// ---- Public appointment requests (ADR-069) -----------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/public/booking/{token}',
+  operationId: 'getPublicBookingContext',
+  tags: ['Appointments'],
+  summary: 'Public: what the booking form may show for this token',
+  description:
+    'Unauthenticated, sign-in-tier rate limit. Unknown, retired and disabled tokens fail identically so the endpoint cannot enumerate hospitals.',
+  request: { params: z.object({ token: z.string() }) },
+  responses: {
+    200: { description: 'Hospital name, departments and doctors for the form', ...json(PublicBookingContextSchema) },
+    404: { description: 'Not a valid booking link', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/public/booking/{token}',
+  operationId: 'submitBookingRequest',
+  tags: ['Appointments'],
+  summary: 'Public: submit an appointment REQUEST (never an appointment)',
+  request: { params: z.object({ token: z.string() }), body: json(SubmitBookingBody) },
+  responses: {
+    202: { description: 'Received — the desk confirms the slot', ...json(z.object({ message: z.string() })) },
+    404: { description: 'Not a valid booking link', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/booking-requests',
+  operationId: 'listBookingRequests',
+  tags: ['Appointments'],
+  summary: 'The online-booking review queue',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ status: z.enum(['pending', 'approved', 'rejected']).optional() }) },
+  responses: {
+    200: { description: 'Requests', ...json(BookingRequestListSchema) },
+    401: notAuthed,
+    403: { description: 'Missing appointment.booking.view', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/booking-requests/{id}/approve',
+  operationId: 'approveBookingRequest',
+  tags: ['Appointments'],
+  summary: 'Convert a request into a patient (dedupe-guarded or linked) + a real appointment',
+  description:
+    'Books through the same path as staff booking, so roster windows and double-booking rules apply identically. 409 DUPLICATE_PATIENT carries candidate charts; resend with existingPatientId or allowDuplicate.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(ApproveBookingBody) },
+  responses: {
+    200: { description: 'Appointment + patient ids', ...json(z.object({ appointmentId: z.string(), patientId: z.string() })) },
+    401: notAuthed,
+    403: { description: 'Missing appointment.booking.create', ...json(ErrorResponseSchema) },
+    404: { description: 'Request not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Already reviewed / DUPLICATE_PATIENT / slot taken / outside the roster', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/booking-requests/{id}/reject',
+  operationId: 'rejectBookingRequest',
+  tags: ['Appointments'],
+  summary: 'Reject an online-booking request',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(RejectBookingBody) },
+  responses: {
+    204: { description: 'Rejected' },
+    401: notAuthed,
+    403: { description: 'Missing appointment.booking.create', ...json(ErrorResponseSchema) },
+    404: { description: 'Request not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Already reviewed', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/organization/booking',
+  operationId: 'getBookingSettings',
+  tags: ['Config'],
+  summary: 'Online-booking settings (toggle, token, pending count)',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Settings', ...json(BookingSettingsSchema) },
+    401: notAuthed,
+    403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/organization/booking',
+  operationId: 'setOnlineBooking',
+  tags: ['Config'],
+  summary: 'Turn online booking on or off (first enable mints the token)',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(SetOnlineBookingBody) },
+  responses: {
+    200: { description: 'Settings', ...json(BookingSettingsSchema) },
+    401: notAuthed,
+    403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/organization/booking/regenerate',
+  operationId: 'regenerateBookingToken',
+  tags: ['Config'],
+  summary: 'Issue a new booking token — printed posters with the old one stop working',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Settings with the new token', ...json(BookingSettingsSchema) },
     401: notAuthed,
     403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
   },

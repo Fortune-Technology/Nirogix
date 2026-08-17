@@ -8,12 +8,13 @@ import {
   Badge,
   Button,
   Card,
+  DateField,
   DateTimeField,
   Field,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import { todayApiDate } from "@hms/utils";
-import type { Patient, Provider } from "@hms/types";
+import { toApiDate, todayApiDate } from "@hms/utils";
+import type { FreeSlots, Patient, Provider } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -27,10 +28,19 @@ function BookForm() {
   const [results, setResults] = useState<Patient[]>([]);
   const [providerId, setProviderId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  // Roster slots (ADR-069): the date being looked up, the provider's free slots on
+  // it, and the slot the user picked. `slots === null` means "no roster known" —
+  // the free-form date & time entry stays.
+  const [slotDate, setSlotDate] = useState<string | null>(null);
+  const [slots, setSlots] = useState<FreeSlots | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState("");
   const [duration, setDuration] = useState(15);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const hasRoster = slots?.hasRoster === true;
 
   useEffect(() => {
     api.listProviders().then(setProviders).catch(() => setProviders([]));
@@ -48,18 +58,38 @@ function BookForm() {
     return () => clearTimeout(t);
   }, [search, patient]);
 
+  // Refresh the provider's free slots whenever provider or date changes.
+  useEffect(() => {
+    setSelectedSlot("");
+    if (!providerId || !slotDate) {
+      setSlots(null);
+      return;
+    }
+    let cancelled = false;
+    setSlotsLoading(true);
+    api
+      .listProviderSlots(providerId, slotDate)
+      .then((s) => { if (!cancelled) setSlots(s); })
+      // Fall back to free-form entry; the server enforces the windows regardless.
+      .catch(() => { if (!cancelled) setSlots(null); })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
+  }, [providerId, slotDate]);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!patient) { setError("Select a patient."); return; }
     if (!providerId) { setError("Select a provider."); return; }
-    if (!scheduledAt) { setError("Pick a date & time."); return; }
+    if (hasRoster) {
+      if (!selectedSlot) { setError("Pick one of the available slots."); return; }
+    } else if (!scheduledAt) { setError("Pick a date & time."); return; }
     setSubmitting(true);
     try {
       await api.bookAppointment({
         patientId: patient.id,
         providerId,
-        scheduledAt: new Date(scheduledAt).toISOString(),
+        scheduledAt: hasRoster ? selectedSlot : new Date(scheduledAt).toISOString(),
         durationMinutes: duration,
         reason: reason || undefined,
       });
@@ -118,12 +148,55 @@ function BookForm() {
                 ))}
               </select>
             </label>
-            <DateTimeField
-              label="Date & time"
-              value={scheduledAt || null}
-              minDate={todayApiDate()}
-              onChange={(v) => setScheduledAt(v ?? "")}
-            />
+            {hasRoster ? (
+              // The provider works to a roster: the date stays a DateField (ADR-048),
+              // the time comes from a slot chip instead of free-form entry.
+              <DateField
+                label="Date"
+                value={slotDate}
+                min={todayApiDate()}
+                onChange={(v) => {
+                  setSlotDate(v);
+                  if (!v) setScheduledAt("");
+                }}
+              />
+            ) : (
+              <DateTimeField
+                label="Date & time"
+                value={scheduledAt || null}
+                minDate={todayApiDate()}
+                onChange={(v) => {
+                  setScheduledAt(v ?? "");
+                  setSlotDate(v ? toApiDate(v) : null);
+                }}
+              />
+            )}
+            {hasRoster && (
+              <div className="hms-field sm:col-span-2">
+                <span className="hms-label">Available slots</span>
+                {slotsLoading ? (
+                  <p className="text-sm text-fg-muted">Checking availability…</p>
+                ) : slots && slots.slots.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.slots.map((s) => (
+                      <Button
+                        key={s.startsAt}
+                        type="button"
+                        size="sm"
+                        variant={selectedSlot === s.startsAt ? "primary" : "secondary"}
+                        aria-pressed={selectedSlot === s.startsAt}
+                        onClick={() => setSelectedSlot(s.startsAt)}
+                      >
+                        {s.label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-fg-muted">No free slots on this day — pick another date.</p>
+                )}
+                <p className="text-xs text-fg-subtle">This doctor books by roster slots; pick one to continue.</p>
+              </div>
+            )}
             <label className="hms-field">
               <span className="hms-label">Duration</span>
               <select className="hms-input" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
@@ -135,7 +208,8 @@ function BookForm() {
         </Card>
 
         <div className="flex items-center gap-3">
-          <Button type="submit" loading={submitting}>Book appointment</Button>
+          {/* With a roster the chosen slot is required — the server enforces the window anyway. */}
+          <Button type="submit" loading={submitting} disabled={hasRoster && !selectedSlot}>Book appointment</Button>
           <Link href="/appointments"><Button variant="ghost" type="button">Cancel</Button></Link>
         </div>
       </form>

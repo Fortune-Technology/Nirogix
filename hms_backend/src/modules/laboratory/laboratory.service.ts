@@ -5,6 +5,7 @@ import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
 import * as billing from '../billing/billing.service';
+import { getDownloadUrl } from '../file/file.service';
 
 // Laboratory (MVP subset). Test master + result entry against the EMR lab orders, billing at
 // result, abnormal-value flag derived from the reference range.
@@ -74,6 +75,8 @@ function toWorklistRow(r: {
   resultRefLow: string | null;
   resultRefHigh: string | null;
   resultNotes: string | null;
+  resultVerifiedAt: Date | null;
+  resultFileId: string | null;
 }) {
   const o = r.o;
   return {
@@ -91,7 +94,16 @@ function toWorklistRow(r: {
     createdAt: o.createdAt.toISOString(),
     result:
       r.resultValue !== null
-        ? { value: r.resultValue, unit: r.resultUnit, flag: r.resultFlag, refLow: r.resultRefLow, refHigh: r.resultRefHigh, notes: r.resultNotes }
+        ? {
+            value: r.resultValue,
+            unit: r.resultUnit,
+            flag: r.resultFlag,
+            refLow: r.resultRefLow,
+            refHigh: r.resultRefHigh,
+            notes: r.resultNotes,
+            verifiedAt: r.resultVerifiedAt ? r.resultVerifiedAt.toISOString() : null,
+            hasAttachment: r.resultFileId !== null,
+          }
         : null,
   };
 }
@@ -107,6 +119,8 @@ const worklistColumns = {
   resultRefLow: labResults.refLow,
   resultRefHigh: labResults.refHigh,
   resultNotes: labResults.notes,
+  resultVerifiedAt: labResults.verifiedAt,
+  resultFileId: labResults.fileId,
 };
 
 export async function listWorklist(tenantId: string, status?: string, patientId?: string) {
@@ -219,6 +233,8 @@ export interface EnterResultInput {
   refHigh?: string | null;
   flag?: string | null;
   notes?: string | null;
+  /** Attached report file (uploaded through the file module first). */
+  fileId?: string | null;
 }
 
 export async function enterResult(tenantId: string, labOrderId: string, input: EnterResultInput, actorUserId?: string) {
@@ -228,10 +244,11 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     )[0];
     if (!order) throw Errors.notFound('Lab order not found');
     // Transition rule: results are entered on a collected sample, or re-entered to correct an
-    // already-resulted order (ADR-060 correction path). Never on ordered/cancelled.
+    // already-resulted/verified order (ADR-060 correction path — a corrected value drops back
+    // to `resulted` and needs re-verification). Never on ordered/cancelled.
     if (order.status === 'ordered') throw Errors.conflict('Collect the sample before entering a result');
     if (order.status === 'cancelled') throw Errors.conflict('Cannot enter a result on a cancelled order');
-    const wasResulted = order.status === 'resulted';
+    const wasResulted = order.status === 'resulted' || order.status === 'verified';
 
     let pricePaise = 0;
     let taxRateBps = 0;
@@ -265,7 +282,10 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
       refHigh,
       flag,
       notes: input.notes ?? null,
+      fileId: input.fileId ?? null,
       resultedBy: actorUserId ?? null,
+      // A fresh (or corrected) result is unverified by construction — verification is its
+      // own sign-off, and re-entry always drops the order back to `resulted`.
     });
     await tx.update(labOrders).set({ status: 'resulted' }).where(eq(labOrders.id, labOrderId));
 
@@ -286,4 +306,42 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
   }
   await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.result', resourceType: 'lab_order', resourceId: labOrderId, metadata: { flag: ctx.flag } });
   return getLabOrder(tenantId, labOrderId);
+}
+
+/**
+ * Sign off a resulted order (ADR-070). Verification is what releases the report to the
+ * patient portal; the doctor's own view never waited on it. Only a `resulted` order can
+ * verify, and a corrected result always needs a fresh sign-off.
+ */
+export async function verifyResult(tenantId: string, labOrderId: string, actorUserId?: string) {
+  await runWithTenant(tenantId, async (tx) => {
+    const order = (
+      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+    )[0];
+    if (!order) throw Errors.notFound('Lab order not found');
+    if (order.status !== 'resulted') throw Errors.conflict(`Cannot verify a ${order.status} order`);
+    await tx.update(labOrders).set({ status: 'verified' }).where(eq(labOrders.id, labOrderId));
+    await tx
+      .update(labResults)
+      .set({ verifiedBy: actorUserId ?? null, verifiedAt: new Date() })
+      .where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)));
+  });
+  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.verify', resourceType: 'lab_order', resourceId: labOrderId, metadata: {} });
+  return getLabOrder(tenantId, labOrderId);
+}
+
+/** Short-lived download URL for the attached report (staff side). */
+export async function getReportAttachmentUrl(tenantId: string, labOrderId: string): Promise<string | null> {
+  const row = (
+    await runWithTenant(tenantId, (tx) =>
+      tx
+        .select({ fileId: labResults.fileId })
+        .from(labResults)
+        .where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)))
+        .limit(1),
+    )
+  )[0];
+  if (!row?.fileId) return null;
+  const url = await getDownloadUrl(tenantId, row.fileId);
+  return url?.url ?? null;
 }

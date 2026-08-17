@@ -33,3 +33,18 @@ laboratoryRouter.post(
   validate({ body: EnterResultBody }),
   asyncHandler(c.enterResult),
 );
+// Sign off a resulted order — its own permission so a hospital can split enter/verify.
+laboratoryRouter.post(
+  '/lab-orders/:id/verify',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_RESULT_VERIFY),
+  asyncHandler(c.verifyResult),
+);
+laboratoryRouter.get(
+  '/lab-orders/:id/attachment',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_ORDER_VIEW),
+  asyncHandler(c.reportAttachment),
+);

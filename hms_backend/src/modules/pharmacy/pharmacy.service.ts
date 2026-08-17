@@ -1,6 +1,17 @@
-import { and, asc, eq, gt, ilike, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { drugs, drugBatches, dispenses, prescriptions, encounters, visits, patients } from '../../db/schema';
+import {
+  drugs,
+  drugBatches,
+  dispenses,
+  prescriptions,
+  encounters,
+  visits,
+  patients,
+  suppliers,
+  stockAdjustments,
+  type Supplier,
+} from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import * as billing from '../billing/billing.service';
@@ -77,23 +88,163 @@ export interface ReceiveStockInput {
   expiryDate?: string | null;
   quantity: number;
   costPricePaise?: number | null;
+  supplierId?: string | null;
 }
 
 export async function receiveStock(tenantId: string, drugId: string, input: ReceiveStockInput, actorUserId?: string) {
   await runWithTenant(tenantId, async (tx) => {
     const drug = (await tx.select({ id: drugs.id }).from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId))).limit(1))[0];
     if (!drug) throw Errors.notFound('Drug not found');
+    if (input.supplierId) {
+      const sup = (
+        await tx.select({ id: suppliers.id }).from(suppliers).where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, input.supplierId))).limit(1)
+      )[0];
+      if (!sup) throw Errors.notFound('Supplier not found');
+    }
     await tx.insert(drugBatches).values({
       tenantId,
       drugId,
+      supplierId: input.supplierId ?? null,
       batchNo: input.batchNo ?? null,
       expiryDate: input.expiryDate ?? null,
       quantity: input.quantity,
       costPricePaise: input.costPricePaise ?? null,
     });
   });
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'stock.receive', resourceType: 'drug', resourceId: drugId, metadata: { quantity: input.quantity } });
+  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'stock.receive', resourceType: 'drug', resourceId: drugId, metadata: { quantity: input.quantity, supplierId: input.supplierId ?? null } });
   return listDrugs(tenantId).then((d) => d.find((x) => x.id === drugId));
+}
+
+// ---- Suppliers + stock adjustments (ADR-070) ---------------------------------
+
+export interface SupplierInput {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  addressLine?: string | null;
+}
+
+export async function listSuppliers(tenantId: string): Promise<Supplier[]> {
+  return runWithTenant(tenantId, (tx) => tx.select().from(suppliers).where(eq(suppliers.tenantId, tenantId)).orderBy(asc(suppliers.name)));
+}
+
+export async function createSupplier(tenantId: string, input: SupplierInput, actorUserId?: string): Promise<Supplier> {
+  const created = (
+    await runWithTenant(tenantId, (tx) =>
+      tx
+        .insert(suppliers)
+        .values({
+          tenantId,
+          name: input.name.trim(),
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          gstin: input.gstin ?? null,
+          addressLine: input.addressLine ?? null,
+        })
+        .returning(),
+    )
+  )[0]!;
+  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'supplier.create', resourceType: 'supplier', resourceId: created.id, metadata: { name: created.name } });
+  return created;
+}
+
+export async function updateSupplier(
+  tenantId: string,
+  supplierId: string,
+  patch: Partial<SupplierInput> & { isActive?: boolean },
+  actorUserId?: string,
+): Promise<Supplier> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  for (const f of ['name', 'phone', 'email', 'gstin', 'addressLine', 'isActive'] as const) {
+    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+  }
+  const updated = (
+    await runWithTenant(tenantId, (tx) =>
+      tx.update(suppliers).set(set).where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, supplierId))).returning(),
+    )
+  )[0];
+  if (!updated) throw Errors.notFound('Supplier not found');
+  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'supplier.update', resourceType: 'supplier', resourceId: supplierId, metadata: { fields: Object.keys(set).filter((k) => k !== 'updatedAt') } });
+  return updated;
+}
+
+export interface AdjustStockInput {
+  batchId?: string | null;
+  /** Signed change: -3 writes off three, +10 records ten found. */
+  delta: number;
+  reason: string;
+}
+
+/**
+ * Correct a stock figure (ADR-060 / ADR-070): a signed delta with a mandatory reason,
+ * applied to a specific batch (or the newest batch when none is named — the common
+ * "recount says N" case), locked FOR UPDATE, never below zero, and recorded in its own
+ * ledger row. The batch quantity says what is on hand; `stock_adjustments` says why.
+ */
+export async function adjustStock(tenantId: string, drugId: string, input: AdjustStockInput, actorUserId?: string) {
+  if (!Number.isInteger(input.delta) || input.delta === 0) throw Errors.validation(undefined, 'delta must be a non-zero integer');
+  const adjustmentId = await runWithTenant(tenantId, async (tx) => {
+    const drug = (await tx.select({ id: drugs.id }).from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId))).limit(1))[0];
+    if (!drug) throw Errors.notFound('Drug not found');
+
+    const batchConds = [eq(drugBatches.tenantId, tenantId), eq(drugBatches.drugId, drugId)];
+    if (input.batchId) batchConds.push(eq(drugBatches.id, input.batchId));
+    const batch = (
+      await tx
+        .select()
+        .from(drugBatches)
+        .where(and(...batchConds))
+        .orderBy(desc(drugBatches.receivedAt))
+        .limit(1)
+        .for('update')
+    )[0];
+    if (!batch) throw Errors.notFound(input.batchId ? 'Batch not found' : 'This drug has no stock batch to adjust');
+
+    const next = batch.quantity + input.delta;
+    if (next < 0) throw Errors.conflict(`Adjustment would make the batch negative (${batch.quantity} on hand)`);
+    await tx.update(drugBatches).set({ quantity: next }).where(eq(drugBatches.id, batch.id));
+
+    const row = (
+      await tx
+        .insert(stockAdjustments)
+        .values({ tenantId, drugId, batchId: batch.id, delta: input.delta, reason: input.reason.trim(), adjustedBy: actorUserId ?? null })
+        .returning({ id: stockAdjustments.id })
+    )[0]!;
+    return row.id;
+  });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'stock.adjust',
+    resourceType: 'drug',
+    resourceId: drugId,
+    metadata: { adjustmentId, delta: input.delta, reason: input.reason },
+  });
+  return listDrugs(tenantId).then((d) => d.find((x) => x.id === drugId));
+}
+
+export async function listAdjustments(tenantId: string, drugId?: string) {
+  return runWithTenant(tenantId, async (tx) => {
+    const conds = [eq(stockAdjustments.tenantId, tenantId)];
+    if (drugId) conds.push(eq(stockAdjustments.drugId, drugId));
+    const rows = await tx
+      .select({ a: stockAdjustments, drugName: drugs.name })
+      .from(stockAdjustments)
+      .innerJoin(drugs, eq(drugs.id, stockAdjustments.drugId))
+      .where(and(...conds))
+      .orderBy(desc(stockAdjustments.createdAt))
+      .limit(200);
+    return rows.map((r) => ({
+      id: r.a.id,
+      drugId: r.a.drugId,
+      drugName: r.drugName,
+      batchId: r.a.batchId,
+      delta: r.a.delta,
+      reason: r.a.reason,
+      createdAt: r.a.createdAt.toISOString(),
+    }));
+  });
 }
 
 // The dispensing worklist — prescriptions awaiting dispense (status 'ordered') from SIGNED

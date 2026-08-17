@@ -70,6 +70,21 @@ export async function assignSpecialty(req: Request, res: Response): Promise<void
   });
 }
 
+export async function listSchedules(req: Request, res: Response): Promise<void> {
+  const rows = await svc.listSchedules(req.auth!.tenantId, req.params.id!);
+  res.json({ windows: rows.map((w) => ({ id: w.id, weekday: w.weekday, startTime: w.startTime, endTime: w.endTime, slotMinutes: w.slotMinutes, branchId: w.branchId })) });
+}
+
+export async function setSchedules(req: Request, res: Response): Promise<void> {
+  const rows = await svc.setSchedules(req.auth!.tenantId, req.params.id!, req.body.windows, req.auth!.userId);
+  res.json({ windows: rows.map((w) => ({ id: w.id, weekday: w.weekday, startTime: w.startTime, endTime: w.endTime, slotMinutes: w.slotMinutes, branchId: w.branchId })) });
+}
+
+export async function listFreeSlots(req: Request, res: Response): Promise<void> {
+  const date = typeof req.query.date === 'string' ? req.query.date : '';
+  res.json(await svc.listFreeSlots(req.auth!.tenantId, req.params.id!, date));
+}
+
 export async function listTemplates(req: Request, res: Response): Promise<void> {
   const t = await svc.listFormTemplates(req.auth!.tenantId);
   res.json({ templates: t.map(toTemplate) });

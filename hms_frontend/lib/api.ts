@@ -48,6 +48,24 @@ import type {
   CreateProviderRequest,
   UpdateProviderRequest,
   AssignSpecialtyRequest,
+  Service,
+  CreateServiceRequest,
+  UpdateServiceRequest,
+  AddInvoiceLineRequest,
+  Referral,
+  CreateReferralRequest,
+  ScheduleWindow,
+  FreeSlots,
+  BookingRequestItem,
+  BookingSettings,
+  ApproveBookingRequest,
+  Supplier,
+  CreateSupplierRequest,
+  StockAdjustment,
+  AiCapabilities,
+  AiDraftRequest,
+  AiDraftResponse,
+  CreateInvoiceRequest,
   Drug,
   PendingPrescription,
   CreateDrugRequest,
@@ -371,6 +389,176 @@ export async function getInvoice(id: string): Promise<Invoice> {
 
 export async function recordPayment(id: string, body: RecordPaymentRequest): Promise<Invoice> {
   return request<Invoice>(`/invoices/${id}/payments`, { method: "POST", body, feedback: { success: "Payment recorded." } });
+}
+
+export async function createInvoice(body: CreateInvoiceRequest): Promise<Invoice> {
+  return request<Invoice>("/invoices", { method: "POST", body, feedback: { success: "Invoice created." } });
+}
+
+export async function addInvoiceLine(invoiceId: string, body: AddInvoiceLineRequest): Promise<Invoice> {
+  return request<Invoice>(`/invoices/${invoiceId}/lines`, { method: "POST", body, feedback: { success: "Item added to the bill." } });
+}
+
+// ---- Services catalogue (ADR-067) -------------------------------------------
+
+export async function listServices(opts: { activeOnly?: boolean; search?: string } = {}): Promise<Service[]> {
+  const q = new URLSearchParams();
+  if (opts.activeOnly) q.set("activeOnly", "true");
+  if (opts.search) q.set("search", opts.search);
+  const qs = q.toString();
+  return request<Service[]>(`/services${qs ? `?${qs}` : ""}`);
+}
+
+export async function createService(body: CreateServiceRequest): Promise<Service> {
+  return request<Service>("/services", { method: "POST", body, feedback: { success: "Service added." } });
+}
+
+export async function updateService(id: string, patch: UpdateServiceRequest): Promise<Service> {
+  return request<Service>(`/services/${id}`, { method: "PATCH", body: patch, feedback: { success: "Service updated." } });
+}
+
+// ---- Referrals (ADR-068) -----------------------------------------------------
+
+export async function listReferrals(opts: { status?: string; toDepartmentId?: string; patientId?: string } = {}): Promise<Referral[]> {
+  const q = new URLSearchParams();
+  if (opts.status) q.set("status", opts.status);
+  if (opts.toDepartmentId) q.set("toDepartmentId", opts.toDepartmentId);
+  if (opts.patientId) q.set("patientId", opts.patientId);
+  const qs = q.toString();
+  return request<Referral[]>(`/referrals${qs ? `?${qs}` : ""}`);
+}
+
+export async function createReferral(body: CreateReferralRequest): Promise<Referral> {
+  return request<Referral>("/referrals", { method: "POST", body, feedback: { success: "Referral created." } });
+}
+
+export async function cancelReferral(id: string): Promise<Referral> {
+  return request<Referral>(`/referrals/${id}/cancel`, { method: "POST", feedback: { success: "Referral cancelled." } });
+}
+
+// ---- Provider roster + slots (ADR-069) ----------------------------------------
+
+export async function listProviderSchedules(providerId: string): Promise<ScheduleWindow[]> {
+  return (await request<{ windows: ScheduleWindow[] }>(`/providers/${providerId}/schedules`)).windows;
+}
+
+export async function setProviderSchedules(providerId: string, windows: ScheduleWindow[]): Promise<ScheduleWindow[]> {
+  return (
+    await request<{ windows: ScheduleWindow[] }>(`/providers/${providerId}/schedules`, {
+      method: "PUT",
+      body: { windows },
+      feedback: { success: "Schedule saved." },
+    })
+  ).windows;
+}
+
+export async function listProviderSlots(providerId: string, date: string): Promise<FreeSlots> {
+  return request<FreeSlots>(`/providers/${providerId}/slots?date=${date}`);
+}
+
+// ---- Online booking requests (ADR-069) ----------------------------------------
+
+export async function getBookingSettings(): Promise<BookingSettings> {
+  return request<BookingSettings>("/organization/booking");
+}
+
+export async function setOnlineBooking(enabled: boolean): Promise<BookingSettings> {
+  return request<BookingSettings>("/organization/booking", {
+    method: "PUT",
+    body: { enabled },
+    feedback: { success: enabled ? "Online booking is on." : "Online booking is off." },
+  });
+}
+
+export async function regenerateBookingToken(): Promise<BookingSettings> {
+  return request<BookingSettings>("/organization/booking/regenerate", {
+    method: "POST",
+    feedback: { success: "New booking QR issued. Printed posters no longer work." },
+  });
+}
+
+export async function listBookingRequests(status = "pending"): Promise<BookingRequestItem[]> {
+  return (await request<{ requests: BookingRequestItem[] }>(`/booking-requests?status=${status}`)).requests;
+}
+
+export async function approveBookingRequest(id: string, body: ApproveBookingRequest): Promise<{ appointmentId: string; patientId: string }> {
+  return request<{ appointmentId: string; patientId: string }>(`/booking-requests/${id}/approve`, {
+    method: "POST",
+    body,
+    feedback: { success: "Appointment booked." },
+  });
+}
+
+export async function rejectBookingRequest(id: string, reason?: string): Promise<void> {
+  await request<void>(`/booking-requests/${id}/reject`, { method: "POST", body: { reason }, feedback: { success: "Request rejected." } });
+}
+
+// ---- Suppliers + stock corrections (ADR-070) -----------------------------------
+
+export async function listSuppliers(): Promise<Supplier[]> {
+  return request<Supplier[]>("/suppliers");
+}
+
+export async function createSupplier(body: CreateSupplierRequest): Promise<Supplier> {
+  return request<Supplier>("/suppliers", { method: "POST", body, feedback: { success: "Supplier added." } });
+}
+
+export async function updateSupplier(id: string, patch: Partial<CreateSupplierRequest> & { isActive?: boolean }): Promise<Supplier> {
+  return request<Supplier>(`/suppliers/${id}`, { method: "PATCH", body: patch, feedback: { success: "Supplier updated." } });
+}
+
+export async function adjustStock(drugId: string, body: { batchId?: string | null; delta: number; reason: string }): Promise<Drug> {
+  return request<Drug>(`/drugs/${drugId}/adjust`, { method: "POST", body, feedback: { success: "Stock corrected." } });
+}
+
+export async function listStockAdjustments(drugId?: string): Promise<StockAdjustment[]> {
+  const q = drugId ? `?drugId=${drugId}` : "";
+  return request<StockAdjustment[]>(`/stock-adjustments${q}`);
+}
+
+// ---- Lab verification + attachment (ADR-070) ------------------------------------
+
+export async function verifyLabResult(id: string): Promise<LabOrder> {
+  return request<LabOrder>(`/lab-orders/${id}/verify`, { method: "POST", feedback: { success: "Report verified." } });
+}
+
+export async function getLabReportAttachment(id: string): Promise<string | null> {
+  return (await request<{ url: string | null }>(`/lab-orders/${id}/attachment`)).url;
+}
+
+/** Upload a file (multipart) through the file module; returns its id for attaching. */
+export async function uploadFile(file: File): Promise<{ id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  const token = client.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await send("/files", { method: "POST", headers, credentials: "include", body: form });
+  if (!res.ok) {
+    const failure = await parseError(res);
+    notifyError(failure);
+    throw failure;
+  }
+  return (await res.json()) as { id: string };
+}
+
+// ---- AI assist (ADR-070) --------------------------------------------------------
+
+export async function aiCapabilities(): Promise<AiCapabilities> {
+  return request<AiCapabilities>("/ai/capabilities");
+}
+
+export async function aiPrescriptionDraft(body: AiDraftRequest): Promise<AiDraftResponse> {
+  return request<AiDraftResponse>("/ai/prescription-draft", {
+    method: "POST",
+    body,
+    feedback: { success: "Draft ready — review every line before saving." },
+  });
+}
+
+/** The visit's encounter, read-only (what the printed prescription loads). */
+export async function getVisitEncounter(visitId: string): Promise<Encounter> {
+  return request<Encounter>(`/visits/${visitId}/encounter`);
 }
 
 // ---- EMR / Clinical Workflow (hms_backend/src/modules/emr) ------------------

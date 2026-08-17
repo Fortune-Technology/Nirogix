@@ -8,8 +8,10 @@ import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
 import { uploadSingle } from '../file/file.upload';
 import { UpdateOrganizationProfileBody } from './organization.schema';
 import { SubmitRegistrationBody, SetSelfRegistrationBody, RejectRegistrationBody, ApproveRegistrationBody } from './registration.schema';
+import { SubmitBookingBody, ApproveBookingBody, RejectBookingBody, SetOnlineBookingBody } from './booking.schema';
 import * as c from './organization.controller';
 import * as reg from './registration.controller';
+import * as bkg from './booking.controller';
 
 /**
  * The hospital's own identity (ADR-049).
@@ -119,4 +121,62 @@ organizationRouter.post(
   requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
   sensitiveLimiter,
   asyncHandler(reg.regenerate),
+);
+
+/**
+ * Public appointment requests (ADR-069) — the second public surface, held to exactly the
+ * ADR-056 rules: tenant from the opaque token in the path, a REQUEST not an appointment,
+ * sign-in-tier rate limit, uniform failure for unknown/retired/disabled.
+ */
+organizationRouter.get('/public/booking/:token', authLimiter, asyncHandler(bkg.publicContext));
+organizationRouter.post(
+  '/public/booking/:token',
+  authLimiter,
+  validate({ body: SubmitBookingBody }),
+  asyncHandler(bkg.publicSubmit),
+);
+
+// Review queue: reading rides APPOINTMENT_VIEW; converting books a real appointment and
+// creates/links the patient, so it needs APPOINTMENT_CREATE (and patient dedupe applies).
+organizationRouter.get(
+  '/booking-requests',
+  requireAuth,
+  requirePermission(PERMISSIONS.APPOINTMENT_VIEW),
+  asyncHandler(bkg.listRequests),
+);
+organizationRouter.post(
+  '/booking-requests/:id/approve',
+  requireAuth,
+  requirePermission(PERMISSIONS.APPOINTMENT_CREATE),
+  validate({ body: ApproveBookingBody }),
+  asyncHandler(bkg.approve),
+);
+organizationRouter.post(
+  '/booking-requests/:id/reject',
+  requireAuth,
+  requirePermission(PERMISSIONS.APPOINTMENT_CREATE),
+  validate({ body: RejectBookingBody }),
+  asyncHandler(bkg.reject),
+);
+
+// Online-booking configuration (org_admin), mirroring self-registration.
+organizationRouter.get(
+  '/organization/booking',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  asyncHandler(bkg.getSettings),
+);
+organizationRouter.put(
+  '/organization/booking',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  validate({ body: SetOnlineBookingBody }),
+  asyncHandler(bkg.setEnabled),
+);
+organizationRouter.post(
+  '/organization/booking/regenerate',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  sensitiveLimiter,
+  asyncHandler(bkg.regenerate),
 );

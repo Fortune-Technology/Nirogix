@@ -21,6 +21,7 @@ export const ReceiveStockBody = z
     expiryDate: z.string().nullable().optional(),
     quantity: z.number().int().positive(),
     costPricePaise: z.number().int().nonnegative().nullable().optional(),
+    supplierId: z.string().uuid().nullable().optional(),
   })
   .openapi('ReceiveStockBody');
 
@@ -31,6 +32,54 @@ export const DispenseBody = z
     quantity: z.number().int().positive(),
   })
   .openapi('DispenseBody');
+
+export const CreateSupplierBody = z
+  .object({
+    name: z.string().min(1).max(200),
+    phone: z.string().max(32).nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    gstin: z.string().max(15).nullable().optional(),
+    addressLine: z.string().max(300).nullable().optional(),
+  })
+  .openapi('CreateSupplierBody');
+
+export const UpdateSupplierBody = CreateSupplierBody.partial()
+  .extend({ isActive: z.boolean().optional() })
+  .openapi('UpdateSupplierBody');
+
+export const SupplierSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    gstin: z.string().nullable(),
+    addressLine: z.string().nullable(),
+    isActive: z.boolean(),
+  })
+  .openapi('Supplier');
+export const SupplierListSchema = z.array(SupplierSchema).openapi('SupplierList');
+
+export const AdjustStockBody = z
+  .object({
+    batchId: z.string().uuid().nullable().optional(),
+    delta: z.number().int().refine((n) => n !== 0, 'delta must be non-zero'),
+    reason: z.string().min(3).max(300),
+  })
+  .openapi('AdjustStockBody');
+
+export const StockAdjustmentSchema = z
+  .object({
+    id: z.string(),
+    drugId: z.string(),
+    drugName: z.string(),
+    batchId: z.string().nullable(),
+    delta: z.number(),
+    reason: z.string(),
+    createdAt: z.string(),
+  })
+  .openapi('StockAdjustment');
+export const StockAdjustmentListSchema = z.array(StockAdjustmentSchema).openapi('StockAdjustmentList');
 
 // ---- Responses -------------------------------------------------------------
 

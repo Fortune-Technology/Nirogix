@@ -1,10 +1,12 @@
-import { and, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   invoices,
   invoiceLineItems,
   payments,
   patients,
+  services,
+  departments,
   type Invoice as InvoiceRow,
 } from '../../db/schema';
 import { Errors } from '../../http/error';
@@ -337,6 +339,157 @@ export async function listInvoices(tenantId: string, filter: ListInvoicesFilter)
       total: Number(totalRows[0]?.c ?? 0),
     };
   });
+}
+
+// ---- Services catalogue (ADR-067, E-3) --------------------------------------
+// The priced things a clinic does that are neither a drug nor a lab test. Billing
+// consumes it as a line-item source; the catalogue holds no invoice logic.
+
+export interface ServiceInput {
+  code: string;
+  name: string;
+  description?: string | null;
+  departmentId?: string | null;
+  pricePaise: number;
+  taxRateBps?: number;
+}
+
+function toServiceDto(s: typeof services.$inferSelect, departmentName: string | null) {
+  return {
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    description: s.description,
+    departmentId: s.departmentId,
+    departmentName,
+    pricePaise: s.pricePaise,
+    taxRateBps: s.taxRateBps,
+    isActive: s.isActive,
+  };
+}
+
+export async function listServices(tenantId: string, opts: { activeOnly?: boolean; search?: string } = {}) {
+  return runWithTenant(tenantId, async (tx) => {
+    const conds = [eq(services.tenantId, tenantId)];
+    if (opts.activeOnly) conds.push(eq(services.isActive, true));
+    if (opts.search?.trim()) conds.push(ilike(services.name, `%${opts.search.trim()}%`));
+    const rows = await tx
+      .select({ s: services, departmentName: departments.name })
+      .from(services)
+      .leftJoin(departments, eq(departments.id, services.departmentId))
+      .where(and(...conds))
+      .orderBy(asc(services.name));
+    return rows.map((r) => toServiceDto(r.s, r.departmentName));
+  });
+}
+
+export async function createService(tenantId: string, input: ServiceInput, actorUserId?: string) {
+  const created = await runWithTenant(tenantId, async (tx) => {
+    if (input.departmentId) {
+      const dept = (
+        await tx
+          .select({ id: departments.id })
+          .from(departments)
+          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, input.departmentId)))
+          .limit(1)
+      )[0];
+      if (!dept) throw Errors.validation(undefined, 'That department does not belong to your organization');
+    }
+    const rows = await tx
+      .insert(services)
+      .values({
+        tenantId,
+        code: input.code.trim().toUpperCase(),
+        name: input.name.trim(),
+        description: input.description ?? null,
+        departmentId: input.departmentId ?? null,
+        pricePaise: input.pricePaise,
+        taxRateBps: input.taxRateBps ?? 0,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!rows[0]) throw Errors.conflict('A service with that code already exists');
+    return rows[0];
+  });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'service.create',
+    resourceType: 'service',
+    resourceId: created.id,
+    metadata: { code: created.code, pricePaise: created.pricePaise },
+  });
+  const list = await listServices(tenantId);
+  return list.find((s) => s.id === created.id)!;
+}
+
+export async function updateService(
+  tenantId: string,
+  serviceId: string,
+  patch: Partial<ServiceInput> & { isActive?: boolean },
+  actorUserId?: string,
+) {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  for (const f of ['code', 'name', 'description', 'departmentId', 'pricePaise', 'taxRateBps', 'isActive'] as const) {
+    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+  }
+  if (typeof set.code === 'string') set.code = set.code.trim().toUpperCase();
+  const updated = (
+    await runWithTenant(tenantId, (tx) =>
+      tx.update(services).set(set).where(and(eq(services.tenantId, tenantId), eq(services.id, serviceId))).returning(),
+    )
+  )[0];
+  if (!updated) throw Errors.notFound('Service not found');
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'service.update',
+    resourceType: 'service',
+    resourceId: serviceId,
+    metadata: { fields: Object.keys(set).filter((k) => k !== 'updatedAt') },
+  });
+  const list = await listServices(tenantId);
+  return list.find((s) => s.id === serviceId)!;
+}
+
+/**
+ * Add a line to an existing invoice from the catalogue (server-priced — the client sends
+ * an id, never a price) or as a custom one-off. Ad-hoc lines carry no sourceModule/Ref on
+ * purpose: the one-line-per-source dedupe is for clinical records, and the same service
+ * can legitimately be billed twice on one visit (two dressings).
+ */
+export async function addServiceLine(
+  tenantId: string,
+  invoiceId: string,
+  input: { serviceId?: string; quantity?: number; description?: string; unitPricePaise?: number; taxRateBps?: number },
+  actorUserId?: string,
+) {
+  let line: LineItemInput;
+  if (input.serviceId) {
+    const svc = (
+      await runWithTenant(tenantId, (tx) =>
+        tx.select().from(services).where(and(eq(services.tenantId, tenantId), eq(services.id, input.serviceId!))).limit(1),
+      )
+    )[0];
+    if (!svc) throw Errors.notFound('Service not found');
+    if (!svc.isActive) throw Errors.validation(undefined, 'That service is no longer active');
+    line = {
+      itemType: 'service',
+      description: `${svc.name} (${svc.code})`,
+      quantity: input.quantity ?? 1,
+      unitPricePaise: svc.pricePaise,
+      taxRateBps: svc.taxRateBps,
+    };
+  } else {
+    line = {
+      itemType: 'other',
+      description: input.description!,
+      quantity: input.quantity ?? 1,
+      unitPricePaise: input.unitPricePaise!,
+      taxRateBps: input.taxRateBps ?? 0,
+    };
+  }
+  return addInvoiceLine(tenantId, invoiceId, line, actorUserId);
 }
 
 export interface RecordPaymentInput {

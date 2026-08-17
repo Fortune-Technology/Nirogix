@@ -168,7 +168,8 @@ Shipped as slices 1.3–1.7 (see DONE 14–15/08/2026) and hardened end-to-end b
 - **Patients dedupe (ADR-066)** — registration 409s `DUPLICATE_PATIENT` (candidates in `error.details`) on same phone + same name-or-DOB unless `allowDuplicate`; QR approval accepts `existingPatientId` to link the chart instead. UHID allocation takes the per-tenant advisory lock.
 - **Providers** — `PATCH /providers/:id` edits details / default fee / `is_active`; `user_id` links a login for the personal queue. The doctor role reads the drug master (`pharmacy.stock.view`).
 - **Reports** — OPD register, collections, pending labs, EOD; read-only over the same tables.
-- **Known leftovers** are in `BACKLOG.md → Clinical-workflow hardening (ADR-066)`: lab result file upload, PHI read auditing, billing outbox, post-sign cancel, appointment `no_show`.
+- **Extensions (ADR-067…070, 17/08/2026):** `services` catalogue + server-priced `POST /invoices/:id/lines`; `referrals` (pointer between visits, consumed by check-in via `referralId`); `provider_schedules` + `GET /providers/:id/slots` (roster-gated booking, opt-in); public **appointment requests** (`/public/booking/:token` + `/booking-requests` queue — second and last ADR-056 surface); lab `resulted → verified` (portal shows verified only) + result `file_id` attachments; pharmacy `suppliers` + ledgered `stock_adjustments`; env-gated `POST /ai/prescription-draft` (+ `GET /ai/capabilities`); `GET /visits/:id/encounter` read-only. Suites: `clinical-journey.test.ts` (17) + `workflow-extensions.test.ts` (5).
+- **Known leftovers** are in `BACKLOG.md → Clinical-workflow hardening (ADR-066)` and `→ ADR-067…070 follow-ups`: PHI read auditing, billing outbox, post-sign cancel, appointment `no_show`, packages, roster exceptions, request/referral notifications, AI deployment decision.
 
 ## Endpoints (current)
 

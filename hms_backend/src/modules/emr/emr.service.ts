@@ -422,6 +422,22 @@ export async function getEncounter(tenantId: string, encounterId: string) {
   return buildDto(tenantId, encounterId);
 }
 
+// Read the visit's encounter without creating one (the print document's read). 404 when the
+// consultation has not been opened yet — printing a chart that does not exist is not a thing.
+export async function getEncounterByVisitReadOnly(tenantId: string, visitId: string) {
+  const row = await runWithTenant(tenantId, async (tx) =>
+    (
+      await tx
+        .select({ id: encounters.id })
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId)))
+        .limit(1)
+    )[0],
+  );
+  if (!row) throw Errors.notFound('No consultation exists for this visit yet');
+  return buildDto(tenantId, row.id);
+}
+
 // A patient's clinical history: signed encounters, newest first, with visit context and the
 // headline clinical facts. The full chart for any row is `GET /encounters/:id`.
 export async function listPatientEncounters(tenantId: string, patientId: string) {

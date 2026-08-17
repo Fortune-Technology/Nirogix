@@ -113,7 +113,38 @@ export const specialtyFormTemplates = pgTable(
   (t) => ({ uniq: unique('specialty_form_templates_unique').on(t.tenantId, t.key) }),
 );
 
+/**
+ * Provider availability (ADR-069, closing BACKLOG E-8's roster half): recurring weekly
+ * windows — "Dr. Gupta, Monday 09:00–13:00, 15-minute slots". Multiple windows per day
+ * are rows. Booking validates against these WHEN the provider has any active window
+ * (a provider with no roster keeps today's free-form booking, so nothing breaks for
+ * hospitals that never configure one), and the slot endpoint derives free slots from
+ * windows minus booked appointments. Times are 'HH:mm' strings — the roster is a wall
+ * clock rule at the hospital, not an instant; the appointment itself stays timestamptz.
+ */
+export const providerSchedules = pgTable('provider_schedules', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id, { onDelete: 'restrict' }),
+  providerId: uuid('provider_id')
+    .notNull()
+    .references(() => providers.id, { onDelete: 'cascade' }),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
+  /** 0 = Sunday … 6 = Saturday (JS Date.getDay convention). */
+  weekday: integer('weekday').notNull(),
+  startTime: varchar('start_time', { length: 5 }).notNull(), // HH:mm
+  endTime: varchar('end_time', { length: 5 }).notNull(), // HH:mm
+  slotMinutes: integer('slot_minutes').notNull().default(15),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Provider = typeof providers.$inferSelect;
 export type Specialty = typeof specialties.$inferSelect;
 export type PractitionerRole = typeof practitionerRoles.$inferSelect;
 export type SpecialtyFormTemplate = typeof specialtyFormTemplates.$inferSelect;
+export type ProviderSchedule = typeof providerSchedules.$inferSelect;

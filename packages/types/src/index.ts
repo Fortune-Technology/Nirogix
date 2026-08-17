@@ -675,6 +675,8 @@ export interface CheckInRequest {
   reason?: string | null;
   /** Optional override — omitted, the provider's configured default fee applies. */
   consultationFeePaise?: number | null;
+  /** Check in against a pending referral — patient/department/provider default from it. */
+  referralId?: string | null;
 }
 
 export interface UpdateVisitStatusRequest {
@@ -743,6 +745,192 @@ export interface RecordPaymentRequest {
   method: 'cash' | 'upi' | 'card' | 'netbanking' | 'other';
   reference?: string | null;
   idempotencyKey: string;
+}
+
+/** Manual invoice creation (billing.invoice.create). */
+export interface CreateInvoiceRequest {
+  patientId: string;
+  branchId?: string | null;
+  visitId?: string | null;
+  notes?: string | null;
+  lineItems: Array<{
+    itemType: string;
+    description: string;
+    quantity?: number;
+    unitPricePaise: number;
+    taxRateBps?: number;
+  }>;
+}
+
+// ---- Services catalogue (ADR-067, E-3) --------------------------------------
+
+export interface Service {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  pricePaise: number;
+  taxRateBps: number;
+  isActive: boolean;
+}
+
+export interface CreateServiceRequest {
+  code: string;
+  name: string;
+  description?: string | null;
+  departmentId?: string | null;
+  pricePaise: number;
+  taxRateBps?: number;
+}
+
+export type UpdateServiceRequest = Partial<CreateServiceRequest> & { isActive?: boolean };
+
+/** Either a catalogue service (server-priced) or a custom one-off line. */
+export interface AddInvoiceLineRequest {
+  serviceId?: string;
+  quantity?: number;
+  description?: string;
+  unitPricePaise?: number;
+  taxRateBps?: number;
+}
+
+// ---- Referrals (ADR-068) -----------------------------------------------------
+
+export interface Referral {
+  id: string;
+  visitId: string;
+  visitNumber: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  fromProviderId: string | null;
+  fromProviderName: string | null;
+  toDepartmentId: string;
+  toDepartmentName: string;
+  toProviderId: string | null;
+  toProviderName: string | null;
+  reason: string;
+  status: string; // pending | completed | cancelled
+  resultingVisitId: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface CreateReferralRequest {
+  visitId: string;
+  toDepartmentId: string;
+  toProviderId?: string | null;
+  reason: string;
+}
+
+// ---- Provider weekly roster (ADR-069, E-8) ------------------------------------
+
+export interface ScheduleWindow {
+  id?: string;
+  weekday: number; // 0 = Sunday … 6 = Saturday
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  slotMinutes?: number;
+  branchId?: string | null;
+}
+
+export interface FreeSlots {
+  hasRoster: boolean;
+  slots: Array<{ startsAt: string; label: string }>;
+}
+
+// ---- Public appointment requests (ADR-069) ------------------------------------
+
+export interface BookingRequestItem {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string;
+  email: string | null;
+  preferredDate: string | null;
+  preferredTime: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  providerId: string | null;
+  providerName: string | null;
+  note: string | null;
+  status: string;
+  appointmentId: string | null;
+  patientId: string | null;
+  createdAt: string;
+}
+
+export interface BookingSettings {
+  enabled: boolean;
+  token: string | null;
+  pendingCount: number;
+}
+
+export interface ApproveBookingRequest {
+  scheduledAt: string;
+  providerId: string;
+  durationMinutes?: number;
+  existingPatientId?: string;
+  allowDuplicate?: boolean;
+}
+
+// ---- Pharmacy suppliers + adjustments (ADR-070) --------------------------------
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  addressLine: string | null;
+  isActive: boolean;
+}
+
+export interface CreateSupplierRequest {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  addressLine?: string | null;
+}
+
+export interface StockAdjustment {
+  id: string;
+  drugId: string;
+  drugName: string;
+  batchId: string | null;
+  delta: number;
+  reason: string;
+  createdAt: string;
+}
+
+// ---- AI prescription draft (ADR-070) -------------------------------------------
+
+export interface AiCapabilities {
+  prescriptionDraft: boolean;
+}
+
+export interface AiDraftRequest {
+  chiefComplaint?: string | null;
+  diagnoses: Array<{ icd10Code: string; icd10Term: string }>;
+  ageYears?: number | null;
+  gender?: string | null;
+  vitalsSummary?: string | null;
+}
+
+export interface AiDraftResponse {
+  prescriptions: Array<{
+    drugName: string;
+    dose: string | null;
+    frequency: string | null;
+    duration: string | null;
+    route: string | null;
+    instructions: string | null;
+    drugId: string | null;
+  }>;
+  note: string | null;
 }
 
 // ---- EMR / Clinical Workflow (hms_backend/src/modules/emr) ------------------
@@ -910,6 +1098,8 @@ export interface ReceiveStockRequest {
   expiryDate?: string | null;
   quantity: number;
   costPricePaise?: number | null;
+  /** Who the batch came from (ADR-070). */
+  supplierId?: string | null;
 }
 
 export interface DispenseRequest {
@@ -948,6 +1138,9 @@ export interface LabResult {
   refLow: string | null;
   refHigh: string | null;
   notes: string | null;
+  /** Set when the result has been signed off (ADR-070). */
+  verifiedAt: string | null;
+  hasAttachment: boolean;
 }
 
 export interface LabOrder {
@@ -985,6 +1178,8 @@ export interface EnterResultRequest {
   refHigh?: string | null;
   flag?: 'normal' | 'low' | 'high' | 'critical' | null;
   notes?: string | null;
+  /** Attached report file id (upload through the file API first). */
+  fileId?: string | null;
 }
 
 // ---- Reports (hms_backend/src/modules/reports) -----------------------------

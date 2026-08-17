@@ -8,11 +8,13 @@ import {
   UserPlus,
   CalendarDays,
   ClipboardList,
+  ListChecks,
   Pill,
   FlaskConical,
   Receipt,
   BarChart3,
   CalendarCheck,
+  Send,
   Stethoscope,
   UserCog,
   UserCircle,
@@ -67,7 +69,12 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
       // Visible to anyone who may see patients; only the front desk can act on a request.
       { label: "Registration requests", href: "/patients/registrations", perm: PERMISSIONS.PATIENT_VIEW, icon: UserPlus },
       { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays },
+      // Online-booking review queue (ADR-069). Nested under /appointments so the
+      // longest-match rule highlights it on its own route.
+      { label: "Booking requests", href: "/appointments/requests", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarCheck },
       { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList },
+      // The receiving side of in-hospital referrals (ADR-068).
+      { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send },
       { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_STOCK_VIEW, icon: Pill },
       { label: "Laboratory", href: "/laboratory", perm: PERMISSIONS.LAB_ORDER_VIEW, icon: FlaskConical },
     ],
@@ -76,6 +83,8 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
     label: "Revenue",
     items: [
       { label: "Billing", href: "/billing", perm: PERMISSIONS.BILLING_VIEW, icon: Receipt },
+      // The services & packages catalogue (ADR-067, E-3) — priced items billing consumes.
+      { label: "Services", href: "/services", perm: PERMISSIONS.BILLING_SERVICES_VIEW, icon: ListChecks },
       { label: "Reports", href: "/reports", perm: PERMISSIONS.REPORTS_VIEW, icon: BarChart3 },
       // Sits with Reports — a day's operating picture is a report, and shares its
       // permission. Nested under /reports so it highlights on its own route (the

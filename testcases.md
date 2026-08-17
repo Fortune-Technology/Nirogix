@@ -225,6 +225,35 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | BIL-08 | Print a receipt | Paid invoice | Print | Print view shows the receipt only, without navigation chrome | P2 | UI/UX | cashier | Not run |
 | BIL-09 | Money formatting | Any invoice | Inspect amounts | Indian rupee formatting, two decimals, aligned right in tables | P2 | UI/UX | any | Not run |
 | BIL-10 | Settled invoice takes no more | Fully paid invoice | Attempt another payment (direct call) | Refused with "already settled"; the Collect button is gone from the screen | P1 | Validation | cashier | Not run |
+| BIL-11 | Services catalogue CRUD | `billing.services.manage` | Services → Add (code, name, price, tax) → edit → deactivate | Code stored uppercase and unique; deactivated service leaves history intact and disappears from pickers | P1 | Functional | org_admin | Not run |
+| BIL-12 | Add a catalogue item to a bill | Open invoice; active service | Invoice → Add item → pick service + qty | Line lands at the CATALOGUE price (client sends no price); totals recompute to the paisa | P1 | Functional | cashier | Not run |
+| BIL-13 | Custom one-off line | Open invoice | Add item → Custom (description, price, qty, tax) | Line appears exactly as typed; void invoice refuses any line | P2 | Functional | cashier | Not run |
+| BIL-14 | Manual invoice | `billing.invoice.create` | Billing → New invoice → pick patient → add lines → create | Invoice created with INV number; lands on its detail; payment flow identical to check-in invoices | P1 | Functional | cashier | Not run |
+
+## 11a. Referrals (ADR-068)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| REF-01 | Refer from a consultation | Open/signed visit | Consult → Refer card → department + reason → Refer | Referral created (pending); listed on the visit; audited | P1 | Functional | doctor | Not run |
+| REF-02 | Referral worklist | Pending referrals exist | Open Referrals | Pending list with patient, from-visit, target department/doctor, reason | P1 | Functional | receptionist | Not run |
+| REF-03 | Check in against a referral | Pending referral; source visit finished | Referrals → Check in | Check-in form locked to the referred patient, department preselected; visit created; referral flips to completed with the resulting visit linked | P1 | Integration | receptionist | Not run |
+| REF-04 | A referral is consumed exactly once | Completed referral | Check in against it again (direct call) | 409 "already been used"; no second visit | P1 | Validation | receptionist | Not run |
+| REF-05 | Cancel a pending referral | Pending referral | Cancel (confirm) | Status cancelled; check-in against it refused; only pending referrals can cancel | P2 | Functional | doctor | Not run |
+| REF-06 | Same chart, never a copy | Completed referral | Open the resulting visit as the receiving doctor | The patient's existing history and encounters are visible — nothing was duplicated | P1 | Integration | doctor | Not run |
+
+## 11b. Rosters & online booking (ADR-069)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ROS-01 | Set a weekly roster | `providers.manage` | Providers → Weekly schedule → add windows → Save | Windows persist; overlapping windows on one day are refused with a message | P1 | Functional | org_admin | Not run |
+| ROS-02 | Booking outside the roster | Provider with windows | Book at a time outside every window | Refused: "not available at that time"; inside a window books normally | P1 | Validation | receptionist | Not run |
+| ROS-03 | Slot picker | Roster + one booked slot | Appointments → New → pick provider + date | Free slots shown as chips; the booked slot is absent; no roster → free-form time entry stays | P1 | Functional | receptionist | Not run |
+| BKG-01 | Enable online booking | `platform.organization.manage` | Settings → Booking → enable | Token minted once; public link + QR shown; poster printable | P1 | Functional | org_admin | Not run |
+| BKG-02 | Public request form | Enabled booking token | Open the public link → fill name, phone, wish → submit | 202 "hospital will confirm"; a REQUEST appears in the queue — no appointment, no patient created | P1 | Functional | public | Not run |
+| BKG-03 | Uniform token failure | — | Open an unknown/disabled/retired token | Identical "not valid" response in all three cases — no hospital enumeration | P1 | Security | public | Not run |
+| BKG-04 | Approve a request | Pending request | Booking requests → Approve → provider + real slot | Patient created (or duplicate flow triggers), appointment booked through the normal rules (roster + double-booking), request approved | P1 | Integration | receptionist | Not run |
+| BKG-05 | Approve hits a duplicate | Request phone matches an existing chart | Approve | DUPLICATE_PATIENT dialog: link the existing chart (no second chart) or knowingly create new | P1 | Validation | receptionist | Not run |
+| BKG-06 | Reject a request | Pending request | Reject with a reason | Status rejected; nothing created; re-review refused | P2 | Functional | receptionist | Not run |
 
 ## 12. Reports
 

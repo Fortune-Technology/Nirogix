@@ -55,11 +55,19 @@ export const PERMISSIONS = {
   // Laboratory
   LAB_ORDER_VIEW: 'laboratory.order.view',
   LAB_RESULT_ENTER: 'laboratory.result.enter',
+  LAB_RESULT_VERIFY: 'laboratory.result.verify', // sign off a resulted order (its own key so a hospital can split enter/verify)
   LAB_MANAGE: 'laboratory.test.manage', // test master + sample collection
   // Billing
   BILLING_VIEW: 'billing.invoice.view',
   BILLING_CREATE: 'billing.invoice.create',
   BILLING_PAYMENT: 'billing.payment.collect',
+  // Services & packages catalogue (E-3) — priced non-drug, non-lab items Billing consumes
+  BILLING_SERVICES_VIEW: 'billing.services.view',
+  BILLING_SERVICES_MANAGE: 'billing.services.manage',
+  // Referrals (in-hospital, visit → department)
+  REFERRAL_VIEW: 'opd.referral.view',
+  REFERRAL_CREATE: 'opd.referral.create',
+  REFERRAL_UPDATE: 'opd.referral.update',
   // Reports
   REPORTS_VIEW: 'reports.view',
   // Audit
@@ -121,6 +129,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.DEPARTMENT_VIEW, P.DEPARTMENT_MANAGE,
       P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
       P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
+      // The services & packages catalogue is hospital configuration (E-3) — the admin owns it.
+      P.BILLING_SERVICES_VIEW, P.BILLING_SERVICES_MANAGE,
+      P.REFERRAL_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
@@ -146,6 +157,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
       P.DEPARTMENT_VIEW,
+      // Refer the patient onward from the consultation, and see where a referral stands.
+      P.REFERRAL_VIEW, P.REFERRAL_CREATE, P.REFERRAL_UPDATE,
       // Read the drug master while prescribing — the formulary picker needs the list (and its
       // stock levels) even though dispensing stays with the pharmacist.
       P.PHARMACY_STOCK_VIEW,
@@ -159,6 +172,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
       P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
+      P.REFERRAL_VIEW, // routes a referred patient to the right department at the desk
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into
       P.FILE_VIEW, P.FILE_UPLOAD,
@@ -177,7 +191,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'lab_technician',
     name: 'Lab Technician',
     description: 'Laboratory',
-    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_MANAGE, P.PATIENT_VIEW,
+    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_RESULT_VERIFY, P.LAB_MANAGE, P.PATIENT_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -185,7 +199,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'cashier',
     name: 'Cashier',
     description: 'Billing counter',
-    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW,
+    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.BILLING_SERVICES_VIEW,
+      P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },

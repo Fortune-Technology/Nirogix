@@ -1,16 +1,19 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   providers,
   specialties,
   practitionerRoles,
+  providerSchedules,
+  appointments,
   departments,
   specialtyFormTemplates,
   type Provider,
   type PractitionerRole,
   type Specialty,
   type SpecialtyFormTemplate,
+  type ProviderSchedule,
 } from '../../db/schema';
 import { SPECIALTY_CATALOG, SPECIALTY_CODES } from './specialtyCatalog';
 import { writeAudit } from '../audit/audit.service';
@@ -217,6 +220,140 @@ export async function getProviderWithRoles(
       .from(practitionerRoles)
       .where(and(eq(practitionerRoles.tenantId, tenantId), eq(practitionerRoles.providerId, id)));
     return { ...p, roles };
+  });
+}
+
+// ---- Weekly roster + free slots (ADR-069, E-8) -------------------------------
+
+export interface ScheduleWindowInput {
+  weekday: number; // 0 = Sunday … 6 = Saturday
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  slotMinutes?: number;
+  branchId?: string | null;
+}
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+function minutes(s: string): number {
+  const [h, m] = s.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+export async function listSchedules(tenantId: string, providerId: string): Promise<ProviderSchedule[]> {
+  return runWithTenant(tenantId, (tx) =>
+    tx
+      .select()
+      .from(providerSchedules)
+      .where(and(eq(providerSchedules.tenantId, tenantId), eq(providerSchedules.providerId, providerId), eq(providerSchedules.isActive, true)))
+      .orderBy(asc(providerSchedules.weekday), asc(providerSchedules.startTime)),
+  );
+}
+
+/**
+ * Replace the provider's whole weekly roster — the editor works on the week as one
+ * document, which is how a roster is actually thought about. Overlapping windows on
+ * the same weekday are refused; an empty list clears the roster (booking becomes
+ * free-form again).
+ */
+export async function setSchedules(
+  tenantId: string,
+  providerId: string,
+  windows: ScheduleWindowInput[],
+  actorUserId?: string,
+): Promise<ProviderSchedule[]> {
+  for (const w of windows) {
+    if (!Number.isInteger(w.weekday) || w.weekday < 0 || w.weekday > 6) throw Errors.validation(undefined, 'weekday must be 0–6');
+    if (!HHMM.test(w.startTime) || !HHMM.test(w.endTime)) throw Errors.validation(undefined, 'Times must be HH:mm');
+    if (minutes(w.startTime) >= minutes(w.endTime)) throw Errors.validation(undefined, 'A window must end after it starts');
+  }
+  for (const a of windows) {
+    for (const b of windows) {
+      if (a === b || a.weekday !== b.weekday) continue;
+      if (minutes(a.startTime) < minutes(b.endTime) && minutes(b.startTime) < minutes(a.endTime)) {
+        throw Errors.validation(undefined, 'Windows on the same day must not overlap');
+      }
+    }
+  }
+
+  const rows = await runWithTenant(tenantId, async (tx) => {
+    const prov = (
+      await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId))).limit(1)
+    )[0];
+    if (!prov) throw Errors.notFound('Provider not found');
+
+    await tx.delete(providerSchedules).where(and(eq(providerSchedules.tenantId, tenantId), eq(providerSchedules.providerId, providerId)));
+    if (windows.length === 0) return [];
+    return tx
+      .insert(providerSchedules)
+      .values(
+        windows.map((w) => ({
+          tenantId,
+          providerId,
+          weekday: w.weekday,
+          startTime: w.startTime,
+          endTime: w.endTime,
+          slotMinutes: w.slotMinutes ?? 15,
+          branchId: w.branchId ?? null,
+        })),
+      )
+      .returning();
+  });
+
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'provider.schedule.set',
+    resourceType: 'provider',
+    resourceId: providerId,
+    metadata: { windows: windows.length },
+  });
+  return rows;
+}
+
+/**
+ * Free slots for one day: the weekday's windows cut into slot-sized starts, minus
+ * anything overlapping a booked appointment. Empty when the provider has no roster —
+ * the caller falls back to free-form time entry.
+ */
+export async function listFreeSlots(tenantId: string, providerId: string, date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Errors.validation(undefined, 'date must be YYYY-MM-DD');
+  return runWithTenant(tenantId, async (tx) => {
+    const weekday = new Date(`${date}T00:00:00`).getDay();
+    const windows = await tx
+      .select()
+      .from(providerSchedules)
+      .where(
+        and(
+          eq(providerSchedules.tenantId, tenantId),
+          eq(providerSchedules.providerId, providerId),
+          eq(providerSchedules.isActive, true),
+          eq(providerSchedules.weekday, weekday),
+        ),
+      )
+      .orderBy(asc(providerSchedules.startTime));
+    if (windows.length === 0) return { hasRoster: false, slots: [] as Array<{ startsAt: string; label: string }> };
+
+    const booked = await tx
+      .select({ scheduledAt: appointments.scheduledAt, durationMinutes: appointments.durationMinutes })
+      .from(appointments)
+      .where(and(eq(appointments.tenantId, tenantId), eq(appointments.providerId, providerId), eq(appointments.status, 'booked')));
+    const taken = booked.map((b) => ({ start: b.scheduledAt.getTime(), end: b.scheduledAt.getTime() + b.durationMinutes * 60_000 }));
+
+    const now = Date.now();
+    const slots: Array<{ startsAt: string; label: string }> = [];
+    for (const w of windows) {
+      for (let m = minutes(w.startTime); m + w.slotMinutes <= minutes(w.endTime); m += w.slotMinutes) {
+        const start = new Date(`${date}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`);
+        const end = start.getTime() + w.slotMinutes * 60_000;
+        if (end <= now) continue; // the past is not bookable
+        if (taken.some((t) => start.getTime() < t.end && t.start < end)) continue;
+        slots.push({
+          startsAt: start.toISOString(),
+          label: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`,
+        });
+      }
+    }
+    return { hasRoster: true, slots };
   });
 }
 

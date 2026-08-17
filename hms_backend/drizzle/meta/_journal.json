@@ -169,6 +169,13 @@
       "when": 1786970313219,
       "tag": "0023_low_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786975125053,
+      "tag": "0024_slow_malice",
+      "breakpoints": true
     }
   ]
 }

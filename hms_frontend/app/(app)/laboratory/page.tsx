@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FlaskConical, FileText } from "lucide-react";
+import { FlaskConical, FileText, Paperclip } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { LabOrder, LabTest } from "@hms/types";
+import type { EnterResultRequest, LabOrder, LabTest } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
@@ -25,7 +25,7 @@ export function flagTone(f: string): "success" | "warning" | "danger" | "neutral
 function statusTone(s: string): "neutral" | "warning" | "brand" | "success" | "danger" {
   if (s === "ordered") return "warning";
   if (s === "collected") return "brand";
-  if (s === "resulted") return "success";
+  if (s === "resulted" || s === "verified") return "success";
   if (s === "cancelled") return "danger";
   return "neutral";
 }
@@ -35,13 +35,20 @@ function ResultForm({ order, tests, onDone, onError }: { order: LabOrder; tests:
   const [testId, setTestId] = useState(matched?.id ?? "");
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   async function submit() {
     if (!value.trim()) return onError("Enter a result value.");
     setBusy(true);
     try {
-      await api.enterLabResult(order.id, { testId: testId || null, value: value.trim(), notes: notes || null });
+      const body: EnterResultRequest = { testId: testId || null, value: value.trim(), notes: notes || null };
+      if (file) {
+        const { id } = await api.uploadFile(file);
+        body.fileId = id;
+      }
+      await api.enterLabResult(order.id, body);
       onDone();
     } catch {
       /* reported by the shared API-feedback layer */
@@ -66,6 +73,22 @@ function ResultForm({ order, tests, onDone, onError }: { order: LabOrder; tests:
       </label>
       <Field label="Value" value={value} onChange={(e) => setValue(e.target.value)} />
       <Field label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <div className="hms-field">
+        <span className="hms-label">Attach report (optional)</span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <Button variant="ghost" size="sm" onClick={() => fileInput.current?.click()}>
+            <Paperclip size={14} /> {file ? "Change file" : "Choose file"}
+          </Button>
+          {file && <span className="max-w-[12rem] truncate text-xs text-fg-muted">{file.name}</span>}
+        </div>
+      </div>
       <Button onClick={submit} loading={busy}>Enter result</Button>
     </div>
   );
@@ -79,6 +102,7 @@ function Worklist() {
   const [busy, setBusy] = useState(false);
   const canManage = useCan(PERMISSIONS.LAB_MANAGE);
   const canResult = useCan(PERMISSIONS.LAB_RESULT_ENTER);
+  const canVerify = useCan(PERMISSIONS.LAB_RESULT_VERIFY);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +131,27 @@ function Worklist() {
       setError(e instanceof api.ApiRequestError ? e.message : "Could not collect the sample.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function verify(id: string) {
+    setBusy(true);
+    try {
+      await api.verifyLabResult(id);
+      await load();
+    } catch (e) {
+      setError(e instanceof api.ApiRequestError ? e.message : "Could not verify the report.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openAttachment(id: string) {
+    try {
+      const url = await api.getLabReportAttachment(id);
+      if (url) window.open(url, "_blank");
+    } catch {
+      /* reported by the shared API-feedback layer */
     }
   }
 
@@ -161,7 +206,15 @@ function Worklist() {
                   {o.status === "ordered" && canManage && (
                     <Button variant="secondary" size="sm" disabled={busy} onClick={() => collect(o.id)}>Collect sample</Button>
                   )}
-                  {o.status === "resulted" && (
+                  {o.status === "resulted" && canVerify && (
+                    <Button variant="secondary" size="sm" disabled={busy} onClick={() => verify(o.id)}>Verify report</Button>
+                  )}
+                  {o.result?.hasAttachment && (
+                    <Button variant="ghost" size="sm" onClick={() => openAttachment(o.id)}>
+                      <Paperclip size={15} /> Attachment
+                    </Button>
+                  )}
+                  {(o.status === "resulted" || o.status === "verified") && (
                     <Link href={`/laboratory/${o.id}`}>
                       <Button variant="secondary" size="sm"><FileText size={15} /> Report</Button>
                     </Link>

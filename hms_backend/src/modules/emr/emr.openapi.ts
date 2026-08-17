@@ -6,6 +6,9 @@ import {
   EncounterSchema,
   EncounterSummaryListSchema,
   Icd10ListSchema,
+  AiDraftBody,
+  AiDraftResponseSchema,
+  AiCapabilitiesSchema,
 } from './emr.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -106,5 +109,51 @@ registry.registerPath({
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
     409: { description: 'Already signed', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/ai/capabilities',
+  operationId: 'aiCapabilities',
+  tags: ['EMR'],
+  summary: 'Which AI assists this deployment has (absent key = feature absent, never stubbed)',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Capability flags', ...json(AiCapabilitiesSchema) }, 401: notAuthed },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/ai/prescription-draft',
+  operationId: 'aiPrescriptionDraft',
+  tags: ['EMR'],
+  summary: 'Draft prescription rows from the clinical context — a suggestion the doctor edits, never an order',
+  description:
+    'Formulary-aware (prefers the drug master, returns drugId when matched). Sends the clinical minimum and no patient identifiers. 502 when the AI service is unavailable.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(AiDraftBody) },
+  responses: {
+    200: { description: 'Draft rows + optional caution note', ...json(AiDraftResponseSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'AI drafting not enabled on this deployment', ...json(ErrorResponseSchema) },
+    422: { description: 'No clinical context yet', ...json(ErrorResponseSchema) },
+    502: { description: 'AI service unavailable', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/visits/{id}/encounter',
+  operationId: 'getVisitEncounter',
+  tags: ['EMR'],
+  summary: "Read the visit's encounter without creating one (what the printed prescription reads)",
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Encounter', ...json(EncounterSchema) },
+    401: notAuthed,
+    403: notEntitled,
+    404: { description: 'No consultation exists for this visit yet', ...json(ErrorResponseSchema) },
   },
 });

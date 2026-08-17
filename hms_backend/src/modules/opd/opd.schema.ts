@@ -14,6 +14,8 @@ export const CheckInBody = z
     reason: z.string().max(500).nullable().optional(),
     /** Optional override — omitted, the provider's configured default fee applies. */
     consultationFeePaise: z.number().int().min(0).nullable().optional(),
+    /** Check in against a pending referral — patient/department/provider default from it. */
+    referralId: z.string().uuid().nullable().optional(),
   })
   .openapi('CheckInBody');
 

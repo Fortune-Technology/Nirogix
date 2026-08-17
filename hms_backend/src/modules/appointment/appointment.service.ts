@@ -1,9 +1,17 @@
 import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { appointments, patients, providers, type Appointment } from '../../db/schema';
+import { appointments, patients, providers, providerSchedules, type Appointment } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
+
+// "HH:mm" → minutes from local midnight. The roster is hospital wall-clock (ADR-069);
+// appointments stay timestamptz and are compared in the server's local time, which is
+// the hospital's own timezone in every deployment profile (India-resident, single-TZ).
+function hhmmToMinutes(s: string): number {
+  const [h, m] = s.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
 
 export type BookInput = {
   patientId: string;
@@ -52,6 +60,31 @@ export async function bookAppointment(
       await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, input.providerId))).limit(1)
     )[0];
     if (!provider) throw Errors.notFound('Provider not found');
+
+    // Roster rule (ADR-069): WHEN the provider has an active weekly roster, the booking
+    // must start inside one of that weekday's windows. A provider with no roster keeps
+    // free-form booking — configuring availability is opt-in, not a breaking change.
+    const windows = await tx
+      .select()
+      .from(providerSchedules)
+      .where(
+        and(
+          eq(providerSchedules.tenantId, tenantId),
+          eq(providerSchedules.providerId, input.providerId),
+          eq(providerSchedules.isActive, true),
+        ),
+      );
+    if (windows.length > 0) {
+      const local = new Date(input.scheduledAt);
+      const weekday = local.getDay();
+      const minutes = local.getHours() * 60 + local.getMinutes();
+      const inWindow = windows.some(
+        (w) => w.weekday === weekday && minutes >= hhmmToMinutes(w.startTime) && minutes + duration <= hhmmToMinutes(w.endTime),
+      );
+      if (!inWindow) {
+        throw Errors.conflict('The doctor is not available at that time — pick a slot from their schedule');
+      }
+    }
 
     // Double-booking check: any BOOKED appointment for this provider whose window overlaps.
     const existing = await tx

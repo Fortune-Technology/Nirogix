@@ -56,6 +56,11 @@ const EnvSchema = z.object({
   // Background jobs — Redis + BullMQ. When unset, jobs run inline in-process (dev/CI) instead of
   // on a queue; the same call sites work either way. No module creates its own cron/scheduler.
   REDIS_URL: z.string().optional(),
+
+  // AI prescription drafting (ADR-070). Absent key = the feature does not exist: the
+  // capabilities endpoint reports it off and the Portal renders no AI control. Never a stub.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_DRAFT_MODEL: z.string().default('claude-sonnet-5'),
 }).superRefine((val, ctx) => {
   // When R2 is the chosen provider, its connection details stop being optional. Catch a
   // half-configured bucket at boot with a precise message, not at the first upload with a

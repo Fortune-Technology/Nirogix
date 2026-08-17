@@ -45,6 +45,7 @@ registry.registerPath({
   summary: 'Lab worklist (orders from the EMR, with results)',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ status: z.string().optional(), patientId: z.string().uuid().optional() }) },
+  // (worklist — verify/attachment paths registered below)
   responses: { 200: { description: 'Lab orders', ...json(LabWorklistSchema) }, 401: notAuthed, 403: notEntitled },
 });
 
@@ -83,6 +84,39 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: notFound,
+    409: { description: 'Sample not collected / order cancelled', ...json(ErrorResponseSchema) },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/lab-orders/{id}/verify',
+  operationId: 'verifyLabResult',
+  tags: ['Laboratory'],
+  summary: 'Sign off a resulted order — what releases the report to the patient portal (ADR-070)',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Verified order', ...json(LabOrderSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: notFound,
+    409: { description: 'Only a resulted order can be verified', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/lab-orders/{id}/attachment',
+  operationId: 'getLabReportAttachment',
+  tags: ['Laboratory'],
+  summary: 'Short-lived download URL for the attached report file (null when none)',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Attachment URL', ...json(z.object({ url: z.string().nullable() })) },
+    401: notAuthed,
+    403: notEntitled,
   },
 });

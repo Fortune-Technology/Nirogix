@@ -76,6 +76,36 @@ export const AssignedRoleSchema = z
   })
   .openapi('PractitionerRole');
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const ScheduleWindowSchema = z
+  .object({
+    weekday: z.number().int().min(0).max(6).openapi({ description: '0 = Sunday … 6 = Saturday' }),
+    startTime: z.string().regex(HHMM),
+    endTime: z.string().regex(HHMM),
+    slotMinutes: z.number().int().min(5).max(120).optional(),
+    branchId: z.string().uuid().nullable().optional(),
+  })
+  .openapi('ScheduleWindow');
+
+export const SetSchedulesBody = z
+  .object({ windows: z.array(ScheduleWindowSchema).max(50) })
+  .openapi('SetSchedulesBody');
+
+export const ScheduleListSchema = z
+  .object({
+    windows: z.array(
+      ScheduleWindowSchema.extend({ id: z.string() }),
+    ),
+  })
+  .openapi('ScheduleList');
+
+export const FreeSlotsSchema = z
+  .object({
+    hasRoster: z.boolean(),
+    slots: z.array(z.object({ startsAt: z.string(), label: z.string() })),
+  })
+  .openapi('FreeSlots');
+
 export const CreateFormTemplateBody = z
   .object({
     specialtyCode: z.string().optional(),

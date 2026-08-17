@@ -3,6 +3,11 @@ import { ErrorResponseSchema } from '../../openapi/schemas';
 import {
   CreateInvoiceBody,
   RecordPaymentBody,
+  AddInvoiceLineBody,
+  CreateServiceBody,
+  UpdateServiceBody,
+  ServiceSchema,
+  ServiceListSchema,
   InvoiceSchema,
   InvoicesPageSchema,
 } from './billing.schema';
@@ -11,6 +16,69 @@ const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } })
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
 const notEntitled = { description: 'Tenant not entitled to the billing module', ...json(ErrorResponseSchema) };
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/invoices/{id}/lines',
+  operationId: 'addInvoiceLine',
+  tags: ['Billing'],
+  summary: 'Add a line to an invoice — a catalogue service (server-priced) or a custom one-off',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(AddInvoiceLineBody) },
+  responses: {
+    201: { description: 'Updated invoice', ...json(InvoiceSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Invoice or service not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Void invoice', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/services',
+  operationId: 'listServices',
+  tags: ['Billing'],
+  summary: 'The services & packages catalogue (E-3) — priced items billing consumes',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ activeOnly: z.enum(['true', 'false']).optional(), search: z.string().optional() }) },
+  responses: { 200: { description: 'Services', ...json(ServiceListSchema) }, 401: notAuthed, 403: forbidden },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/services',
+  operationId: 'createService',
+  tags: ['Billing'],
+  summary: 'Add a service to the catalogue',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(CreateServiceBody) },
+  responses: {
+    201: { description: 'Created service', ...json(ServiceSchema) },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'Code already exists', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/services/{id}',
+  operationId: 'updateService',
+  tags: ['Billing'],
+  summary: 'Update or deactivate a catalogue service',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(UpdateServiceBody) },
+  responses: {
+    200: { description: 'Updated service', ...json(ServiceSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
 
 registry.registerPath({
   method: 'get',

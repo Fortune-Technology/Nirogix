@@ -46,6 +46,14 @@ export const labResults = pgTable(
     notes: varchar('notes', { length: 500 }),
     resultedBy: uuid('resulted_by'),
     resultedAt: timestamp('resulted_at', { withTimezone: true }).notNull().defaultNow(),
+    // Verification (ADR-070): a second sign-off before the report is released to the
+    // patient portal. Order status moves resulted → verified; re-entering a result
+    // clears these (a corrected value needs re-verification).
+    verifiedBy: uuid('verified_by'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    // Attached report file (PDF/image) via the file module. Plain uuid, no FK — files
+    // soft-delete and are retained, same convention as the branding/letterhead assets.
+    fileId: uuid('file_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('lab_results_tenant_order_unique').on(t.tenantId, t.labOrderId)],

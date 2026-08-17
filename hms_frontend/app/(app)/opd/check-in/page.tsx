@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Badge, Button, Card, Field } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Department, Patient, Provider } from "@hms/types";
+import type { Department, Patient, Provider, Referral } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
@@ -28,6 +28,9 @@ function CheckInForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const appointmentId = params.get("appointmentId");
+  const referralId = params.get("referralId");
+  const [referral, setReferral] = useState<Referral | null>(null);
+  const [referralGone, setReferralGone] = useState(false);
 
   useEffect(() => {
     api.listProviders().then(setProviders).catch(() => setProviders([]));
@@ -38,6 +41,30 @@ function CheckInForm() {
     const prov = params.get("providerId");
     if (prov) setProviderId(prov);
   }, [params]);
+
+  // Arriving from the referral worklist (ADR-068): the referral carries the patient and
+  // where they were sent, so the desk confirms rather than re-enters. There is no
+  // single-get for referrals — find it in the pending list; anything not there is no
+  // longer actionable (already checked in, or cancelled).
+  useEffect(() => {
+    if (!referralId) return;
+    api
+      .listReferrals({ status: "pending" })
+      .then((rs) => {
+        const r = rs.find((x) => x.id === referralId);
+        if (!r) {
+          setReferralGone(true);
+          return;
+        }
+        setReferral(r);
+        setDepartmentId(r.toDepartmentId);
+        setProviderId(r.toProviderId ?? "");
+        api.getPatient(r.patientId).then(setPatient).catch(() => {});
+      })
+      .catch(() => {
+        /* the load failure itself is reported by the shared API-feedback layer */
+      });
+  }, [referralId]);
 
   useEffect(() => {
     if (!search.trim() || patient) {
@@ -72,6 +99,9 @@ function CheckInForm() {
       await api.checkIn({
         patientId: patient.id,
         appointmentId: appointmentId ?? undefined,
+        // Only when the referral was found still pending — it links the new visit
+        // back and marks the referral completed on the server.
+        referralId: referral?.id,
         providerId: providerId || undefined,
         departmentId: departmentId || undefined,
         reason: reason || undefined,
@@ -94,13 +124,19 @@ function CheckInForm() {
       <form className="flex max-w-2xl flex-col gap-5" onSubmit={handleSubmit}>
         {error && <Alert tone="danger">{error}</Alert>}
         {appointmentId && <Alert tone="neutral">Checking in against a booked appointment.</Alert>}
+        {referral && (
+          <Alert tone="neutral">
+            Checking in against a referral from {referral.fromProviderName ?? "the OPD"} — {referral.reason}
+          </Alert>
+        )}
+        {referralGone && <Alert tone="danger">That referral is no longer pending.</Alert>}
 
         <Card header="Patient">
           {patient ? (
             <div className="flex items-center gap-3">
               <Badge tone="brand">{patient.uhid}</Badge>
               <span className="text-fg">{[patient.firstName, patient.lastName].filter(Boolean).join(" ")}</span>
-              {!appointmentId && (
+              {!appointmentId && !referral && (
                 <Button variant="ghost" size="sm" type="button" onClick={() => { setPatient(null); setSearch(""); }}>
                   Change
                 </Button>

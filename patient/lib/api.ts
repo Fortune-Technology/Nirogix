@@ -100,10 +100,11 @@ export async function labReports(tenantId: string): Promise<PatientLabReport[]> 
 
 // ---- Public self-registration (ADR-056) ------------------------------------
 //
-// The only unauthenticated write in this app, and the only place the patient portal
-// touches a specific hospital without a session. The hospital is resolved by the
-// **backend, from the token in the path** — never sent from here, which is what makes a
-// QR for one hospital unable to register someone at another.
+// One of the two unauthenticated writes in this app (the other is the appointment
+// request below, ADR-069) — the only places the patient portal touches a specific
+// hospital without a session. The hospital is resolved by the **backend, from the
+// token in the path** — never sent from here, which is what makes a QR for one
+// hospital unable to register someone at another.
 //
 // Neither call creates a patient. A submission is a request the hospital's front desk
 // reviews, so "no public signup" (ADR-052) still holds exactly as before.
@@ -127,6 +128,50 @@ export type RegistrationSubmission = {
 
 export async function submitRegistration(token: string, body: RegistrationSubmission): Promise<void> {
   await request<void>(`/public/registration/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body,
+    feedback: false,
+  });
+}
+
+// ---- Public appointment requests (ADR-069) ----------------------------------
+//
+// The second — and only other — unauthenticated surface, held to exactly the same
+// rules as registration: the hospital is resolved by the backend from the opaque
+// token in the path, and a submission is a REQUEST the front desk converts. Nothing
+// here books an appointment or creates a patient.
+
+/** What the public booking form may show: a name, a city, and the pick-lists. */
+export type PublicBookingContext = {
+  hospitalName: string;
+  city: string | null;
+  enabled: boolean;
+  departments: Array<{ id: string; name: string }>;
+  providers: Array<{ id: string; fullName: string }>;
+};
+
+export async function getPublicBookingContext(token: string): Promise<PublicBookingContext> {
+  return request<PublicBookingContext>(`/public/booking/${encodeURIComponent(token)}`, {
+    feedback: false,
+  });
+}
+
+export type BookingSubmission = {
+  firstName: string;
+  lastName?: string | null;
+  phone: string;
+  email?: string | null;
+  /** ISO calendar date (`YYYY-MM-DD`) — a wish, not a slot. */
+  preferredDate?: string | null;
+  /** 24-hour `HH:mm` — a wish, not a slot. */
+  preferredTime?: string | null;
+  departmentId?: string | null;
+  providerId?: string | null;
+  note?: string | null;
+};
+
+export async function submitBookingRequest(token: string, body: BookingSubmission): Promise<void> {
+  await request<void>(`/public/booking/${encodeURIComponent(token)}`, {
     method: "POST",
     body,
     feedback: false,

@@ -11,6 +11,9 @@ import {
   CreateFormTemplateBody,
   FormTemplateSchema,
   FormTemplatesResponseSchema,
+  SetSchedulesBody,
+  ScheduleListSchema,
+  FreeSlotsSchema,
 } from './provider.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -106,6 +109,50 @@ registry.registerPath({
     403: forbidden,
     404: { description: 'Provider not found', ...json(ErrorResponseSchema) },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/providers/{id}/schedules',
+  operationId: 'listProviderSchedules',
+  tags: ['Doctors'],
+  summary: "The provider's weekly availability windows",
+  security: [{ bearerAuth: [] }],
+  request: idParam,
+  responses: { 200: { description: 'Roster', ...json(ScheduleListSchema) }, 401: notAuthed, 403: forbidden },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/providers/{id}/schedules',
+  operationId: 'setProviderSchedules',
+  tags: ['Doctors'],
+  summary: 'Replace the weekly roster (empty list clears it — booking becomes free-form)',
+  security: [{ bearerAuth: [] }],
+  request: { ...idParam, body: json(SetSchedulesBody) },
+  responses: {
+    200: { description: 'Saved roster', ...json(ScheduleListSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Provider not found', ...json(ErrorResponseSchema) },
+    422: { description: 'Overlapping or malformed windows', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/providers/{id}/slots',
+  operationId: 'listProviderFreeSlots',
+  tags: ['Doctors'],
+  summary: 'Free bookable slots for one day, derived from the roster minus booked appointments',
+  security: [{ bearerAuth: [] }],
+  request: { ...idParam, query: z.object({ date: z.string().openapi({ description: 'YYYY-MM-DD' }) }) },
+  responses: {
+    200: { description: 'Slots (hasRoster=false when the provider has no roster)', ...json(FreeSlotsSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'Bad date', ...json(ErrorResponseSchema) },
   },
 });
 

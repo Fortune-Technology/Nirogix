@@ -30,3 +30,5 @@ export * from './billing';
 export * from './emr';
 export * from './pharmacy';
 export * from './lab';
+export * from './services';
+export * from './referrals';

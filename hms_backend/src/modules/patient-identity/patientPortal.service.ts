@@ -4,6 +4,7 @@ import { labOrders, labResults } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { listAppointments } from '../appointment/appointment.service';
 import { listInvoices } from '../billing/billing.service';
+import { getDownloadUrl } from '../file/file.service';
 import { getPatient } from '../patient/patient.service';
 import { resolvePatientAccess } from './patientIdentity.service';
 
@@ -60,9 +61,9 @@ export async function patientInvoices(identityId: string, tenantId: string, page
  *
  * A patient-scoped query of its own rather than reusing the staff worklist: the
  * worklist has no patient filter, and widening a staff-facing query so a patient can
- * call it is exactly how a filter later gets forgotten. Only **resulted** orders are
- * returned — an in-progress sample is not a report, and showing one would invite a
- * patient to read a half-entered value as a finding.
+ * call it is exactly how a filter later gets forgotten. Only **verified** orders are
+ * returned (ADR-070) — a result the lab has not signed off is not a report, and
+ * showing one would invite a patient to read an unchecked value as a finding.
  */
 export async function patientLabReports(identityId: string, tenantId: string) {
   const patientId = await scope(identityId, tenantId);
@@ -80,6 +81,8 @@ export async function patientLabReports(identityId: string, tenantId: string) {
         // "normal | low | high | critical" — shown as-is; the portal does not interpret it.
         flag: labResults.flag,
         resultedAt: labResults.createdAt,
+        verifiedAt: labResults.verifiedAt,
+        fileId: labResults.fileId,
       })
       .from(labOrders)
       .leftJoin(labResults, eq(labResults.labOrderId, labOrders.id))
@@ -87,14 +90,21 @@ export async function patientLabReports(identityId: string, tenantId: string) {
         and(
           eq(labOrders.tenantId, tenantId),
           eq(labOrders.patientId, patientId),
-          eq(labOrders.status, 'resulted'),
+          eq(labOrders.status, 'verified'),
         ),
       )
       .orderBy(desc(labOrders.createdAt));
-    return rows.map((r) => ({
-      ...r,
-      orderedAt: r.orderedAt.toISOString(),
-      resultedAt: r.resultedAt ? r.resultedAt.toISOString() : null,
-    }));
+    // Resolve report attachments to short-lived URLs — the portal downloads through the
+    // same signed-token path every stored asset uses.
+    return Promise.all(
+      rows.map(async (r) => ({
+        ...r,
+        orderedAt: r.orderedAt.toISOString(),
+        resultedAt: r.resultedAt ? r.resultedAt.toISOString() : null,
+        verifiedAt: r.verifiedAt ? r.verifiedAt.toISOString() : null,
+        fileId: undefined,
+        reportUrl: r.fileId ? ((await getDownloadUrl(tenantId, r.fileId).catch(() => null))?.url ?? null) : null,
+      })),
+    );
   });
 }

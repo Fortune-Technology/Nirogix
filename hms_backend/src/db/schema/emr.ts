@@ -110,7 +110,7 @@ export const labOrders = pgTable('lab_orders', {
   testId: uuid('test_id'),
   testCode: varchar('test_code', { length: 40 }),
   priority: varchar('priority', { length: 20 }).notNull().default('routine'), // routine | urgent
-  status: varchar('status', { length: 20 }).notNull().default('ordered'), // ordered | collected | resulted | cancelled
+  status: varchar('status', { length: 20 }).notNull().default('ordered'), // ordered | collected | resulted | verified | cancelled
   notes: varchar('notes', { length: 500 }),
   orderedBy: uuid('ordered_by'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

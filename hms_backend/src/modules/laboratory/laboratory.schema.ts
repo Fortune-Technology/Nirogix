@@ -24,6 +24,8 @@ export const EnterResultBody = z
     refHigh: z.string().max(40).nullable().optional(),
     flag: z.enum(['normal', 'low', 'high', 'critical']).nullable().optional(),
     notes: z.string().max(500).nullable().optional(),
+    /** Attached report file id (upload through POST /files first). */
+    fileId: z.string().uuid().nullable().optional(),
   })
   .openapi('EnterResultBody');
 
@@ -54,6 +56,8 @@ export const LabResultSchema = z
     refLow: z.string().nullable(),
     refHigh: z.string().nullable(),
     notes: z.string().nullable(),
+    verifiedAt: z.string().nullable(),
+    hasAttachment: z.boolean(),
   })
   .openapi('LabResult');
 

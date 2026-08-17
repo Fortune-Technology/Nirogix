@@ -1,17 +1,70 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Drug, Encounter, EncounterSummary, Icd10Code, LabTest, SaveEncounterRequest, Visit } from "@hms/types";
+import type { Department, Drug, Encounter, EncounterSummary, Icd10Code, LabTest, Provider, Referral, SaveEncounterRequest, Visit } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
+import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
+import { useCan } from "../../../../lib/auth";
 import { formatPaise } from "../../../../lib/money";
+
+/**
+ * Voice dictation (ADR-070): the browser's own speech recognition appends into a text
+ * field. Renders nothing when the browser has no engine — a feature that is absent,
+ * never a dead button.
+ */
+function DictationButton({ onText, disabled }: { onText: (text: string) => void; disabled?: boolean }) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
+  const Ctor =
+    typeof window !== "undefined"
+      ? ((window as unknown as Record<string, unknown>).SpeechRecognition ??
+        (window as unknown as Record<string, unknown>).webkitSpeechRecognition)
+      : undefined;
+  if (!Ctor) return null;
+
+  function toggle() {
+    if (listening) {
+      recRef.current?.stop();
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec = new (Ctor as any)();
+    rec.lang = "en-IN";
+    rec.continuous = true;
+    rec.interimResults = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) onText(String(e.results[i][0].transcript).trim());
+      }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+    setListening(true);
+    rec.start();
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={toggle}
+      aria-label={listening ? "Stop dictation" : "Dictate"}
+      className={`inline-flex items-center gap-1 rounded-token px-1.5 py-0.5 text-xs ${listening ? "bg-danger text-white" : "text-fg-muted hover:bg-surface-2"}`}
+    >
+      {listening ? <MicOff size={13} aria-hidden /> : <Mic size={13} aria-hidden />}
+      {listening ? "Stop" : "Dictate"}
+    </button>
+  );
+}
 
 type DxRow = { icd10Code: string; icd10Term: string; isPrimary: boolean };
 type RxRow = {
@@ -67,6 +120,19 @@ function Consultation({ visitId }: { visitId: string }) {
   const [history, setHistory] = useState<EncounterSummary[] | null>(null);
   // Context for the "fee unpaid" gate: which invoice to send the cashier to.
   const [visit, setVisit] = useState<Visit | null>(null);
+
+  // Referral (ADR-068) + AI assist (ADR-070).
+  const canRefer = useCan(PERMISSIONS.REFERRAL_CREATE);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [refDept, setRefDept] = useState("");
+  const [refProvider, setRefProvider] = useState("");
+  const [refReason, setRefReason] = useState("");
+  const [referring, setReferring] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   const signed = enc?.status === "signed";
 
@@ -125,7 +191,79 @@ function Consultation({ visitId }: { visitId: string }) {
   useEffect(() => {
     api.listDrugs().then(setDrugs).catch(() => setDrugs([]));
     api.listLabTests().then(setLabTests).catch(() => setLabTests([]));
+    api.aiCapabilities().then((c) => setAiEnabled(c.prescriptionDraft)).catch(() => setAiEnabled(false));
   }, []);
+
+  useEffect(() => {
+    if (!canRefer) return;
+    api.listDepartments({ activeOnly: true }).then(setDepartments).catch(() => setDepartments([]));
+    api.listProviders().then(setProviders).catch(() => setProviders([]));
+  }, [canRefer]);
+
+  const loadReferrals = useCallback(() => {
+    if (!enc?.patientId) return;
+    api
+      .listReferrals({ patientId: enc.patientId })
+      .then((rows) => setReferrals(rows.filter((r) => r.visitId === visitId)))
+      .catch(() => setReferrals([]));
+  }, [enc?.patientId, visitId]);
+
+  useEffect(() => {
+    loadReferrals();
+  }, [loadReferrals]);
+
+  async function refer() {
+    if (!refDept || !refReason.trim()) return;
+    setReferring(true);
+    try {
+      await api.createReferral({ visitId, toDepartmentId: refDept, toProviderId: refProvider || null, reason: refReason.trim() });
+      setRefDept("");
+      setRefProvider("");
+      setRefReason("");
+      loadReferrals();
+    } catch {
+      /* reported by the shared API-feedback layer */
+    } finally {
+      setReferring(false);
+    }
+  }
+
+  // AI draft (ADR-070): fills the SAME rows the doctor could have typed — nothing is
+  // saved until they review and press Save.
+  async function draftWithAi() {
+    setAiBusy(true);
+    setAiNote(null);
+    try {
+      const vitalsSummary = Object.entries(vitals)
+        .filter(([, v]) => v.trim() !== "")
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+      const res = await api.aiPrescriptionDraft({
+        chiefComplaint: chiefComplaint || null,
+        diagnoses: dx.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term })),
+        vitalsSummary: vitalsSummary || null,
+      });
+      setRx((prev) => [
+        ...prev,
+        ...res.prescriptions.map((p) => ({
+          id: null,
+          drugId: p.drugId,
+          drugName: p.drugName,
+          dose: p.dose ?? "",
+          frequency: p.frequency ?? "",
+          duration: p.duration ?? "",
+          route: p.route ?? "",
+          instructions: p.instructions ?? "",
+          status: "ordered",
+        })),
+      ]);
+      setAiNote(res.note);
+    } catch {
+      /* reported by the shared API-feedback layer */
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   // The patient's earlier signed consultations — the history the doctor consults from.
   useEffect(() => {
@@ -265,7 +403,14 @@ function Consultation({ visitId }: { visitId: string }) {
         description={`${enc.patientName} · ${enc.patientUhid}${enc.providerName ? ` · ${enc.providerName}` : ""}`}
         actions={
           signed ? (
-            <Badge tone="success">Signed {formatDateTime(enc.signedAt, "")}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge tone="success">Signed {formatDateTime(enc.signedAt, "")}</Badge>
+              <Link href={`/print/prescription/${visitId}`}>
+                <Button variant="secondary">
+                  <Printer size={16} strokeWidth={2} /> Print prescription
+                </Button>
+              </Link>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={save} loading={saving} disabled={signing}>Save</Button>
@@ -295,18 +440,27 @@ function Consultation({ visitId }: { visitId: string }) {
 
       <Card header="Notes (SOAP)">
         <div className="flex flex-col gap-4">
-          <Field label="Chief complaint" value={chiefComplaint} disabled={disabled} onChange={(e) => setChiefComplaint(e.target.value)} />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="hms-label">Chief complaint</span>
+              {!disabled && <DictationButton onText={(t) => setChiefComplaint((v) => (v ? `${v} ${t}` : t))} />}
+            </div>
+            <input className="hms-input w-full" value={chiefComplaint} disabled={disabled} onChange={(e) => setChiefComplaint(e.target.value)} />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {(["subjective", "objective", "assessment", "plan"] as const).map((k) => (
-              <label key={k} className="hms-field">
-                <span className="hms-label capitalize">{k}</span>
+              <div key={k}>
+                <div className="flex items-center justify-between">
+                  <span className="hms-label capitalize">{k}</span>
+                  {!disabled && <DictationButton onText={(t) => setSoap((s) => ({ ...s, [k]: s[k] ? `${s[k]} ${t}` : t }))} />}
+                </div>
                 <textarea
-                  className="hms-input min-h-[80px]"
+                  className="hms-input min-h-[80px] w-full"
                   value={soap[k]}
                   disabled={disabled}
                   onChange={(e) => setSoap((s) => ({ ...s, [k]: e.target.value }))}
                 />
-              </label>
+              </div>
             ))}
           </div>
         </div>
@@ -366,19 +520,31 @@ function Consultation({ visitId }: { visitId: string }) {
           <div className="flex items-center justify-between">
             <span>Prescriptions</span>
             {!disabled && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setRx((p) => [...p, { id: null, drugId: null, drugName: "", dose: "", frequency: "", duration: "", route: "", instructions: "", status: "ordered" }])
-                }
-              >
-                <Plus size={15} /> Add
-              </Button>
+              <div className="flex items-center gap-1">
+                {aiEnabled && (
+                  <Button variant="ghost" size="sm" onClick={() => void draftWithAi()} loading={aiBusy}>
+                    <Sparkles size={15} /> AI draft
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setRx((p) => [...p, { id: null, drugId: null, drugName: "", dose: "", frequency: "", duration: "", route: "", instructions: "", status: "ordered" }])
+                  }
+                >
+                  <Plus size={15} /> Add
+                </Button>
+              </div>
             )}
           </div>
         }
       >
+        {aiNote && (
+          <Alert tone="neutral">
+            AI note: {aiNote} — every drafted line is a suggestion; review, correct and delete freely before saving.
+          </Alert>
+        )}
         {/* Pick from the drug master (typing filters the datalist) so the prescription
             carries drugId — pharmacy then dispenses the exact drug, not a name guess.
             Free text still works for an unstocked medicine. */}
@@ -530,6 +696,57 @@ function Consultation({ visitId }: { visitId: string }) {
           </div>
         )}
       </Card>
+
+      {canRefer && (
+        <Card header="Refer to a department">
+          {referrals.length > 0 && (
+            <ul className="mb-3 flex flex-col divide-y divide-border text-sm">
+              {referrals.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <span className="font-medium text-fg">{r.toDepartmentName}</span>
+                    {r.toProviderName && <span className="ml-2 text-fg-muted">{r.toProviderName}</span>}
+                    <p className="truncate text-xs text-fg-muted">{r.reason}</p>
+                  </div>
+                  <Badge tone={r.status === "completed" ? "success" : r.status === "pending" ? "warning" : "neutral"}>{r.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="grid gap-3 sm:grid-cols-4">
+            <label className="hms-field">
+              <span className="hms-label">Department</span>
+              <select className="hms-input" value={refDept} onChange={(e) => setRefDept(e.target.value)}>
+                <option value="">Choose…</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="hms-field">
+              <span className="hms-label">Doctor (optional)</span>
+              <select className="hms-input" value={refProvider} onChange={(e) => setRefProvider(e.target.value)}>
+                <option value="">Any</option>
+                {providers.filter((p) => p.isActive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.fullName}</option>
+                ))}
+              </select>
+            </label>
+            <div className="sm:col-span-2">
+              <span className="hms-label">Reason</span>
+              <div className="flex items-center gap-2">
+                <input className="hms-input w-full" placeholder="Why this department…" value={refReason} onChange={(e) => setRefReason(e.target.value)} />
+                <Button size="sm" onClick={() => void refer()} loading={referring} disabled={!refDept || !refReason.trim()}>
+                  <Send size={14} /> Refer
+                </Button>
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-fg-subtle">
+            The front desk checks the patient in against the referral — the receiving department opens this same chart.
+          </p>
+        </Card>
+      )}
 
       <Card header={`Past consultations${history ? ` (${history.length})` : ""}`}>
         {!history ? (

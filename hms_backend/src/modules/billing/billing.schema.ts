@@ -65,6 +65,56 @@ export const ListInvoicesQuery = z
   })
   .openapi('ListInvoicesQuery');
 
+// ---- Services catalogue (ADR-067) -------------------------------------------
+
+export const CreateServiceBody = z
+  .object({
+    code: z.string().min(1).max(40),
+    name: z.string().min(1).max(200),
+    description: z.string().max(500).nullable().optional(),
+    departmentId: z.string().uuid().nullable().optional(),
+    pricePaise: z.number().int().nonnegative(),
+    taxRateBps: z.number().int().min(0).max(100000).optional(),
+  })
+  .openapi('CreateServiceBody');
+
+export const UpdateServiceBody = CreateServiceBody.partial()
+  .extend({ isActive: z.boolean().optional() })
+  .openapi('UpdateServiceBody');
+
+export const ServiceSchema = z
+  .object({
+    id: z.string(),
+    code: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    departmentId: z.string().nullable(),
+    departmentName: z.string().nullable(),
+    pricePaise: z.number(),
+    taxRateBps: z.number(),
+    isActive: z.boolean(),
+  })
+  .openapi('Service');
+export const ServiceListSchema = z.array(ServiceSchema).openapi('ServiceList');
+
+/**
+ * Add a line to an existing invoice: either a catalogue service (server-priced — the
+ * client cannot set the price of a catalogued item) or a custom one-off line.
+ */
+export const AddInvoiceLineBody = z
+  .object({
+    serviceId: z.string().uuid().optional(),
+    quantity: z.number().int().positive().optional(),
+    // Custom line (used only when serviceId is absent):
+    description: z.string().min(1).max(300).optional(),
+    unitPricePaise: z.number().int().nonnegative().optional(),
+    taxRateBps: z.number().int().min(0).max(100000).optional(),
+  })
+  .refine((b) => Boolean(b.serviceId) !== Boolean(b.description && b.unitPricePaise !== undefined), {
+    message: 'Provide either serviceId, or description + unitPricePaise for a custom line',
+  })
+  .openapi('AddInvoiceLineBody');
+
 // ---- Responses -------------------------------------------------------------
 
 export const InvoiceLineItemSchema = z

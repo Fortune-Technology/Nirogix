@@ -20,6 +20,8 @@ import { createPatient, countPatients, type PatientInput } from '../modules/pati
 import { bookAppointment, countAppointments } from '../modules/appointment/appointment.service';
 import { createTest, type CreateTestInput } from '../modules/laboratory/laboratory.service';
 import { createDrug, receiveStock, type CreateDrugInput } from '../modules/pharmacy/pharmacy.service';
+import { createService, type ServiceInput } from '../modules/billing/billing.service';
+import { services as servicesTable } from '../db/schema';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
 // Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
@@ -56,6 +58,13 @@ const SEED_LAB_TESTS: CreateTestInput[] = [
   { name: 'Lipid Profile', code: 'LIPID', sampleType: 'blood', unit: null, refLow: null, refHigh: null, pricePaise: 60000 },
   { name: 'Thyroid Stimulating Hormone', code: 'TSH', sampleType: 'blood', unit: 'µIU/mL', refLow: '0.4', refHigh: '4.2', pricePaise: 35000 },
   { name: 'Urine Routine', code: 'URINE-R', sampleType: 'urine', unit: null, refLow: null, refHigh: null, pricePaise: 12000 },
+];
+
+const SEED_SERVICES: ServiceInput[] = [
+  { code: 'DRESS-S', name: 'Dressing (small)', pricePaise: 15000 },
+  { code: 'INJ-IM', name: 'Injection (IM)', pricePaise: 5000 },
+  { code: 'NEBU', name: 'Nebulization', pricePaise: 20000 },
+  { code: 'FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000 },
 ];
 
 const SEED_DRUGS: SeedDrug[] = [
@@ -313,6 +322,16 @@ async function seedTenant(t: SeedTenant): Promise<void> {
       for (const lt of SEED_LAB_TESTS) await createTest(tenant.id, lt);
       // eslint-disable-next-line no-console
       console.log(`  ${SEED_LAB_TESTS.length} lab tests seeded`);
+    }
+  }
+  if (modulesGranted.includes('billing')) {
+    const svcCount = Number(
+      (await runWithTenant(tenant.id, (tx) => tx.select({ c: count() }).from(servicesTable).where(eq(servicesTable.tenantId, tenant.id))))[0]?.c ?? 0,
+    );
+    if (svcCount === 0) {
+      for (const s of SEED_SERVICES) await createService(tenant.id, s);
+      // eslint-disable-next-line no-console
+      console.log(`  ${SEED_SERVICES.length} services seeded`);
     }
   }
   if (modulesGranted.includes('pharmacy')) {
