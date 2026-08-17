@@ -9,6 +9,7 @@ import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
 import { createPatient, countPatients, type PatientInput } from '../modules/patient/patient.service';
 import { bookAppointment, countAppointments } from '../modules/appointment/appointment.service';
+import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
 // Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
 // Takoriya Technology LLP — home of the System Super Admin who onboards hospitals; ADR-022) plus 2+
@@ -282,6 +283,13 @@ async function seedTenant(t: SeedTenant): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // Refuses outright unless this really is a development database (ADR-058). The
+  // dataset below invents hospitals, doctors and patients; against a live database
+  // that is unrecoverable, so the check comes before the first write.
+  requireEnvironment('development');
+  // eslint-disable-next-line no-console
+  console.log(describeTarget('development'));
+
   await seedPermissionCatalog();
   await seedSpecialtyCatalog();
   // eslint-disable-next-line no-console
@@ -303,6 +311,15 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
+  // A refusal is a correct outcome, not a crash — say so plainly rather than
+  // printing a stack trace that invites someone to "fix" the guard.
+  if (err instanceof SeedRefused) {
+    // eslint-disable-next-line no-console
+    console.error(`
+seed refused: ${err.message}
+`);
+    process.exit(2);
+  }
   // eslint-disable-next-line no-console
   console.error('seed failed:', err);
   process.exit(1);

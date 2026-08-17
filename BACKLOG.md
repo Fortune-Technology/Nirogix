@@ -58,6 +58,29 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - **The QR is generated in the browser.** Fine for a poster; a server-rendered PDF (A4, with the hospital's branding and instructions) is what a hospital will actually want to hand to a printer.
 - **Only one QR per hospital.** No per-branch token, so a multi-branch hospital cannot tell which entrance a person scanned. The column is there (`branch_id` convention) if that turns out to matter.
 
+**Environment seeders (ADR-058)** — the guard is built and refuses wrong-environment runs; the seeders themselves are not split yet
+- **Staging seeder** — a deterministic, production-shaped dataset for QA, E2E and demos. Deterministic matters: E2E assertions depend on exact ids and counts, so it cannot reuse the development seeder's shape.
+- **Production seeder** — bootstrap only: permission catalogue, system roles, and a first administrator where genuinely required. Behind `CONFIRM_PRODUCTION_SEED`, idempotent, documented, and reviewed by a second person before it is first run.
+- `db:seed:staging` / `db:seed:production` npm scripts, and a `deploy/README.md` note on when each is run.
+
+**Communication service (ADR-059)**
+- **`CommunicationService` seam** — today `sendEmail` / `sendSms` are loose exports of `notification.service`; wrap them into the named service with `sendOtp` / `verifyOtp` / `resendOtp` so no module reaches past it.
+- **OTP surface** — patient sign-in currently generates, hashes, stores and sends its own six-digit code inline (`patientIdentity.service`). That logic moves behind `sendOtp`/`verifyOtp` so staff MFA, contact verification and password reset reuse one implementation rather than growing a second.
+- **Transactional coverage audit** — walk the whole workflow and confirm each of these either sends or has a recorded reason not to: sign-in code, email verification, mobile verification, password reset, hospital onboarding, hospital approval/rejection, eKYC status, user invitation, account activation, appointment confirmation / cancellation / reschedule, administrative notices. Send nothing beyond that list.
+- **Email templates** — MSG91 email is template-based; the template ids belong in configuration with the copy reviewed before first send.
+
+**Row actions (ADR-060)** — audit found tables with no correction path
+- **`appointments`** — no row actions at all. Needs at least view, and reschedule / cancel per permission and appointment state.
+- **`pharmacy/stock`** — no row actions. Needs edit for correcting a stock figure, and whatever adjustment the module's rules allow.
+- **`billing`** — View only. An invoice raised against the wrong patient currently has no visible remedy.
+- **`opd`** — View only; confirm against the queue's own workflow whether that is genuinely correct.
+- **`patients`** — has View + Edit; still needs the deactivate path decided (soft, per ADR-060 and the retention policy) rather than left absent.
+- Confirm the read-only tables are read-only *by decision*, and record that decision.
+
+**Full-suite gate before manual QA**
+- **No E2E suite exists yet.** The rule is written and binding; Playwright coverage for the critical workflow (sign-in → register patient → book → check in → consult → dispense → bill → collect) is what makes it enforceable rather than aspirational.
+- Map `testcases.md` cases to automated coverage so the handover states which cases the suite already proves.
+
 **Security follow-ups (from `SECURITY-AUDIT.md`)**
 - **H-3** account-level brute-force lockout with backoff + an audit event at threshold (rate limiting alone does not stop a slow attack on one known email).
 - **M-1** Content-Security-Policy for both apps (needs a nonce for the no-flash theme script); start report-only.

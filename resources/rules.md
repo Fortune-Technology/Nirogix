@@ -105,6 +105,11 @@ This document states rules only. For the architecture each rule is derived from,
 - **The shared layer covers the recurring patterns:** DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and action menus, cards and stat cards, forms and form fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, and navigation.
 - **Reusable is not uniform.** Components take props/variants so a module can vary labels, icons, actions, columns, filters, data, empty-state content, loading behaviour, permissions, variants, sizes, and layout — without forking the component. The chain is: primitives → shared patterns → module configuration → page.
 - **Use shadcn/ui as the scaffolding source** for standard primitives rather than reinventing them (ADR-028), then restyle onto the design tokens before shipping.
+- **Row actions are a Definition-of-Done item, not a nice-to-have (ADR-039, ADR-060).** Every table is reviewed for the actions its workflow actually needs — view, edit, delete, activate, deactivate, approve, reject, restore, or a module-specific one. Not every action on every table: what appears is decided by role, permission, record state and business rule. **A record that can be displayed incorrectly must have a permitted, safe way to be corrected** — leaving a user staring at a wrong name they cannot fix is a defect.
+- **Destructive actions confirm first, in the shared `ConfirmDialog`, and say what will happen.** For clinical and administrative records prefer **soft delete or deactivation**: nothing medical is destroyed because someone clicked Delete, unless the retention policy explicitly allows it.
+- **The button is not the boundary.** Hiding Edit or Delete is UX; the backend independently re-checks permission on every call, so a direct API request from an unauthorised user is refused regardless of what the UI rendered.
+- **Every important record change is audited** — who, what, when, which record, and previous/new values where the audit policy requires them.
+- **Editing reuses one pattern per workflow shape** — dialog, drawer or page, chosen by the complexity of the record, built from the shared form and validation components. Never a bespoke edit implementation per table.
 - **Column alignment is a property of the column, not of the cell.** `align` on a DataTable column governs the heading and the values together — a heading that sits left over right-aligned values is a defect, not a style choice. Reserve `right` for magnitudes a reader compares down the column (money, quantities, stock counts) and the actions column; a label that merely contains a digit — an age, a duration, a status code, a lab value that may be text — stays left, where it reads next to its heading.
 - **Organisation:** shared primitives and the DataTable parts live in `@hms/ui` (`src/components/`, `src/components/data-table/`); app-specific compositions live under that app's `components/`. Generated shadcn source lands in `hms_frontend/components/ui/` or `marketing/components/shadcn/` for review before promotion.
 
@@ -295,6 +300,27 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 - **Print and PDF come from the same definition.** "Save as PDF" is the browser dialog over the same markup; a server-rendered PDF, if added, renders the same template headlessly rather than defining the document twice.
 - **Authorization is re-checked, not inherited from the link.** The document route carries the same permission as the screen and reads the same RLS-scoped endpoint, so a user cannot print what they could not open. Only that record's data appears — no application state, no other patients, and nothing sensitive in logs.
 
+### Database Seeding Rules (binding — ADR-058)
+
+- **One seeder per environment — development, staging, production — and each refuses to run anywhere else.** A seeder declares the environment it is written for; `NODE_ENV` must match, and the guard *additionally* inspects `DATABASE_URL`, because `NODE_ENV` is set by whoever typed the command while the connection string decides which database is actually written.
+- **Development** seeds realistic synthetic data — platform owner, demo hospitals, every role, doctors, staff, departments, patients, appointments. **Never real patient information**, in any environment, ever.
+- **Staging** seeds a controlled, **deterministic** dataset shaped like production, so QA, E2E and regression assertions can depend on exact values.
+- **Production seeds bootstrap configuration only** — the permission catalogue, system roles, and where genuinely required a first administrator. **Never a hospital, a patient, an appointment, a demo doctor, or any other invented record.** It requires an explicit confirmation variable so it cannot run as a side effect of a deploy.
+- **Idempotent and deterministic wherever practical**, so re-running is safe and repeatable.
+- **No secrets in a seeder.** Development passwords are known throwaway defaults, and are obviously that.
+- **Every seeder prints its target** (credentials redacted) before the first write, and a refusal exits with a distinct code and a plain sentence — never a stack trace, which invites someone to "fix" the guard.
+
+The failure this exists to prevent is unrecoverable: invented patients interleaved with real clinical records, carrying real-looking UHIDs. Making the wrong command fail loudly is worth more than making the right command convenient.
+
+### Communication Rules (binding — ADR-016, ADR-059)
+
+- **One `CommunicationService` is the only code that talks to a provider** — `sendEmail`, `sendSms`, `sendOtp`, `verifyOtp`, `resendOtp`. No module calls MSG91, or any future provider, directly.
+- **A frontend never calls a provider.** The path is Frontend → HMS API → CommunicationService → provider. Auth keys, template ids, sender ids and domain credentials are **server-side only** and must never reach a bundle.
+- **Every provider value comes from configuration** and is documented in `.env.example` as a placeholder name only. Nothing hard-coded: auth key, access token, template ids, sender id, DLT entity, sending domain, from-name, from-address.
+- **Never ask anyone to paste a secret into chat, a ticket, or source.** Credentials are supplied through the environment/secrets mechanism, by the person who owns them.
+- **Transactional messages are the ones the workflow requires** — sign-in codes, contact verification, password reset, hospital onboarding and approval, user invitation and activation, appointment confirmation / cancellation / reschedule, and administrative notices a person must act on. **Send nothing else.** A notification nobody needs trains people to ignore the ones they do.
+- **A message carries no clinical detail beyond its purpose**, and no message is sent that a person did not cause or need.
+
 ### API Feedback & Notification Rules
 
 - **One shared notification/Toast system in `@hms/ui`**, built on **React Toastify** (ADR-057), consumed by every frontend that needs one. No page, module, or feature builds its own toast, snackbar, or ad-hoc inline banner for API results.
@@ -362,6 +388,20 @@ The Next.js optimization guides are the reference. **Both apps are Next 16** —
 - **Automated coverage is expected at the level the change deserves:** unit tests for pure logic (formatters, calculators, permission resolution), component tests for shared UI, integration/API tests for every endpoint (happy path, validation failure, 401, 403, tenant isolation), and end-to-end tests for the critical workflows (sign-in, register patient → book → check-in → consult → dispense → bill → collect).
 - **A feature is not complete while a known automated test is failing**, unless the failure is written down and explicitly accepted — in `BACKLOG.md`, with the reason.
 - Manual test cases are **not** a substitute for automated tests, and automated tests are not a substitute for the manual QA checklist. Both are required.
+
+**The gate before manual QA (binding).** Testing staff are handed `testcases.md` only after the automated suite has been run to green, end to end:
+
+```
+implement → automated tests → FULL suite → fix failures → regression → manual QA
+```
+
+- **Run everything, not a subset** — unit, component, integration/API, and the complete E2E suite. Critical journeys end to end, authentication and authorization, API workflows, database interactions, role and permission boundaries in both directions, validation and error paths, and responsive critical flows where browser automation reaches them.
+- **Map `testcases.md` to automated coverage** before the handover, so it is known which cases the suite already proves and which genuinely need a human.
+- **A failure is diagnosed, not re-run.** Find the root cause, fix the implementation or the test, re-run that test, run the regression suite around it, then re-run the **full** suite before declaring anything ready.
+- **Report the actual numbers** — total / passed / failed / skipped / blocked. "Tests were run" is not a result.
+- **A known failure is documented in `BACKLOG.md` with its reason, or it blocks the handover.** Never silently skipped, and never left for the manual tester to rediscover.
+
+Handing an unverified build to QA wastes the scarcest thing in the process — a tester's attention — on defects the suite would have caught in seconds.
 
 ### Manual Test Cases (`testcases.md`)
 

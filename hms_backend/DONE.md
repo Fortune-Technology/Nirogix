@@ -659,3 +659,21 @@ Rotation on every use, hashed storage, server-side revocation on sign-out. Exist
 **Disable and regenerate are different acts.** Disabling keeps the token, so pausing over a holiday does not mean reprinting posters. Regenerating invalidates physical objects in the world, so it is separate, confirmed in the UI, and audited at notice — as are enable, disable, approve and reject. A public submission is audited against the tenant with **no actor**, because nobody was authenticated; that entry is what answers "where did this chart come from" after an approval.
 
 **Testing status:** 16 new service tests (119 backend total, all green), covering token uniqueness per hospital, cross-hospital resolution, uniform 404s, submission creating no patient, the disabled path being refused server-side rather than only hidden, double-approval returning 409, one hospital being unable to act on another's request, and the audit trail. Verified live end to end: CityCare's QR submitted "Jaivik Patel" → visible to that hospital's `org_admin` (200) and reception (200) → `org_admin` approve **403**, reception approve **200** → patient `UHID-000005` created in CityCare → Sunrise's reception sees an empty queue and gets **404** on CityCare's request id.
+
+## 2026-08-17 — Seeder environment guard (ADR-058)
+
+**What:** `db:seed` had **no environment check of any kind**. It creates two demo hospitals, fourteen accounts with a known password, doctors, departments and patients. Pointed at a production `DATABASE_URL` — a copied env file, not malice — it would interleave invented patients with real clinical records, carrying real-looking UHIDs. There is no clean undo.
+
+`src/scripts/seedGuard.ts` now gates every seeder:
+
+- A seeder declares its `intended` environment and is refused unless `NODE_ENV` matches. Development is refused in **staging** too — staging's dataset is deterministic and demo rows would break E2E assertions that depend on exact values.
+- It **additionally inspects `DATABASE_URL`** and refuses a non-production seeder against a host that doesn't look like development or staging. `NODE_ENV` is set by whoever typed the command; the connection string is what actually decides which database gets written, so it gets its own check.
+- The production seeder will require `CONFIRM_PRODUCTION_SEED`, so it cannot run as a side effect of a deploy step.
+- Every seeder prints its target with credentials redacted before the first write.
+- A refusal exits **2** — distinct from a failure's 1 — with a plain sentence rather than a stack trace, because a stack trace invites someone to "fix" the guard.
+
+Deliberately awkward. A seeder that adapts to its surroundings is one that will eventually adapt into production.
+
+**Testing status:** both refusals verified live — `NODE_ENV=production` is rejected by name, and a `DATABASE_URL` of `db.prod.internal` is rejected even with `NODE_ENV` unset. Typecheck clean; 119 backend tests pass.
+
+The staging and production seeders themselves are specified in ADR-058 and tracked in `BACKLOG.md`. The guard shipped first because the risk existed the moment `db:seed` did.

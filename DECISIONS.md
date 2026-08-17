@@ -488,5 +488,55 @@ The owner asked for React Toastify. That is a reasonable request on its own term
 - **`@hms/ui` is the right home**, and each app still mounts `<Toaster />` itself. The marketing site mounts none: it has no authenticated API surface and no notifications, and giving it one would be pushing tenant behaviour onto a public page.
 **Consequence:** One toast system, one package that knows the library, one palette mapping. The shadcn Toast component, its 200 lines and its Tailwind-class styling are deleted; `@base-ui/react` stays a dependency because `DateField` uses its Popover. The cost is a new runtime dependency and a stylesheet whose class names are the library's - which is why the token mapping is written in one commented block rather than scattered, and why the mobile override notes *why* it exists. If React Toastify is ever swapped again, the same seam makes it another one-file change.
 
+## ADR-058 - Seeders are per environment, and refuse to run anywhere else
+**Status:** Accepted (this project). The guard is built; the staging and production seeders are specified here and tracked in `BACKLOG.md`.
+**Context:** There was one seeder, `db:seed`, with **no environment check of any kind**. It invents two hospitals, fourteen staff accounts with a known password, doctors, departments and patients. Pointed at a production `DATABASE_URL` - a copied env file is the realistic accident, not malice - it would interleave fake patients with real clinical records. There is no clean undo: the rows carry real-looking UHIDs and sit in the same tables, so removing them later means distinguishing invented people from actual ones after the fact.
+
+The second, quieter problem: staging wants a *deterministic* dataset so automated E2E assertions stay valid, and production wants **no** dataset at all - only the bootstrap configuration a system needs to exist. One file cannot honestly serve three intentions.
+**Decision:** One seeder per environment, each stating which environment it is for, each refusing to run anywhere else.
+
+- **`development`** - realistic synthetic data for building and testing against: platform owner, demo hospitals, users across every role, doctors, staff, departments, patients, appointments. Synthetic throughout; **never real patient information**, and the passwords are known dev defaults precisely so nobody mistakes them for credentials.
+- **`staging`** - a controlled dataset shaped like production, **deterministic** so QA, E2E and regression assertions can depend on it. Sized for demonstrations, not for load.
+- **`production`** - **bootstrap configuration only**: the permission catalogue, system roles, and where genuinely required a first administrator account. No hospitals, no patients, no appointments, no demo anything. It runs explicitly, is idempotent, and is documented.
+
+**The guard is the load-bearing part** (`src/scripts/seedGuard.ts`):
+- A seeder declares its `intended` environment and throws unless `NODE_ENV` matches. A development seeder is refused in staging too, because staging's determinism is a contract that demo rows would break.
+- It **additionally inspects `DATABASE_URL`** and refuses a non-production seeder against a host that does not look like development or staging. `NODE_ENV` is set by whoever runs the command; the connection string is the thing that actually decides which database gets written.
+- The production seeder additionally requires `CONFIRM_PRODUCTION_SEED`, so it cannot run as a side effect of a script or a deploy step.
+- Every seeder prints its target (credentials redacted) before the first write, so the destination is never inferred.
+- A refusal exits **2**, distinct from a failure's 1, and prints a plain sentence rather than a stack trace - a stack trace invites someone to "fix" the guard.
+
+**Deliberately awkward.** A seeder that adapts to its surroundings is a seeder that will one day adapt into production. Making the wrong command fail loudly is worth more than making the right command convenient.
+**Consequence:** Three files where there was one, and a developer with a stale `NODE_ENV` sees a refusal instead of a seed. Accepted: the failure mode on the other side is fabricated patients in a live hospital database, which is a clinical-safety and regulatory problem, not an inconvenience. The guard shipped first because the risk existed the moment `db:seed` did.
+
+## ADR-059 - One communication service; MSG91 stays behind it
+**Status:** Accepted (this project). Extends ADR-016 (MSG91 as the provider) with the service contract and the OTP surface.
+**Context:** The platform already routes SMS and email through `NotificationService` with MSG91 behind a provider interface (ADR-016), which is the right shape. Two gaps: there is **no OTP surface** - patient sign-in generates and stores its own six-digit code and sends it as an ordinary SMS - and the service is two loose functions rather than one named seam, which is what invites a module to reach past it.
+
+MSG91 offers a managed OTP flow (send / verify / retry) with its own template and retry semantics. Whether to adopt it or keep generating codes locally is a real decision: the local implementation already hashes codes at rest and rate-limits, and it works identically for email, which the managed flow does not.
+**Decision:** A single `CommunicationService` is the only thing that talks to a provider, and it exposes `sendEmail`, `sendSms`, `sendOtp`, `verifyOtp`, `resendOtp`.
+
+- **Frontend never calls MSG91.** The path is Frontend → HMS API → CommunicationService → provider. The auth key is server-side only, and no template id, sender id or key appears in any bundle.
+- **Every credential comes from configuration** - auth key, template ids, sender id, DLT entity, sending domain, from-name and from-address. None hard-coded, all named in `.env.example` as placeholders only.
+- **OTP generation stays ours for now.** Codes are hashed at rest, single-use, expiring and rate-limited, and the same code path serves email and mobile. MSG91's managed flow may replace the transport later without changing the service's signature - which is the point of the seam.
+- **Transactional messages are audited against the product's workflow**, not invented: sign-in codes, contact verification, password reset, hospital onboarding and approval, user invitation and activation, appointment confirmation / cancellation / reschedule, and administrative notices that a person must act on. **Nothing else.** A notification nobody needs trains people to ignore the ones they do.
+- **A message is never sent that a person did not cause or need**, and no message carries clinical detail beyond what its purpose requires.
+**Consequence:** One place to change providers, one place to review what the platform is allowed to send, and a credential surface that lives entirely in configuration. The cost is that adding a channel means extending the service rather than calling an SDK where it is convenient - which is the constraint, not a side effect. Live sending stays blocked on the operator checklist in `BACKLOG.md` (DLT registration, verified sending domain, approved templates), and until those exist the log provider is used and nothing leaves the machine.
+
+## ADR-060 - Every editable record needs a correction path
+**Status:** Accepted (this project). Extends ADR-039, which standardised *how* row actions look; this decides *which must exist*.
+**Context:** ADR-039 built the Action column and settled its iconography, permissions, confirmation and accessibility. What it never said is which actions a table owes its users. An audit found the consequence: `appointments` and `pharmacy/stock` have **no row actions at all**, and `billing` and `opd` offer View only.
+
+The concrete failure is mundane and common. A receptionist types a patient's name wrong. The record displays, correctly gated and audited, and there is no way to fix it. The data is wrong permanently, in a clinical system, because nobody decided the table needed an Edit.
+**Decision:** **A record that can be displayed incorrectly must have a permitted, safe way to be corrected.** That is the rule; the rest follows from it.
+
+- **Actions are chosen per table** from role, permission, record state and business rule - view, edit, delete, activate, deactivate, approve, reject, restore, or something module-specific. Not every action on every table: an action nobody may use is noise, and an action that contradicts a record's state is a bug waiting to be clicked.
+- **Destructive actions confirm first**, through the shared `ConfirmDialog`, saying what will actually happen.
+- **Clinical and administrative records prefer soft delete or deactivation.** Nothing medical is destroyed because someone clicked Delete unless the retention policy explicitly permits it - and retention, not convenience, is what decides.
+- **The button is never the boundary.** Hiding Edit is UX. The backend re-checks permission on every call, so a direct API request from an unauthorised user is refused regardless of what was rendered.
+- **Important changes are audited** - who, what, when, which record, and previous/new values where the audit policy requires them.
+- **One editing pattern per workflow shape** - dialog, drawer or page, chosen by the record's complexity, built from the shared form and validation components. A bespoke edit implementation per table is how six subtly different save behaviours appear.
+**Consequence:** Reviewing every table is now a Definition-of-Done item rather than something noticed when a user complains. The cost is that adding a table means deciding its actions deliberately, including deciding that a table is legitimately read-only - which is a defensible answer, but has to be an answer rather than an omission.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*
