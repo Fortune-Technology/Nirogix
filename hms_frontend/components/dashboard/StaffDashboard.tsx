@@ -47,6 +47,8 @@ export function StaffDashboard({ fullName }: { fullName?: string }) {
             label="Registered today"
             value={counts?.newPatients ?? null}
             icon={<Users size={16} strokeWidth={1.75} aria-hidden />}
+            href="/patients/registrations"
+            linkLabel="Registered today — open today's registrations"
           />
         )}
         <StatCard
@@ -61,12 +63,16 @@ export function StaffDashboard({ fullName }: { fullName?: string }) {
               label="Collected (7 days)"
               value={overview ? formatPaise(collected) : null}
               icon={<Wallet size={16} strokeWidth={1.75} aria-hidden />}
+              href="/billing"
+              linkLabel="Collected — open billing"
             />
             <StatCard
               label="Outstanding"
               value={overview ? formatPaise(overview.outstandingPaise) : null}
               icon={<Receipt size={16} strokeWidth={1.75} aria-hidden />}
               hint="Across every open invoice"
+              href="/billing"
+              linkLabel="Outstanding balance — open billing"
             />
           </>
         )}

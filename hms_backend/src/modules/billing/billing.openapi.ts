@@ -22,7 +22,12 @@ registry.registerPath({
   request: {
     query: z.object({
       patientId: z.string().uuid().optional(),
-      status: z.string().optional(),
+      status: z
+        .string()
+        .optional()
+        .openapi({ description: 'Comma-separated statuses (multi-select): draft,partially_paid,paid,void' }),
+      amountFrom: z.coerce.number().int().optional().openapi({ description: 'Invoice-total lower bound, in paise' }),
+      amountTo: z.coerce.number().int().optional().openapi({ description: 'Invoice-total upper bound, in paise' }),
       page: z.coerce.number().int().optional(),
       pageSize: z.coerce.number().int().optional(),
     }),

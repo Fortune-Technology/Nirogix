@@ -33,3 +33,9 @@ Append-only implementation log. Newest at the bottom.
 `PublicRegistrationContext` carries a hospital name, a city and the on/off flag — nothing else, because it is served to an unauthenticated caller. `RegistrationRequestItem` deliberately has no `tenantId`: the backend projects it away, and leaving it out of the type keeps a frontend from expecting it back.
 
 **Testing status:** `typecheck` green across the backend, the Portal and the patient app.
+
+## 2026-08-17 — Letterhead image + page size on OrganizationProfile (ADR-065)
+
+`OrganizationProfile` gains `letterheadImageUrl` (short-lived, read-only) and `documentPageSize`. A new `DOCUMENT_PAGE_SIZES` tuple + `DocumentPageSize` union is the one shared contract for the settings selector, the backend Zod enum and the print layer. `UpdateOrganizationProfileRequest` now also omits `letterheadImageUrl` (it is upload-only, via its own multipart route), so only `documentPageSize` rides the partial text update.
+
+**Testing status:** `typecheck` green across the backend, the Portal and `@hms/ui`.

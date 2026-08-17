@@ -20,6 +20,10 @@ export type { TextareaFieldProps } from './components/Textarea';
 export { PasswordField } from './components/PasswordField';
 export type { PasswordFieldProps } from './components/PasswordField';
 export { Card } from './components/Card';
+export { PageHeader } from './components/PageHeader';
+export type { PageHeaderProps } from './components/PageHeader';
+export { PhoneField, localIndianMobile, canonicalIndianMobile } from './components/PhoneField';
+export type { PhoneFieldProps } from './components/PhoneField';
 export type { CardProps } from './components/Card';
 export { Badge } from './components/Badge';
 export type { BadgeProps } from './components/Badge';
@@ -39,8 +43,11 @@ export {
   DataTableColumnHeader,
   DataTableViewOptions,
   DataTableFacetedFilter,
+  DateRangeFilter,
+  NumberRangeFilter,
 } from './components/data-table';
-export type { Column, DataTableProps, DataTableQuery, ServerMode, SortState } from './components/data-table';
+export type { Column, ColumnFilters, DataTableProps, DataTableQuery, ServerMode, SortState } from './components/data-table';
+export type { DateRangeValue, DateRangeFilterProps, NumberRangeValue, NumberRangeFilterProps } from './components/data-table';
 export { Menu, MenuItem, MenuCheckboxItem, MenuSeparator } from './components/Menu';
 export type { MenuProps, MenuItemProps } from './components/Menu';
 // The one Action-column system — every table's row actions (rules.md → Table Row Actions).

@@ -8,6 +8,7 @@ import {
   Badge,
   Button,
   DataTable,
+  DateRangeFilter,
   EditAction,
   TableActions,
   ToggleAction,
@@ -15,6 +16,7 @@ import {
   actionsColumn,
   type Column,
   type DataTableQuery,
+  type DateRangeValue,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Patient } from "@hms/types";
@@ -115,15 +117,18 @@ function PatientsTable() {
   const router = useRouter();
   const canEdit = useCan(PERMISSIONS.PATIENT_CREATE);
   const [rows, setRows] = useState<Patient[]>([]);
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [] });
+  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
+  // Registration date-range lives beside `query`: it is a structured range, not a
+  // faceted multi-select, so it travels as its own params rather than in `filters` (ADR-063).
+  const [registered, setRegistered] = useState<DateRangeValue>({ from: null, to: null });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (q: DataTableQuery) => {
+  const load = useCallback(async (q: DataTableQuery, reg: DateRangeValue) => {
     setLoading(true);
     try {
-      const res = await api.listPatients(q.page, q.pageSize, q.search || undefined);
+      const res = await api.listPatients(q.page, q.pageSize, q.search || undefined, q.filters, reg);
       setRows(res.data);
       setTotal(res.page.total);
       setError(null);
@@ -136,8 +141,8 @@ function PatientsTable() {
   }, []);
 
   useEffect(() => {
-    void load(query);
-  }, [query, load]);
+    void load(query, registered);
+  }, [query, registered, load]);
 
   /**
    * Soft state change only — `status`, never a delete. The server re-checks the
@@ -147,7 +152,7 @@ function PatientsTable() {
   async function toggleStatus(p: Patient) {
     try {
       await api.updatePatient(p.id, { status: p.status === "active" ? "inactive" : "active" });
-      await load(query);
+      await load(query, registered);
     } catch {
       /* reported by the shared API-feedback layer */
     }
@@ -167,8 +172,18 @@ function PatientsTable() {
         rowKey={(p) => p.id}
         loading={loading}
         error={error}
-        onRetry={() => void load(query)}
+        onRetry={() => void load(query, registered)}
         searchPlaceholder="Search by UHID, name, or phone…"
+        filters={
+          <DateRangeFilter
+            label="Registered"
+            value={registered}
+            onChange={(r) => {
+              setRegistered(r);
+              setQuery((q) => ({ ...q, page: 1 }));
+            }}
+          />
+        }
         emptyMessage={query.search ? "No patients match your search." : "No patients registered yet."}
         emptyDescription={
           query.search ? "Try a different UHID, name, or phone number." : "Register the first patient to get started."
@@ -198,6 +213,7 @@ function PatientsTable() {
           pageSize: query.pageSize,
           search: query.search,
           sort: query.sort,
+          filters: query.filters,
           onChange: setQuery,
         }}
       />

@@ -75,4 +75,47 @@ describe('patient management', () => {
     expect(updated.city).toBe('Pune');
     expect(updated.status).toBe('archived');
   });
+
+  test('faceted filters narrow by gender, city and status server-side (ADR-063)', async ({ skip }) => {
+    if (!ready) return skip();
+    await createPatient(tenantId, { firstName: 'Meera', lastName: 'Nair', phone: '9800000001', gender: 'female', city: 'Kochi' });
+    await createPatient(tenantId, { firstName: 'Arjun', lastName: 'Rao', phone: '9800000002', gender: 'male', city: 'Kochi' });
+
+    const female = await listPatients(tenantId, { page: 1, pageSize: 20, gender: ['female'] });
+    expect(female.rows.every((p) => p.gender === 'female')).toBe(true);
+    expect(female.rows.some((p) => p.firstName === 'Meera')).toBe(true);
+
+    const kochi = await listPatients(tenantId, { page: 1, pageSize: 20, city: ['Kochi'] });
+    expect(kochi.total).toBe(2);
+
+    // Filters compose: a male in Kochi is only Arjun.
+    const both = await listPatients(tenantId, { page: 1, pageSize: 20, gender: ['male'], city: ['Kochi'] });
+    expect(both.total).toBe(1);
+    expect(both.rows[0]!.firstName).toBe('Arjun');
+
+    // The archived record (from the previous test) is reachable only by asking for it.
+    const archived = await listPatients(tenantId, { page: 1, pageSize: 20, status: ['archived'] });
+    expect(archived.rows.every((p) => p.status === 'archived')).toBe(true);
+    expect(archived.total).toBeGreaterThanOrEqual(1);
+  });
+
+  test('registration date range filters on the whole dataset (ADR-063)', async ({ skip }) => {
+    if (!ready) return skip();
+    const toISO = (d: Date): string => d.toISOString().slice(0, 10);
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);
+    const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
+
+    // Everyone was registered "now", so a future-only or past-only window is empty…
+    expect((await listPatients(tenantId, { page: 1, pageSize: 20, registeredFrom: toISO(tomorrow) })).total).toBe(0);
+    expect((await listPatients(tenantId, { page: 1, pageSize: 20, registeredTo: toISO(yesterday) })).total).toBe(0);
+    // …and a window spanning today returns them.
+    const windowed = await listPatients(tenantId, {
+      page: 1,
+      pageSize: 20,
+      registeredFrom: toISO(yesterday),
+      registeredTo: toISO(tomorrow),
+    });
+    expect(windowed.total).toBeGreaterThan(0);
+  });
 });

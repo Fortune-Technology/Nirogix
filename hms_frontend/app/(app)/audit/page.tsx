@@ -53,7 +53,8 @@ const columns: Array<Column<AuditEntry>> = [
   {
     key: "severity",
     header: "Severity",
-    defaultHidden: true,
+    filterable: true,
+    filterOptions: [{ value: "info" }, { value: "notice" }, { value: "warning" }, { value: "critical" }],
     accessor: (r) => r.severity,
     cell: (r) => <span className="text-fg-muted">{r.severity}</span>,
   },
@@ -65,43 +66,39 @@ const columns: Array<Column<AuditEntry>> = [
   },
 ];
 
-const SEVERITIES = ["info", "notice", "warning", "critical"] as const;
-
 function AuditTable() {
   const [rows, setRows] = useState<AuditEntry[]>([]);
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [] });
-  const [severity, setSeverity] = useState("");
+  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(
-    async (q: DataTableQuery, sev: string) => {
-      setLoading(true);
-      try {
-        const res = await api.listAudit({
-          page: q.page,
-          pageSize: q.pageSize,
-          search: q.search || undefined,
-          severity: sev || undefined,
-          sortBy: q.sort[0]?.key,
-          sortDir: q.sort[0]?.dir,
-        });
-        setRows(res.data);
-        setTotal(res.page.total);
-        setError(null);
-      } catch {
-        setError("Could not load the audit log.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  // Severity now flows through the table's own faceted filter (ADR-063), so the
+  // load reads it from `query.filters` rather than a bespoke select's own state.
+  const load = useCallback(async (q: DataTableQuery) => {
+    setLoading(true);
+    try {
+      const res = await api.listAudit({
+        page: q.page,
+        pageSize: q.pageSize,
+        search: q.search || undefined,
+        severity: q.filters.severity?.length ? q.filters.severity.join(",") : undefined,
+        sortBy: q.sort[0]?.key,
+        sortDir: q.sort[0]?.dir,
+      });
+      setRows(res.data);
+      setTotal(res.page.total);
+      setError(null);
+    } catch {
+      setError("Could not load the audit log.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    void load(query, severity);
-  }, [query, severity, load]);
+    void load(query);
+  }, [query, load]);
 
   return (
     <>
@@ -112,36 +109,17 @@ function AuditTable() {
         rowKey={(r) => r.id}
         loading={loading}
         error={error}
-        onRetry={() => void load(query, severity)}
+        onRetry={() => void load(query)}
         searchPlaceholder="Search action, path, or resource…"
-        emptyMessage={query.search || severity ? "No entries match this filter." : "No audit entries."}
+        emptyMessage={query.search || query.filters.severity?.length ? "No entries match this filter." : "No audit entries."}
         urlState
-        filters={
-          <label className="inline-flex items-center gap-2 text-sm text-fg-muted">
-            <span className="sr-only">Severity</span>
-            <select
-              className="hms-input hms-input--sm"
-              value={severity}
-              onChange={(e) => {
-                setSeverity(e.target.value);
-                setQuery((q) => ({ ...q, page: 1 }));
-              }}
-            >
-              <option value="">All severities</option>
-              {SEVERITIES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-        }
         server={{
           total,
           page: query.page,
           pageSize: query.pageSize,
           search: query.search,
           sort: query.sort,
+          filters: query.filters,
           onChange: setQuery,
         }}
       />

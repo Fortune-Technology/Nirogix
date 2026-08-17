@@ -45,6 +45,10 @@ export function useDocumentBrand(): { brand: DocumentBrand; ready: boolean } {
           footerLine: profile?.letterheadFooter ?? null,
           signatoryName: profile?.signatoryName ?? null,
           signatoryDesignation: profile?.signatoryDesignation ?? null,
+          // The uploaded letterhead image and the paper it prints on (ADR-065). Same record,
+          // same tenant scope — a document can only ever wear its own hospital's letterhead.
+          letterheadImageUrl: profile?.letterheadImageUrl ?? null,
+          pageSize: profile?.documentPageSize ?? null,
         });
       })
       .catch(() => {

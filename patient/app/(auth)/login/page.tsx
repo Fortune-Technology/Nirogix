@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, BrandMark, Button, Card, Field } from "@hms/ui";
+import { Alert, BrandMark, Button, Card, Field, PhoneField } from "@hms/ui";
 import * as api from "../../../lib/api";
 import { useSession } from "../../../lib/session";
 
@@ -103,15 +103,12 @@ export default function PatientLoginPage() {
           </div>
 
           {channel === "mobile" ? (
-            <Field
+            <PhoneField
               label="Mobile number"
-              type="tel"
-              autoComplete="tel"
               value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
+              onChange={setMobile}
               required
-              autoFocus
-              hint="Include the country code, for example +91."
+              hint="We'll text a one-time code to this number."
             />
           ) : (
             <Field

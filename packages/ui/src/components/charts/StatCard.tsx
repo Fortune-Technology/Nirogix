@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { cn } from "../../cn";
 import { compact, domain, linePath } from "./geometry";
@@ -23,13 +24,38 @@ export interface StatCardProps {
   /** Optional trailing sparkline; same token colour rules as the charts. */
   spark?: { values: number[]; color: string };
   icon?: ReactNode;
+  /**
+   * Make the card a link to the records behind the number (ADR-062). Pass one
+   * only when the click has a genuine destination — Total Patients to the Patients
+   * table, Today's Appointments to Appointments filtered to today. Never add one
+   * for visual uniformity. Takes precedence over `onClick`.
+   */
+  href?: string;
+  /** A card whose click runs an action rather than navigates. Ignored when `href` is set. */
+  onClick?: () => void;
+  /**
+   * Accessible name for the clickable card. Defaults to the label; set it when the
+   * label alone would not tell a screen-reader user where the click goes
+   * ("Outstanding" → "Outstanding balance, open the billing ledger").
+   */
+  linkLabel?: string;
+  /** `highlight` tints the tile with the brand accent for the one figure that leads a dashboard. */
+  variant?: "default" | "highlight";
   className?: string;
 }
 
 /**
- * One KPI tile (ADR-043). Deliberately dumb: it renders what it is given and has
- * no opinion about where the number came from — the page is responsible for only
- * passing metrics that have a data source.
+ * One KPI tile (ADR-043, ADR-062). Deliberately dumb about *where* the number came
+ * from — the page passes only metrics that have a data source — but it does own how
+ * a trend reads and how a click behaves.
+ *
+ * A trend's colour is decided by what the metric means, never by its sign: pass
+ * `invertDelta` where a fall is the good outcome (wait time, failed sign-ins), so a
+ * drop shows as `--good` and a rise as `--bad`.
+ *
+ * Pass `href` (or `onClick`) only when the tile has a real destination; the card
+ * then becomes a link/button with hover, focus-visible, keyboard and active states
+ * and an accessible name. A tile with nowhere useful to go stays a plain `div`.
  */
 export function StatCard({
   label,
@@ -40,6 +66,10 @@ export function StatCard({
   invertDelta = false,
   spark,
   icon,
+  href,
+  onClick,
+  linkLabel,
+  variant = "default",
   className,
 }: StatCardProps) {
   const loading = value === null;
@@ -47,11 +77,24 @@ export function StatCard({
   const good = dir === "flat" ? null : invertDelta ? dir === "down" : dir === "up";
   const DeltaIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
-  return (
-    <div className={cn("hms-stat", className)}>
+  const clickable = Boolean(href) || Boolean(onClick);
+  const rootClass = cn(
+    "hms-stat",
+    variant === "highlight" && "hms-stat--highlight",
+    clickable && "hms-stat--link",
+    className,
+  );
+
+  const body = (
+    <>
       <div className="hms-stat__head">
         <span className="hms-stat__label">{label}</span>
-        {icon ? <span className="hms-stat__icon">{icon}</span> : null}
+        {icon || clickable ? (
+          <span className="hms-stat__head-end">
+            {icon ? <span className="hms-stat__icon">{icon}</span> : null}
+            {clickable ? <ArrowUpRight className="hms-stat__go" size={15} strokeWidth={2} aria-hidden /> : null}
+          </span>
+        ) : null}
       </div>
 
       {loading ? (
@@ -94,6 +137,25 @@ export function StatCard({
           </svg>
         ) : null}
       </div>
-    </div>
+    </>
   );
+
+  // A link where a destination exists; a button where a click runs an action; a
+  // plain tile otherwise. The interactive states live on `.hms-stat--link` so all
+  // three read identically.
+  if (href) {
+    return (
+      <Link href={href} className={rootClass} aria-label={linkLabel ?? label}>
+        {body}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={rootClass} aria-label={linkLabel ?? label}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={rootClass}>{body}</div>;
 }

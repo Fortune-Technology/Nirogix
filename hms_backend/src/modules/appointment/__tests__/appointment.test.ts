@@ -69,7 +69,7 @@ describe('appointments', () => {
 
   test('cancelling frees the slot (a new booking then succeeds)', async ({ skip }) => {
     if (!ready) return skip();
-    const list = await listAppointments(tenantId, { page: 1, pageSize: 20, status: 'booked' });
+    const list = await listAppointments(tenantId, { page: 1, pageSize: 20, status: ['booked'] });
     const at10 = list.rows.find((r) => r.scheduledAt === new Date(T10).toISOString());
     expect(at10).toBeTruthy();
     await cancelAppointment(tenantId, at10!.id, 'patient rescheduled');
@@ -77,6 +77,13 @@ describe('appointments', () => {
     // The 10:00 slot is now free → re-booking succeeds.
     const again = await bookAppointment(tenantId, { patientId, providerId, scheduledAt: T10 });
     expect(again.status).toBe('booked');
+
+    // Multi-value status filter (ADR-063): asking for booked OR cancelled returns
+    // only those, and never fewer than the single-status query.
+    const multi = await listAppointments(tenantId, { page: 1, pageSize: 50, status: ['booked', 'cancelled'] });
+    for (const r of multi.rows) expect(['booked', 'cancelled']).toContain(r.status);
+    const bookedOnly = await listAppointments(tenantId, { page: 1, pageSize: 50, status: ['booked'] });
+    expect(multi.total).toBeGreaterThanOrEqual(bookedOnly.total);
   });
 
   test('list is enriched with patient + provider names', async ({ skip }) => {

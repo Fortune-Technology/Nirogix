@@ -80,10 +80,10 @@ function Wizard() {
             </div>
           </dl>
           <div className="mt-5 flex gap-2">
-            <Link href={`/admin/tenants/${done.tenant.id}`}>
+            <Link href={`/tenants/${done.tenant.id}`}>
               <Button>View tenant</Button>
             </Link>
-            <Link href="/admin/tenants">
+            <Link href="/tenants">
               <Button variant="secondary">Back to list</Button>
             </Link>
           </div>
@@ -144,7 +144,7 @@ function Wizard() {
 
         <div className="flex items-center gap-3">
           <Button type="submit" loading={submitting}>Onboard tenant</Button>
-          <Link href="/admin/tenants">
+          <Link href="/tenants">
             <Button variant="ghost" type="button">Cancel</Button>
           </Link>
           <Badge tone="brand">{selected.size} modules selected</Badge>

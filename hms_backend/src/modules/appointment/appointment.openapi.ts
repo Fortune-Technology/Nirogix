@@ -23,7 +23,10 @@ registry.registerPath({
       to: z.string().optional(),
       providerId: z.string().uuid().optional(),
       patientId: z.string().uuid().optional(),
-      status: z.string().optional(),
+      status: z
+        .string()
+        .optional()
+        .openapi({ description: 'Comma-separated statuses (multi-select): booked,cancelled,completed,no_show' }),
     }),
   },
   responses: { 200: { description: 'Appointments', ...json(AppointmentsPageSchema) }, 401: notAuthed, 403: notEntitled },

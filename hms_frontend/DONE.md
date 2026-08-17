@@ -580,3 +580,43 @@ Both use the existing `updatePatient` / `updateUser` endpoints, so the server re
 **What is deliberately not editable.** `code` on both. It identifies the record in check-in routing, in exports, and in any integration a hospital has built on top, so renaming one silently re-points all of them — that is a migration, not a correction. A department's head and specialty stay on the create form until `@hms/ui` has a `Select`; a free-text box for a foreign key would be worse than the current gap.
 
 **Testing status:** typecheck and build clean; the dialog's behaviour was verified in a running browser (see `packages/ui/DONE.md` for what was checked, including the focus bug it surfaced).
+
+## 2026-08-17 — Dashboards link to their records; patients filters run server-side (ADR-062, ADR-063)
+
+**Every KPI tile with a real destination now navigates.** Across the hospital-admin, clinical (doctor / receptionist / pharmacist / lab) and staff dashboards, tiles like "In the queue now", "Collected", "Outstanding", "Lab results pending" and "Registered today" link to the OPD queue, Billing, the laboratory worklist and today's registrations — each with an accessible name that says where it goes. Tiles with no genuine destination ("Seen today") stay plain, per ADR-062.
+
+**Patients filters the whole dataset, not the page.** The table's gender/status/city facets and a new registration date-range (`DateRangeFilter`) now reach the API — `listPatients` sends them and the backend applies them — so a selection narrows every page, not just the rows on screen. `defaultHidden` audit (ADR-063): the patient **Registered** column, audit **Severity**, registration **Email** and pharmacy **Reorder** are visible by default again; only the registration free-text note stays hidden, now with a stated reason in the config.
+
+**Testing status:** typecheck and build clean; the DataTable + StatCard behaviour is covered by `@hms/ui` unit tests and the patient filters by backend tests (against a real DB). A live browser pass was not run — it needs the full stack plus a seeded login, and the `.claude/launch.json` ports are mis-mapped (tracked in BACKLOG).
+
+## 2026-08-17 — Appointments, billing and audit filter through the shared faceted filter (ADR-063)
+
+Each of these tables carried a bespoke status/severity `<select>` beside a `filterable` column that did nothing in server mode. They now use the **one** faceted filter (with predefined `filterOptions` so the closed enum shows in full), routed through `server.filters` to the API — so the control is multi-select, server-side, and identical to every other table. The bespoke selects and their separate state are gone. Appointments' **provider** facet was removed rather than half-wired: it filtered by display name, not id (a proper `providerId` control is tracked in BACKLOG).
+
+**Testing status:** typecheck and build clean; the wiring is covered by `@hms/ui` and backend tests.
+
+## 2026-08-17 — Billing gains an invoice-total amount filter (ADR-063)
+
+The billing table now carries a `NumberRangeFilter` for invoice total: the user enters rupees, the page converts to paise, and `GET /invoices` narrows on `amountFrom`/`amountTo` server-side. This completes the ADR-063 filter set (facets, date-range, amount-range).
+
+**Testing status:** typecheck and build clean; `NumberRangeFilter` is covered by `@hms/ui` tests.
+
+## 2026-08-17 — Shared page header; End-of-day report (#1, #2)
+
+**Page header consolidated.** The Portal's `PageHeader` is now the shared `@hms/ui` one (the local file re-exports it), and `DashboardShell` renders it too — so the role dashboards' title block matches every other tab instead of its old bigger, context-above-title layout. `/reports` gained the description it was missing.
+
+**End-of-day report.** The hospital's **EOD report** — one day's operating picture: a date (default today), tiles for visits / collected / payments / labs-still-pending, and the visit register plus the day's collections, exportable to CSV. It sits in **Revenue → EOD report** beside Reports (`/reports/eod`, so it highlights on its own route via the longest-match rule), gated by the same `reports.view`. Built on the existing report endpoints with `from === to === the day`, so it invents no metric the platform cannot already produce; uses the shared `PageHeader`, `StatCard`, `DataTable`, `DateField`.
+
+**Testing status:** typecheck and build clean (`/reports/eod` prerendered); the report endpoints are covered by backend tests.
+
+## 2026-08-17 — Page-header/action CTAs on the shared Button
+
+Normalized the remaining raw `hms-btn` class usages in Portal app code onto the shared `<Button>`, so a button's size/padding comes from the component, not from per-page classes. The role dashboards' primary action (`PrimaryAction` in `ClinicalDashboard`, "Register patient" in `HospitalAdminDashboard`) were `hms-btn--sm` links inside the page-header actions slot — smaller than every other page's `<Button>` CTA; they now use the shared `<Button>` (md) via `<Link><Button>`. The 404 page's two links moved onto `<Button>` / `<Button variant="secondary">` the same way. No raw `hms-btn` class usage remains in Portal app code (the shared `@hms/ui` primitives that own the class internally are unchanged).
+
+**Testing status:** typecheck and build clean.
+
+## 2026-08-17 — Documents settings: letterhead image, page size, unified preview (ADR-065)
+
+`/settings/documents` is now one cohesive screen (fetches the profile once, no longer via `ProfileForm`): a **Letterhead image** card (upload / preview / replace / remove through `uploadLetterheadImage` / `removeLetterheadImage`), a **Page size** segmented radiogroup (A4 / A5 / US Letter / US Legal) and the existing letterhead text fields saved together, and a live **Preview** that shows the image (or the text header) on a page whose aspect ratio matches the selected size. `useDocumentBrand` now passes `letterheadImageUrl` + `pageSize` to every print document, so the choices reach invoices, receipts, prescriptions and reports with no per-page change.
+
+**Testing status:** typecheck clean. Verified live in the Portal (CITYCARE): the letterhead image loads, the page-size selector re-shapes the preview (A4→US Legal `216/356`), and an invoice print document renders the letterhead band with the injected `@page` size.

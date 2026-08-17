@@ -33,10 +33,33 @@ export const RecordPaymentBody = z
   })
   .openapi('RecordPaymentBody');
 
+const INVOICE_STATUSES = ['draft', 'partially_paid', 'paid', 'void'] as const;
+type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+/**
+ * A single status or a comma-separated multi-select from the DataTable's faceted
+ * filter (ADR-063): `status=paid,partially_paid` becomes `['paid','partially_paid']`.
+ * Unknown values are dropped.
+ */
+const statusFilter = z
+  .string()
+  .optional()
+  .transform((v): InvoiceStatus[] | undefined => {
+    if (!v) return undefined;
+    const vals = v
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s): s is InvoiceStatus => (INVOICE_STATUSES as readonly string[]).includes(s));
+    return vals.length ? vals : undefined;
+  });
+
 export const ListInvoicesQuery = z
   .object({
     patientId: z.string().uuid().optional(),
-    status: z.enum(['draft', 'partially_paid', 'paid', 'void']).optional(),
+    status: statusFilter,
+    // Invoice-total range, in paise, from the DataTable's amount filter (ADR-063).
+    amountFrom: z.coerce.number().int().min(0).optional(),
+    amountTo: z.coerce.number().int().min(0).optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),
   })

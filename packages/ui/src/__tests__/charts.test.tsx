@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AreaChart, BarChart, StatCard, UsageBar } from "../components/charts";
 import { areaPath, compact, domain, linePath, nearestIndex, tickIndices, yAt } from "../components/charts/geometry";
 
@@ -94,6 +94,42 @@ describe("stat card", () => {
       <StatCard label="Failed sign-ins" value={12} invertDelta delta={{ value: 4, label: "vs last month" }} />,
     );
     expect(container.querySelector(".hms-stat__delta--bad")).not.toBeNull();
+  });
+
+  it("stays a plain tile — not a link or button — when it has nowhere to go", () => {
+    const { container } = render(<StatCard label="Outstanding" value={42} />);
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(container.querySelector(".hms-stat--link")).toBeNull();
+    expect(container.querySelector(".hms-stat__go")).toBeNull();
+  });
+
+  it("becomes a link with a destination and an accessible name when given an href", () => {
+    render(<StatCard label="Total patients" value={12450} href="/patients" />);
+    const link = screen.getByRole("link", { name: "Total patients" });
+    expect(link.getAttribute("href")).toBe("/patients");
+    expect(link.classList.contains("hms-stat--link")).toBe(true);
+    // The affordance is present at rest, not only on hover.
+    expect(link.querySelector(".hms-stat__go")).not.toBeNull();
+  });
+
+  it("prefers a caller's accessible name over the bare label", () => {
+    render(<StatCard label="Outstanding" value={42} href="/billing" linkLabel="Outstanding balance, open billing" />);
+    expect(screen.getByRole("link", { name: "Outstanding balance, open billing" })).toBeDefined();
+  });
+
+  it("runs an action as a button when given onClick, not a navigation", () => {
+    const onClick = vi.fn();
+    render(<StatCard label="Refresh" value={7} onClick={onClick} />);
+    const button = screen.getByRole("button", { name: "Refresh" });
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("applies the highlight variant when asked", () => {
+    const { container } = render(<StatCard label="Collected" value={99} variant="highlight" />);
+    expect(container.querySelector(".hms-stat--highlight")).not.toBeNull();
   });
 });
 

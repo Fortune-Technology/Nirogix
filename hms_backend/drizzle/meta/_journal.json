@@ -155,6 +155,13 @@
       "when": 1786895529198,
       "tag": "0021_great_photon",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786966021966,
+      "tag": "0022_open_masque",
+      "breakpoints": true
     }
   ]
 }

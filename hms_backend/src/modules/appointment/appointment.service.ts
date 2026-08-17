@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { appointments, patients, providers, type Appointment } from '../../db/schema';
 import { Errors } from '../../http/error';
@@ -102,7 +102,15 @@ export async function bookAppointment(
 
 export async function listAppointments(
   tenantId: string,
-  opts: { page: number; pageSize: number; from?: string; to?: string; providerId?: string; patientId?: string; status?: string },
+  opts: {
+    page: number;
+    pageSize: number;
+    from?: string;
+    to?: string;
+    providerId?: string;
+    patientId?: string;
+    status?: readonly string[];
+  },
 ): Promise<{ rows: AppointmentView[]; total: number }> {
   return runWithTenant(tenantId, async (tx) => {
     const filters = [eq(appointments.tenantId, tenantId)];
@@ -110,7 +118,7 @@ export async function listAppointments(
     if (opts.to) filters.push(lte(appointments.scheduledAt, new Date(opts.to)));
     if (opts.providerId) filters.push(eq(appointments.providerId, opts.providerId));
     if (opts.patientId) filters.push(eq(appointments.patientId, opts.patientId));
-    if (opts.status) filters.push(eq(appointments.status, opts.status));
+    if (opts.status?.length) filters.push(inArray(appointments.status, opts.status as string[]));
     const where = and(...filters);
 
     const rows = await tx

@@ -66,7 +66,7 @@ function Reports() {
 
   const opdCols: Array<Column<OpdRegisterRow>> = [
     { key: "visit", header: "Visit", hideable: false, accessor: (r) => r.visitNumber, cell: (r) => <span className="font-mono text-xs">{r.visitNumber}</span> },
-    { key: "token", header: "Token", align: "right", accessor: (r) => r.tokenNumber, cell: (r) => `#${r.tokenNumber}` },
+    { key: "token", header: "Token", accessor: (r) => r.tokenNumber, cell: (r) => `#${r.tokenNumber}` },
     { key: "date", header: "Date", accessor: (r) => r.visitDate, cell: (r) => formatDate(r.visitDate) },
     { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
     { key: "provider", header: "Provider", filterable: true, accessor: (r) => r.providerName ?? "—", cell: (r) => r.providerName ?? "—" },
@@ -87,7 +87,7 @@ function Reports() {
     { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
     { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceNumber, cell: (r) => <span className="font-mono text-xs">{r.invoiceNumber}</span> },
     { key: "method", header: "Method", filterable: true, accessor: (r) => r.method.toUpperCase(), cell: (r) => r.method.toUpperCase() },
-    { key: "amount", header: "Amount", align: "right", accessor: (r) => r.amountPaise, cell: (r) => formatPaise(r.amountPaise) },
+    { key: "amount", header: "Amount", accessor: (r) => r.amountPaise, cell: (r) => formatPaise(r.amountPaise) },
   ];
 
   function exportCsv() {
@@ -116,6 +116,7 @@ function Reports() {
     <>
       <PageHeader
         title="Reports"
+        description="Operational registers and summaries for your hospital, exportable to CSV."
         actions={<Button variant="secondary" onClick={exportCsv}><Download size={16} strokeWidth={2} /> Export CSV</Button>}
       />
 

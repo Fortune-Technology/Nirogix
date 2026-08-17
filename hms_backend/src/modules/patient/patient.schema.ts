@@ -28,10 +28,28 @@ export const UpdatePatientBody = CreatePatientBody.partial()
   .extend({ status: z.enum(['active', 'archived']).optional() })
   .openapi('UpdatePatientBody');
 
+/**
+ * A comma-separated multi-select from the DataTable's faceted filter (ADR-063):
+ * `?gender=male,female` becomes `['male', 'female']`. Absent stays undefined so the
+ * service omits the clause entirely.
+ */
+const csvFilter = z
+  .string()
+  .optional()
+  .transform((v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined));
+
+/** An ISO calendar date (`YYYY-MM-DD`) from a DateRangeFilter end (ADR-046, ADR-063). */
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
+
 export const ListPatientsQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().max(100).optional(),
+  gender: csvFilter,
+  status: csvFilter,
+  city: csvFilter,
+  registeredFrom: isoDate,
+  registeredTo: isoDate,
 });
 
 export const PatientSchema = z

@@ -19,6 +19,9 @@ import { cn } from "../../cn";
  * when it has configured them, and the platform default when it has not.
  */
 
+/** The paper a document targets (ADR-065). Maps to a sheet width and a CSS `@page size`. */
+export type DocumentPageSize = "A4" | "A5" | "LETTER" | "LEGAL";
+
 export interface DocumentBrand {
   /** The hospital's name. Falls back to the platform's when absent. */
   organizationName?: string | null;
@@ -34,7 +37,24 @@ export interface DocumentBrand {
   /** Who signs by default, and their designation. */
   signatoryName?: string | null;
   signatoryDesignation?: string | null;
+  /**
+   * A pre-designed letterhead image (ADR-065). When set it becomes the document's header —
+   * the constructed name/logo/contact block is replaced, because a hospital that has uploaded
+   * a full letterhead strip has already put its identity in the image.
+   */
+  letterheadImageUrl?: string | null;
+  /** The configured page size. `PrintDocument`'s own `pageSize` prop overrides it. */
+  pageSize?: DocumentPageSize | null;
 }
+
+// Each size → the sheet width shown on screen and the keyword a print `@page size` uses.
+// A single reusable table, never an A4 special case: adding a size is one row here.
+const PAGE_GEOMETRY: Record<DocumentPageSize, { width: string; page: string }> = {
+  A4: { width: "210mm", page: "A4" },
+  A5: { width: "148mm", page: "A5" },
+  LETTER: { width: "216mm", page: "letter" },
+  LEGAL: { width: "216mm", page: "legal" },
+};
 
 export interface PrintDocumentProps {
   brand: DocumentBrand;
@@ -48,6 +68,8 @@ export interface PrintDocumentProps {
   footerNote?: ReactNode;
   /** Adds "Computer-generated…" under the footer rule. On by default. */
   computerGenerated?: boolean;
+  /** Overrides the hospital's configured page size for this one document type. */
+  pageSize?: DocumentPageSize;
   children: ReactNode;
 }
 
@@ -60,36 +82,66 @@ export function PrintDocument({
   meta,
   footerNote,
   computerGenerated = true,
+  pageSize,
   children,
 }: PrintDocumentProps) {
   const org = brand.organizationName?.trim() || DEFAULT_ORG;
   const accent = brand.accent || "var(--hms-brand)";
+  const size: DocumentPageSize = pageSize ?? brand.pageSize ?? "A4";
+  const geometry = PAGE_GEOMETRY[size] ?? PAGE_GEOMETRY.A4;
+  const hasLetterhead = Boolean(brand.letterheadImageUrl);
+
+  // The document's own name + number. Sits on the right of the constructed header, or in a
+  // full-width bar under the letterhead image when one is configured.
+  const titleBlock = (
+    <>
+      <h1 className="hms-doc__title">{title}</h1>
+      {reference ? <div className="hms-doc__reference">{reference}</div> : null}
+    </>
+  );
 
   return (
-    <article className="hms-doc" style={{ ["--doc-accent" as string]: accent }}>
-      <header className="hms-doc__header">
-        <div className="hms-doc__identity">
-          {brand.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- the print document is
-            // rendered for paper/PDF, where next/image's optimizer and lazy loading only
-            // get in the way; the logo must be present the instant the dialog opens.
-            <img src={brand.logoUrl} alt="" className="hms-doc__logo" />
-          ) : null}
-          <div>
-            <div className="hms-doc__org">{org}</div>
-            {brand.headerLine ? <div className="hms-doc__tagline">{brand.headerLine}</div> : null}
-            {(brand.contactLines ?? []).map((line) => (
-              <div key={line} className="hms-doc__contact">
-                {line}
-              </div>
-            ))}
+    <article
+      className="hms-doc"
+      data-page-size={size}
+      style={{ ["--doc-accent" as string]: accent, ["--doc-width" as string]: geometry.width }}
+    >
+      {/* Drive the printed sheet size. `@page` cannot be scoped by selector, so it is set
+          here rather than in the shared stylesheet — this component is only ever rendered
+          one-per-page, in a print route. */}
+      <style>{`@page { size: ${geometry.page}; margin: 12mm; }`}</style>
+
+      {hasLetterhead ? (
+        <header className="hms-doc__header hms-doc__header--image">
+          {/* eslint-disable-next-line @next/next/no-img-element -- print document: next/image's
+              optimizer/lazy-loading only get in the way; the letterhead must be present the
+              instant the dialog opens. */}
+          <img src={brand.letterheadImageUrl!} alt="" className="hms-doc__letterhead" />
+        </header>
+      ) : (
+        <header className="hms-doc__header">
+          <div className="hms-doc__identity">
+            {brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- see above.
+              <img src={brand.logoUrl} alt="" className="hms-doc__logo" />
+            ) : null}
+            <div>
+              <div className="hms-doc__org">{org}</div>
+              {brand.headerLine ? <div className="hms-doc__tagline">{brand.headerLine}</div> : null}
+              {(brand.contactLines ?? []).map((line) => (
+                <div key={line} className="hms-doc__contact">
+                  {line}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="hms-doc__title-block">
-          <h1 className="hms-doc__title">{title}</h1>
-          {reference ? <div className="hms-doc__reference">{reference}</div> : null}
-        </div>
-      </header>
+          <div className="hms-doc__title-block">{titleBlock}</div>
+        </header>
+      )}
+
+      {/* With a letterhead image the identity IS the image, so the document title needs its
+          own row beneath it. */}
+      {hasLetterhead ? <div className="hms-doc__title-bar">{titleBlock}</div> : null}
 
       {meta ? <div className="hms-doc__meta">{meta}</div> : null}
 

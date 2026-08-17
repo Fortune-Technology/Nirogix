@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@hms/permissions";
 import type { LucideIcon } from "lucide-react";
-import { Building2, LayoutDashboard, LifeBuoy, Palette, ScrollText, UserCircle } from "lucide-react";
+import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Palette, ScrollText } from "lucide-react";
 
 /**
  * Platform administration navigation (ADR-037, ADR-051).
@@ -32,7 +32,12 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", href: "/", perm: null, icon: LayoutDashboard }],
+    items: [
+      { label: "Dashboard", href: "/", perm: null, icon: LayoutDashboard },
+      // A daily companion to the dashboard, built from the audit trail — the only
+      // thing the platform records per-day. Shares the audit permission.
+      { label: "EOD report", href: "/eod", perm: PERMISSIONS.AUDIT_VIEW, icon: CalendarCheck },
+    ],
   },
   {
     label: "Customers",
@@ -51,10 +56,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Security & audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },
-  {
-    label: "Account",
-    items: [{ label: "My profile", href: "/profile", perm: null, icon: UserCircle }],
-  },
+  // No "My profile" here: the admin app has no profile screen, and this file's own
+  // rule is that a nav item never points at an unbuilt route. Sign-out lives in the
+  // topbar. (Account management for operators is a later item — see BACKLOG.)
 ];
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);

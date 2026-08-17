@@ -9,6 +9,7 @@ import {
   Card,
   DateField,
   Field,
+  PhoneField,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { todayApiDate } from "@hms/utils";
@@ -84,7 +85,7 @@ function RegisterForm() {
 
         <Card header="Contact">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Phone" value={f.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
+            <PhoneField label="Phone" value={f.phone ?? ""} onChange={(v) => set("phone", v)} />
             <Field label="Email" type="email" value={f.email ?? ""} onChange={(e) => set("email", e.target.value)} />
             <Field label="Address" value={f.addressLine ?? ""} onChange={(e) => set("addressLine", e.target.value)} />
             <Field label="City" value={f.city ?? ""} onChange={(e) => set("city", e.target.value)} />

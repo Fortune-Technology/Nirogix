@@ -15,7 +15,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { AreaChart, BarChart, Card, StatCard, UsageBar, type Series } from "@hms/ui";
+import { AreaChart, BarChart, Button, Card, StatCard, UsageBar, type Series } from "@hms/ui";
 import type { DashboardOverview, OrgSummary } from "@hms/types";
 import * as api from "../../lib/api";
 import { formatDate, formatDayLabel, formatWeekday } from "@hms/utils";
@@ -120,8 +120,10 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
       title={`Hospital operations${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}
       controls={<RangeChips options={RANGES} value={days} onChange={setDays} label="Trend" />}
       actions={
-        <Link href="/patients/new" className="hms-btn hms-btn--primary hms-btn--sm">
-          <UserPlus size={16} strokeWidth={2} aria-hidden /> Register patient
+        <Link href="/patients/new">
+          <Button>
+            <UserPlus size={16} strokeWidth={2} aria-hidden /> Register patient
+          </Button>
         </Link>
       }
     >
@@ -136,6 +138,8 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           value={counts ? counts.checkedIn + counts.inConsultation : null}
           icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />}
           hint={counts ? `${counts.checkedIn} waiting · ${counts.inConsultation} in consult` : undefined}
+          href="/opd"
+          linkLabel="In the queue now — open the OPD queue"
         />
         <StatCard
           label="Seen today"
@@ -148,12 +152,16 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           value={overview ? formatPaise(collectedTotal) : null}
           icon={<Wallet size={16} strokeWidth={1.75} aria-hidden />}
           hint={overview ? `of ${formatPaise(billedTotal)} billed in ${days} days` : undefined}
+          href="/billing"
+          linkLabel="Collected — open billing"
         />
         <StatCard
           label="Outstanding"
           value={overview ? formatPaise(overview.outstandingPaise) : null}
           icon={<AlertTriangle size={16} strokeWidth={1.75} aria-hidden />}
           hint="Across every open invoice"
+          href="/billing"
+          linkLabel="Outstanding balance — open billing"
         />
       </KpiGrid>
 

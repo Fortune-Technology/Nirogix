@@ -1,8 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { pool } from '../../../db/client';
 import { seedPermissionCatalog } from '../../rbac/rbac.service';
 import { onboardTenant } from '../../admin/admin.service';
-import { getOrganizationProfile, updateOrganizationProfile, buildContactLines } from '../organization.service';
+import {
+  getOrganizationProfile,
+  updateOrganizationProfile,
+  buildContactLines,
+  setLetterheadImage,
+  clearLetterheadImage,
+} from '../organization.service';
+import { UpdateOrganizationProfileBody } from '../organization.schema';
 import { getSetupStatus } from '../../setup/setup.service';
 import { listEntitledModules } from '../../entitlement/entitlement.service';
 
@@ -140,6 +148,74 @@ describe('organization profile', () => {
       [tenantA],
     );
     expect(rows).toHaveLength(1);
+  });
+});
+
+// Letterhead image + page size (ADR-065). The image is a file id resolved to a URL on read,
+// exactly like the branding logo; page size rides the normal partial update.
+describe('letterhead image & page size', () => {
+  test('both default to null — the print layer falls back to the text header and A4', async ({ skip }) => {
+    if (!ready) return skip();
+    const p = await getOrganizationProfile(tenantB);
+    expect(p.documentPageSize).toBeNull();
+    expect(p.letterheadImageUrl).toBeNull();
+  });
+
+  test('a page-size choice persists and is read back', async ({ skip }) => {
+    if (!ready) return skip();
+    const updated = await updateOrganizationProfile(tenantA, { documentPageSize: 'A5' }, adminA);
+    expect(updated.documentPageSize).toBe('A5');
+    const read = await getOrganizationProfile(tenantA);
+    expect(read.documentPageSize).toBe('A5');
+  });
+
+  test('setting the letterhead image stores its file id; clearing removes it', async ({ skip }) => {
+    if (!ready) return skip();
+    const fileId = randomUUID();
+    await setLetterheadImage(tenantA, fileId, adminA);
+    const stored = await pool.query(
+      'SELECT letterhead_image_file_id FROM organization_profile WHERE tenant_id = $1',
+      [tenantA],
+    );
+    expect(stored.rows[0].letterhead_image_file_id).toBe(fileId);
+
+    const cleared = await clearLetterheadImage(tenantA, adminA);
+    expect(cleared.letterheadImageUrl).toBeNull();
+    const after = await pool.query(
+      'SELECT letterhead_image_file_id FROM organization_profile WHERE tenant_id = $1',
+      [tenantA],
+    );
+    expect(after.rows[0].letterhead_image_file_id).toBeNull();
+  });
+
+  test('letterhead-image changes are audited (set + remove)', async ({ skip }) => {
+    if (!ready) return skip();
+    const { rows } = await pool.query(
+      "SELECT action FROM audit_log WHERE tenant_id = $1 AND action IN ('organization.letterhead.image', 'organization.letterhead.image.remove')",
+      [tenantA],
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('setting one hospital’s letterhead never touches another’s', async ({ skip }) => {
+    if (!ready) return skip();
+    const b = await getOrganizationProfile(tenantB);
+    expect(b.letterheadImageUrl).toBeNull();
+    const { rows } = await pool.query(
+      'SELECT letterhead_image_file_id FROM organization_profile WHERE tenant_id = $1',
+      [tenantB],
+    );
+    expect(rows[0]?.letterhead_image_file_id ?? null).toBeNull();
+  });
+});
+
+describe('page-size validation', () => {
+  test('accepts only the known sizes', () => {
+    for (const size of ['A4', 'A5', 'LETTER', 'LEGAL']) {
+      expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: size }).success).toBe(true);
+    }
+    expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: 'FOOLSCAP' }).success).toBe(false);
+    expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: 'a4' }).success).toBe(false);
   });
 });
 

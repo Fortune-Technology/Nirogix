@@ -113,7 +113,7 @@ function Tests() {
       sortable: false,
       cell: (t) => (t.refLow || t.refHigh ? `${t.refLow ?? ""}–${t.refHigh ?? ""} ${t.unit ?? ""}` : "—"),
     },
-    { key: "price", header: "Price", align: "right", accessor: (t) => t.pricePaise, cell: (t) => formatPaise(t.pricePaise) },
+    { key: "price", header: "Price", accessor: (t) => t.pricePaise, cell: (t) => formatPaise(t.pricePaise) },
   ];
 
   return (

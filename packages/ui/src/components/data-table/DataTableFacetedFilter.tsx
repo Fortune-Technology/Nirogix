@@ -9,12 +9,29 @@ import { Menu, MenuCheckboxItem, MenuSeparator } from "../Menu";
  * Standard DataTable: "filters are reusable components"). A module marks a column
  * `filterable` — status, department, doctor, branch, role, priority, payment
  * status — and gets the same control everywhere, no per-page implementation.
+ *
+ * `options` overrides the derived values with a fixed set — required for a closed
+ * enum on a server-mode table, where the data only ever holds one page (ADR-063).
  */
-export function DataTableFacetedFilter<Row>({ column, label }: { column: Column<Row, unknown>; label: string }) {
+export function DataTableFacetedFilter<Row>({
+  column,
+  label,
+  options: fixed,
+}: {
+  column: Column<Row, unknown>;
+  label: string;
+  options?: Array<{ value: string; label?: string }>;
+}) {
   const selected = new Set((column.getFilterValue() as string[] | undefined) ?? []);
-  const options = [...column.getFacetedUniqueValues().entries()]
-    .filter(([value]) => value !== undefined && value !== null && value !== "")
-    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  const counts = column.getFacetedUniqueValues();
+  // Fixed options keep their given order; derived options are sorted. A fixed
+  // option shows a count only when that value happens to be on the current page.
+  const options: Array<{ value: string; label: string; count?: number }> = fixed
+    ? fixed.map((o) => ({ value: o.value, label: o.label ?? o.value, count: counts.get(o.value) }))
+    : [...counts.entries()]
+        .filter(([value]) => value !== undefined && value !== null && value !== "")
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+        .map(([value, count]) => ({ value: String(value), label: String(value), count }));
 
   if (options.length === 0) return null;
 
@@ -36,10 +53,10 @@ export function DataTableFacetedFilter<Row>({ column, label }: { column: Column<
         </>
       }
     >
-      {options.map(([value, count]) => (
-        <MenuCheckboxItem key={String(value)} checked={selected.has(String(value))} onToggle={() => toggle(String(value))}>
-          <span className="hms-filter__label">{String(value)}</span>
-          <span className="hms-filter__facet">{count}</span>
+      {options.map((o) => (
+        <MenuCheckboxItem key={o.value} checked={selected.has(o.value)} onToggle={() => toggle(o.value)}>
+          <span className="hms-filter__label">{o.label}</span>
+          {o.count !== undefined ? <span className="hms-filter__facet">{o.count}</span> : null}
         </MenuCheckboxItem>
       ))}
       {selected.size > 0 ? (

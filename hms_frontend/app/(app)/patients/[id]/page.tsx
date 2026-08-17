@@ -11,6 +11,7 @@ import {
   Card,
   DateField,
   Field,
+  PhoneField,
   Spinner,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
@@ -132,7 +133,7 @@ function Profile({ id }: { id: string }) {
                   <option value="">—</option>{BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
               </label>
-              <Field label="Phone" value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
+              <PhoneField label="Phone" value={form.phone ?? ""} onChange={(v) => set("phone", v)} />
               <Field label="Email" type="email" value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} />
               <Field label="Address" value={form.addressLine ?? ""} onChange={(e) => set("addressLine", e.target.value)} />
               <Field label="City" value={form.city ?? ""} onChange={(e) => set("city", e.target.value)} />

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogOut, Menu, Moon, Sun } from "lucide-react";
-import { BrandMark, Button, NavDrawer, NavDrawerItem, NavDrawerSection } from "@hms/ui";
+import { LogOut, Menu } from "lucide-react";
+import { BrandMark, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
 import { useAuth } from "../lib/auth";
-import { useTheme } from "../lib/theme";
 import { navGroupsFor } from "../lib/nav";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * The platform admin shell (ADR-051).
@@ -17,10 +17,14 @@ import { navGroupsFor } from "../lib/nav";
  * screen is one you can misread under pressure. There is no tenant switcher and no
  * support-session banner here: entering a hospital hands the operator the *Portal*,
  * on the tenant's origin, where the banner belongs.
+ *
+ * The shell mirrors the Portal's (`hms_frontend/components/AppShell.tsx`): a sticky
+ * sidebar that owns its own scroll and a sticky topbar, so only the main content
+ * region scrolls rather than the whole viewport. Admin has no bottom bar (an
+ * operator tool has few destinations); the hamburger drawer is its mobile nav.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, can, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -35,61 +39,70 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
-    <div className="flex min-h-dvh bg-bg">
-      {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface md:flex">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-          <BrandMark size={28} />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-fg">Nirogix</div>
-            <div className="truncate text-xs text-fg-subtle">Platform admin</div>
-          </div>
+    // Window-scroll shell like the Portal: sticky sidebar + topbar, one scrollbar, no
+    // trailing gap. Uses `dvh` rather than `vh` — in this environment `h-screen`
+    // (100vh) failed to give the sidebar a height, collapsing it to its content and
+    // leaving `min-h-screen` to stretch `main` past its content into a bottom gap.
+    <div className="flex min-h-dvh">
+      {/* Sticks for the full viewport height and scrolls INSIDE itself only when the
+          menu is longer than the screen — otherwise it never shows its own scrollbar.
+          `data-lenis-prevent` keeps the document smooth-scroll off it, so a wheel over
+          the menu scrolls the menu, not the page (matches the Portal). */}
+      <aside
+        data-lenis-prevent
+        className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface md:flex"
+      >
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-5">
+          <BrandMark size={24} label="" />
+          <span className="font-semibold text-fg">Nirogix Admin</span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {groups.map((group) => (
-            <div key={group.label ?? "root"} className="mb-4">
-              {group.label && (
-                <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-fg-subtle">
+        <nav className="flex flex-1 flex-col gap-4 p-3">
+          {groups.map((group, gi) => (
+            <div
+              key={group.label ?? `group-${gi}`}
+              className={cn("flex flex-col gap-1", gi > 0 && "border-t border-border pt-4")}
+            >
+              {group.label ? (
+                <span className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.07em] text-fg-subtle">
                   {group.label}
-                </div>
-              )}
-              <ul>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        aria-current={isActive(item.href) ? "page" : undefined}
-                        className={[
-                          "flex items-center gap-2.5 rounded-token px-2.5 py-2 text-sm transition-colors",
-                          isActive(item.href)
-                            ? "bg-brand-subtle font-medium text-brand"
-                            : "text-fg-muted hover:bg-surface-2 hover:text-fg",
-                        ].join(" ")}
-                      >
-                        <Icon size={16} strokeWidth={2} aria-hidden />
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+                </span>
+              ) : null}
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
+                      active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+                    )}
+                  >
+                    <Icon size={17} strokeWidth={1.75} className="shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </nav>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
+        {/* Sticks while the page scrolls, so the account details and the theme toggle
+            are always one click away — the sidebar does the same on its side. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
           <button
             type="button"
-            className="rounded-token p-2 text-fg-muted hover:bg-surface-2 md:hidden"
+            className="grid h-9 w-9 place-items-center rounded-token text-fg-muted hover:bg-surface-2 hover:text-fg md:hidden"
             aria-label="Open navigation"
+            aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen(true)}
           >
-            <Menu size={18} strokeWidth={2} />
+            <Menu size={20} strokeWidth={1.75} aria-hidden />
           </button>
 
           <div className="min-w-0 flex-1">
@@ -97,15 +110,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="truncate text-xs text-fg-subtle">{user?.email}</div>
           </div>
 
-          <Button variant="secondary" size="sm" onClick={toggle} aria-label="Switch theme">
-            {theme === "dark" ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={signOut}>
-            <LogOut size={16} strokeWidth={2} /> Sign out
-          </Button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Button variant="secondary" size="sm" onClick={signOut}>
+              <LogOut size={16} strokeWidth={2} /> Sign out
+            </Button>
+          </div>
         </header>
 
-        <main className="flex flex-1 flex-col gap-5 p-4 md:p-6">{children}</main>
+        <main className="flex flex-1 flex-col gap-5 bg-bg p-5">{children}</main>
       </div>
 
       {/* Mobile drawer — the shared component, so focus trapping and scroll locking

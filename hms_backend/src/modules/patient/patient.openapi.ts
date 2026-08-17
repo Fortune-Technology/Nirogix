@@ -15,13 +15,19 @@ registry.registerPath({
   operationId: 'listPatients',
   tags: ['Patients'],
   summary: 'List / search patients (paginated)',
-  description: 'Search matches UHID, name, or phone. Requires the patient module + `patient.record.view`.',
+  description:
+    'Search matches UHID, name, or phone. `gender`, `status` and `city` are comma-separated multi-select filters (e.g. `gender=male,female`) applied server-side. Requires the patient module + `patient.record.view`.',
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
       page: z.coerce.number().int().min(1).optional(),
       pageSize: z.coerce.number().int().min(1).max(100).optional(),
       search: z.string().optional(),
+      gender: z.string().optional().openapi({ description: 'Comma-separated: male,female,other' }),
+      status: z.string().optional().openapi({ description: 'Comma-separated patient status values' }),
+      city: z.string().optional().openapi({ description: 'Comma-separated city names' }),
+      registeredFrom: z.string().optional().openapi({ description: 'Registration date lower bound (YYYY-MM-DD)' }),
+      registeredTo: z.string().optional().openapi({ description: 'Registration date upper bound (YYYY-MM-DD)' }),
     }),
   },
   responses: { 200: { description: 'Patients', ...json(PatientsPageSchema) }, 401: notAuthed, 403: notEntitled },

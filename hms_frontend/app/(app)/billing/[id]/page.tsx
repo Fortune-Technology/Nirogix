@@ -35,23 +35,20 @@ function lineItemColumns(currency: string): Array<Column<Invoice["lineItems"][nu
         </span>
       ),
     },
-    { key: "qty", header: "Qty", align: "right", cell: (li) => <span className="text-fg-muted">{li.quantity}</span> },
+    { key: "qty", header: "Qty", cell: (li) => <span className="text-fg-muted">{li.quantity}</span> },
     {
       key: "unit",
       header: "Unit",
-      align: "right",
       cell: (li) => <span className="text-fg-muted">{formatPaise(li.unitPricePaise, currency)}</span>,
     },
     {
       key: "tax",
       header: "Tax",
-      align: "right",
       cell: (li) => <span className="text-fg-muted">{formatPaise(li.taxPaise, currency)}</span>,
     },
     {
       key: "amount",
       header: "Amount",
-      align: "right",
       cell: (li) => <span className="text-fg">{formatPaise(li.lineTotalPaise, currency)}</span>,
     },
   ];

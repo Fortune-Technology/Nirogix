@@ -29,10 +29,10 @@ function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
 }
 
 function AppointmentsTable() {
-  // Server mode: the API owns paging and the status filter.
+  // Server mode: the API owns paging and the status filter, which now flows through
+  // the table's own faceted filter rather than a bespoke select (ADR-063).
   const [rows, setRows] = useState<Appointment[]>([]);
-  const [status, setStatus] = useState("");
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [] });
+  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,13 +40,15 @@ function AppointmentsTable() {
   const canCancel = useCan(PERMISSIONS.APPOINTMENT_CANCEL);
   const canCheckIn = useCan(PERMISSIONS.OPD_CHECKIN);
 
+  const statusFilter = query.filters.status;
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.listAppointments({
         page: query.page,
         pageSize: query.pageSize,
-        status: status || undefined,
+        status: query.filters.status?.length ? query.filters.status.join(",") : undefined,
       });
       setRows(res.data);
       setTotal(res.page.total);
@@ -56,7 +58,7 @@ function AppointmentsTable() {
     } finally {
       setLoading(false);
     }
-  }, [query, status]);
+  }, [query]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -91,7 +93,7 @@ function AppointmentsTable() {
         </Link>
       ),
     },
-    { key: "provider", header: "Provider", filterable: true, accessor: (a) => a.providerName, cell: (a) => a.providerName },
+    { key: "provider", header: "Provider", accessor: (a) => a.providerName, cell: (a) => a.providerName },
     {
       key: "dur",
       header: "Duration",
@@ -102,6 +104,12 @@ function AppointmentsTable() {
       key: "status",
       header: "Status",
       filterable: true,
+      filterOptions: [
+        { value: "booked" },
+        { value: "cancelled" },
+        { value: "completed" },
+        { value: "no_show", label: "no show" },
+      ],
       accessor: (a) => a.status,
       cell: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge>,
     },
@@ -148,32 +156,15 @@ function AppointmentsTable() {
         loading={loading}
         error={error}
         onRetry={() => void load()}
-        emptyMessage={status ? "No appointments with this status." : "No appointments."}
+        emptyMessage={statusFilter?.length ? "No appointments with this status." : "No appointments."}
         urlState
-        filters={
-          <label className="inline-flex items-center gap-2 text-sm text-fg-muted">
-            <span className="sr-only">Appointment status</span>
-            <select
-              className="hms-input hms-input--sm"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setQuery((q) => ({ ...q, page: 1 }));
-              }}
-            >
-              <option value="">All statuses</option>
-              <option value="booked">Booked</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
-        }
         server={{
           total,
           page: query.page,
           pageSize: query.pageSize,
           search: query.search,
           sort: query.sort,
+          filters: query.filters,
           onChange: setQuery,
         }}
       />

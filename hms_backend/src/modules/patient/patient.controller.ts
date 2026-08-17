@@ -30,8 +30,18 @@ function toPatient(p: Patient) {
 }
 
 export async function listPatients(req: Request, res: Response): Promise<void> {
-  const { page, pageSize, search } = ListPatientsQuery.parse(req.query);
-  const { rows, total } = await svc.listPatients(req.auth!.tenantId, { page, pageSize, search });
+  const { page, pageSize, search, gender, status, city, registeredFrom, registeredTo } =
+    ListPatientsQuery.parse(req.query);
+  const { rows, total } = await svc.listPatients(req.auth!.tenantId, {
+    page,
+    pageSize,
+    search,
+    gender,
+    status,
+    city,
+    registeredFrom,
+    registeredTo,
+  });
   res.json(paginate(rows.map(toPatient), total, page, pageSize));
 }
 

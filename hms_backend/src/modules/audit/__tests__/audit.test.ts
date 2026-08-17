@@ -53,6 +53,20 @@ describe('audit log', () => {
     expect(rows.some((r) => r.action === 'test.event' && r.resourceId === 'abc')).toBe(true);
   });
 
+  test('a date window over created_at drives the end-of-day report', async ({ skip }) => {
+    if (!ready) return skip();
+    const toISO = (d: Date): string => d.toISOString().slice(0, 10);
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);
+    const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
+
+    // Today's window includes the entry written above; a future-only or past-only window excludes it.
+    const todayWin = await listAudit(tenantId, { page: 1, pageSize: 10, from: toISO(now), to: toISO(now) });
+    expect(todayWin.rows.some((r) => r.action === 'test.event')).toBe(true);
+    expect((await listAudit(tenantId, { page: 1, pageSize: 10, from: toISO(tomorrow) })).total).toBe(0);
+    expect((await listAudit(tenantId, { page: 1, pageSize: 10, to: toISO(yesterday) })).total).toBe(0);
+  });
+
   test('audit_log is append-only: UPDATE and DELETE are blocked at the DB', async ({ skip }) => {
     if (!ready) return skip();
     const id = (await pool.query('SELECT id FROM audit_log WHERE tenant_id = $1 LIMIT 1', [tenantId]))

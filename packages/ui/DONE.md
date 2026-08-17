@@ -281,3 +281,45 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 **Verified in the browser**, not by inspection: portalled to body; `role`, `aria-modal`, and both `aria-labelledby` and `aria-describedby` resolving to real elements; the field prefilled and focused; Save disabled until something actually changes; the submitted patch containing **only the changed field**; the dialog closing after save; scroll unlocking; and Esc closing.
 
 **Testing status:** 73 tests pass; typecheck and build clean across all six workspaces.
+
+## 2026-08-17 — Clickable stat cards, server-side DataTable filters, and a date-range control (ADR-062, ADR-063)
+
+**Stat cards act now.** `StatCard` already coloured a trend by what it *means* (`invertDelta`) and skeletoned a loading value; what it could not do was be a destination, so dashboards had begun hand-rolling clickable tiles around it. It now takes an optional `href` (Next `Link`) or `onClick` and renders a link/button with hover, `focus-visible`, keyboard and active states, a persistent arrow affordance, an accessible name (`linkLabel`), and a `highlight` variant — or stays a plain `div` when there is nowhere useful to go. One tile for every dashboard; none is made clickable for uniformity.
+
+**The DataTable server contract now carries filters.** The bug ADR-063 names: `server.onChange` emitted only page/size/search/sort, so a faceted filter on a server-paged table narrowed only the rows already in the browser. `DataTableQuery`/`ServerMode` gained a `filters` map; the table seeds it on mount, re-emits on change and on Clear, and resolves the filter updater *outside* `setColumnFilters` so the request fires once, not twice under StrictMode. Callers that filter client-side are unaffected; the five server-mode tables just needed `filters: {}` in their initial query.
+
+**`DateRangeFilter`** — the structured control a bare search box cannot replace for a date column. Two `DateField`s (so `DD/MM/YYYY` display, ISO value), each bounding the other, plus a clear control; it drops into the toolbar's `filters` slot and the module owns the value.
+
+**Testing status:** 83 `@hms/ui` tests pass (+10: stat-card link/button/variant/affordance, the server-filter seed + emit + clear path, faceted-select emit, and the date-range control); typecheck clean across all eleven workspaces.
+
+## 2026-08-17 — Faceted filters take predefined options (ADR-063)
+
+`DataTableFacetedFilter` derived its options from the data, which is wrong in **server mode**: the table holds one page, so a closed enum (status, severity) would only offer the values that happened to be on it. A column may now declare `filterOptions` — a fixed list the filter shows in full, with a live count where a value is present on the page. This is what let appointments, billing and audit drop their bespoke status/severity `<select>`s for the one shared faceted filter.
+
+**Testing status:** 84 `@hms/ui` tests pass (+1); typecheck clean across all workspaces.
+
+## 2026-08-17 — Shared `PageHeader` and `PhoneField`
+
+**`PageHeader` moved into `@hms/ui`.** The Portal and the Admin console each carried an identical local `PageHeader`, and the Portal's role dashboards used a *different* title block (a context line above a `text-2xl` title) via `DashboardShell`. There is now one `PageHeader` here — title, optional muted description beneath, optional right-aligned actions that wrap on a narrow screen — and both apps' local files re-export it, so every tab reads the same and cannot drift. `DashboardShell` renders it too (the day/shift context becomes the description, the range chips and primary action the actions), so a dashboard's header now matches Patients, Reports and every other page. `/reports` gained the description it was missing.
+
+**`PhoneField` — the Indian-mobile input.** `+91` is a fixed, non-editable prefix, so the user types only their 10 digits; the value crossing the boundary is always canonical `+91XXXXXXXXXX` (or `""` while incomplete), matching what the backend stores and what the SMS provider needs. Paste is taken over so a pasted `+91…`/`91…`/`+91+91…` collapses to the last ten digits instead of doubling the country code; a legacy value in any format seeds the display leniently. `localIndianMobile` / `canonicalIndianMobile` are exported for reuse. Built on the `.hms-input` tokens, verified in both themes.
+
+**Testing status:** 93 `@hms/ui` tests pass (+6: PhoneField normalisation, seeding, paste, incomplete-state); typecheck clean across all workspaces; the four consuming apps build clean.
+
+## 2026-08-17 — `NumberRangeFilter`, the amount range (ADR-063)
+
+The date-range's numeric sibling: a min–max control for a column filtered by an amount or count, built on the same `.hms-rangefilter` chrome. Values are plain numbers in the caller's unit (billing passes rupees and converts to paise at the API), an emptied field is an open end (`null`, not zero), and one end bounds the other. Wired into billing as the invoice-total filter — the last named ADR-063 gap.
+
+**Testing status:** 87 `@hms/ui` tests pass (+3); typecheck clean across all workspaces.
+
+## 2026-08-17 — Every DataTable column is left-aligned (ADR-064)
+
+The DataTable's per-column `align` option is **gone** — removed from the `Column` type, the header (`th`), the sort control and the cells (`td`), so every column renders left, heading and values alike, with no way to opt out. The Action column (`actionsColumn`) lost its right-alignment too (still last, still shrink-to-fit). Every `align:` in a DataTable config across both apps and the now-dead `hms-cell--right/center` + `hms-th__sort--right/center` styles were deleted. `PrintTable` is untouched — a printed invoice still right-aligns money.
+
+**Testing status:** 93 `@hms/ui` tests pass (the Qty column's `align` assertion was dropped with the option); typecheck clean across all 11 workspaces; both apps build clean.
+
+## 2026-08-17 — PrintDocument: letterhead image + page size (ADR-065)
+
+`DocumentBrand` gains `letterheadImageUrl` and `pageSize`, and `PrintDocument` a `pageSize` prop that overrides the tenant default. When a letterhead image is set it renders as a full-width band that **replaces** the constructed name/logo/contact header, and the document title moves to a bar beneath it. A single `PAGE_GEOMETRY` table maps each size (`A4`/`A5`/`LETTER`/`LEGAL`) to a sheet width (the `--doc-width` custom property) and a CSS `@page size` keyword the component injects itself — a bare `@page` cannot be scoped by selector, and the document renders one-per-page in a print route. New `.hms-doc__header--image`, `.hms-doc__letterhead` and `.hms-doc__title-bar` styles; `.hms-doc` width now follows `--doc-width` (A4 default). `PrintTable` alignment untouched.
+
+**Testing status:** 93 `@hms/ui` tests pass; typecheck clean. Verified live: an invoice print document renders the uploaded letterhead band with the title beneath it and injects the configured `@page` size.

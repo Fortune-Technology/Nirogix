@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { DataTable } from "../components/data-table/DataTable";
+import { DateRangeFilter } from "../components/data-table/DateRangeFilter";
+import { NumberRangeFilter } from "../components/data-table/NumberRangeFilter";
 import type { Column } from "../components/data-table/types";
 
 /**
@@ -23,7 +25,7 @@ const ROWS: Row[] = [
 const columns: Array<Column<Row>> = [
   { key: "name", header: "Name", accessor: (r) => r.name, cell: (r) => r.name },
   { key: "city", header: "City", filterable: true, accessor: (r) => r.city, cell: (r) => r.city },
-  { key: "qty", header: "Qty", align: "right", accessor: (r) => r.qty, cell: (r) => String(r.qty) },
+  { key: "qty", header: "Qty", accessor: (r) => r.qty, cell: (r) => String(r.qty) },
 ];
 
 function bodyNames(): string[] {
@@ -155,5 +157,103 @@ describe("server mode", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ sort: [{ key: "name", dir: "asc" }], page: 1 }),
     );
+  });
+
+  it("carries a filters map on every emit, even when nothing is filtered", () => {
+    const onChange = vi.fn();
+    render(
+      <DataTable columns={columns} rows={ROWS} rowKey={(r) => r.id} server={{ total: 3, page: 1, pageSize: 20, onChange }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Page 1" }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ filters: {} }));
+  });
+
+  it("restores a server-provided filter and sends it back to the API when cleared (ADR-063)", () => {
+    const onChange = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        rows={ROWS}
+        rowKey={(r) => r.id}
+        server={{ total: 3, page: 1, pageSize: 20, filters: { city: ["Pune"] }, onChange }}
+      />,
+    );
+    // The seeded filter is active, so the toolbar offers to clear it.
+    const clear = screen.getByRole("button", { name: /Clear/ });
+    fireEvent.click(clear);
+    // Clearing narrows nothing — and the server, not just the browser, is told so.
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ filters: {}, page: 1 }));
+  });
+
+  it("selecting a faceted value emits it to the server", () => {
+    const onChange = vi.fn();
+    render(
+      <DataTable columns={columns} rows={ROWS} rowKey={(r) => r.id} server={{ total: 3, page: 1, pageSize: 20, onChange }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Filter by City/i }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Pune/ }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ filters: { city: ["Pune"] }, page: 1 }));
+  });
+
+  it("offers predefined faceted options even when they are absent from the page (ADR-063)", () => {
+    const onChange = vi.fn();
+    const withOptions: Array<Column<Row>> = [
+      { key: "name", header: "Name", accessor: (r) => r.name, cell: (r) => r.name },
+      {
+        key: "city",
+        header: "City",
+        filterable: true,
+        // Delhi is on no row here — but in server mode the table only sees one page,
+        // so a closed enum must still offer every value.
+        filterOptions: [{ value: "Pune" }, { value: "Delhi" }, { value: "Mumbai" }],
+        accessor: (r) => r.city,
+        cell: (r) => r.city,
+      },
+    ];
+    render(
+      <DataTable columns={withOptions} rows={ROWS} rowKey={(r) => r.id} server={{ total: 3, page: 1, pageSize: 20, onChange }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Filter by City/i }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Delhi/ }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ filters: { city: ["Delhi"] }, page: 1 }));
+  });
+});
+
+describe("date range filter", () => {
+  it("names the group and clears the range back to open", () => {
+    const onChange = vi.fn();
+    render(<DateRangeFilter label="Registered" value={{ from: "2026-01-01", to: null }} onChange={onChange} />);
+    expect(screen.getByRole("group", { name: "Registered" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /Clear Registered filter/i }));
+    expect(onChange).toHaveBeenCalledWith({ from: null, to: null });
+  });
+
+  it("offers no clear control while the range is empty", () => {
+    render(<DateRangeFilter label="Registered" value={{ from: null, to: null }} onChange={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Clear/i })).toBeNull();
+  });
+});
+
+describe("number range filter", () => {
+  it("names the group, reports numbers (not strings), and clears both ends", () => {
+    const onChange = vi.fn();
+    render(<NumberRangeFilter label="Total (₹)" value={{ min: 100, max: null }} onChange={onChange} />);
+    expect(screen.getByRole("group", { name: "Total (₹)" })).toBeDefined();
+    fireEvent.change(screen.getByLabelText("Total (₹) maximum"), { target: { value: "500" } });
+    expect(onChange).toHaveBeenCalledWith({ min: 100, max: 500 });
+    fireEvent.click(screen.getByRole("button", { name: "Clear Total (₹) filter" }));
+    expect(onChange).toHaveBeenCalledWith({ min: null, max: null });
+  });
+
+  it("treats an emptied field as an open end, not zero", () => {
+    const onChange = vi.fn();
+    render(<NumberRangeFilter label="Total" value={{ min: 100, max: 500 }} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Total minimum"), { target: { value: "" } });
+    expect(onChange).toHaveBeenCalledWith({ min: null, max: 500 });
+  });
+
+  it("has no clear control while the range is empty", () => {
+    render(<NumberRangeFilter label="Total" value={{ min: null, max: null }} onChange={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Clear/i })).toBeNull();
   });
 });

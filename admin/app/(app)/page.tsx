@@ -21,6 +21,7 @@ import {
   AreaChart,
   Badge,
   BarChart,
+  Button,
   Card,
   DataTable,
   StatCard,
@@ -209,6 +210,8 @@ function PlatformOverview() {
           hint={`${stats?.hospitals.active ?? 0} active · ${stats?.hospitals.inactive ?? 0} inactive`}
           delta={newHospitals === null ? null : { value: newHospitals, label: "this month" }}
           spark={{ values: (trends?.hospitals ?? []).map((p) => p.cumulative), color: BRAND }}
+          href="/tenants"
+          linkLabel="Hospitals — open the tenant list"
         />
         <StatCard
           label="Staff accounts"
@@ -230,6 +233,8 @@ function PlatformOverview() {
           icon={<ShieldAlert size={16} strokeWidth={1.75} aria-hidden />}
           hint="All tenants, all time"
           invertDelta
+          href="/audit"
+          linkLabel="Failed sign-ins — open the audit trail"
         />
       </div>
 
@@ -334,9 +339,9 @@ function PlatformOverview() {
 
           <Card header="Quick actions">
             <div className="flex flex-col gap-2">
-              <QuickAction href="/admin/tenants/new" icon={<Plus size={15} strokeWidth={2} aria-hidden />} label="Onboard a hospital" meta="Create the tenant, grant modules, add its first admin" />
-              <QuickAction href="/admin/tenants" icon={<Building2 size={15} strokeWidth={2} aria-hidden />} label="Manage hospitals" meta="Status, entitlements, support sessions" />
-              <QuickAction href="/admin/branding" icon={<Stethoscope size={15} strokeWidth={2} aria-hidden />} label="Platform branding" meta="Marketing and Portal defaults" />
+              <QuickAction href="/tenants/new" icon={<Plus size={15} strokeWidth={2} aria-hidden />} label="Onboard a hospital" meta="Create the tenant, grant modules, add its first admin" />
+              <QuickAction href="/tenants" icon={<Building2 size={15} strokeWidth={2} aria-hidden />} label="Manage hospitals" meta="Status, entitlements, support sessions" />
+              <QuickAction href="/branding" icon={<Stethoscope size={15} strokeWidth={2} aria-hidden />} label="Platform branding" meta="Marketing and Portal defaults" />
               <QuickAction href="/audit" icon={<ScrollText size={15} strokeWidth={2} aria-hidden />} label="Audit trail" meta="Every security-relevant action, all tenants" />
             </div>
           </Card>
@@ -471,8 +476,10 @@ export default function PlatformDashboardPage() {
         title="Platform overview"
         description="Every hospital on the platform. Aggregate figures only — no hospital's records are read from here."
         actions={
-          <Link href="/admin/tenants/new" className="hms-btn hms-btn--primary hms-btn--sm">
-            <UserPlus size={16} strokeWidth={2} aria-hidden /> Onboard hospital
+          <Link href="/tenants/new">
+            <Button>
+              <UserPlus size={16} strokeWidth={2} aria-hidden /> Onboard hospital
+            </Button>
           </Link>
         }
       />

@@ -187,7 +187,7 @@ function Detail({ id }: { id: string }) {
         title={tenant.name}
         description={`Org code ${tenant.code} · ${tenant.userCount} user(s)`}
         actions={
-          <Link href="/admin/tenants">
+          <Link href="/tenants">
             <Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All tenants</Button>
           </Link>
         }

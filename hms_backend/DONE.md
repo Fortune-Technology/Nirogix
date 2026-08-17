@@ -697,3 +697,35 @@ The interesting part was migrating patient sign-in onto it. The existing inline 
 The now-orphaned `createHash`/`randomInt` import went with it.
 
 **Testing status:** 14/14 patient-identity tests pass unchanged — the migration preserved expiry, attempt-limiting and single-use, which is what those tests assert. 119 backend tests, typecheck and build clean.
+
+## 2026-08-17 — Patient list gains server-side facet and date-range filters (ADR-063)
+
+`GET /patients` now accepts `gender`, `status`, `city` (comma-separated multi-select) and `registeredFrom`/`registeredTo` (ISO dates), applied as Drizzle `inArray` and inclusive day-bounds on `created_at`, composed with the existing tenant scope and free-text search. This is what makes the DataTable's faceted filters and its date-range control narrow the *whole* dataset rather than the page in the browser (ADR-063). OpenAPI documents each parameter; `openapi:validate` passes.
+
+**Testing status:** 121 backend tests pass (+2: facet composition — a male in Kochi is only Arjun — and the registration-date window, both against a real DB); typecheck and build clean.
+
+## 2026-08-17 — Appointment / invoice / audit lists accept multi-value filters (ADR-063)
+
+`GET /appointments` (`status`), `GET /invoices` (`status`) and `GET /audit` (`severity`) now take a comma-separated multi-select — a single value still works, so the dashboards' single-status/severity calls are unchanged — parsed to a validated enum array (unknown values dropped, so a malformed query never reaches the DB) and applied with Drizzle `inArray`. This is the backend half of routing the DataTable's faceted filters server-side. OpenAPI documents each as a CSV string; `openapi:validate` passes.
+
+**Testing status:** 121 backend tests pass (+1: appointments multi-status against a real DB); typecheck and build clean.
+
+## 2026-08-17 — Invoice list gains a total amount range (ADR-063)
+
+`GET /invoices` now accepts `amountFrom` / `amountTo` (paise), applied as Drizzle `gte` / `lte` on the invoice total — the backend half of the DataTable's amount-range control. OpenAPI documents both; `openapi:validate` passes.
+
+**Testing status:** typecheck and build clean (no billing service test harness exists; the change mirrors the tested appointment/patient filters).
+
+## 2026-08-17 — Audit trail gains a date window (EOD report, #2)
+
+`GET /audit` now accepts `from` / `to` (YYYY-MM-DD, inclusive), applied as Drizzle `gte` / `lte` on `created_at` — what the platform end-of-day report queries for a single day. Composes with the existing tenant scope, severity and search. OpenAPI documents both; `openapi:validate` passes.
+
+**Testing status:** 122 backend tests pass (+1: the date window includes today's entry and excludes future-only / past-only windows, against a real DB); typecheck and build clean.
+
+## 2026-08-17 — Letterhead image + configurable page size (ADR-065)
+
+`organization_profile` gains `letterhead_image_file_id` and `document_page_size` (migration 0022). The image reuses the branding-logo path — uploaded/removed through `POST`/`DELETE /organization/profile/letterhead-image` (`platform.organization.manage`, multipart, image-only, audited), stored via `FileStorageService`, resolved to a short-lived URL on every profile read. Page size (`A4` default, `A5`, `LETTER`, `LEGAL`) rides the normal `PUT /organization/profile` partial update, validated by a Zod enum. OpenAPI documents both new routes; `openapi:validate` passes (99 paths).
+
+Also fixed: the token-authorized file content route now sets `Cross-Origin-Resource-Policy: cross-origin`. Helmet's default `same-origin` was silently blocking every stored image (branding logo, letterhead) from being embedded in a frontend or a print document, which run on their own origins; the route stays gated by its signed short-lived token.
+
+**Testing status:** 128 backend tests pass (+8: page-size persistence, page-size enum validation, letterhead-image set/clear, its audit, and cross-tenant isolation, against a real DB); typecheck clean; OpenAPI valid.

@@ -54,11 +54,14 @@ function columns(
       accessor: (r) => r.dateOfBirth ?? "",
       cell: (r) => (r.dateOfBirth ? formatDate(r.dateOfBirth) : "—"),
     },
-    { key: "email", header: "Email", defaultHidden: true, accessor: (r) => r.email ?? "—", cell: (r) => r.email ?? "—" },
+    { key: "email", header: "Email", accessor: (r) => r.email ?? "—", cell: (r) => r.email ?? "—" },
     { key: "city", header: "City", filterable: true, accessor: (r) => r.city ?? "—", cell: (r) => r.city ?? "—" },
     {
       key: "note",
       header: "Their note",
+      // A free-text note the patient wrote; it can run long, so it is off by default
+      // to keep the review queue scannable — the reviewer restores it from the Columns
+      // menu (ADR-063: a hidden-by-default column must state why).
       defaultHidden: true,
       accessor: (r) => r.note ?? "",
       cell: (r) => <span className="text-fg-muted">{r.note || "—"}</span>,

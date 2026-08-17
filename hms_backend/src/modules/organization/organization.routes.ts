@@ -5,6 +5,7 @@ import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
 import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
+import { uploadSingle } from '../file/file.upload';
 import { UpdateOrganizationProfileBody } from './organization.schema';
 import { SubmitRegistrationBody, SetSelfRegistrationBody, RejectRegistrationBody } from './registration.schema';
 import * as c from './organization.controller';
@@ -29,6 +30,21 @@ organizationRouter.put(
   requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
   validate({ body: UpdateOrganizationProfileBody }),
   asyncHandler(c.updateProfile),
+);
+
+// The letterhead image (ADR-065) — same permission as the rest of the identity it prints as.
+organizationRouter.post(
+  '/organization/profile/letterhead-image',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  uploadSingle('file'),
+  asyncHandler(c.uploadLetterheadImage),
+);
+organizationRouter.delete(
+  '/organization/profile/letterhead-image',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  asyncHandler(c.removeLetterheadImage),
 );
 
 /**

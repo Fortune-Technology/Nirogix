@@ -26,13 +26,19 @@ export interface Column<Row> {
   filterable?: boolean;
   /** Label for the filter control; defaults to the header when it is a string. */
   filterLabel?: string;
+  /**
+   * Fixed options for the faceted filter, instead of deriving them from the data.
+   * Required for a closed enum (status, severity) on a **server-mode** table: the
+   * table only ever holds one page, so derived options would hide the values that
+   * are not on it (ADR-063). Values must match what the API filters on.
+   */
+  filterOptions?: Array<{ value: string; label?: string }>;
   /** Include in the toolbar's search. Defaults to true when `accessor` is present. */
   searchable?: boolean;
   /** Allow users to hide this column. Defaults to true; set false to pin it. */
   hideable?: boolean;
   /** Start hidden (users can restore it from the Columns menu). */
   defaultHidden?: boolean;
-  align?: "left" | "center" | "right";
 }
 
 export interface SortState {
@@ -40,12 +46,22 @@ export interface SortState {
   dir: "asc" | "desc";
 }
 
+/**
+ * Active faceted filters, as `{ columnKey: selectedValues }`. Empty arrays are
+ * omitted. This is what a server-mode table now sends alongside page/sort/search so
+ * a structured filter narrows the whole dataset, not just the page in the browser
+ * (ADR-063).
+ */
+export type ColumnFilters = Record<string, string[]>;
+
 /** What a server-driven table reports back when the user changes the view. */
 export interface DataTableQuery {
   page: number;
   pageSize: number;
   search: string;
   sort: SortState[];
+  /** Faceted column filters the user has selected. `{}` when none are active. */
+  filters: ColumnFilters;
 }
 
 /**
@@ -60,6 +76,8 @@ export interface ServerMode {
   pageSize: number;
   sort?: SortState[];
   search?: string;
+  /** Faceted filters to restore on mount, so a linked/reloaded view keeps them. */
+  filters?: ColumnFilters;
   onChange: (query: DataTableQuery) => void;
 }
 

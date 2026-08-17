@@ -12,6 +12,7 @@ import {
   FlaskConical,
   Receipt,
   BarChart3,
+  CalendarCheck,
   Stethoscope,
   UserCog,
   UserCircle,
@@ -76,6 +77,10 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Billing", href: "/billing", perm: PERMISSIONS.BILLING_VIEW, icon: Receipt },
       { label: "Reports", href: "/reports", perm: PERMISSIONS.REPORTS_VIEW, icon: BarChart3 },
+      // Sits with Reports — a day's operating picture is a report, and shares its
+      // permission. Nested under /reports so it highlights on its own route (the
+      // longest-match rule in `activeNavHref`) without stealing Reports' highlight.
+      { label: "EOD report", href: "/reports/eod", perm: PERMISSIONS.REPORTS_VIEW, icon: CalendarCheck },
     ],
   },
   {

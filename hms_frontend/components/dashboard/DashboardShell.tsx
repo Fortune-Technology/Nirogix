@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { cn } from "@hms/ui";
+import { PageHeader, cn } from "@hms/ui";
 
 /**
  * The one dashboard layout (ADR-044). Every role's dashboard — hospital admin,
@@ -32,16 +32,19 @@ export function DashboardShell({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          {context ? <div className="text-sm text-fg-muted">{context}</div> : null}
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-fg">{title}</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {controls}
-          {actions}
-        </div>
-      </div>
+      {/* The same title block as every other tab (the shared PageHeader): the context
+          line — the day, the shift — is the description, and the range chips and
+          primary action sit in the actions cluster. */}
+      <PageHeader
+        title={title}
+        description={context}
+        actions={controls || actions ? (
+          <>
+            {controls}
+            {actions}
+          </>
+        ) : undefined}
+      />
       {children}
     </div>
   );

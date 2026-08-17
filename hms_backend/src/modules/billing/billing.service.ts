@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   invoices,
@@ -245,7 +245,10 @@ export async function addInvoiceLine(tenantId: string, invoiceId: string, item: 
 
 export interface ListInvoicesFilter {
   patientId?: string;
-  status?: string;
+  status?: readonly string[];
+  /** Invoice-total range in paise (ADR-063). */
+  amountFrom?: number;
+  amountTo?: number;
   page: number;
   pageSize: number;
 }
@@ -254,7 +257,9 @@ export async function listInvoices(tenantId: string, filter: ListInvoicesFilter)
   return runWithTenant(tenantId, async (tx) => {
     const conds = [eq(invoices.tenantId, tenantId)];
     if (filter.patientId) conds.push(eq(invoices.patientId, filter.patientId));
-    if (filter.status) conds.push(eq(invoices.status, filter.status));
+    if (filter.status?.length) conds.push(inArray(invoices.status, filter.status as string[]));
+    if (filter.amountFrom !== undefined) conds.push(gte(invoices.totalPaise, filter.amountFrom));
+    if (filter.amountTo !== undefined) conds.push(lte(invoices.totalPaise, filter.amountTo));
     const where = and(...conds);
 
     const [rows, totalRows] = await Promise.all([

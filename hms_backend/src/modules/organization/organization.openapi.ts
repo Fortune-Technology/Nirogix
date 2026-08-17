@@ -44,6 +44,48 @@ registry.registerPath({
   },
 });
 
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/organization/profile/letterhead-image',
+  operationId: 'uploadLetterheadImage',
+  tags: ['Config'],
+  summary: 'Upload the letterhead image printed at the top of documents',
+  description:
+    'Multipart form field `file`, an image only (`image/*`). Stored through the FileStorageService; the id is kept on the profile and resolved to a short-lived URL on read. Replacing simply uploads again. Audited.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'multipart/form-data': {
+          schema: z.object({ file: z.string().openapi({ type: 'string', format: 'binary' }) }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: { description: 'Updated profile', ...json(OrganizationProfileSchema) },
+    401: notAuthed,
+    403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+    422: { description: 'Not an image', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/v1/organization/profile/letterhead-image',
+  operationId: 'removeLetterheadImage',
+  tags: ['Config'],
+  summary: 'Remove the configured letterhead image',
+  description:
+    'Drops the image from the profile so documents fall back to the constructed text header. The file soft-deletes and is retained for audit.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Updated profile', ...json(OrganizationProfileSchema) },
+    401: notAuthed,
+    403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+  },
+});
+
 // ---- Patient self-registration (ADR-056) -----------------------------------
 
 const idParam = z.object({ id: z.string().uuid() });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileQuestion, LayoutDashboard } from "lucide-react";
 import type { Metadata } from "next";
+import { Button } from "@hms/ui";
 
 export const metadata: Metadata = {
   title: "Page not found",
@@ -29,11 +30,13 @@ export default function NotFound() {
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <Link href="/dashboard" className="hms-btn hms-btn--primary">
-          <LayoutDashboard size={16} strokeWidth={2} aria-hidden /> Go to dashboard
+        <Link href="/dashboard">
+          <Button>
+            <LayoutDashboard size={16} strokeWidth={2} aria-hidden /> Go to dashboard
+          </Button>
         </Link>
-        <Link href="/login" className="hms-btn hms-btn--secondary">
-          Sign in
+        <Link href="/login">
+          <Button variant="secondary">Sign in</Button>
         </Link>
       </div>
     </main>

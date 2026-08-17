@@ -56,6 +56,11 @@ export async function content(req: Request, res: Response): Promise<void> {
   if (!result) throw Errors.notFound('File not found');
   res.setHeader('Content-Type', result.meta.contentType);
   res.setHeader('Content-Disposition', `inline; filename="${result.meta.filename}"`);
+  // These assets are embedded cross-origin by design — the frontends (portal, patient, admin,
+  // and every print document) run on their own origins, while the API serves the file. Helmet's
+  // default `Cross-Origin-Resource-Policy: same-origin` would block the <img>, so relax it for
+  // this one route. Safe: access is already gated by the signed, short-lived token in the URL.
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.send(result.body);
 }
 

@@ -192,6 +192,60 @@
   background: var(--hms-surface-2);
   cursor: not-allowed;
 }
+
+/* Indian-mobile input: a fixed +91 prefix beside a borderless 10-digit field, framed
+   as one control so it reads and focuses like a single `.hms-input`. */
+.hms-phonefield {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.hms-phonefield:focus-within {
+  border-color: var(--hms-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
+}
+.hms-phonefield--error {
+  border-color: var(--hms-danger);
+}
+.hms-phonefield--disabled {
+  background: var(--hms-surface-2);
+  cursor: not-allowed;
+}
+.hms-phonefield__prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5625rem 0.625rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  color: var(--hms-fg-muted);
+  background: var(--hms-surface-2);
+  border-right: 1px solid var(--hms-border);
+  user-select: none;
+}
+.hms-phonefield__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0.5625rem 0.75rem;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  color: var(--hms-fg);
+  outline: none;
+}
+.hms-phonefield__input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+.hms-phonefield__input:disabled {
+  cursor: not-allowed;
+}
 .hms-field__error {
   font-size: var(--hms-text-sm);
   color: var(--hms-danger);
@@ -496,6 +550,52 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* From–to date range filter in the toolbar (ADR-063). Sits inline with the faceted
+   filters; its own DateField chrome carries the borders, so this only lays them out. */
+.hms-rangefilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.hms-rangefilter__label {
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+  white-space: nowrap;
+}
+.hms-rangefilter__field {
+  width: 8.5rem;
+}
+.hms-rangefilter__num {
+  width: 6.5rem;
+}
+.hms-rangefilter__dash {
+  color: var(--hms-fg-subtle);
+}
+.hms-rangefilter__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-sm);
+  background: var(--hms-surface);
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.hms-rangefilter__clear:hover {
+  border-color: var(--hms-brand);
+  color: var(--hms-brand);
+}
+.hms-rangefilter__clear:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+}
+
 /* Sortable header */
 .hms-th__sort {
   display: inline-flex;
@@ -508,20 +608,6 @@
   color: inherit;
   cursor: pointer;
   border-radius: var(--hms-radius-sm);
-}
-/* A non-default alignment makes the sort control fill its cell, so `justify-content`
-   has room to work — as an inline-flex it would otherwise shrink to its label and sit
-   wherever the cell's text-align left it. */
-.hms-th__sort--center,
-.hms-th__sort--right {
-  display: flex;
-  width: 100%;
-}
-.hms-th__sort--center {
-  justify-content: center;
-}
-.hms-th__sort--right {
-  justify-content: flex-end;
 }
 .hms-th__sort:hover .hms-th__icon {
   color: var(--hms-fg);
@@ -550,12 +636,6 @@
 }
 .hms-table tbody tr[data-selected] td {
   background: var(--hms-brand-subtle);
-}
-.hms-cell--right {
-  text-align: right;
-}
-.hms-cell--center {
-  text-align: center;
 }
 .hms-checkbox {
   width: 0.95rem;
@@ -1687,6 +1767,79 @@
   flex: 0 0 auto;
   overflow: visible;
 }
+.hms-stat__head-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+/* The navigability affordance on a clickable tile (ADR-062) — present before hover,
+   so the card reads as a link, not only once the cursor is over it. */
+.hms-stat__go {
+  flex: 0 0 auto;
+  color: var(--hms-fg-subtle);
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+/* The brand-led tile — one figure a dashboard wants to lead with. */
+.hms-stat--highlight {
+  background: var(--hms-brand-subtle);
+  border-color: color-mix(in srgb, var(--hms-brand) 30%, var(--hms-border));
+}
+/* A tile that is a real link/button. The visual is identical to a plain tile at
+   rest; the states are what tell the user it acts. Button and anchor are reset onto
+   the same box so all three render the same. */
+.hms-stat--link {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  appearance: none;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.hms-stat--link:hover {
+  border-color: var(--hms-brand);
+  background: var(--hms-surface-2);
+  box-shadow: var(--hms-shadow-sm);
+  transform: translateY(-1px);
+}
+.hms-stat--highlight.hms-stat--link:hover {
+  background: color-mix(in srgb, var(--hms-brand) 20%, var(--hms-surface));
+}
+.hms-stat--link:hover .hms-stat__go,
+.hms-stat--link:focus-visible .hms-stat__go {
+  color: var(--hms-brand);
+  transform: translate(1px, -1px);
+}
+.hms-stat--link:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 2px;
+  border-color: var(--hms-brand);
+}
+.hms-stat--link:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-stat__go,
+  .hms-stat--link {
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .hms-stat--link:hover,
+  .hms-stat--link:active,
+  .hms-stat--link:hover .hms-stat__go,
+  .hms-stat--link:focus-visible .hms-stat__go {
+    transform: none;
+  }
+}
 
 /* Proportion bar */
 .hms-usage {
@@ -1795,7 +1948,8 @@
   --doc-muted: #4b5563;
   --doc-rule: #d1d5db;
   box-sizing: border-box;
-  width: 210mm;
+  /* Sheet width follows the configured page size (ADR-065); A4 when unset. */
+  width: var(--doc-width, 210mm);
   max-width: 100%;
   margin: 0 auto;
   padding: 16mm 14mm;
@@ -1805,6 +1959,34 @@
   font-size: 11pt;
   line-height: 1.45;
   box-shadow: var(--hms-shadow-md);
+}
+/* A pre-designed letterhead image (ADR-065) stands in for the constructed identity block:
+   full content width, its own aspect ratio kept, above a title bar carrying the accent rule. */
+.hms-doc__header--image {
+  display: block;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.hms-doc__letterhead {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60mm;
+  object-fit: contain;
+  object-position: center top;
+}
+.hms-doc__title-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 3mm;
+  padding-bottom: 4mm;
+  border-bottom: 2px solid var(--doc-accent);
+}
+.hms-doc__title-bar .hms-doc__reference {
+  margin-top: 0;
+  text-align: right;
 }
 .hms-doc__header {
   display: flex;

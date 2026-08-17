@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { organizationProfile, tenants, type OrganizationProfile } from '../../db/schema';
+import { getDownloadUrl } from '../file/file.service';
 import { writeAudit } from '../audit/audit.service';
 import type { UpdateOrganizationProfileInput } from './organization.schema';
 
@@ -33,6 +34,8 @@ export type ResolvedOrganizationProfile = {
   letterheadFooter: string | null;
   signatoryName: string | null;
   signatoryDesignation: string | null;
+  letterheadImageUrl: string | null;
+  documentPageSize: string | null;
   contactLines: string[];
   isComplete: boolean;
 };
@@ -79,6 +82,11 @@ export function buildContactLines(p: Partial<OrganizationProfile>): string[] {
 export async function getOrganizationProfile(tenantId: string): Promise<ResolvedOrganizationProfile> {
   const [tenant, row] = await Promise.all([getTenantRow(tenantId), getRow(tenantId)]);
   const p = row ?? {};
+  // The stored file id is resolved to a short-lived URL on every read, exactly like the
+  // branding logo — the id never leaves the server, and a stale URL cannot be replayed.
+  const letterheadImage = row?.letterheadImageFileId
+    ? await getDownloadUrl(tenantId, row.letterheadImageFileId)
+    : null;
   return {
     name: tenant.name,
     code: tenant.code,
@@ -101,6 +109,8 @@ export async function getOrganizationProfile(tenantId: string): Promise<Resolved
     letterheadFooter: row?.letterheadFooter ?? null,
     signatoryName: row?.signatoryName ?? null,
     signatoryDesignation: row?.signatoryDesignation ?? null,
+    letterheadImageUrl: letterheadImage?.url ?? null,
+    documentPageSize: row?.documentPageSize ?? null,
     contactLines: buildContactLines(p),
     isComplete: REQUIRED_FOR_DOCUMENTS.every((f) => Boolean(row?.[f])),
   };
@@ -154,5 +164,62 @@ export async function updateOrganizationProfile(
     metadata: { fields: Object.keys(patch) },
   });
 
+  return getOrganizationProfile(tenantId);
+}
+
+// Insert-or-update the profile row with a single letterhead-image patch. Mirrors the
+// upsert in `updateOrganizationProfile`: a hospital that has never opened Hospital
+// information can still set its letterhead first (ADR-065).
+async function upsertLetterheadImage(tenantId: string, fileId: string | null): Promise<void> {
+  await runWithTenant(tenantId, async (tx) => {
+    const existing = await tx
+      .select({ id: organizationProfile.id })
+      .from(organizationProfile)
+      .where(eq(organizationProfile.tenantId, tenantId))
+      .limit(1);
+    if (existing[0]) {
+      await tx
+        .update(organizationProfile)
+        .set({ letterheadImageFileId: fileId, version: sql`${organizationProfile.version} + 1`, updatedAt: new Date() })
+        .where(eq(organizationProfile.tenantId, tenantId));
+    } else {
+      await tx.insert(organizationProfile).values({ tenantId, letterheadImageFileId: fileId });
+    }
+  });
+}
+
+export async function setLetterheadImage(
+  tenantId: string,
+  fileId: string,
+  actorUserId: string,
+): Promise<ResolvedOrganizationProfile> {
+  await upsertLetterheadImage(tenantId, fileId);
+  await writeAudit({
+    tenantId,
+    actorUserId,
+    action: 'organization.letterhead.image',
+    severity: 'info',
+    resourceType: 'organization_profile',
+    resourceId: tenantId,
+    metadata: { fileId },
+  });
+  return getOrganizationProfile(tenantId);
+}
+
+export async function clearLetterheadImage(
+  tenantId: string,
+  actorUserId: string,
+): Promise<ResolvedOrganizationProfile> {
+  // The file id is dropped from the profile; the file itself soft-deletes and is retained
+  // for audit, so removing a letterhead never destroys the record that it once existed.
+  await upsertLetterheadImage(tenantId, null);
+  await writeAudit({
+    tenantId,
+    actorUserId,
+    action: 'organization.letterhead.image.remove',
+    severity: 'notice',
+    resourceType: 'organization_profile',
+    resourceId: tenantId,
+  });
   return getOrganizationProfile(tenantId);
 }

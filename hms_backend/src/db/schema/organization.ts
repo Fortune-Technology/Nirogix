@@ -55,6 +55,20 @@ export const organizationProfile = pgTable(
     signatoryName: varchar('signatory_name', { length: 200 }),
     signatoryDesignation: varchar('signatory_designation', { length: 200 }),
     /**
+     * Letterhead image and page geometry (ADR-065).
+     *
+     * `letterheadImageFileId` references a `file_metadata` id — a pre-designed header strip
+     * (the hospital's name, logo and address baked into one image, as most Indian hospitals
+     * already have printed). Plain uuid, no FK: files soft-delete and are retained for audit,
+     * same as `tenant_branding.logo_file_id`. When set it becomes the document's header.
+     *
+     * `documentPageSize` is the paper the printed document targets — A4 (default), A5, US
+     * Letter or US Legal — so the letterhead has a predictable relationship with the page.
+     * NULL means the platform default (A4); never hard-coded to A4 downstream.
+     */
+    letterheadImageFileId: uuid('letterhead_image_file_id'),
+    documentPageSize: varchar('document_page_size', { length: 10 }),
+    /**
      * Patient self-registration (ADR-056).
      *
      * `selfRegistrationToken` is an opaque random string, NOT the tenant id: a QR on a

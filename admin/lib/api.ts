@@ -179,6 +179,9 @@ export async function listAudit(
     pageSize?: number;
     search?: string;
     severity?: string;
+    /** Inclusive date window over created_at (YYYY-MM-DD) — the end-of-day report uses `from === to`. */
+    from?: string;
+    to?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
   } = {},
@@ -188,6 +191,8 @@ export async function listAudit(
   q.set("pageSize", String(opts.pageSize ?? 20));
   if (opts.search) q.set("search", opts.search);
   if (opts.severity) q.set("severity", opts.severity);
+  if (opts.from) q.set("from", opts.from);
+  if (opts.to) q.set("to", opts.to);
   if (opts.sortBy) q.set("sortBy", opts.sortBy);
   if (opts.sortDir) q.set("sortDir", opts.sortDir);
   return request<Paginated<AuditEntry>>(`/audit?${q.toString()}`);

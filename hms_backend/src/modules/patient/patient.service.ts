@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, type SQL } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { patients, type Patient } from '../../db/schema';
 import { Errors } from '../../http/error';
@@ -89,22 +89,41 @@ export async function getPatient(tenantId: string, id: string): Promise<Patient 
 
 export async function listPatients(
   tenantId: string,
-  opts: { page: number; pageSize: number; search?: string },
+  opts: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    gender?: string[];
+    status?: string[];
+    city?: string[];
+    registeredFrom?: string;
+    registeredTo?: string;
+  },
 ): Promise<{ rows: Patient[]; total: number }> {
   const term = opts.search?.trim();
   return runWithTenant(tenantId, async (tx) => {
-    const base = eq(patients.tenantId, tenantId);
-    const where = term
-      ? and(
-          base,
-          or(
-            ilike(patients.uhid, `%${term}%`),
-            ilike(patients.firstName, `%${term}%`),
-            ilike(patients.lastName, `%${term}%`),
-            ilike(patients.phone, `%${term}%`),
-          ),
-        )
-      : base;
+    // RLS already scopes to the tenant; this repeats it as a belt-and-braces WHERE.
+    // Faceted filters (gender/status/city) narrow on the server now, so a selection
+    // filters the whole dataset rather than the page in the browser (ADR-063).
+    const conds: Array<SQL | undefined> = [eq(patients.tenantId, tenantId)];
+    if (term) {
+      conds.push(
+        or(
+          ilike(patients.uhid, `%${term}%`),
+          ilike(patients.firstName, `%${term}%`),
+          ilike(patients.lastName, `%${term}%`),
+          ilike(patients.phone, `%${term}%`),
+        ),
+      );
+    }
+    if (opts.gender?.length) conds.push(inArray(patients.gender, opts.gender));
+    if (opts.status?.length) conds.push(inArray(patients.status, opts.status));
+    if (opts.city?.length) conds.push(inArray(patients.city, opts.city));
+    // Registration date range (inclusive of the whole `to` day). The DateRangeFilter
+    // sends ISO calendar dates; timestamps are compared against day bounds.
+    if (opts.registeredFrom) conds.push(gte(patients.createdAt, new Date(`${opts.registeredFrom}T00:00:00.000Z`)));
+    if (opts.registeredTo) conds.push(lte(patients.createdAt, new Date(`${opts.registeredTo}T23:59:59.999Z`)));
+    const where = and(...conds);
     const rows = await tx
       .select()
       .from(patients)

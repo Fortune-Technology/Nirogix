@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, type SQL } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { auditLog, type AuditLog } from '../../db/schema';
 import { logger } from '../../config/logger';
@@ -50,7 +50,11 @@ export type AuditListOptions = {
   pageSize: number;
   /** Free-text over action / path / resource type. */
   search?: string;
-  severity?: AuditSeverity;
+  /** One or more severities (multi-select faceted filter, ADR-063). */
+  severity?: readonly AuditSeverity[];
+  /** Inclusive date window over `created_at` (YYYY-MM-DD) — drives the end-of-day report. */
+  from?: string;
+  to?: string;
   sortBy?: 'createdAt' | 'action' | 'severity' | 'statusCode';
   sortDir?: 'asc' | 'desc';
 };
@@ -69,7 +73,9 @@ export async function listAudit(
 ): Promise<{ rows: AuditLog[]; total: number }> {
   return runWithTenant(tenantId, async (tx) => {
     const filters: SQL[] = [eq(auditLog.tenantId, tenantId)];
-    if (opts.severity) filters.push(eq(auditLog.severity, opts.severity));
+    if (opts.severity?.length) filters.push(inArray(auditLog.severity, opts.severity as string[]));
+    if (opts.from) filters.push(gte(auditLog.createdAt, new Date(`${opts.from}T00:00:00.000Z`)));
+    if (opts.to) filters.push(lte(auditLog.createdAt, new Date(`${opts.to}T23:59:59.999Z`)));
     if (opts.search?.trim()) {
       const term = `%${opts.search.trim()}%`;
       const match = or(

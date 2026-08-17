@@ -35,7 +35,7 @@ function tenantColumns(busy: boolean, onSetStatus: (t: Tenant, status: string) =
     hideable: false,
     accessor: (t) => t.code,
     cell: (t) => (
-      <Link href={`/admin/tenants/${t.id}`} className="font-medium text-brand hover:underline">
+      <Link href={`/tenants/${t.id}`} className="font-medium text-brand hover:underline">
         {t.code}
       </Link>
     ),
@@ -56,7 +56,7 @@ function tenantColumns(busy: boolean, onSetStatus: (t: Tenant, status: string) =
   },
   actionsColumn<Tenant>((t) => (
     <TableActions label={`Actions for ${t.name}`}>
-      <ViewAction label="View tenant" href={`/admin/tenants/${t.id}`} />
+      <ViewAction label="View tenant" href={`/tenants/${t.id}`} />
       <ToggleAction
         on={t.status === "active"}
         onLabel="Suspend tenant"
@@ -120,7 +120,7 @@ function TenantsTable() {
         title="Tenants"
         description="Every hospital / organization on the platform."
         actions={
-          <Link href="/admin/tenants/new">
+          <Link href="/tenants/new">
             <Button><Plus size={16} strokeWidth={2} /> Onboard tenant</Button>
           </Link>
         }

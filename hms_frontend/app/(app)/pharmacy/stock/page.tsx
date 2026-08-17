@@ -152,7 +152,6 @@ function Stock() {
     {
       key: "onHand",
       header: "On hand",
-      align: "right",
       accessor: (d) => d.onHand,
       cell: (d) => (
         <span className="flex items-center gap-2">
@@ -164,15 +163,12 @@ function Stock() {
     {
       key: "price",
       header: "Price",
-      align: "right",
       accessor: (d) => d.unitPricePaise,
       cell: (d) => formatPaise(d.unitPricePaise),
     },
     {
       key: "reorder",
       header: "Reorder",
-      align: "right",
-      defaultHidden: true,
       accessor: (d) => d.reorderLevel,
       cell: (d) => <span className="text-fg-muted">{d.reorderLevel || "—"}</span>,
     },

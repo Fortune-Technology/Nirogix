@@ -210,6 +210,14 @@ export interface Branding {
 // numbers. Every field is optional — a document prints the lines that exist and
 // omits the rest rather than inventing a placeholder.
 
+/**
+ * The paper a printed document targets (ADR-065). One reusable set shared by the
+ * settings selector and the print layer — never an A4 special case. `LETTER`/`LEGAL`
+ * are US sizes; the print CSS maps each to a sheet width and a `@page size`.
+ */
+export const DOCUMENT_PAGE_SIZES = ['A4', 'A5', 'LETTER', 'LEGAL'] as const;
+export type DocumentPageSize = (typeof DOCUMENT_PAGE_SIZES)[number];
+
 export interface OrganizationProfile {
   /** From the tenant row — provisioned by the platform, not editable here. */
   name: string;
@@ -234,6 +242,10 @@ export interface OrganizationProfile {
   letterheadFooter: string | null;
   signatoryName: string | null;
   signatoryDesignation: string | null;
+  /** Short-lived URL for the uploaded letterhead image (ADR-065); null when none is set. */
+  letterheadImageUrl: string | null;
+  /** The paper printed documents target. Null means the platform default (A4). */
+  documentPageSize: DocumentPageSize | null;
   /** The same data pre-ordered for a printed document header. */
   contactLines: string[];
   /** True once the fields an invoice header needs are present. */
@@ -267,8 +279,10 @@ export interface PublicRegistrationContext {
   enabled: boolean;
 }
 
+// `letterheadImageUrl` is upload-only (its own multipart route), so it is not part of the
+// partial text update — only `documentPageSize` rides the normal PUT.
 export type UpdateOrganizationProfileRequest = Partial<
-  Omit<OrganizationProfile, 'name' | 'code' | 'contactLines' | 'isComplete'>
+  Omit<OrganizationProfile, 'name' | 'code' | 'contactLines' | 'isComplete' | 'letterheadImageUrl'>
 >;
 
 // ---- Hospital Setup Console (hms_backend/src/modules/setup, ADR-049) --------

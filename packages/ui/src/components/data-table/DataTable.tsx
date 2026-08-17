@@ -13,6 +13,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
+  type Updater,
   type VisibilityState,
 } from "@tanstack/react-table";
 import { cn } from "../../cn";
@@ -22,7 +23,7 @@ import { DataTableFacetedFilter } from "./DataTableFacetedFilter";
 import { DataTablePagination } from "./DataTablePagination";
 import { DataTableToolbar } from "./DataTableToolbar";
 import { DataTableViewOptions } from "./DataTableViewOptions";
-import type { Column, DataTableProps, SortState } from "./types";
+import type { Column, ColumnFilters, DataTableProps, SortState } from "./types";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50, 100];
 
@@ -77,7 +78,9 @@ export function DataTable<Row>({
   const [sorting, setSorting] = useState<SortingState>(
     server?.sort?.map((s) => ({ id: s.key, desc: s.dir === "desc" })) ?? initial.sorting,
   );
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
+    server?.filters ? recordToColumnFilters(server.filters) : [],
+  );
   const [visibility, setVisibility] = useState<VisibilityState>(() =>
     Object.fromEntries(columns.filter((c) => c.defaultHidden).map((c) => [c.key, false])),
   );
@@ -99,7 +102,7 @@ export function DataTable<Row>({
       enableColumnFilter: Boolean(col.filterable),
       enableGlobalFilter: col.searchable ?? Boolean(col.accessor),
       filterFn: col.filterable ? "arrIncludesSome" : "includesString",
-      meta: { label: typeof col.header === "string" ? col.header : col.key, align: col.align, width: col.width },
+      meta: { label: typeof col.header === "string" ? col.header : col.key, width: col.width },
       header: () => col.header,
       cell: (ctx) => col.cell(ctx.row.original, ctx.row.index),
     }));
@@ -135,6 +138,54 @@ export function DataTable<Row>({
     return defs;
   }, [columns, selectable]);
 
+  // ---- server mode: report view changes; never fetch from inside the table --
+  const emit = useCallback(
+    (
+      next: Partial<{
+        page: number;
+        pageSize: number;
+        search: string;
+        sorting: SortingState;
+        columnFilters: ColumnFiltersState;
+      }>,
+    ) => {
+      if (!server) return;
+      const sort: SortState[] = (next.sorting ?? sorting).map((s) => ({
+        key: s.id,
+        dir: s.desc ? "desc" : "asc",
+      }));
+      server.onChange({
+        page: next.page ?? page,
+        pageSize: next.pageSize ?? pageSize,
+        search: next.search ?? search,
+        sort,
+        // The fix at the heart of ADR-063: a faceted filter now reaches the API,
+        // so on a server-paged table it narrows the whole dataset, not just the
+        // rows already in the browser.
+        filters: columnFiltersToRecord(next.columnFilters ?? columnFilters),
+      });
+    },
+    [server, sorting, page, pageSize, search, columnFilters],
+  );
+
+  /**
+   * A faceted filter changed. Client mode just updates local state (TanStack
+   * filters the rows); server mode also resets to page 1 and asks the API for the
+   * newly-narrowed set. Resolved outside `setColumnFilters` so the emit fires once,
+   * not once per StrictMode double-invocation.
+   */
+  const changeColumnFilters = useCallback(
+    (updater: Updater<ColumnFiltersState>) => {
+      const nextFilters = typeof updater === "function" ? updater(columnFilters) : updater;
+      setColumnFilters(nextFilters);
+      if (server) {
+        setPage(1);
+        emit({ columnFilters: nextFilters, page: 1 });
+      }
+    },
+    [columnFilters, server, emit],
+  );
+
   const table = useReactTable({
     data: rows,
     columns: columnDefs,
@@ -154,7 +205,7 @@ export function DataTable<Row>({
     manualFiltering: Boolean(server),
     pageCount: server ? Math.max(1, Math.ceil(server.total / server.pageSize)) : undefined,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: changeColumnFilters,
     onColumnVisibilityChange: setVisibility,
     onRowSelectionChange: setSelection,
     onGlobalFilterChange: setSearch,
@@ -165,24 +216,6 @@ export function DataTable<Row>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
     ...(paginationOn && !server ? { getPaginationRowModel: getPaginationRowModel() } : {}),
   });
-
-  // ---- server mode: report view changes; never fetch from inside the table --
-  const emit = useCallback(
-    (next: Partial<{ page: number; pageSize: number; search: string; sorting: SortingState }>) => {
-      if (!server) return;
-      const sort: SortState[] = (next.sorting ?? sorting).map((s) => ({
-        key: s.id,
-        dir: s.desc ? "desc" : "asc",
-      }));
-      server.onChange({
-        page: next.page ?? page,
-        pageSize: next.pageSize ?? pageSize,
-        search: next.search ?? search,
-        sort,
-      });
-    },
-    [server, sorting, page, pageSize, search],
-  );
 
   // Debounce search so typing does not fire a request per keystroke.
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -275,7 +308,7 @@ export function DataTable<Row>({
         searchable={searchable ?? columns.some((c) => c.searchable ?? Boolean(c.accessor))}
         placeholder={searchPlaceholder}
         activeFilterCount={activeFilterCount}
-        onClearFilters={() => setColumnFilters([])}
+        onClearFilters={() => changeColumnFilters([])}
         facetedFilters={
           facetColumns.length
             ? facetColumns.map((c) => {
@@ -285,6 +318,7 @@ export function DataTable<Row>({
                     key={c.key}
                     column={column}
                     label={c.filterLabel ?? (typeof c.header === "string" ? c.header : c.key)}
+                    options={c.filterOptions}
                   />
                 ) : null;
               })
@@ -306,24 +340,17 @@ export function DataTable<Row>({
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const meta = header.column.columnDef.meta as
-                    | { align?: "left" | "center" | "right"; width?: string; label?: string }
+                    | { width?: string; label?: string }
                     | undefined;
                   const sortIndex = sorting.findIndex((s) => s.id === header.column.id) + 1;
                   return (
-                    // The alignment belongs on the `th` itself, not only on the control
-                    // inside it: a shrink-to-fit button cannot move itself to the right
-                    // edge of a cell, so a right-aligned column used to show its heading
-                    // on the left and its values on the right.
-                    <th
-                      key={header.id}
-                      className={meta?.align && meta.align !== "left" ? `hms-cell--${meta.align}` : undefined}
-                      style={meta?.width ? { width: meta.width } : undefined}
-                    >
+                    // Every column is left-aligned (heading and cells alike), so the `th`
+                    // carries no alignment class — only its optional width.
+                    <th key={header.id} style={meta?.width ? { width: meta.width } : undefined}>
                       <DataTableColumnHeader
                         sortable={header.column.getCanSort()}
                         direction={header.column.getIsSorted()}
                         sortIndex={sortIndex}
-                        align={meta?.align}
                         name={meta?.label}
                         onToggle={(additive) => toggleSort(header.column.id, additive)}
                       >
@@ -362,14 +389,9 @@ export function DataTable<Row>({
             ) : (
               bodyRows.map((row) => (
                 <tr key={row.id} data-selected={row.getIsSelected() || undefined}>
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = cell.column.columnDef.meta as { align?: "left" | "center" | "right" } | undefined;
-                    return (
-                      <td key={cell.id} className={meta?.align ? `hms-cell--${meta.align}` : undefined}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    );
-                  })}
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                  ))}
                 </tr>
               ))
             )}
@@ -398,6 +420,27 @@ function normalize(value: string | number | Date | null | undefined): string | n
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return value.getTime();
   return value;
+}
+
+/** TanStack's filter state → the flat `{ key: values }` a server query wants. */
+function columnFiltersToRecord(filters: ColumnFiltersState): ColumnFilters {
+  const out: ColumnFilters = {};
+  for (const f of filters) {
+    const arr = Array.isArray(f.value)
+      ? f.value.map(String)
+      : f.value === undefined || f.value === null || f.value === ""
+        ? []
+        : [String(f.value)];
+    if (arr.length) out[f.id] = arr;
+  }
+  return out;
+}
+
+/** The inverse — restore server-provided filters into TanStack's shape on mount. */
+function recordToColumnFilters(filters: ColumnFilters): ColumnFiltersState {
+  return Object.entries(filters)
+    .filter(([, v]) => Array.isArray(v) && v.length > 0)
+    .map(([id, value]) => ({ id, value }));
 }
 
 function setParam(params: URLSearchParams, key: string, value: string | null) {

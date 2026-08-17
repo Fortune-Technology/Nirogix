@@ -539,4 +539,68 @@ The concrete failure is mundane and common. A receptionist types a patient's nam
 **Consequence:** Reviewing every table is now a Definition-of-Done item rather than something noticed when a user complains. The cost is that adding a table means deciding its actions deliberately, including deciding that a table is legitimately read-only - which is a defensible answer, but has to be an answer rather than an omission.
 
 ---
+
+## ADR-061 - Application identity: favicon and default branding across the five frontends
+**Status:** Accepted (this project). Applies ADR-040 (branding from the theme) and ADR-027 (noindex Portal surfaces) to each app's browser-level identity.
+**Context:** An audit of all five frontends found the browser tab told the truth on only two of them. `marketing` and `hms_frontend` carry the Nirogix mark at `app/icon.svg`; `patient` (:3002), `admin` (:3003) and `aiportal` (:3004) still shipped Next's default `favicon.ico` and the untouched `create-next-app` scaffolding (`next.svg`, `vercel.svg`, `window.svg`, `globe.svg`, `file.svg`). Three of five product surfaces showed the framework's logo, or nothing, where the product's mark belongs.
+**Decision:** An app states its identity through the Next App Router file/metadata conventions, never a hand-placed default asset.
+
+- **The browser-tab icon is `app/icon.svg`** carrying the Nirogix mark — the same geometry as `BrandMark` in `@hms/ui`, with literal colours because a favicon renders outside the page's token scope. **One mark for all five**: they are one product on five origins, not five brands.
+- **The `<title>` is per app** and set in each layout's `metadata` (marketing, Nirogix Portal, the patient portal, Platform Admin, AI Portal). No tab reads "Create Next App", a placeholder, or a sibling app's name.
+- **In-app logos come from the shared system, not per-app copies.** `BrandMark` (token-driven) is the platform's own mark; a tenant's uploaded logo replaces it wherever the Portal shows one (branding admin, ADR-040). Marketing maps `--hms-* → --mk-*`, so the same component is on-brand there. No app duplicates a logo file.
+- **Open Graph / social preview belongs only to the indexable surface.** `marketing` owns `opengraph-image.tsx`; the four `noindex` apps (ADR-027) carry no social image by design — a preview for a page no crawler may fetch is dead weight and a tenant-identifying leak risk.
+- **No framework default ships.** `create-next-app` scaffolding is deleted in the same change that scaffolds an app, not later (clean-code gate).
+
+The verification surface is fixed: browser tab, login page, header, sidebar, mobile navigation, and error/loading screens all resolve their mark from `BrandMark` (or the tenant logo), so a single source drives every appearance.
+**Consequence:** Fixes the three default-favicon tabs. A new frontend inherits the rule — add `app/icon.svg` with the mark and a per-app `<title>` in the scaffolding change, and never leave `favicon.ico` or `*.svg` scaffolding behind. When a designed logo exists (BACKLOG U-3), it replaces the monogram in `BrandMark` and in the `icon.svg` files together, in one change.
+
+---
+
+## ADR-062 - Interactive, semantically-aware KPI stat cards
+**Status:** Accepted (this project). Extends ADR-043, which built `StatCard` and forbade fabricated deltas.
+**Context:** `StatCard` (ADR-043) already renders one KPI tile from tokens with a period-over-period delta and — the part that matters most — `invertDelta`, so a fall is coloured good or bad by what the metric *means* (wait time down is good; revenue down is bad). What it could not do is act as a destination. A dashboard number the user cannot click through to the records behind it is a dead end, and dashboards had begun hand-rolling clickable tiles around the component.
+**Decision:** `StatCard` stays the one KPI tile for every dashboard — System Admin, Hospital Portal, and every role dashboard. No dashboard hand-rolls a stat card.
+
+- **Semantic delta is the rule, not a nicety.** A trend's colour (`hms-stat__delta--good` / `--bad`) is decided by what the metric means, never by the sign alone. Not every decrease is bad; `invertDelta` (or an explicit neutral state) carries that intent, and a delta may only be passed when a real prior period exists (no fabricated deltas, ADR-043).
+- **A card is clickable only when a click has a genuine destination or action** — Total Patients to the Patients table, Today's Appointments to Appointments filtered to today. A clickable card is a real link/button with proper hover, `focus-visible`, keyboard (Enter/Space) and active states and an accessible name; a card with nowhere useful to go stays static. Clickability is never added for visual uniformity.
+- **Configuration only, per card:** label, value, unit / comparison label, Lucide icon, delta with direction and semantic meaning, optional sparkline/trend, optional destination, loading state (value `null` renders a skeleton, never a zero), and permission visibility — a tile the user may not act on is not rendered, matching the Action-column rule (ADR-039).
+
+**Consequence:** This extends ADR-043 rather than replacing it — `StatCard` gains an optional destination and the interactive states that come with it. Rolling the clickable behaviour into the component and wiring the dashboards to it is tracked in BACKLOG; until then the existing static tiles remain correct, just not yet linked.
+
+---
+
+## ADR-063 - DataTable: every column visible by default, structured filtering, server-side where it matters
+**Status:** Accepted (this project). Sharpens ADR-029 (the Standard DataTable) into two enforceable defaults.
+**Context:** The Standard DataTable (ADR-029) already defaults to showing every column — a column is hidden only when its config sets `defaultHidden` — and already supports search, faceted filters, multi-level sorting, column visibility, and a server mode. Two gaps remained. First, a module can quietly over-use `defaultHidden`, so a user opens a table and does not see data that exists. Second, server mode reports only `page` / `pageSize` / `search` / `sort` back to the caller (`server.onChange`); a faceted filter changes local table state the API never receives, so on a large, server-paged dataset a structured filter silently filters only the page in the browser.
+**Decision:**
+
+- **All applicable columns are visible by default.** `defaultHidden` is an exception that needs a stated UX or performance reason in the column config, not a habit; a table shows its complete, relevant dataset on first render. The column-visibility control still lets a user hide or show columns by hand — a user choice, never the default.
+- **A table provides the structured filters its module needs**, not a bare search box where the data is structured. Patients: name / ID / phone or email where permitted / gender / status / doctor / department / registration date-range. Appointments: patient / doctor / department / date-range / status / type. Users: name / email / role / department / status / branch. Billing: patient / invoice number / payment status / date-range / amount-range. The exact set is each module's business call. Filters use the shared toolbar controls — clear labels, multi-select where it fits, date-range and amount-range where it fits, search, clear-all, active-filter indicators, and a proper empty-results state — in the one fixed order **Search → Filters → Sort → Column visibility → Actions → Pagination**.
+- **Large datasets filter on the server.** The table's `server` contract carries the active structured filters alongside `page` / `pageSize` / `search` / `sort`, so server-side search, filter, sort and pagination are one path and the browser never downloads a whole table to filter it. (Completing the `server.onChange` filter payload is the engineering follow-up in BACKLOG.)
+- **No one-off tables.** Anything the Standard DataTable can express is configured, never re-implemented.
+
+**Consequence:** Reaffirms the all-columns default as a rule a reviewer can enforce, and names the two fixes needed to honour it fully — an audit of existing `defaultHidden` usage, and completing server-side filter propagation. Both are tracked in BACKLOG; the table's public configuration does not change for callers that already show all columns and filter client-side.
+
+---
+
+## ADR-064 - Every DataTable column is left-aligned
+**Status:** Accepted (this project). Narrows ADR-029 (the Standard DataTable) and the right-alignment ADR-039 gave the Action column.
+**Context:** The DataTable let each column pick an alignment (`align: "left" | "center" | "right"`), and several used it — numeric columns (invoice total, balance, token, quantity, HTTP status) and the Action column were right-aligned, on the usual convention that figures scan better on a shared right edge. In a mixed table that produced headings and neighbouring columns sitting at different edges for no reason the user could see, and it read as inconsistent between the Portal and the admin console.
+**Decision:** **Every DataTable column is left-aligned — heading and cells alike — with no exception.** The per-column `align` option is removed from the `Column` type, so a table cannot opt a column out: the `th`, the sort control and every `td` render left. The Action column (ADR-039) is left-aligned like the rest — still last and shrink-to-fit, only no longer right-aligned. This is **DataTable-only**: the print document kit (`PrintTable`) keeps its own alignment, because a printed invoice legitimately right-aligns money.
+**Consequence:** One alignment across every table in both apps, enforced by the type rather than by convention — a new table cannot reintroduce a right-aligned column, and a reviewer has nothing to check. The `hms-cell--right/center` and `hms-th__sort--right/center` styles and every `align:` in a DataTable config were deleted as dead. If a numeric column's right edge ever genuinely aids reading, that becomes a deliberate, documented exception — not a per-page choice.
+
+---
+
+## ADR-065 - Letterhead image and configurable document page size
+**Status:** Accepted (this project). Extends ADR-056 (the letterhead lives on `organization_profile`) and ADR-047 (the print document kit).
+**Context:** ADR-056 gave a hospital the *text* letterhead — a header line, a footer strip and a default signatory — printed around content that already carried the logo, name, address and accent from Branding and Hospital information. Two things were still missing. Most Indian hospitals already have a **pre-designed letterhead** (name, logo, registration, address laid out as one printed strip) and want to use exactly that image rather than reconstruct it from fields. And every printed document was hard-wired to A4 — the sheet width in `.hms-doc` and the print `@page size` were literal — so a hospital that prints prescriptions on A5 or a US-based deployment on Letter/Legal had no way to say so.
+**Decision:**
+
+- **A letterhead image is part of the hospital's identity, so it lives on `organization_profile`**, as a `letterhead_image_file_id` resolved to a short-lived URL on read — the same file-storage path and the same tenant scope as the branding logo (ADR-040), never a second store. It is uploaded and removed through its own multipart route (`POST`/`DELETE /organization/profile/letterhead-image`, `platform.organization.manage`), and changes are audited. **When an image is set it becomes the document header** — the constructed name/logo/contact block is replaced, because a hospital that has uploaded a full letterhead strip has already put its identity in the image — and the document's own title moves to a bar beneath it.
+- **Page size is one reusable configuration, never an A4 special case.** `document_page_size` (`A4` default, `A5`, `LETTER`, `LEGAL`) drives both the on-screen sheet width and a CSS `@page size` the print document injects itself (a bare `@page` cannot be scoped by selector, and the document renders one-per-page in a print route). A single geometry table maps each size to a width and a page keyword; adding a size is one row. `PrintDocument` takes a `pageSize` prop so a specific document type can override the hospital default without a new store.
+- **Stored assets are embeddable cross-origin.** The token-authorized file content route now sets `Cross-Origin-Resource-Policy: cross-origin`: the frontends and every print document run on their own origins while the API serves the file, so helmet's default `same-origin` policy was silently blocking the branding logo and the letterhead alike. Access stays gated by the signed, short-lived token in the URL.
+
+**Consequence:** A hospital uploads the letterhead it already prints and every invoice, receipt, prescription and report wears it, on the paper size it actually uses, with no per-document code. The same fix restores cross-origin embedding for the branding logo. The letterhead image prints once at the top of the document, matching the existing header behaviour; repeating it as a running header on every page of a multi-page document is a deliberate follow-up tracked in BACKLOG, not built here.
+
+---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

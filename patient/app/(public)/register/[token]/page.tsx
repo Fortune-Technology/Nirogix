@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { Alert, BrandMark, Button, Card, DateField, Field, Skeleton, Textarea } from "@hms/ui";
+import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Skeleton, Textarea } from "@hms/ui";
 import type { PublicRegistrationContext } from "@hms/types";
 import * as api from "../../../../lib/api";
 
@@ -161,13 +161,11 @@ export default function PublicRegistrationPage({ params }: { params: Promise<{ t
               onChange={(e) => set("lastName", e.target.value)}
               autoComplete="family-name"
             />
-            <Field
+            <PhoneField
               label="Mobile number"
-              type="tel"
               value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
+              onChange={(v) => set("phone", v)}
               required
-              autoComplete="tel"
               hint="How the hospital will reach you."
             />
             <Field

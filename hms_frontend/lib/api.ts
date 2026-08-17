@@ -235,9 +235,23 @@ export async function getOrgSummary(): Promise<OrgSummary> {
 
 // ---- Patients --------------------------------------------------------------
 
-export async function listPatients(page = 1, pageSize = 20, search?: string): Promise<Paginated<Patient>> {
+export async function listPatients(
+  page = 1,
+  pageSize = 20,
+  search?: string,
+  filters?: Record<string, string[]>,
+  registered?: { from: string | null; to: string | null },
+): Promise<Paginated<Patient>> {
   const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) q.set("search", search);
+  // Faceted filters travel as comma-separated values (ADR-063); the API splits them.
+  if (filters) {
+    for (const [key, values] of Object.entries(filters)) {
+      if (values.length) q.set(key, values.join(","));
+    }
+  }
+  if (registered?.from) q.set("registeredFrom", registered.from);
+  if (registered?.to) q.set("registeredTo", registered.to);
   return request<Paginated<Patient>>(`/patients?${q.toString()}`);
 }
 
@@ -309,13 +323,23 @@ export async function updateVisitStatus(id: string, body: UpdateVisitStatusReque
 // ---- Billing (hms_backend/src/modules/billing) -----------------------------
 
 export async function listInvoices(
-  opts: { page?: number; pageSize?: number; patientId?: string; status?: string } = {},
+  opts: {
+    page?: number;
+    pageSize?: number;
+    patientId?: string;
+    status?: string;
+    /** Invoice-total range in paise (ADR-063). */
+    amountFrom?: number;
+    amountTo?: number;
+  } = {},
 ): Promise<Paginated<InvoiceListItem>> {
   const q = new URLSearchParams();
   q.set("page", String(opts.page ?? 1));
   q.set("pageSize", String(opts.pageSize ?? 20));
   if (opts.patientId) q.set("patientId", opts.patientId);
   if (opts.status) q.set("status", opts.status);
+  if (opts.amountFrom !== undefined) q.set("amountFrom", String(opts.amountFrom));
+  if (opts.amountTo !== undefined) q.set("amountTo", String(opts.amountTo));
   return request<Paginated<InvoiceListItem>>(`/invoices?${q.toString()}`);
 }
 
@@ -505,6 +529,40 @@ export async function updateOrganizationProfile(
     method: "PUT",
     body: patch,
     feedback: { success: "Hospital information saved." },
+  });
+}
+
+/**
+ * Upload the letterhead image (multipart). Returns the updated profile with the new
+ * short-lived `letterheadImageUrl` (ADR-065). Same shape as `uploadBrandingAsset`.
+ */
+export async function uploadLetterheadImage(file: File): Promise<OrganizationProfile> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  const token = client.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await send("/organization/profile/letterhead-image", {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    const failure = await parseError(res);
+    notifyError(failure);
+    throw failure;
+  }
+  const profile = (await res.json()) as OrganizationProfile;
+  notifySuccess("Letterhead image updated.");
+  return profile;
+}
+
+/** Remove the configured letterhead image; documents fall back to the text header. */
+export async function removeLetterheadImage(): Promise<OrganizationProfile> {
+  return request<OrganizationProfile>("/organization/profile/letterhead-image", {
+    method: "DELETE",
+    feedback: { success: "Letterhead image removed." },
   });
 }
 

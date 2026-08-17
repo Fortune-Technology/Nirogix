@@ -12,7 +12,6 @@ export interface DataTableColumnHeaderProps {
   /** Position in a multi-column sort (1-based); hidden when there is only one level. */
   sortIndex?: number;
   onToggle?: (additive: boolean) => void;
-  align?: "left" | "center" | "right";
   /**
    * Plain-text column name for the accessible label. Required because `children`
    * is usually a React node, and announcing "Column, not sorted" to a screen
@@ -33,10 +32,11 @@ export function DataTableColumnHeader({
   direction,
   sortIndex,
   onToggle,
-  align = "left",
   name,
 }: DataTableColumnHeaderProps) {
-  if (!sortable) return <span className={cn(align !== "left" && `hms-cell--${align}`)}>{children}</span>;
+  // Every DataTable column is left-aligned — heading and cells alike — so the header
+  // never carries an alignment of its own.
+  if (!sortable) return <span>{children}</span>;
 
   const label =
     direction === "asc" ? "sorted ascending" : direction === "desc" ? "sorted descending" : "not sorted";
@@ -44,7 +44,7 @@ export function DataTableColumnHeader({
   return (
     <button
       type="button"
-      className={cn("hms-th__sort", align !== "left" && `hms-th__sort--${align}`)}
+      className="hms-th__sort"
       aria-label={`${name ?? (typeof children === "string" ? children : "Column")}, ${label}. Activate to sort.`}
       onClick={(e) => onToggle?.(e.shiftKey)}
       onKeyDown={(e) => {
