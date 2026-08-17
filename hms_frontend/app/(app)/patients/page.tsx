@@ -10,6 +10,7 @@ import {
   DataTable,
   EditAction,
   TableActions,
+  ToggleAction,
   ViewAction,
   actionsColumn,
   type Column,
@@ -38,7 +39,12 @@ function age(dob: string | null): string {
  * The dataset is large, so it runs in server mode: the API owns paging and search
  * and the table only reports what the user asked for.
  */
-function patientColumns(canEdit: boolean, onView: (p: Patient) => void, onEdit: (p: Patient) => void): Array<Column<Patient>> {
+function patientColumns(
+  canEdit: boolean,
+  onView: (p: Patient) => void,
+  onEdit: (p: Patient) => void,
+  onToggle: (p: Patient) => void,
+): Array<Column<Patient>> {
   return [
     {
       key: "uhid",
@@ -84,6 +90,22 @@ function patientColumns(canEdit: boolean, onView: (p: Patient) => void, onEdit: 
       <TableActions label={`Actions for ${[p.firstName, p.lastName].filter(Boolean).join(" ")}`}>
         <ViewAction label="View record" onSelect={() => onView(p)} />
         <EditAction label="Edit details" permitted={canEdit} onSelect={() => onEdit(p)} />
+        {/* Deactivate, never delete (ADR-060). A patient record is referenced by
+            visits, prescriptions, lab orders and invoices; destroying it would orphan
+            a clinical history the hospital is obliged to keep. */}
+        <ToggleAction
+          on={p.status === "active"}
+          permitted={canEdit}
+          onLabel="Deactivate patient"
+          offLabel="Reactivate patient"
+          confirm={{
+            title: `Deactivate ${[p.firstName, p.lastName].filter(Boolean).join(" ")}?`,
+            description:
+              "The record stays, along with every visit, prescription and bill attached to it — it is hidden from day-to-day lists and cannot be booked. You can reactivate at any time.",
+            confirmLabel: "Deactivate",
+          }}
+          onToggle={() => onToggle(p)}
+        />
       </TableActions>
     )),
   ];
@@ -117,6 +139,20 @@ function PatientsTable() {
     void load(query);
   }, [query, load]);
 
+  /**
+   * Soft state change only — `status`, never a delete. The server re-checks the
+   * permission regardless of whether the action was rendered (ADR-060), and the change
+   * is audited like any other patient update.
+   */
+  async function toggleStatus(p: Patient) {
+    try {
+      await api.updatePatient(p.id, { status: p.status === "active" ? "inactive" : "active" });
+      await load(query);
+    } catch {
+      /* reported by the shared API-feedback layer */
+    }
+  }
+
   return (
     <>
       <PageHeader title="Patients" description={`${total} registered`} />
@@ -125,6 +161,7 @@ function PatientsTable() {
           canEdit,
           (p) => router.push(`/patients/${p.id}`),
           (p) => router.push(`/patients/${p.id}?edit=1`),
+          (p) => void toggleStatus(p),
         )}
         rows={rows}
         rowKey={(p) => p.id}

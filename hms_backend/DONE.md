@@ -677,3 +677,23 @@ Deliberately awkward. A seeder that adapts to its surroundings is one that will 
 **Testing status:** both refusals verified live — `NODE_ENV=production` is rejected by name, and a `DATABASE_URL` of `db.prod.internal` is rejected even with `NODE_ENV` unset. Typecheck clean; 119 backend tests pass.
 
 The staging and production seeders themselves are specified in ADR-058 and tracked in `BACKLOG.md`. The guard shipped first because the risk existed the moment `db:seed` did.
+
+## 2026-08-17 — Staging + production seeders, and one OTP implementation (ADR-058, ADR-059)
+
+**Seeders.** Three now, each declaring its environment and refusing anywhere else.
+
+- **`seed.staging.ts`** — deterministic by design, because E2E assertions depend on exact values: one QA hospital (`QAHOSP`), two branches, two departments, one account per role, one provider, two obviously-synthetic patients. Patients are created only when the hospital has none, so a re-run never renumbers a UHID a test asserts on.
+- **`seed.production.ts`** — bootstrap only: permission catalogue, specialty catalogue, `reconcileSystemRoles`, the PLATFORM org, and a first operator **only** when `BOOTSTRAP_ADMIN_EMAIL` is set. It refuses a password under 12 characters rather than inventing one: a known default on a real, reachable account is worse than no account. It creates no hospital, patient or appointment, and a reviewer should reject any future change that adds one.
+- `db:seed:staging` and `db:seed:production` added.
+
+All three refusals verified live: the staging seeder rejected in a development environment, the production seeder rejected both without `CONFIRM_PRODUCTION_SEED` and for the environment mismatch.
+
+**One OTP implementation, not two.** `communication.service.ts` is the seam ADR-059 requires — `sendEmail`, `sendSms`, `sendOtp`, `verifyOtp`, `resendOtp`.
+
+The interesting part was migrating patient sign-in onto it. The existing inline implementation was **stronger** than the generic one I first wrote: it limited wrong guesses to five, which my version lacked. Bolting a weaker `verifyOtp` alongside it would have produced exactly the duplication ADR-059 forbids, so the shared service gained attempt-limiting (`OTP_MAX_ATTEMPTS`) and `patientIdentity` now delegates through an `OtpStore` adapter that only says *where the rows live*. Generation, hashing, expiry, attempt-limiting and single-use consumption have one home.
+
+`sendOtp` deliberately returns nothing. A caller that could read the code back is a caller that could log it, which defeats hashing at rest.
+
+The now-orphaned `createHash`/`randomInt` import went with it.
+
+**Testing status:** 14/14 patient-identity tests pass unchanged — the migration preserved expiry, attempt-limiting and single-use, which is what those tests assert. 119 backend tests, typecheck and build clean.

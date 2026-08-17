@@ -16,6 +16,8 @@
     "openapi:validate": "tsx src/scripts/openapi-validate.ts",
     "db:create": "tsx src/scripts/create-database.ts",
     "db:seed": "tsx src/scripts/seed.ts",
+    "db:seed:staging": "tsx src/scripts/seed.staging.ts",
+    "db:seed:production": "tsx src/scripts/seed.production.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio"

@@ -38,7 +38,7 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 
 **Frontend**
 - **Every Portal table now runs on the Standard DataTable with a full configuration** (sorting, search, faceted filters, column visibility, configurable paging). Server mode is used where the API paginates — patients, audit, appointments, billing. Remaining table follow-ups: **saved views / shareable filter presets**, **row selection with bulk actions** (the table supports both; no module needs them yet), and **CSV export from the table itself** (only Reports exports today).
-- **`Select`, `Dialog` and `Combobox` are still missing from `@hms/ui`** — files across the Portal, the patient app and the admin console use a hand-styled native `<select>` (the public registration form's gender picker is the newest). Pull them from shadcn (ADR-028) and restyle onto the tokens. *Resolved since this was written:* date and time entry (`DateField` / `TimeField` / `DateTimeField`, ADR-048) and `Textarea` (ADR-056) are in the kit.
+- **`Select` and `Combobox` are still missing from `@hms/ui`** (`Dialog` shipped 17/08/2026, ADR-060) — files across the Portal, the patient app and the admin console use a hand-styled native `<select>` (the public registration form's gender picker is the newest). Pull them from shadcn (ADR-028) and restyle onto the tokens. *Resolved since this was written:* date and time entry (`DateField` / `TimeField` / `DateTimeField`, ADR-048) and `Textarea` (ADR-056) are in the kit.
 - **shadcn footprint, after ADR-057 removed its Toast:** `@base-ui/react` is still a real runtime dependency — `DateField` uses its Popover — and `tw-animate-css` plus the token remap remain load-bearing for any future `shadcn add`. Still unused: `class-variance-authority`, `clsx`, `tailwind-merge`, and each app's generated `lib/utils.ts` (its `cn` duplicates `@hms/ui`'s). Prune those three packages if the next `shadcn add` does not need them — Select, Dialog and Command are the primitives `@hms/ui` still lacks, and they would.
 - **Marketing has no toast, deliberately** (ADR-057): it has no authenticated API surface. Wiring `ContactForm` (U-2) is the change that would give it one — mount `<Toaster />` in its root layout at that point, and the `--hms-* → --mk-*` mapping already in its `globals.css` will theme it.
 - **Lottie ships on every route in both apps.** Measured after `next build` (marketing): the largest client chunk is **340 KB on disk** and contains `lottie` + `lenis`, pulled in by the root layout's `LottiePreloader` and `SmoothScroll` — so every route pays for it before first interaction. Proposal needing a product call: keep the preloader eager (it is a deliberate first-paint veil) but load the **hero** animation through `next/dynamic`, or replace the preloader's Lottie with a token-driven CSS/SVG spinner and let `next/dynamic` carry `lottie-react` for the hero only. The same chunk is in the Portal.
@@ -58,24 +58,21 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 - **The QR is generated in the browser.** Fine for a poster; a server-rendered PDF (A4, with the hospital's branding and instructions) is what a hospital will actually want to hand to a printer.
 - **Only one QR per hospital.** No per-branch token, so a multi-branch hospital cannot tell which entrance a person scanned. The column is there (`branch_id` convention) if that turns out to matter.
 
-**Environment seeders (ADR-058)** — the guard is built and refuses wrong-environment runs; the seeders themselves are not split yet
-- **Staging seeder** — a deterministic, production-shaped dataset for QA, E2E and demos. Deterministic matters: E2E assertions depend on exact ids and counts, so it cannot reuse the development seeder's shape.
-- **Production seeder** — bootstrap only: permission catalogue, system roles, and a first administrator where genuinely required. Behind `CONFIRM_PRODUCTION_SEED`, idempotent, documented, and reviewed by a second person before it is first run.
-- `db:seed:staging` / `db:seed:production` npm scripts, and a `deploy/README.md` note on when each is run.
+**Environment seeders (ADR-058)** — ~~guard~~, ~~staging seeder~~, ~~production seeder~~ all done 17/08/2026
+- **Neither has been run against a real database yet.** The staging seeder needs the staging VM; the production seeder must be reviewed by a second person and run against a fresh database with a backup in hand before it is trusted.
+- `deploy/README.md` note on when each is run, and who is allowed to run the production one.
 
-**Communication service (ADR-059)**
-- **`CommunicationService` seam** — today `sendEmail` / `sendSms` are loose exports of `notification.service`; wrap them into the named service with `sendOtp` / `verifyOtp` / `resendOtp` so no module reaches past it.
-- **OTP surface** — patient sign-in currently generates, hashes, stores and sends its own six-digit code inline (`patientIdentity.service`). That logic moves behind `sendOtp`/`verifyOtp` so staff MFA, contact verification and password reset reuse one implementation rather than growing a second.
+**Communication service (ADR-059)** — ~~seam~~ and ~~OTP surface~~ done 17/08/2026; patient sign-in now delegates to it
 - **Transactional coverage audit** — walk the whole workflow and confirm each of these either sends or has a recorded reason not to: sign-in code, email verification, mobile verification, password reset, hospital onboarding, hospital approval/rejection, eKYC status, user invitation, account activation, appointment confirmation / cancellation / reschedule, administrative notices. Send nothing beyond that list.
 - **Email templates** — MSG91 email is template-based; the template ids belong in configuration with the copy reviewed before first send.
 
-**Row actions (ADR-060)** — audit found tables with no correction path
-- **`appointments`** — no row actions at all. Needs at least view, and reschedule / cancel per permission and appointment state.
-- **`pharmacy/stock`** — no row actions. Needs edit for correcting a stock figure, and whatever adjustment the module's rules allow.
-- **`billing`** — View only. An invoice raised against the wrong patient currently has no visible remedy.
-- **`opd`** — View only; confirm against the queue's own workflow whether that is genuinely correct.
-- **`patients`** — has View + Edit; still needs the deactivate path decided (soft, per ADR-060 and the retention policy) rather than left absent.
-- Confirm the read-only tables are read-only *by decision*, and record that decision.
+**Row actions (ADR-060)** — ~~patients deactivate~~ and ~~users edit~~ done 17/08/2026
+- ~~**`branches` and `departments`**~~ — done 17/08/2026 via `Dialog` + the shared `EditRecordDialog`. **`code` is deliberately not editable on either**: it identifies the record in check-in routing, exports and any integration a hospital has built, so changing one is a migration rather than a correction. A department's head and specialty stay on the create form until `@hms/ui` has a `Select`.
+- **`appointments`** — has Check in / Cancel. **Reschedule** is the gap: today a wrong time means cancel and rebook, which loses the original booking's continuity.
+- **`billing`** — View only. An invoice raised against the wrong patient has no visible remedy; credit-note vs. void is a product decision before it is a UI one.
+- **`opd`** — View / Start consult / Complete visit. Probably correct for a queue, but confirm and record the decision rather than leaving it unstated.
+- **`pharmacy/stock`** — has Receive stock. Correcting a wrong stock figure needs the module's adjustment rules defined first.
+- *Correction: an earlier version of this list said `appointments` and `pharmacy/stock` had no actions at all. That was a bad grep, not a real finding.*
 
 **Full-suite gate before manual QA**
 - **No E2E suite exists yet.** The rule is written and binding; Playwright coverage for the critical workflow (sign-in → register patient → book → check in → consult → dispense → bill → collect) is what makes it enforceable rather than aspirational.

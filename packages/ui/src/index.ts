@@ -64,6 +64,8 @@ export type {
   MoreAction,
   ActionConfirm,
 } from './components/table-actions';
+export { Dialog } from './components/Dialog';
+export type { DialogProps } from './components/Dialog';
 export { ConfirmDialog } from './components/ConfirmDialog';
 export type { ConfirmDialogProps } from './components/ConfirmDialog';
 export { EmptyState, ErrorState, Skeleton } from './components/States';

@@ -1,5 +1,4 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { createHash, randomInt } from 'node:crypto';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { randomUUID } from 'node:crypto';
@@ -15,7 +14,12 @@ import {
 import { Errors } from '../../http/error';
 import { hashToken, signAccessToken, signRefreshToken, tokenExpiry, verifyRefreshToken } from '../auth/tokens';
 import { writeAudit } from '../audit/audit.service';
-import { sendEmail, sendSms } from '../notification/notification.service';
+import {
+  sendOtp,
+  verifyOtp,
+  type OtpStore,
+  type OtpChannel,
+} from '../notification/communication.service';
 
 /**
  * Patient identity (ADR-052).
@@ -33,12 +37,50 @@ import { sendEmail, sendSms } from '../notification/notification.service';
  *    permission; staff routes refuse it by principal type (`requireAuth`).
  */
 
-const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const MAX_ATTEMPTS = 5;
+/**
+ * `patient_verification` expressed as the shared service's `OtpStore` (ADR-059).
+ *
+ * The generation, hashing, expiry and attempt-limiting rules live in one place now —
+ * `communication.service` — and this adapter only says where the rows are kept. Staff
+ * MFA and contact verification reuse the same rules by writing their own adapter
+ * rather than a second implementation of the same care.
+ */
+function verificationStore(identityId: string): OtpStore {
+  return {
+    async save({ destination, channel, codeHash, expiresAt }) {
+      await db.insert(patientVerification).values({ identityId, channel, destination, codeHash, expiresAt });
+    },
 
-/** Codes are stored hashed — a leaked table must not hand over live codes. */
-function hashCode(code: string): string {
-  return createHash('sha256').update(code).digest('hex');
+    async findActive({ destination }) {
+      const rows = await db
+        .select()
+        .from(patientVerification)
+        .where(
+          and(
+            eq(patientVerification.identityId, identityId),
+            eq(patientVerification.destination, destination),
+            isNull(patientVerification.consumedAt),
+          ),
+        )
+        .orderBy(sql`${patientVerification.createdAt} desc`)
+        .limit(1);
+      const row = rows[0];
+      return row
+        ? { id: row.id, codeHash: row.codeHash, expiresAt: row.expiresAt, attempts: row.attempts }
+        : null;
+    },
+
+    async consume(id) {
+      await db.update(patientVerification).set({ consumedAt: new Date() }).where(eq(patientVerification.id, id));
+    },
+
+    async recordFailedAttempt(id) {
+      await db
+        .update(patientVerification)
+        .set({ attempts: sql`${patientVerification.attempts} + 1` })
+        .where(eq(patientVerification.id, id));
+    },
+  };
 }
 
 /** Normalised on write so a lookup is exact and two spellings cannot become two people. */
@@ -155,14 +197,6 @@ export async function requestPatientCode(contact: Contact): Promise<void> {
   const identity = await findIdentityByContact(contact);
   if (!identity || identity.status !== 'active') return; // silent, on purpose
 
-  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-  await db.insert(patientVerification).values({
-    identityId: identity.id,
-    channel,
-    destination,
-    codeHash: hashCode(code),
-    expiresAt: new Date(Date.now() + CODE_TTL_MS),
-  });
 
   // Sent from the PLATFORM tenant, not from a hospital (ADR-052). Two reasons: the
   // message is from Nirogix about platform access, not from a hospital about care; and
@@ -170,10 +204,13 @@ export async function requestPatientCode(contact: Contact): Promise<void> {
   // notification log, that this person is signing in — including hospitals the patient
   // did not choose this time. Picking "one of" their hospitals would be arbitrary and
   // disclosing.
-  const message = `Your Nirogix verification code is ${code}. It expires in 10 minutes.`;
-  const tenantId = await platformTenantId();
-  if (channel === 'sms') await sendSms({ tenantId, to: destination, body: message });
-  else await sendEmail({ tenantId, to: destination, subject: 'Your Nirogix code', body: message });
+  await sendOtp({
+    tenantId: await platformTenantId(),
+    channel: channel as OtpChannel,
+    destination,
+    store: verificationStore(identity.id),
+    purpose: 'sign-in',
+  });
 }
 
 /**
@@ -206,34 +243,18 @@ export async function verifyPatientCode(
   const invalid = Errors.unauthorized('That code is not valid');
   if (!identity || identity.status !== 'active') throw invalid;
 
-  const rows = await db
-    .select()
-    .from(patientVerification)
-    .where(
-      and(
-        eq(patientVerification.identityId, identity.id),
-        eq(patientVerification.destination, destination),
-        isNull(patientVerification.consumedAt),
-      ),
-    )
-    .orderBy(sql`${patientVerification.createdAt} desc`)
-    .limit(1);
-  const row = rows[0];
-  if (!row) throw invalid;
-  if (row.expiresAt.getTime() < Date.now()) throw invalid;
-  if (row.attempts >= MAX_ATTEMPTS) throw invalid;
-
-  if (row.codeHash !== hashCode(code)) {
-    // Bounded brute force: the attempt counter burns the code, not just the clock.
-    await db
-      .update(patientVerification)
-      .set({ attempts: row.attempts + 1 })
-      .where(eq(patientVerification.id, row.id));
-    throw invalid;
-  }
+  // Expiry, attempt-limiting, hash comparison and consumption all live in the shared
+  // service (ADR-059). Every failure mode collapses to the same `invalid` here, so a
+  // wrong code, an expired one and an exhausted one stay indistinguishable.
+  const ok = await verifyOtp({
+    channel: (contact.mobile ? 'sms' : 'email') as OtpChannel,
+    destination,
+    code,
+    store: verificationStore(identity.id),
+  });
+  if (!ok) throw invalid;
 
   const now = new Date();
-  await db.update(patientVerification).set({ consumedAt: now }).where(eq(patientVerification.id, row.id));
   await db
     .update(patientIdentity)
     .set({ verifiedAt: identity.verifiedAt ?? now, activatedAt: identity.activatedAt ?? now, lastLoginAt: now })

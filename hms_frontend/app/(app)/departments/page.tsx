@@ -13,6 +13,7 @@ import {
   ToggleAction,
   actionsColumn,
   type Column,
+  EditAction,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch, Department, Provider } from "@hms/types";
@@ -20,6 +21,7 @@ import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
 import { useCan } from "../../../lib/auth";
+import { EditRecordDialog, type EditField } from "../../../components/EditRecordDialog";
 
 /**
  * Departments (ADR-050) — the hospital's clinical organisation.
@@ -32,8 +34,22 @@ import { useCan } from "../../../lib/auth";
  * Feedback comes from the shared toast raised inside the API client (ADR-026) —
  * this screen keeps no notification state of its own.
  */
+/**
+ * `code` is absent for the same reason as a branch's: it is the department's identifier
+ * in check-in routing and any export a hospital has built, so changing it is a
+ * migration rather than a correction. The head of department and specialty are pickers,
+ * not free text, so they stay on the create form until the dialog grows a select
+ * (`@hms/ui` has no `Select` yet).
+ */
+const DEPARTMENT_FIELDS: Array<EditField<Department>> = [
+  { key: "name", label: "Department name", required: true, hint: "What staff see at check-in and in pickers." },
+  { key: "description", label: "Description", hint: "Optional. A line of context for staff." },
+];
+
 function DepartmentsTable() {
   const [rows, setRows] = useState<Department[]>([]);
+  // The row being corrected, or null (ADR-060).
+  const [editing, setEditing] = useState<Department | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +154,7 @@ function DepartmentsTable() {
     },
     actionsColumn<Department>((d) => (
       <TableActions label={`Actions for ${d.name}`}>
+        <EditAction label="Edit department" permitted={canManage} onSelect={() => setEditing(d)} />
         <ToggleAction
           on={d.isActive}
           onLabel="Deactivate department"
@@ -259,6 +276,21 @@ function DepartmentsTable() {
         loading={loading}
         error={error}
         emptyMessage="No departments yet. Add the ones patients are seen in — doctors are assigned to them, and check-in routes by them."
+      />
+
+      <EditRecordDialog<Department>
+        open={editing !== null}
+        record={editing}
+        title="Edit department"
+        description="Correcting a name here updates it everywhere the department appears, including check-in."
+        fields={DEPARTMENT_FIELDS}
+        onClose={() => setEditing(null)}
+        onSave={async (patch) => {
+          // Server re-checks `platform.departments.manage` and audits the change,
+          // whether or not this action was rendered (ADR-060).
+          await api.updateDepartment(editing!.id, patch);
+          await load();
+        }}
       />
     </>
   );

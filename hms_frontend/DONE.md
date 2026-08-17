@@ -557,3 +557,26 @@ Two pairs **swap**, which is the part that matters: a sequential find-and-replac
 **Also fixed while in there** — all five per-app `README.md` files were `create-next-app` boilerplate claiming port 3000, which was already wrong for four of them before today; the root `README.md`'s application table, single-app commands and project layout still listed only two frontends, from before ADR-051.
 
 **Testing status:** typecheck, build and tests clean across all six workspaces (119 backend, 73 `@hms/ui`, 31 `@hms/utils`, 12 `@hms/client`). `patient/.next` had a truncated generated `routes.d.ts` from an interrupted dev server and was deleted — a build artifact, unrelated to this change.
+
+## 2026-08-17 — Correction paths on the tables that lacked them (ADR-060)
+
+**What:** ADR-060's rule is that a record which can be displayed incorrectly must have a permitted, safe way to be corrected. An audit against that rule found two real gaps:
+
+- **Patients** had View and Edit but no way to retire a record. Added **deactivate/reactivate**, never delete — a patient row is referenced by visits, prescriptions, lab orders and invoices, and destroying it would orphan a clinical history the hospital is obliged to keep. The confirmation says exactly that: the record and everything attached to it stays, it is hidden from day-to-day lists, and it can be reactivated.
+- **Users** had View and suspend but no way to fix a misspelled name. Added **Edit**, routing to the existing user page rather than a second form in a dialog — one editing surface per record.
+
+Both use the existing `updatePatient` / `updateUser` endpoints, so the server re-checks permission regardless of what the row rendered, and both changes are audited like any other update.
+
+**A correction to my own audit.** I first reported that `appointments` and `pharmacy/stock` had *no row actions at all*. That was wrong — I had grepped for `TableAction ` with a trailing space and missed every generic action. They have Check in / Cancel and Receive stock respectively. The real gaps were the two above, plus edit-in-place for `branches` and `departments`, which is still open because it needs a `Dialog` primitive `@hms/ui` does not yet have.
+
+**Testing status:** typecheck and build clean across all six workspaces. The two lint warnings on these files are the pre-existing repo-wide `set-state-in-effect` on data-loading effects, already recorded in `BACKLOG.md`.
+
+## 2026-08-17 — Edit-in-place for branches and departments (ADR-060)
+
+**What:** Both tables had Toggle only — a branch or department entered with a typo could be deactivated but never corrected, which is exactly the failure ADR-060 exists to prevent.
+
+`components/EditRecordDialog.tsx` is the shared edit surface for a **simple** record: fields are declared rather than hand-built, so every edit dialog validates the same way, reports failures through the shared toast, disables Save until something actually changed, and **sends only the fields the user altered** — a partial update can never blank a column the dialog does not show. A record with sections or clinical content still gets a page; the choice is made per table.
+
+**What is deliberately not editable.** `code` on both. It identifies the record in check-in routing, in exports, and in any integration a hospital has built on top, so renaming one silently re-points all of them — that is a migration, not a correction. A department's head and specialty stay on the create form until `@hms/ui` has a `Select`; a free-text box for a foreign key would be worse than the current gap.
+
+**Testing status:** typecheck and build clean; the dialog's behaviour was verified in a running browser (see `packages/ui/DONE.md` for what was checked, including the focus bug it surfaced).

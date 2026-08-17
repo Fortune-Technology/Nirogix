@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "../cn";
-import { useScrollLock } from "../useScrollLock";
+import { Dialog } from "./Dialog";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -20,12 +19,18 @@ export interface ConfirmDialogProps {
 }
 
 /**
- * The shared confirmation for destructive actions (resources/rules.md → Reusable
- * UI Architecture). Every delete / revoke / cancel goes through this one dialog —
- * no module writes its own `window.confirm` or bespoke modal.
+ * The shared confirmation for destructive actions (rules.md → Reusable UI
+ * Architecture). Every delete / revoke / cancel goes through this one dialog — no
+ * module writes its own `window.confirm` or bespoke modal.
  *
- * Locks background scroll through the shared `useScrollLock` (DESIGN.md §9.3),
- * traps focus, closes on Esc, and returns focus to whatever opened it.
+ * Built **on** `Dialog` rather than beside it, so portalling, scroll lock, focus
+ * trapping, Esc and focus restoration have one implementation. What is left here is
+ * only what makes a confirmation a confirmation: the warning icon, the two buttons,
+ * and `role="alertdialog"` — a decision the user must make before continuing, which
+ * a screen reader should announce as such.
+ *
+ * The close × is hidden on purpose: a confirmation is answered, not dismissed, and
+ * Cancel already says what dismissing means.
  */
 export function ConfirmDialog({
   open,
@@ -38,72 +43,23 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useScrollLock(open);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const opener = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    opener.current = document.activeElement as HTMLElement | null;
-    confirmRef.current?.focus();
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-        return;
-      }
-      if (e.key !== "Tab" || !panelRef.current) return;
-      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      opener.current?.focus?.();
-    };
-  }, [open, onCancel]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="hms-dialog__overlay" onPointerDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div
-        ref={panelRef}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="hms-confirm-title"
-        className="hms-dialog"
-        data-lenis-prevent
-      >
-        <div className="hms-dialog__head">
-          <span className={cn("hms-dialog__icon", tone === "danger" && "hms-dialog__icon--danger")} aria-hidden>
-            <AlertTriangle size={18} strokeWidth={1.75} />
-          </span>
-          <h2 id="hms-confirm-title" className="hms-dialog__title">
-            {title}
-          </h2>
-        </div>
-        {description ? <div className="hms-dialog__body">{description}</div> : null}
-        <div className="hms-dialog__foot">
+  return (
+    <Dialog
+      open={open}
+      onClose={onCancel}
+      title={title}
+      role="alertdialog"
+      size="sm"
+      tone={tone}
+      hideClose
+      busy={busy}
+      icon={<AlertTriangle size={18} strokeWidth={1.75} />}
+      footer={
+        <>
           <button type="button" className="hms-btn hms-btn--secondary" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </button>
           <button
-            ref={confirmRef}
             type="button"
             className={cn("hms-btn", tone === "danger" ? "hms-btn--danger" : "hms-btn--primary")}
             onClick={onConfirm}
@@ -111,9 +67,10 @@ export function ConfirmDialog({
           >
             {busy ? "Working…" : confirmLabel}
           </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </>
+      }
+    >
+      {description}
+    </Dialog>
   );
 }

@@ -12,6 +12,7 @@ import {
   TableActions,
   ToggleAction,
   actionsColumn,
+  EditAction,
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
@@ -20,6 +21,16 @@ import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
 import { useCan } from "../../../lib/auth";
+import { EditRecordDialog, type EditField } from "../../../components/EditRecordDialog";
+
+/**
+ * `code` is deliberately absent: it identifies the branch in URLs, exports and any
+ * integration a hospital has built, so renaming one silently re-points those. Changing
+ * a code is a migration, not a correction.
+ */
+const BRANCH_FIELDS: Array<EditField<Branch>> = [
+  { key: "name", label: "Branch name", required: true, hint: "What staff see in pickers and on documents." },
+];
 
 function BranchesTable() {
   const [rows, setRows] = useState<Branch[]>([]);
@@ -27,6 +38,10 @@ function BranchesTable() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canManage = useCan(PERMISSIONS.BRANCHES_MANAGE);
+
+  // The row being corrected, or null. A branch is a code and a name — small enough
+  // that a dialog is right and a page would be a detour (ADR-060).
+  const [editing, setEditing] = useState<Branch | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [code, setCode] = useState("");
@@ -85,6 +100,7 @@ function BranchesTable() {
     },
     actionsColumn<Branch>((b) => (
       <TableActions label={`Actions for ${b.name}`}>
+        <EditAction label="Edit branch" permitted={canManage} onSelect={() => setEditing(b)} />
         <ToggleAction
           on={b.isActive}
           onLabel="Deactivate branch"
@@ -141,6 +157,21 @@ function BranchesTable() {
         loading={loading}
         error={error}
         emptyMessage="No branches."
+      />
+
+      <EditRecordDialog<Branch>
+        open={editing !== null}
+        record={editing}
+        title="Edit branch"
+        description="Correcting a name or code here updates it everywhere the branch appears."
+        fields={BRANCH_FIELDS}
+        onClose={() => setEditing(null)}
+        onSave={async (patch) => {
+          // The server re-checks `platform.branches.manage` regardless of whether the
+          // action was rendered (ADR-060), and audits the change.
+          await api.updateBranch(editing!.id, patch as { name?: string });
+          await load();
+        }}
       />
     </>
   );

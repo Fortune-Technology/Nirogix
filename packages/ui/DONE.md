@@ -269,3 +269,15 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 **Accessibility:** each variant renders a distinct icon *and* a title in words, so status never rests on colour; errors and warnings take `role="alert"` and everything else `role="status"`; the region is labelled; the close control has an accessible name. Verified in the DOM.
 
 **Testing status:** 19 tests (was 14), covering variant and role mapping, durations, de-duplication, the loading → outcome transition, and dismissal — 73 in this package. Verified live in the Portal across all five variants, a four-deep stack, an action button, Light and Dark, a non-default accent, and a 375px viewport.
+
+## 2026-08-17 — `Dialog`, and `ConfirmDialog` rebuilt on it (ADR-060)
+
+**What:** `@hms/ui` had no modal primitive — only `ConfirmDialog`, which carried its own portal, scroll lock, focus trap, Esc handling and focus restoration. That blocked edit-in-place on three tables, and a second modal would have meant a second copy of all of it.
+
+`Dialog` is that shell extracted: portal to `document.body`, `useScrollLock`, Tab trap, Esc, backdrop close, focus restore, `sm`/`md`/`lg` sizes, and a scrolling body so a long form doesn't overflow a short viewport. **`ConfirmDialog` is now built on it** rather than beside it — migrate, verify, delete, not two systems side by side. What's left in it is only what makes a confirmation one: the warning icon, two buttons, `role="alertdialog"`, and no close × because a confirmation is answered rather than dismissed.
+
+**One thing the browser caught that the typecheck could not.** Focus opened on the **close ×**, not the first field — the close control sits in the header and therefore comes first in DOM order, so "focus the first focusable" did exactly the wrong thing for an edit dialog: the user's next keystroke would have dismissed the thing they opened to type into. Focus now targets the first control in the *body*, falling back to the panel for a confirmation that has none. My own code comment had claimed the correct behaviour while the code did the opposite, which is the kind of thing only rendering it finds.
+
+**Verified in the browser**, not by inspection: portalled to body; `role`, `aria-modal`, and both `aria-labelledby` and `aria-describedby` resolving to real elements; the field prefilled and focused; Save disabled until something actually changes; the submitted patch containing **only the changed field**; the dialog closing after save; scroll unlocking; and Esc closing.
+
+**Testing status:** 73 tests pass; typecheck and build clean across all six workspaces.

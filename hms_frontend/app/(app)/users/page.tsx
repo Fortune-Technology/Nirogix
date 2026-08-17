@@ -14,6 +14,7 @@ import {
   ToggleAction,
   ViewAction,
   actionsColumn,
+  EditAction,
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
@@ -75,6 +76,9 @@ function userColumns(
   actionsColumn<UserListItem>((u) => (
     <TableActions label={`Actions for ${u.fullName}`}>
       <ViewAction label="View user" href={`/users/${u.id}`} />
+      {/* The same detail page, opened ready to edit — one editing surface for a user,
+          not a second form in a dialog (ADR-060). */}
+      <EditAction label="Edit user" permitted={canManage} href={`/users/${u.id}?edit=1`} />
       <ToggleAction
         on={u.status === "active"}
         onLabel="Suspend user"
