@@ -11,7 +11,7 @@
  * No host is hard-coded anywhere else; this is the single place the admin app knows
  * the Portal exists.
  */
-export const PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3000").replace(/\/$/, "");
+export const PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 /** The origin to use as `targetOrigin` when posting a support token to the Portal. */
 export const PORTAL_ORIGIN = (() => {

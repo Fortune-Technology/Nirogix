@@ -12,8 +12,8 @@
 #               API_HOST=api-staging.nirogix.com
 #
 # Routing:
-#   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :3000)
-#   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :3001)
+#   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :3001)
+#   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :3000)
 #   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :4000)
 
 # NO `real_ip_header CF-Connecting-IP` here. With no trusted proxy in front, honouring a
@@ -23,8 +23,8 @@
 # actually exists.
 
 upstream nirogix_backend  { server 127.0.0.1:4000; keepalive 16; }
-upstream nirogix_portal   { server 127.0.0.1:3000; keepalive 16; }
-upstream nirogix_marketing{ server 127.0.0.1:3001; keepalive 16; }
+upstream nirogix_portal   { server 127.0.0.1:3001; keepalive 16; }
+upstream nirogix_marketing{ server 127.0.0.1:3000; keepalive 16; }
 
 # --- API -------------------------------------------------------------------
 server {

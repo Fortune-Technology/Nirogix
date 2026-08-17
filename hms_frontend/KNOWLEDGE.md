@@ -6,7 +6,7 @@ Current state of the Nirogix Portal (staff-facing web app). Read after root `CLA
 
 ## Purpose
 
-The web portal for **hospital staff**, on its own origin (`:3000` → `portal.nirogix.com`). Since ADR-051 it serves hospital staff only — the vendor's platform-operator screens live in the separate `admin` application, so operator code no longer ships in a hospital's bundle.
+The web portal for **hospital staff**, on its own origin (`:3001` → `portal.nirogix.com`). Since ADR-051 it serves hospital staff only — the vendor's platform-operator screens live in the separate `admin` application, so operator code no longer ships in a hospital's bundle.
 
 The single web portal for all hospital staff roles. One RBAC-driven shell renders every role's workspace; the visible menu and pages derive from the signed-in user's **effective permissions**, but visibility is never security — every backend endpoint independently re-checks `auth → module → permission → business logic` (invariant #2).
 
@@ -60,7 +60,7 @@ components/
 
 ## Authentication (client-side session)
 
-- **Cross-origin, token-in-memory.** The Portal (`:3000`) talks to the backend API (`:4000`). `POST /auth/login` returns an **access token** (held in memory only — never localStorage) and sets an **httpOnly refresh cookie** on the API origin. All requests use `credentials: 'include'` so the cookie flows; `Authorization: Bearer` carries the access token.
+- **Cross-origin, token-in-memory.** The Portal (`:3001`) talks to the backend API (`:4000`). `POST /auth/login` returns an **access token** (held in memory only — never localStorage) and sets an **httpOnly refresh cookie** on the API origin. All requests use `credentials: 'include'` so the cookie flows; `Authorization: Bearer` carries the access token.
 - **Silent refresh.** On a full reload the access token is gone, so `AuthProvider` calls `POST /auth/refresh` (cookie) to mint a new one, then loads `/auth/me` + `/rbac/permissions`. A 401 on any call triggers one silent refresh + retry; if that fails the session flips to anonymous.
 - **CORS/cookie:** backend runs `cors({ origin: true, credentials: true })`; the refresh cookie is `SameSite=Lax` (localhost ports are same-site, so it's sent cross-port). No backend change was needed.
 - **MFA:** a `{ mfaRequired: true }` login response is surfaced as "not supported yet" (second factor lands in a later phase). SSO plugs in at the same layer.
@@ -183,8 +183,8 @@ The Portal is private and never indexed: the root layout sets `robots: { index: 
 
 ## Running
 
-- Dev: `npm run dev -w hms_frontend` → `http://localhost:3000` (needs the backend on `:4000`; set `NEXT_PUBLIC_API_BASE_URL` in `.env.local`, default `http://localhost:4000/api/v1`).
-- All apps together: `npm run dev` at the repo root (turbo) — backend `:4000`, portal `:3000`, marketing `:3001`.
+- Dev: `npm run dev -w hms_frontend` → `http://localhost:3001` (needs the backend on `:4000`; set `NEXT_PUBLIC_API_BASE_URL` in `.env.local`, default `http://localhost:4000/api/v1`).
+- All apps together: `npm run dev` at the repo root (turbo) — backend `:4000`, portal `:3001`, marketing `:3000`.
 - Build: `npm run build -w hms_frontend` (Turbopack; all routes prerender static). Typecheck: `npm run typecheck -w hms_frontend`.
 - **Demo login:** org `CITYCARE`, `admin@citycare.example` / `ChangeMe#123` (org_admin) or `reception@citycare.example` / `ChangeMe#123` (receptionist, reduced menu).
 

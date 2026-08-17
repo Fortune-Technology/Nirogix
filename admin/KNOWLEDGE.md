@@ -6,7 +6,7 @@ Current state of the **Nirogix Platform Admin** app. Read after root `CLAUDE.md`
 
 ## Purpose
 
-The vendor's own operators, on their own origin (ADR-051). `:3002` in development, `admin.nirogix.com` in production.
+The vendor's own operators, on their own origin (ADR-051). `:3003` in development, `admin.nirogix.com` in production.
 
 This app is **not** a copy of the staff Portal. It shares the design system through `@hms/ui` and nothing else, so operator code never ships inside a hospital's bundle and a change here cannot regress a clinic. It contains **no clinical navigation and no clinical API calls** — an operator who needs to work inside a hospital opens an audited support session, which hands them the *Portal* on the tenant's own origin, with the support banner visible (ADR-037).
 
@@ -40,7 +40,7 @@ components/
 - **No tenant branding.** The app always wears the Nirogix accent. A console that changes colour depending on whose data is on screen is one you can misread under pressure.
 - **No metric without a source (ADR-043).** The dashboard shows hospitals, users, doctors, branches, module adoption and a link to the audit trail, because those are real queries. Revenue, MRR, subscription mix, storage, uptime and support tickets are **absent and stated as absent** — there is no subscription or tenant-billing model to draw them from (ADR-020).
 - **No development credentials in source.** The seeded operator account lives in `hms_backend/src/scripts/seed.ts` and `testcases.md`. The login screen hints at nothing.
-- **Its own origin, its own session.** The refresh cookie is host-only on the API, so this app's session cannot be replayed against the Portal or any other surface. `http://localhost:3002` is in `CORS_ORIGINS` for development; every environment lists its own (see `resources/domains.md` §8).
+- **Its own origin, its own session.** The refresh cookie is host-only on the API, so this app's session cannot be replayed against the Portal or any other surface. `http://localhost:3003` is in `CORS_ORIGINS` for development; every environment lists its own (see `resources/domains.md` §8).
 
 ## Support sessions — the sending end (ADR-037, ADR-051)
 
@@ -58,4 +58,4 @@ Subscriptions, revenue, platform users, system health, feature flags, integratio
 npm run dev --workspace=admin
 ```
 
-Then `http://localhost:3002`. `npm run typecheck --workspace=admin` and `npm run build --workspace=admin` must both pass.
+Then `http://localhost:3003`. `npm run typecheck --workspace=admin` and `npm run build --workspace=admin` must both pass.

@@ -33,10 +33,10 @@ On any conflict, the four upstream docs (architecture/PRD/phases/rules) win over
 
 ```
 hms_backend/            Node.js + Express + TypeScript API — the only place any boundary is enforced
-hms_frontend/           Next.js Nirogix Portal — hospital staff only (:3000 → portal.nirogix.com)
-marketing/              Next.js public marketing/SEO site (:3001 → nirogix.com)
-admin/                  Next.js platform administration — vendor operators (:3002 → admin.nirogix.com)
-patient/                Next.js patient portal — verified patients (:3003 → patient.nirogix.com)
+marketing/              Next.js public marketing/SEO site (:3000 → nirogix.com)
+hms_frontend/           Next.js Nirogix Portal — hospital staff only (:3001 → portal.nirogix.com)
+patient/                Next.js patient portal — verified patients (:3002 → patient.nirogix.com)
+admin/                  Next.js platform administration — vendor operators (:3003 → admin.nirogix.com)
 aiportal/               Next.js AI Portal — authorised staff + operators (:3004 → nirogix.ai)
 packages/types          @hms/types — shared TS types & API contracts (backend + every frontend)
 packages/client         @hms/client — shared frontend foundation: HTTP core, session context, guards (ADR-054)

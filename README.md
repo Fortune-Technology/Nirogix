@@ -37,10 +37,15 @@ That's it — one install, one dev command. No need to `cd` into each app.
 | Workspace | What it is | Dev URL | Port |
 |---|---|---|---|
 | `hms_backend` | Node.js + Express + TypeScript API (Drizzle/PostgreSQL) | http://localhost:4000/api/v1 | **4000** |
-| `hms_frontend` | Next.js **Nirogix Portal** (all role dashboards) | http://localhost:3000 | **3000** |
-| `marketing` | Next.js public marketing/SEO site | http://localhost:3001 | **3001** |
+| `marketing` | Next.js public marketing/SEO site | http://localhost:3000 | **3000** |
+| `hms_frontend` | Next.js **Nirogix Portal** — hospital staff | http://localhost:3001 | **3001** |
+| `patient` | Next.js patient portal — verified patients | http://localhost:3002 | **3002** |
+| `admin` | Next.js platform administration — vendor operators | http://localhost:3003 | **3003** |
+| `aiportal` | Next.js AI Portal — staff + operators, never patients | http://localhost:3004 | **3004** |
 
-Shared libraries (not servers): `packages/types` (`@hms/types`), `packages/ui` (`@hms/ui`), `packages/config` (`@hms/config`), `packages/utils` (`@hms/utils`), `packages/permissions` (`@hms/permissions`).
+Shared libraries (not servers): `packages/types` (`@hms/types`), `packages/client` (`@hms/client`), `packages/ui` (`@hms/ui`), `packages/config` (`@hms/config`), `packages/utils` (`@hms/utils`), `packages/permissions` (`@hms/permissions`).
+
+A port belongs to the application, not to the environment: it is pinned in that workspace's `dev` **and** `start` scripts, mirrored in `.claude/launch.json`, and matched by the Nginx upstreams in `deploy/`. The full host map, per environment, is `resources/domains.md`.
 
 Health check: `GET http://localhost:4000/api/v1/health` → `{"status":"ok",...}`. Readiness (DB): `GET /api/v1/health/ready`.
 
@@ -59,14 +64,17 @@ Health check: `GET http://localhost:4000/api/v1/health` → `{"status":"ok",...}
 | `npm run format` | Prettier-format the repo |
 | `npm run format:check` | Verify formatting without writing |
 
-Logs from `npm run dev` are prefixed per service (`hms_backend:dev:`, `hms_frontend:dev:`, `marketing:dev:`) so failures are attributable at a glance. Stop everything with **Ctrl+C**.
+Logs from `npm run dev` are prefixed per service (`hms_backend:dev:`, `hms_frontend:dev:`, `marketing:dev:`, `patient:dev:`, `admin:dev:`, `aiportal:dev:`) so failures are attributable at a glance. Stop everything with **Ctrl+C**.
 
 ## Running a single application
 
 ```bash
-npm run dev -w hms_backend      # backend only  (:4000)
-npm run dev -w hms_frontend     # portal only   (:3000)
-npm run dev -w marketing        # marketing only (:3001)
+npm run dev -w hms_backend      # backend only    (:4000)
+npm run dev -w marketing        # marketing only  (:3000)
+npm run dev -w hms_frontend     # portal only     (:3001)
+npm run dev -w patient          # patient portal  (:3002)
+npm run dev -w admin            # admin console   (:3003)
+npm run dev -w aiportal         # AI Portal       (:3004)
 ```
 
 `-w <workspace>` works with any script (`build`, `lint`, `typecheck`, …). Turbo filters also work: `npx turbo run dev --filter=hms_frontend`.
@@ -109,7 +117,7 @@ The backend validates its environment at boot (Zod) and exits with a clear messa
 | Symptom | Fix |
 |---|---|
 | `turbo: Could not resolve workspace … Missing packageManager field` | The root `package.json` must keep `"packageManager": "npm@…"`. |
-| A port is already in use | Another process holds 3000/3001/4000. Stop it, or change the port in that app's `dev` script / `PORT`. |
+| A port is already in use | Another process holds one of 3000-3004 or 4000. Stop it, or change that app's `dev` **and** `start` scripts together — and `.claude/launch.json`, `deploy/nginx/` and `resources/domains.md` with them. |
 | Backend exits immediately at boot | Missing/invalid `hms_backend/.env` — copy `.env.example` and set `DATABASE_URL` + JWT secrets (≥16 chars). |
 | `unable to determine transport target for "pino-pretty"` | `pino-pretty` missing — `npm install` at root (it is a backend devDependency). |
 | Workspace package not found (`@hms/*`) | Run `npm run install:all` from the root so npm links the workspaces. |
@@ -121,8 +129,11 @@ The backend validates its environment at boot (Zod) and exits with a clear messa
 ```
 HMS/
 ├── hms_backend/     Express + Drizzle API        (:4000)
-├── hms_frontend/    Next.js Nirogix Portal       (:3000)
-├── marketing/       Next.js marketing site       (:3001)
+├── marketing/       Next.js marketing site       (:3000)
+├── hms_frontend/    Next.js Nirogix Portal       (:3001)
+├── patient/         Next.js patient portal       (:3002)
+├── admin/           Next.js platform admin       (:3003)
+├── aiportal/        Next.js AI Portal            (:3004)
 ├── packages/
 │   ├── types/       @hms/types
 │   ├── ui/          @hms/ui

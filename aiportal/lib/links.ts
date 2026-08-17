@@ -8,5 +8,5 @@
  */
 const strip = (u: string) => u.replace(/\/$/, "");
 
-export const PORTAL_URL = strip(process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3000");
-export const MARKETING_URL = strip(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001");
+export const PORTAL_URL = strip(process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001");
+export const MARKETING_URL = strip(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");

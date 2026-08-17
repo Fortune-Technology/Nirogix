@@ -83,7 +83,7 @@ These are the tabs a hospital administrator expects from other HMS products and 
 
 **Five-frontend architecture (ADR-051, ADR-052, ADR-053) — ordered**
 
-The decision and the host map are done (`DECISIONS.md`, `resources/domains.md`). `admin/` boots on :3002 against the real backend. What remains, in the order it should be built:
+The decision and the host map are done (`DECISIONS.md`, `resources/domains.md`). `admin/` boots on :3003 against the real backend. What remains, in the order it should be built:
 
 - ~~**F-1 · Move the platform surface out of `hms_frontend`**~~ — **Done 2026-08-16.** Platform dashboard, tenant management, module provisioning, support sessions, platform branding and the audit viewer now live only in `admin/`. The Portal keeps `/support/enter` (it *receives* a session) and the public platform-branding read (it applies the default at bootstrap). The support handoff was made genuinely cross-origin: each side names the other's origin from configuration instead of `window.location.origin`.
 - ~~**F-2 · Patient identity backend (ADR-052)**~~ — **Done 2026-08-16.** Tables, principal-type claim on the token, both-direction boundary in `requireAuth` / `requirePatientAuth`, hospital-side grant and revoke, hashed single-use codes, uniform failure, per-request tenant resolution, and the patient read API (`/patient/auth/*`, `/patient/hospitals`, profile, appointments, invoices, lab reports) with OpenAPI. Verified live end to end. **Remaining for a usable portal: F-3 (the frontend) and wiring the grant into the patient-registration screen.**

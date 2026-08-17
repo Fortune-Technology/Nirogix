@@ -130,11 +130,11 @@ Fonts already use `next/font` (Geist / Geist Mono). **Outstanding:** no `next/im
 
 ## The Portal link (environment-aware)
 
-- "Sign in" / "Go to Portal" actions link to `PORTAL_LOGIN_URL` (`lib/portal.ts`) from **`NEXT_PUBLIC_PORTAL_LOGIN_URL`** (default `http://localhost:3000/login`). Site metadata base URL is `NEXT_PUBLIC_SITE_URL` (default `http://localhost:3001`).
+- "Sign in" / "Go to Portal" actions link to `PORTAL_LOGIN_URL` (`lib/portal.ts`) from **`NEXT_PUBLIC_PORTAL_LOGIN_URL`** (default `http://localhost:3001/login`). Site metadata base URL is `NEXT_PUBLIC_SITE_URL` (default `http://localhost:3000`).
 
 ## Running
 
-- Dev: `npm run dev -w marketing` → `http://localhost:3001`. Build: `npm run build -w marketing`. Typecheck: `npm run typecheck -w marketing`.
+- Dev: `npm run dev -w marketing` → `http://localhost:3000`. Build: `npm run build -w marketing`. Typecheck: `npm run typecheck -w marketing`.
 
 ## Constraints / not-yet-built
 

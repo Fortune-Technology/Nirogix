@@ -4,7 +4,7 @@ The Nirogix **patient portal**. Read after root `CLAUDE.md` and `patient/AGENTS.
 
 ## Purpose
 
-Patients, on their own origin (`:3003` → `patient.nirogix.com`, ADR-051). Read-only access to the records the hospitals they are registered with already hold for them.
+Patients, on their own origin (`:3002` → `patient.nirogix.com`, ADR-051). Read-only access to the records the hospitals they are registered with already hold for them.
 
 A patient is a **different principal from staff** (ADR-052), not a staff user with fewer permissions. This app shares the design system through `@hms/ui` and the HTTP core through `@hms/client`, and nothing else — a patient must never be one route away from a clinical screen.
 
@@ -47,4 +47,4 @@ The signed-in layout distinguishes *restoring* from *signed out*, and redirects 
 
 ## Verify
 
-`npm run dev --workspace=patient`, then `http://localhost:3003`. `npm run typecheck --workspace=patient` and `npm run build --workspace=patient` must pass.
+`npm run dev --workspace=patient`, then `http://localhost:3002`. `npm run typecheck --workspace=patient` and `npm run build --workspace=patient` must pass.

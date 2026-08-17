@@ -26,7 +26,7 @@ module.exports = {
     {
       name: 'nirogix-portal',
       cwd: './hms_frontend',
-      // `next start` serves the production build on :3000.
+      // `next start` serves the production build on :3001.
       script: 'npm',
       args: 'run start',
       env: { NODE_ENV: 'production' },

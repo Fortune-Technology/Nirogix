@@ -13,7 +13,7 @@
 import type { Metadata } from "next";
 import { SITE } from "./site";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /**
  * Staging is a public-DNS copy of the site with no edge access gate (ADR-045), so it

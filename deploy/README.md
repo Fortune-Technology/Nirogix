@@ -16,7 +16,7 @@ code hard-codes one — every URL comes from that environment's configuration.
 
 | Env | Purpose | Hosts | Deploy trigger |
 |---|---|---|---|
-| **Local** | Development | `localhost` (api :4000, portal :3000, marketing :3001) | `npm run dev` |
+| **Local** | Development | `localhost` (marketing :3000, portal :3001, patient :3002, admin :3003, aiportal :3004, api :4000) | `npm run dev` |
 | **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, GoDaddy DNS, Let's Encrypt TLS, basic auth (ADR-045) | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
 | **Production** | Live | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB | controlled, reviewed promotion |
 
@@ -27,7 +27,9 @@ state with production and is never indexable.
 ## Topology (single VM, per architecture)
 
 - **Nginx** terminates TLS on the origin (Let's Encrypt via certbot) and reverse-proxies to three PM2 apps
-  (`deploy/nginx/nirogix.conf.template`): API→:4000, Portal→:3000, Marketing→:3001.
+  (`deploy/nginx/nirogix.conf.template`): Marketing→:3000, Portal→:3001, API→:4000. The
+  `patient`, `admin` and `aiportal` apps are not deployed yet (`BACKLOG.md` F-5); their ports
+  are reserved and their upstreams land in the same file when they are.
 - **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`, `nirogix-marketing`
   (`deploy/pm2.ecosystem.cjs`).
 - **PostgreSQL** = managed E2E DBaaS, provisioned **separately** from the app VM. The app

@@ -6,7 +6,7 @@
 
 ## How to log in
 
-- **Portal:** http://localhost:3000/login (run `npm run dev -w hms_frontend`)
+- **Portal:** http://localhost:3001/login (run `npm run dev -w hms_frontend`)
 - **API:** http://localhost:4000/api/v1 (run `npm run dev -w hms_backend`)
 - **All apps at once:** `npm run dev` (repo root)
 - **(Re)create the accounts:** `npm run db:seed -w hms_backend` (idempotent)

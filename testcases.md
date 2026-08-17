@@ -16,7 +16,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 ## Test environment & accounts
 
-- **Portal** `http://localhost:3000` · **Marketing** `http://localhost:3001` · **Platform admin** `http://localhost:3002` · **Patient portal** `http://localhost:3003` · **AI Portal** `http://localhost:3004` · **API** `http://localhost:4000/api/v1` (Swagger at `/api/v1/docs`). Five frontends, one backend (ADR-051).
+- **Marketing** `http://localhost:3000` · **Portal** `http://localhost:3001` · **Patient portal** `http://localhost:3002` · **Platform admin** `http://localhost:3003` · **AI Portal** `http://localhost:3004` · **API** `http://localhost:4000/api/v1` (Swagger at `/api/v1/docs`). Five frontends, one backend (ADR-051).
 - Seeded demo tenants: **CITYCARE**, **SUNRISE**, plus the vendor tenant **PLATFORM**.
 - Accounts (seed, password `ChangeMe#123`): `owner@takoriya.example` (super_admin, PLATFORM) · `admin@citycare.example` (org_admin) · `reception@citycare.example` (receptionist) · plus doctor / pharmacist / lab / cashier users per the seed.
 - Run each UI case in **Light and Dark**, and at least once at **mobile width (375px)** and desktop.
@@ -215,18 +215,18 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
 |---|---|---|---|---|---|---|---|---|
-| FE-01 | Admin console is its own app | — | Open `http://localhost:3002` | The platform admin sign-in renders, on the shared design system, with no hospital branding | P1 | Functional | super_admin | Not run |
-| FE-02 | Platform routes are gone from the Portal | — | Open `/platform`, `/admin/tenants`, `/admin/branding` on `:3000` | All 404 — the operator surface no longer exists in the Portal | P1 | Regression | super_admin | Not run |
-| FE-03 | Hospital admin cannot use the admin console | org_admin credentials | Sign in at `:3002` | Forbidden panel, not an empty console; the API refuses the same calls independently | P1 | Security | org_admin | Not run |
-| FE-04 | Operator has no clinical menu | super_admin | Sign in at `:3002` | Overview, Hospitals, Support, Platform, Account — no patients, appointments, OPD, pharmacy, laboratory or billing | P1 | Security | super_admin | Not run |
-| FE-05 | Support session crosses origins | super_admin at `:3002` | Hospitals → a hospital → start a support session | A **Portal** tab opens at `:3000/support/enter`, claims the session, and lands on the hospital's dashboard with the support banner | P1 | Functional | super_admin | Not run |
+| FE-01 | Admin console is its own app | — | Open `http://localhost:3003` | The platform admin sign-in renders, on the shared design system, with no hospital branding | P1 | Functional | super_admin | Not run |
+| FE-02 | Platform routes are gone from the Portal | — | Open `/platform`, `/admin/tenants`, `/admin/branding` on `:3001` | All 404 — the operator surface no longer exists in the Portal | P1 | Regression | super_admin | Not run |
+| FE-03 | Hospital admin cannot use the admin console | org_admin credentials | Sign in at `:3003` | Forbidden panel, not an empty console; the API refuses the same calls independently | P1 | Security | org_admin | Not run |
+| FE-04 | Operator has no clinical menu | super_admin | Sign in at `:3003` | Overview, Hospitals, Support, Platform, Account — no patients, appointments, OPD, pharmacy, laboratory or billing | P1 | Security | super_admin | Not run |
+| FE-05 | Support session crosses origins | super_admin at `:3003` | Hospitals → a hospital → start a support session | A **Portal** tab opens at `:3001/support/enter`, claims the session, and lands on the hospital's dashboard with the support banner | P1 | Functional | super_admin | Not run |
 | FE-06 | Token never appears in a URL | Same as FE-05 | Watch the address bar and browser history | The token is never in a URL, a query string or history — it travels only by `postMessage` | P1 | Security | super_admin | Not run |
-| FE-07 | Only the admin origin may hand over a session | — | Open `:3000/support/enter` directly, and post a fake `hms:support-session` from another origin | The page fails to claim anything; a message from any origin other than `NEXT_PUBLIC_ADMIN_ORIGIN` is ignored | P1 | Security | — | Not run |
-| FE-08 | Sessions are not shared between apps | Signed in at `:3002` | Open `:3000` in the same browser | The Portal does not inherit the admin session — each origin holds its own | P1 | Security | super_admin | Not run |
-| FE-09 | CORS is per origin | — | Preflight `/api/v1/admin/stats` with `Origin: http://localhost:3002` | 204, `Access-Control-Allow-Origin: http://localhost:3002`, `Allow-Credentials: true` | P2 | Security | — | Not run |
+| FE-07 | Only the admin origin may hand over a session | — | Open `:3001/support/enter` directly, and post a fake `hms:support-session` from another origin | The page fails to claim anything; a message from any origin other than `NEXT_PUBLIC_ADMIN_ORIGIN` is ignored | P1 | Security | — | Not run |
+| FE-08 | Sessions are not shared between apps | Signed in at `:3003` | Open `:3001` in the same browser | The Portal does not inherit the admin session — each origin holds its own | P1 | Security | super_admin | Not run |
+| FE-09 | CORS is per origin | — | Preflight `/api/v1/admin/stats` with `Origin: http://localhost:3003` | 204, `Access-Control-Allow-Origin: http://localhost:3003`, `Allow-Credentials: true` | P2 | Security | — | Not run |
 | FE-10 | Portal still applies the platform branding default | Platform "hms" branding set | Sign in to the Portal | The default palette applies, then tenant branding on top — the Portal keeps the public read | P2 | Regression | org_admin | Not run |
 | FE-11 | No development credentials in any bundle | — | Search the built output of every frontend for the seed email and password | No match in any app | P1 | Security | — | Not run |
-| FE-12 | Patient portal is not usable | — | Open `http://localhost:3003` | A scaffold only — no login, no patient data. Nothing claims otherwise | P1 | Functional | — | Not run |
+| FE-12 | Patient portal is not usable | — | Open `http://localhost:3002` | A scaffold only — no login, no patient data. Nothing claims otherwise | P1 | Functional | — | Not run |
 | FE-13 | AI Portal is not usable | — | Open `http://localhost:3004` | A scaffold only — no AI capability, and no claim that one exists | P1 | Functional | — | Not run |
 
 ## 12c. Patient identity & portal API (ADR-052)
@@ -264,7 +264,7 @@ The portal frontend does not exist yet — these are API cases, run with curl or
 
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
 |---|---|---|---|---|---|---|---|---|
-| PP-01 | Sign-in screen | — | Open `http://localhost:3003` | Two-step sign-in; a line stating there is **no signup** and that the hospital grants access | P1 | UI/UX | patient | Not run |
+| PP-01 | Sign-in screen | — | Open `http://localhost:3002` | Two-step sign-in; a line stating there is **no signup** and that the hospital grants access | P1 | UI/UX | patient | Not run |
 | PP-02 | Unknown contact reveals nothing | — | Request a code for an unregistered number | The screen advances to the code step exactly as for a registered one — no "we don't recognise that" | P1 | Security | patient | Not run |
 | PP-03 | Sign in with a code | Portal access granted, code received | Enter the code | Lands on the hospital picker | P1 | Functional | patient | Not run |
 | PP-04 | Wrong code | — | Enter a wrong code | Inline error; no session | P1 | Validation | patient | Not run |
@@ -288,7 +288,7 @@ The portal frontend does not exist yet — these are API cases, run with curl or
 | PP-17 | No contact on file | A patient with no mobile or email | Open the card | Explains a contact is needed first, and offers no grant button | P2 | UI/UX | receptionist | Not run |
 | PP-18 | Withdrawing confirms | A patient with access | Withdraw | Confirmation naming the effect; afterwards the patient is refused immediately | P1 | Security | receptionist | Not run |
 | PP-19 | Card is hidden without permission | A role without `patient.record.create` | Open a patient | No Portal access card | P1 | Security | cashier | Not run |
-| PP-20 | Patient origin CORS | — | Preflight `/patient/hospitals` from `http://localhost:3003` | 204 with that exact origin allowed | P2 | Security | — | Not run |
+| PP-20 | Patient origin CORS | — | Preflight `/patient/hospitals` from `http://localhost:3002` | 204 with that exact origin allowed | P2 | Security | — | Not run |
 
 ## 12e. AI Portal — the boundary (ADR-053)
 

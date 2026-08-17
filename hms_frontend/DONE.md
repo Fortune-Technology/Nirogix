@@ -533,3 +533,27 @@ Three decisions worth recording:
 Dismissing hides the *reminder*, never the work: the full checklist stays under Hospital configuration, which is in the sidebar, and the close control's tooltip says so. An in-memory fallback covers a browser with storage disabled, so the click always does something visible — swallowing it silently would be worse than not offering the button.
 
 **Testing status:** typecheck, lint and build clean. Six manual cases added (`SETUP-D1`…`SETUP-D6`), including the per-user and cross-tab behaviour. Not verified in a running browser — the card needs an authenticated org_admin session, and I do not sign in on the user's behalf.
+
+## 2026-08-16 — Local ports reassigned across all five frontends
+
+**What:** `.claude/launch.json` changed, so everything that names a port changed with it.
+
+```
+marketing  3001 → 3000      patient   3003 → 3002
+portal     3000 → 3001      admin     3002 → 3003
+aiportal   3004 (unchanged)  api      4000 (unchanged)
+```
+
+Two pairs **swap**, which is the part that matters: a sequential find-and-replace would have applied each substitution twice and silently produced garbage. Every file went through placeholder tokens so the swap was atomic.
+
+**A port belongs to the application, not to the environment.** It is pinned in that workspace's `dev` **and** `start` scripts, mirrored in `.claude/launch.json`, and matched by the Nginx upstreams in `deploy/`. Changing one without the others gives a preview tool that watches the wrong port, or an Nginx that proxies to nothing. All four now move together, and `README.md` and `domains.md` say so.
+
+**The bug this would have caused if only `launch.json` had changed:** `hms_frontend/lib/origins.ts` defaults `ADMIN_ORIGIN` to `:3002` and `PATIENT_ORIGIN` to `:3003` — exactly the two that swapped. The Portal would have accepted a support-session handover from the *patient* app's origin and printed QR posters pointing at the *admin* console. `aiportal/lib/links.ts` had the same shape for portal and marketing.
+
+26 files updated mechanically, then hand-tidied where the swap left tables out of numeric order.
+
+**Deliberately not touched:** `DECISIONS.md` and every `DONE.md`. Both are append-only records of a point in time, and ADR-051's table shows the ports as they were decided. `resources/domains.md` now carries a dated note saying it is the authority, so a reader who meets an old number in the history knows where truth lives.
+
+**Also fixed while in there** — all five per-app `README.md` files were `create-next-app` boilerplate claiming port 3000, which was already wrong for four of them before today; the root `README.md`'s application table, single-app commands and project layout still listed only two frontends, from before ADR-051.
+
+**Testing status:** typecheck, build and tests clean across all six workspaces (119 backend, 73 `@hms/ui`, 31 `@hms/utils`, 12 `@hms/client`). `patient/.next` had a truncated generated `routes.d.ts` from an interrupted dev server and was deleted — a build artifact, unrelated to this change.
