@@ -717,3 +717,9 @@ Hospital Admins now pick standardised items instead of re-typing them, while kee
 New Hospital Configuration tab **Hospital availability** (`/settings/availability`, org_admin, permission `platform.catalog.availability.manage`): pick a hospital + item type (Medicines / Lab tests / Services / Vaccines), see the organisation's items each with an **Offered here / Not offered** toggle. Toggling saves through `PUT /branch-availability`; the day-to-day pickers/lists (which pass a branch) then filter to what that hospital offers — enforced by the backend (ADR-073), not just the UI. `api.getAvailabilityItems` / `setBranchAvailability` added.
 
 **Testing status:** typecheck clean. Browser-verified as CityCare's org_admin: the screen loaded both branches (Kothrud, Baner) and the four item types; toggling Paracetamol to **Not offered** at Kothrud saved and **persisted across a reload**.
+
+## 2026-08-18 — Platform Admins back on the Portal quick-login; org code `NIROGIX` (ADR-074)
+
+The two Platform Admins (`jaivik@`, `nishant@`) are restored to the Portal's dev/staging "Test credentials" list, now carrying org code **`NIROGIX`** (ADR-074, was `PLATFORM`). Still the one inline-gated array that folds out of a production build (issue #7); selecting a card fills the same login form. The hospital-role cards are unchanged. (They also live on the Admin console now — see `admin/DONE.md` — since operators sign in there.)
+
+**Testing status:** typecheck clean (Portal + admin + backend). The list is source-only data behind the `NEXT_PUBLIC_ENVIRONMENT` gate; the production fold-out is unchanged from issue #7.

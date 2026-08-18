@@ -22,7 +22,7 @@ export interface ResolvedPlatformBranding {
 
 // The PLATFORM org's tenant id (ADR-022), used for asset storage + audit.
 export async function platformTenantId(): Promise<string> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'PLATFORM')).limit(1);
+  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'NIROGIX')).limit(1);
   const id = rows[0]?.id;
   if (!id) throw new Error('PLATFORM tenant not found (run db:seed)');
   return id;

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, sessions, type User } from '../../db/schema';
@@ -44,7 +44,10 @@ function toPublicUser(u: User): PublicUser {
 // Tenant resolution at login by organization code (resources/architecture.md → Multi-Tenancy).
 // `tenants` has no RLS, so this runs on the base connection before any tenant context exists.
 async function resolveTenantByCode(code: string) {
-  const rows = await db.select().from(tenants).where(eq(tenants.code, code)).limit(1);
+  // Case-insensitive match: staff and operators may type the organization code in any case
+  // (`nirogix`, `Nirogix`, `NIROGIX`). Codes are stored in a canonical (upper) case, so a
+  // case-folded comparison resolves the tenant regardless of how it was typed on the form.
+  const rows = await db.select().from(tenants).where(sql`lower(${tenants.code}) = lower(${code})`).limit(1);
   return rows[0] ?? null;
 }
 

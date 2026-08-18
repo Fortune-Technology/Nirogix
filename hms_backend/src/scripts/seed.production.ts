@@ -39,7 +39,7 @@ const BOOTSTRAP_EMAIL = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim();
 const BOOTSTRAP_NAME = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || 'Platform Owner';
 const BOOTSTRAP_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 
-const PLATFORM_CODE = 'PLATFORM';
+const PLATFORM_CODE = 'NIROGIX';
 const PLATFORM_NAME = process.env.BOOTSTRAP_PLATFORM_NAME?.trim() || 'Nirogix';
 
 /**

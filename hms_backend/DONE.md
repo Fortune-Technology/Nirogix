@@ -843,3 +843,23 @@ Within one organization, hospitals can now carry different items — Hospital 1 
 - **Deferred** (issue #14's "full" option): real per-hospital STOCK needs a server-side current-branch (branch in the token/session + a validated switcher + user↔branch membership) — a change to authentication. The overlay ships without it; a per-branch price override is included.
 
 **Testing status:** new `branchAvailability.test.ts` (5 tests: disabling at one hospital doesn't affect the other or org-wide; price override applies only at that branch; vaccines branch-scoped by code; one org can't see another's config; a foreign branch is refused). Full backend suite **162/162** green. Typecheck + OpenAPI validate clean (migration 0027).
+
+## 2026-08-18 — Operator org code → `NIROGIX`; case-insensitive org-code login (ADR-074)
+
+The operator org (ADR-022) is now coded **`NIROGIX`** (was `PLATFORM`) — consistent with `CITYCARE` / `SUNRISE` and with the org's own name, so operators sign in with the product name. Changed the three services that resolve the operator org by literal — `patient-identity` (verification sender), `platform-branding` (default scopes), `admin` onboarding (`PLATFORM_CODE`) — and the three seeders (`seed.ts`, `seed.staging.ts`, `seed.production.ts`). The running dev DB was migrated **in place** (a code rename on the existing row; the two Platform Admins stayed attached — no duplicate org). `PLATFORM` is retired as a code; the word survives only as the *concept* "platform operator".
+
+`resolveTenantByCode` is now **case-insensitive** (`lower(code) = lower(input)`, limit 1), so every sign-in form accepts the org code in any case. Codes stay stored canonical/upper; they are unique and uppercase by convention, so the read stays single-row.
+
+**Testing status:** verified live against the API — `nirogix`, `Nirogix`, `NIROGIX`, `NiRoGiX` each return a `super_admin` token for both `jaivik@` and `nishant@`; the retired `PLATFORM` code now returns `UNAUTHORIZED`. Auth + admin + patient-identity module suites **28/28** green; the three affected workspaces typecheck clean.
+
+## 2026-08-18 — Deploy hardening after the staging-VM OOM outage
+
+The shared staging VM was OOM-killed and taken fully offline when an unbounded `npm run build` ran all six workspaces' Turbopack/`tsc` builds concurrently (zero swap). Real-source fixes for what had been live only as VM symlinks + workarounds:
+
+- **`tsconfig.json` `rootDir: "."` → `"src"`** so `tsc` emits `dist/server.js` (what `deploy/ecosystem.config.cjs` runs), not `dist/src/server.js`. `drizzle.config.ts` was dropped from `include` (it lives outside `src/` and is loaded directly by drizzle-kit, never emitted; keeping it forced the common root back to `.` and re-nested the output). Verified: clean build emits `dist/server.js` with no `dist/src/`, typecheck still green, `drizzle.config.ts` still valid standalone.
+- **`deploy/pm2.ecosystem.cjs` → `deploy/ecosystem.config.cjs`** (`git mv`). PM2 only parses the `apps` array from files matching `*.config.{js,cjs,mjs}`/`.json`/`.yml`; the old name silently ran as one inert script instead of six apps. Updated every live reference (the workflow's `pm2 reload` line, `deploy/README.md` ×3, `hms_backend/KNOWLEDGE.md`) and added a "do not rename" note in the file; append-only DONE history keeps the old name in past tense.
+- **`deploy-staging.yml` SSH step** already runs `npm run build -- --concurrency=2` (bounded peak memory — the direct OOM fix); its incident comment now points at the new runbook § Incidents.
+- **`admin` / `patient` / `aiportal` gained committed `.env.example` files** (they had none — env had to be reverse-derived from source). Each lists exactly the `NEXT_PUBLIC_*` its source reads, with per-environment hosts from `resources/domains.md`. Also fixed a latent bug: those three apps' local `.gitignore` lacked the `!.env.example` negation `hms_frontend`/`marketing` have, so the new templates were being silently ignored.
+- **`deploy/README.md`** gained a **required** swap-space provisioning step (Step 0b — 4 GB swapfile) and an **`## Incidents`** section recording the outage, cause, fixes, and the shared-VM operating rules (never bare `npm run build` by hand; verify bound ports with `ss`/`curl` not PM2's "launched"; inline env vars; `pm2 save` only after verifying; clean `su -` switches).
+
+**Testing status:** backend build emits `dist/server.js` (verified, no `dist/src/`); backend typecheck clean; the three `.env.example` files confirmed git-trackable after the `.gitignore` fix. No app-code behaviour changed — this is deploy/build configuration + docs.

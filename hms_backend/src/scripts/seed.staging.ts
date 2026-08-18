@@ -75,7 +75,7 @@ const TENANT = {
 
 /** The Nirogix platform-operator org, so operator-side flows are testable too. */
 const PLATFORM = {
-  code: 'PLATFORM',
+  code: 'NIROGIX',
   name: 'Nirogix',
   users: [
     { email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' },

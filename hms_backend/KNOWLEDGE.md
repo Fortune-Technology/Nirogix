@@ -262,7 +262,7 @@ The **only unauthenticated write path in the product**. Read this before adding 
 - **Structured logging:** pino (`config/logger.ts`) with **PII/secret redaction** (authorization headers, cookies, passwords, tokens) — JSON in staging/production, pretty in dev. `pino-http` adds a per-request correlation id.
 - **Error tracking:** `observability/errorTracker.ts` — a thin abstraction (ADR-007 pattern). By default it logs an `error.captured` event (with request id + tenant/user/method/path) for every unexpected 5xx from the error handler; set **`SENTRY_DSN`** to forward to Sentry/GlitchTip later without touching call sites.
 - **Health:** `GET /health` (liveness) + `/health/ready` (DB readiness, 503 until PostgreSQL reachable) — for uptime checks and PM2/Nginx.
-- **Deploy baseline (versioned, `deploy/`):** PM2 ecosystem (`deploy/pm2.ecosystem.cjs`), Nginx template (`deploy/nginx/hms.conf.template`), backup + **restore-drill** scripts (`deploy/backup/`), and the ops runbook (`deploy/README.md`). CI/CD: `.github/workflows/ci.yml` (every push) + `deploy-staging.yml` (auto-deploy on merge to `staging` — migrate before rollout, PM2 zero-downtime reload). See ADR-019.
+- **Deploy baseline (versioned, `deploy/`):** PM2 ecosystem (`deploy/ecosystem.config.cjs`), Nginx template (`deploy/nginx/hms.conf.template`), backup + **restore-drill** scripts (`deploy/backup/`), and the ops runbook (`deploy/README.md`). CI/CD: `.github/workflows/ci.yml` (every push) + `deploy-staging.yml` (auto-deploy on merge to `staging` — migrate before rollout, PM2 zero-downtime reload). See ADR-019.
 
 ## API documentation (OpenAPI) — MANDATORY
 
