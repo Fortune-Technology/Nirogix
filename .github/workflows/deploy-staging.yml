@@ -44,8 +44,7 @@ jobs:
       # (kernel log: `next-build` at 780MB RSS), and took the entire box offline until a manual
       # restart. `--concurrency=2` caps how many workspaces Turbo builds at once — same total
       # work, bounded peak memory. Do not remove this flag or revert to a bare `npm run build`
-      # on this step without swap space + a memory recheck first (see deploy/README.md § Backups
-      # & DR area — add an Incidents note there).
+      # on this step without swap space + a memory recheck first (see deploy/README.md § Incidents).
       - name: Deploy to staging VM
         uses: appleboy/ssh-action@v1
         with:
@@ -61,5 +60,5 @@ jobs:
             npm run build -- --concurrency=2
             # Migrations apply before the app rollout (additive/reversible only).
             npm run db:migrate -w hms_backend
-            pm2 reload deploy/pm2.ecosystem.cjs --env staging
+            pm2 reload deploy/ecosystem.config.cjs --env staging
             pm2 save

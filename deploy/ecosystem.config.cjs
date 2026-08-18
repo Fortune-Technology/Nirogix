@@ -2,6 +2,13 @@
 // user — resources/development-plan.md §16/§18). Versioned config so environments are
 // reproducible and the later container migration has a documented baseline.
 //
+// ── THE FILENAME MATTERS — do not rename ─────────────────────────────────────
+// PM2 only parses the `apps` array from files matching its ecosystem pattern
+// (`*.config.{js,cjs,mjs}`, or `.json`/`.yml`). This file was once `pm2.ecosystem.cjs`, which does
+// NOT match — so `pm2 start`/`pm2 reload` silently ran it as a single plain Node script (ONE inert
+// process, not the six real apps). Keep the `ecosystem.config.cjs` name (2026-08-18 OOM/deploy
+// incident — see deploy/README.md § Incidents).
+//
 // ── PORTS ON A SHARED VM ─────────────────────────────────────────────────────
 // The staging VM hosts OTHER projects (see deploy/README.md → "Shared VM: audit
 // ports first"). Every port below is therefore a VARIABLE with a default, set in
@@ -10,8 +17,8 @@
 // code never hard-codes a port (`next start` reads PORT; the API reads PORT).
 //
 //   Run the audit in deploy/README.md, pick free ports, export them, THEN:
-//   pm2 start deploy/pm2.ecosystem.cjs --env staging
-//   pm2 reload deploy/pm2.ecosystem.cjs --update-env   # zero-downtime redeploy
+//   pm2 start deploy/ecosystem.config.cjs --env staging
+//   pm2 reload deploy/ecosystem.config.cjs --update-env   # zero-downtime redeploy
 //   pm2 logs nirogix-backend
 //
 // Secrets come from each app's `.env`/`.env.local` on the VM (never committed) or
