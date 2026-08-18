@@ -28,7 +28,7 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 
 | # | Item | Blocked by | Notes |
 |---|---|---|---|
-| I-1 | Real notification send verified in staging | Staging VM + **MSG91 DLT template registration** (24–48h external) | Stage 0 exit criterion; the code and provider abstraction are done. |
+| I-1 | Real notification send verified in staging | **Email: unblocked 17/08/2026** — `mail.nirogix.com` verified at MSG91 (SPF/DKIM/CNAME), so once `MSG91_API_KEY` + `MSG91_EMAIL_*` are set on the VM, email OTP/notifications send for real. **SMS: still blocked** on MSG91 **DLT template registration** (24–48h external) *and* wiring the approved `template_id` into the SMS send path (`communication.service.ts` `sendSms` calls carry no `templateId` yet). | Stage 0 exit criterion; code + provider abstraction done; email DNS done; SMS awaits DLT + the template-id wiring. |
 | I-2 | Auto-deploy-to-staging half of CI/CD | The staging VM | `deploy-staging.yml` is authored but has never run against real hosts. |
 | I-3 | Backup + restore drill executed for real | Managed PostgreSQL + object storage in staging | `deploy/backup.sh` + `restore-drill.sh` exist; RPO/RTO validated at Stage 3. |
 | I-4 | **R2 bucket pinned to India** for PHI | Cloudflare account configuration | ADR-017 compliance note: R2 defaults to global auto-placement. If a stricter MeitY-empanelled guarantee is needed, switch to E2E Object Storage (same adapter, different endpoint). Buckets are per environment — `nirogix-documents` and `nirogix-documents-staging`, never shared. |

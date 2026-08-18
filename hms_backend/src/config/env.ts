@@ -4,6 +4,11 @@ import { z } from 'zod';
 // Environment is validated once at boot. A missing/invalid var fails fast with a
 // clear message rather than surfacing as a confusing runtime error later.
 const EnvSchema = z.object({
+  // The environment this instance runs as. The application has exactly THREE environments —
+  // development | staging | production (ADR-071). `test` is NOT a deployment environment: it is
+  // the value the test runner (Vitest / CI) sets, kept in the enum only so importing this config
+  // during a test run validates instead of `process.exit(1)`. Application behaviour treats `test`
+  // as non-production (see `isProd` below and seedGuard's normalisation); it never deploys.
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   // Comma-separated browser origins allowed to call the API with credentials.
   // Required in production (see config/cors.ts).
@@ -40,6 +45,10 @@ const EnvSchema = z.object({
   MSG91_SMS_SENDER_ID: z.string().optional(),
   MSG91_EMAIL_FROM: z.string().optional(),
   MSG91_EMAIL_DOMAIN: z.string().optional(),
+  // The MSG91 flow/template id of the DLT-registered OTP SMS. `sendOtp` attaches it on the SMS
+  // channel; Indian SMS is rejected without a registered template id. Unset = OTP-by-SMS still
+  // just logs (dev) / fails cleanly (prod) until DLT registration provides one.
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 
   // File storage — 'local' (disk, dev default) or 'r2' (Cloudflare R2, S3-compatible object
   // storage). PHI-bearing files use default-private buckets + short-lived signed URLs. For PHI,
@@ -72,6 +81,34 @@ const EnvSchema = z.object({
           code: z.ZodIssueCode.custom,
           path: [key],
           message: `${key} is required when FILE_STORAGE_PROVIDER=r2`,
+        });
+      }
+    }
+
+    // One bucket per side of the production boundary (resources/domains.md §8). Every
+    // non-production environment — development and staging (and the test runner) — shares a bucket
+    // whose name is marked non-prod (e.g. `-staging`); production uses a SEPARATE bucket with no
+    // such marker. Enforced at boot, in the spirit of the seeder environment guard (ADR-058), so
+    // a mis-set R2_BUCKET fails loudly instead of a staging test writing into — or deleting
+    // from — the production PHI bucket (or production writing into the shared non-prod one).
+    const bucket = String(val.R2_BUCKET ?? '').toLowerCase();
+    // Deliberately broad: this matches common non-production NAME fragments a bucket might carry.
+    // It is an infrastructure-name heuristic (like seedGuard's DATABASE_URL check), separate from
+    // the three-value application environment above — hence it still tolerates legacy `dev`/`local`.
+    const nonProdMarker = /(^|-)(staging|testing|test|dev|development|local)(-|$)/.test(bucket);
+    if (bucket) {
+      if (val.NODE_ENV === 'production' && nonProdMarker) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['R2_BUCKET'],
+          message: `Production must not use a non-production bucket — R2_BUCKET="${val.R2_BUCKET}" is marked non-prod. Point production at its dedicated bucket (e.g. nirogix-documents).`,
+        });
+      }
+      if (val.NODE_ENV !== 'production' && !nonProdMarker) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['R2_BUCKET'],
+          message: `Non-production (${val.NODE_ENV}) must use the shared non-production bucket, whose name marks it non-prod (e.g. nirogix-documents-staging). R2_BUCKET="${val.R2_BUCKET}" looks like the production bucket.`,
         });
       }
     }

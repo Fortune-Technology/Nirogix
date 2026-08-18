@@ -45,7 +45,7 @@ function ResultForm({ order, tests, onDone, onError }: { order: LabOrder; tests:
     try {
       const body: EnterResultRequest = { testId: testId || null, value: value.trim(), notes: notes || null };
       if (file) {
-        const { id } = await api.uploadFile(file);
+        const { id } = await api.uploadFile(file, "lab-reports");
         body.fileId = id;
       }
       await api.enterLabResult(order.id, body);

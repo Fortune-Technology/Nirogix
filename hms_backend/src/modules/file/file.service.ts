@@ -5,6 +5,7 @@ import { fileMetadata, type FileMetadata } from '../../db/schema';
 import { env } from '../../config/env';
 import { getFileStorageProvider } from './providers';
 import { signFileToken } from './fileToken';
+import { optimizeImage } from './imageOptimize';
 import { writeAudit } from '../audit/audit.service';
 
 export type UploadInput = {
@@ -14,7 +15,35 @@ export type UploadInput = {
   contentType: string;
   size: number;
   buffer: Buffer;
+  /**
+   * Storage category — the folder an object lands in, under its tenant (ADR-007). Keeps the
+   * bucket browsable and lets ops apply per-category lifecycle rules. Whitelisted to a safe
+   * slug; anything unknown falls back to `documents`. Only genuine uploads live here —
+   * invoices and clinical reports are generated print routes, not stored files.
+   */
+  category?: FileCategory;
 };
+
+/** The folders an upload can land in. Add one here before a call site uses it. */
+export type FileCategory =
+  | 'branding'
+  | 'platform-branding'
+  | 'letterhead'
+  | 'lab-reports'
+  | 'documents';
+
+const FILE_CATEGORIES: readonly FileCategory[] = [
+  'branding',
+  'platform-branding',
+  'letterhead',
+  'lab-reports',
+  'documents',
+];
+
+/** Never trust a category string into a storage key — whitelist it, default `documents`. */
+export function resolveCategory(value?: string): FileCategory {
+  return (FILE_CATEGORIES as readonly string[]).includes(value ?? '') ? (value as FileCategory) : 'documents';
+}
 
 function sanitizeFilename(name: string): string {
   return (name || 'file').replace(/[^\w.\-]/g, '_').slice(0, 200);
@@ -22,11 +51,23 @@ function sanitizeFilename(name: string): string {
 
 export async function uploadFile(input: UploadInput): Promise<FileMetadata> {
   const provider = getFileStorageProvider();
-  const safe = sanitizeFilename(input.filename);
-  const storageKey = `${input.tenantId}/${randomUUID()}-${safe}`;
-  const checksum = createHash('sha256').update(input.buffer).digest('hex');
 
-  await provider.putObject(storageKey, input.buffer, input.contentType);
+  // Optimize images before anything else touches the bytes — the stored object's size, checksum,
+  // filename and content type all reflect the optimized result. Non-raster / non-image inputs
+  // (PDF, SVG, GIF) pass through unchanged.
+  const opt = await optimizeImage(input.buffer, input.contentType, input.filename);
+  const buffer = opt.buffer;
+  const contentType = opt.contentType;
+  const size = buffer.length;
+  const safe = sanitizeFilename(opt.filename);
+
+  // <tenantId>/<category>/<uuid>-<filename> — tenant-isolated first (RLS is the real boundary;
+  // this mirrors it in the key), then foldered by what the file is.
+  const folder = resolveCategory(input.category);
+  const storageKey = `${input.tenantId}/${folder}/${randomUUID()}-${safe}`;
+  const checksum = createHash('sha256').update(buffer).digest('hex');
+
+  await provider.putObject(storageKey, buffer, contentType);
 
   const meta = await runWithTenant(input.tenantId, async (tx) => {
     const rows = await tx
@@ -35,8 +76,8 @@ export async function uploadFile(input: UploadInput): Promise<FileMetadata> {
         tenantId: input.tenantId,
         storageKey,
         filename: safe,
-        contentType: input.contentType,
-        size: input.size,
+        contentType,
+        size,
         checksum,
         uploadedBy: input.uploadedBy ?? null,
       })
@@ -50,7 +91,7 @@ export async function uploadFile(input: UploadInput): Promise<FileMetadata> {
     action: 'file.upload',
     resourceType: 'file',
     resourceId: meta.id,
-    metadata: { filename: safe, size: input.size, checksum, provider: provider.name },
+    metadata: { filename: safe, size, originalSize: input.size, optimized: opt.optimized, checksum, provider: provider.name },
   });
   return meta;
 }

@@ -235,14 +235,12 @@
 }
 
 html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 5rem; /* sticky-nav offset for #anchors */
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+  /* No CSS `scroll-behavior: smooth` here — Lenis (the shared SmoothScroll) drives smooth
+     scrolling in JS, and a CSS smooth-scroll fights it: programmatic jumps (the route-change
+     reset, anchor scrolling) get animated by the browser and interrupted midway, which parks a
+     freshly-navigated page slightly below the top. Smoothness comes from Lenis; this element
+     only carries the sticky-nav offset that anchor scrolling reads. */
+  scroll-padding-top: 5rem; /* sticky-nav offset for #anchors (read by Lenis + native fallback) */
 }
 
 body {

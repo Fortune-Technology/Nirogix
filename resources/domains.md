@@ -12,12 +12,12 @@ The authoritative host map for Nirogix. Every environment URL in code, configura
 
 ## 1. Principles
 
-1. **Two registrable domains.** `nirogix.com` carries the platform; **`nirogix.ai`** carries the AI Portal and nothing else (ADR-051). A separate registrable domain gives the AI surface a different cookie scope *by construction* rather than by configuration — the correct boundary for a surface with its own access rule. DNS is hosted at **GoDaddy** (ADR-045); there is no CDN or edge proxy in front of the origin. `nirogix.ai` is **not yet purchased** — see §10.
+1. **Two registrable domains.** `nirogix.com` carries the platform; **`nirogix.ai`** carries the AI Portal and nothing else (ADR-051). A separate registrable domain gives the AI surface a different cookie scope *by construction* rather than by configuration — the correct boundary for a surface with its own access rule. DNS is hosted at **GoDaddy** (ADR-045); there is no CDN or edge proxy in front of the origin. `nirogix.com` is registered and its GoDaddy zone is live (staging records provisioned — §8a); `nirogix.ai` is **not yet purchased** — see §10.
 2. **Every host is second-level** (`portal.nirogix.com`, `api-staging.nirogix.com`) and never third-level (`test.portal.nirogix.com`). Most free wildcard certificates cover `*.nirogix.com` only — a third-level host needs its own certificate for no functional gain. With Let's Encrypt on the VM each host gets its own certificate anyway, so the rule keeps issuance and renewal simple rather than being a hard constraint.
 3. **Environment is a prefix on the host, not a path.** `portal-staging`, never `portal.nirogix.com/staging`. Paths belong to the application.
 4. **One origin per audience** (ADR-051). A different *audience* — public, hospital staff, vendor operator, patient — is a different security boundary, a different release cadence and a different blast radius, so it gets its own host and its own bundle. A new *capability* for an existing audience is still a route on that audience's host. Subdomains are cheap to create and expensive to retire.
 5. **Cookies are host-only.** No cookie ever sets `Domain=.nirogix.com`, so a staging session can never be presented to production, and one host's compromise does not hand over another's session.
-6. **Production and non-production never share state** — separate database, separate object storage bucket, separate secrets, separate notification sender.
+6. **Production and non-production never share state** — separate database, separate secrets, separate notification sender, and a separate object-storage bucket **across the production boundary**: every non-production environment (development and staging, plus the test runner) shares one bucket, and production has its own (§8). The rule is not "a bucket per environment" but "production is never in the same bucket as anything else". The application has exactly three environments — **development | staging | production** (ADR-071).
 
 ---
 
@@ -107,7 +107,9 @@ A shared cloud dev tier is **not** provisioned. Two deployed environments are th
 
 Every one of these is read from configuration. No host appears in application code.
 
-| Variable | Local | Staging | Production |
+The application has exactly three environments — **development | staging | production** (ADR-071). The **Development** column is a developer's local machine (localhost). (`local` is retired as an environment name; `FILE_STORAGE_PROVIDER=local` below is unrelated — it names the on-disk storage backend, not an environment.)
+
+| Variable | Development | Staging | Production |
 |---|---|---|---|
 | `API_PUBLIC_URL` (backend) | `http://localhost:4000` | `https://api-staging.nirogix.com` | `https://api.nirogix.com` |
 | `CORS_ORIGINS` (backend) | *(permissive in dev)* | `https://portal-staging.nirogix.com,https://staging.nirogix.com,https://admin-staging.nirogix.com,https://patient-staging.nirogix.com,https://ai-staging.nirogix.com` | `https://portal.nirogix.com,https://nirogix.com,https://admin.nirogix.com,https://patient.nirogix.com,https://nirogix.ai` |
@@ -120,18 +122,31 @@ Every one of these is read from configuration. No host appears in application co
 | `NEXT_PUBLIC_API_BASE_URL` (admin) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
 | `NEXT_PUBLIC_API_BASE_URL` (patient) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
 | `NEXT_PUBLIC_API_BASE_URL` (aiportal) | `http://localhost:4000/api/v1` | `https://api-staging.nirogix.com/api/v1` | `https://api.nirogix.com/api/v1` |
+| `NEXT_PUBLIC_ENVIRONMENT` (all frontends) | `development` | `staging` | `production` **(or unset)** — the canonical environment marker (ADR-071); gates the dev quick-login test-user switcher on the Portal sign-in page (issue #7) and the marketing `noindex` on staging; baked in at build time, so a production build must NOT carry a non-prod value |
+| `FILE_STORAGE_PROVIDER` (backend) | `local` (disk) or `r2` | `r2` | `r2` |
+| `R2_BUCKET` (backend) | **`nirogix-documents-staging`** (when using r2; else local disk needs none) | **`nirogix-documents-staging`** | **`nirogix-documents`** |
+
+**Two buckets total: one shared by every non-production environment, one for production alone.** Development and staging (and the test runner) all use **`nirogix-documents-staging`**; production uses a separate **`nirogix-documents`**. The line that must never be crossed is the production boundary — a non-prod test that overwrites or deletes a file must be structurally incapable of touching a production document. So the two buckets have **separate R2 API tokens and separate secrets**, the production bucket name and token appear in **no** `.env` outside the production host, and the backend **refuses to boot** on a mismatch (a production process pointed at a `-staging` bucket, or a non-prod process pointed at the production bucket — `hms_backend/src/config/env.ts`, in the spirit of the ADR-058 seeder guard). Development may still default to disk (`FILE_STORAGE_PROVIDER=local`, no bucket needed); when a developer wants R2 parity they point at the **same shared non-prod bucket**. Files are keyed `<tenantId>/<category>/<uuid>-<filename>` (categories: `branding`, `platform-branding`, `letterhead`, `lab-reports`, `documents`) — invoices and clinical reports are generated print routes, not stored objects (ADR-007, ADR-047).
 
 **Every frontend reads its API base URL from configuration.** No app holds a host in source, and all five point at the same backend — there is one API, one database, one permission catalog and one audit trail behind every one of them (ADR-051).
 
+## 8a. Provisioned state — staging (as of 17/08/2026)
+
+Recorded from the live GoDaddy zone so a deploy reads reality, not the placeholders above. The staging VM is a **shared box** (hosts other projects too — see `deploy/README.md` → "Shared VM: audit ports first"); its public IP is **`74.208.78.255`**.
+
+- **Staging `A` records — all six created**, each → `74.208.78.255`: `staging`, `portal-staging`, `api-staging`, `admin-staging`, `patient-staging`, `ai-staging`. (The last three resolve now but **do not serve** until the patient/admin/aiportal apps are actually deployed — PM2 entries uncommented after the port audit, an Nginx server block per host, and a certbot cert — `BACKLOG.md` F-5.)
+- **Transactional email — `mail.nirogix.com` verified at MSG91** (ADR-016). SPF (`TXT mail` → `v=spf1 include:mailer91.com ~all`), DKIM (`TXT spaceship._domainkey.mail`) and the tracking `CNAME mailer91.mail` → `email.mailer91.com` all show **Verified**; the `MX mail` → `mx1.mailer91.com` (priority 10) is the last to propagate and affects only bounce/return-path, not sending. **Outbound email is deliverable.** DMARC stays the zone default (`_dmarc`, `p=quarantine`), which the `mail` subdomain inherits.
+- **Production `A` records** (`nirogix.com` apex, `portal`, `api`, `admin`, `patient`) point at the prod VM's IP and are **not created yet** — production is a separate box. The apex `@` currently resolves to the staging IP; delete or repoint it when the prod VM exists so `nirogix.com` never serves staging content.
+
 ## 9. Cutover checklist
 
-1. Add the `A` records for the production and staging hosts in the GoDaddy zone, pointing at the VM's public IP; confirm each resolves before requesting certificates.
+1. ~~Add the `A` records for the staging hosts~~ **Done (staging, 17/08/2026)** — all six `A` records resolve to `74.208.78.255` (§8a). Production `A` records remain to be added against the prod VM's IP.
 2. Set the environment matrix above on each host; confirm `CORS_ORIGINS` lists that environment's origins only.
-3. Put Nginx basic auth in front of the three staging hosts, add the `X-Robots-Tag: noindex` header, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app also serves `Disallow: /`.
+3. Put Nginx basic auth in front of the staging hosts, add the `X-Robots-Tag: noindex` header, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app also serves `Disallow: /`.
 4. Confirm `www` → apex is a 301 and that the marketing canonical URLs resolve to the apex.
 5. Confirm the refresh cookie arrives with `Secure; HttpOnly; SameSite=Lax` and **no** `Domain`, on the API host only.
-6. Publish DKIM/SPF/DMARC for `mail.nirogix.com` before the first real notification send (this is also blocked on MSG91 DLT registration — `BACKLOG.md` I-1).
+6. ~~Publish DKIM/SPF/DMARC for `mail.nirogix.com`~~ **Done (17/08/2026)** — SPF/DKIM/CNAME verified at MSG91, outbound email deliverable (§8a). SMS still needs DLT template registration before a real SMS send (`BACKLOG.md` I-1).
 7. Point `docs`, `status`, and `cdn` when each is actually built; until then they stay documented and unrouted.
-8. **Purchase `nirogix.ai`**, create its zone at GoDaddy, and issue its certificate separately — a `*.nirogix.com` certificate does not cover it. Until it exists the AI Portal is reachable in development only (`BACKLOG.md`).
+8. **Purchase `nirogix.ai`**, create its zone at GoDaddy, and issue its certificate separately — a `*.nirogix.com` certificate does not cover it. Staging AI runs on `ai-staging.nirogix.com` (already resolving); `nirogix.ai` is needed only for the AI Portal's **production** host. Until purchased, production AI is unrouted (`BACKLOG.md`).
 9. Confirm each frontend's origin appears in `CORS_ORIGINS` for that environment **and nowhere else** — an admin origin listed in staging's production allowlist is exactly the mistake the per-audience split is meant to prevent.
 10. Confirm `portal.nirogix.com` serves **no** platform-operator route after the split, and `admin.nirogix.com` serves no clinical route. Each app's bundle should contain only its own audience's code.

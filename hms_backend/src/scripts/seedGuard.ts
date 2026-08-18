@@ -13,13 +13,16 @@
 
 import { env } from '../config/env';
 
+// The three canonical application environments (ADR-071). There is no `test` environment here:
+// the test runner's `NODE_ENV=test` normalises to `development` in currentEnvironment() below.
 export type SeedEnvironment = 'development' | 'staging' | 'production';
 
-/** The env this process is actually running in, normalised. */
+/** The env this process is actually running in, normalised to one of the three. */
 export function currentEnvironment(): SeedEnvironment {
   const raw = (env.NODE_ENV ?? 'development').toLowerCase();
   if (raw === 'production') return 'production';
   if (raw === 'staging') return 'staging';
+  // development, and the test runner's `test`, both seed as development.
   return 'development';
 }
 

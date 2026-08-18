@@ -25,6 +25,7 @@ export async function uploadLetterheadImage(req: Request, res: Response): Promis
     contentType: file.mimetype,
     size: file.size,
     buffer: file.buffer,
+    category: 'letterhead',
   });
   res.status(201).json(await svc.setLetterheadImage(req.auth!.tenantId, meta.id, req.auth!.userId));
 }

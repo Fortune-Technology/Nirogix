@@ -769,3 +769,38 @@ The staging VM turns out to host four other projects (`/var/www`: CSV_Filter_Pro
 - **deploy/nginx/nirogix.conf.template** upstream ports became the same `${NIROGIX_PORT_*}` placeholders, with shared-box rules written into the header: add `*.nirogix.com` server_names only, never touch another project's block or `default_server`, `nginx -t` before reload.
 
 **Testing status:** config/docs change; ports env resolution is plain `process.env` fallbacks. To validate on the VM: run the audit, export the six variables, `pm2 start --env staging`, then `ss -tulpn` confirms each app bound where the site file points.
+
+## 2026-08-17 — Staging DNS + transactional email provisioned (ops)
+
+Recorded live-infra state in the docs (`resources/domains.md` §8a — new "Provisioned state — staging" block, §9 cutover items 1 & 6 marked done, §10 principle 1; `CLAUDE.md` "Where things stand"; `BACKLOG.md` I-1):
+
+- **Staging VM** `74.208.78.255` (a SHARED box — other projects live there, hence the port-audit runbook). All six staging `A` records created in the GoDaddy `nirogix.com` zone → the VM: `staging`, `portal-staging`, `api-staging`, `admin-staging`, `patient-staging`, `ai-staging`. The admin/patient/ai hosts resolve but don't serve until those apps deploy (F-5).
+- **Email — `mail.nirogix.com` verified at MSG91** (ADR-016): SPF `TXT mail`, DKIM `TXT spaceship._domainkey.mail`, tracking `CNAME mailer91.mail`→`email.mailer91.com` all Verified; `MX mail`→`mx1.mailer91.com` (pri 10) still propagating (bounce/return-path only). Outbound email is deliverable once `MSG91_API_KEY` + `MSG91_EMAIL_DOMAIN=mail.nirogix.com` + `MSG91_EMAIL_FROM=noreply@mail.nirogix.com` are set on the VM. DMARC inherits the zone default (`p=quarantine`).
+- **Still open:** SMS send needs MSG91 DLT template registration AND wiring the approved `template_id` into `communication.service.ts` `sendSms` (today it passes none — Indian SMS will reject). Production `A` records + `nirogix.ai` purchase remain for the prod cutover.
+
+No code changed; documentation only. `.env.example` already documents every MSG91 key.
+
+## 2026-08-17 — File storage: category foldering, per-environment buckets + guard, image optimization (ADR-007)
+
+Three changes to how uploaded files (branding logos, letterheads, lab-report attachments) are stored. Not clinical — infra/ops — but touches every upload path.
+
+**1. Category foldering.** Storage keys went from `<tenantId>/<uuid>-<file>` to `<tenantId>/<category>/<uuid>-<file>`. `uploadFile` takes a whitelisted `category` (`branding` | `platform-branding` | `letterhead` | `lab-reports` | `documents`, via `resolveCategory` — unknown/injected values fall back to `documents`, never trusted into the key). The four call sites pass their category; the generic `POST /files` reads an optional `?category=` (frontend lab upload sends `lab-reports`). Existing flat keys still resolve — only new uploads fold. Invoices/reports are print routes, not stored objects, so they get no folder.
+
+**2. One bucket per side of the production boundary + boot guard.** Convention (resources/domains.md §6/§8, deploy/README): local + development + test + staging share `nirogix-documents-staging`; production alone uses `nirogix-documents`, each with its own scoped R2 token. `env.ts` now **refuses to boot** on an env↔bucket mismatch — a production process pointed at a `-staging`/dev/test bucket, or a non-prod process pointed at the production bucket — alongside the existing "any R2_* blank" refusal. Same spirit as the ADR-058 seeder guard. Proven across the env/bucket matrix.
+
+**3. Image optimization before storage** (`imageOptimize.ts`, new `sharp` dependency). Raster images (JPEG/PNG/HEIC/TIFF/AVIF/WebP) are re-encoded to WebP q90 (near-lossless), capped at 2500px longest edge, metadata/EXIF stripped (removes GPS from a patient's phone photo), stepping quality/dimensions down a ladder only as far as needed to stay ≤ ~1 MB — transparency preserved (logos/letterheads). SVG (vector), GIF (animation), PDF and non-images pass through untouched; undecodable bytes fall back to storing the original rather than failing the upload. Stored metadata (size/checksum/contentType/filename) reflects the optimized object; audit records `optimized` + `originalSize`. `FILE_MAX_SIZE_MB` is now the **raw** ceiling (default 10) so phone photos are accepted then shrunk; it is the real limit only for non-image files.
+
+Also: MSG91 email verified and live in staging (mail.nirogix.com — SPF/DKIM/CNAME green); the SMS OTP path is wired to read `MSG91_OTP_TEMPLATE_ID` (dead `MSG91_EMAIL_FROM_NAME`/`_EMAIL_TEMPLATE_ID`/`_DLT_ENTITY_ID` env lines removed); staging R2 bucket + scoped user token provisioned.
+
+**Testing status:** typecheck + file/notification suites green (150 backend total unchanged); `sharp` pipeline verified on a 4000×3000 photo (→WebP), a transparent PNG logo (alpha kept), a PDF (passthrough), and malformed bytes (safe passthrough); the env↔bucket guard verified across the production/staging/development matrix. `npm audit` reports pre-existing tree vulnerabilities unrelated to this change (tracked separately).
+
+## 2026-08-18 — Environment model documented as three canonical values (ADR-071, issue #9)
+
+The backend was already on `development | staging | production` (its `NODE_ENV` Zod enum rejects `local`/`prod`/`stage` at boot). This change makes the model explicit and reconciles the two allowed-sets:
+
+- **`config/env.ts`**: documented that `test` in the `NODE_ENV` enum is the **test-runner** value (Vitest/CI), kept only so importing config during a test run validates instead of exiting — it is not a deployment environment and behaves as non-production (`isProd` false). Reworded the R2-bucket boundary comment to name the three environments and clarified that the deliberately-broad `nonProdMarker` regex is an infrastructure-**name** heuristic, separate from the environment identifier.
+- **`scripts/seedGuard.ts`**: noted that the runner's `test` normalises to `development` in `currentEnvironment()`; the DB-name heuristic stays broad by design (guards a mislabelled database, not the env identifier).
+- **`.github/workflows/ci.yml`**: comment that `NODE_ENV: test` is the runner mode, not a deployment environment.
+- Docs: `resources/domains.md` (env matrix header + `NEXT_PUBLIC_ENVIRONMENT` row + bucket prose), `deploy/README.md` (environment overview + storage tables), and new **ADR-071** all state the three-environment model.
+
+**Testing status:** typecheck clean; env/seedGuard logic unchanged (comment-only), enum and heuristics untouched.

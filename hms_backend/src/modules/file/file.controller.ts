@@ -6,6 +6,7 @@ import {
   getDownloadUrl,
   getFileContent,
   deleteFile,
+  resolveCategory,
 } from './file.service';
 import type { FileMetadata } from '../../db/schema';
 
@@ -25,6 +26,9 @@ function toMeta(m: FileMetadata) {
 export async function upload(req: Request, res: Response): Promise<void> {
   const file = req.file;
   if (!file) throw Errors.validation(undefined, 'No file provided (multipart field "file")');
+  // Optional `?category=` (e.g. lab-reports) folders the object; unknown values fall back
+  // to `documents` inside uploadFile. Never trusted straight into the storage key.
+  const category = resolveCategory(typeof req.query.category === 'string' ? req.query.category : undefined);
   const meta = await uploadFile({
     tenantId: req.auth!.tenantId,
     uploadedBy: req.auth!.userId,
@@ -32,6 +36,7 @@ export async function upload(req: Request, res: Response): Promise<void> {
     contentType: file.mimetype,
     size: file.size,
     buffer: file.buffer,
+    category,
   });
   res.status(201).json(toMeta(meta));
 }

@@ -216,3 +216,11 @@ The header and footer wordmark still drew a hardcoded letter **"H"** from the ol
 **Storage is unchanged.** The object store is still Cloudflare R2 (ADR-017) reached through `FileStorageService`; only DNS moved out of scope. `cdn.nirogix.com` is **blocked** — an R2 custom domain requires the zone on Cloudflare DNS — and PHI documents continue to be delivered by short-lived signed URLs minted by the API, never a public bucket URL.
 
 **Testing status:** typecheck + production build clean (marketing and Portal); `npm run test` green across all four workspaces. Remaining work is on the VM and in the registrar, tracked as **I-5** in `BACKLOG.md`.
+
+## 2026-08-18 — Fixed new pages opening slightly below the top (issue #8)
+
+Navigating between routes (e.g. `/solutions` → `/`) landed the new page a little scrolled down, cutting off the first section. Root cause: `marketing/app/globals.css` set `html { scroll-behavior: smooth }`, which **conflicts with Lenis** (the shared `SmoothScroll`). Lenis drives smooth scrolling in JS and owns the document scroll; a CSS smooth-scroll on top of it animates every programmatic jump — so the route-change reset (`lenis.scrollTo(0, { immediate: true })`) got animated by the browser and interrupted by the incoming page, parking it partway down.
+
+Removed `scroll-behavior: smooth` (and the now-inert `prefers-reduced-motion` override that only reset it to `auto`); smoothness still comes from Lenis. Kept `scroll-padding-top: 5rem` — it's the sticky-nav offset that anchor scrolling reads. Paired with the shared `SmoothScroll` hardening (see `packages/ui/DONE.md`), route changes now snap to the top pre-paint, and the two cross-page footer anchors (`/security#residency`, `/security#audit`) — previously yanked to the top by the old reset — now land on their section, clear of the header.
+
+**Testing status:** verified live that computed `html` `scroll-behavior` is now `auto` (was `smooth`) with `scroll-padding-top: 80px` preserved and Lenis still active; production build + typecheck clean; no console errors. Interactive scroll behaviour to be eyeballed in a displayed browser (this session's preview pane can't composite frames).

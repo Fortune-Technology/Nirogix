@@ -38,6 +38,7 @@ async function storeAsset(req: Request): Promise<string> {
     contentType: file.mimetype,
     size: file.size,
     buffer: file.buffer,
+    category: 'platform-branding',
   });
   return meta.id;
 }

@@ -526,14 +526,18 @@ export async function getLabReportAttachment(id: string): Promise<string | null>
   return (await request<{ url: string | null }>(`/lab-orders/${id}/attachment`)).url;
 }
 
-/** Upload a file (multipart) through the file module; returns its id for attaching. */
-export async function uploadFile(file: File): Promise<{ id: string }> {
+/**
+ * Upload a file (multipart) through the file module; returns its id for attaching.
+ * `category` folders the object in storage (e.g. "lab-reports"); the server whitelists it.
+ */
+export async function uploadFile(file: File, category?: string): Promise<{ id: string }> {
   const form = new FormData();
   form.append("file", file);
   const headers: Record<string, string> = {};
   const token = client.getAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await send("/files", { method: "POST", headers, credentials: "include", body: form });
+  const path = category ? `/files?category=${encodeURIComponent(category)}` : "/files";
+  const res = await send(path, { method: "POST", headers, credentials: "include", body: form });
   if (!res.ok) {
     const failure = await parseError(res);
     notifyError(failure);

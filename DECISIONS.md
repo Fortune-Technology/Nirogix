@@ -658,4 +658,17 @@ The verification surface is fixed: browser tab, login page, header, sidebar, mob
 **Consequence:** The lab chain matches practice (enter → verify → release), stock figures become correctable with provenance, and the AI/voice asks land inside the product's honesty rules: marketing may say exactly what is true — drafting exists on deployments configured for it, and a doctor signs everything.
 
 ---
+
+## ADR-071 - Three canonical environments: development, staging, production (`local` retired, `test` is the runner only)
+**Status:** Accepted (this project). Relates to ADR-058 (one seeder per environment), ADR-042/ADR-051 (host map), issue #7 (dev quick-login gate), issue #9.
+**Context:** The environment vocabulary had drifted — `local`, `dev`, `development`, `test`, `testing`, `stage`, `staging`, `prod`, `production` all appeared across `.env` files, the frontend quick-login gate, docs and heuristics, and `local` vs `development` were used interchangeably for a developer's machine. That ambiguity is a foot-gun for a product where "is this production?" gates real safety behaviour: rate limiting, secure cookies, seeder refusal (ADR-058), the PHI bucket boundary, and the dev-only test-user credentials (issue #7).
+**Decision:**
+- The application has **exactly three** environments: **`development`** (a developer's local machine), **`staging`** (the shared QA/demo deployment), **`production`** (the live product). One identifier per side: **`NODE_ENV`** on the backend, **`NEXT_PUBLIC_ENVIRONMENT`** (build-inlined) on every frontend. Both name the same three values.
+- **`local` is retired** in favour of `development`. The dev machine still runs on `localhost` — that is a host, not an environment name. (`FILE_STORAGE_PROVIDER=local` is unrelated: it names the on-disk storage backend.)
+- **`test` is not a deployment environment.** It is the value the test runner (Vitest / CI) sets, kept in the backend Zod enum only so importing config during a test run validates instead of `process.exit(1)`. It behaves as non-production everywhere — `isProd` is false, and `seedGuard` normalises it to `development`.
+- **Validation.** The backend validates `NODE_ENV` at boot (Zod enum; an unsupported value such as `local`/`prod`/`stage` exits with a clear message). The frontends treat an unset value as `development`, gate dev-only features to `development`/`staging` with **inline, build-folded** comparisons (so a production bundle physically drops the code and its credentials — issue #7, never a function call that would defeat the fold), and `console.warn` in development on a non-canonical value.
+- **Infrastructure-name heuristics stay broad, and are documented as separate from the model.** The seeder's `DATABASE_URL` check and env.ts's `R2_BUCKET` marker still recognise a non-production resource by name fragments (`dev`/`local`/`test`/`staging`/…). They guard against a *mislabelled resource*, not against the environment identifier, so their tolerance is deliberate and commented as such.
+**Consequence:** One vocabulary end to end. "Which environment am I?" has a single, validated answer, and every safety switch keys off it consistently. Each app's `.env.example` names the three environments and states what each turns on. Retiring `local` touched only the frontend gate + `.env`/`.env.example`; the backend was already on the three values (its enum already rejected `local`).
+
+---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

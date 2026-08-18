@@ -323,3 +323,15 @@ The DataTable's per-column `align` option is **gone** — removed from the `Colu
 `DocumentBrand` gains `letterheadImageUrl` and `pageSize`, and `PrintDocument` a `pageSize` prop that overrides the tenant default. When a letterhead image is set it renders as a full-width band that **replaces** the constructed name/logo/contact header, and the document title moves to a bar beneath it. A single `PAGE_GEOMETRY` table maps each size (`A4`/`A5`/`LETTER`/`LEGAL`) to a sheet width (the `--doc-width` custom property) and a CSS `@page size` keyword the component injects itself — a bare `@page` cannot be scoped by selector, and the document renders one-per-page in a print route. New `.hms-doc__header--image`, `.hms-doc__letterhead` and `.hms-doc__title-bar` styles; `.hms-doc` width now follows `--doc-width` (A4 default). `PrintTable` alignment untouched.
 
 **Testing status:** 93 `@hms/ui` tests pass; typecheck clean. Verified live: an invoice print document renders the uploaded letterhead band with the title beneath it and injects the configured `@page` size.
+
+## 2026-08-18 — SmoothScroll: new routes start at the top, cross-page anchors respected (issue #8)
+
+`ScrollTopOnRoute` (renamed `ScrollOnRouteChange`) was resetting scroll on every pathname change via `useEffect` → `lenis.scrollTo(0, { immediate: true })`. Two problems: (1) it ran **after** paint, so a new page could flash at the previous scroll position, and (2) it force-scrolled to the top on **every** route change — including navigations that carry a hash (`/security#residency`), so cross-page anchors were yanked to the top instead of landing on the anchor.
+
+Now it runs in a **pre-paint** isomorphic layout effect and branches on the URL hash:
+- **No hash** → `lenis.scrollTo(0, { immediate: true, force: true })` (native `window.scrollTo(0,0)` fallback for the first mount before the Lenis instance exists). The previous page's scroll never carries over.
+- **Hash** → scrolls to that element, offset by the sticky-nav height read from CSS `scroll-padding-top`, so the anchor clears a fixed header. Unknown/stale hash falls through to the top.
+
+`force: true` makes the reset win even if an overlay had `stop()`ped Lenis. Only the top-level document scroll is touched — `data-lenis-prevent` / `useScrollLock` regions are untouched. Component doc now warns consumers not to also set CSS `scroll-behavior: smooth` (it fights Lenis — see the marketing fix).
+
+**Testing status:** `@hms/ui` typecheck clean; marketing + Portal production builds clean; no console errors after HMR. (End-to-end visual scroll behaviour verifies in a displayed browser — this session's preview pane can't composite frames, so Lenis' RAF loop is paused there.)

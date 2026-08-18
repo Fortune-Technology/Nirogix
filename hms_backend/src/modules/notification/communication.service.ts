@@ -1,4 +1,5 @@
 import { createHash, randomInt } from 'node:crypto';
+import { env } from '../../config/env';
 import { sendEmail, sendSms } from './notification.service';
 
 /**
@@ -76,8 +77,16 @@ export async function sendOtp(input: SendOtpInput): Promise<void> {
   const what = purpose ? `${purpose} code` : 'verification code';
   const body = `Your Nirogix ${what} is ${code}. It expires in 10 minutes.`;
 
-  if (channel === 'sms') await sendSms({ tenantId, to: destination, body });
-  else await sendEmail({ tenantId, to: destination, subject: `Your Nirogix ${what}`, body });
+  if (channel === 'sms') {
+    // The SMS carries the DLT-registered template id from configuration (ADR-016). The
+    // log provider ignores it (dev); the MSG91 provider needs it, and Indian SMS is
+    // rejected without a registered template. NOTE for go-live: MSG91's flow API maps the
+    // code into the template's variable — verify the exact variable name against the
+    // approved DLT template and adjust `Msg91SmsProvider.sendSms` if it differs from `body`.
+    await sendSms({ tenantId, to: destination, body, templateId: env.MSG91_OTP_TEMPLATE_ID });
+  } else {
+    await sendEmail({ tenantId, to: destination, subject: `Your Nirogix ${what}`, body });
+  }
 }
 
 /**

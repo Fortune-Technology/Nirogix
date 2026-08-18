@@ -14,9 +14,11 @@ that baseline; substitute real hosts/secrets at deploy time.
 Hosts are defined once, in **`resources/domains.md`** (ADR-042). Nothing here or in application
 code hard-codes one — every URL comes from that environment's configuration.
 
+The application has exactly three environments — **development | staging | production** (ADR-071).
+
 | Env | Purpose | Hosts | Deploy trigger |
 |---|---|---|---|
-| **Local** | Development | `localhost` (marketing :3000, portal :3001, patient :3002, admin :3003, aiportal :3004, api :4000) | `npm run dev` |
+| **Development** | A developer's local machine | `localhost` (marketing :3000, portal :3001, patient :3002, admin :3003, aiportal :3004, api :4000) | `npm run dev` |
 | **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, GoDaddy DNS, Let's Encrypt TLS, basic auth (ADR-045) | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
 | **Production** | Live | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB | controlled, reviewed promotion |
 
@@ -37,6 +39,50 @@ state with production and is never indexable.
   hms_backend RLS notes). **Redis** runs on the app VM for BullMQ. **DNS is GoDaddy** with no
   edge proxy, so the origin IP is public and the VM firewall is the only network boundary
   (ADR-045); the object store is still Cloudflare R2, reached over the API with signed URLs.
+
+### File storage — one R2 bucket per environment (never shared)
+
+Uploaded files (branding logos, letterheads, lab-report attachments) go to Cloudflare R2.
+**Two buckets total: one shared by every non-production environment, one for production
+alone** — principle 6 in `resources/domains.md`. The production boundary is the line that
+matters: a non-prod test that deletes or overwrites a file must be structurally unable to
+touch a production document.
+
+The application has exactly three environments — **development | staging | production** (ADR-071).
+`FILE_STORAGE_PROVIDER=local` below is the on-disk storage backend, not an environment.
+
+| Environment | `FILE_STORAGE_PROVIDER` | `R2_BUCKET` |
+|---|---|---|
+| **Development** (localhost; and the test runner) | `local` (disk) — or `r2` for parity | *(none on disk;* `nirogix-documents-staging` *on r2)* |
+| **Staging** | `r2` | **`nirogix-documents-staging`** (shared with development) |
+| **Production** | `r2` | **`nirogix-documents`** (its own) |
+
+- Create **two** buckets in Cloudflare R2, both **private** (no public access — the API serves
+  signed URLs), both pinned to an **Asia-Pacific** jurisdiction (India-resident PHI).
+- Issue a **separate Object-Read-&-Write API token per bucket**. The shared non-prod token goes
+  on the staging VM (and on any dev machine that opts into r2); the production token goes on the
+  production host only. **The production bucket name and token appear in no `.env` outside the
+  production host.**
+- The API **refuses to boot** in two cases (both in `hms_backend/src/config/env.ts`): (a) any of
+  `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` blank while
+  `FILE_STORAGE_PROVIDER=r2`; and (b) an **environment↔bucket mismatch** — a production process
+  pointed at a `-staging` bucket, or a non-prod process pointed at the production bucket. A
+  mis-pasted `.env` fails at startup, never silently at the first upload.
+- Objects are keyed `<tenantId>/<category>/<uuid>-<filename>` (categories: `branding`,
+  `platform-branding`, `letterhead`, `lab-reports`, `documents`), so each bucket is browsable per
+  hospital and per file type; apply R2 lifecycle rules per `<category>` folder if retention
+  policy demands it. Invoices and clinical reports are generated print routes, not stored objects.
+- **Images are optimized before storage** (`hms_backend/src/modules/file/imageOptimize.ts`, via
+  `sharp`): re-encoded to WebP q90 (near-lossless), capped at 2500px, EXIF/metadata stripped
+  (also removes GPS from patient photos), stepped down only as far as needed to stay ≤ ~1 MB.
+  PDFs / SVGs / GIFs pass through untouched. `sharp` is a **native module** — `npm ci` on the
+  Linux VM fetches the correct prebuilt binary automatically; nothing extra to install. If a
+  build ever lands on a libc the prebuilt does not cover, `npm rebuild sharp` resolves it.
+- `FILE_MAX_SIZE_MB` is the **raw** upload ceiling (before optimization) — keep it generous
+  (~10) so a phone photo is accepted and then shrunk; it is the real limit only for non-image
+  files (a multi-page scanned lab report needs more than 1 MB).
+- Local files under `./storage` do not migrate themselves — use the `migrate-files-to-r2`
+  script at cutover. A fresh box has nothing to migrate.
 
 ## Shared VM: audit ports first (MANDATORY pre-flight)
 

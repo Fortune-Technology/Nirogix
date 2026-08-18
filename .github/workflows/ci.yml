@@ -31,6 +31,9 @@ jobs:
           --health-retries 10
 
     env:
+      # `test` is the test-runner mode, NOT a deployment environment — the app has three of those:
+      # development | staging | production (ADR-071). The backend env schema keeps `test` in its
+      # enum only so importing config during the suite validates instead of exiting.
       NODE_ENV: test
       # Points at the postgres service above. The tenant-isolation test uses this (as a
       # superuser) to create a throwaway NON-superuser role and prove RLS. Non-secret CI
