@@ -219,7 +219,7 @@ export async function revokeTenantModule(
 }
 
 // The vendor's own org code — excluded from "hospital" counts (it is not a hospital, ADR-022).
-const PLATFORM_CODE = 'PLATFORM';
+const PLATFORM_CODE = 'NIROGIX';
 
 export type PlatformStats = {
   organizations: { total: number; active: number; inactive: number };

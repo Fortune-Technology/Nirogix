@@ -48,14 +48,18 @@ The product is **five separate web apps + one API**. The platform has exactly th
 
 ### 0.3 Seeded accounts & the Test Credentials helper
 
-- The staging/dev seeder creates the **Nirogix** platform-operator org (`PLATFORM`) with two Platform
+- The staging/dev seeder creates the **Nirogix** platform-operator org (`NIROGIX`) with two Platform
   Super Admins, plus demo hospital(s) with one user per role.
-- **Platform Super Admins:** `jaivik@thefortunetech.com`, `nishant@thefortunetech.com` (org code `PLATFORM`).
-- **Test Credentials / Quick Login** (Portal sign-in, **development & staging only**, never production):
-  a **Test credentials** button opens a modal of seeded hospital accounts as cards; clicking one fills
-  the login form so you sign in without typing. Use it to switch quickly between hospital roles.
+- **Platform Super Admins:** `jaivik@thefortunetech.com`, `nishant@thefortunetech.com` (org code `NIROGIX`).
+- **Test Credentials / Quick Login** (**development & staging only**, never production): a **Test
+  credentials** button opens a modal of seeded accounts as cards; clicking one fills the login form so
+  you sign in without typing. It appears on **both** the **Portal** (`:3001` — hospital roles *and* the
+  two Platform Admins) and the **Admin console** (`:3003` — the two Platform Admins). It folds out of a
+  production build entirely.
+- **Organization codes are case-insensitive.** Type `nirogix`, `Nirogix` or `NIROGIX` — all resolve the
+  same operator org; likewise for the hospital codes.
 - **Do not put real passwords in this document.** In dev/staging the seeded accounts share the seeder's
-  published dev default password (see `TESTING_CREDENTIALS.md`, which is git-ignored guidance, not committed secrets). Platform Admins sign in with the same login form (org code `PLATFORM` + their email).
+  published dev default password (see `TESTING_CREDENTIALS.md`, which is git-ignored guidance, not committed secrets). Platform Admins sign in with the same login form (org code `NIROGIX` + their email).
 
 > **⚠ Production:** Test Credentials is **absent** from production builds by construction. In production,
 > use only real accounts and run **safe smoke tests only** — never destructive/demo data.
@@ -66,7 +70,7 @@ The product is **five separate web apps + one API**. The platform has exactly th
 
 Open the **Admin console** (`:3003` / `admin-staging.nirogix.com`).
 
-- [ ] **1.1 Login (both admins).** Sign in as `jaivik@thefortunetech.com` (org `PLATFORM`).
+- [ ] **1.1 Login (both admins).** Sign in as `jaivik@thefortunetech.com` (org `NIROGIX`).
   **Verify:** you reach the operator dashboard; the **Tenants** area is available. Sign out; repeat as
   `nishant@thefortunetech.com`. **Verify:** both authenticate and see the same operator surfaces.
 - [ ] **1.2 No hospital data.** **Verify:** the Platform Admin sees platform-level surfaces (Tenants,

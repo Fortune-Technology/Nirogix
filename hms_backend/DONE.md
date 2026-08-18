@@ -843,3 +843,11 @@ Within one organization, hospitals can now carry different items — Hospital 1 
 - **Deferred** (issue #14's "full" option): real per-hospital STOCK needs a server-side current-branch (branch in the token/session + a validated switcher + user↔branch membership) — a change to authentication. The overlay ships without it; a per-branch price override is included.
 
 **Testing status:** new `branchAvailability.test.ts` (5 tests: disabling at one hospital doesn't affect the other or org-wide; price override applies only at that branch; vaccines branch-scoped by code; one org can't see another's config; a foreign branch is refused). Full backend suite **162/162** green. Typecheck + OpenAPI validate clean (migration 0027).
+
+## 2026-08-18 — Operator org code → `NIROGIX`; case-insensitive org-code login (ADR-074)
+
+The operator org (ADR-022) is now coded **`NIROGIX`** (was `PLATFORM`) — consistent with `CITYCARE` / `SUNRISE` and with the org's own name, so operators sign in with the product name. Changed the three services that resolve the operator org by literal — `patient-identity` (verification sender), `platform-branding` (default scopes), `admin` onboarding (`PLATFORM_CODE`) — and the three seeders (`seed.ts`, `seed.staging.ts`, `seed.production.ts`). The running dev DB was migrated **in place** (a code rename on the existing row; the two Platform Admins stayed attached — no duplicate org). `PLATFORM` is retired as a code; the word survives only as the *concept* "platform operator".
+
+`resolveTenantByCode` is now **case-insensitive** (`lower(code) = lower(input)`, limit 1), so every sign-in form accepts the org code in any case. Codes stay stored canonical/upper; they are unique and uppercase by convention, so the read stays single-row.
+
+**Testing status:** verified live against the API — `nirogix`, `Nirogix`, `NIROGIX`, `NiRoGiX` each return a `super_admin` token for both `jaivik@` and `nishant@`; the retired `PLATFORM` code now returns `UNAUTHORIZED`. Auth + admin + patient-identity module suites **28/28** green; the three affected workspaces typecheck clean.

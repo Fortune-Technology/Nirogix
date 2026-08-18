@@ -66,7 +66,10 @@ const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? 'ChangeMe#123
 // not merely un-rendered. (Verified by grepping the built chunks — see DONE.md.)
 export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
   ? [
-    // Platform Admins (System Super Admins) — the Nirogix operator org (issue #15).
+    // Platform Admins (System Super Admins) — the Nirogix operator org (issue #15). Its code is
+    // NIROGIX; sign in on the Platform Admin console (:3003), not a hospital tenant.
+    { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'jaivik@thefortunetech.com', password: DEV_PASSWORD },
+    { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'nishant@thefortunetech.com', password: DEV_PASSWORD },
 
     { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
     { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },

@@ -218,7 +218,7 @@ export async function requestPatientCode(contact: Contact): Promise<void> {
  * logged. Resolved by code rather than configured, so it cannot drift from the seed.
  */
 async function platformTenantId(): Promise<string> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'PLATFORM')).limit(1);
+  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'NIROGIX')).limit(1);
   const id = rows[0]?.id;
   if (!id) // No canonical `internal` helper — this is a deployment fault, not a user error.
     throw new Error('The PLATFORM organization is missing; patient verification cannot be sent');

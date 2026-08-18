@@ -97,7 +97,7 @@ const SEED_TENANTS: SeedTenant[] = [
     // Tier 0 — the Nirogix platform operator. Home of the System Super Admins, who operate ACROSS
     // all tenants and onboard hospitals. Not a hospital: no modules, branches, or clinical data
     // (ADR-022). Two Platform Admins so the platform is never down to a single operator account.
-    code: 'PLATFORM',
+    code: 'NIROGIX',
     name: 'Nirogix',
     modules: [],
     branches: [],

@@ -17,7 +17,7 @@ app/
   layout.tsx              Fonts, @hms/ui styles, no-flash theme script, <Providers>, <Toaster>
   providers.tsx           ThemeProvider + AuthProvider
   globals.css             Identical token layer to the Portal — one design system, rendered the same way
-  (auth)/login/page.tsx   Platform operator sign-in
+  (auth)/login/page.tsx   Platform operator sign-in (+ dev/staging "Test credentials" quick-login, ADR-074)
   (app)/layout.tsx        Session gate + platform-operator gate
   (app)/page.tsx          Platform dashboard — real cross-tenant aggregates + trends
   (app)/tenants/          Hospital list, detail (modules, users, support session), onboarding
@@ -29,8 +29,10 @@ lib/
   auth.tsx                Session + effective-permission context (same contract as the Portal's)
   theme.tsx               Light/Dark only — no tenant branding here, deliberately
   nav.ts                  Platform navigation, permission-filtered
+  devUsers.ts             Dev/staging quick-login accounts (the two Platform Admins); folds to [] in prod (ADR-071/074)
 components/
   AppShell.tsx            Sidebar + topbar + shared mobile drawer
+  auth/QuickLogin.tsx     Dev/staging "Test credentials" modal — fills the login form, hidden in production
   Can.tsx / Forbidden.tsx / PageHeader.tsx   Shared with the Portal by copy, not by import
 ```
 

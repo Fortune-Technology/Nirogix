@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
 import { useAuth } from "../../../lib/auth";
+import { QuickLogin } from "../../../components/auth/QuickLogin";
+import type { DevUser } from "../../../lib/devUsers";
 
 /**
  * Platform operator sign-in (ADR-051).
@@ -13,10 +15,11 @@ import { useAuth } from "../../../lib/auth";
  * differs is the organization: operators live in the PLATFORM org (ADR-022), never
  * inside a customer hospital.
  *
- * **No credentials are pre-filled or hinted here.** The seeded development account
- * exists in `hms_backend/src/scripts/seed.ts` and in the QA checklist, which is
- * where development credentials belong — not in a shipped bundle where they would
- * reach production.
+ * In development and staging a "Test credentials" helper (`QuickLogin`) offers the two
+ * seeded Platform Admins to fill this form — the SAME form and API, never a second auth
+ * path. It folds out of a production build (see `lib/devUsers.ts`), so production ships
+ * with no pre-filled or hinted credentials. The seeded operator accounts live in
+ * `hms_backend/src/scripts/seed.ts` (operator org code `NIROGIX`) and the QA checklist.
  */
 export default function LoginPage() {
   const { status, login } = useAuth();
@@ -40,6 +43,14 @@ export default function LoginPage() {
     setSubmitting(false);
     if (result.ok) router.replace("/");
     else setError(result.error);
+  }
+
+  // Dev/staging quick-login: fill the SAME form; the operator still submits with the button.
+  function fillCredentials(user: DevUser) {
+    setOrgCode(user.orgCode);
+    setEmail(user.email);
+    setPassword(user.password);
+    setError(null);
   }
 
   return (
@@ -79,6 +90,8 @@ export default function LoginPage() {
           Sign in
         </Button>
       </form>
+
+      <QuickLogin onSelect={fillCredentials} busy={submitting} />
 
       <p className="mt-5 text-center text-xs text-fg-subtle">
         This console administers the Nirogix platform. Hospital staff sign in to the Nirogix Portal instead.
