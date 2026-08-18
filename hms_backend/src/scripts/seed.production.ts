@@ -11,6 +11,7 @@ import {
   reconcileSystemRoles,
 } from '../modules/rbac/rbac.service';
 import { seedSpecialtyCatalog } from '../modules/provider/provider.service';
+import { seedReferenceCatalog } from '../modules/catalog/catalog.service';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
 /**
@@ -39,7 +40,7 @@ const BOOTSTRAP_NAME = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || 'Platform Own
 const BOOTSTRAP_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 
 const PLATFORM_CODE = 'PLATFORM';
-const PLATFORM_NAME = process.env.BOOTSTRAP_PLATFORM_NAME?.trim() || 'Takoriya Technology LLP';
+const PLATFORM_NAME = process.env.BOOTSTRAP_PLATFORM_NAME?.trim() || 'Nirogix';
 
 /**
  * The vendor's own organization — not a hospital. It holds the operators who onboard
@@ -116,8 +117,9 @@ async function main(): Promise<void> {
   // so a permission added in code is held by somebody.
   await seedPermissionCatalog();
   await seedSpecialtyCatalog();
+  await seedReferenceCatalog();
   // eslint-disable-next-line no-console
-  console.log('  permission + specialty catalogues up to date');
+  console.log('  permission + specialty + master-data catalogues up to date');
 
   const reconciled = await reconcileSystemRoles();
   // eslint-disable-next-line no-console

@@ -15,12 +15,13 @@ import {
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import * as billing from '../billing/billing.service';
+import { resolveOverrides, isRefAvailable, priceFor } from '../catalog/branchAvailability.service';
 
 // Pharmacy (MVP subset). Drug master + FEFO batch stock + dispense-against-prescription that
 // extends Billing Core with a pharmacy line item.
 
-export async function listDrugs(tenantId: string, search?: string) {
-  return runWithTenant(tenantId, async (tx) => {
+export async function listDrugs(tenantId: string, search?: string, branchId?: string) {
+  const list = await runWithTenant(tenantId, async (tx) => {
     const conds = [eq(drugs.tenantId, tenantId)];
     if (search && search.trim()) conds.push(ilike(drugs.name, `%${search.trim()}%`));
     const rows = await tx
@@ -47,6 +48,13 @@ export async function listDrugs(tenantId: string, search?: string) {
       };
     });
   });
+  // Per-hospital availability (ADR-073): when a branch is given, drop items disabled for it and
+  // swap in any per-branch price. No branch → the organization-wide list, unchanged.
+  if (!branchId) return list;
+  const overrides = await resolveOverrides(tenantId, branchId, 'drug', list.map((d) => d.id));
+  return list
+    .filter((d) => isRefAvailable(overrides, d.id))
+    .map((d) => ({ ...d, unitPricePaise: priceFor(overrides, d.id, d.unitPricePaise) }));
 }
 
 export interface CreateDrugInput {
@@ -54,6 +62,7 @@ export interface CreateDrugInput {
   form?: string | null;
   strength?: string | null;
   unit?: string;
+  catalogCode?: string | null;
   hsnSac?: string | null;
   unitPricePaise: number;
   taxRateBps?: number;
@@ -71,6 +80,7 @@ export async function createDrug(tenantId: string, input: CreateDrugInput, actor
           form: input.form ?? null,
           strength: input.strength ?? null,
           unit: input.unit ?? 'unit',
+          catalogCode: input.catalogCode ?? null,
           hsnSac: input.hsnSac ?? null,
           unitPricePaise: input.unitPricePaise,
           taxRateBps: input.taxRateBps ?? 0,

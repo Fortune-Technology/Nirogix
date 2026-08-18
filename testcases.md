@@ -18,7 +18,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 - **Marketing** `http://localhost:3000` · **Portal** `http://localhost:3001` · **Patient portal** `http://localhost:3002` · **Platform admin** `http://localhost:3003` · **AI Portal** `http://localhost:3004` · **API** `http://localhost:4000/api/v1` (Swagger at `/api/v1/docs`). Five frontends, one backend (ADR-051).
 - Seeded demo tenants: **CITYCARE**, **SUNRISE**, plus the vendor tenant **PLATFORM**.
-- Accounts (seed, password `ChangeMe#123`): `owner@takoriya.example` (super_admin, PLATFORM) · `admin@citycare.example` (org_admin) · `reception@citycare.example` (receptionist) · plus doctor / pharmacist / lab / cashier users per the seed.
+- Accounts (seed, password `ChangeMe#123`): `jaivik@thefortunetech.com` and `nishant@thefortunetech.com` (super_admin, PLATFORM) · `admin@citycare.example` (org_admin) · `reception@citycare.example` (receptionist) · plus doctor / pharmacist / lab / cashier users per the seed.
 - Run each UI case in **Light and Dark**, and at least once at **mobile width (375px)** and desktop.
 - **Status legend below is per release.** Everything currently reads *Not run* — this checklist has not yet been executed end to end by a tester.
 
@@ -52,7 +52,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | RBAC-05 | Temporary override window | — | Add a GRANT with `validUntil` in the past, then one valid now | Expired override grants nothing; current one grants immediately | P2 | Security | org_admin | Not run |
 | TEN-01 | Tenant isolation in the UI | Two seeded tenants | Sign in to CITYCARE, note a patient UHID; sign in to SUNRISE and search for it | Not found — no cross-tenant record is reachable | P1 | Security | org_admin | Not run |
 | TEN-02 | Tenant isolation at the API | Token for CITYCARE | Request a SUNRISE record id directly | 404/403, never another tenant's data | P1 | Security | org_admin | Not run |
-| TEN-03 | Super admin sits outside customer tenants | — | Sign in as `owner@takoriya.example` | Platform surfaces (Tenants, platform branding) are available; no clinical menu for a hospital they do not belong to | P2 | Security | super_admin | Not run |
+| TEN-03 | Super admin sits outside customer tenants | — | Sign in as `jaivik@thefortunetech.com` | Platform surfaces (Tenants, platform branding) are available; no clinical menu for a hospital they do not belong to | P2 | Security | super_admin | Not run |
 
 ## 3. Shared UI: DataTable, toasts, dates
 
@@ -711,6 +711,35 @@ Run at staging bring-up and again before each production release. Every case her
 | RATE-02 | Successful logins are not penalised | Same | Sign in and out repeatedly | Never throttled — only failures consume the allowance | P2 | Functional | any | Not run |
 | RATE-03 | Password-change throttling | Same | Submit the change form 21 times in 15 minutes | Refused with 429 | P2 | Security | any | Not run |
 | CORS-01 | Cross-origin is refused in production | Production build with `CORS_ORIGINS` set | Call the API from an origin outside the allowlist | Browser blocks it; the server logs the refused origin | P1 | Security | anonymous | Not run |
+
+## 21. System master data & immunisations (ADR-072)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| MD-01 | Lab test from catalogue | Seeded | Lab test master → Add test → **Choose from catalogue** → pick "Complete Blood Count (CBC)" | Name/sample/unit/ref-range pre-fill; price stays blank for you to set; Save creates the test | P1 | Functional | lab_technician | Not run |
+| MD-02 | Drug from catalogue | Seeded | Pharmacy stock → Add drug → **Choose from catalogue** → pick "Paracetamol 500 mg" | Name/form/strength pre-fill; you set price + reorder; Save creates the drug | P1 | Functional | pharmacist | Not run |
+| MD-03 | Service from catalogue | Seeded | Services → Add service → **Choose from catalogue** → pick "General Consultation" | Code + name pre-fill; you set price + tax; Save creates the service | P2 | Functional | org_admin | Not run |
+| MD-04 | Department suggestion | Seeded | Departments → New department → **Choose from catalogue** → pick "Cardiology" | Code + name pre-fill; head/branch stay yours; Save creates the department | P2 | Functional | org_admin | Not run |
+| MD-05 | Custom still works | Seeded | On any of the above, ignore the catalogue and type a name/price by hand | Saves as a pure custom row (no catalogue code); nothing is forced | P1 | Functional | org_admin | Not run |
+| MD-06 | Catalogue search | Seeded | Open any catalogue picker and type e.g. "glucose" / "amox" | List filters by name or code; system items tagged, custom items badged Custom | P2 | Functional | any | Not run |
+| MD-07 | System data is read-only to hospitals | Seeded | Inspect the catalogue in the picker | A hospital can select but has no control to edit or delete a system item | P2 | Security | org_admin | Not run |
+| IMM-01 | Record immunisation (predefined) | Patient exists | Patient record → Immunisations → Record → pick "BCG" → date → Record | The immunisation lists with vaccine, dose and DD/MM/YYYY date | P1 | Functional | doctor | Not run |
+| IMM-02 | Custom vaccine | Patient exists | In the Record dialog, type a custom vaccine name → Add, then record it | The custom vaccine is added (badged Custom), selectable, and records against the patient | P2 | Functional | doctor | Not run |
+| IMM-03 | Custom vaccine is tenant-scoped | Two tenants | Add a custom vaccine in tenant A; open the picker in tenant B | Tenant B sees the system vaccines but **not** A's custom one | P1 | Security | doctor | Not run |
+| IMM-04 | Immunisation permission gating | — | Sign in as a role without `clinical.immunization.manage` | The "Record" control is absent; the record is read-only where `.view` is held | P2 | Security | cashier | Not run |
+| MD-08 | Production seeds the catalogue, not tenant data | Production seeder | Run `db:seed:production` | `reference_catalog` is populated (system master data); no hospital/patient/immunisation rows created | P1 | Functional | ops | Not run |
+
+## 22. Per-hospital availability (ADR-073)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| AVAIL-01 | Config screen loads | Org with ≥1 branch + items | Settings → Hospital availability | Hospital + item-type selectors; the org's items each with an Offered here / Not offered toggle | P1 | Functional | org_admin | Not run |
+| AVAIL-02 | Disable an item at one hospital | Two branches | Turn a drug **Not offered** at Hospital 1; reload | It persists as Not offered at Hospital 1; still Offered at Hospital 2 | P1 | Functional | org_admin | Not run |
+| AVAIL-03 | Disabled item drops from that hospital's picker | AVAIL-02 done | Prescribe/dispense at Hospital 1 vs Hospital 2 (branch passed) | The disabled drug is absent from Hospital 1's picker, present at Hospital 2 | P1 | Functional | doctor/pharmacist | Not run |
+| AVAIL-04 | Per-hospital price override | — | Set a price override for an item at Hospital 2 | Lists/pickers for Hospital 2 show the override price; the org price is unchanged elsewhere | P2 | Functional | org_admin | Not run |
+| AVAIL-05 | History is unaffected by disabling | An item already on a past invoice/prescription | Disable it for a hospital | The past record still shows the item (snapshot); only new pickers are affected | P1 | Functional | any | Not run |
+| AVAIL-06 | Cross-organization isolation | Two orgs | As Org B, inspect availability | Org B never sees Org A's per-hospital config; a foreign branch id is refused (422) | P1 | Security | org_admin | Not run |
+| AVAIL-07 | Permission gating | Role without the permission | Sign in as a role lacking `platform.catalog.availability.manage` | The Hospital availability tab is absent and the API returns 403 | P2 | Security | doctor | Not run |
 
 ---
 

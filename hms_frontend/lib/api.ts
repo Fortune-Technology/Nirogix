@@ -837,3 +837,124 @@ export async function uploadBrandingAsset(kind: "logo" | "favicon", file: File):
   notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
   return branding;
 }
+
+// ---- Catalog / system master data (hms_backend/src/modules/catalog) — ADR-072 ----
+
+export type CatalogCategory = "lab_test" | "drug" | "service" | "vaccine" | "department";
+
+export interface CatalogItem {
+  /** `system` = global seeded item; `custom` = this hospital's own. */
+  source: "system" | "custom";
+  code: string;
+  name: string;
+  attributes: Record<string, string | number | boolean | null>;
+}
+
+/** Merged, searchable catalogue for a category: system items first, then this hospital's custom ones. */
+export async function getCatalog(category: CatalogCategory, q?: string): Promise<CatalogItem[]> {
+  const qs = q && q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  return request<CatalogItem[]>(`/catalog/${category}${qs}`);
+}
+
+/** Add a hospital-specific custom vaccine to the picker. */
+export async function createCustomVaccine(
+  name: string,
+  attributes?: Record<string, string>,
+): Promise<CatalogItem> {
+  return request<CatalogItem>(`/catalog/vaccine/custom`, {
+    method: "POST",
+    body: { name, attributes },
+    feedback: { success: "Custom vaccine added." },
+  });
+}
+
+// ---- Immunisations (hms_backend/src/modules/immunization) — ADR-072 consumer ----
+
+export interface Immunization {
+  id: string;
+  vaccineCode: string;
+  vaccineName: string;
+  source: "system" | "custom";
+  dateGiven: string;
+  doseLabel: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface RecordImmunizationRequest {
+  vaccineCode: string;
+  vaccineName: string;
+  source?: "system" | "custom";
+  dateGiven: string;
+  doseLabel?: string | null;
+  notes?: string | null;
+}
+
+export async function listImmunizations(patientId: string): Promise<Immunization[]> {
+  return request<Immunization[]>(`/patients/${patientId}/immunizations`);
+}
+
+export async function recordImmunization(
+  patientId: string,
+  body: RecordImmunizationRequest,
+): Promise<Immunization> {
+  return request<Immunization>(`/patients/${patientId}/immunizations`, {
+    method: "POST",
+    body,
+    feedback: { success: "Immunisation recorded." },
+  });
+}
+
+// ---- Per-hospital availability (hms_backend/src/modules/catalog) — ADR-073 ----
+
+export type AvailabilityItemType = "drug" | "lab_test" | "service" | "vaccine";
+
+export interface BranchAvailabilityOverride {
+  branchId: string;
+  itemType: AvailabilityItemType;
+  itemRef: string;
+  isAvailable: boolean;
+  priceOverridePaise: number | null;
+}
+
+/** The per-branch override rows for a hospital (only the items that have been overridden). */
+export async function getBranchAvailability(
+  branchId: string,
+  itemType?: AvailabilityItemType,
+): Promise<BranchAvailabilityOverride[]> {
+  const q = new URLSearchParams({ branchId });
+  if (itemType) q.set("itemType", itemType);
+  return request<BranchAvailabilityOverride[]>(`/branch-availability?${q.toString()}`);
+}
+
+export interface AvailabilityItem {
+  ref: string;
+  name: string;
+  detail: string;
+  isAvailable: boolean;
+  priceOverridePaise: number | null;
+}
+
+/** The org's items of a type with their availability at one hospital — the config screen's list. */
+export async function getAvailabilityItems(
+  branchId: string,
+  itemType: AvailabilityItemType,
+): Promise<AvailabilityItem[]> {
+  const q = new URLSearchParams({ branchId, itemType });
+  return request<AvailabilityItem[]>(`/branch-availability/items?${q.toString()}`);
+}
+
+/** Enable/disable a master item for one hospital (and optionally override its price). */
+export async function setBranchAvailability(body: {
+  branchId: string;
+  itemType: AvailabilityItemType;
+  itemRef: string;
+  isAvailable: boolean;
+  priceOverridePaise?: number | null;
+}): Promise<BranchAvailabilityOverride> {
+  return request<BranchAvailabilityOverride>(`/branch-availability`, {
+    method: "PUT",
+    body,
+    feedback: { success: "Availability updated." },
+  });
+}

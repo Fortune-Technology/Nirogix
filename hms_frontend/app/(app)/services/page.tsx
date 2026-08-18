@@ -20,6 +20,7 @@ import type { Department, Service } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
+import { CatalogPickerButton } from "../../../components/catalog/CatalogPicker";
 import { useCan } from "../../../lib/auth";
 import { formatPaise, rupeesToPaise } from "../../../lib/money";
 
@@ -30,6 +31,7 @@ type ServiceForm = {
   departmentId: string;
   priceRupees: string;
   taxPercent: string;
+  catalogCode: string;
 };
 
 const EMPTY_FORM: ServiceForm = {
@@ -39,6 +41,7 @@ const EMPTY_FORM: ServiceForm = {
   departmentId: "",
   priceRupees: "",
   taxPercent: "",
+  catalogCode: "",
 };
 
 /** Rupee input → integer paise; undefined = invalid. */
@@ -110,6 +113,7 @@ function ServicesTable() {
       departmentId: s.departmentId ?? "",
       priceRupees: String(s.pricePaise / 100),
       taxPercent: String(s.taxRateBps / 100),
+      catalogCode: "",
     });
     setFormError(null);
     setOpen(true);
@@ -117,6 +121,11 @@ function ServicesTable() {
 
   function set<K extends keyof ServiceForm>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  // Pre-fill code + name from a catalogue item; price and tax stay the hospital's own.
+  function applyCatalog(item: api.CatalogItem) {
+    setForm((f) => ({ ...f, code: item.code, name: item.name, catalogCode: item.code }));
   }
 
   async function submitForm(e: FormEvent) {
@@ -152,6 +161,7 @@ function ServicesTable() {
           code: form.code.trim(),
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          catalogCode: form.catalogCode || undefined,
           departmentId: form.departmentId || undefined,
           pricePaise,
           taxRateBps,
@@ -246,6 +256,17 @@ function ServicesTable() {
 
   const formFields = (
     <div className="grid gap-4 sm:grid-cols-2">
+      {!editing && (
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+          <span className="text-sm text-fg-muted">Start from a common service, or fill it in yourself.</span>
+          <CatalogPickerButton
+            category="service"
+            title="Common services"
+            description="Pick a service to pre-fill its code and name. You set the price and tax."
+            onPick={applyCatalog}
+          />
+        </div>
+      )}
       <Field
         label="Code"
         required

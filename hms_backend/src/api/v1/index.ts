@@ -27,6 +27,8 @@ import { pharmacyRouter } from '../../modules/pharmacy/pharmacy.routes';
 import { laboratoryRouter } from '../../modules/laboratory/laboratory.routes';
 import { referralRouter } from '../../modules/referral/referral.routes';
 import { reportsRouter } from '../../modules/reports/reports.routes';
+import { catalogRouter } from '../../modules/catalog/catalog.routes';
+import { immunizationRouter } from '../../modules/immunization/immunization.routes';
 
 // The /api/v1 router. Every business-module router mounts here as it is built —
 // each gated by requireModule() then requirePermission() (added with the authz core).
@@ -60,6 +62,8 @@ apiV1.use(pharmacyRouter);
 apiV1.use(laboratoryRouter);
 apiV1.use(referralRouter);
 apiV1.use(reportsRouter);
+apiV1.use(catalogRouter);
+apiV1.use(immunizationRouter);
 
 // Mounted as modules land:
 // apiV1.use('/auth', authRouter);

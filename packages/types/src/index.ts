@@ -780,6 +780,8 @@ export interface CreateServiceRequest {
   code: string;
   name: string;
   description?: string | null;
+  /** Set when adopted from the system catalogue (ADR-072); omit for a pure custom service. */
+  catalogCode?: string | null;
   departmentId?: string | null;
   pricePaise: number;
   taxRateBps?: number;
@@ -1087,6 +1089,8 @@ export interface CreateDrugRequest {
   form?: string | null;
   strength?: string | null;
   unit?: string;
+  /** Set when adopted from the system catalogue (ADR-072); omit for a pure custom drug. */
+  catalogCode?: string | null;
   hsnSac?: string | null;
   unitPricePaise: number;
   taxRateBps?: number;
@@ -1166,6 +1170,8 @@ export interface CreateLabTestRequest {
   unit?: string | null;
   refLow?: string | null;
   refHigh?: string | null;
+  /** Set when adopted from the system catalogue (ADR-072); omit for a pure custom test. */
+  catalogCode?: string | null;
   pricePaise: number;
   taxRateBps?: number;
 }

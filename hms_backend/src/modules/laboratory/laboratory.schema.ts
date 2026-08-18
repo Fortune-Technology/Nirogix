@@ -10,6 +10,8 @@ export const CreateTestBody = z
     unit: z.string().max(40).nullable().optional(),
     refLow: z.string().max(40).nullable().optional(),
     refHigh: z.string().max(40).nullable().optional(),
+    // Set when the test was adopted from the system catalogue (ADR-072); omit for a pure custom test.
+    catalogCode: z.string().max(64).nullable().optional(),
     pricePaise: z.number().int().nonnegative(),
     taxRateBps: z.number().int().min(0).max(100000).optional(),
   })

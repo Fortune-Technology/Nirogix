@@ -808,3 +808,38 @@ The backend was already on `development | staging | production` (its `NODE_ENV` 
 ## 2026-08-18 — Em dashes removed from user-facing API messages (issue #11)
 
 Replaced stylistic em dashes with a period or colon in the 20 user-facing `message` strings that surface to users through the app's toast (billing, appointment, emr, opd, pharmacy, patient, aiDraft, the two public booking/registration confirmations, and setup). Example: `Could not allocate an invoice number — please retry` → `. Please retry`. Developer-facing strings (OpenAPI summaries/descriptions, dev logs, the boot-time env-validation error, en-dash range validators) were left unchanged. Typecheck clean. Part of the platform-wide sweep logged in `hms_frontend/DONE.md`.
+
+## 2026-08-18 — System master data + hospital custom data (ADR-072, issue #13)
+
+Hospitals no longer re-type standardised reference data. Two tables, one read model:
+- **`reference_catalog`** — global **system** master data (no `tenant_id`, so the RLS auto-policy never targets it, like `specialties`), keyed `(category, code)` with a jsonb `attributes` for pre-fill hints. Seeded from `modules/catalog/catalog.data.ts` (India-context) via `seedReferenceCatalog()` in **all three** seeders, so production has it: **96 items** across lab tests (25, LOINC-coded common + Indian panels), drugs (25, generics + form/strength/unit), services (15), vaccines (17, India IAP/UIP schedule), and suggested departments (14). Idempotent `onConflictDoUpdate`, so a renamed item propagates on the next migrate/seed; `is_active` is never resurrected.
+- **`tenant_reference_items`** — hospital **custom** data for simple-list categories (vaccines today); tenant-scoped → RLS. Custom codes are `CUSTOM_…` so they never collide with a system code.
+- The richer priced catalogues (`lab_tests`, `drugs`, `services`) keep their existing tenant tables and gain a nullable `catalog_code` recording which item a row was adopted from (NULL = pure custom) — additive, nothing existing breaks.
+
+**API** (`modules/catalog`): `GET /catalog/:category?q=` returns the merged, searchable list (system first, then this tenant's custom), each tagged `system|custom`; `POST /catalog/vaccine/custom` adds a custom vaccine (gated `clinical.immunization.manage`). Reading needs only auth (non-sensitive reference data). A new reserved `platform.catalog.manage` (super_admin via WILDCARD) is for a future System-Admin editor; today the catalogue is code-seeded like specialties.
+
+**Immunisation consumer** (`modules/immunization`): `patient_immunizations` (tenant-scoped) + `GET`/`POST /patients/:id/immunizations`, snapshotting the vaccine given so a later catalogue rename never rewrites history. New permissions `clinical.immunization.view` (org_admin, branch_admin, doctor, receptionist) and `.manage` (doctor, receptionist).
+
+**Defense in depth:** the merged read and the custom-create both filter `tenant_id` explicitly **and** run under RLS — a test proved that relying on RLS alone leaks across tenants when the app connects as a privileged role.
+
+**Testing status:** new `catalog/__tests__/catalog.test.ts` (7 tests: system readable, search, custom merge + `CUSTOM_` code, **tenant isolation**, priced categories reject custom, adoption records `catalog_code`, immunisation recorded/listed). Full backend suite **157/157** green. Typecheck + OpenAPI validate clean (migrations 0025, 0026).
+
+## 2026-08-18 — Platform admins + platform name (issue #15)
+
+The seeded platform identity is now **Nirogix** with **two** Platform Admins instead of the `owner@takoriya.example` placeholder:
+- **Dev seeder** (`seed.ts`): the `PLATFORM` org is named **Nirogix** and seeds `jaivik@thefortunetech.com` (Jaivik Patel) and `nishant@thefortunetech.com` (Nishant Patel), both `super_admin`. Idempotent `upsertUser` (by email) means re-seeding never duplicates them; the loop upserts users for existing tenants too.
+- **Staging seeder** (`seed.staging.ts`): PLATFORM org → Nirogix; added `nishant@` alongside the existing `jaivik@`, both `super_admin`.
+- **Production seeder** (`seed.production.ts`): the default `PLATFORM_NAME` is now `Nirogix` (still overridable via `BOOTSTRAP_PLATFORM_NAME`); the first operator stays env-driven (`BOOTSTRAP_ADMIN_EMAIL`/`_PASSWORD`), never a hardcoded default account.
+- Current-state docs updated (`TESTING_CREDENTIALS.md`, `KNOWLEDGE.md`, `testcases.md`, `resources/user-journeys.md`); append-only history (`DONE.md`, `DECISIONS.md`) left as the record it is. The **legal entity "Takoriya Technology LLP" is intentionally kept** on the public marketing site (owner's decision) — only the platform seed/config identity became Nirogix.
+
+**Testing status:** typecheck clean. On the dev DB (re-seeded, PLATFORM renamed to Nirogix, stale `owner@takoriya.example` removed): both admins authenticate (`POST /auth/login` → 200 + token) and hold `super_admin` in `PLATFORM`.
+
+## 2026-08-18 — Per-hospital (branch) availability of master data (ADR-073, issue #14)
+
+Within one organization, hospitals can now carry different items — Hospital 1 offers Drug A, Hospital 2 does not — enforced at the database/API, not just hidden in the UI.
+- **`branch_item_availability`** overlay (`tenant_id`→RLS, `branch_id`, `item_type` ∈ drug|lab_test|service|vaccine, `item_ref`, `is_available`, `price_override_paise`). The master `is_active` is the org default; an overlay row is the per-branch exception; no row = inherit. Availability = `master.is_active AND NOT(overlay.is_available=false)`. One item identity (no duplication; ADR-072 links + snapshot history intact); org-isolated by RLS. Departments excluded (natively branch-scoped).
+- **API** (`modules/catalog`): `PUT /branch-availability` (upsert, validates the branch belongs to the org), `GET /branch-availability` (a branch's overrides), `GET /branch-availability/items` (the org's items of a type with their per-branch state — the config screen's read model). Gated by new permission `platform.catalog.availability.manage` (org_admin).
+- **Backend enforcement**: `listDrugs`, `listTests`, `listServices`, and `listCatalog` (vaccine) accept an optional `branchId`; when given, they drop items disabled for that branch and apply any price override. Every path filters `tenant_id` explicitly AND runs under RLS.
+- **Deferred** (issue #14's "full" option): real per-hospital STOCK needs a server-side current-branch (branch in the token/session + a validated switcher + user↔branch membership) — a change to authentication. The overlay ships without it; a per-branch price override is included.
+
+**Testing status:** new `branchAvailability.test.ts` (5 tests: disabling at one hospital doesn't affect the other or org-wide; price override applies only at that branch; vaccines branch-scoped by code; one org can't see another's config; a foreign branch is refused). Full backend suite **162/162** green. Typecheck + OpenAPI validate clean (migration 0027).

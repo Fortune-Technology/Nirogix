@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarPlus, FileText, ListChecks, Palette, Layers, QrCode, type LucideIcon } from "lucide-react";
+import { Building2, CalendarPlus, FileText, ListChecks, Palette, Layers, QrCode, Hospital, type LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@hms/permissions";
 import { useCan } from "../../lib/auth";
 
@@ -27,6 +27,7 @@ const TABS: Tab[] = [
   { href: "/settings/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
   { href: "/settings/registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/settings/booking", label: "Online booking", icon: CalendarPlus, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/settings/availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
   { href: "/settings/modules", label: "Enabled modules", icon: Layers, perm: null },
 ];
 

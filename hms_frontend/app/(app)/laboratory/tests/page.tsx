@@ -9,13 +9,31 @@ import type { LabTest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
+import { CatalogPickerButton } from "../../../../components/catalog/CatalogPicker";
 import { formatPaise, rupeesToPaise } from "../../../../lib/money";
+
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
 function AddTestForm({ onAdded, onError }: { onAdded: () => void; onError: (m: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", code: "", sampleType: "blood", unit: "", refLow: "", refHigh: "", price: "" });
+  const [f, setF] = useState({ name: "", code: "", sampleType: "blood", unit: "", refLow: "", refHigh: "", price: "", catalogCode: "" });
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  // Pre-fill the standardised fields from a catalogue item; the hospital still sets its own price.
+  function applyCatalog(item: api.CatalogItem) {
+    const a = item.attributes;
+    setF((p) => ({
+      ...p,
+      name: item.name,
+      code: str(a.loinc),
+      sampleType: str(a.sampleType) || "blood",
+      unit: str(a.unit),
+      refLow: str(a.refLow),
+      refHigh: str(a.refHigh),
+      catalogCode: item.code,
+    }));
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -29,9 +47,10 @@ function AddTestForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
         unit: f.unit || null,
         refLow: f.refLow || null,
         refHigh: f.refHigh || null,
+        catalogCode: f.catalogCode || null,
         pricePaise: rupeesToPaise(Number(f.price) || 0),
       });
-      setF({ name: "", code: "", sampleType: "blood", unit: "", refLow: "", refHigh: "", price: "" });
+      setF({ name: "", code: "", sampleType: "blood", unit: "", refLow: "", refHigh: "", price: "", catalogCode: "" });
       setOpen(false);
       onAdded();
     } catch {
@@ -50,6 +69,15 @@ function AddTestForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
   }
   return (
     <Card header="Add test">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm text-fg-muted">Start from a standard test, or fill it in yourself.</span>
+        <CatalogPickerButton
+          category="lab_test"
+          title="Standard lab tests"
+          description="Pick a test to pre-fill its name, sample and reference range. You set the price."
+          onPick={applyCatalog}
+        />
+      </div>
       <form className="grid gap-3 sm:grid-cols-4" onSubmit={submit}>
         <Field label="Name" value={f.name} onChange={(e) => set("name", e.target.value)} />
         <Field label="Code (LOINC)" value={f.code} onChange={(e) => set("code", e.target.value)} />

@@ -20,6 +20,8 @@ export const labTests = pgTable('lab_tests', {
   // Reference range kept as strings — a range may be numeric (4000–11000) or qualitative ("Negative").
   refLow: varchar('ref_low', { length: 40 }),
   refHigh: varchar('ref_high', { length: 40 }),
+  // Which system catalogue item this test was adopted from (ADR-072). NULL = pure custom.
+  catalogCode: varchar('catalog_code', { length: 64 }),
   pricePaise: bigint('price_paise', { mode: 'number' }).notNull().default(0),
   taxRateBps: integer('tax_rate_bps').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),

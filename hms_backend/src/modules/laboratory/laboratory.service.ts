@@ -6,12 +6,13 @@ import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
 import * as billing from '../billing/billing.service';
 import { getDownloadUrl } from '../file/file.service';
+import { resolveOverrides, isRefAvailable, priceFor } from '../catalog/branchAvailability.service';
 
 // Laboratory (MVP subset). Test master + result entry against the EMR lab orders, billing at
 // result, abnormal-value flag derived from the reference range.
 
-export async function listTests(tenantId: string, search?: string) {
-  return runWithTenant(tenantId, async (tx) => {
+export async function listTests(tenantId: string, search?: string, branchId?: string) {
+  const list = await runWithTenant(tenantId, async (tx) => {
     const conds = [eq(labTests.tenantId, tenantId)];
     if (search && search.trim()) conds.push(ilike(labTests.name, `%${search.trim()}%`));
     const rows = await tx.select().from(labTests).where(and(...conds)).orderBy(asc(labTests.name));
@@ -28,6 +29,12 @@ export async function listTests(tenantId: string, search?: string) {
       isActive: t.isActive,
     }));
   });
+  // Per-hospital availability (ADR-073): filter to what this branch offers, with any price override.
+  if (!branchId) return list;
+  const overrides = await resolveOverrides(tenantId, branchId, 'lab_test', list.map((t) => t.id));
+  return list
+    .filter((t) => isRefAvailable(overrides, t.id))
+    .map((t) => ({ ...t, pricePaise: priceFor(overrides, t.id, t.pricePaise) }));
 }
 
 export interface CreateTestInput {
@@ -37,6 +44,7 @@ export interface CreateTestInput {
   unit?: string | null;
   refLow?: string | null;
   refHigh?: string | null;
+  catalogCode?: string | null;
   pricePaise: number;
   taxRateBps?: number;
 }
@@ -54,6 +62,7 @@ export async function createTest(tenantId: string, input: CreateTestInput, actor
           unit: input.unit ?? null,
           refLow: input.refLow ?? null,
           refHigh: input.refHigh ?? null,
+          catalogCode: input.catalogCode ?? null,
           pricePaise: input.pricePaise,
           taxRateBps: input.taxRateBps ?? 0,
         })

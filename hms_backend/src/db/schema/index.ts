@@ -32,3 +32,8 @@ export * from './pharmacy';
 export * from './lab';
 export * from './services';
 export * from './referrals';
+// System master data (global, no tenant_id) + hospital custom overlay (tenant-scoped) — ADR-072.
+export * from './referenceData';
+export * from './immunizations';
+// Per-hospital (branch) availability overlay for master-data items — ADR-073.
+export * from './branchAvailability';

@@ -3,7 +3,8 @@ import * as svc from './laboratory.service';
 
 export async function listTests(req: Request, res: Response): Promise<void> {
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
-  res.json(await svc.listTests(req.auth!.tenantId, search));
+  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+  res.json(await svc.listTests(req.auth!.tenantId, search, branchId));
 }
 
 export async function createTest(req: Request, res: Response): Promise<void> {

@@ -3,7 +3,8 @@ import * as svc from './pharmacy.service';
 
 export async function listDrugs(req: Request, res: Response): Promise<void> {
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
-  res.json(await svc.listDrugs(req.auth!.tenantId, search));
+  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+  res.json(await svc.listDrugs(req.auth!.tenantId, search, branchId));
 }
 
 export async function createDrug(req: Request, res: Response): Promise<void> {

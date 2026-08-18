@@ -25,6 +25,7 @@ import type { Drug, ReceiveStockRequest, StockAdjustment, Supplier } from "@hms/
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
+import { CatalogPickerButton } from "../../../../components/catalog/CatalogPicker";
 import { formatPaise, rupeesToPaise } from "../../../../lib/money";
 import { useCan } from "../../../../lib/auth";
 
@@ -35,9 +36,22 @@ function AddDrugForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
   const [name, setName] = useState("");
   const [form, setForm] = useState("tablet");
   const [strength, setStrength] = useState("");
+  const [unit, setUnit] = useState("unit");
+  const [catalogCode, setCatalogCode] = useState("");
   const [priceRupees, setPriceRupees] = useState("");
   const [reorder, setReorder] = useState("0");
   const [busy, setBusy] = useState(false);
+
+  // Pre-fill the standardised fields from a catalogue item; the hospital still sets its own price.
+  function applyCatalog(item: api.CatalogItem) {
+    const a = item.attributes;
+    const s = (v: unknown) => (typeof v === "string" ? v : "");
+    setName(item.name);
+    setForm(s(a.form) || "tablet");
+    setStrength(s(a.strength));
+    setUnit(s(a.unit) || "unit");
+    setCatalogCode(item.code);
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -48,10 +62,12 @@ function AddDrugForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
         name: name.trim(),
         form: form || null,
         strength: strength || null,
+        unit: unit || "unit",
+        catalogCode: catalogCode || null,
         unitPricePaise: rupeesToPaise(Number(priceRupees) || 0),
         reorderLevel: Number(reorder) || 0,
       });
-      setName(""); setStrength(""); setPriceRupees(""); setReorder("0");
+      setName(""); setStrength(""); setUnit("unit"); setCatalogCode(""); setPriceRupees(""); setReorder("0");
       setOpen(false);
       onAdded();
     } catch {
@@ -70,6 +86,15 @@ function AddDrugForm({ onAdded, onError }: { onAdded: () => void; onError: (m: s
   }
   return (
     <Card header="Add drug">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm text-fg-muted">Start from a common medicine, or fill it in yourself.</span>
+        <CatalogPickerButton
+          category="drug"
+          title="Common medicines"
+          description="Pick a generic to pre-fill its name, form and strength. You set the price and stock."
+          onPick={applyCatalog}
+        />
+      </div>
       <form className="grid gap-3 sm:grid-cols-5" onSubmit={submit}>
         <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} />
         <Field label="Form" value={form} onChange={(e) => setForm(e.target.value)} />

@@ -72,6 +72,8 @@ export const CreateServiceBody = z
     code: z.string().min(1).max(40),
     name: z.string().min(1).max(200),
     description: z.string().max(500).nullable().optional(),
+    // Set when the service was adopted from the system catalogue (ADR-072); omit for a pure custom one.
+    catalogCode: z.string().max(64).nullable().optional(),
     departmentId: z.string().uuid().nullable().optional(),
     pricePaise: z.number().int().nonnegative(),
     taxRateBps: z.number().int().min(0).max(100000).optional(),

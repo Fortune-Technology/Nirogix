@@ -176,6 +176,27 @@
       "when": 1786975125053,
       "tag": "0024_slow_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787034221559,
+      "tag": "0025_thick_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787035606762,
+      "tag": "0026_dapper_ravenous",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1787037641321,
+      "tag": "0027_happy_iron_man",
+      "breakpoints": true
     }
   ]
 }

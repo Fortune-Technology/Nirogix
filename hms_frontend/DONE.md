@@ -696,3 +696,24 @@ Swept every app and the backend for em dashes (—) used as sentence/phrase sepa
 New copy written for issues #10 and #12 was authored to the same rule, so the pattern does not reappear.
 
 **Testing status:** every workspace typechecks clean (11/11). Browser-verified in the Portal that fixed strings render naturally (dashboard greeting "Your clinic today, Rajesh"; empty states read as plain sentences).
+
+## 2026-08-18 — Predefined catalogue pickers + patient immunisations (ADR-072, issue #13)
+
+Hospital Admins now pick standardised items instead of re-typing them, while keeping full custom freedom.
+- **`components/catalog/CatalogPicker`** — one reusable, searchable picker over `GET /catalog/:category`, tagging each item System or **Custom**, with a `CatalogPickerButton` ("Choose from catalogue") that opens it in the shared `Dialog`.
+- **Retrofitted the four setup screens**: the lab-test master, drug master, services catalogue, and departments each gained "Start from a standard … / Choose from catalogue", which pre-fills the standardised fields (name, code, sample/form/strength/unit, specialty). **Price, tax and stock always stay the hospital's own** and are never seeded. Adopting a lab test / drug / service records its `catalogCode`; "add custom" is the unchanged free-text flow.
+- **Immunisations** (new): `components/patients/ImmunizationsCard` on the patient record lists a patient's vaccinations and records a new one by picking from the predefined India schedule (17 vaccines) — or adding a hospital-specific **custom vaccine** inline — then a date, dose and notes. Permission-gated (`clinical.immunization.view` / `.manage`).
+
+**Testing status:** typecheck clean across `@hms/types`, `@hms/permissions`, `hms_frontend`. Browser-verified in the Portal: the vaccine picker loaded the 17 seeded vaccines with their schedules, selecting **BCG** → date → **Record** persisted and rendered "BCG 18/08/2026" on the chart (DD/MM/YYYY); the custom-vaccine input is present. The four priced-catalogue pickers use the same verified component.
+
+## 2026-08-18 — Quick-login shows the two Platform Admins (issue #15)
+
+`lib/devUsers.ts` now lists the two seeded Platform Admins (`jaivik@thefortunetech.com`, `nishant@thefortunetech.com`, org `PLATFORM`, "Nirogix (Platform)") at the top of the dev/staging quick-login, replacing the removed `owner@takoriya.example`. These are the real operator emails the seeder provisions, always with the **dev default password** (never a real password). The whole `DEV_USERS` array still constant-folds out of a production build — re-verified: a `production` build contains neither the emails nor the password.
+
+**Testing status:** typecheck clean; production build → admin emails + password absent. Browser-verified in the Portal: the quick-login modal shows both Platform Admin cards, and one-click sign-in as `jaivik@thefortunetech.com` authenticated to the dashboard.
+
+## 2026-08-18 — Per-hospital availability config screen (ADR-073, issue #14)
+
+New Hospital Configuration tab **Hospital availability** (`/settings/availability`, org_admin, permission `platform.catalog.availability.manage`): pick a hospital + item type (Medicines / Lab tests / Services / Vaccines), see the organisation's items each with an **Offered here / Not offered** toggle. Toggling saves through `PUT /branch-availability`; the day-to-day pickers/lists (which pass a branch) then filter to what that hospital offers — enforced by the backend (ADR-073), not just the UI. `api.getAvailabilityItems` / `setBranchAvailability` added.
+
+**Testing status:** typecheck clean. Browser-verified as CityCare's org_admin: the screen loaded both branches (Kothrud, Baner) and the four item types; toggling Paracetamol to **Not offered** at Kothrud saved and **persisted across a reload**.

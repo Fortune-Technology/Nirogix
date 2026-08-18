@@ -17,6 +17,8 @@ export const drugs = pgTable('drugs', {
   form: varchar('form', { length: 40 }), // tablet | capsule | syrup | injection | ...
   strength: varchar('strength', { length: 60 }), // "500 mg"
   unit: varchar('unit', { length: 30 }).notNull().default('unit'), // tablet | ml | vial | ...
+  // Which system catalogue item this drug was adopted from (ADR-072). NULL = pure custom.
+  catalogCode: varchar('catalog_code', { length: 64 }),
   hsnSac: varchar('hsn_sac', { length: 12 }),
   unitPricePaise: bigint('unit_price_paise', { mode: 'number' }).notNull().default(0),
   taxRateBps: integer('tax_rate_bps').notNull().default(0),

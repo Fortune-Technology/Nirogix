@@ -26,6 +26,8 @@ export const services = pgTable(
     code: varchar('code', { length: 40 }).notNull(),
     name: varchar('name', { length: 200 }).notNull(),
     description: varchar('description', { length: 500 }),
+    // Which system catalogue item this service was adopted from (ADR-072). NULL = pure custom.
+    catalogCode: varchar('catalog_code', { length: 64 }),
     departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
     pricePaise: bigint('price_paise', { mode: 'number' }).notNull(),
     taxRateBps: integer('tax_rate_bps').notNull().default(0),

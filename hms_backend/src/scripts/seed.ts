@@ -16,6 +16,7 @@ import { hashPassword } from '../modules/auth/password';
 import { seedPermissionCatalog, provisionTenantRbac, assignRoleByKey } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
+import { seedReferenceCatalog } from '../modules/catalog/catalog.service';
 import { createPatient, countPatients, type PatientInput } from '../modules/patient/patient.service';
 import { bookAppointment, countAppointments } from '../modules/appointment/appointment.service';
 import { createTest, type CreateTestInput } from '../modules/laboratory/laboratory.service';
@@ -24,8 +25,8 @@ import { createService, type ServiceInput } from '../modules/billing/billing.ser
 import { services as servicesTable } from '../db/schema';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
-// Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the vendor,
-// Takoriya Technology LLP — home of the System Super Admin who onboards hospitals; ADR-022) plus 2+
+// Multi-tenant demo seed (Phase 0 Ops / Task #14). Idempotent. Seeds one PLATFORM org (the Nirogix
+// platform operator — home of the System Super Admins who onboard hospitals; ADR-022) plus 2+
 // demo hospital tenants, each with a branch layout and one user per role, so login + RBAC + tenant
 // isolation can be exercised and demoed end-to-end. All hospital data reflects a genuine Indian
 // healthcare context (resources/development-plan.md §17 Test Data). NOT production data — passwords
@@ -93,14 +94,17 @@ interface SeedTenant {
 // The PLATFORM org (the vendor) + demo hospital tenants across different Indian states.
 const SEED_TENANTS: SeedTenant[] = [
   {
-    // Tier 0 — the platform owner (Takoriya Technology LLP). Home of the System Super Admin, who
-    // operates ACROSS all tenants and onboards hospitals. Not a hospital: no modules, branches, or
-    // clinical data (ADR-022).
+    // Tier 0 — the Nirogix platform operator. Home of the System Super Admins, who operate ACROSS
+    // all tenants and onboard hospitals. Not a hospital: no modules, branches, or clinical data
+    // (ADR-022). Two Platform Admins so the platform is never down to a single operator account.
     code: 'PLATFORM',
-    name: 'Takoriya Technology LLP',
+    name: 'Nirogix',
     modules: [],
     branches: [],
-    users: [{ email: 'owner@takoriya.example', fullName: 'Platform Owner', role: 'super_admin' }],
+    users: [
+      { email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' },
+      { email: 'nishant@thefortunetech.com', fullName: 'Nishant Patel', role: 'super_admin' },
+    ],
     providers: [],
   },
   {
@@ -391,8 +395,9 @@ async function main(): Promise<void> {
 
   await seedPermissionCatalog();
   await seedSpecialtyCatalog();
+  await seedReferenceCatalog();
   // eslint-disable-next-line no-console
-  console.log('Seeded permission + specialty catalogs');
+  console.log('Seeded permission + specialty + master-data catalogs');
 
   for (const t of SEED_TENANTS) await seedTenant(t);
 
@@ -401,7 +406,7 @@ async function main(): Promise<void> {
     `\nDone. 1 platform org + ${SEED_TENANTS.length - 1} demo hospitals. Login with org code + email + password "${DEFAULT_PASSWORD}".`,
   );
   // eslint-disable-next-line no-console
-  console.log('Platform owner: PLATFORM / owner@takoriya.example');
+  console.log('Platform admins: PLATFORM / jaivik@thefortunetech.com  ·  nishant@thefortunetech.com');
   // eslint-disable-next-line no-console
   console.log('Hospital admin: CITYCARE / admin@citycare.example  ·  SUNRISE / admin@sunrise.example');
 

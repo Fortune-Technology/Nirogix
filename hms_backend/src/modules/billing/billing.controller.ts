@@ -28,7 +28,8 @@ export async function addLine(req: Request, res: Response): Promise<void> {
 export async function listServices(req: Request, res: Response): Promise<void> {
   const activeOnly = req.query.activeOnly === 'true';
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
-  res.json(await svc.listServices(req.auth!.tenantId, { activeOnly, search }));
+  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+  res.json(await svc.listServices(req.auth!.tenantId, { activeOnly, search, branchId }));
 }
 
 export async function createService(req: Request, res: Response): Promise<void> {

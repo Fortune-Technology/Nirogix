@@ -21,6 +21,7 @@ import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
 import { PatientHistory } from "../../../../components/patients/PatientHistory";
+import { ImmunizationsCard } from "../../../../components/patients/ImmunizationsCard";
 import { PageHeader } from "../../../../components/PageHeader";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -199,6 +200,11 @@ function Profile({ id }: { id: string }) {
       {/* The record's story across visits — what "maintain patient history" means in the UI.
           Each block is permission-gated, so a receptionist sees visits and bills while the
           clinical history stays with EMR-permitted roles. */}
+      {!editing && (
+        <Can perm={PERMISSIONS.IMMUNIZATION_VIEW}>
+          <ImmunizationsCard patientId={p.id} />
+        </Can>
+      )}
       {!editing && <PatientHistory patientId={p.id} />}
     </>
   );

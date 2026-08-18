@@ -82,6 +82,20 @@ export const PERMISSIONS = {
   // Providers / specialties
   PROVIDER_VIEW: 'providers.view',
   PROVIDER_MANAGE: 'providers.manage',
+  // Immunisations (ADR-072 consumer) — record a patient's vaccinations and add hospital-specific
+  // custom vaccines to the picker. Viewing rides with the patient record; recording is clinical /
+  // front desk.
+  IMMUNIZATION_VIEW: 'clinical.immunization.view',
+  IMMUNIZATION_MANAGE: 'clinical.immunization.manage',
+  // System master-data catalogue (ADR-072). Reserved for a future System-Admin editor of the
+  // GLOBAL reference catalogue; today the catalogue is seeded from code. Super-Admin only
+  // (covered by WILDCARD), never granted to a hospital's org_admin. Reading the catalogue as
+  // suggestions needs no key — it is non-sensitive reference data, like the specialty catalogue.
+  CATALOG_MANAGE: 'platform.catalog.manage',
+  // Per-hospital (branch) availability of master-data items (ADR-073) — the org configures which of
+  // its drugs / lab tests / services / vaccines / departments each of its hospitals offers. Held by
+  // org_admin; the config is the organization's own, isolated from other organizations by RLS.
+  CATALOG_AVAILABILITY_MANAGE: 'platform.catalog.availability.manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -127,7 +141,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
       P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.ORG_PROFILE_MANAGE,
       P.DEPARTMENT_VIEW, P.DEPARTMENT_MANAGE,
-      P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
+      P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.IMMUNIZATION_VIEW,
+      // Configure which master-data items each of the org's hospitals offers (ADR-073).
+      P.CATALOG_AVAILABILITY_MANAGE,
       P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
       // The services & packages catalogue is hospital configuration (E-3) — the admin owns it.
       P.BILLING_SERVICES_VIEW, P.BILLING_SERVICES_MANAGE,
@@ -144,7 +160,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Administers a branch',
     permissions: [
       P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
-      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.IMMUNIZATION_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -157,6 +173,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
       P.DEPARTMENT_VIEW,
+      // Record and review a patient's immunisations from the chart.
+      P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE,
       // Refer the patient onward from the consultation, and see where a referral stands.
       P.REFERRAL_VIEW, P.REFERRAL_CREATE, P.REFERRAL_UPDATE,
       // Read the drug master while prescribing — the formulary picker needs the list (and its
@@ -172,6 +190,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
       P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
+      P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE, // front desk records routine vaccinations
       P.REFERRAL_VIEW, // routes a referred patient to the right department at the desk
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into

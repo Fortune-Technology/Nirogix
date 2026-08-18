@@ -15,7 +15,7 @@ what happens next, and what each actor sees and does at every step* — from Pla
 ## 0. The hierarchy (two tiers, four actor layers)
 
 ```
-TIER 0 — PLATFORM (the vendor: Takoriya Technology LLP)          ── org code PLATFORM
+TIER 0 — PLATFORM (the Nirogix platform operator)               ── org code PLATFORM
    └─ System Super Admin ── owns Nirogix, provisions it to hospitals, sees EVERYTHING
         │  creates each hospital + its first Org Admin, assigns modules
         ▼
@@ -39,7 +39,7 @@ TIER 3 — PATIENTS (end users of a hospital's services)
 
 ## 1. Tier 0 — Platform Owner / System Super Admin
 
-**Login:** `PLATFORM` / `owner@takoriya.example` (Tier 0 lives in its own vendor org — ADR-022).
+**Login:** `PLATFORM` / `jaivik@thefortunetech.com` (Tier 0 lives in its own platform-operator org — ADR-022).
 
 ### 1.1 Onboard a hospital — *"what do I do first?"* ✅ Built (§20A / A1, A3)
 1. **Register the organization/hospital** — Tenants → *Onboard tenant*: org code + name. ✅

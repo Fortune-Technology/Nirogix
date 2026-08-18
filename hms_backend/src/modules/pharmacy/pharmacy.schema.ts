@@ -8,6 +8,8 @@ export const CreateDrugBody = z
     form: z.string().max(40).nullable().optional(),
     strength: z.string().max(60).nullable().optional(),
     unit: z.string().max(30).optional(),
+    // Set when the drug was adopted from the system catalogue (ADR-072); omit for a pure custom drug.
+    catalogCode: z.string().max(64).nullable().optional(),
     hsnSac: z.string().max(12).nullable().optional(),
     unitPricePaise: z.number().int().nonnegative(),
     taxRateBps: z.number().int().min(0).max(100000).optional(),

@@ -1,10 +1,11 @@
 // Development-only quick-login accounts (dev/staging convenience — issue #7).
 //
 // STRICTLY non-production. These mirror the accounts created by the DEVELOPMENT seeder
-// (`hms_backend/src/scripts/seed.ts`) and documented in `TESTING_CREDENTIALS.md`. Every value
-// here is a **known synthetic dev credential**, never a real one: the emails use the RFC-2606
-// reserved `.example` TLD (which can never be a real address) and the password is the seeder's
-// published dev default. There is no production credential anywhere in this file.
+// (`hms_backend/src/scripts/seed.ts`) and documented in `TESTING_CREDENTIALS.md`. The password is
+// always the seeder's **published dev default** — never a real password. The hospital demo accounts
+// use RFC-2606 reserved `.example` emails; the two Platform Admins use the real operator emails the
+// seeder provisions (issue #15), still with the dev default password. There is no production
+// credential anywhere in this file, and the whole array folds out of a production build (below).
 //
 // The selector that renders these (`components/auth/QuickLogin.tsx`) is gated on the environment
 // (`isQuickLoginEnabled`) and returns null in production, so it never appears there. This is a
@@ -65,6 +66,7 @@ const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? 'ChangeMe#123
 // not merely un-rendered. (Verified by grepping the built chunks — see DONE.md.)
 export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
   ? [
+    // Platform Admins (System Super Admins) — the Nirogix operator org (issue #15).
 
     { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
     { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },
@@ -74,6 +76,6 @@ export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
     { role: 'Lab Technician', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'lab@citycare.example', password: DEV_PASSWORD },
     { role: 'Cashier', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'cashier@citycare.example', password: DEV_PASSWORD },
     // A second hospital, for cross-tenant / isolation testing.
-    { role: 'Org Admin', orgCode: 'SUNRISE', orgName: 'Sunrise Diagnostics', email: 'admin@sunrise.example', password: DEV_PASSWORD },
+
   ]
   : [];

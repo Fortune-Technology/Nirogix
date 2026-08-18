@@ -12,6 +12,7 @@ import {
 } from '../modules/rbac/rbac.service';
 import { grantModule } from '../modules/entitlement/entitlement.service';
 import { seedSpecialtyCatalog, createProvider, assignSpecialty } from '../modules/provider/provider.service';
+import { seedReferenceCatalog } from '../modules/catalog/catalog.service';
 import { createPatient, countPatients } from '../modules/patient/patient.service';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
@@ -72,11 +73,14 @@ const TENANT = {
   ],
 };
 
-/** The vendor org, so operator-side flows are testable too. */
+/** The Nirogix platform-operator org, so operator-side flows are testable too. */
 const PLATFORM = {
   code: 'PLATFORM',
-  name: 'Takoriya Technology LLP',
-  users: [{ email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' }],
+  name: 'Nirogix',
+  users: [
+    { email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' },
+    { email: 'nishant@thefortunetech.com', fullName: 'Nishant Patel', role: 'super_admin' },
+  ],
 };
 
 async function upsertTenant(code: string, name: string): Promise<string> {
@@ -139,6 +143,7 @@ async function main(): Promise<void> {
 
   await seedPermissionCatalog();
   await seedSpecialtyCatalog();
+  await seedReferenceCatalog();
   await reconcileSystemRoles();
   // eslint-disable-next-line no-console
   console.log('  catalogues + system roles up to date');

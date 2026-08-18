@@ -12,6 +12,7 @@ import {
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
+import { resolveOverrides, isRefAvailable, priceFor } from '../catalog/branchAvailability.service';
 
 // Financial Transaction Infrastructure (invariant #8). Pure invoice/line-item/payment logic —
 // no clinical knowledge. Consumed by OPD, and later Pharmacy/Lab/IPD, each of which adds its own
@@ -349,6 +350,7 @@ export interface ServiceInput {
   code: string;
   name: string;
   description?: string | null;
+  catalogCode?: string | null;
   departmentId?: string | null;
   pricePaise: number;
   taxRateBps?: number;
@@ -368,8 +370,11 @@ function toServiceDto(s: typeof services.$inferSelect, departmentName: string | 
   };
 }
 
-export async function listServices(tenantId: string, opts: { activeOnly?: boolean; search?: string } = {}) {
-  return runWithTenant(tenantId, async (tx) => {
+export async function listServices(
+  tenantId: string,
+  opts: { activeOnly?: boolean; search?: string; branchId?: string } = {},
+) {
+  const list = await runWithTenant(tenantId, async (tx) => {
     const conds = [eq(services.tenantId, tenantId)];
     if (opts.activeOnly) conds.push(eq(services.isActive, true));
     if (opts.search?.trim()) conds.push(ilike(services.name, `%${opts.search.trim()}%`));
@@ -381,6 +386,12 @@ export async function listServices(tenantId: string, opts: { activeOnly?: boolea
       .orderBy(asc(services.name));
     return rows.map((r) => toServiceDto(r.s, r.departmentName));
   });
+  // Per-hospital availability (ADR-073): filter to what this branch offers, with any price override.
+  if (!opts.branchId) return list;
+  const overrides = await resolveOverrides(tenantId, opts.branchId, 'service', list.map((s) => s.id));
+  return list
+    .filter((s) => isRefAvailable(overrides, s.id))
+    .map((s) => ({ ...s, pricePaise: priceFor(overrides, s.id, s.pricePaise) }));
 }
 
 export async function createService(tenantId: string, input: ServiceInput, actorUserId?: string) {
@@ -402,6 +413,7 @@ export async function createService(tenantId: string, input: ServiceInput, actor
         code: input.code.trim().toUpperCase(),
         name: input.name.trim(),
         description: input.description ?? null,
+        catalogCode: input.catalogCode ?? null,
         departmentId: input.departmentId ?? null,
         pricePaise: input.pricePaise,
         taxRateBps: input.taxRateBps ?? 0,

@@ -20,6 +20,7 @@ import type { Branch, Department, Provider } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
+import { CatalogPickerButton } from "../../../components/catalog/CatalogPicker";
 import { useCan } from "../../../lib/auth";
 import { EditRecordDialog, type EditField } from "../../../components/EditRecordDialog";
 
@@ -122,6 +123,13 @@ function DepartmentsTable() {
     }
   }
 
+  // Pre-fill code + name from a suggested department; the head, branch and description stay the
+  // hospital's own.
+  function applyCatalog(item: api.CatalogItem) {
+    setCode(item.code);
+    setName(item.name);
+  }
+
   const columns: Array<Column<Department>> = [
     {
       key: "code",
@@ -204,6 +212,15 @@ function DepartmentsTable() {
         <Card header="New department">
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             {formError && <Alert tone="danger">{formError}</Alert>}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-fg-muted">Start from a common department, or fill it in yourself.</span>
+              <CatalogPickerButton
+                category="department"
+                title="Common departments"
+                description="Pick a department to pre-fill its code and name. Head, branch and description stay yours."
+                onPick={applyCatalog}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label="Code"

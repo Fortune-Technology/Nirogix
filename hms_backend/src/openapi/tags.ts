@@ -24,6 +24,7 @@ export const OPENAPI_TAGS = [
   { name: 'Files', description: 'File and document storage' },
   { name: 'Reports', description: 'Reporting and analytics' },
   { name: 'Config', description: 'Feature configuration and settings' },
+  { name: 'Catalog', description: 'System master data + hospital custom items (ADR-072)' },
   { name: 'Audit', description: 'Audit log and activity timeline' },
 ] as const;
 
