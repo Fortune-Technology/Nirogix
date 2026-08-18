@@ -72,6 +72,13 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 - Entitlement and permission-override records are never physically deleted.
 - Explicit DENY always overrides GRANT, at every level of the authorization model.
 - A cached permission set is never allowed to outlive the earliest `valid_until` among the temporary overrides it contains.
+- The Portal (`hms_frontend`) is never indexable, and no patient/tenant/staff/operational data ever reaches a crawler-visible surface (metadata, URL, OG image, sitemap) or an analytics/telemetry platform. All product SEO lives on the marketing site (ADR-027). The same applies to `admin`, `patient` and `aiportal` — only `marketing` is indexable.
+- **Five frontends, one backend (ADR-051).** `marketing`, `hms_frontend`, `admin`, `patient`, `aiportal` — one audience each, one origin each, no shared session between them. Authentication, authorization, tenant resolution, permissions, business logic and audit live **only** in the backend; a frontend guard is UX and never a boundary. No authorization logic is duplicated into any frontend.
+- **A patient is not a `user` (ADR-052).** Patient identity is a separate principal, platform-level and keyed to a verified contact, linked to a hospital's patient record by the hospital. It can never hold a staff permission, cannot be granted one by override, and is refused on staff routes by principal type rather than by an empty permission set. There is no public patient signup.
+- **The AI Portal is an authorization boundary before it is a product (ADR-053).** Built 16/08/2026: `ai.portal.access` is held by **every staff role** (ADR-055, widening ADR-053) with DENY still available per individual; a patient principal is refused **by type** before any permission is read — that is the boundary, not the permission; entry is audited; and `capabilities` is an empty list with a test asserting it stays empty. AI is **approved scope that is deliberately uncommitted** — PRD-documented, assigned to no phase, `FUTURE / CONSIDERATION` — so it is never advertised as a product capability, not even as "in development", because nothing is under way. Anything touching diagnosis or treatment needs the CDSCO classification check recorded first.
+- **A patient self-registration QR carries an opaque token and nothing else, and a submission is a request, not a patient (ADR-056).** The hospital is resolved from that token by the backend on every public call — never from the body, a header or a query parameter — so a QR for one hospital cannot register a patient at another. Unknown, retired and switched-off all return 404 identically. Seeing the queue is `patient.record.view`; converting a request into a chart is `patient.record.create` and audited. Nothing on the public path writes to `patients`, so ADR-052's "no public signup" stands.
+- User-facing API feedback is centralized: one shared `@hms/ui` toast raised from the shared API client, showing the backend's own message where provided. No silent failure, no per-page toast code, and never a stack trace, backend internal, or PHI in the UI (ADR-026).
+- Every backend `/api/v1` route ships with synchronized, valid OpenAPI/Swagger documentation — the spec is generated from route definitions (Zod + zod-to-openapi), and CI (`npm run openapi:validate`) rejects undocumented or invalid APIs. No undocumented production endpoints.
 
 ## Key Decisions
 
@@ -102,6 +109,8 @@ New architectural decisions of similar weight are appended here as they are made
 
 - ADR-010 — Permission cache TTL is bounded by the earliest temporary override's `valid_until`; `revoked_at` triggers immediate targeted cache invalidation
 - ADR-011 — Break-glass notification is tenant-configurable; post-event review is a review-only workflow and never modifies RBAC
+
+> The list above is the seed set only. **`DECISIONS.md` in the repository root is the live, authoritative ADR log** (ADR-012 … onward: ORM, monorepo, providers, storage, Portal session model, ops baseline, platform admin/branding, money convention, API feedback, SEO boundary). Read it, not this list, before making an architectural change.
 
 ## Module Relationships
 

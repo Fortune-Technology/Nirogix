@@ -1,0 +1,121 @@
+# Nginx reverse-proxy template for the Nirogix VM (staging/production). Versioned baseline —
+# copy to /etc/nginx/sites-available/nirogix.conf, substitute the ${...} placeholders, symlink
+# into sites-enabled, and `nginx -t && systemctl reload nginx`. TLS terminates HERE, on the
+# origin, with Let's Encrypt certificates issued by certbot (ADR-045) — there is no edge
+# proxy in front. See deploy/README.md.
+#
+# Hosts come from resources/domains.md. Issue one certificate covering the hosts on this VM:
+#   certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com
+#   Production  PORTAL_HOST=portal.nirogix.com          MARKETING_HOST=nirogix.com
+#               API_HOST=api.nirogix.com
+#   Staging     PORTAL_HOST=portal-staging.nirogix.com  MARKETING_HOST=staging.nirogix.com
+#               API_HOST=api-staging.nirogix.com
+#
+# Routing:
+#   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :${NIROGIX_PORT_PORTAL})
+#   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :${NIROGIX_PORT_MARKETING})
+#   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :${NIROGIX_PORT_API})
+#
+# SHARED VM (deploy/README.md → "Shared VM: audit ports first"): the upstream ports below are
+# PLACEHOLDERS substituted at install time with the SAME NIROGIX_PORT_* values the PM2 ecosystem
+# reads — after the port audit, never before. This file only ADDS the *.nirogix.com
+# server_names: never edit another project's server block, never claim default_server, and
+# always `nginx -t` before reloading — a duplicate server_name silently steals traffic.
+
+# NO `real_ip_header CF-Connecting-IP` here. With no trusted proxy in front, honouring a
+# client-supplied IP header would let any caller spoof their own address and walk straight
+# past the API's IP-keyed rate limits (ADR-036). Nginx sees the real peer address already;
+# re-add real_ip_header ONLY together with a `set_real_ip_from` allowlist for a proxy that
+# actually exists.
+
+upstream nirogix_backend  { server 127.0.0.1:${NIROGIX_PORT_API}; keepalive 16; }
+upstream nirogix_portal   { server 127.0.0.1:${NIROGIX_PORT_PORTAL}; keepalive 16; }
+upstream nirogix_marketing{ server 127.0.0.1:${NIROGIX_PORT_MARKETING}; keepalive 16; }
+
+# --- API -------------------------------------------------------------------
+server {
+  listen 443 ssl http2;
+  server_name ${API_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  client_max_body_size 30m; # matches FILE_MAX_SIZE_MB headroom
+
+  location / {
+    proxy_pass http://nirogix_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 30s;
+  }
+
+  # Liveness/readiness for external uptime checks.
+  location = /api/v1/health { proxy_pass http://nirogix_backend; access_log off; }
+}
+
+# --- Portal ----------------------------------------------------------------
+server {
+  listen 443 ssl http2;
+  server_name ${PORTAL_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  location / {
+    proxy_pass http://nirogix_portal;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;         # Next.js HMR/websocket
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+# --- Marketing (root domain) -----------------------------------------------
+server {
+  listen 443 ssl http2;
+  server_name ${MARKETING_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  location / {
+    proxy_pass http://nirogix_marketing;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+# --- www -> apex (production only) ------------------------------------------
+# One canonical public URL. Serves nothing itself, so there is never a duplicate of
+# the marketing site to index (resources/domains.md §2).
+server {
+  listen 443 ssl http2;
+  server_name www.${MARKETING_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  return 301 https://${MARKETING_HOST}$request_uri;
+}
+
+# --- Staging only -----------------------------------------------------------
+# Uncomment on the staging VM. Belt-and-braces on top of each app's robots.ts: an
+# indexed staging copy is both an SEO defect and a leak of unreleased copy. Access
+# control (Nginx basic auth, ADR-045) sits in front of all three hosts as well.
+#
+#   add_header X-Robots-Tag "noindex, nofollow" always;
+#
+# Add it inside each server block above, not here.
+
+# Redirect plain HTTP to HTTPS. Keep the ACME challenge path reachable over HTTP so
+# certbot can renew (HTTP-01) — that exception is below.
+server {
+  listen 80;
+  server_name ${API_HOST} ${PORTAL_HOST} ${MARKETING_HOST};
+  return 301 https://$host$request_uri;
+}

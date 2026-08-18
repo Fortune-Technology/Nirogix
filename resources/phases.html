@@ -115,7 +115,8 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
   </ul>
 
   <h4>Marketing Site</h4>
-  <ul><li>Minimal scaffold with the single Login action wired to the Portal's /login route, as decided in the architecture section</li></ul>
+  <ul><li>Minimal scaffold with the single Login action wired to the Portal's /login route, as decided in the architecture section</li>
+    <li><strong>Frontend topology (added 16/08/2026, ADR-051)</strong> — five frontends, one backend, one origin per audience: <code>marketing</code>, <code>hms_frontend</code> (hospital staff), <code>admin</code> (vendor operators), <code>patient</code> (verified patients), <code>aiportal</code>. The platform-operator surface moved out of the Portal, so operator code no longer ships in a hospital's bundle. <strong>admin is built.</strong> <strong>patient is built</strong> — identity model, both-direction principal boundary, read API and the portal itself shipped 16/08/2026 (ADR-052): sign-in by one-time code, a hospital picker, and read-only records. Access is granted by the hospital; there is no signup. Sessions survive a reload, rotate on every refresh, and are revoked server-side on sign-out. <strong>aiportal is built as a boundary only</strong> — sign-in, an <code>ai.portal.access</code> gate held by every staff role (ADR-055), patients refused by principal type, entry audited, and a screen stating that no capability is enabled (ADR-053). No AI capability is in approved scope, and any diagnostic-support feature still needs the CDSCO classification check first.</li></ul>
 
   <h4>Integration</h4>
   <ul><li>Portal auth flow — token storage (httpOnly refresh cookie + in-memory access token), 401 → refresh → retry handling, unauthenticated redirect to /login</li></ul>
@@ -299,6 +300,7 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry</li>
     <li>Verified in both Light and Dark themes, and under a non-default tenant’s branding</li>
     <li>KNOWLEDGE.md updated and DONE.md appended for every app/package touched</li>
+    <li>Every new or modified backend endpoint has synchronized OpenAPI/Swagger documentation, and <code>npm run openapi:validate</code> passes (no undocumented <code>/api/v1</code> routes; valid spec)</li>
     <li>No open P0/P1 defects</li>
   </ul></section>
 <footer>

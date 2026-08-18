@@ -391,12 +391,82 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 ### Authentication
 
+### Frontend Architecture — five applications, one backend (ADR-051)
+
+Each frontend serves **one audience** and owns nothing but rendering. The backend is the single source of truth for authentication, authorization, tenant resolution, permissions, business logic and audit; a frontend guard is UX and never security.
+
+| Application | Audience | Access rule |
+|---|---|---|
+| `marketing` | Public | None — no authentication logic at all |
+| `hms_frontend` (Nirogix Portal) | Hospital staff | Authenticated staff user, tenant-scoped |
+| `admin` | Vendor operators | Authenticated **and** `platform.tenants.manage`, held only by a super_admin in the PLATFORM org |
+| `patient` | Patients | A verified patient principal, never a staff `user` (ADR-052) |
+| `aiportal` | All staff + operators, never patients | `ai.portal.access`, held by **every staff role** (ADR-055); a hospital may DENY it for an individual. A patient principal is refused **by type** before the permission is read (ADR-052) — that, not the permission, is what keeps patients out. Entry is audited. **No AI capability exists behind it** (ADR-053) |
+
+The AI Portal's access experience has three distinct states, because they are three different situations and one message cannot serve them:
+
+| State | What the person sees |
+|---|---|
+| Not signed in | The AI Portal sign-in landing: what the portal is, who it is for, the sign-in form, and that there is **no sign-up**. Links back to the Portal and the public site. |
+| Signed in, not authorised | A dedicated *Access restricted* screen naming the account they used, explaining that access is granted per account rather than by role, who to ask, and offering **Return to Nirogix Portal** and **Sign out**. |
+| Signed in and authorised | The portal, which states that **no AI capability is enabled yet**. |
+
+None of these is a security control. The backend refuses the request in every unauthorised case regardless, and a patient principal never reaches any of them.
+
+- **One origin per audience.** A different audience is a different security boundary, a different release cadence and a different blast radius. The concrete host map is `resources/domains.md`.
+- **No shared session between applications.** The refresh cookie is host-only on the API origin, so one application's session cannot be replayed against another's. Each origin is listed individually in `CORS_ORIGINS` per environment.
+- **The platform surface is not in the Portal.** Tenant onboarding, module provisioning, platform analytics, support sessions and platform branding live only in `admin`, so operator code never ships in a hospital's bundle. The Portal keeps `/support/enter`, which *receives* a session the admin console mints.
+- **The support-session handoff is cross-origin and explicit.** The token travels by `postMessage` — never a URL, which lands in history, referrers and logs — with each side naming the other's origin from configuration. The Portal accepts a session only from the configured admin origin.
+
+### Notifications (ADR-026, ADR-057)
+
+One notification system for the platform, and one path into it:
+
+```
+API request  →  shared API client  →  @hms/client feedback layer  →  @hms/ui toast()  →  React Toastify
+```
+
+- **The engine is React Toastify**, imported only inside `@hms/ui` — by the adapter (`src/toast.tsx`) and the viewport it mounts (`src/components/Toaster.tsx`). Everything else — pages, modules, the API client — calls the adapter's `toast.success | error | warning | info | loading`, so swapping the engine again is a one-file change and no feature can configure its own.
+- **Branding flows one way and only one way**: `tenant brand → --hms-* design tokens → --toastify-* mapping → the rendered toast`. Light/Dark and a tenant accent apply with nothing to update per app, and no colour is written at a call site or held by a component.
+- **`@hms/ui` owns the system; each app mounts its own `<Toaster />`** and brings its own token scope, permissions and routing. The marketing site mounts none — it has no authenticated API surface and no notifications, and giving it one would push tenant behaviour onto a public page.
+- **One layer owns each message.** The API client raises the notification for a request's outcome; a page that already handles a failure inline opts out with `feedback: false` rather than producing a second toast for the same event.
+
+### Patient Identity (ADR-052)
+
+Patients authenticate as a **different principal from staff**, not as a staff user with fewer permissions.
+
+- `patient_identity` is **platform-level** (no tenant), keyed to a **verified** mobile or email. An unverified contact is a claim, not an identity, and unlocks nothing.
+- `patient_identity_link` is **tenant-scoped** and joins one identity to one hospital's patient record. It is created by the hospital during registration — never by the patient, which is what "no public patient signup" means structurally rather than as a missing button.
+- One identity may hold many links, because a patient registered at several hospitals is one person. One patient record holds at most one identity, so two people cannot claim the same chart.
+- The access token carries a principal type. Staff routes refuse a patient **by type** before any permission is read; patient routes refuse a staff token. Neither can be opened by a permission grant.
+- **Tenant is resolved from an active link on every request**, never from the URL. The patient id every query filters on comes from that link, so reading another person's record is unrepresentable rather than merely refused, and revocation takes effect immediately.
+- The portal is read-only: profile, appointments, invoices and resulted laboratory reports. It writes nothing clinical.
+- **Patients have their own session model.** `patient_sessions` is a separate table, because `sessions` is foreign-keyed to staff `users`. The refresh cookie is scoped to `/api/v1/patient/auth`, so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint. Rotation on every use, hashed storage, server-side revocation on sign-out.
+
+### Patient self-registration by QR (ADR-056)
+
+The product's **only unauthenticated write path**. Two properties carry it, and both are structural rather than procedural.
+
+- **The tenant comes from an opaque token in the URL path, resolved server-side on every call** — never from a body field, header or query parameter. There is no field in which a caller could name a different hospital, so "scan Hospital A's poster, land in Hospital B" is unrepresentable rather than merely validated against. The token is 24 random bytes, base64url, unique, indexed, and derived from nothing internal; a QR is printed in a public corridor, so anything encoded in it is published.
+- **A submission creates a `registration_request`, never a patient.** ADR-052 holds unchanged: the hospital still decides who enters its patient list. The front desk verifies the person, checks for a duplicate, and converts — that conversion is the moment a chart exists.
+
+| Concern | How it is handled |
+|---|---|
+| Unknown token / retired token / registration switched off | All fail identically with **404**, so the endpoint never reveals which hospitals exist or which are open |
+| Abuse | Rate-limited at the sign-in tier; a public form behind a printed poster is what a script finds |
+| Seeing the queue | `patient.record.view` — the administrator who switched registration on can tell whether anything arrived |
+| Approving / rejecting | `patient.record.create`, the same permission as registering a patient by hand. Both audited at **notice** |
+| Provenance | The request row is kept and marked `approved` / `rejected`, never deleted — it is the origin of a chart nobody on staff typed |
+| Retiring a printed QR | A separate, confirmed, audited `regenerate`. Disabling keeps the token, so pausing over a holiday does not mean reprinting posters |
+
+Letterhead (header line, footer text, default signatory) lives on the same `organization_profile` record as the address it prints above, so a hospital maintains one identity rather than two that can disagree.
+
 ### Marketing Site → Portal Authentication Flow
 
 - Marketing site carries no authentication logic — a single Login action links directly to the Portal's login route, with an optional redirect parameter for deep-linking
-- All authentication, session issuance, MFA, SSO, and role-based dashboard routing is handled entirely within the Portal application
-- Session model — short-lived JWT access token plus an httpOnly, secure refresh-token cookie scoped to the Portal's own domain; no shared session state with the Marketing Site
-- Post-login routing determined by the authenticated user's role, served from the single Portal application rather than separate apps per role
+- All authentication, session issuance, MFA, SSO, and role-based dashboard routing is handled by the backend and consumed by whichever frontend the user signed in to
+- Session model — short-lived JWT access token held in memory plus an httpOnly, secure refresh-token cookie scoped host-only to the API origin; no shared session state with the Marketing Site and none between the authenticated applications
+- Post-login routing determined by the authenticated user's role within the application they signed in to
 
 ### Notification Architecture
 
@@ -413,17 +483,17 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 ### Transactional Email Service
 
-- AWS SES, using the ap-south-1 (Mumbai) or ap-south-2 (Hyderabad) region specifically — not a default or unspecified region — for the same data-residency reasoning applied to storage and hosting
-- Selected primarily for cost at scale and for an India-resident region with an official, well-documented Node.js SDK
-- Requires AWS production-access approval before go-live (SES starts in a sandbox restricted to verified addresses) — requested early, not the week before launch
-- Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place
+- MSG91 for transactional email as well as SMS/WhatsApp (ADR-016) — one India-resident vendor consolidating all notification channels, with a single dashboard, contract, and DLT-aware compliance story
+- Delivered through the same centralized NotificationService/EmailService abstraction as SMS — templates, sending, and provider selection live in one place; no module calls the provider directly (ADR-007). Until MSG91 credentials are configured, a dev "log" provider is used (messages logged, not sent)
+- MSG91 email/sender registration is a go-live prerequisite (operator approval), requested early — not the week before launch
+- AWS SES (ap-south-1/ap-south-2, India-resident, ~₹8/1k) remains a documented alternative behind the same abstraction — revisit if email volume grows enough that per-email cost dominates; swapping back is a new adapter, not a rewrite
 
 ### File Storage Architecture
 
 ### File, Image, PDF & Invoice Storage
 
-- Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is India-resident storage (E2E Object Storage, S3-compatible), consistent with the Health Data Management Policy's India-storage requirement for ABDM-integrated health data
-- If Cloudflare R2 is used for any bucket, it must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident
+- Primary object store for PHI-bearing documents — medical reports, prescriptions, lab/radiology images, invoices — is Cloudflare R2 (S3-compatible object storage, accessed via a non-AWS client), chosen per ADR-017. E2E Object Storage (India-resident, MeitY-empanelled) remains a drop-in S3-compatible alternative behind the same abstraction if a stricter residency guarantee is required
+- Because Cloudflare R2 is the object store, its bucket must use R2's jurisdictional restriction pinned to India rather than default auto-placement, with the associated metadata/log pipeline separately configured to stay in-region — jurisdiction-pinning the bucket alone does not guarantee the rest of the data lifecycle stays resident, and this is required for ABDM/PHI India-residency
 - Files sit behind a FileStorageService abstraction; the database stores only file metadata and references (path, size, MIME type, checksum, uploader, access-control tags) — never file content
 - Default-private buckets with short-lived signed URLs generated per request; nothing served as a permanently public object URL
 - File-type and size validation enforced server-side before any upload is accepted, never left to frontend validation alone
@@ -490,6 +560,13 @@ Distinct from the Audit Log (Security & Compliance, Part VII), which exists for 
 - Optimistic locking/versioning on records multiple users may edit simultaneously — clinical notes, prescriptions, patient information, inventory counts, billing line items, admission records
 - A stale write is rejected with a clear conflict response rather than silently overwriting another user's concurrent edit
 
+### API Documentation (OpenAPI/Swagger)
+
+- The OpenAPI 3 specification is generated from route/schema definitions (Zod + zod-to-openapi) — never hand-maintained. The same Zod schema drives request validation and documentation, so the contract cannot drift from the implementation.
+- Environment-aware: server URLs, environment name, and authentication config come from configuration per environment (Local / Testing-Staging / Production), never hard-coded. The running instance advertises its own server from config.
+- Served at `/api/v1/openapi.json` (raw spec, always) and `/api/v1/docs` (Swagger UI, toggleable per environment via `OPENAPI_UI_ENABLED`). Bearer-JWT security scheme; operations tagged by module.
+- Mandatory and enforced: no `/api/v1` route ships without a corresponding documented operation. `npm run openapi:validate` validates the spec (schemas, `$ref`s, operationIds, responses, security) and route coverage; CI fails a PR that introduces an undocumented or invalid API, and a production deploy never publishes an invalid specification. See Rules & Engineering Standards → API Documentation Rules.
+
 ## Security, Compliance & Infrastructure
 
 ### Security & Compliance
@@ -520,7 +597,7 @@ Security by Design and Privacy by Design. The platform stores sensitive patient 
 Every regulatory statement in this document falls into exactly one of three categories:
 
 - **Confirmed requirement** — supported by an authoritative primary source (the Act, Rule, or official policy document itself)
-- **Design decision** — a conservative architectural choice made by the HMS team, not a claim of legal obligation
+- **Design decision** — a conservative architectural choice made by the Nirogix team, not a claim of legal obligation
 - **Pending verification** — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement
 
 > **General rule:** Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.
@@ -568,7 +645,7 @@ Every regulatory area this platform touches, with its verification status tracke
 ### Deployment Topology
 
 - Reuses the existing Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner pattern already in production for the StoreVeu platform
-- Subdomain-per-application convention — Marketing Site on the root domain, HMS Portal on a portal subdomain, backend API on an api subdomain
+- Subdomain-per-application convention — Marketing Site on the root domain, and one host per audience alongside it. The concrete host map, per environment, is **`resources/domains.md`** (ADR-042, ADR-051): `nirogix.com` / `portal.nirogix.com` / `admin.nirogix.com` / `patient.nirogix.com` / `api.nirogix.com`, plus **`nirogix.ai`** for the AI Portal on its own registrable domain so its cookie scope is separate by construction. The `-staging` counterparts sit alongside. No host name appears in application code.
 - CI/CD builds and deploys only the application(s) affected by a given push, using Turborepo's affected-package detection
 - This topology is right-sized for pilot customers and early revenue; meeting the horizontal auto-scaling, multi-region, and 99.5%+ uptime targets in §57 will require a later migration to managed PostgreSQL (with read replicas) and containerized horizontal scaling — a deliberate future-stage step, not a day-one requirement
 
@@ -590,21 +667,24 @@ Every regulatory area this platform touches, with its verification status tracke
 
 ### Technology Stack
 
-- Frontend — Next.js (App Router), TypeScript; used for both the HMS Portal and the Marketing Site
+- Frontend — Next.js (App Router), TypeScript; used for both the Nirogix Portal and the Marketing Site
 - Backend — Node.js + Express.js, TypeScript; versioned REST API (/api/v1) with OpenAPI/Swagger documentation
 - Database — PostgreSQL as the system of record; Redis for caching, session support, and background job queues (BullMQ)
-- Package manager / build system — pnpm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds
+- Package manager / build system — npm workspaces with Turborepo for monorepo build orchestration and incremental, cached builds (ADR-014 — npm chosen over pnpm; Turborepo retained)
 
 ### Monorepo Structure
 
 - hms_backend — Node.js/Express API, authentication, business logic, database integration
-- hms_frontend — Next.js HMS Portal serving Admin, Staff, Doctor, Patient, and other role dashboards behind role-based route guards
+- hms_frontend — Next.js Nirogix Portal serving hospital staff role dashboards behind role-based route guards
+- admin — Next.js platform administration for the vendor's own operators (ADR-051)
+- patient — Next.js patient portal for verified, hospital-provisioned patients (ADR-052)
+- aiportal — Next.js AI Portal; an authorization boundary with no AI capability behind it yet (ADR-053)
 - marketing — Next.js public marketing/SEO site — product information, landing pages, documentation content
 - packages/types — shared TypeScript types and API contracts consumed by both backend and portal
 - packages/ui — shared design-system components used by portal and marketing
 - packages/config, packages/utils — shared lint/build configuration and common utilities
 - packages/permissions — dot-hierarchy permission keys shared front-end/back-end
-- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
+- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; the frontends added in ADR-051 are named for their audience (admin / patient / aiportal). Shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
 
 ### Technical Expectations
 

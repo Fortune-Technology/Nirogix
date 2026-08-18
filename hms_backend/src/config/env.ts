@@ -1,0 +1,128 @@
+import 'dotenv/config';
+import { z } from 'zod';
+
+// Environment is validated once at boot. A missing/invalid var fails fast with a
+// clear message rather than surfacing as a confusing runtime error later.
+const EnvSchema = z.object({
+  // The environment this instance runs as. The application has exactly THREE environments —
+  // development | staging | production (ADR-071). `test` is NOT a deployment environment: it is
+  // the value the test runner (Vitest / CI) sets, kept in the enum only so importing this config
+  // during a test run validates instead of `process.exit(1)`. Application behaviour treats `test`
+  // as non-production (see `isProd` below and seedGuard's normalisation); it never deploys.
+  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  // Comma-separated browser origins allowed to call the API with credentials.
+  // Required in production (see config/cors.ts).
+  CORS_ORIGINS: z.string().optional(),
+  PORT: z.coerce.number().int().positive().default(4000),
+  DATABASE_URL: z.string().url(),
+  JWT_ACCESS_SECRET: z.string().min(16),
+  JWT_REFRESH_SECRET: z.string().min(16),
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_TTL: z.string().default('7d'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // Error tracking (Sentry/GlitchTip). Optional: when unset, unexpected errors are captured
+  // to the structured log as `error.captured` events. See observability/errorTracker.ts.
+  SENTRY_DSN: z.string().url().optional(),
+
+  // OpenAPI / Swagger — environment-aware, never hard-coded (see resources/rules.md
+  // API Documentation Rules). Server URLs come from config per environment.
+  OPENAPI_TITLE: z.string().default('Nirogix API'),
+  API_VERSION: z.string().default('1.0.0'),
+  // Base URL of THIS running instance's API host. Falls back to http://localhost:${PORT}.
+  API_PUBLIC_URL: z.string().url().optional(),
+  // Optional additional servers surfaced in the Swagger UI server dropdown.
+  API_STAGING_URL: z.string().url().optional(),
+  API_PRODUCTION_URL: z.string().url().optional(),
+  // Whether to serve the Swagger UI in this environment (JSON is always served).
+  OPENAPI_UI_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+
+  // Notifications — MSG91 for SMS/WhatsApp AND email (ADR-016). All optional: when unset, the
+  // dev "log" provider is used (messages are logged, not sent). No module calls MSG91 directly.
+  MSG91_API_KEY: z.string().optional(),
+  MSG91_SMS_SENDER_ID: z.string().optional(),
+  MSG91_EMAIL_FROM: z.string().optional(),
+  MSG91_EMAIL_DOMAIN: z.string().optional(),
+  // The MSG91 flow/template id of the DLT-registered OTP SMS. `sendOtp` attaches it on the SMS
+  // channel; Indian SMS is rejected without a registered template id. Unset = OTP-by-SMS still
+  // just logs (dev) / fails cleanly (prod) until DLT registration provides one.
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+
+  // File storage — 'local' (disk, dev default) or 'r2' (Cloudflare R2, S3-compatible object
+  // storage). PHI-bearing files use default-private buckets + short-lived signed URLs. For PHI,
+  // pin the R2 bucket's jurisdiction to India (architecture.md → File Storage). No AWS.
+  FILE_STORAGE_PROVIDER: z.enum(['local', 'r2']).default('local'),
+  FILE_STORAGE_LOCAL_DIR: z.string().default('./storage'),
+  FILE_MAX_SIZE_MB: z.coerce.number().int().positive().default(25),
+  R2_ENDPOINT: z.string().optional(), // e.g. <accountid>.r2.cloudflarestorage.com
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // Background jobs — Redis + BullMQ. When unset, jobs run inline in-process (dev/CI) instead of
+  // on a queue; the same call sites work either way. No module creates its own cron/scheduler.
+  REDIS_URL: z.string().optional(),
+
+  // AI prescription drafting (ADR-070). Absent key = the feature does not exist: the
+  // capabilities endpoint reports it off and the Portal renders no AI control. Never a stub.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_DRAFT_MODEL: z.string().default('claude-sonnet-5'),
+}).superRefine((val, ctx) => {
+  // When R2 is the chosen provider, its connection details stop being optional. Catch a
+  // half-configured bucket at boot with a precise message, not at the first upload with a
+  // cryptic storage/auth error.
+  if (val.FILE_STORAGE_PROVIDER === 'r2') {
+    for (const key of ['R2_ENDPOINT', 'R2_BUCKET', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'] as const) {
+      if (!val[key] || String(val[key]).trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required when FILE_STORAGE_PROVIDER=r2`,
+        });
+      }
+    }
+
+    // One bucket per side of the production boundary (resources/domains.md §8). Every
+    // non-production environment — development and staging (and the test runner) — shares a bucket
+    // whose name is marked non-prod (e.g. `-staging`); production uses a SEPARATE bucket with no
+    // such marker. Enforced at boot, in the spirit of the seeder environment guard (ADR-058), so
+    // a mis-set R2_BUCKET fails loudly instead of a staging test writing into — or deleting
+    // from — the production PHI bucket (or production writing into the shared non-prod one).
+    const bucket = String(val.R2_BUCKET ?? '').toLowerCase();
+    // Deliberately broad: this matches common non-production NAME fragments a bucket might carry.
+    // It is an infrastructure-name heuristic (like seedGuard's DATABASE_URL check), separate from
+    // the three-value application environment above — hence it still tolerates legacy `dev`/`local`.
+    const nonProdMarker = /(^|-)(staging|testing|test|dev|development|local)(-|$)/.test(bucket);
+    if (bucket) {
+      if (val.NODE_ENV === 'production' && nonProdMarker) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['R2_BUCKET'],
+          message: `Production must not use a non-production bucket — R2_BUCKET="${val.R2_BUCKET}" is marked non-prod. Point production at its dedicated bucket (e.g. nirogix-documents).`,
+        });
+      }
+      if (val.NODE_ENV !== 'production' && !nonProdMarker) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['R2_BUCKET'],
+          message: `Non-production (${val.NODE_ENV}) must use the shared non-production bucket, whose name marks it non-prod (e.g. nirogix-documents-staging). R2_BUCKET="${val.R2_BUCKET}" looks like the production bucket.`,
+        });
+      }
+    }
+  }
+});
+
+export type Env = z.infer<typeof EnvSchema>;
+
+const parsed = EnvSchema.safeParse(process.env);
+if (!parsed.success) {
+  // eslint-disable-next-line no-console
+  console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+export const env: Env = parsed.data;
+export const isProd = env.NODE_ENV === 'production';

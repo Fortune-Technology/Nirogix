@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    # Real PostgreSQL so the tenant-isolation RLS test runs for real (needs Docker on the
+    # runner; GitHub-hosted runners have it).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hms_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # `test` is the test-runner mode, NOT a deployment environment — the app has three of those:
+      # development | staging | production (ADR-071). The backend env schema keeps `test` in its
+      # enum only so importing config during the suite validates instead of exiting.
+      NODE_ENV: test
+      # Points at the postgres service above. The tenant-isolation test uses this (as a
+      # superuser) to create a throwaway NON-superuser role and prove RLS. Non-secret CI
+      # placeholders only — real secrets are injected by the deployment environment.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hms_ci
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-16-chars
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-16-chars
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install (all workspaces)
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Mandatory API-docs gate — fails on any undocumented/invalid API.
+      # See resources/rules.md → API Documentation Rules.
+      - name: Validate OpenAPI (no undocumented APIs)
+        run: npm run openapi:validate
+
+      # Tenant-isolation RLS test + any other suites, against the real PostgreSQL above.
+      - name: Test (incl. tenant-isolation RLS)
+        run: npm run test
+
+      - name: Build
+        run: npm run build

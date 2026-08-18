@@ -1,0 +1,105 @@
+import type { Request, Response } from 'express';
+import { z } from '../../openapi/registry';
+import { Errors } from '../../http/error';
+import { MODULE_CATALOG } from '../entitlement/moduleCatalog';
+import * as svc from './admin.service';
+
+export async function listModuleCatalog(_req: Request, res: Response): Promise<void> {
+  res.json({ modules: MODULE_CATALOG.map((m) => ({ key: m.key, name: m.name, hardDependencies: m.hardDependencies })) });
+}
+
+export async function getStats(_req: Request, res: Response): Promise<void> {
+  res.json(await svc.getPlatformStats());
+}
+
+// Every series is derived from real `created_at` rows and the audit log (ADR-043);
+// the window is clamped so one request cannot ask for an unbounded scan.
+export async function getTrends(req: Request, res: Response): Promise<void> {
+  const raw = Number(req.query.months ?? 12);
+  const months = Number.isFinite(raw) ? Math.min(36, Math.max(3, Math.trunc(raw))) : 12;
+  res.json(await svc.getPlatformTrends(months));
+}
+
+function toTenant(t: { id: string; code: string; name: string; status: string; createdAt: Date }) {
+  return { id: t.id, code: t.code, name: t.name, status: t.status, createdAt: t.createdAt.toISOString() };
+}
+
+export async function onboardTenant(req: Request, res: Response): Promise<void> {
+  const result = await svc.onboardTenant(req.body, req.auth!.userId);
+  res.status(201).json({
+    tenant: toTenant(result.tenant),
+    admin: result.admin,
+  });
+}
+
+export async function listTenants(_req: Request, res: Response): Promise<void> {
+  const rows = await svc.listTenants();
+  res.json({ tenants: rows.map(toTenant) });
+}
+
+export async function getTenant(req: Request, res: Response): Promise<void> {
+  const detail = await svc.getTenantDetail(req.params.id!);
+  if (!detail) throw Errors.notFound('Tenant not found');
+  res.json({
+    ...toTenant(detail),
+    modules: detail.modules,
+    branches: detail.branches,
+    userCount: detail.userCount,
+    // Identity only, for tenant administration and support-session targeting (ADR-037).
+    users: detail.users,
+  });
+}
+
+export async function updateTenantStatus(req: Request, res: Response): Promise<void> {
+  const t = await svc.setTenantStatus(req.params.id!, req.body.status, req.auth!.userId);
+  res.json(toTenant(t));
+}
+
+export async function grantModule(req: Request, res: Response): Promise<void> {
+  if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
+  await svc.grantTenantModule(req.params.id!, req.body.module, req.auth!.userId);
+  res.status(201).json({ tenant: req.params.id, module: req.body.module, status: 'granted' });
+}
+
+export async function revokeModule(req: Request, res: Response): Promise<void> {
+  if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
+  await svc.revokeTenantModule(req.params.id!, req.params.key!, req.auth!.userId);
+  res.json({ tenant: req.params.id, module: req.params.key, status: 'revoked' });
+}
+
+const SupportSessionBody = z.object({
+  tenantId: z.string().uuid(),
+  userId: z.string().uuid(),
+  /** Written into the audit trail in the target tenant — required, not optional. */
+  reason: z.string().trim().min(10).max(300),
+  ticketRef: z.string().trim().max(80).optional(),
+});
+
+/**
+ * Starts a support session. The response sets the refresh cookie for the TARGET
+ * tenant, so the operator's browser continues as that user until they exit.
+ */
+export async function postSupportSession(req: Request, res: Response): Promise<void> {
+  const input = SupportSessionBody.parse(req.body);
+  const operator = req.auth!;
+  if (operator.impersonatedBy) {
+    // No nesting: a support session cannot launch another one.
+    throw Errors.forbidden('You are already in a support session');
+  }
+  const result = await svc.startSupportSession(
+    { userId: operator.userId, tenantId: operator.tenantId },
+    input,
+    { userAgent: req.headers['user-agent'], ip: req.ip },
+  );
+  // NO refresh cookie for a support session (ADR-037). Cookies are shared across
+  // tabs, so setting one would hijack the operator's own platform session in every
+  // other tab — a silent tenant switch, which is exactly what must never happen.
+  // The support session therefore lives only as an in-memory access token in the
+  // tab that opened it, and expires with that token rather than being refreshable.
+  res.json({
+    accessToken: result.accessToken,
+    user: result.user,
+    tenant: result.tenant,
+    message: `Support session started in ${result.tenant.name}.`,
+  });
+}

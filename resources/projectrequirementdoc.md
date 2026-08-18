@@ -153,6 +153,12 @@ Everything in this list is built once, in Phase 0, and every business module in 
 
 ### Portals & Access Channels
 
+> **Delivery topology (ADR-051, 16/08/2026).** These portals are delivered as **five separate frontend applications over one backend**, one audience per origin: `marketing` (public), `hms_frontend` (hospital staff — the doctor and staff portals below), `admin` (vendor operators), `patient` (the patient portal below), and `aiportal`. The backend remains the single source of truth for authentication, authorization, tenant isolation, permissions and audit; no frontend duplicates a boundary.
+>
+> **Patient access is provisioned by the hospital, never self-registered** (ADR-052): a patient identity is keyed to a contact the hospital verified during registration and linked to that hospital's patient record. One patient may be linked to several hospitals. Nothing in this section implies a public signup.
+>
+> **The AI Portal exposes no AI capability** (ADR-053). It ships as an authorization boundary — login, `ai.portal.access`, patients refused by principal type — and nothing in this document authorises an AI feature. Any diagnostic-support capability needs the CDSCO classification check recorded in `resources/phases.md` first.
+
 ### Patient portal / app
 
 - View, book, and cancel appointments; join teleconsultations
@@ -251,6 +257,8 @@ All 25 modules list **Platform Core** as an implicit prerequisite (omitted from 
 - Existing patient search with duplicate detection
 - Family linking; corporate and insurance patient categories
 - Unique Patient ID (UHID) with barcode/QR for wristbands and case files
+
+> **QR-code registration, as built (16/08/2026, ADR-056).** The hospital displays a QR carrying an opaque per-tenant token; the backend resolves the hospital from that token server-side, so a QR can only ever register with the hospital that owns it. A scan produces a **registration request**, not a patient — the front desk verifies the person, checks for a duplicate, and converts it into a chart under `patient.record.create`. This is not public self-signup, and it does not create portal access: that remains the hospital's to grant (ADR-052). Aadhaar/ABHA registration and automatic duplicate detection are separate items and are not part of it.
 
 ### Patient profile
 
@@ -656,7 +664,7 @@ Security by Design and Privacy by Design. The platform stores sensitive patient 
 Every regulatory statement in this document falls into exactly one of three categories:
 
 - **Confirmed requirement** — supported by an authoritative primary source (the Act, Rule, or official policy document itself)
-- **Design decision** — a conservative architectural choice made by the HMS team, not a claim of legal obligation
+- **Design decision** — a conservative architectural choice made by the Nirogix team, not a claim of legal obligation
 - **Pending verification** — a regulatory assumption that must be verified against an authoritative primary source before being treated as a formal compliance requirement
 
 > **General rule:** Regulatory claims must be backed by an authoritative source before being marked as mandatory compliance requirements. Where this document states a conservative default (e.g. India-resident storage — File Storage Architecture, Part VI) that default is preserved as architecture, but its legal justification remains Pending Verification until checked against a primary source, and must not be presented to a customer, auditor, or regulator as a confirmed mandate until then. See the Regulatory Verification / Compliance Source Register immediately following this section.

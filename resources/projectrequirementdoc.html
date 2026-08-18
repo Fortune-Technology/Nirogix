@@ -142,7 +142,18 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <div class="callout teal">
   <span class="tag">Billing Core boundary</span>
   Financial Transaction Infrastructure (Platform Core) is not the same thing as the Billing &amp; Payments business module (Part II). The former is foundational — invoice, payment, tax, receipt, and ledger primitives with no clinical or workflow logic attached. The latter is business-facing — OPD billing, IPD billing, Pharmacy billing, Laboratory billing, Radiology billing, OT billing, and package/corporate billing, all built on top of the shared primitives. This boundary is what lets future modules add new billing line-item types without rebuilding the underlying financial transaction engine — matching this document's own Billing Core &rarr; Pharmacy &rarr; Lab &rarr; IPD &rarr; Insurance &rarr; Financial Management roadmap sequencing.
-</div></section><section id="s2-3"><h3>Portals & Access Channels</h3><h3>Patient portal / app</h3>
+</div></section><section id="s2-3"><h3>Portals & Access Channels</h3><div class="callout teal">
+  <span class="tag">Delivery topology — ADR-051</span>
+  These portals ship as <strong>five separate frontend applications over one backend</strong>, one audience per origin:
+  <code>marketing</code> (public), <code>hms_frontend</code> (hospital staff — the doctor and staff portals below),
+  <code>admin</code> (vendor operators), <code>patient</code> (the patient portal below) and <code>aiportal</code>.
+  The backend stays the single source of truth for authentication, authorization, tenant isolation, permissions and audit.
+  <strong>Patient access is provisioned by the hospital, never self-registered</strong> (ADR-052) — a patient identity is
+  keyed to a contact the hospital verified and linked to that hospital's record; one patient may be linked to several
+  hospitals. <strong>The AI Portal exposes no AI capability</strong> (ADR-053): it ships as an authorization boundary,
+  and any diagnostic-support feature needs the CDSCO classification check recorded in the phase roadmap first.
+</div>
+<h3>Patient portal / app</h3>
   <ul>
     <li>View, book, and cancel appointments; join teleconsultations</li>
     <li>Download prescriptions and reports; view medical history</li>

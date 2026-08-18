@@ -62,7 +62,7 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </head>
 <body>
 <div class="shell">
-<aside><div class="brand">Takoriya Technology LLP</div><h1>Rules & Engineering Standards</h1><nav><div class="navgroup"><div class="navgroup-label">Engineering Standards</div><ul><li><a href="#s1-1">Design System & UI Consistency</a></li><li><a href="#s1-2">Standard DataTable</a></li><li><a href="#s1-3">Light & Dark Theme</a></li><li><a href="#s1-4">Branding & Multi-Tenant Customization</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Development Rules</div><ul><li><a href="#s2-1">Architecture Rules</a></li><li><a href="#s2-2">Authorization Rules</a></li><li><a href="#s2-3">Tenancy Rules</a></li><li><a href="#s2-4">Database Rules</a></li><li><a href="#s2-5">API Rules</a></li><li><a href="#s2-6">UI / UX Rules</a></li><li><a href="#s2-7">Security Rules</a></li><li><a href="#s2-8">Audit Rules</a></li><li><a href="#s2-9">Testing Rules</a></li><li><a href="#s2-10">Documentation Rules</a></li><li><a href="#s2-11">Dependency Rules</a></li><li><a href="#s2-12">Git Rules</a></li><li><a href="#s2-13">Prohibited Patterns</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Documentation System</div><ul><li><a href="#s3-1">Documentation & AI-Agent Knowledge System</a></li><li><a href="#s3-2">Architecture Decision Records (DECISIONS.md)</a></li></ul></div></nav></aside>
+<aside><div class="brand">Takoriya Technology LLP</div><h1>Rules & Engineering Standards</h1><nav><div class="navgroup"><div class="navgroup-label">Engineering Standards</div><ul><li><a href="#s1-1">Design System & UI Consistency</a></li><li><a href="#s1-2">Standard DataTable</a></li><li><a href="#s1-2a">Reusable UI Architecture</a></li><li><a href="#s1-2b">Dates &amp; Formatting</a></li><li><a href="#s1-3">Light & Dark Theme</a></li><li><a href="#s1-4">Branding & Multi-Tenant Customization</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Development Rules</div><ul><li><a href="#s2-1">Architecture Rules</a></li><li><a href="#s2-2">Authorization Rules</a></li><li><a href="#s2-3">Tenancy Rules</a></li><li><a href="#s2-4">Database Rules</a></li><li><a href="#s2-5">API Rules</a></li><li><a href="#s2-6">UI / UX Rules</a></li><li><a href="#s2-6a">Frontend Delivery Workflow</a></li><li><a href="#s2-6b">SEO / AEO / GEO Rules</a></li><li><a href="#s2-6c">API Feedback &amp; Notification Rules</a></li><li><a href="#s2-6d">Frontend Performance &amp; Next.js Optimization Rules</a></li><li><a href="#s2-7">Security Rules</a></li><li><a href="#s2-8">Audit Rules</a></li><li><a href="#s2-9">Testing Rules</a></li><li><a href="#s2-10">Documentation Rules</a></li><li><a href="#s2-11">Dependency Rules</a></li><li><a href="#s2-12">Git Rules</a></li><li><a href="#s2-12a">Clean Code &amp; Replacement</a></li><li><a href="#s2-13">Prohibited Patterns</a></li></ul></div><div class="navgroup"><div class="navgroup-label">Documentation System</div><ul><li><a href="#s3-1">Documentation & AI-Agent Knowledge System</a></li><li><a href="#s3-2">Architecture Decision Records (DECISIONS.md)</a></li></ul></div></nav></aside>
 <main>
 <header class="cover">
   <div class="eyebrow">RULES · Version 1.0</div>
@@ -79,11 +79,34 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
     <li>One shared design-token set — font family, sizes, weights, line-height, spacing, radius, colors, shadows — defined once in packages/ui and consumed everywhere; no component hardcodes a raw value</li>
     <li>One canonical implementation per UI pattern — buttons, forms, tables, cards, modals, dropdowns, alerts, empty/loading/error states — built once and reused; a module needing a variant extends or configures the shared component, never forks it</li>
     <li>Before building any new UI pattern: check packages/ui first. If the capability is missing, extend the shared component rather than building a module-local one</li>
-  </ul></section><section id="s1-2"><h3>Standard DataTable</h3><h3>Standard DataTable Component</h3><ul>
-    <li>One reusable DataTable in packages/ui covering pagination, rows-per-page, single/multi-column sorting, search, filtering, column visibility, row selection, and loading/empty/error states</li>
-    <li>Server-side pagination/sorting/filtering as a mode for large datasets (patient lists, MIS reports); client-side for small ones</li>
-    <li>Modules supply only data and column configuration — no module implements its own table, pagination, or sorting logic</li>
-    <li>Missing DataTable functionality is added to the shared component, never worked around locally</li>
+  </ul></section><section id="s1-2"><h3>Standard DataTable</h3><p><strong>One DataTable system → many modules → consistent UX.</strong> It lives in <code>@hms/ui</code>, is built on the shadcn/ui Data Table pattern (TanStack Table headless core, styled on our tokens — ADR-029), and every tabular view renders through it. No module ships <code>PatientTable.tsx</code> / <code>BillingTable.tsx</code>; it ships a <em>column + filter configuration</em>.</p><ul>
+    <li><strong>Required capabilities:</strong> sorting with a visible unsorted / ascending / descending indicator (Lucide) and multi-column sorting; pagination with a configurable page size (10 / 20 / 50 / 100, sensible default per module — never one hardcoded size); search; per-column and faceted filtering; column visibility (show / hide / restore, sensible defaults); row selection and select-all where required; empty, loading (skeleton) and error states; responsive behaviour with contained horizontal scrolling; sticky headers where appropriate; keyboard operation and visible focus states; a consistent action column; custom cell rendering and column definitions.</li>
+    <li><strong>Client-side or server-side, stated explicitly.</strong> Small local datasets sort/filter/paginate in the browser; large ones (patients, audit, MIS) use server-side pagination, sorting, filtering and search. Never load thousands of rows into the browser to filter them there.</li>
+    <li><strong>Consistent control layout:</strong> Search → Filters → Column visibility → Actions above the table; Rows per page → Pagination → “Showing X–Y of Z” below it.</li>
+    <li><strong>URL/query state</strong> where a view is worth linking or reloading into (page, size, sort, search, filters).</li>
+    <li><strong>Filters are reusable components</strong> (status, department, doctor, date range, branch, role, priority, payment status), configured per module — never re-implemented per page.</li>
+    <li><strong>Row actions use the one shared action menu</strong>, and destructive actions always go through the shared confirmation dialog.</li>
+    <li>Missing functionality is added to the shared component, never worked around locally; a genuinely specialised table documents why in its KNOWLEDGE.md.</li>
+  </ul></section><section id="s1-2a"><h3>Reusable UI Architecture</h3><p><strong>Build once, configure everywhere, reuse forever.</strong> Applies to every frontend — the Portal, marketing, the admin console, the patient portal and the AI Portal — to current and future work.</p>
+  <div class="callout">
+    <span class="tag">Frontend boundaries — binding, ADR-051</span>
+    Five applications, one audience each, one backend. A frontend may render and may hide; it may never decide.
+    <strong>No authorization logic is duplicated into a frontend</strong> — every route is re-checked server-side.
+    <strong>No application calls an API outside its audience</strong>: the admin console holds no clinical call, the
+    Portal holds no platform-administration call. <strong>No cross-application session</strong> — the refresh cookie is
+    host-only and nothing sets <code>Domain=.nirogix.com</code>. <strong>A token never travels in a URL</strong>; the
+    support-session handoff uses <code>postMessage</code> with both sides naming the other's origin from configuration.
+    <strong>No development credential appears in any frontend source or bundle.</strong>
+  </div><p><ul>
+    <li><strong>Check <code>@hms/ui</code> before building any UI</strong>, then the app's own shared components. If something close exists, extend or configure it; if a pattern appears in a second place, extract it in the same change that duplicates it.</li>
+    <li><strong>The shared layer covers the recurring patterns:</strong> DataTable and its toolbar/pagination/column-visibility/filter parts, buttons, action buttons and menus, cards and stat cards, forms and fields, inputs, selects, comboboxes, date pickers, filters, dialogs/modals/drawers, dropdown menus, tabs, badges and status indicators, toasts, alerts, tooltips, pagination, search bars, empty states, loading states and skeletons, confirmation dialogs, back-to-top, preloader, navigation.</li>
+    <li><strong>Reusable is not uniform.</strong> Components take props/variants so a module can vary labels, icons, actions, columns, filters, data, empty-state content, loading behaviour, permissions, variants, sizes and layout — without forking. The chain is primitives → shared patterns → module configuration → page.</li>
+    <li><strong>Use shadcn/ui as the scaffolding source</strong> for standard primitives rather than reinventing them (ADR-028), restyled onto the tokens before shipping.</li>
+    <li><strong>Organisation:</strong> shared primitives and DataTable parts in <code>@hms/ui</code> (<code>src/components/</code>, <code>src/components/data-table/</code>); app compositions under that app's <code>components/</code>; generated shadcn source in <code>hms_frontend/components/ui/</code> or <code>marketing/components/shadcn/</code> pending review.</li>
+  </ul></section><section id="s1-2b"><h3>Dates &amp; Formatting</h3><ul>
+    <li><strong>Every user-facing date is <code>DD/MM/YYYY</code></strong> (<code>DD/MM/YYYY HH:mm</code> with a time) — Portal and marketing, in tables, forms, date pickers, appointments, patient and staff records, billing, reports, notifications, activity logs, dashboards, filters and search results. Never <code>2026-08-15</code>, <code>08/15/2026</code>, <code>15-08-2026</code> or <code>Aug 15, 2026</code> in the UI.</li>
+    <li><strong>Display format is separate from transport format.</strong> APIs, the database and query parameters stay ISO-8601; conversion happens once, at the display boundary.</li>
+    <li><strong>All of it goes through <code>@hms/utils</code></strong> — formatting, parsing, comparison, ranges, validation, input↔output conversion. No component calls <code>toLocaleDateString()</code>, hand-rolls a format, or adds a date library (ADR-030).</li>
   </ul></section><section id="s1-3"><h3>Light & Dark Theme</h3><h3>Light &amp; Dark Theme Support</h3><ul>
     <li>Centralized theme tokens for background, text, border, primary/secondary, status, card, input, table, modal, hover, focus, and disabled states — no component reads a hardcoded color</li>
     <li>Light is the default theme; switching to Dark is available from the Portal UI</li>
@@ -125,13 +148,67 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <li>Every request is validated (Zod or equivalent) before it reaches business logic.</li>
 <li>Payments, invoices, appointment bookings, notifications, and external integration calls are idempotent via an idempotency key.</li>
 <li>API error responses use one consistent shape across every module.</li>
-<li>OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately.</li>
+<li>OpenAPI/Swagger documentation is generated from route definitions, not hand-maintained separately, and is part of the Definition of Done for every endpoint (see API Documentation Rules).</li>
+</ul></section><section id="s2-5b"><h3>API Documentation Rules</h3>
+<p>OpenAPI/Swagger documentation is part of backend implementation — not an optional or final-stage task — and is <strong>mandatory for the entire HMS lifecycle</strong>, from the first endpoint to the final production release.</p>
+<ul>
+<li><strong>No undocumented production API.</strong> Every backend route under <code>/api/v1</code> has a corresponding OpenAPI operation before the change is complete. Automated coverage (<code>npm run openapi:validate</code>) fails the build on any undocumented route.</li>
+<li><strong>Docs change with the code, in the same change.</strong> New route → add its operation; controller/request DTO/response DTO changed → update the schema; authentication changed → update <code>security</code>; permission changed → update the authorization note; endpoint deprecated → mark <code>deprecated</code>; endpoint removed → remove its operation; API version changed → document under the new version.</li>
+<li><strong>Single source of truth.</strong> The spec is generated from route/schema definitions (Zod + zod-to-openapi), never hand-written separately; the same Zod schema powers validation and documentation.</li>
+<li><strong>Environment-aware, never hard-coded.</strong> Server URL, environment name, and auth config come from configuration per environment (Local / Testing-Staging / Production).</li>
+<li><strong>Every documented operation includes, where applicable:</strong> HTTP method, path, summary/description, module tag, authentication + required roles/permissions, path/query/header parameters, request body + validation rules, success and error response schemas with status codes, pagination/filter/sort/search parameters, and at least one example.</li>
+<li><strong>Versioning is explicit</strong> (<code>/api/v1</code>, <code>/api/v2</code>); incompatible versions are never merged into one undocumented contract.</li>
+<li><strong>Accessible in development.</strong> Swagger UI at <code>/api/v1/docs</code> and the raw spec at <code>/api/v1/openapi.json</code> (spec always served; UI toggled per environment via <code>OPENAPI_UI_ENABLED</code>).</li>
+<li><strong>Validated automatically.</strong> <code>npm run openapi:validate</code> checks spec validity, duplicate operationIds, missing responses/tags/security, and route coverage; CI runs it on every push/PR, and production never publishes an invalid spec.</li>
 </ul></section><section id="s2-6"><h3>UI / UX Rules</h3>
 <ul>
 <li>All tabular data uses the shared DataTable component (packages/ui). No module implements its own pagination, sorting, or filtering.</li>
 <li>No component hardcodes a color, spacing, radius, or typography value outside the shared design tokens.</li>
 <li>Every component renders correctly in both Light and Dark themes, and under a non-default tenant's branding, before being considered complete.</li>
 <li>Unauthorized sidebar items, tabs, buttons, and routes are hidden client-side, and a manually entered unauthorized URL renders a 403/forbidden state — never a blank screen or silent redirect.</li>
+</ul></section><section id="s2-6a"><h3>Frontend Delivery Workflow</h3>
+<p>Binding order for <strong>every</strong> new page or feature on the Marketing site and the Portal — each step is part of the Definition of Done, not a follow-up task:</p>
+<p><strong>Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup.</strong></p>
+<p>The shipped result is <em>SEO-friendly + fast + accessible + responsive + maintainable + secure + production-ready</em>. A page that renders correctly but has duplicate metadata, no API feedback, an un-optimized image, or leftover unused files is not done.</p>
+</section><section id="s2-6b"><h3>SEO / AEO / GEO Rules</h3>
+<p><strong>Scope.</strong> The Marketing site (<code>marketing/</code>) is the public, indexable surface and carries the product's SEO. The Portal (<code>hms_frontend/</code>) is a private application: it is optimized for humans and never for search engines.</p>
+<p><strong>Reference standard.</strong> The <strong>Claude SEO Skill</strong> (<code>https://www.claudeseoskill.com/</code>) is the SEO/AEO/GEO implementation reference; where it and this section differ, this section wins (it encodes the project's content guardrails).</p>
+<ul>
+<li><strong>Unique title and meta description per route.</strong> No two routes ship the same pair; written for that page's real search intent.</li>
+<li><strong>Canonical URL</strong> on every public page; base URL from <code>NEXT_PUBLIC_SITE_URL</code> via <code>metadataBase</code>, never hard-coded.</li>
+<li><strong>One <code>&lt;h1&gt;</code> per page</strong>, heading levels never skipped, semantic HTML landmarks — the same structure AEO/GEO answer extraction relies on.</li>
+<li><strong>Open Graph + Twitter/social metadata</strong> on every public page, with an OG image suited to that page family.</li>
+<li><strong>JSON-LD only where it describes what the page shows:</strong> <code>Organization</code> site-wide; <code>SoftwareApplication</code> on product/platform/module pages; <code>LocalBusiness</code> on company/contact (Ahmedabad, Gujarat, India); <code>BreadcrumbList</code> on nested routes; <code>FAQPage</code> only for a real, visible FAQ.</li>
+<li><strong><code>sitemap.ts</code> and <code>robots.ts</code> stay in sync with the real route table</strong> — a new public route adds its entry in the same change; a removed route is 301-redirected, never left dead.</li>
+<li><strong>Descriptive, kebab-case, hierarchical URLs;</strong> content identity never depends on a query parameter. Deliberate internal linking — no orphan pages.</li>
+<li><strong>Meaningful <code>alt</code> on every non-decorative image</strong> (<code>alt=""</code> for decorative). Mobile-first and Core Web Vitals are SEO requirements.</li>
+<li><strong>Keywords are mapped to the page whose intent they match</strong> (mapping recorded in <code>marketing/KNOWLEDGE.md</code>) and used naturally in title/<code>&lt;h1&gt;</code>/body — or not at all. Working set: Hospital Management System / Software, …in India, …Gujarat, Hospital Software Ahmedabad, Healthcare Management Software, Clinic Management Software, Hospital ERP Software, HMS Software for Hospitals, Hospital Billing Software, Hospital Appointment Management, Patient Management System, Doctor Management System, Pharmacy Management, Laboratory Management System. <strong>SEO never overrides UX.</strong></li>
+<li><strong>Prohibited:</strong> keyword stuffing, artificial repetition, hidden text, doorway pages, duplicated metadata, structured data for invisible content, and fabricated reviews/ratings. Marketing content guardrails still bind SEO copy: no prices/named tiers, no compliance-certification claims, no non-existent customers.</li>
+<li><strong>Portal:</strong> every authenticated route is <code>noindex, nofollow</code> and the Portal serves a <code>robots.ts</code> disallowing crawling (<code>/login</code> included). <strong>No patient, tenant, staff, clinical, or operational data</strong> ever appears in a title, meta description, OG image, URL path, sitemap, or any crawler-visible surface.</li>
+</ul></section><section id="s2-6c"><h3>API Feedback &amp; Notification Rules</h3>
+<ul>
+<li><strong>One shared notification/Toast system in <code>@hms/ui</code></strong>, consumed by the Portal and the Marketing site. No page, module, or feature builds its own toast, snackbar, or ad-hoc banner for API results.</li>
+<li>Its API and behaviour follow the <strong>shadcn/ui Toast</strong> pattern (<code>https://ui.shadcn.com/docs/components/base/toast</code>) as a design reference; it is implemented on <code>@hms/ui</code> tokens with Lucide icons per <code>resources/DESIGN.md</code> — shadcn/Radix is <strong>not</strong> added as a dependency (ADR-026).</li>
+<li><strong>Every state-changing API call produces user-visible feedback, and every failure does</strong> — a silently failed request is a defect. Background/read-only refreshes may be silent on success, never on error.</li>
+<li><strong>Feedback is centralized in the shared API client</strong>, not per call site. Repeating <code>if (success) toast(…) / if (error) toast(…)</code> in pages is prohibited.</li>
+<li><strong>Show the backend's message when it provides one</strong> (e.g. <code>"Hospital registered successfully."</code>); failures use <code>error.message</code> from the canonical <code>{ error: { code, message, details? } }</code> envelope. Generic fallback copy only when the response carries nothing usable.</li>
+<li><strong>Variants</strong> map to the semantic tokens in <code>resources/DESIGN.md</code> §2 — success (green), error (danger red), warning (amber), info (blue/neutral), loading (neutral) — never a hardcoded colour.</li>
+<li><strong>Every failure mode is handled:</strong> network failure, timeout, validation (field errors on the fields plus one summary), 401 (silent refresh then re-auth path — never a bare "Unauthorized"), 403 (standard Forbidden panel at page level), 409/optimistic-lock, 429, 5xx, and unstructured/non-JSON responses.</li>
+<li><strong>Never surface internals</strong> — no stack traces, SQL, raw provider errors, internal hostnames, or developer-facing <code>details</code>; full detail goes to the structured logger / <code>errorTracker</code>. <strong>Never render PHI in a notification.</strong></li>
+<li><strong>Accessible by construction:</strong> <code>role="status"</code> (polite) for routine messages, <code>role="alert"</code> (assertive) for errors; keyboard-focusable and Esc-dismissible; success auto-dismisses, errors persist; honours <code>prefers-reduced-motion</code>; never covers the primary action; stack limit + de-duplication. Idempotent retries produce one notification, not one per attempt.</li>
+</ul></section><section id="s2-6d"><h3>Frontend Performance &amp; Next.js Optimization Rules</h3>
+<p>The Next.js optimization guides are the reference. <strong>Both apps are Next 16</strong> — read the version-matched docs bundled at <code>node_modules/next/dist/docs/</code> (per each app's <code>AGENTS.md</code>) rather than any older online version.</p>
+<ul>
+<li><strong>Images:</strong> <code>next/image</code> with explicit dimensions (or <code>fill</code> in a sized container), a correct <code>sizes</code>, lazy by default, <code>priority</code> on at most one genuinely above-the-fold LCP image per route. No raw <code>&lt;img&gt;</code> for content images; icons stay Lucide.</li>
+<li><strong>Fonts:</strong> <code>next/font</code> only (Geist / Geist Mono) — self-hosted, subset, only the weights used, no runtime font-CDN request, no layout shift. Typography identical across Marketing and Portal.</li>
+<li><strong>Scripts:</strong> third-party scripts load through <code>next/script</code> with a deliberate strategy (<code>afterInteractive</code> / <code>lazyOnload</code>) and never block first render. No third-party script without a stated product requirement and a privacy review.</li>
+<li><strong>Metadata:</strong> the Next Metadata API — global defaults, per-route overrides, <code>generateMetadata</code> for dynamic routes. No hand-rolled <code>&lt;head&gt;</code> tags.</li>
+<li><strong>Static assets</strong> organized under each app's <code>public/</code>; an asset no longer referenced is deleted.</li>
+<li><strong>Bundle:</strong> run bundle analysis before adding a heavy dependency and when a route's JavaScript grows. Prefer Server Components; push <code>"use client"</code> to the leaves; no two libraries doing the same job.</li>
+<li><strong>Lazy loading:</strong> <code>next/dynamic</code> for charts, rich editors, complex dialogs, below-the-fold marketing sections, admin-only panels. <strong>Never</strong> lazy-load above-the-fold or LCP content.</li>
+<li><strong>Budgets, measured before "done":</strong> LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 on a mid-range mobile profile for public marketing routes; the Portal targets the same INP/CLS with LCP measured on the authenticated shell.</li>
+<li><strong>Analytics &amp; instrumentation:</strong> lazy, off the critical path, separate from core logic. <strong>Never send PHI, clinical detail, or tenant-identifying operational data to an analytics or telemetry platform</strong> — page-level events only, identifiers stripped. The Portal ships no third-party analytics by default.</li>
+<li><strong>Observability:</strong> application/API telemetry flows through the structured logger and the <code>errorTracker</code> abstraction (ADR-019, ADR-007); OpenTelemetry, if adopted, sits behind that seam. Internal telemetry is never exposed to end users beyond a support reference id.</li>
 </ul></section><section id="s2-7"><h3>Security Rules</h3>
 <ul>
 <li>Encryption in transit and at rest is mandatory for all PHI-bearing data.</li>
@@ -151,17 +228,27 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 </ul></section><section id="s2-10"><h3>Documentation Rules</h3>
 <ul>
 <li>Every app and package maintains KNOWLEDGE.md (current state) and DONE.md (append-only implementation log). A feature is not done until both are updated.</li>
+<li>Anything knowingly <strong>blocked, skipped, or deferred</strong> is recorded in the root <strong>BACKLOG.md</strong> in the same change that discovered it — including what is needed from the product owner and which file/decision it unblocks. An item leaves BACKLOG.md only when it is done (and logged in DONE.md) or explicitly dropped with a reason.</li>
 <li>Architecturally significant decisions are recorded in DECISIONS.md as a numbered ADR. DECISIONS.md is appended to, never rewritten.</li>
 <li>A root CLAUDE.md indexes the whole monorepo and links to every app/package's own KNOWLEDGE.md and DONE.md.</li>
 </ul></section><section id="s2-11"><h3>Dependency Rules</h3>
 <ul>
 <li>A business module's hard dependencies (Module Capability Matrix, Project Requirements Document) are enforced by the entitlement engine at activation time. The system refuses to activate a module whose hard dependency is not already entitled.</li>
 <li>New third-party dependencies sit behind a provider abstraction (SmsService, EmailService, FileStorageService). Module code never makes a direct SDK call to an external vendor.</li>
+<li><strong>Every new dependency is audited before it is added</strong>, frontend included: necessary? already solved by an existing dependency or <code>@hms/ui</code>? provided natively by Next.js/the platform? bundle cost? actively maintained? security/privacy concerns? A large library is never introduced where a lightweight existing solution or a native capability suffices; the reasoning is recorded in the PR (and in DECISIONS.md when architecturally significant).</li>
+<li><strong>One canonical component kit: <code>@hms/ui</code>.</strong> Shipped product UI comes from it, and missing capability is added to it. <strong>shadcn/ui is installed in both frontends as a CLI + reference layer only (ADR-028)</strong> — <code>shadcn add</code> is a scaffolding shortcut, not a second kit. Anything it generates must be reviewed before it ships: restyled onto <code>--hms-*</code> / <code>--mk-*</code> (never shadcn's own palette), verified in Light + Dark and under a non-default tenant accent, and kept out of the paths the existing kit already covers. No third UI library.</li>
 </ul></section><section id="s2-12"><h3>Git Rules</h3>
 <ul>
 <li>One feature branch per module/milestone, merged to a staging branch that auto-deploys to the staging environment.</li>
 <li>CI runs lint, tests, and build on every push. A push that fails CI does not merge.</li>
 <li>Commit messages and pull requests reference the milestone/module they implement, so DONE.md entries stay traceable back to source control.</li>
+</ul></section><section id="s2-12a"><h3>Clean Code &amp; Replacement Rules</h3><p><strong>If it is not used, it does not stay. No garbage code, ever — in this change, not “later”.</strong></p><ul>
+<li><strong>No dead implementations.</strong> Replacing a technology or component follows <em>migrate → verify → delete</em>, in the same change. The old implementation is never kept “for future use”, and two systems solving the same problem are never both active without a documented reason.</li>
+<li><strong>Deletion is part of Done, not a follow-up.</strong> A change that leaves behind something it made unnecessary is unfinished — a Definition-of-Done gate, and a reviewer rejects on it.</li>
+<li><strong>The cleanup pass covers, at minimum:</strong> orphaned files and components, unused imports/exports/types/constants/hooks/utilities, dead CSS and design tokens, unreferenced images / Lottie / fonts / other <code>public/</code> assets, superseded API services and endpoints, generated scaffolding nothing consumes, empty directories, commented-out code, and <strong>dependencies nothing imports — removed from <code>package.json</code> in the same commit</strong>.</li>
+<li><strong>Regenerable scaffolding is deleted too.</strong> Tooling output that can be recreated on demand (a <code>shadcn add</code> that was not adopted, the <code>lib/utils.ts</code> its init writes) is removed while unused; the tool will write it again when it is needed.</li>
+<li><strong>Never keep code “just in case”.</strong> Git history is the archive — note the removal in the commit message instead of leaving it in the tree.</li>
+<li><strong>Verify, do not assume.</strong> Grep the whole repo before deleting; <code>typecheck</code> + <code>build</code> both apps after. A green build with the code gone is the proof it was dead.</li>
 </ul></section><section id="s2-13"><h3>Prohibited Patterns</h3>
 <ul>
 <li>Do not check authorization in the frontend only.</li>
@@ -169,6 +256,23 @@ footer{margin-top:36px;padding-top:14px;border-top:3px solid var(--teal);font-si
 <li>Do not hardcode brand colors, logos, or theme values in a component.</li>
 <li>Do not build a new authorization/permission engine for a specific feature (temporary access, break-glass, or otherwise) instead of extending the existing one.</li>
 <li>Do not physically delete entitlement, permission-override, or audit records.</li>
+<li>Do not merge or deploy a backend API route without synchronized, valid OpenAPI/Swagger documentation (enforced by <code>npm run openapi:validate</code> in CI).</li>
+<li>Do not write per-call success/error notification logic in a page or component instead of using the shared API-feedback layer.</li>
+<li>Do not build a second notification/toast implementation — extend <code>@hms/ui</code>. (shadcn is installed as scaffolding only, ADR-028; its toast does not replace the shared one.)</li>
+<li>Do not ship a <code>shadcn add</code> component as-is: unreviewed, on shadcn's own palette, or unverified in Dark and under a tenant accent.</li>
+<li>Do not build a module-specific table, toolbar, pagination, column-visibility, filter, action menu, empty/loading/error state, or confirmation dialog when the shared one exists — configure it instead.</li>
+<li>Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.</li>
+<li>Do not render a user-facing date in any format other than <code>DD/MM/YYYY</code> (<code>DD/MM/YYYY HH:mm</code> with a time), and do not format dates outside <code>@hms/utils</code>.</li>
+<li>Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.</li>
+<li>Do not build a module-specific table, toolbar, pagination, column-visibility, filter, action menu, empty/loading/error state, or confirmation dialog when the shared one exists — configure it instead.</li>
+<li>Do not hardcode a single page size, or fetch a whole large table into the browser to paginate it client-side.</li>
+<li>Do not render a user-facing date in any format other than <code>DD/MM/YYYY</code> (<code>DD/MM/YYYY HH:mm</code> with a time), and do not format dates outside <code>@hms/utils</code>.</li>
+<li>Do not leave a replaced implementation, its config, styles, or its dependency in the repository after migrating away from it.</li>
+<li>Do not replace a usable backend message with generic copy, and do not show a raw technical error, stack trace, or backend internal to a user.</li>
+<li>Do not let any authenticated Portal route be indexable, and do not place patient/tenant/staff/operational data in metadata, URLs, OG images, or a sitemap.</li>
+<li>Do not ship duplicate page metadata, keyword-stuffed copy, hidden SEO text, or structured data describing content that is not visible on the page (including fabricated reviews or ratings).</li>
+<li>Do not use a raw <code>&lt;img&gt;</code> for a content image, load fonts from a runtime CDN, or ship a render-blocking third-party script.</li>
+<li>Do not send PHI or tenant-identifying operational data to an analytics or telemetry platform.</li>
 <li>Do not silently convert a "Pending verification" regulatory assumption into a stated compliance requirement.</li>
 <li>Do not introduce Kubernetes, Kafka, a service mesh, or multi-region deployment without an explicit, documented Phase 2+ decision.</li>
 </ul></section><div class="partdivider"><h2>Documentation System</h2></div><section id="s3-1"><h3>Documentation & AI-Agent Knowledge System</h3><h3>Documentation &amp; AI-Agent Knowledge System</h3><ul>

@@ -1,0 +1,132 @@
+import { createHash, randomInt } from 'node:crypto';
+import { env } from '../../config/env';
+import { sendEmail, sendSms } from './notification.service';
+
+/**
+ * The one seam between the platform and a communication provider (ADR-059).
+ *
+ * Every message the product sends — email, SMS, and one-time codes — goes through this
+ * service. MSG91 sits behind `notification.service`'s provider interface (ADR-016) and
+ * nothing outside this module names it. A frontend never reaches a provider at all:
+ * the path is Frontend → API → CommunicationService → provider.
+ *
+ * **Why OTP generation is ours rather than MSG91's managed flow.** The codes are
+ * hashed at rest, single-use, expiring and rate-limited, and the identical code path
+ * serves email and mobile — which the managed flow does not. Adopting MSG91's OTP
+ * endpoints later changes the transport inside `sendOtp`/`verifyOtp` and nothing else,
+ * which is the entire reason this seam exists.
+ */
+
+export type OtpChannel = 'sms' | 'email';
+
+export interface OtpStore {
+  /** Persist the hash. Storing the code itself would make a leaked table a live key. */
+  save(input: { destination: string; channel: OtpChannel; codeHash: string; expiresAt: Date }): Promise<void>;
+  /** The newest unconsumed hash for this destination, with its expiry and attempt count. */
+  findActive(
+    input: { destination: string; channel: OtpChannel },
+  ): Promise<{ id: string; codeHash: string; expiresAt: Date; attempts: number } | null>;
+  /** Mark consumed. A code that verified once must never verify again. */
+  consume(id: string): Promise<void>;
+  /** Record a wrong guess, so brute force burns the code rather than only the clock. */
+  recordFailedAttempt(id: string): Promise<void>;
+}
+
+/** Wrong guesses allowed before a code is dead, however much of its TTL remains. */
+export const OTP_MAX_ATTEMPTS = 5;
+
+/** Six digits, uniformly distributed. `randomInt` is CSPRNG-backed; `Math.random` is not. */
+export function generateOtp(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+export function hashOtp(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+/** Ten minutes: long enough for a slow SMS, short enough that a shoulder-surfed code expires. */
+export const OTP_TTL_MS = 10 * 60 * 1000;
+
+export interface SendOtpInput {
+  tenantId: string;
+  channel: OtpChannel;
+  destination: string;
+  store: OtpStore;
+  /** Shown to the person. Keep it short — an SMS is read on a lock screen. */
+  purpose?: string;
+}
+
+/**
+ * Generate, persist and deliver a one-time code.
+ *
+ * Returns nothing. A caller that wanted the code back would be a caller that could log
+ * it, and the point of hashing at rest is defeated by a code that travelled through
+ * application logs on its way out.
+ */
+export async function sendOtp(input: SendOtpInput): Promise<void> {
+  const { tenantId, channel, destination, store, purpose } = input;
+  const code = generateOtp();
+
+  await store.save({
+    destination,
+    channel,
+    codeHash: hashOtp(code),
+    expiresAt: new Date(Date.now() + OTP_TTL_MS),
+  });
+
+  const what = purpose ? `${purpose} code` : 'verification code';
+  const body = `Your Nirogix ${what} is ${code}. It expires in 10 minutes.`;
+
+  if (channel === 'sms') {
+    // The SMS carries the DLT-registered template id from configuration (ADR-016). The
+    // log provider ignores it (dev); the MSG91 provider needs it, and Indian SMS is
+    // rejected without a registered template. NOTE for go-live: MSG91's flow API maps the
+    // code into the template's variable — verify the exact variable name against the
+    // approved DLT template and adjust `Msg91SmsProvider.sendSms` if it differs from `body`.
+    await sendSms({ tenantId, to: destination, body, templateId: env.MSG91_OTP_TEMPLATE_ID });
+  } else {
+    await sendEmail({ tenantId, to: destination, subject: `Your Nirogix ${what}`, body });
+  }
+}
+
+/**
+ * Check a code and consume it on success.
+ *
+ * Compares hashes, never the codes themselves, and consumes on the way out so a
+ * correct code cannot be replayed — including by whoever is racing the legitimate user.
+ */
+export async function verifyOtp(input: {
+  channel: OtpChannel;
+  destination: string;
+  code: string;
+  store: OtpStore;
+}): Promise<boolean> {
+  const active = await input.store.findActive({ destination: input.destination, channel: input.channel });
+  if (!active) return false;
+  if (active.expiresAt.getTime() < Date.now()) return false;
+  if (active.attempts >= OTP_MAX_ATTEMPTS) return false;
+
+  if (active.codeHash !== hashOtp(input.code)) {
+    // Bounded brute force: a wrong guess spends one of the code's five lives.
+    await input.store.recordFailedAttempt(active.id);
+    return false;
+  }
+
+  await input.store.consume(active.id);
+  return true;
+}
+
+/**
+ * Issue a fresh code for the same destination.
+ *
+ * Deliberately identical to `sendOtp` rather than re-sending the previous code: the
+ * old one may have reached the wrong device, and reissuing invalidates it by making a
+ * newer one active. Rate limiting belongs at the route, where the caller is known.
+ */
+export async function resendOtp(input: SendOtpInput): Promise<void> {
+  await sendOtp(input);
+}
+
+// Re-exported so a caller has one import for every channel, and no reason to reach
+// past this service into the provider layer.
+export { sendEmail, sendSms };

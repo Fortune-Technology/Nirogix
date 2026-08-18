@@ -1,0 +1,200 @@
+# hms_frontend — KNOWLEDGE.md
+
+Current state of the Nirogix Portal (staff-facing web app). Read after root `CLAUDE.md` and `hms_frontend/AGENTS.md`. See `DONE.md` for the chronological log.
+
+> ⚠ **This is Next.js 16 (App Router, Turbopack, React 19).** APIs differ from older Next. `AGENTS.md` points at the version-matched docs bundled in `node_modules/next/dist/docs/` — read them before writing routing/rendering code.
+
+## Purpose
+
+The web portal for **hospital staff**, on its own origin (`:3001` → `portal.nirogix.com`). Since ADR-051 it serves hospital staff only — the vendor's platform-operator screens live in the separate `admin` application, so operator code no longer ships in a hospital's bundle.
+
+The single web portal for all hospital staff roles. One RBAC-driven shell renders every role's workspace; the visible menu and pages derive from the signed-in user's **effective permissions**, but visibility is never security — every backend endpoint independently re-checks `auth → module → permission → business logic` (invariant #2).
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack default) + **React 19** + TypeScript
+- **Tailwind v4** (`@import "tailwindcss"` + `@tailwindcss/postcss`) for layout utilities
+- **@hms/ui** design system (tokens + primitives + Standard DataTable) — the source of every colour/spacing/radius/type value
+- **@hms/permissions** (shared with the backend) for permission keys; **@hms/types** for API contracts
+- No data-fetching library yet — a small typed `fetch` client (`lib/api.ts`). Server state lives in React context.
+
+## Layout
+
+```
+app/
+  layout.tsx            Root: fonts, @hms/ui styles, no-flash theme script, <Providers>
+  providers.tsx         Client: <ThemeProvider><AuthProvider> composition
+  globals.css           Tailwind + maps --hms-* tokens into Tailwind @theme (bg-surface, text-fg, …)
+  page.tsx              "/" → redirect to /dashboard
+  forbidden/page.tsx    Standalone 403 route
+  (auth)/               Public route group (no shell)
+    layout.tsx          Centered card shell
+    login/page.tsx      Org-code + email + password sign-in
+  (app)/                Authenticated route group
+    layout.tsx          CLIENT GUARD: redirects to /login unless authenticated; renders <AppShell>
+    dashboard/page.tsx  Role-aware roll-up — platform stats (super-admin) or org summary (others)
+    providers/page.tsx  Provider directory — Standard DataTable + live API (guarded by providers.view)
+    audit/page.tsx      Audit log — paginated DataTable (guarded by audit.log.view)
+    settings/            HOSPITAL CONFIGURATION CONSOLE (ADR-049) — tabbed layout
+      layout.tsx         Page header + tab nav, shared by every tab
+      page.tsx           Setup overview: derived progress, step checklist, area grid
+      organization/      The hospital's identity — address, contact, registration, GSTIN
+      documents/         Letterhead — image upload, page size, header/footer/signatory (ADR-056, ADR-065)
+      branding/          Accent colour, logo, favicon (moved out of the old settings page)
+      registration/      Patient self-registration QR — token, poster, regenerate (ADR-056)
+      modules/           Entitled modules, read-only (entitlements are granted by Nirogix)
+    patients/
+      registrations/     Self-registration review queue — front desk converts a request
+lib/
+  api.ts                Typed fetch client: Bearer + silent refresh-on-401 + canonical error unwrap
+  auth.tsx              AuthProvider + useAuth + useCan — session & capabilities context
+  theme.tsx             ThemeProvider + useTheme — Light/Dark + per-tenant brand override
+  nav.ts                Primary nav items, each tagged with its required permission key
+components/
+  AppShell.tsx          Sidebar (permission-filtered) + topbar (user, theme toggle, sign out)
+  Can.tsx               <Can perm> (hide) + <RequirePermission perm> (page-level 403)
+  Forbidden.tsx         The standard 403 panel
+  PageHeader.tsx        Consistent page title block
+  ThemeToggle.tsx       Light/Dark switch
+```
+
+## Authentication (client-side session)
+
+- **Cross-origin, token-in-memory.** The Portal (`:3001`) talks to the backend API (`:4000`). `POST /auth/login` returns an **access token** (held in memory only — never localStorage) and sets an **httpOnly refresh cookie** on the API origin. All requests use `credentials: 'include'` so the cookie flows; `Authorization: Bearer` carries the access token.
+- **Silent refresh.** On a full reload the access token is gone, so `AuthProvider` calls `POST /auth/refresh` (cookie) to mint a new one, then loads `/auth/me` + `/rbac/permissions`. A 401 on any call triggers one silent refresh + retry; if that fails the session flips to anonymous.
+- **CORS/cookie:** backend runs `cors({ origin: true, credentials: true })`; the refresh cookie is `SameSite=Lax` (localhost ports are same-site, so it's sent cross-port). No backend change was needed.
+- **MFA:** a `{ mfaRequired: true }` login response is surfaced as "not supported yet" (second factor lands in a later phase). SSO plugs in at the same layer.
+
+## Authorization (RBAC-driven UI)
+
+- **Capabilities context** (`lib/auth.tsx`): after login it loads the caller's **effective permission set** (`{ wildcard, permissions[] }`) from `GET /rbac/permissions`. `useCan(key)` = `wildcard || permissions.has(key)`.
+- **Menu** (`AppShell`): `NAV_ITEMS` are filtered by `can(item.perm)`; items the user can't use never render.
+- **`<Can perm>`**: hides buttons/fragments (e.g. a "New provider" action).
+- **`<RequirePermission perm>`**: wraps a protected page's body; renders the standard **Forbidden** panel when the permission is missing, so a direct URL hit gets a clean 403 instead of a broken screen (and the API would 403 the data calls anyway).
+- **Keys come from `@hms/permissions`** — the same module the backend enforces with, so the menu and server never drift.
+- **The active nav item is the longest matching href** (`activeNavHref` in `lib/nav.ts`). A plain prefix test lit up both *Patients* and *Registration requests* on `/patients/registrations`; the longest match picks the specific one, while `/patients/{id}` — which has no item of its own — still resolves to *Patients*, which is what a detail page wants.
+- Verified live (CITYCARE demo): **org_admin** sees Dashboard/Providers/Audit/Settings; **receptionist** sees only Dashboard/Settings, and a direct hit to `/providers` renders the 403 panel with **no `/providers` API call made**.
+- **There is no platform context here (ADR-051).** `navGroupsForUser(can)` renders the hospital's navigation for everyone, including an operator inside a support session — they are working as a hospital user, and the banner says so. `lib/api.ts` holds no platform-administration call; `admin` does.
+
+## Support sessions — the receiving end (ADR-037, ADR-051)
+
+- `/support/enter` claims a session that the **admin console** mints. The token arrives by `postMessage`, never in a URL, because a URL lands in history, referrers and server logs.
+- The sender is now a **different origin**, so the check is explicit: only `ADMIN_ORIGIN` (`lib/adminOrigin.ts`, from `NEXT_PUBLIC_ADMIN_ORIGIN`) may hand this tab a session. Before the split this was a `window.location.origin` comparison — correct then, silently wrong after.
+- Once claimed, the operator sees this app's normal navigation with the support banner and an explicit exit.
+
+## Hospital Configuration console (ADR-049)
+
+- **`/settings` is the console**, not a personal settings page. A tab layout over `/settings` (setup overview), `/settings/organization` (the hospital's identity), `/settings/branding` and `/settings/modules`, gated on `platform.organization.manage`. It appears in the sidebar's *Organization* group as **Hospital setup**.
+- **Progress is derived, never stored.** `components/settings/SetupChecklist.tsx` renders `GET /setup/status`: each step shows its real count, a step whose dependency is unmet says what it is waiting on rather than hiding, and a step the user cannot perform says so instead of offering a dead link. `SetupProgressCard` puts the same status on the Hospital Admin dashboard, **removes itself once setup is complete**, and can be **dismissed** before then — an administrator who has decided to finish later should not be nagged every morning. The dismissal is keyed by **user id** in `localStorage`, because a shared reception machine is the normal case and one person hiding a nudge must not hide it from the next; it is read through `useSyncExternalStore`, so the server render stays honest and dismissing in one tab hides the card in the others. Hiding the reminder hides nothing else — the full checklist stays under Hospital configuration, which is in the sidebar.
+- **The console links, it does not duplicate.** Branches, departments, providers, users, the lab test master and the drug master keep their own screens; the overview grid is how an administrator finds them. There is no tab for sub-departments, services, packages, treatment plans or wards — the product has none (`BACKLOG.md` E-1, E-3…E-8).
+- **`/departments` (ADR-050)** — the Standard DataTable plus a create form whose branch and head pickers offer only this hospital's own records. The row action is a **toggle, not a delete** (visits reference departments), and its confirmation states how many doctors are attached. Check-in offers **active departments only**.
+- **Setup is not a wizard.** There is no completion flag and no one-way flow; every area stays editable afterwards through the same console.
+- **Appearance moved to `/profile`.** A theme is one person's preference, not the hospital's configuration.
+- **Printed documents carry the hospital's identity:** `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines`, the letterhead lines, the default signatory, the uploaded **letterhead image** and the **page size** into `PrintDocument` (ADR-065). An unconfigured hospital still prints name and logo only — nothing is invented; a hospital with an uploaded letterhead prints that image full-width in place of the text header.
+- **One record, more than one screen (ADR-056).** `/settings/organization` edits `organization_profile` through the shared `components/settings/ProfileForm.tsx`; `/settings/documents` is its own cohesive screen (letterhead image, page size and letterhead text) that calls the profile API directly (ADR-065). Each screen declares the fields it owns and sends only those, so saving the letterhead cannot blank an address. There is no second identity store to drift.
+- **`/settings/registration` (ADR-056)** — the patient-registration QR. Copy link, download PNG, print poster, preview, and a confirmed regenerate that says every printed poster stops working. The page states plainly that nothing is added to the patient list automatically.
+- **The QR is drawn in the hospital's own accent**, through `components/print/useRegistrationQr.ts` — one definition shared by the settings screen and the printable poster, so a preview and the printed sheet cannot differ. The colour passes through `ensureContrast` from `@hms/utils` first: a pale accent is darkened until it scans, keeping its hue, because a QR is read by a camera off a photocopy and a code that looks pretty but does not scan is worthless. Light modules stay pure white. The code is held **with the URL it encodes**, so a regenerated token never shows the retired code beside the new link.
+- **`/print/registration-qr`** is the poster — a real document route with the hospital's logo, name, address and colour from `useDocumentBrand`, not a hand-built popup (ADR-047). It reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**.
+- **`/patients/registrations` is the review queue**, in the *Clinical* nav group. Gated on `patient.record.view` — deliberately **not** `patient.record.create`, which `org_admin` does not hold; the approve/reject actions carry `permitted={canReview}` so an administrator sees the queue read-only. The server re-checks both regardless.
+
+## Design system & theming
+
+- **@hms/ui is the only source of visual tokens.** `import '@hms/ui/styles.css'` (once, in the root layout) defines the `--hms-*` custom properties (colour, radius, type, shadow) — **Light under `:root` (default), Dark under `[data-theme="dark"]`**. Primitives (`Button`, `Field`, `Card`, `Badge`, `Alert`, `Spinner`, `DataTable`) are built entirely on those tokens; nothing hardcodes a raw value.
+- **Tailwind shares the tokens.** `globals.css` maps `--hms-*` into Tailwind's `@theme` (`bg-surface`, `text-fg-muted`, `border-border`, `bg-brand`, `rounded-token`…), so app-level layout utilities use the exact same values as the primitives.
+- **Theme** (`lib/theme.tsx`): `data-theme` on `<html>` toggles Light/Dark; persisted to `localStorage`; a no-flash inline script applies it before first paint. Default is **Light**.
+- **Tenant branding (server-persisted, ADR-021):** the accent is a single token (`--hms-brand`). `theme.tsx` exposes `applyBranding(b)` (sets **only** `--hms-brand` — hover, pressed, subtle and the focus ring derive from it in the token layer, ADR-040 — swaps the favicon, tracks the logo URL) and `previewBrandColor(hex)` (live preview while editing). `components/BrandingLoader` (mounted in the authenticated shell) fetches `GET /branding/current` at bootstrap and applies it; a cached brand colour in `localStorage` lets the no-flash script paint it before hydration. The **Hospital configuration → Branding** tab (org_admin, `platform.branding.manage`) is a real colour picker + logo/favicon upload + reset, persisted via the branding API. `AppShell` shows the uploaded logo. No component hardcodes colour — branding is a token swap.
+- Verified in **Light and Dark** and under a **non-default brand**.
+
+## shadcn/ui — CLI + reference layer (ADR-028)
+
+Installed, but **not** a second component kit: `@hms/ui` remains canonical and nothing shadcn-generated ships without review.
+
+- `components.json` (style `base-nova`, base `base` = Base UI, Lucide icons, `@/` alias), `lib/utils.ts` (`cn` for generated components), and `components/ui/` as the `shadcn add` target. Dependencies: `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI is a devDependency.
+- **`app/globals.css` re-points shadcn's whole semantic contract at `--hms-*`** — `--background`/`--foreground`/`--card`/`--popover`/`--primary`/`--secondary`/`--muted`/`--accent`/`--destructive`/`--border`/`--input`/`--ring`/`--radius`/`--sidebar-*`/`--chart-*`. shadcn's neutral OKLCH palette and its `.dark` block are deliberately absent, and `@custom-variant dark` is redefined to `[data-theme="dark"]` (the switch this app actually uses). Net effect: a component added by the CLI inherits Light/Dark **and** the tenant accent with no extra work.
+- Init's two regressions were reverted by hand: `--font-sans` is back to `var(--hms-font-sans)`, and the generated demo `button.tsx` was deleted (the `@hms/ui` `Button` is the real one).
+- Usage rule: run `npx shadcn@latest add <component>` for primitives `@hms/ui` lacks (Select, Dialog, Command, Popover), then review — tokens, both themes, tenant accent, a11y — before it reaches a screen. The `shadcn` agent skill in `.agents/skills/` reads this config.
+
+## The Standard DataTable
+
+Every tabular view renders through `DataTable` from `@hms/ui` (ADR-029) — a **configuration**, never a per-page table. Columns carry `sortable` / `filterable` / `hideable` / `defaultHidden` / `accessor` flags; the toolbar (search → filters → columns → actions) and pagination (10/20/50/100 + "Showing X–Y of Z") come with it, as do the skeleton, empty and error states.
+
+- **Server mode** for large datasets: pass `server={{ total, page, pageSize, search, sort, onChange }}` and the API owns paging/search (search is debounced). **Patients** runs this way, with `urlState` so `?page/size/q/sort` survives a reload and a link.
+- **Client mode** for small local sets — **Providers** sorts, searches, and offers faceted filters (Specialties, Status) in the browser.
+- **Row actions use the shared Action column** (ADR-039): `actionsColumn()` + `TableActions`, with `ViewAction` / `EditAction` / `ToggleAction` / `TableAction` / `MoreActions` inside it. Permission gating is a prop (`permitted`), not a hand-rolled conditional, and every destructive or state-changing action carries its own confirmation copy. Live today on patients (view / edit / archive-reactivate), providers (edit / assign specialty / deactivate-reactivate — plus an Add doctor dialog, ADR-066), branches and users and tenants (view + suspend/activate switch), appointments (check in / cancel), OPD (open visit / start consult / complete — actions carry the visit `version`), pharmacy stock (receive), billing (view invoice), the tenant's module list (revoke) and a user's roles and overrides (remove / revoke). Dates in cells come from `@hms/utils` (`DD/MM/YYYY`).
+- The remaining screens (audit, appointments, billing, opd, laboratory, pharmacy, users, branches, tenants, reports) still pass the original `{ key, header, cell }` columns — valid, since the API is a superset — and gain sorting/filters by adding flags. Tracked in root `BACKLOG.md`.
+
+## System Admin dashboard (ADR-043)
+
+`/platform` is the operator's home — the whole platform, never one hospital, and **every tile is a real query**: `GET /admin/stats` for the counts, `GET /admin/trends` for month-by-month growth derived from each record's own `created_at`, the audit trail for security activity by day and severity, and the API's own liveness/readiness probes for health. Metrics with no data source (revenue, subscriptions, storage, uptime history, support tickets) are listed as pending on the screen rather than estimated.
+
+- **Charts come from `@hms/ui`** (`AreaChart`, `BarChart`, `StatCard`, `UsageBar`) — token-driven SVG, no charting dependency, and each repeats its data in a visually-hidden table.
+- **A range control (6 / 12 / 24 months)** re-queries every series at once; the API clamps `months` to 3–36.
+- **`/dashboard` is the hospital's dashboard only.** A platform operator hitting it is redirected to `/platform`, unless they are inside a support session — where the tenant's own view is the whole point (ADR-037).
+
+## Printable documents (ADR-047)
+
+`app/(print)/` is an authenticated route group with **no application shell** — printing an app page would put the sidebar, topbar and action buttons on the invoice. `/print/invoice/[id]` and `/print/lab-order/[id]` exist today; a new document is a template under the same group.
+
+- Built from the `@hms/ui` document kit; the page supplies content, the kit supplies geometry, repeating table headers, page breaks, signatures and the footer.
+- `components/print/useDocumentBrand.ts` resolves the hospital's own name, logo and accent from `GET /branding/current` (RLS-scoped), falling back to the Nirogix default. Printing waits for it, so a document never appears without its header.
+- The route carries the same `RequirePermission` as the screen and reads the same endpoint — a user cannot print what they could not open.
+- **Not yet available in the header:** address, phone, email, website, registration/GST numbers — not in the schema (`BACKLOG.md` U-8). The header renders what exists rather than a placeholder.
+
+## Role dashboards (ADR-044)
+
+`/dashboard` picks a dashboard from **what the user is permitted to do**, never from a role name — a hospital can rename its roles, but permissions are the truth:
+
+| Who | Gets | Built from |
+|---|---|---|
+| Platform operator | redirect to `/platform` | ADR-037 — an operator has no clinical dashboard |
+| Can manage users or branches | `HospitalAdminDashboard` | revenue billed vs collected, today's OPD load by hour, doctors on duty, low stock, registrations, capacity, quick actions |
+| Clinical permission | `ClinicalDashboard` with `role=doctor \| receptionist \| pharmacist \| lab` | one component, four configurations — the queue, the worklist, prescriptions, arrivals |
+| Anyone else | `StaffDashboard` | degrades to exactly what their permissions reach |
+
+All of them are configurations of `components/dashboard/DashboardShell` (`DashboardShell` · `KpiGrid` · `DashboardRow` · `RangeChips` · `PanelRow` · `PanelEmpty`), which is also the shape `/platform` uses — so every dashboard in the product reads the same way. One endpoint feeds them: `GET /dashboard/overview` (RLS-scoped, real rows only, clinical day bucketed in server-local time).
+
+## Navigation (ADR-043)
+
+The shell **scrolls in two panes**: the sidebar is `sticky top-0 h-screen overflow-y-auto` with `data-lenis-prevent`, so a long menu scrolls inside itself instead of with the page, and the topbar is sticky too. `lib/nav.ts` exports **grouped** navigation — `PLATFORM_NAV_GROUPS` (Customers · Platform · Account) and `TENANT_NAV_GROUPS` (Clinical · Revenue · Organization · Account) — with `navGroupsForContext()` filtering by permission and dropping any group left empty. `PLATFORM_NAV` / `NAV_ITEMS` stay as flattened lists for the mobile bar. A new screen joins a group; a new area of the product adds one. Never add an item for a screen that does not exist yet.
+
+## API feedback (ADR-026)
+
+**One** notification path: the shared `@hms/ui` toast, raised inside the API client. Pages never write toast logic.
+
+- `lib/apiErrors.ts` — `ApiRequestError` (canonical `{ error: { code, message, details? } }`), `NetworkError`, `TimeoutError`. Split out so the client and the feedback layer share them without an import cycle.
+- `lib/feedback.ts` — the only place an outcome becomes user-facing copy. `describeError()` maps timeout / offline / 401 / 403 / 404 / 409 / 400+422 / 429 / 5xx / unknown to a title + description, preferring the **backend's own message** when it is usable (a bare error code, a stack-shaped string, or anything over 300 chars is rejected). **5xx always uses generic copy** — a server message may carry internals. Full detail goes to the console/error tracker, never the screen; PHI never enters a toast. `successMessage()` prefers the API's `message`, then the call's own copy (a string or a formatter over the response), then `Saved.`/`Removed.`.
+- `lib/api.ts` — `request()` owns it: a 30s `AbortController` timeout turns a stalled call into `TimeoutError`, a dead connection into `NetworkError`; **every failure notifies**; **every mutating method also notifies on success**. Per-call `feedback` opts out (`false`), silences just the success toast (`{ success: false }`), or sets the copy (`{ success: "Patient registered." }` / a formatter, e.g. dispensing reports drug × qty and the amount added to the bill). Sign-in is the one opt-out: it renders failure inline from the same `describeError()` copy, so nothing is said twice.
+- Pages keep **client-side validation** messages and DataTable load-error states; they no longer keep "Saved."-style banners.
+
+## SEO boundary (ADR-027)
+
+The Portal is private and never indexed: the root layout sets `robots: { index: false, follow: false, nocache: true }` (+ `googleBot.noimageindex`) and `app/robots.ts` disallows the whole origin. No patient/tenant/staff/operational data may appear in metadata, a URL path, an OG image, or a sitemap. All product SEO belongs to `marketing/`.
+
+## Frontend performance
+
+- Fonts: `next/font` (Geist / Geist Mono). Images: `next/image` — the tenant logo (AppShell + Settings) uses `unoptimized` with explicit dimensions, because tenant assets come from per-deployment object storage whose origin cannot be enumerated in `images.remotePatterns`.
+- Heavy, non-critical UI uses `next/dynamic`; third-party scripts go through `next/script`; `<head>` comes from the Metadata API. No third-party analytics by default — and never PHI or tenant-identifying data in any telemetry.
+
+## Conventions
+
+- **Client vs server components:** context/providers/interactive pages are `"use client"`. `app/page.tsx` uses a server `redirect()`. Route groups `(auth)` / `(app)` separate the public and authenticated shells without adding URL segments.
+- **Every API call goes through `lib/api.ts`** — never a bare `fetch`. It centralises the base URL, auth header, refresh, and error unwrapping.
+- **Permission keys are never string literals in components** — import them from `@hms/permissions`.
+
+## Running
+
+- Dev: `npm run dev -w hms_frontend` → `http://localhost:3001` (needs the backend on `:4000`; set `NEXT_PUBLIC_API_BASE_URL` in `.env.local`, default `http://localhost:4000/api/v1`).
+- All apps together: `npm run dev` at the repo root (turbo) — backend `:4000`, portal `:3001`, marketing `:3000`.
+- Build: `npm run build -w hms_frontend` (Turbopack; all routes prerender static). Typecheck: `npm run typecheck -w hms_frontend`.
+- **Demo login:** org `CITYCARE`, `admin@citycare.example` / `ChangeMe#123` (org_admin) or `reception@citycare.example` / `ChangeMe#123` (receptionist, reduced menu).
+
+## Constraints / not-yet-built
+
+- No unit/component tests yet (Playwright/RTL land with the testing increment). Verification so far is live browser walkthrough + `next build`.
+- Access token in memory means a hard reload always does one `/auth/refresh` round-trip (by design; avoids storing a JWT in `localStorage`).
+- Admin CRUD (create provider, assign specialty, manage roles/users) is not wired to the UI yet — the pages are read-only views proving the shell, auth, RBAC, and DataTable. Forms come with each module's real screens.
+- **Super-Admin area (built, A3):** `app/(app)/admin/tenants/` — Tenants list, the **Create-Tenant wizard** (org → module checklist from `GET /admin/module-catalog` → first admin → optional branch, with a **one-time temp-password reveal**), and the tenant detail page (status control, module grant/revoke, branches). Gated by `platform.tenants.manage` (only `super_admin`; the "Tenants" nav item and pages are hidden/403 for everyone else). Onboarding is operator-driven, not public self-registration (ADR-020).
+- **Org-Admin area (built, A4):** `app/(app)/users/` — Users list (roles + status) with inline create (one-time temp-password reveal) and a detail page (status, role assign/remove, effective-permission view, GRANT/DENY override add/revoke from the `@hms/permissions` catalog). `app/(app)/branches/` — list + inline create + active toggle. Reads gated by `platform.users.view`/`platform.branches.view`; mutating controls wrapped in `<Can>` for `.manage` / `platform.rbac.manage`. Nav items "Users"/"Branches" appear for `org_admin` (not for roles lacking the view permission).
+- **Master data & immunisations (built, ADR-072):** `components/catalog/CatalogPicker` (+ `CatalogPickerButton`) is the one shared, searchable "Choose from catalogue" picker over `GET /catalog/:category`; the lab-test, drug, service and department setup forms use it to pre-fill standardised fields from the seeded system catalogue (price/tax/stock stay the hospital's). `components/patients/ImmunizationsCard` on the patient record lists and records a patient's vaccinations from the India schedule or a hospital-custom vaccine. **Per-hospital availability (ADR-073):** the `/settings/availability` tab lets an org_admin toggle which drugs/lab tests/services/vaccines each hospital offers; the day-to-day pickers filter by branch (backend-enforced).
+- Public self-registration + self-serve billing stay in the Enterprise track. Password reset / email invite, per-branch branding, and a custom-role editor are later slices.
+- MFA challenge, forgot-password, and branch switching are stubs/not present.

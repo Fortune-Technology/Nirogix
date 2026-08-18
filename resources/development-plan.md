@@ -11,7 +11,7 @@
 
 ## How to Read This Document
 
-This is the **primary engineering execution roadmap** for the HMS platform. It exists to answer one question the four upstream documents deliberately leave open: *"Given the architecture, the rules, and the phase sequencing, exactly how does an engineering team execute this, week by week, without re-deriving decisions already made?"*
+This is the **primary engineering execution roadmap** for the Nirogix platform. It exists to answer one question the four upstream documents deliberately leave open: *"Given the architecture, the rules, and the phase sequencing, exactly how does an engineering team execute this, week by week, without re-deriving decisions already made?"*
 
 **Precedence.** If this document ever appears to contradict the Architecture Document, Project Requirements Document, Rules & Engineering Standards, or the Development Phases & Roadmap, **those documents win** and this one is defective and must be corrected. This plan is intentionally *additive* — it never overrides an upstream decision.
 
@@ -50,6 +50,8 @@ This is the **primary engineering execution roadmap** for the HMS platform. It e
   - [19. Documentation & Knowledge System](#19-documentation--knowledge-system)
 - **Part D — The Delivery Roadmap**
   - [20. Stage 0 — Platform Foundation](#20-stage-0--platform-foundation)
+  - [20A. Platform Administration Surface — operator onboarding, user/permission admin, branding](#20a-platform-administration-surface--operator-onboarding-userpermission-admin-branding)
+  - [20B. Platform & Organization Dashboards](#20b-platform--organization-dashboards)
   - [21. Stage 1 — MVP 0: Clinic Pilot](#21-stage-1--mvp-0-clinic-pilot)
   - [22. Stage 2 — MVP 1: Clinic Expansion](#22-stage-2--mvp-1-clinic-expansion)
   - [23. Stage 3 — Production-Readiness Hardening](#23-stage-3--production-readiness-hardening)
@@ -128,6 +130,13 @@ Every milestone follows the **six-step loop** defined in the Development Phases 
 - Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry.
 - Verified in both **Light and Dark** themes and under a **non-default tenant's branding**.
 - KNOWLEDGE.md updated and DONE.md appended for every app/package touched.
+- Every new/changed backend endpoint has synchronized OpenAPI/Swagger documentation; `npm run openapi:validate` passes (no undocumented `/api/v1` route, valid spec).
+- **Frontend work follows the Frontend Delivery Workflow** (Rules → Frontend Delivery Workflow): Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup.
+- **API feedback:** every state-changing or failing call surfaces through the shared `@hms/ui` toast — React Toastify behind a fixed adapter API (ADR-057) — via the shared API client, showing the backend's message where it provides one; no silent failure, no per-page toast code, no second toast library, no raw technical error or PHI in the UI (ADR-026).
+- **SEO boundary:** new public marketing routes ship unique metadata + canonical + sitemap entry; new Portal routes are `noindex, nofollow` and leak no patient/tenant/staff data to any crawler-visible surface (ADR-027).
+- **Performance:** images/fonts/scripts/metadata use the Next.js primitives; heavy non-critical UI is lazy-loaded; the route meets the Core Web Vitals budgets (LCP ≤2.5s, INP ≤200ms, CLS ≤0.1).
+- **Cleanup pass done:** nothing the change made unnecessary is left behind — orphaned files, unused imports/exports/assets/CSS/tokens, superseded implementations, empty directories, and any dependency nothing imports (removed from `package.json` in the same commit). Verified by grep before deletion and a green typecheck + build after.
+- **Automated tests written and passing** at the level the change deserves, and **`testcases.md` updated** with the feature's manual cases (added / changed / removed, plus regression cases where existing behaviour could be affected).
 - No open **P0/P1** defects.
 
 **Definition of Ready (entry gate, added by this plan).** A milestone is ready to start only when: its upstream dependencies (per the Dependency Map) are `Done`; the permission keys it introduces are named; its acceptance criteria and test matrix are written; and any external prerequisite (e.g. DLT template, SES production access) is either satisfied or explicitly scheduled ahead of the dependent step.
@@ -151,11 +160,11 @@ Per Rules → Git Rules:
 
 ### 6.1 Layout — decided and scaffolded
 
-Per **ADR-013**, the repository is a **pnpm workspaces + Turborepo** monorepo that **keeps the existing app folder names** (`hms_backend`, `hms_frontend`, `marketing`) rather than renaming them to `apps/*`. This leaves the folders already committed to GitHub untouched while still delivering the shared-package benefits the design depends on (`packages/ui`, `packages/permissions` shared front-end/back-end). The Architecture Document's Monorepo Structure section is aligned to these same names.
+Per **ADR-013** (kept folder names) and **ADR-014** (npm over pnpm), the repository is an **npm workspaces + Turborepo** monorepo that **keeps the existing app folder names** (`hms_backend`, `hms_frontend`, `marketing`) rather than renaming them to `apps/*`. This leaves the folders already committed to GitHub untouched while still delivering the shared-package benefits the design depends on (`packages/ui`, `packages/permissions` shared front-end/back-end). The Architecture Document's Monorepo Structure section is aligned to these same names. The whole monorepo is driven from the root: `npm run install:all` and `npm run dev`.
 
 ```
 hms_backend            Node.js/Express API (the backend)
-hms_frontend           Next.js HMS Portal — all role dashboards, role-based route guards
+hms_frontend           Next.js Nirogix Portal — all role dashboards, role-based route guards
 marketing              Next.js public marketing/SEO site
 packages/types         shared TS types & API contracts (backend + portal)
 packages/ui            shared design-system components + tokens + Standard DataTable (portal + marketing)
@@ -167,7 +176,7 @@ packages/permissions   dot-hierarchy permission keys shared front-end/back-end
 
 **Now in place** (scaffolded alongside this plan):
 
-- Root `package.json` (private workspace root, `packageManager: pnpm@9`, turbo-driven `dev/build/lint/test/typecheck` scripts), `pnpm-workspace.yaml` (members: `hms_backend`, `hms_frontend`, `marketing`, `packages/*`), and `turbo.json` (task pipeline with caching).
+- Root `package.json` (private npm-workspaces root — `"workspaces": ["hms_backend","hms_frontend","marketing","packages/*"]`, `packageManager: npm@10.9.2`, turbo-driven `install:all/dev/build/lint/test/typecheck/format` scripts) and `turbo.json` (task pipeline with caching). No `pnpm-workspace.yaml` — npm reads the `workspaces` field.
 - Root `.gitignore` covering `node_modules/`, build outputs, `.turbo/`, and env files.
 - All five `packages/*` scaffolded — `@hms/types`, `@hms/ui`, `@hms/config` (exports `tsconfig.base.json`), `@hms/utils`, `@hms/permissions` — each with `package.json`, a `tsconfig.json` extending the shared base, and a stub `src/index.ts` documenting what lives there.
 - `hms_backend/package.json` normalized as a workspace member (private; placeholder `dev/build/lint/typecheck/test` scripts that no longer fail the turbo pipeline).
@@ -176,13 +185,13 @@ packages/permissions   dot-hierarchy permission keys shared front-end/back-end
 
 The structure exists; the following execution steps remain and run **before** any feature code:
 
-1. Run `pnpm install` at the root to materialize the workspace — generates a single root `pnpm-lock.yaml` and hoists `node_modules`. The apps' existing npm `package-lock.json` files are **not** deleted by this plan (pnpm harmlessly ignores them); remove them in this step once the pnpm install is verified green. *(Keep the `next@16.3.0` / `react@19.2.8` pins so the install matches the already-working `node_modules`.)*
+1. **Done & verified.** `npm run install:all` (= `npm install`) at the root materialized the workspace — one root `package-lock.json`, hoisted `node_modules`, 516 packages. Stale per-app npm lockfiles removed; `next@16.3.0` / `react@19.2.8` pins kept. `npm run dev` starts backend (4000) + portal (3001) + marketing (3000) together (verified 200/200/200).
 2. Wire the first real cross-package import — a `@hms/types` type consumed by both `hms_backend` and `hms_frontend` — to prove workspace resolution end-to-end.
 3. Enable Turborepo **affected-package detection** for selective CI/CD deploys (used in §18).
 4. Add `husky` + `lint-staged` + `commitlint` for pre-commit hygiene; centralize ESLint/Prettier config in `@hms/config`.
 5. Add TypeScript project references across packages for incremental builds.
 
-**Deliverable / acceptance:** `pnpm install` at root resolves all workspaces; `pnpm turbo run build lint test typecheck` runs green across every app/package; a shared type exported from `packages/types` is consumed by both `hms_backend` and `hms_frontend`; a shared component from `packages/ui` renders in both `hms_frontend` and `marketing`.
+**Deliverable / acceptance:** `npm run install:all` at root resolves all workspaces; `npm run build|lint|test|typecheck` (turbo) runs green across every app/package; a shared type exported from `packages/types` is consumed by both `hms_backend` and `hms_frontend`; a shared component from `packages/ui` renders in both `hms_frontend` and `marketing`.
 
 ## 7. Environments & Infrastructure
 
@@ -190,7 +199,7 @@ Per Architecture → Infrastructure & Hosting and Phases → Deployment/Ops.
 
 | Environment | Purpose | Topology |
 |---|---|---|
-| **Local** | Dev | Dockerized Postgres + Redis; app processes via pnpm/turbo; seeded demo tenants |
+| **Local** | Dev | Dockerized Postgres + Redis; all app processes via `npm run dev` (turbo); seeded demo tenants |
 | **CI** | Verify every push | GitHub Actions (self-hosted runner, per StoreVeu pattern); ephemeral Postgres/Redis services |
 | **Staging** | Milestone demos + tenant-isolation tests | E2E VM, Nginx + PM2 (dedicated service user), auto-deploy on merge to `staging` |
 | **Production** | Paying customers | E2E VM, managed PostgreSQL (E2E DBaaS) as a **separate service from day one**, Redis on app VM (MVP), Cloudflare in front |
@@ -254,7 +263,7 @@ Per Rules → API Rules.
 - **Zod (or equivalent) validation** on every request before business logic.
 - **One consistent error-response shape** across every module (documented once, reused).
 - **Idempotency keys** on all duplication-sensitive operations (see §9).
-- **OpenAPI/Swagger generated from route definitions**, not hand-maintained; the doc renders in staging and reflects live endpoints.
+- **OpenAPI/Swagger generated from route definitions** (Zod + zod-to-openapi), never hand-maintained; served at `/api/v1/openapi.json` with Swagger UI at `/api/v1/docs`, and environment-aware servers from config (Local / Staging / Production). **Mandatory & enforced** — documentation ships in the same change as the endpoint, and `npm run openapi:validate` fails CI on any undocumented `/api/v1` route or invalid spec (see Rules → API Documentation Rules, and §17/§18).
 - **Pagination helper** shared across modules; server-side pagination/sorting/filtering is the default for large datasets and pairs with the shared DataTable's server-side mode.
 - **Concurrency:** optimistic-locking conflicts surface as a documented `409`-style conflict response.
 
@@ -346,12 +355,15 @@ Per Phases → Frontend (Portal) and Rules → Engineering Standards.
 - **Capabilities context + `Can` guard:** entitled modules + effective permissions are fetched once at login into a client-side capabilities context; a reusable `Can` guard/hook drives menus, tabs, buttons, and route access. A real **403/forbidden page** renders for manually entered unauthorized URLs — never a blank screen or silent redirect.
 - **Portal auth wiring:** token storage (httpOnly refresh cookie + in-memory access token), `401 → refresh → retry`, unauthenticated redirect to `/login`.
 - **Accessibility:** WCAG 2.1 AA where feasible; responsive tablet UI; latest Chrome/Edge/Firefox.
+- **API feedback (ADR-026, ADR-057):** one shared `@hms/ui` Toast — React Toastify behind a fixed adapter API — raised from the shared API client. Every mutating call gives feedback, the backend's own message is displayed when provided, and network/timeout/validation/401/403/409/5xx/unstructured responses are all normalized in that one layer. Toasts are top-right, theme- and tenant-branded from the design tokens, and never signal status by colour alone. No page writes its own toast logic and no module configures the library itself; no stack trace, backend internal, or PHI reaches the user.
+- **Optimization:** `next/image`, `next/font`, `next/script`, the Next Metadata API, and `next/dynamic` for heavy non-critical UI (charts, editors, complex dialogs, admin-only panels), against the Core Web Vitals budgets. The Portal is `noindex, nofollow` end to end and ships no third-party analytics by default (ADR-027).
 
 ## 15. Marketing Site Implementation
 
 - Minimal Next.js scaffold whose **single Login action** points to the Portal's `/login`. No auth logic on the marketing site.
-- The **`Default-DESIGN-intercom.md`** design reference is the visual system for the marketing surface (editorial cream-white canvas, charcoal primary, restrained accent, product-screenshot-led rhythm, modest radii). Treat it as a *marketing-site* design language — it is **not** the Portal's clinical UI system, which is governed by the `packages/ui` design tokens and must prioritize dense, legible, accessible clinical workflows in both themes. Substitute an open font (Inter/Geist) for the proprietary Saans per that document's own guidance.
-- Marketing content, landing pages, and SEO/documentation live here; it deploys independently on the root domain.
+- The visual system is **`resources/DESIGN.md` — the canonical Nirogix Design System** (deep-teal signature on cool-neutral surfaces, Lucide icons, Geist), expressed through the marketing token scope (`--mk-*`), independent from the Portal's `--hms-*`. It supersedes the earlier `Default-DESIGN-intercom.md` exploration; where they differ, `DESIGN.md` wins.
+- Marketing content, landing pages, and SEO live here; the site deploys independently on the root domain.
+- **SEO/AEO/GEO is this site's job (ADR-027, Rules → SEO / AEO / GEO Rules).** Unique per-page title/description, canonical from `NEXT_PUBLIC_SITE_URL`, one `<h1>` + semantic structure, OG/Twitter metadata, JSON-LD only for what the page shows (`Organization`, `SoftwareApplication`, `LocalBusiness`, `BreadcrumbList`, real `FAQPage`), sitemap/robots in sync with the route table, descriptive URLs, deliberate internal linking, alt text on every non-decorative image, mobile-first + Core Web Vitals. Keywords are mapped per page to matching intent (mapping recorded in `marketing/KNOWLEDGE.md`) — never stuffed, never hidden, never fabricated trust signals, and always inside the PRD content guardrails (no prices, no certification claims, no invented customers).
 
 ---
 
@@ -463,6 +475,96 @@ Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management  
 - A user-specific override (grant **and** deny) is provably enforced and itself audited.
 - Root `CLAUDE.md` and per-app/package `KNOWLEDGE.md`/`DONE.md` exist and cross-reference.
 - A sample shared component renders in both themes and under a second tenant's branding.
+
+**Live status (2026-08-14) — code-complete; exit criteria met except where infra-blocked:**
+
+| # | Exit criterion | Status |
+|---|---|---|
+| 1 | Log in as each seeded role → role-appropriate dashboard | ✅ verified (Portal, capability-driven shell) |
+| 2 | Unauth → 401; forbidden → 403 | ✅ verified (API + Portal 403 page) |
+| 3 | Automated test: Tenant A never returns Tenant B's data | ✅ RLS isolation test (runs in CI on real Postgres) + live disjoint-provider check |
+| 4 | A login writes an `audit_log` row | ✅ verified |
+| 5 | Test notification through the **real** provider in **staging** | ⏳ **infra-blocked** — skeleton + log provider done; real send needs staging VM + MSG91 DLT (24–48h external) |
+| 6 | CI runs lint+tests+build every push; auto-deploys staging on merge | 🟡 CI ✅ (every push); auto-deploy workflow authored, **needs the staging VM** to exercise |
+| 7 | Swagger/OpenAPI renders + reflects auth endpoints | ✅ verified (`/api/v1/docs`) |
+| 8 | Un-entitled module → 403/404 + UI entry hidden | ✅ verified (`requireModule` + `<Can>`/nav filtering) |
+| 9 | User override (grant **and** deny) enforced + audited | ✅ RBAC tests + audit |
+| 10 | Root `CLAUDE.md` + per-app/package `KNOWLEDGE`/`DONE` exist + cross-reference | ✅ all apps + packages |
+| 11 | Shared component in both themes + second tenant's branding | ✅ verified (Light/Dark + brand override) |
+
+Only #5 and the auto-deploy half of #6 remain, both **blocked on real infrastructure** (staging VM + managed DB + MSG91 DLT), not on code. They are validated at staging bring-up (the deploy/backup baseline is versioned under `deploy/`), with RPO/RTO formally validated in Stage 3.
+
+## 20A. Platform Administration Surface — operator onboarding, user/permission admin, branding
+
+*Bridges Stage 0 and Stage 1. Stage 0 built the tenancy/RBAC/entitlement/branding-token **mechanisms** as services; this milestone exposes them through **operator- and admin-facing APIs + Portal screens**, so a real operator can onboard the first pilot customer from the UI instead of editing `seed.ts`. Should land at the front of Stage 1 (a clinic can't run until its org exists and its staff have accounts). Decisions: **ADR-020** (onboarding model), **ADR-021** (branding persistence). Public self-serve signup + payment-integrated plans remain out of scope — Enterprise/Scale track (§25).*
+
+> **Frontend topology changed after this section was written (ADR-051, 16/08/2026).** The operator screens described below are no longer "Portal screens": they live in the **`admin` application on its own origin** (`:3003` locally, `admin.nirogix.com` in production), and the Portal serves hospital staff only. The APIs, permissions and audit behaviour are unchanged — what moved is which bundle renders them, so operator code no longer ships to every hospital. Read "Portal screens" below as "admin-console screens" wherever this milestone describes a platform-operator surface. The tenant-facing half (Org-Admin user, role, branch and branding management) stayed in the Portal and is now reached through the Hospital Configuration console (ADR-049).
+
+**Already built (reused, not rebuilt):** tenant + branches tables and RLS isolation; `provisionTenantRbac`, `grantModule` (hard-dep graph), `assignRoleByKey`, `setOverride`/`revokeOverride`, `resolvePermissions`; the `@hms/permissions` catalog; `NotificationService` (invites), `FileStorageService` (logos/favicons); the `--hms-*` branding token layer + the Portal's session-bootstrap seam; audit log; mandatory OpenAPI. This milestone is **wiring + screens**, not new core.
+
+### Milestone A — Platform Admin & Onboarding (operator / Super Admin + Org Admin)
+
+**Model (ADR-020):** operator-driven. A platform Super Admin creates the tenant; the tenant's Org Admin then self-manages inside it. The Super Admin is the **vendor** and lives in a dedicated **`PLATFORM` org** (Takoriya Technology LLP), *not* inside any customer hospital — Tier 0 (platform owner) vs Tier 1+ (hospitals, `org_admin`→…). See **ADR-022**.
+
+- **Backend — Super-Admin surface (cross-tenant, runs *outside* `runWithTenant`; new `platform.tenants.manage` permission, super_admin/wildcard):**
+  - `POST /api/v1/admin/tenants` — onboarding transaction: create tenant → `provisionTenantRbac` → grant initial module entitlements → create the first `org_admin` user (temporary password now; email invite via `NotificationService` later — ADR-020) → create initial branch(es). Audited; idempotent on tenant code.
+  - `GET /admin/tenants`, `GET /admin/tenants/:id`, `PATCH /admin/tenants/:id` (account status / plan state).
+  - `POST /admin/tenants/:id/modules` + `DELETE …/modules/:key` — entitlement grant/revoke (wraps `grantModule`/`setModuleStatus`; never physical-deletes — ADR/invariant #6).
+- **Backend — Org-Admin surface (tenant-scoped, existing permission keys):**
+  - Users: `GET/POST /users`, `PATCH /users/:id` (status/profile) — `platform.users.view|manage`.
+  - Roles/permissions: `GET /rbac/roles` (exists), role→permission read, and user override grant/deny endpoints exposing `setOverride`/`revokeOverride` — `platform.rbac.manage`.
+  - Branches: `GET/POST /branches`, `PATCH /branches/:id` — `platform.branches.view|manage`.
+  - All routes Zod-validated + **documented in OpenAPI** (mandatory gate).
+- **Frontend (Portal):**
+  - **Super-Admin area** (visible only with `platform.tenants.manage`): Tenants list (Standard DataTable); **Create-Tenant wizard** (org details → modules → first admin → branches); tenant detail (status, entitlements, branches).
+  - **Org-Admin area:** Users list + create/invite + role assignment; Roles & Permissions view (effective set, grant/deny overrides); Branches management. All gated by `<Can>` + the existing capabilities context.
+- **Invitation flow:** phased — temp-password on create first; email invite with a set-password token (via `NotificationService`) as a fast follow.
+- **Exit criteria:** an operator creates a brand-new tenant end-to-end **from the UI** (no seed edit); the new tenant is provably isolated (its data never overlaps another's); its `org_admin` logs in and creates a user, assigns a role, and adds a branch — all audited; every new route appears in Swagger.
+
+### Milestone B — Tenant Branding administration (Org Admin)
+
+**Model (ADR-021):** persist branding server-side; apply it through the existing token seam — additive, no component changes.
+
+- **Backend:** `tenant_branding` table (tenant-scoped + RLS; nullable `branch_id` = org default + optional branch override): `brand_color`, `secondary_color`, `logo_file_id`, `favicon_file_id`, `typography` (jsonb), `updated_at` + optimistic lock. `GET /branding/current` (any authenticated user — feeds session bootstrap) and `GET/PUT /branding` (`platform.branding.manage`). Logo/favicon upload via the existing `FileStorageService`. Documented in OpenAPI.
+- **Frontend:** Settings → **Branding**: colour picker (primary/secondary), logo upload + preview, favicon upload, reset-to-default, live preview. Replaces the current **localStorage** demo with server-persisted branding applied at bootstrap (set `--hms-*` from `GET /branding/current`).
+- **Exit criteria:** an Org Admin sets a custom brand colour + uploads a logo/favicon; it **persists across sessions and devices** and renders for **all** of that tenant's users in **Light + Dark**; a second tenant sees its own; reset restores the default token palette.
+
+**Scope guard:** this milestone deliberately excludes public self-registration, plan/subscription self-service, usage metering, and payment-integrated billing (Enterprise/Scale track, §25). It also excludes letterheads, numbering series, and the custom-field/form/workflow config engine (Configuration Engine, later) — only tenant/user/permission/branch admin + colour/logo branding are in scope here.
+
+> **Two items moved out of this guard on 16/08/2026 (ADR-056).** Both are now built, and the guard is updated rather than quietly contradicted:
+> - **Letterheads are in.** Scoped narrowly to what a hospital writes for itself — a header line, footer text and a default signatory — held on the same `organization_profile` record as the address they print above, and consumed by the existing `PrintDocument` kit (ADR-047). Numbering series and the wider Configuration Engine remain out.
+> - **"Public self-registration" here always meant *tenant* self-signup**, and still does: a hospital cannot create its own account, and plans/payments remain Enterprise/Scale track. **Patient** self-registration by QR is a different thing and is now built (ADR-056) — it creates a *registration request* the front desk converts, never an account and never portal access, so ADR-020's operator-driven onboarding and ADR-052's "the hospital decides who becomes a patient" both stand unchanged.
+
+## 20B. Platform & Organization Dashboards
+
+*Follows §20A. Gives each actor the "landing overview" their journey needs (`user-journeys.md` §1.3, §2.5). Decision: **ADR-023** (cross-tenant analytics are aggregate-only, super-admin-gated).*
+
+- **System Admin (platform) dashboard** — aggregated statistics **across every tenant**, super-admin only: total organizations/tenants (active vs inactive), hospitals + branches, doctors, patients, staff/users, appointments, per-module entitlement usage, recent onboarding + error/queue health. **Aggregate-only** — counts/metrics, never another tenant's row-level PHI (ADR-023). Read path starts as a per-tenant aggregation loop (`runWithTenant` COUNT) + the non-RLS platform tables; evolves to a materialized `platform_metrics` snapshot (BullMQ-refreshed) at scale.
+- **Org Admin dashboard** — the same shape **scoped to one hospital** (its patients, doctors, appointments, revenue, pending lab results, active branches/users), via the normal RLS-enforced path — never leaks another tenant.
+- **Frontend:** replace the current placeholder dashboard cards with real metric tiles (Standard components), role-aware — the System Admin sees the platform roll-up; an Org Admin sees their tenant roll-up.
+- **Depends on:** the counted entities exist — tenants/branches/users/providers today; patients/appointments/revenue arrive with the Stage 1 clinical modules, so those tiles light up as their modules land (build the dashboard to degrade gracefully for not-yet-present modules).
+- **Exit:** the System Admin lands on a platform roll-up across all tenants (aggregate-only, verified it never returns cross-tenant rows); an Org Admin lands on their own hospital's roll-up; both are permission-gated and audited.
+
+### 20B.1 — Built (ADR-043)
+
+The System Admin dashboard is live at `/platform`: KPI tiles, a 6/12/24-month growth chart, monthly onboarding, module adoption, security activity per day by severity, live API/database health, quick actions, and the recent warning-level audit table. Growth comes from `GET /admin/trends`, which derives monthly series from each record's own `created_at` — no estimation, no interpolation. Navigation is grouped (`PLATFORM_NAV_GROUPS`), so new platform capability joins a section instead of lengthening a flat list.
+
+### 20B.2 — Platform areas not yet built
+
+Each of these is a **future group member**, not a placeholder: nothing appears in the sidebar until the screen exists, and no dashboard tile is drawn until the metric has a data source. In rough order of when the platform will need them:
+
+| Area | Waiting on | Where it lands |
+|---|---|---|
+| **Plans & subscriptions**, **billing & payments (tenant-facing)**, revenue metrics (MRR/ARR, plan mix, churn) | A subscription/plan/tenant-invoice model — none exists; paid plans are Enterprise/Scale track (§25, ADR-020) | New "Revenue" group |
+| **Support tickets & inbox** | A ticketing model, or an integration with whatever support tool is chosen | "Customers" group, beside Hospitals |
+| **Platform reporting & analytics workspace** | Enough history for cohort/retention questions the dashboard cannot answer inline | "Platform" group |
+| **Integrations & API keys** (per-tenant credentials, webhooks, delivery logs) | The integration surface itself (ABDM, gateways, ERP export — all planned modules) | New "Developer" group |
+| **System configuration** (feature flags, module catalogue editing, default entitlements) | Configuration Engine (§20A scope guard) | "Platform" group |
+| **Usage metering & storage** | Metering the file/object store and per-tenant request volume | Dashboard tiles + "Platform" group |
+| **Uptime & incident history** | An external monitor (`status.nirogix.com`, `resources/domains.md`) | Dashboard tile, replacing the live-probe-only health card |
+| **Notifications console** (platform-wide announcements, delivery failures) | Notification history worth browsing — the send abstraction exists, the console does not | "Platform" group |
+
+**Deliberately never a platform screen:** per-hospital clinical work. An operator reaches a hospital's data only through an audited support session (ADR-037), which switches them to that tenant's own navigation.
 
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
@@ -581,7 +683,7 @@ Each milestone runs the six-step loop and must satisfy the Global Definition of 
 | Biomedical Waste Management §31 | — | Demand-driven; BMW Rules 2016 (Pending Verification). |
 | Housekeeping & Laundry §28 | IPD (ward context) | Demand-driven. |
 | Dietary & Kitchen §27 | IPD | Demand-driven. |
-| HR, Payroll & Doctor Scheduling §32 | — | Significant statutory lift (PF/ESIC/PT/TDS); confirm hospitals want this from HMS rather than existing HR software before committing. |
+| HR, Payroll & Doctor Scheduling §32 | — | Significant statutory lift (PF/ESIC/PT/TDS); confirm hospitals want this from Nirogix rather than existing HR software before committing. |
 
 ## 27. Enterprise-Hardening Track
 
@@ -641,7 +743,7 @@ Each item is an explicit, documented decision (ADR) — none is a day-one assump
 
 | # | Item | Type | Status / Action |
 |---|---|---|---|
-| R1 | **Monorepo structure** | Resolved (scaffolded) | Root pnpm+Turborepo tooling + `packages/*` added, keeping folder names (ADR-013). Remaining: `pnpm install` lockfile consolidation, still the first Stage 0 step (§6.2). |
+| R1 | **Monorepo structure** | Resolved & verified | npm workspaces + Turborepo (ADR-013 names, ADR-014 npm). `npm run install:all` + `npm run dev` verified — backend/portal/marketing start together (200/200/200). |
 | R2 | **ORM choice (Prisma vs Drizzle)** | Open decision | ADR-012 required before the first migration; matters for RLS authoring (§8). |
 | R3 | **No compliance owner; entire Source Register Pending Verification** | Open (from memory.md) | Assign owner as the Stage 3 entry gate; verify high-impact rows vs. primary sources (§16, §23). |
 | R4 | **MSG91 DLT + AWS SES production access lead times (24–48h / sandbox exit)** | External dependency | Request in Stage 0 entry gate, not near launch; gates SMS/OTP/email features in staging. |
@@ -675,4 +777,4 @@ A consolidated gate — the platform is enterprise-ready for a given customer se
 - [ ] Staging demo of the full journey by a non-developer.
 
 ---
-*Development Plan — v1.0 — Takoriya Technology LLP — August 2026. Execution layer over the Enterprise HMS documentation set (PRD, Architecture, Phases, Rules, Memory). Subordinate to those documents on any conflict.*
+*Development Plan — v1.0 — Takoriya Technology LLP — August 2026. Execution layer over the Nirogix documentation set (PRD, Architecture, Phases, Rules, Memory). Subordinate to those documents on any conflict.*

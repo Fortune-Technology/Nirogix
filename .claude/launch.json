@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=hms_frontend"],
+      "port": 3001
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=marketing"],
+      "port": 3000
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=admin"],
+      "port": 3003
+    },
+    {
+      "name": "patient",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=patient"],
+      "port": 3002
+    },
+    {
+      "name": "aiportal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=aiportal"],
+      "port": 3004
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=hms_backend"],
+      "port": 4000
+    }
+  ]
+}

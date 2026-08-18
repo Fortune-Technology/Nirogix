@@ -1,26 +1,306 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Compile the Tailwind classes inside @hms/ui too — the shared components
+ * (shadcn Toast) live there, and node_modules is not scanned by default. */
+@source "../../packages/ui/src/**/*.{ts,tsx}";
+
+/*
+ * shadcn/ui is installed as a CLI + reference layer only (ADR-028) — the marketing
+ * kit (`components/ui/*`) and `@hms/ui` stay canonical, and anything pulled in with
+ * `shadcn add` lands in `components/shadcn/` and must render on OUR tokens. So
+ * shadcn's semantic variables are re-pointed at `--mk-*` further down instead of
+ * the neutral OKLCH palette its init writes.
+ *
+ * Dark mode: this site switches on `data-theme="dark"`, not a `.dark` class — the
+ * variant is redefined to match, and no `.dark` block is needed because the
+ * `--mk-*` values these map to already flip under the attribute.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Marketing design system — implements the canonical Nirogix Design System
+ * (resources/DESIGN.md) for the public marketing surface: deep-teal signature on
+ * cool-neutral surfaces, clinical precision, minimal ornament. Tokens are
+ * namespaced --mk-* so they never collide with the --hms-* tokens that real
+ * product-UI previews (framed @hms/ui components) rely on. Marketing is Light-only;
+ * the Portal (packages/ui) carries the Dark counterpart of these tokens.
+ * Geist is bound to --font-geist-sans on <html> in layout.tsx.
+ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — cool-neutral, never warm cream */
+  --mk-canvas: #f4f7f7;        /* page ground */
+  --mk-surface: #ffffff;       /* cards / panels lift off the canvas */
+  --mk-surface-2: #eaf1f1;     /* alt rows, tints, hovers */
+  --mk-surface-ink: #0e1f26;   /* inverted panels (deep CTA) — cool teal-black */
+
+  /* Hairlines */
+  --mk-hairline: #dbe6e7;
+  --mk-hairline-soft: #e8eeee;
+
+  /* Ink (text) — cool near-black scale */
+  --mk-ink: #0f1e24;
+  --mk-ink-muted: #52646a;
+  --mk-ink-subtle: #7a888d;
+  --mk-ink-faint: #9aa8ac;
+  --mk-ink-inverse: #ffffff;
+
+  /* Accent — the deep-teal Nirogix signature (single confident colour). The tints derive
+   * from --mk-accent via color-mix, so a platform-branding override of --mk-accent
+   * (ADR-024) cascades to hover / subtle / border with one value. */
+  --mk-accent: #0e7490;
+  --mk-accent-ink: #ffffff;
+  --mk-accent-hover: color-mix(in srgb, var(--mk-accent) 84%, #000);
+  --mk-accent-subtle: color-mix(in srgb, var(--mk-accent) 12%, var(--mk-surface));
+  --mk-accent-border: color-mix(in srgb, var(--mk-accent) 32%, var(--mk-surface));
+
+  /* Secondary (branding-controllable; used for secondary emphasis) */
+  --mk-secondary: #334155;
+
+  /* Semantic (used sparingly) */
+  --mk-success: #15803d;
+  --mk-danger: #c0392b;
+
+  /* Stage behind the hero doctor illustration. Transparent in light (the cream canvas
+   * already reads); a soft light panel in dark so the illustration's dark line-art stays
+   * legible on the dark ground. */
+  --mk-illustration-stage: transparent;
+
+  /* Radii */
+  --mk-radius-xs: 4px;
+  --mk-radius-sm: 6px;
+  --mk-radius-md: 8px;   /* buttons, inputs */
+  --mk-radius-lg: 12px;  /* cards */
+  --mk-radius-xl: 16px;  /* product-mockup tiles */
+  --mk-radius-2xl: 24px; /* oversized CTA banners */
 }
 
+/* Dark theme — the cool-neutral palette's dark counterpart (resources/DESIGN.md §2).
+ * Applied by `data-theme="dark"` on <html>; framed @hms/ui product previews follow
+ * suit because their --hms-* dark tokens key off the same attribute. */
+:root[data-theme="dark"] {
+  --mk-canvas: #0b1418;
+  --mk-surface: #112128;
+  --mk-surface-2: #16272e;
+  --mk-surface-ink: #17303a; /* elevated dark panel for the inverted CTA */
+
+  --mk-hairline: #22353c;
+  --mk-hairline-soft: #1a2a30;
+
+  --mk-ink: #e7eff0;
+  --mk-ink-muted: #9db0b4;
+  --mk-ink-subtle: #6f8288;
+  --mk-ink-faint: #566a70;
+  --mk-ink-inverse: #ffffff;
+
+  --mk-accent: #22b8cf;         /* brightened teal for contrast on dark */
+  --mk-accent-ink: #052027;     /* dark text on bright teal */
+  --mk-accent-hover: color-mix(in srgb, var(--mk-accent) 82%, #fff);
+  --mk-accent-subtle: color-mix(in srgb, var(--mk-accent) 18%, var(--mk-surface));
+  --mk-accent-border: color-mix(in srgb, var(--mk-accent) 40%, var(--mk-surface));
+
+  --mk-secondary: #94a3b8;
+
+  --mk-success: #3fb27f;
+  --mk-danger: #f0776a;
+
+  --mk-illustration-stage: #e9eff1; /* soft light medallion for the doctor on dark */
+}
+
+/*
+ * @hms/ui bridge — the shared components this site uses (BackToTop, BottomNav,
+ * NavDrawer, Toast) are styled on `--hms-*`, which default to the Portal's palette.
+ * Marketing branding lives in `--mk-*`, so the slots those components consume are
+ * pointed at this scope once, here, rather than each component learning about two
+ * token sets (rules.md → Branding & Multi-Tenant Customization).
+ *
+ * Both selectors are listed so this wins over @hms/ui's own `:root` *and* its
+ * `[data-theme='dark']` block regardless of theme; every value is a reference, so a
+ * platform-branding override of `--mk-accent` (ADR-024) re-skins them for free.
+ * Product-UI previews that deliberately show the Portal's own palette scope their
+ * `--hms-*` locally and are unaffected.
+ */
+:root,
+:root[data-theme="dark"] {
+  --hms-brand: var(--mk-accent);
+  --hms-brand-hover: var(--mk-accent-hover);
+  --hms-brand-fg: var(--mk-accent-ink);
+  --hms-brand-subtle: var(--mk-accent-subtle);
+  --hms-ring: var(--mk-accent);
+
+  --hms-bg: var(--mk-canvas);
+  --hms-surface: var(--mk-surface);
+  --hms-surface-2: var(--mk-surface-2);
+  --hms-border: var(--mk-hairline);
+  --hms-fg: var(--mk-ink);
+  --hms-fg-muted: var(--mk-ink-muted);
+  --hms-fg-subtle: var(--mk-ink-subtle);
+
+  --hms-success: var(--mk-success);
+  --hms-danger: var(--mk-danger);
+
+  --hms-radius-sm: var(--mk-radius-sm);
+  --hms-radius-md: var(--mk-radius-md);
+  --hms-radius-lg: var(--mk-radius-lg);
+}
+
+/* Map the marketing tokens into Tailwind's theme so utilities (bg-canvas, text-ink,
+ * text-accent, rounded-lg, font-sans …) resolve to the design system. */
 @theme inline {
+  --color-canvas: var(--mk-canvas);
+  --color-surface: var(--mk-surface);
+  --color-surface-2: var(--mk-surface-2);
+  --color-surface-ink: var(--mk-surface-ink);
+
+  --color-hairline: var(--mk-hairline);
+  --color-hairline-soft: var(--mk-hairline-soft);
+
+  --color-ink: var(--mk-ink);
+  --color-ink-muted: var(--mk-ink-muted);
+  --color-ink-subtle: var(--mk-ink-subtle);
+  --color-ink-faint: var(--mk-ink-faint);
+  --color-ink-inverse: var(--mk-ink-inverse);
+
+  --color-accent: var(--mk-accent);
+  --color-accent-hover: var(--mk-accent-hover);
+  --color-accent-ink: var(--mk-accent-ink);
+  --color-accent-subtle: var(--mk-accent-subtle);
+  --color-accent-border: var(--mk-accent-border);
+  --color-secondary: var(--mk-secondary);
+
+  --radius-xs: var(--mk-radius-xs);
+  --radius-sm: var(--mk-radius-sm);
+  --radius-md: var(--mk-radius-md);
+  --radius-lg: var(--mk-radius-lg);
+  --radius-xl: var(--mk-radius-xl);
+  --radius-2xl: var(--mk-radius-2xl);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-sans);
+
+  /* shadcn's scale, resolved from the marketing tokens (see :root below). */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-3xl: calc(var(--mk-radius-2xl) * 1.5);
+  --radius-4xl: calc(var(--mk-radius-2xl) * 2);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * shadcn's semantic contract, expressed entirely in `--mk-*`. Every value is a
+ * reference, so Light/Dark and a platform-branding override (ADR-024) cascade into
+ * shadcn components for free — no second palette to keep in sync. `--color-accent`
+ * and `--color-secondary` are intentionally NOT remapped: they already belong to
+ * the marketing scale above (`bg-accent` is the teal CTA), and shadcn components
+ * read `--accent` / `--secondary` directly.
+ */
+:root {
+  --background: var(--mk-canvas);
+  --foreground: var(--mk-ink);
+  --card: var(--mk-surface);
+  --card-foreground: var(--mk-ink);
+  --popover: var(--mk-surface);
+  --popover-foreground: var(--mk-ink);
+  --primary: var(--mk-accent);
+  --primary-foreground: var(--mk-accent-ink);
+  --secondary: var(--mk-surface-2);
+  --secondary-foreground: var(--mk-ink);
+  --muted: var(--mk-surface-2);
+  --muted-foreground: var(--mk-ink-muted);
+  --accent: var(--mk-accent-subtle);
+  --accent-foreground: var(--mk-accent);
+  --destructive: var(--mk-danger);
+  --destructive-foreground: var(--mk-ink-inverse);
+  --border: var(--mk-hairline);
+  --input: var(--mk-hairline);
+  --ring: var(--mk-accent);
+  --radius: var(--mk-radius-lg);
+}
+
+html {
+  /* No CSS `scroll-behavior: smooth` here — Lenis (the shared SmoothScroll) drives smooth
+     scrolling in JS, and a CSS smooth-scroll fights it: programmatic jumps (the route-change
+     reset, anchor scrolling) get animated by the browser and interrupted midway, which parks a
+     freshly-navigated page slightly below the top. Smoothness comes from Lenis; this element
+     only carries the sticky-nav offset that anchor scrolling reads. */
+  scroll-padding-top: 5rem; /* sticky-nav offset for #anchors (read by Lenis + native fallback) */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--mk-canvas);
+  color: var(--mk-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Editorial display type: negative tracking scales with size (Geist at 600). */
+.mk-display {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.mk-heading {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.mk-lede {
+  color: var(--mk-ink-muted);
+  text-wrap: pretty;
+}
+
+/* Consistent, accessible focus ring across the marketing surface. */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--mk-accent);
+  outline-offset: 2px;
+  border-radius: var(--mk-radius-xs);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mk-accent) 22%, transparent);
+  color: var(--mk-ink);
+}
+
+/* Scroll-reveal: opt-in via [data-reveal]; JS adds .is-in when in view.
+ * Fully collapses to visible/static under reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal].is-in {
+    opacity: 1;
+    transform: none;
+  }
 }

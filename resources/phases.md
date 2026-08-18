@@ -68,6 +68,8 @@ Not a customer-facing module — the one-time investment every later milestone d
 - FileStorageService abstraction — E2E Object Storage (EOS, India-resident) as the primary store for PHI-bearing files; default-private buckets with short-lived signed URLs, server-side file-type/size validation, database stores metadata and references only, never file content
 - API conventions — Express scaffold, consistent error-response shape, Zod request validation, pagination helper, /api/v1 versioning, OpenAPI/Swagger auto-doc
 - Minimal hospital/clinic + branch setup tables, used by every module downstream
+- Patient self-registration by QR (added 2026-08-16, ADR-056) — an opt-in, per-tenant opaque token behind a public form that creates a **registration request**, reviewed and converted by the front desk. Platform Core, not a purchasable module, and not a public signup: nothing on the public path writes to `patients`, so ADR-052 stands. Letterhead (header line, footer, default signatory) is part of the same `organization_profile` record.
+- Departments (added 2026-08-16, ADR-050) — a real tenant-scoped entity with branch scoping, head of department and a specialty link, replacing the free-text department on a visit. Platform Core, not a purchasable module. Sub-departments, services, packages and treatment plans are **not** part of this and are tracked in `BACKLOG.md`; ward/room/bed setup stays in Phase 2 with IPD.
 - Module entitlement system — module catalog with dependency graph, tenant_entitlements table (tenant, module, optional branch), requireModule() middleware checked before permission checks
 - RBAC engine extended with user_permission_overrides (grant/deny) on top of role defaults; dot-hierarchy permission keys shared with the frontend via a packages/permissions package
 - Provider/specialty core tables aligned to FHIR Practitioner/PractitionerRole, plus a specialty_form_templates table for specialty-varying structured data
@@ -86,6 +88,13 @@ Not a customer-facing module — the one-time investment every later milestone d
 **Marketing Site**
 
 - Minimal scaffold with the single Login action wired to the Portal's /login route, as decided in the architecture section
+
+**Frontend topology (added 2026-08-16, ADR-051)**
+
+- Five frontends, one backend, one origin per audience: `marketing`, `hms_frontend` (hospital staff), `admin` (vendor operators), `patient` (verified patients), `aiportal` (authorised staff + operators). The platform-operator surface moved out of the Portal, so operator code no longer ships in a hospital's bundle.
+- **`admin` is built.** Platform dashboard, tenant management, module provisioning, support sessions, platform branding and the audit viewer run on `:3003` against the same backend.
+- **`patient` is built.** Identity model and read API (ADR-052) plus the portal itself, shipped 16/08/2026: two-step sign-in with a one-time code, a hospital picker, and read-only profile, appointments, bills and resulted lab reports. Access is granted by the hospital — there is no signup. Sessions survive a reload, rotate on every refresh, and are revoked server-side on sign-out (F-8). Portals & Mobile Apps remain Phase 3 scope for anything beyond this read-only portal.
+- **`aiportal` is built as a boundary only.** Staff sign-in, an `ai.portal.access` gate held by **every staff role** (ADR-055), a patient principal refused by type, entry audited, and a landing screen that states no capability is enabled — shipped 16/08/2026 (ADR-053). **AI is approved scope but postponed** — the PRD lists AI-assisted EMR aids and an Advanced BI & AI add-on, and this document's own Postponed / Build-as-Sold section is where they sit. Nothing is built or under way: `capabilities` is an empty list with a test asserting it stays empty, and the CDSCO condition stands: any diagnostic-support feature needs a CDSCO classification check before a line is written. `nirogix.ai` is not registered, so this is development-only.
 
 **Integration**
 
@@ -344,6 +353,7 @@ A milestone's **Definition of Done** also always includes, on top of its own tes
 - Mutating actions, permission grants/denies, and entitlement changes all produce an audit-log entry
 - Verified in both Light and Dark themes, and under a non-default tenant’s branding
 - KNOWLEDGE.md updated and DONE.md appended for every app/package touched
+- Every new or modified backend endpoint has synchronized OpenAPI/Swagger documentation, and `npm run openapi:validate` passes (no undocumented `/api/v1` routes; valid spec)
 - No open P0/P1 defects
 
 ---
