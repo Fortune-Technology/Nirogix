@@ -175,7 +175,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
                 <p className="mt-3 text-lg leading-relaxed text-ink">
                   {mod.name} runs on the shared platform: tenant isolation, role-based access, audit
                   logging, and notifications are already there. You enable the module and it works
-                  with the rest of the hospital's data.
+                  with the rest of the hospital’s data.
                 </p>
                 <Button href="/platform" variant="secondary" className="mt-6">
                   See the platform core

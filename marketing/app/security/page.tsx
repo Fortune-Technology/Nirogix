@@ -98,10 +98,10 @@ export default function SecurityPage() {
             </div>
             <div className="lg:col-span-2">
               <p className="text-lg leading-relaxed text-ink-muted">
-                Tenant isolation is enforced with PostgreSQL row-level security. A hospital's data is
+                Tenant isolation is enforced with PostgreSQL row-level security. A hospital’s data is
                 unreachable from any other tenant, and that isolation is tested on every module, not
                 assumed. Tenant context comes only from the authenticated session, never from client
-                input, so a request cannot ask for another hospital's data.
+                input, so a request cannot ask for another hospital’s data.
               </p>
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function SecurityPage() {
           <div className="grid gap-x-16 gap-y-8 lg:grid-cols-3">
             <div className="lg:col-span-1">
               <h2 className="mk-heading text-2xl text-ink sm:text-3xl">
-                Designed for India's regulatory landscape.
+                Designed for India’s regulatory landscape.
               </h2>
             </div>
             <div className="lg:col-span-2">

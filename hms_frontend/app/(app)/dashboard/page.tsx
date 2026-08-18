@@ -23,8 +23,12 @@ import { StaffDashboard } from "../../../components/dashboard/StaffDashboard";
 export default function DashboardPage() {
   const { user, can } = useAuth();
   const router = useRouter();
-  // Administering the hospital (users, branches, roles) rather than working in it.
-  const isHospitalAdmin = useCan(PERMISSIONS.USERS_MANAGE) || useCan(PERMISSIONS.BRANCHES_MANAGE);
+  // Administering the hospital (users, branches, roles) rather than working in it. Both hooks are
+  // called unconditionally (a `||` between two useCan() calls would short-circuit the second — a
+  // rules-of-hooks violation), then combined.
+  const canManageUsers = useCan(PERMISSIONS.USERS_MANAGE);
+  const canManageBranches = useCan(PERMISSIONS.BRANCHES_MANAGE);
+  const isHospitalAdmin = canManageUsers || canManageBranches;
 
   if (isHospitalAdmin) return <HospitalAdminDashboard fullName={user?.fullName} />;
 
