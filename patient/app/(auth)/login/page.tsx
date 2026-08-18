@@ -157,7 +157,7 @@ export default function PatientLoginPage() {
       )}
 
       <p className="mt-5 border-t border-border pt-4 text-center text-xs text-fg-subtle">
-        There is no sign-up here. Your hospital gives you access when it registers you — if you cannot sign in, ask
+        There is no sign-up here. Your hospital gives you access when it registers you. If you cannot sign in, ask
         the hospital to check the mobile number or email on your file.
       </p>
     </Card>

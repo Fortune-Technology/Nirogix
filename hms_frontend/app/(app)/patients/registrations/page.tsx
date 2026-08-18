@@ -84,7 +84,7 @@ function columns(
           confirm={{
             title: `Register ${name(r)}?`,
             description:
-              "This creates a patient record with the details they submitted, and issues a UHID. Check for an existing record for this person first — you can edit anything they got wrong afterwards.",
+              "This creates a patient record with the details they submitted, and issues a UHID. Check for an existing record for this person first. You can edit anything they got wrong afterwards.",
             confirmLabel: "Register patient",
           }}
           onSelect={() => onApprove(r)}
@@ -172,7 +172,7 @@ function ReviewQueue() {
       />
 
       <Alert>
-        These people filled in your hospital&apos;s registration form — from the QR code or link. They are{" "}
+        These people filled in your hospital&apos;s registration form, from the QR code or link. They are{" "}
         <strong className="font-medium">not patients yet</strong>.{" "}
         {canReview
           ? "Check the details, look for an existing record, then register them."
@@ -198,7 +198,7 @@ function ReviewQueue() {
         open={dupFor !== null}
         onClose={() => setDupFor(null)}
         title="Probably already registered"
-        description="A chart matching this request's phone and name (or date of birth) exists. Linking keeps one chart per person — the request is marked approved either way."
+        description="A chart matching this request's phone and name (or date of birth) exists. Linking keeps one chart per person. The request is marked approved either way."
         size="md"
         footer={
           <div className="flex flex-wrap justify-end gap-3">

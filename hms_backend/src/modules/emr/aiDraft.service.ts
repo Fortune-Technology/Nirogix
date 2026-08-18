@@ -49,7 +49,7 @@ export async function draftPrescription(
 ): Promise<{ prescriptions: DraftedPrescription[]; note: string | null }> {
   if (!aiDraftEnabled()) throw Errors.notFound('AI drafting is not enabled on this deployment');
   if (!input.chiefComplaint?.trim() && input.diagnoses.length === 0) {
-    throw Errors.validation(undefined, 'Enter a chief complaint or a diagnosis first — the draft needs clinical context');
+    throw Errors.validation(undefined, 'Enter a chief complaint or a diagnosis first. The draft needs clinical context');
   }
 
   const formulary = await listDrugs(tenantId);
@@ -96,7 +96,7 @@ export async function draftPrescription(
     const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
     raw = data.content?.find((c) => c.type === 'text')?.text ?? '';
   } catch {
-    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft service is unavailable — write the prescription by hand');
+    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft service is unavailable. Write the prescription by hand');
   } finally {
     clearTimeout(timer);
   }
@@ -105,7 +105,7 @@ export async function draftPrescription(
   try {
     parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
   } catch {
-    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft could not be read — write the prescription by hand');
+    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft could not be read. Write the prescription by hand');
   }
 
   const byName = new Map(formulary.map((d) => [d.name.toLowerCase(), d.id]));

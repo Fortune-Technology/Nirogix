@@ -76,7 +76,7 @@ function LabReportDocument({ id }: { id: string }) {
             ]}
           />
         }
-        footerNote="Confidential — this report contains patient health information and is intended only for the named patient and their treating clinician."
+        footerNote="Confidential. This report contains patient health information and is intended only for the named patient and their treating clinician."
       >
         <PrintSection title="Result">
           {result ? (
@@ -101,7 +101,7 @@ function LabReportDocument({ id }: { id: string }) {
             />
           ) : (
             <p className="hms-doc__empty">
-              No result has been entered yet — this order is {order.status}. A report is issued once the
+              No result has been entered yet. This order is {order.status}. A report is issued once the
               result is recorded.
             </p>
           )}

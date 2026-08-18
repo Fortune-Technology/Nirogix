@@ -15,7 +15,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
     <>
       <PageHeader
         title="Hospital configuration"
-        description="Set up and maintain your hospital — information, branding, structure, people and access."
+        description="Set up and maintain your hospital: information, branding, structure, people and access."
       />
       <SettingsTabs />
       {children}

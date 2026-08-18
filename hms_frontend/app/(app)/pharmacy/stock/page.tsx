@@ -186,7 +186,7 @@ function AdjustStockDialog({ drug, onClose, onDone }: { drug: Drug | null; onClo
     <Dialog
       open={drug !== null}
       onClose={onClose}
-      title={drug ? `Adjust stock — ${drug.name}` : "Adjust stock"}
+      title={drug ? `Adjust stock: ${drug.name}` : "Adjust stock"}
       description={drug ? `${drug.onHand} on hand. Corrections are recorded with your reason in the audit trail.` : undefined}
       size="md"
       busy={busy}
@@ -218,7 +218,7 @@ function AdjustStockDialog({ drug, onClose, onDone }: { drug: Drug | null; onClo
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           error={errors.reason}
-          hint="Required — at least 3 characters. Say what happened, e.g. “2 strips damaged in transit”."
+          hint="Required. At least 3 characters. Say what happened, e.g. “2 strips damaged in transit”."
         />
       </form>
     </Dialog>
@@ -260,7 +260,7 @@ function AddSupplierDialog({ open, onClose, onAdded }: { open: boolean; onClose:
       open={open}
       onClose={onClose}
       title="Add supplier"
-      description="The distributor stock is purchased from — selectable when receiving stock."
+      description="The distributor stock is purchased from, selectable when receiving stock."
       size="md"
       busy={busy}
       footer={

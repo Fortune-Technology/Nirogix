@@ -20,7 +20,7 @@ export default function RegistrationSettingsPage() {
         explainer={
           <>
             Patients scan your QR code and send their details before they reach the desk.{" "}
-            <strong className="font-medium text-fg">Nothing is added to your patient list automatically</strong> — each
+            <strong className="font-medium text-fg">Nothing is added to your patient list automatically</strong>. Each
             submission arrives as a request your front desk reviews, checks against existing records, and converts into
             a patient. You stay in control of who is in your records.
           </>

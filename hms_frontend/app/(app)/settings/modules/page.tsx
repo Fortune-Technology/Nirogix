@@ -49,7 +49,7 @@ export default function ModulesSettingsPage() {
     <Card header="Enabled modules">
       <p className="mb-4 text-sm text-fg-muted">
         These are the modules your hospital is licensed for. They decide what appears in your menu and what the API
-        will answer. To enable another one, talk to us — entitlements are granted by Nirogix, not switched on here.
+        will answer. To enable another one, talk to us. Entitlements are granted by Nirogix, not switched on here.
       </p>
 
       {modules.length === 0 ? (

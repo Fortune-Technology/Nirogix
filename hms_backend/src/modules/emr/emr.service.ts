@@ -185,7 +185,7 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
           .limit(1)
       )[0];
       if (inv && inv.totalPaise > inv.amountPaidPaise) {
-        throw Errors.conflict('Consultation fee is unpaid — collect the payment before the consultation starts');
+        throw Errors.conflict('Consultation fee is unpaid. Collect the payment before the consultation starts');
       }
     }
 
@@ -207,7 +207,7 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
     const row = (
       await tx.select({ id: encounters.id }).from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId))).limit(1)
     )[0];
-    if (!row) throw Errors.conflict('Could not open the encounter — please retry');
+    if (!row) throw Errors.conflict('Could not open the encounter. Please retry');
     return row.id;
   });
   return buildDto(tenantId, encounterId);
@@ -240,7 +240,7 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
       })
       .where(and(eq(encounters.id, encounterId), eq(encounters.version, input.version)))
       .returning({ id: encounters.id });
-    if (!bumped[0]) throw Errors.conflict('This encounter was updated elsewhere — please refresh');
+    if (!bumped[0]) throw Errors.conflict('This encounter was updated elsewhere. Please refresh');
 
     // Validate master-data links before writing anything that carries them.
     const rxDrugIds = [...new Set(input.prescriptions.map((p) => p.drugId).filter((x): x is string => Boolean(x)))];
@@ -393,7 +393,7 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
       .set({ status: 'completed', completedAt: new Date(), version: visit.version + 1, updatedAt: new Date() })
       .where(and(eq(visits.id, e.visitId), eq(visits.version, visit.version)))
       .returning({ id: visits.id });
-    if (!moved[0]) throw Errors.conflict('This visit was updated by someone else — please refresh');
+    if (!moved[0]) throw Errors.conflict('This visit was updated by someone else. Please refresh');
 
     // The originating appointment (if any) is fulfilled once the consultation is signed.
     if (visit.appointmentId) {

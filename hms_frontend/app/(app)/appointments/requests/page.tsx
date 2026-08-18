@@ -355,7 +355,7 @@ function RequestsQueue() {
         These people scanned your hospital&apos;s booking QR code or link and asked for an appointment. They are{" "}
         <strong className="font-medium">not booked yet</strong>.{" "}
         {canReview
-          ? "Check the details, then approve with the real doctor and slot — or reject with a reason."
+          ? "Check the details, then approve with the real doctor and slot, or reject with a reason."
           : "Your front desk reviews each one and books the actual appointment."}
       </Alert>
 
@@ -378,7 +378,7 @@ function RequestsQueue() {
         open={approveFor !== null}
         onClose={closeApprove}
         title={approveFor ? `Book ${name(approveFor)}'s appointment` : "Book appointment"}
-        description="Approving registers or links the patient and books a real appointment — the same roster and double-booking rules as booking by hand."
+        description="Approving registers or links the patient and books a real appointment. The same roster and double-booking rules as booking by hand."
         size="md"
         busy={busy}
         footer={
@@ -450,7 +450,7 @@ function RequestsQueue() {
                   </div>
                 </div>
               ) : (
-                <Alert>No free slots for this doctor on that day — pick another date.</Alert>
+                <Alert>No free slots for this doctor on that day. Pick another date.</Alert>
               )
             ) : (
               <TimeField
@@ -471,7 +471,7 @@ function RequestsQueue() {
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="Doctor's default"
-            hint="Optional — leave empty to use the standard duration."
+            hint="Optional. Leave empty to use the standard duration."
           />
         </div>
       </Dialog>
@@ -482,7 +482,7 @@ function RequestsQueue() {
         open={dup !== null}
         onClose={() => setDup(null)}
         title="Probably already registered"
-        description="A chart matching this request's phone and name exists. Linking keeps one chart per person — the appointment is booked either way."
+        description="A chart matching this request's phone and name exists. Linking keeps one chart per person. The appointment is booked either way."
         size="md"
         busy={busy}
         footer={
@@ -564,7 +564,7 @@ function RequestsQueue() {
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           maxLength={300}
-          hint="Kept with the request for the record — nothing is sent to the visitor automatically."
+          hint="Kept with the request for the record. Nothing is sent to the visitor automatically."
         />
       </Dialog>
     </>

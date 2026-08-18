@@ -46,7 +46,7 @@ export function Forbidden() {
           <h1 className="text-lg font-semibold text-fg">You don&apos;t have access to this</h1>
           <p className="text-sm text-fg-muted">
             This console is for Nirogix platform operators. Your role doesn&apos;t include the permission it
-            requires — if you believe that is a mistake, contact the platform owner.
+            requires. If you believe that is a mistake, contact the platform owner.
           </p>
 
           {user ? (

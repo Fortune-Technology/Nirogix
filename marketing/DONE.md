@@ -224,3 +224,17 @@ Navigating between routes (e.g. `/solutions` → `/`) landed the new page a litt
 Removed `scroll-behavior: smooth` (and the now-inert `prefers-reduced-motion` override that only reset it to `auto`); smoothness still comes from Lenis. Kept `scroll-padding-top: 5rem` — it's the sticky-nav offset that anchor scrolling reads. Paired with the shared `SmoothScroll` hardening (see `packages/ui/DONE.md`), route changes now snap to the top pre-paint, and the two cross-page footer anchors (`/security#residency`, `/security#audit`) — previously yanked to the top by the old reset — now land on their section, clear of the header.
 
 **Testing status:** verified live that computed `html` `scroll-behavior` is now `auto` (was `smooth`) with `scroll-padding-top: 80px` preserved and Lenis still active; production build + typecheck clean; no console errors. Interactive scroll behaviour to be eyeballed in a displayed browser (this session's preview pane can't composite frames).
+
+## 2026-08-18 — Marketing brought up to date with the shipped product (issue #12)
+
+Audited the site against the current codebase (ADR-066…071, DONE logs, permissions, capability reference). The structure was sound, so this is a content-data update, not a rewrite. Changes are almost entirely in `lib/site.ts` and `lib/catalogue.ts`; rendering components are unchanged.
+
+- **SMS overclaim fixed (the one true overclaim).** The integrations catalogue entry "SMS & email — Built (DLT-registered templates)" is split into **Email (built)** and **SMS (planned, pending DLT template registration)**; `integrations/page.tsx` metadata + lede no longer say SMS "works today"; the platform-core Notifications blurb now says email is live and SMS is pending DLT. Traceable to `BACKLOG.md` I-1.
+- **The shipped clinical journey now shows on the module pages** (was absent). Added to `live`: duplicate detection at registration (Patients); weekly rosters + online QR self-booking into an approval queue (Appointments); server-enforced payment-before-consultation (OPD); department referrals from the consultation (EMR); supplier directory + stock-correction ledger (Pharmacy); result verification + downloadable report file (Laboratory); services/procedures catalogue + manual invoices (Billing). Built features moved out of `planned` accordingly.
+- **Terminology aligned to the app**: role "Hospital admin" → **"Organization Admin"**, and the missing **"Branch Admin"** role added; "Lab technician" → "Lab Technician".
+- **Capability reference** (`resources/marketing-product-capability-reference.html`) reconciled and bumped **2.5 → 2.6** (last updated 18/08/2026, change-history row added): setup-console rows corrected (services catalogue BUILT on its own screen, packages PLANNED), and the SMS safe-to-say / integration row no longer claim DLT-registered templates.
+- **Em dashes** removed from the two marketing copy strings and one paired parenthetical converted to parentheses (issue #11).
+
+AI (env-gated draft + dictation) deliberately kept off the marketing site (FUTURE / CDSCO-gated), consistent with the existing decision.
+
+**Testing status:** marketing typecheck + production build clean. Browser-verified the Appointments module page renders the new "What it does today" bullets (rosters, online self-booking) and the narrowed planned list.

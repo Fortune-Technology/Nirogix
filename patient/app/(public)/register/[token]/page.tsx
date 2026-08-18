@@ -117,10 +117,10 @@ export default function PublicRegistrationPage({ params }: { params: Promise<{ t
       <Card>
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <CheckCircle2 size={40} strokeWidth={1.75} className="text-success" aria-hidden />
-          <h1 className="text-lg font-semibold text-fg">Thank you — we have your details</h1>
+          <h1 className="text-lg font-semibold text-fg">Thank you. We have your details</h1>
           <p className="max-w-sm text-sm text-fg-muted">
             {context.hospitalName} has your information. Please go to the reception desk when you arrive and give your
-            name — they will complete your registration and confirm your details.
+            name. They will complete your registration and confirm your details.
           </p>
           <p className="max-w-sm text-xs text-fg-subtle">
             Sending this form does not create an account or book an appointment.
@@ -139,7 +139,7 @@ export default function PublicRegistrationPage({ params }: { params: Promise<{ t
           {context.city ? <p className="text-sm text-fg-muted">{context.city}</p> : null}
           <p className="max-w-md text-sm text-fg-muted">
             Send your details ahead so the desk has less to type when you arrive. Someone at the hospital checks them
-            and completes your registration — nothing is confirmed until they do.
+            and completes your registration. Nothing is confirmed until they do.
           </p>
         </div>
 
@@ -214,7 +214,7 @@ export default function PublicRegistrationPage({ params }: { params: Promise<{ t
                 onChange={(e) => set("note", e.target.value)}
                 rows={3}
                 maxLength={500}
-                hint="Optional. Please do not include medical details here — tell the doctor those in person."
+                hint="Optional. Please do not include medical details here. Tell the doctor those in person."
               />
             </div>
           </div>

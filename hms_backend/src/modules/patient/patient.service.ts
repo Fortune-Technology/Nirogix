@@ -113,7 +113,7 @@ export async function createPatient(
         .returning();
       if (rows[0]) return rows[0];
     }
-    throw Errors.conflict('Could not allocate a UHID — please retry');
+    throw Errors.conflict('Could not allocate a UHID. Please retry');
   });
   eventBus.publish('patient.registered', { tenantId, patientId: patient.id });
   await writeAudit({

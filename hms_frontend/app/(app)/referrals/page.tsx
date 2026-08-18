@@ -162,7 +162,7 @@ function ReferralWorklist() {
     <>
       <PageHeader
         title="Referrals"
-        description="Cross-department referrals — check the patient in to send them to the next doctor."
+        description="Cross-department referrals. Check the patient in to send them to the next doctor."
       />
       <div className="flex items-center gap-2">
         <span className="text-sm text-fg-muted">Status:</span>

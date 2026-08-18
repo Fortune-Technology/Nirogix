@@ -51,7 +51,7 @@ if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line no-console
     console.warn(
       `[env] NEXT_PUBLIC_ENVIRONMENT="${configured}" is not a canonical environment ` +
-        `(development | staging | production). The quick-login switcher stays disabled.`,
+      `(development | staging | production). The quick-login switcher stays disabled.`,
     );
   }
 }
@@ -65,15 +65,15 @@ const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? 'ChangeMe#123
 // not merely un-rendered. (Verified by grepping the built chunks — see DONE.md.)
 export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
   ? [
-      { role: 'Platform Owner', orgCode: 'PLATFORM', orgName: 'Takoriya (Platform)', email: 'owner@takoriya.example', password: DEV_PASSWORD },
-      { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
-      { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },
-      { role: 'Doctor', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'doctor@citycare.example', password: DEV_PASSWORD },
-      { role: 'Receptionist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'reception@citycare.example', password: DEV_PASSWORD },
-      { role: 'Pharmacist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'pharmacist@citycare.example', password: DEV_PASSWORD },
-      { role: 'Lab Technician', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'lab@citycare.example', password: DEV_PASSWORD },
-      { role: 'Cashier', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'cashier@citycare.example', password: DEV_PASSWORD },
-      // A second hospital, for cross-tenant / isolation testing.
-      { role: 'Org Admin', orgCode: 'SUNRISE', orgName: 'Sunrise Diagnostics', email: 'admin@sunrise.example', password: DEV_PASSWORD },
-    ]
+
+    { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
+    { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },
+    { role: 'Doctor', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'doctor@citycare.example', password: DEV_PASSWORD },
+    { role: 'Receptionist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'reception@citycare.example', password: DEV_PASSWORD },
+    { role: 'Pharmacist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'pharmacist@citycare.example', password: DEV_PASSWORD },
+    { role: 'Lab Technician', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'lab@citycare.example', password: DEV_PASSWORD },
+    { role: 'Cashier', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'cashier@citycare.example', password: DEV_PASSWORD },
+    // A second hospital, for cross-tenant / isolation testing.
+    { role: 'Org Admin', orgCode: 'SUNRISE', orgName: 'Sunrise Diagnostics', email: 'admin@sunrise.example', password: DEV_PASSWORD },
+  ]
   : [];

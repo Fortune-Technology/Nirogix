@@ -11,7 +11,7 @@ export async function publicContext(req: Request, res: Response): Promise<void> 
 export async function publicSubmit(req: Request, res: Response): Promise<void> {
   await svc.submitRegistrationRequest(req.params.token!, req.body, { ip: req.ip });
   // Uniform, and says nothing about what happens next inside the hospital.
-  res.status(202).json({ message: 'Thanks — the hospital will confirm your registration at the desk.' });
+  res.status(202).json({ message: 'Thanks. The hospital will confirm your registration at the desk.' });
 }
 
 // ---- Hospital side ---------------------------------------------------------

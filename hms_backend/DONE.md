@@ -804,3 +804,7 @@ The backend was already on `development | staging | production` (its `NODE_ENV` 
 - Docs: `resources/domains.md` (env matrix header + `NEXT_PUBLIC_ENVIRONMENT` row + bucket prose), `deploy/README.md` (environment overview + storage tables), and new **ADR-071** all state the three-environment model.
 
 **Testing status:** typecheck clean; env/seedGuard logic unchanged (comment-only), enum and heuristics untouched.
+
+## 2026-08-18 — Em dashes removed from user-facing API messages (issue #11)
+
+Replaced stylistic em dashes with a period or colon in the 20 user-facing `message` strings that surface to users through the app's toast (billing, appointment, emr, opd, pharmacy, patient, aiDraft, the two public booking/registration confirmations, and setup). Example: `Could not allocate an invoice number — please retry` → `. Please retry`. Developer-facing strings (OpenAPI summaries/descriptions, dev logs, the boot-time env-validation error, en-dash range validators) were left unchanged. Typecheck clean. Part of the platform-wide sweep logged in `hms_frontend/DONE.md`.

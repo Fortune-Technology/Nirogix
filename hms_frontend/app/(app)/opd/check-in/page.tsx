@@ -126,7 +126,7 @@ function CheckInForm() {
         {appointmentId && <Alert tone="neutral">Checking in against a booked appointment.</Alert>}
         {referral && (
           <Alert tone="neutral">
-            Checking in against a referral from {referral.fromProviderName ?? "the OPD"} — {referral.reason}
+            Checking in against a referral from {referral.fromProviderName ?? "the OPD"}: {referral.reason}
           </Alert>
         )}
         {referralGone && <Alert tone="danger">That referral is no longer pending.</Alert>}
@@ -188,7 +188,7 @@ function CheckInForm() {
                 {providers.filter((p) => p.isActive).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.fullName}
-                    {p.consultationFeePaise != null ? ` — ₹${p.consultationFeePaise / 100}` : ""}
+                    {p.consultationFeePaise != null ? `: ₹${p.consultationFeePaise / 100}` : ""}
                   </option>
                 ))}
               </select>

@@ -85,7 +85,7 @@ export default function AiPortalLoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          hint="Forgotten it? Your administrator can issue a new one — there is no self-service reset yet."
+          hint="Forgotten it? Your administrator can issue a new one. There is no self-service reset yet."
         />
         <Button type="submit" loading={submitting} className="mt-1 w-full">
           Sign in

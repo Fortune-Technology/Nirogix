@@ -333,7 +333,7 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
       .for('update');
 
     const onHand = batches.reduce((s, b) => s + b.quantity, 0);
-    if (onHand < input.quantity) throw Errors.conflict(`Insufficient stock — ${onHand} in hand, ${input.quantity} requested`);
+    if (onHand < input.quantity) throw Errors.conflict(`Insufficient stock: ${onHand} in hand, ${input.quantity} requested`);
 
     let remaining = input.quantity;
     for (const b of batches) {

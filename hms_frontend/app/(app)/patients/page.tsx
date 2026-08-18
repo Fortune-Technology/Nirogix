@@ -103,7 +103,7 @@ function patientColumns(
           confirm={{
             title: `Deactivate ${[p.firstName, p.lastName].filter(Boolean).join(" ")}?`,
             description:
-              "The record stays, along with every visit, prescription and bill attached to it — it is hidden from day-to-day lists and cannot be booked. You can reactivate at any time.",
+              "The record stays, along with every visit, prescription and bill attached to it. It is hidden from day-to-day lists and cannot be booked. You can reactivate at any time.",
             confirmLabel: "Deactivate",
           }}
           onToggle={() => onToggle(p)}

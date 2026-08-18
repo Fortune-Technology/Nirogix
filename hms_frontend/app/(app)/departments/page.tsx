@@ -259,7 +259,7 @@ function DepartmentsTable() {
                     </option>
                   ))}
                 </select>
-                <span className="hms-field__hint">Optional — can be set later.</span>
+                <span className="hms-field__hint">Optional. Can be set later.</span>
               </div>
             </div>
             <div>
@@ -275,7 +275,7 @@ function DepartmentsTable() {
         rowKey={(d) => d.id}
         loading={loading}
         error={error}
-        emptyMessage="No departments yet. Add the ones patients are seen in — doctors are assigned to them, and check-in routes by them."
+        emptyMessage="No departments yet. Add the ones patients are seen in; doctors are assigned to them, and check-in routes by them."
       />
 
       <EditRecordDialog<Department>

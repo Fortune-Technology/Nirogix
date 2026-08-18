@@ -139,7 +139,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />}
           hint={counts ? `${counts.checkedIn} waiting · ${counts.inConsultation} in consult` : undefined}
           href="/opd"
-          linkLabel="In the queue now — open the OPD queue"
+          linkLabel="In the queue now, open the OPD queue"
         />
         <StatCard
           label="Seen today"
@@ -153,7 +153,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           icon={<Wallet size={16} strokeWidth={1.75} aria-hidden />}
           hint={overview ? `of ${formatPaise(billedTotal)} billed in ${days} days` : undefined}
           href="/billing"
-          linkLabel="Collected — open billing"
+          linkLabel="Collected, open billing"
         />
         <StatCard
           label="Outstanding"
@@ -161,7 +161,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           icon={<AlertTriangle size={16} strokeWidth={1.75} aria-hidden />}
           hint="Across every open invoice"
           href="/billing"
-          linkLabel="Outstanding balance — open billing"
+          linkLabel="Outstanding balance, open billing"
         />
       </KpiGrid>
 

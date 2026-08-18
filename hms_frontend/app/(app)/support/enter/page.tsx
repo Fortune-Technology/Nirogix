@@ -75,8 +75,8 @@ export default function SupportEnterPage() {
             <>
               <p className="font-semibold text-fg">Support session not received</p>
               <p className="text-sm text-fg-muted">
-                This tab was opened directly, or the handover timed out. Start the session again from the tenant page —
-                a support session cannot be resumed from a bookmark, by design.
+                This tab was opened directly, or the handover timed out. Start the session again from the tenant page.
+                A support session cannot be resumed from a bookmark, by design.
               </p>
             </>
           ) : (

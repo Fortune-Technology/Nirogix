@@ -382,7 +382,7 @@ function InvoicesTable() {
           <div className="flex flex-col gap-3">
             <span className="hms-label">Line items</span>
             {lines.length === 0 && (
-              <p className="text-sm text-fg-muted">No lines yet — add a catalogue service or a custom item.</p>
+              <p className="text-sm text-fg-muted">No lines yet. Add a catalogue service or a custom item.</p>
             )}
             {lines.map((l, idx) => (
               <div key={l.key} role="group" aria-label={`Line ${idx + 1}`} className="flex flex-col gap-3 rounded-token border border-border p-3">
@@ -430,7 +430,7 @@ function InvoicesTable() {
                         </option>
                         {(services ?? []).map((s) => (
                           <option key={s.id} value={s.id}>
-                            {s.name} ({s.code}) — {formatPaise(s.pricePaise)}
+                            {s.name} ({s.code}): {formatPaise(s.pricePaise)}
                           </option>
                         ))}
                       </select>

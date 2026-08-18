@@ -675,3 +675,24 @@ The project now recognises exactly three environments — **development | stagin
 - **Dev-time validation**: `devUsers.ts` warns (development only, folds away in production) if `NEXT_PUBLIC_ENVIRONMENT` is set to a non-canonical value.
 
 **Testing status:** hms_frontend typecheck clean; `production` build → dev credentials absent, `development` build → present (both re-verified by grep). If a Portal dev server is already running it must be restarted to pick up the `.env` change (build-time inlined).
+
+## 2026-08-18 — Quick-login moved into a modal; login form stays compact (issue #10)
+
+The dev/staging quick-login was a list rendered under the sign-in form, which made the page long and scrollable. It is now a single compact **"Test credentials"** button (ghost, below Sign in) that opens the shared `@hms/ui` `Dialog`:
+
+- The modal shows a **"Development only"** badge and the seeded accounts as a responsive card grid (1 col mobile, 2 desktop). Each card shows **Role**, the **email** (mono), the **organization · org code**, and a "Use this account" affordance.
+- Choosing a card **fills** the existing sign-in form (org code, email, password) and closes the modal — it does **not** auto-submit. The form then shows a subtle "Filled with <Role> · <email>. Review and sign in." confirmation (hidden the moment a field is edited), and the user signs in with the normal button. Same one auth path as before; no second mechanism.
+- Built on the shared `Dialog` (portal, background scroll-lock, focus-trap, Esc/backdrop close, focus return) so it matches the design system and behaves correctly on desktop and mobile.
+- Still gated to `development`/`staging` and absent from production (issue #7 / ADR-071): re-verified a `production` build drops the credentials from `.next/static` + `.next/server`.
+
+**Testing status:** typecheck clean; `production` build → credentials absent (re-verified). Browser-verified in the Portal: the form is compact, the button opens the modal with all eight seeded cards, selecting **Doctor** filled the form + closed the modal + showed the confirmation without submitting, and the normal Sign in then authenticated as Dr. Rajesh Gupta (doctor@citycare.example).
+
+## 2026-08-18 — Removed stylistic em dashes from user-facing copy, platform-wide (issue #11)
+
+Swept every app and the backend for em dashes (—) used as sentence/phrase separators in user-facing text (the style that reads as AI-generated) and replaced them with natural punctuation (period, comma, or colon), rewriting minimally so each string reads naturally. About **126** strings across: hms_frontend (~84 — toasts, empty states, form hints, print docs, dialog titles `Title — {x}` → colon, dashboard aria labels `stat — open …` → comma), the backend's user-facing API `message` strings (20 — e.g. `… — please retry` → `. Please retry`), patient/admin/aiportal (~19), packages/ui (1 print-doc default), and marketing (3).
+
+**Deliberately left untouched:** empty-value placeholder glyphs (`?? "—"`, `"—"` in table cells/options), en-dash numeric ranges (lab reference ranges, tax 0–100), genuine paired-em-dash parentheticals, and developer-facing strings (code comments, OpenAPI route summaries/descriptions in Swagger, dev logs, health-probe responses) — those are not user-facing UI copy.
+
+New copy written for issues #10 and #12 was authored to the same rule, so the pattern does not reappear.
+
+**Testing status:** every workspace typechecks clean (11/11). Browser-verified in the Portal that fixed strings render naturally (dashboard greeting "Your clinic today, Rajesh"; empty states read as plain sentences).

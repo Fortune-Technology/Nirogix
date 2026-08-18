@@ -154,7 +154,7 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
         break;
       }
     }
-    if (!row) throw Errors.conflict('Could not allocate an invoice number — please retry');
+    if (!row) throw Errors.conflict('Could not allocate an invoice number. Please retry');
 
     await tx.insert(invoiceLineItems).values(
       computed.map((c) => ({
@@ -527,7 +527,7 @@ export async function recordPayment(tenantId: string, invoiceId: string, input: 
     if (input.amountPaise > balancePaise) {
       throw Errors.validation(
         { balancePaise },
-        'Payment exceeds the outstanding balance — collect at most the balance due',
+        'Payment exceeds the outstanding balance. Collect at most the balance due',
       );
     }
 

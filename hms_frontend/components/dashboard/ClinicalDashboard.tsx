@@ -101,40 +101,40 @@ export function ClinicalDashboard({ role, fullName }: { role: ClinicalRole; full
   return (
     <DashboardShell
       context={copy.context}
-      title={`${copy.title}${firstName(fullName) ? ` — ${firstName(fullName)}` : ""}`}
+      title={`${copy.title}${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}
       actions={<PrimaryAction role={role} />}
     >
       <KpiGrid>
         {role === "doctor" && (
           <>
-            <StatCard label="Waiting" value={visits.length ? waiting.length : (counts?.checkedIn ?? null)} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} hint="Checked in, not yet seen" href="/opd" linkLabel="Waiting — open the OPD queue" />
-            <StatCard label="In consultation" value={visits.length ? inConsult.length : (counts?.inConsultation ?? null)} icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="In consultation — open the OPD queue" />
+            <StatCard label="Waiting" value={visits.length ? waiting.length : (counts?.checkedIn ?? null)} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} hint="Checked in, not yet seen" href="/opd" linkLabel="Waiting, open the OPD queue" />
+            <StatCard label="In consultation" value={visits.length ? inConsult.length : (counts?.inConsultation ?? null)} icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="In consultation, open the OPD queue" />
             <StatCard label="Completed today" value={counts?.completed ?? null} icon={<CalendarDays size={16} strokeWidth={1.75} aria-hidden />} />
-            <StatCard label="Lab results pending" value={overview?.pendingLabOrders ?? null} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} hint="Ordered or collected, not resulted" href="/laboratory" linkLabel="Lab results pending — open the laboratory worklist" />
+            <StatCard label="Lab results pending" value={overview?.pendingLabOrders ?? null} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} hint="Ordered or collected, not resulted" href="/laboratory" linkLabel="Lab results pending, open the laboratory worklist" />
           </>
         )}
         {role === "receptionist" && (
           <>
-            <StatCard label="Booked today" value={counts?.appointments ?? null} icon={<CalendarDays size={16} strokeWidth={1.75} aria-hidden />} href="/appointments" linkLabel="Booked today — open appointments" />
-            <StatCard label="Waiting now" value={visits.length ? waiting.length : (counts?.checkedIn ?? null)} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="Waiting now — open the OPD queue" />
-            <StatCard label="In consultation" value={visits.length ? inConsult.length : (counts?.inConsultation ?? null)} icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="In consultation — open the OPD queue" />
-            <StatCard label="Registered today" value={counts?.newPatients ?? null} icon={<UserPlus size={16} strokeWidth={1.75} aria-hidden />} href="/patients/registrations" linkLabel="Registered today — open today's registrations" />
+            <StatCard label="Booked today" value={counts?.appointments ?? null} icon={<CalendarDays size={16} strokeWidth={1.75} aria-hidden />} href="/appointments" linkLabel="Booked today, open appointments" />
+            <StatCard label="Waiting now" value={visits.length ? waiting.length : (counts?.checkedIn ?? null)} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="Waiting now, open the OPD queue" />
+            <StatCard label="In consultation" value={visits.length ? inConsult.length : (counts?.inConsultation ?? null)} icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />} href="/opd" linkLabel="In consultation, open the OPD queue" />
+            <StatCard label="Registered today" value={counts?.newPatients ?? null} icon={<UserPlus size={16} strokeWidth={1.75} aria-hidden />} href="/patients/registrations" linkLabel="Registered today, open today's registrations" />
           </>
         )}
         {role === "pharmacist" && (
           <>
-            <StatCard label="Prescriptions waiting" value={prescriptions.length} icon={<Pill size={16} strokeWidth={1.75} aria-hidden />} hint="Signed, not yet dispensed" href="/pharmacy" linkLabel="Prescriptions waiting — open dispensing" />
-            <StatCard label="Drugs at reorder level" value={overview?.lowStock.length ?? null} icon={<Package size={16} strokeWidth={1.75} aria-hidden />} invertDelta href="/pharmacy/stock" linkLabel="Drugs at reorder level — open stock" />
-            <StatCard label="Out of stock" value={overview ? overview.lowStock.filter((d) => d.onHand === 0).length : null} icon={<Package size={16} strokeWidth={1.75} aria-hidden />} href="/pharmacy/stock" linkLabel="Out of stock — open stock" />
+            <StatCard label="Prescriptions waiting" value={prescriptions.length} icon={<Pill size={16} strokeWidth={1.75} aria-hidden />} hint="Signed, not yet dispensed" href="/pharmacy" linkLabel="Prescriptions waiting, open dispensing" />
+            <StatCard label="Drugs at reorder level" value={overview?.lowStock.length ?? null} icon={<Package size={16} strokeWidth={1.75} aria-hidden />} invertDelta href="/pharmacy/stock" linkLabel="Drugs at reorder level, open stock" />
+            <StatCard label="Out of stock" value={overview ? overview.lowStock.filter((d) => d.onHand === 0).length : null} icon={<Package size={16} strokeWidth={1.75} aria-hidden />} href="/pharmacy/stock" linkLabel="Out of stock, open stock" />
             <StatCard label="Seen today" value={counts?.completed ?? null} icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />} hint="Consultations completed" />
           </>
         )}
         {role === "lab" && (
           <>
-            <StatCard label="Awaiting collection" value={pendingLabs.length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Awaiting collection — open the laboratory worklist" />
-            <StatCard label="Awaiting result" value={collected.length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Awaiting result — open the laboratory worklist" />
-            <StatCard label="Resulted today" value={labOrders.filter((o) => o.status === "resulted").length} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Resulted today — open the laboratory worklist" />
-            <StatCard label="Urgent" value={labOrders.filter((o) => o.priority === "urgent" && o.status !== "resulted").length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} invertDelta href="/laboratory" linkLabel="Urgent — open the laboratory worklist" />
+            <StatCard label="Awaiting collection" value={pendingLabs.length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Awaiting collection, open the laboratory worklist" />
+            <StatCard label="Awaiting result" value={collected.length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Awaiting result, open the laboratory worklist" />
+            <StatCard label="Resulted today" value={labOrders.filter((o) => o.status === "resulted").length} icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />} href="/laboratory" linkLabel="Resulted today, open the laboratory worklist" />
+            <StatCard label="Urgent" value={labOrders.filter((o) => o.priority === "urgent" && o.status !== "resulted").length} icon={<FlaskConical size={16} strokeWidth={1.75} aria-hidden />} invertDelta href="/laboratory" linkLabel="Urgent, open the laboratory worklist" />
           </>
         )}
       </KpiGrid>

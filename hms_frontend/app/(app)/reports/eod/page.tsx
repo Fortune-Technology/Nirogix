@@ -133,7 +133,7 @@ function EodReport() {
     <>
       <PageHeader
         title="End-of-day report"
-        description={`A single day's visits, collections and what is still pending — ${formatDate(day)}.`}
+        description={`A single day's visits, collections and what is still pending. ${formatDate(day)}.`}
         actions={
           <div className="flex flex-wrap items-end gap-2">
             <DateField label="Day" value={day || null} max={today} onChange={(v) => setDay(v ?? today)} />
@@ -158,7 +158,7 @@ function EodReport() {
         />
       </div>
 
-      <Card header={`Visits — ${formatDate(day)}`}>
+      <Card header={`Visits: ${formatDate(day)}`}>
         <DataTable
           columns={opdCols}
           rows={opd}
@@ -171,7 +171,7 @@ function EodReport() {
       <Card
         header={
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>Collections — {formatDate(day)}</span>
+            <span>Collections: {formatDate(day)}</span>
             {collections && collections.byMethod.length > 0 ? (
               <span className="flex flex-wrap items-center gap-3 text-xs font-normal text-fg-muted">
                 {collections.byMethod.map((m) => (

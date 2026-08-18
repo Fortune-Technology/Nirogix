@@ -28,6 +28,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The account the dev quick-login last filled, shown as a confirmation until the user edits a
+  // field or signs in. Never rendered in production (QuickLogin returns null there).
+  const [filled, setFilled] = useState<DevUser | null>(null);
 
   // Already signed in → skip the form.
   useEffect(() => {
@@ -55,13 +58,19 @@ export default function LoginPage() {
   }
 
   // Dev/staging only (QuickLogin renders nothing in production): fill the visible fields so it is
-  // clear who you are signing in as, then authenticate through the same path.
+  // clear who you are signing in as. It does NOT sign in — the user reviews the filled form and
+  // clicks the normal Sign in button, going through the one auth path above.
   function handleQuickLogin(user: DevUser) {
     setOrgCode(user.orgCode);
     setEmail(user.email);
     setPassword(user.password);
-    void submitCredentials(user);
+    setError(null);
+    setFilled(user);
   }
+
+  // The confirmation only holds while the filled values are untouched; a manual edit hides it.
+  const showFilled =
+    filled !== null && orgCode === filled.orgCode && email === filled.email && password === filled.password;
 
   return (
     <Card>
@@ -98,6 +107,12 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        {showFilled && filled && (
+          <p className="-mt-1 text-xs text-fg-subtle">
+            Filled with <span className="font-medium text-fg">{filled.role}</span>
+            <span className="font-mono"> · {filled.email}</span>. Review and sign in.
+          </p>
+        )}
         <Button type="submit" loading={submitting} className="mt-1 w-full">
           Sign in
         </Button>

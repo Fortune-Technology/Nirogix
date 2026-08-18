@@ -98,12 +98,13 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "Reception registration with demographics, ABHA number, and contact details",
       "Tenant-unique UHID generated on registration",
       "Search by name, phone, or UHID, with a patient profile you can edit",
+      "Duplicate detection at registration that surfaces matching charts before a second record is created",
       // ADR-056. Worded carefully: patients send details, the hospital registers them.
       // "Patients register themselves" would be the overclaim (ADR-038).
       "Your own QR code so patients can send their details ahead, reviewed and completed by your front desk",
     ],
     planned: [
-      "UHID barcode / QR printing and duplicate detection",
+      "UHID barcode and QR printing",
       "Family and dependant linking",
     ],
   },
@@ -115,12 +116,13 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     status: "built",
     tagline: "Booking against a doctor's slots, without double-booking.",
     live: [
-      "Booking against a provider's slots, with conflict prevention",
-      "Cancellation that releases the slot",
+      "Weekly provider schedules that define the bookable slots",
+      "Booking against those slots, with conflict prevention and slot release on cancellation",
+      "Online self-booking through your branded QR link, into a front-desk approval queue",
       "Status-filtered appointment list, and check-in straight from a booking",
     ],
     planned: [
-      "Online, mobile, WhatsApp, and call-centre booking channels",
+      "Mobile app, WhatsApp, and call-centre booking channels",
       "Automated reminders, rescheduling, and waitlist estimates",
       "No-show tracking",
     ],
@@ -136,6 +138,7 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "Reception check-in that opens the visit and its token",
       "Live queue in token order, with the consultation status on every row",
       "A draft consultation-fee invoice opened automatically at check-in",
+      "Payment before consultation, enforced on the server so the journey cannot be skipped",
     ],
     planned: [
       "Self-service kiosk and mobile check-in",
@@ -153,6 +156,7 @@ export const CLINIC_MODULES: ModuleEntry[] = [
     live: [
       "Consultation screen with vitals, notes, and ICD-10 diagnosis lookup",
       "Prescriptions and lab orders raised from the consultation itself",
+      "Department referrals raised from the consultation and checked in against the same chart",
       "Sign-off that closes the encounter for editing",
     ],
     planned: [
@@ -173,9 +177,10 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "Drug master with unit price and reorder level, and a low-stock flag",
       "Stock received by batch and expiry, issued first-expiry-first-out",
       "Dispensing against a prescription, billed onto the patient's invoice",
+      "Supplier directory, with stock corrections recorded to an auditable ledger",
     ],
     planned: [
-      "Purchase orders, GRN, and vendor management",
+      "Purchase orders and goods-receipt notes",
       "Rack-level inventory",
       "Schedule H / H1 / X registers and full GST pharmacy billing",
     ],
@@ -192,11 +197,12 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "Test master with price and reference ranges",
       "Worklist from ordered to sample collected to resulted",
       "Result entry with abnormal-value flags, and a printable report view",
+      "Result verification before release, with the report file attached and downloadable",
     ],
     planned: [
       "LOINC coding on the test catalogue",
       "Barcoded sample tracking",
-      "Pathologist sign-off and digital report delivery to patients",
+      "Instrument integration and cumulative reporting",
     ],
   },
   {
@@ -211,11 +217,12 @@ export const CLINIC_MODULES: ModuleEntry[] = [
       "One invoice per visit, with line-level tax and a running balance",
       "Part payments recorded against the invoice, with a collections trail",
       "Consultation, pharmacy, and lab charges landing on the same bill",
+      "A services and procedures catalogue, and manual invoices built line by line",
     ],
     planned: [
       "GST e-invoice with HSN / SAC mapping",
       "Card, net-banking, and shareable payment links through a gateway",
-      "Payer-wise rate lists and package billing",
+      "Payer-wise rate lists and prepaid package billing",
     ],
   },
 ];
@@ -356,7 +363,7 @@ export const ECOSYSTEM: EcosystemEntry[] = [
     icon: Users,
     audience: "Patients registered at a Nirogix hospital",
     blurb:
-      "Patients sign in with a one-time code to a contact their hospital already holds, and read their own record, appointments, bills and finished laboratory reports — across every hospital that has given them access. Read-only, and there is no public sign-up: the hospital grants access.",
+      "Patients sign in with a one-time code to a contact their hospital already holds, and read their own record, appointments, bills and finished laboratory reports, across every hospital that has given them access. Read-only, and there is no public sign-up: the hospital grants access.",
     status: "built",
   },
 ];
@@ -392,10 +399,10 @@ export const PLATFORM_CORE: CoreService[] = [
   {
     name: "Notifications",
     icon: Bell,
-    // SMS + email are implemented behind the provider abstraction; WhatsApp is a
+    // Email sends today; SMS is pending DLT template registration (BACKLOG I-1). WhatsApp is a
     // PRD add-on channel (projectrequirementdoc.md) and is not built.
     blurb:
-      "SMS and email behind one provider abstraction, with idempotency on every send. WhatsApp is planned as an additional channel.",
+      "One provider abstraction for transactional email and SMS, with idempotency on every send. Email is live; SMS is pending DLT template registration. WhatsApp is a planned channel.",
   },
   {
     name: "Financial infrastructure",
@@ -453,7 +460,7 @@ export const ROLES: Role[] = [
     blurb: "Dispense against prescriptions and manage stock by batch and expiry, first-expiry-first-out.",
   },
   {
-    name: "Lab technician",
+    name: "Lab Technician",
     icon: Microscope,
     blurb: "Work the order-to-result worklist, record collection, and enter results against reference ranges.",
   },
@@ -463,9 +470,14 @@ export const ROLES: Role[] = [
     blurb: "Raise the visit invoice, record part payments, and see the day's collections in the reports.",
   },
   {
-    name: "Hospital admin",
+    name: "Organization Admin",
     icon: UserCog,
-    blurb: "Manage users, roles, branches, and branding, with full visibility inside the tenant.",
+    blurb: "Manage users, roles, branches, and branding across the organization, with full visibility inside the tenant.",
+  },
+  {
+    name: "Branch Admin",
+    icon: Building2,
+    blurb: "Run a single branch, its users and day-to-day operations, within the organization's rules.",
   },
 ];
 

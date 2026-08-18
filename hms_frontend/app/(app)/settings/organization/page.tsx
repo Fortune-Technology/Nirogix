@@ -55,7 +55,7 @@ function Identity() {
         {profile.isComplete ? <Badge tone="success">Ready for documents</Badge> : <Badge tone="warning">Incomplete</Badge>}
       </div>
       <p className="mt-2 text-sm text-fg-muted">
-        Your hospital&apos;s name and code were set when Nirogix created your account — talk to us to change them.
+        Your hospital&apos;s name and code were set when Nirogix created your account. Talk to us to change them.
         Everything below is yours to maintain, and appears in the header of every invoice and report you print.
       </p>
     </Card>

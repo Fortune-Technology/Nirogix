@@ -115,8 +115,8 @@ export default function HospitalSetupPage() {
 
       <Card header="Configuration areas">
         <p className="mb-4 text-sm text-fg-muted">
-          Each area has its own screen, reachable from here or from the sidebar. Setup is never the only way in —
-          everything below can be changed at any time.
+          Each area has its own screen, reachable from here or from the sidebar. Setup is never the only way in.
+          Everything below can be changed at any time.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {AREAS.map((area) => (

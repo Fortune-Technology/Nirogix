@@ -169,7 +169,7 @@ function LetterheadSettings() {
               </Button>
             ) : null}
             <p className="text-xs text-fg-subtle">
-              A wide image sized for the top of the page — PNG or JPG. Keep important marks away from the very edges;
+              A wide image sized for the top of the page (PNG or JPG). Keep important marks away from the very edges;
               printers cannot print the outer few millimetres.
             </p>
           </div>
@@ -213,7 +213,7 @@ function LetterheadSettings() {
             <div className="sm:col-span-2">
               <Field
                 label="Header line"
-                hint="Printed under your hospital's name — a tagline, accreditation, or the department. Used only when there is no letterhead image."
+                hint="Printed under your hospital's name: a tagline, accreditation, or the department. Used only when there is no letterhead image."
                 value={text.letterheadHeader}
                 onChange={(e) => setText((t) => ({ ...t, letterheadHeader: e.target.value }))}
               />
@@ -221,7 +221,7 @@ function LetterheadSettings() {
             <div className="sm:col-span-2">
               <Textarea
                 label="Footer text"
-                hint="Printed along the bottom of every page — hours, a disclaimer, or where to call."
+                hint="Printed along the bottom of every page: hours, a disclaimer, or where to call."
                 rows={3}
                 value={text.letterheadFooter}
                 onChange={(e) => setText((t) => ({ ...t, letterheadFooter: e.target.value }))}
@@ -306,7 +306,7 @@ function LetterheadSettings() {
 
       <Alert>
         Your logo and colour come from <strong className="font-medium">Branding</strong>, and your address from{" "}
-        <strong className="font-medium">Hospital information</strong> — they are the same details everywhere rather than
+        <strong className="font-medium">Hospital information</strong>. They are the same details everywhere rather than
         a second copy kept only for printing.
       </Alert>
     </div>

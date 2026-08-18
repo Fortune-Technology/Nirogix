@@ -11,7 +11,7 @@ export async function publicContext(req: Request, res: Response): Promise<void> 
 export async function publicSubmit(req: Request, res: Response): Promise<void> {
   await svc.submitBookingRequest(req.params.token!, req.body, { ip: req.ip });
   // Uniform, and promises nothing about the slot — the desk confirms it.
-  res.status(202).json({ message: 'Thanks — the hospital will confirm your appointment.' });
+  res.status(202).json({ message: 'Thanks. The hospital will confirm your appointment.' });
 }
 
 // ---- Hospital side ---------------------------------------------------------

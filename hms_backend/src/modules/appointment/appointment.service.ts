@@ -82,7 +82,7 @@ export async function bookAppointment(
         (w) => w.weekday === weekday && minutes >= hhmmToMinutes(w.startTime) && minutes + duration <= hhmmToMinutes(w.endTime),
       );
       if (!inWindow) {
-        throw Errors.conflict('The doctor is not available at that time — pick a slot from their schedule');
+        throw Errors.conflict('The doctor is not available at that time. Pick a slot from their schedule');
       }
     }
 

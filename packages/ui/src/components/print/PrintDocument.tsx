@@ -153,7 +153,7 @@ export function PrintDocument({
             confidentiality statement, and neither should silence the other. */}
         {brand.footerLine ? <div className="hms-doc__letterfoot">{brand.footerLine}</div> : null}
         <div className="hms-doc__footer-row">
-          <div>{footerNote ?? "Confidential — contains patient health information."}</div>
+          <div>{footerNote ?? "Confidential. Contains patient health information."}</div>
           {computerGenerated ? (
             <div className="hms-doc__generated">
               Computer-generated document · {formatDateTime(new Date())}

@@ -22,7 +22,7 @@ export default function BookingSettingsPage() {
         explainer={
           <>
             Patients scan your QR code and ask for an appointment before they call or visit.{" "}
-            <strong className="font-medium text-fg">Nothing is booked automatically</strong> — each submission arrives
+            <strong className="font-medium text-fg">Nothing is booked automatically</strong>. Each submission arrives
             as a request your front desk reviews and converts into a real appointment, under the same roster and
             double-booking rules as booking by hand. Requests wait under{" "}
             <Link href="/appointments/requests" className="text-brand hover:underline">

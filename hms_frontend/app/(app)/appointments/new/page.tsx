@@ -192,7 +192,7 @@ function BookForm() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-fg-muted">No free slots on this day — pick another date.</p>
+                  <p className="text-sm text-fg-muted">No free slots on this day. Pick another date.</p>
                 )}
                 <p className="text-xs text-fg-subtle">This doctor books by roster slots; pick one to continue.</p>
               </div>

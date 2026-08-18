@@ -163,7 +163,7 @@ export function ModulesBento() {
               See all {COUNTS.modules} modules
             </p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">
-              Nursing, radiology, IPD, OT, insurance, HR, and more, plus telemedicine and ABDM — each
+              Nursing, radiology, IPD, OT, insurance, HR, and more, plus telemedicine and ABDM, each
               marked with what is built and what is planned.
             </p>
             <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink">

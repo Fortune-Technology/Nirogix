@@ -556,7 +556,7 @@ export async function aiPrescriptionDraft(body: AiDraftRequest): Promise<AiDraft
   return request<AiDraftResponse>("/ai/prescription-draft", {
     method: "POST",
     body,
-    feedback: { success: "Draft ready — review every line before saving." },
+    feedback: { success: "Draft ready. Review every line before saving." },
   });
 }
 

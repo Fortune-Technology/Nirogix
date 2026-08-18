@@ -381,7 +381,7 @@ function InvoiceDetail({ id }: { id: string }) {
                   </option>
                   {(services ?? []).map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.code}) — {formatPaise(s.pricePaise)}
+                      {s.name} ({s.code}): {formatPaise(s.pricePaise)}
                     </option>
                   ))}
                 </select>

@@ -184,7 +184,7 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
 
               <p className="mt-3 text-xs text-fg-subtle">
                 Print or display this at reception, the entrance, the waiting area or on your website. The code carries
-                only a link — no patient or hospital information is stored in it. It is drawn in your hospital&apos;s
+                only a link. No patient or hospital information is stored in it. It is drawn in your hospital&apos;s
                 colour, darkened only if that is needed to keep it scannable.
               </p>
             </div>
@@ -195,7 +195,7 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
       {!settings.enabled ? (
         <Alert>
           While {props.disabledNoun} is off, the link and QR code stop working. Your existing posters will start
-          working again if you turn it back on — the code does not change unless you regenerate it.
+          working again if you turn it back on. The code does not change unless you regenerate it.
         </Alert>
       ) : null}
 

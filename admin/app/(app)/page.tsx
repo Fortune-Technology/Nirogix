@@ -211,7 +211,7 @@ function PlatformOverview() {
           delta={newHospitals === null ? null : { value: newHospitals, label: "this month" }}
           spark={{ values: (trends?.hospitals ?? []).map((p) => p.cumulative), color: BRAND }}
           href="/tenants"
-          linkLabel="Hospitals — open the tenant list"
+          linkLabel="Hospitals, open the tenant list"
         />
         <StatCard
           label="Staff accounts"
@@ -234,7 +234,7 @@ function PlatformOverview() {
           hint="All tenants, all time"
           invertDelta
           href="/audit"
-          linkLabel="Failed sign-ins — open the audit trail"
+          linkLabel="Failed sign-ins, open the audit trail"
         />
       </div>
 
@@ -474,7 +474,7 @@ export default function PlatformDashboardPage() {
     <RequirePermission perm={PERMISSIONS.TENANTS_MANAGE}>
       <PageHeader
         title="Platform overview"
-        description="Every hospital on the platform. Aggregate figures only — no hospital's records are read from here."
+        description="Every hospital on the platform. Aggregate figures only. No hospital's records are read from here."
         actions={
           <Link href="/tenants/new">
             <Button>

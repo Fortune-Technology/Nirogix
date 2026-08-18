@@ -51,7 +51,7 @@ export default function AiPortalHome() {
         <Card header="No capability is enabled">
           <p className="text-sm text-fg-muted">{session.notice}</p>
           <p className="mt-3 text-sm text-fg-muted">
-            When one is added it will appear here, behind the access control you have just passed through — which is
+            When one is added it will appear here, behind the access control you have just passed through. That is
             why this portal exists before the capability does. Anything that touches diagnosis or treatment additionally
             needs a regulatory classification review before it is built at all.
           </p>

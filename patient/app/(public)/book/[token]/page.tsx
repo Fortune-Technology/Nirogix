@@ -114,7 +114,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
       <Card>
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <CheckCircle2 size={40} strokeWidth={1.75} className="text-success" aria-hidden />
-          <h1 className="text-lg font-semibold text-fg">Thank you — we have your request</h1>
+          <h1 className="text-lg font-semibold text-fg">Thank you. We have your request</h1>
           <p className="max-w-sm text-sm text-fg-muted">
             The hospital will confirm your appointment. {context.hospitalName} will contact you on the number you gave
             to settle the exact date and time.
@@ -136,7 +136,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
           {context.city ? <p className="text-sm text-fg-muted">{context.city}</p> : null}
           <p className="max-w-md text-sm text-fg-muted">
             Tell us who you are and when you would like to come in. The hospital checks its schedule and confirms the
-            actual slot with you — nothing is booked until they do.
+            actual slot with you. Nothing is booked until they do.
           </p>
         </div>
 
@@ -238,7 +238,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
                 onChange={(e) => set("note", e.target.value)}
                 rows={3}
                 maxLength={500}
-                hint="Optional. Please do not include medical details here — tell the doctor those in person."
+                hint="Optional. Please do not include medical details here. Tell the doctor those in person."
               />
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
 
       <p className="mt-4 px-2 text-center text-xs text-fg-subtle">
         Your details go only to {context.hospitalName}. Sending this form does not book an appointment by itself,
-        create an account, or give you access to any records — the hospital confirms your appointment with you.
+        create an account, or give you access to any records. The hospital confirms your appointment with you.
       </p>
     </>
   );

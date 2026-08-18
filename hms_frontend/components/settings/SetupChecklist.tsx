@@ -123,7 +123,7 @@ export function SetupProgress({ status }: { status: SetupStatus }) {
       {status.ready ? (
         <Alert tone="success" className="mt-4">
           <strong>{status.organization.name} is ready for operations.</strong> Everything the platform needs is
-          configured. You can change any of it at any time — this console stays available under Hospital configuration.
+          configured. You can change any of it at any time. This console stays available under Hospital configuration.
         </Alert>
       ) : null}
     </>
@@ -223,7 +223,7 @@ export function SetupProgressCard() {
             type="button"
             onClick={() => user?.id && setDismissedFor(user.id)}
             aria-label="Hide this reminder"
-            title="Hide this reminder — setup stays available under Hospital configuration"
+            title="Hide this reminder. Setup stays available under Hospital configuration"
             className="-my-1 -mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-token text-fg-subtle transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <X size={16} strokeWidth={2} aria-hidden />
@@ -239,7 +239,7 @@ export function SetupProgressCard() {
       />
       {next ? (
         <p className="mt-3 text-sm text-fg-muted">
-          Next: <span className="font-medium text-fg">{next.label}</span> — {next.description}
+          Next: <span className="font-medium text-fg">{next.label}</span>, {next.description}
         </p>
       ) : null}
       <Link
@@ -261,7 +261,7 @@ export function SetupOverview() {
   if (!status) return <Skeleton height="16rem" />;
 
   return (
-    <Card header={`Setup — ${status.organization.name}`}>
+    <Card header={`Setup: ${status.organization.name}`}>
       <SetupProgress status={status} />
       <SetupChecklist status={status} />
     </Card>

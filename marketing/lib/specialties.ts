@@ -174,7 +174,7 @@ export const SPECIALTIES: Specialty[] = [
       "The order-to-result worklist exists today for laboratory: an order raised in a consultation appears with its status, so nothing sits unclaimed.",
       "Results are entered against the order and open as a printable report on the patient's record.",
       "The charge is added to the patient's existing invoice rather than a separate bill.",
-      "Imaging itself — modality worklists, radiologist sign-off, and the DICOM viewer — is the planned Radiology & PACS module. It is not built, so an imaging centre cannot run its studies on the platform yet.",
+      "Imaging itself (modality worklists, radiologist sign-off, and the DICOM viewer) is the planned Radiology & PACS module. It is not built, so an imaging centre cannot run its studies on the platform yet.",
     ],
     modules: ["Patient Management", "Clinical Workflow (EMR)", "Laboratory", "Billing & Payments"],
     configuration: ["Investigation catalogue and reference ranges", "Per-study pricing on the invoice", "Worklist roles and permissions"],

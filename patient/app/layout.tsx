@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
  * (ADR-027). Nothing identifying may enter this metadata.
  */
 export const metadata: Metadata = {
-  title: "Nirogix — Your health records",
+  title: "Nirogix: Your health records",
   description: "View your records from the hospitals you are registered with.",
   robots: {
     index: false,

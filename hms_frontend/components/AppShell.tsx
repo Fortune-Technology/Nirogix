@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex flex-wrap items-center justify-between gap-3 bg-warning-subtle px-5 py-2.5 text-sm">
             <span className="flex items-center gap-2 font-medium text-warning">
               <ShieldAlert size={16} strokeWidth={2} aria-hidden />
-              Support session — you are acting as {user?.fullName} and every action is audited in this tenant.
+              Support session: you are acting as {user?.fullName} and every action is audited in this tenant.
             </span>
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Exit support session

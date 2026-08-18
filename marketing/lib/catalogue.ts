@@ -192,10 +192,16 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
     title: "Communications & payments",
     items: [
       {
-        name: "SMS & email",
+        name: "Email",
         icon: MessageSquare,
         status: "built",
-        body: "Transactional SMS and email through MSG91, behind one provider abstraction, with DLT-registered templates.",
+        body: "Transactional email through MSG91, behind one provider abstraction, with idempotency on every send.",
+      },
+      {
+        name: "SMS",
+        icon: MessageSquare,
+        status: "planned",
+        body: "Transactional SMS on the same provider abstraction, pending DLT template registration before the first send.",
       },
       {
         name: "WhatsApp Business",

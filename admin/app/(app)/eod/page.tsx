@@ -91,7 +91,7 @@ function Eod() {
     <>
       <PageHeader
         title="End-of-day report"
-        description={`A single day of platform activity, from the audit trail — ${formatDate(day)}.`}
+        description={`A single day of platform activity, from the audit trail, ${formatDate(day)}.`}
         actions={<DateField label="Day" value={day || null} max={today} onChange={(v) => setDay(v ?? today)} />}
       />
 
@@ -103,7 +103,7 @@ function Eod() {
         <StatCard label="Support sessions" value={loading ? null : supportSessions} hint="Operators entering a hospital" />
       </div>
 
-      <Card header={`Activity — ${formatDate(day)}`}>
+      <Card header={`Activity: ${formatDate(day)}`}>
         <DataTable
           columns={columns}
           rows={rows}

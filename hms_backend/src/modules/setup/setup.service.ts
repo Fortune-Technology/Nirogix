@@ -189,7 +189,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     {
       key: 'staff',
       label: 'Staff accounts',
-      description: 'Accounts for the people who will run the hospital — front desk, pharmacy, laboratory and billing.',
+      description: 'Accounts for the people who will run the hospital: front desk, pharmacy, laboratory and billing.',
       href: '/users',
       permission: PERMISSIONS.USERS_MANAGE,
       module: null,
@@ -247,7 +247,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     key: 'modules',
     label: 'Enabled modules',
     description:
-      'The modules your hospital is entitled to. These are provisioned by Nirogix — talk to us to enable another one.',
+      'The modules your hospital is entitled to. These are provisioned by Nirogix. Talk to us to enable another one.',
     href: '/settings/modules',
     permission: null,
     module: null,

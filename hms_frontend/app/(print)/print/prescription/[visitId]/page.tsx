@@ -50,7 +50,7 @@ function PrescriptionDocument({ visitId }: { visitId: string }) {
   }
 
   const dxLine = enc.diagnoses
-    .map((d) => `${d.icd10Term} (${d.icd10Code})${d.isPrimary ? " — primary" : ""}`)
+    .map((d) => `${d.icd10Term} (${d.icd10Code})${d.isPrimary ? " (primary)" : ""}`)
     .join("; ");
 
   return (
@@ -62,7 +62,7 @@ function PrescriptionDocument({ visitId }: { visitId: string }) {
         title="Prescription"
         reference={
           <>
-            {enc.signedAt ? <div>Signed {formatDateTime(enc.signedAt)}</div> : <div><strong>DRAFT — not signed</strong></div>}
+            {enc.signedAt ? <div>Signed {formatDateTime(enc.signedAt)}</div> : <div><strong>Draft (not signed)</strong></div>}
             {enc.providerName && <div>{enc.providerName}</div>}
           </>
         }
@@ -104,7 +104,7 @@ function PrescriptionDocument({ visitId }: { visitId: string }) {
           </PrintNote>
         ) : null}
 
-        <PrintSignatures signatures={[{ label: enc.providerName ? `${enc.providerName} — Signature` : "Doctor's signature" }]} />
+        <PrintSignatures signatures={[{ label: enc.providerName ? `${enc.providerName}: Signature` : "Doctor's signature" }]} />
       </PrintDocument>
     </>
   );

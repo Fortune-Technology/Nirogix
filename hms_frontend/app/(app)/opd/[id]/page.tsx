@@ -377,7 +377,7 @@ function Consultation({ visitId }: { visitId: string }) {
         {unpaid && visit?.invoice && (
           <Card header="Payment pending">
             <p className="text-sm text-fg-muted">
-              {visit.patientName} · {visit.visitNumber} — balance {formatPaise(visit.invoice.balancePaise)} on invoice{" "}
+              {visit.patientName} · {visit.visitNumber}, balance {formatPaise(visit.invoice.balancePaise)} on invoice{" "}
               <span className="font-mono">{visit.invoice.invoiceNumber}</span>. The consultation opens once the fee is collected.
             </p>
             <div className="mt-3">
@@ -542,7 +542,7 @@ function Consultation({ visitId }: { visitId: string }) {
       >
         {aiNote && (
           <Alert tone="neutral">
-            AI note: {aiNote} — every drafted line is a suggestion; review, correct and delete freely before saving.
+            AI note: {aiNote}. Every drafted line is a suggestion; review, correct and delete freely before saving.
           </Alert>
         )}
         {/* Pick from the drug master (typing filters the datalist) so the prescription
@@ -583,7 +583,7 @@ function Consultation({ visitId }: { visitId: string }) {
                         ) : matched ? (
                           `In stock: ${matched.onHand} · ${formatPaise(matched.unitPricePaise)}/${matched.unit}`
                         ) : p.drugName.trim() ? (
-                          "Not in the drug master — pharmacy will match it by hand"
+                          "Not in the drug master; pharmacy will match it by hand"
                         ) : (
                           ""
                         )}
@@ -672,7 +672,7 @@ function Consultation({ visitId }: { visitId: string }) {
                       ) : matched ? (
                         `${formatPaise(matched.pricePaise)} · billed at sample collection`
                       ) : l.testName.trim() ? (
-                        "Not in the test master — priced when the lab matches it"
+                        "Not in the test master; priced when the lab matches it"
                       ) : (
                         ""
                       )}
@@ -743,7 +743,7 @@ function Consultation({ visitId }: { visitId: string }) {
             </div>
           </div>
           <p className="mt-2 text-xs text-fg-subtle">
-            The front desk checks the patient in against the referral — the receiving department opens this same chart.
+            The front desk checks the patient in against the referral. The receiving department opens this same chart.
           </p>
         </Card>
       )}

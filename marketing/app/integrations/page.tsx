@@ -12,7 +12,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/integrations",
   title: "Healthcare Integrations: FHIR, ABDM, DICOM & Payments",
   description:
-    "Where our interoperability stands: ICD-10 coding and DLT-compliant SMS and email today, with HL7 FHIR R4, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, WhatsApp, payment gateways, and Tally export planned.",
+    "Where our interoperability stands: ICD-10 coding and transactional email today, with HL7 FHIR R4, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, SMS, WhatsApp, payment gateways, and Tally export planned.",
 });
 
 export default function IntegrationsPage() {
@@ -24,7 +24,7 @@ export default function IntegrationsPage() {
       <PageHeader
         eyebrow="Integrations"
         title="Built for the standards your systems already use."
-        lede="Interoperability is a design commitment, and this page is explicit about where it stands: ICD-10 coding and transactional SMS and email work today; FHIR APIs, ABDM, imaging, WhatsApp, payment gateways, and accounting export are planned scope from our product plan."
+        lede="Interoperability is a design commitment, and this page is explicit about where it stands: ICD-10 coding and transactional email work today; SMS, FHIR APIs, ABDM, imaging, WhatsApp, payment gateways, and accounting export are planned scope from our product plan."
       />
 
       <Container className="pt-2">

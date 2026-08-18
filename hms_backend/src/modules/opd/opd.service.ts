@@ -244,7 +244,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
         break;
       }
     }
-    if (!row) throw Errors.conflict('Could not allocate a visit number — please retry');
+    if (!row) throw Errors.conflict('Could not allocate a visit number. Please retry');
 
     // Consuming the referral is part of the same transaction: the visit exists if and
     // only if the referral moved to completed (CAS on pending — two desks cannot both use it).
@@ -354,7 +354,7 @@ export async function updateStatus(
     )[0];
     if (!visit) throw Errors.notFound('Visit not found');
     if (version !== undefined && visit.version !== version) {
-      throw Errors.conflict('This visit was updated by someone else — please refresh');
+      throw Errors.conflict('This visit was updated by someone else. Please refresh');
     }
     if (!(NEXT_STATUS[visit.status] ?? []).includes(status)) {
       throw Errors.conflict(`Cannot move a ${visit.status} visit to ${status}`);
@@ -371,7 +371,7 @@ export async function updateStatus(
           .limit(1)
       )[0];
       if (inv && inv.totalPaise > inv.amountPaidPaise) {
-        throw Errors.conflict('Consultation fee is unpaid — collect the payment before the consultation starts');
+        throw Errors.conflict('Consultation fee is unpaid. Collect the payment before the consultation starts');
       }
     }
 
@@ -387,7 +387,7 @@ export async function updateStatus(
       })
       .where(and(eq(visits.id, visitId), eq(visits.version, visit.version)))
       .returning({ id: visits.id });
-    if (!moved[0]) throw Errors.conflict('This visit was updated by someone else — please refresh');
+    if (!moved[0]) throw Errors.conflict('This visit was updated by someone else. Please refresh');
 
     // Completing the visit fulfils the originating appointment (if it is still just booked).
     if (status === 'completed' && visit.appointmentId) {

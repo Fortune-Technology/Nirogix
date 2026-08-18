@@ -269,7 +269,7 @@ function ProvidersTable() {
       const startTime = row.startTime.trim();
       const endTime = row.endTime.trim();
       if (!HHMM.test(startTime) || !HHMM.test(endTime)) {
-        setScheduleError(`Window ${i + 1}: times must be 24-hour HH:mm — e.g. 09:00 or 17:30.`);
+        setScheduleError(`Window ${i + 1}: times must be 24-hour HH:mm, e.g. 09:00 or 17:30.`);
         return;
       }
       // Zero-padded HH:mm compares correctly as a string.
@@ -419,7 +419,7 @@ function ProvidersTable() {
             <option value="">Not linked</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.fullName} — {u.email}
+                {u.fullName}: {u.email}
               </option>
             ))}
           </select>
@@ -519,7 +519,7 @@ function ProvidersTable() {
       <Dialog
         open={specialtyFor !== null}
         onClose={() => !savingForm && setSpecialtyFor(null)}
-        title={specialtyFor ? `Assign specialty — ${specialtyFor.fullName}` : "Assign specialty"}
+        title={specialtyFor ? `Assign specialty: ${specialtyFor.fullName}` : "Assign specialty"}
         size="md"
         busy={savingForm}
         footer={
@@ -562,7 +562,7 @@ function ProvidersTable() {
       <Dialog
         open={scheduleFor !== null}
         onClose={() => !savingSchedule && setScheduleFor(null)}
-        title={scheduleFor ? `Weekly schedule — ${scheduleFor.fullName}` : "Weekly schedule"}
+        title={scheduleFor ? `Weekly schedule: ${scheduleFor.fullName}` : "Weekly schedule"}
         description="No windows = free-form booking; with windows, appointments must fall inside them."
         size="lg"
         busy={savingSchedule}
@@ -585,7 +585,7 @@ function ProvidersTable() {
             <>
               {scheduleRows.length === 0 ? (
                 <p className="text-sm text-fg-muted">
-                  No windows yet — this doctor can be booked at any time. Add a window to limit bookings to roster
+                  No windows yet. This doctor can be booked at any time. Add a window to limit bookings to roster
                   hours.
                 </p>
               ) : (
@@ -666,7 +666,7 @@ function ProvidersTable() {
                 >
                   <Plus size={16} strokeWidth={2} /> Add window
                 </Button>
-                <p className="text-xs text-fg-subtle">Times are 24-hour HH:mm — 09:00, 13:30, 17:45.</p>
+                <p className="text-xs text-fg-subtle">Times are 24-hour HH:mm: 09:00, 13:30, 17:45.</p>
               </div>
             </>
           )}
