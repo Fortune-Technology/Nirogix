@@ -59,6 +59,19 @@ jobs:
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             set -euo pipefail
+
+            # ── PATH: this non-interactive SSH shell sources no .bashrc/.profile, so
+            # NVM's PATH additions never apply — pm2 lives under
+            # ~/.nvm/versions/node/<version>/bin and the 2026-08-19 deploy died with
+            # `pm2: command not found` (exit 127) AFTER building. Prepend the newest
+            # installed Node's bin (sort -V) so node/npm/pm2 all come from the same
+            # install, then fail loudly up front if pm2 still is not resolvable —
+            # better than dying mid-deploy after the build already succeeded.
+            if [ -d "$HOME/.nvm/versions/node" ]; then
+              export PATH="$(find "$HOME/.nvm/versions/node" -maxdepth 1 -type d | sort -V | tail -1)/bin:$PATH"
+            fi
+            command -v pm2 >/dev/null || { echo "FATAL: pm2 not on PATH (checked NVM at \$HOME/.nvm/versions/node) — fix the VM's Node/PM2 install" >&2; exit 1; }
+
             cd "${{ secrets.STAGING_PATH }}"
 
             # ── Baseline: the commit that is actually live ─────────────────────────
