@@ -39,3 +39,11 @@ Append-only implementation log. Newest at the bottom.
 `OrganizationProfile` gains `letterheadImageUrl` (short-lived, read-only) and `documentPageSize`. A new `DOCUMENT_PAGE_SIZES` tuple + `DocumentPageSize` union is the one shared contract for the settings selector, the backend Zod enum and the print layer. `UpdateOrganizationProfileRequest` now also omits `letterheadImageUrl` (it is upload-only, via its own multipart route), so only `documentPageSize` rides the partial text update.
 
 **Testing status:** `typecheck` green across the backend, the Portal and `@hms/ui`.
+
+## 2026-08-19 — Compiled `dist/` output (ADR-075)
+
+**What:** The package now builds — `tsconfig.build.json` emits CommonJS + declarations to `dist/`, and `main`/`types`/`exports` point there instead of at raw `src/index.ts`. A `dev` watch script keeps `dist/` fresh under root `npm run dev`.
+
+**Why:** Same failure shape as `@hms/permissions` — a plain-Node consumer resolving `main` to raw TypeScript cannot boot. The backend does not import this package *today*, but it is the declared backend/frontend contract package, so both halves of the recurrence path close together (ADR-075). If the backend ever imports it, it must also be added to `hms_backend`'s `dependencies`.
+
+**Testing status:** builds clean; full-repo typecheck 13/13; Portal production build green against the `dist/` entry.

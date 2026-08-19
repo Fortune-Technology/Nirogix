@@ -1,0 +1,14 @@
+{
+  // Emit config for the production build (`npm run build`). The plain tsconfig.json stays
+  // check-only (`tsc --noEmit`). CommonJS output because hms_backend consumes this package
+  // at runtime with plain `node dist/server.js` — no bundler, no TS loader (see DECISIONS.md).
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "declarationMap": true
+  },
+  "include": ["src"]
+}
