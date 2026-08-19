@@ -241,6 +241,25 @@ rollback needs an approved down-migration plan (no destructive change without on
 A dated log of staging/production incidents and their fixes, so the next person deploying does not
 rediscover them the hard way. Newest first.
 
+### 2026-08-19 — Deploy died at the PM2 step: `pm2: command not found` (exit 127)
+
+**Impact.** The affected-only deploy ran git reset, `npm ci` and the Turbo build successfully, then
+failed at the first `pm2` call — apps kept running the previous release (no outage), but the deploy
+never completed and `.last-deploy-sha` correctly did not advance.
+
+**Cause.** `appleboy/ssh-action` runs a **non-interactive** shell that sources no
+`.bashrc`/`.profile`, so NVM's PATH additions never apply. `pm2` lives only under
+`~/.nvm/versions/node/<version>/bin`; `npm` happened to resolve anyway, which is why everything
+before the PM2 step worked.
+
+**Fix (in `deploy-staging.yml`).** The SSH script now, immediately after `set -euo pipefail`,
+prepends the **newest** installed NVM Node's `bin` to PATH — `find "$HOME/.nvm/versions/node"
+-maxdepth 1 -type d | sort -V | tail -1` (`sort -V` is load-bearing: plain sort would rank
+`v20.9.0` above `v20.11.1`) — so node/npm/pm2 all come from the same install, and then **fails
+loudly up front** (`command -v pm2`) if pm2 is still unresolvable, instead of dying mid-deploy
+after the build. Same lesson as `/etc/nirogix/ports.env`: a non-interactive SSH shell inherits
+NOTHING from login dotfiles — every environment dependency must be set explicitly in the script.
+
 ### 2026-08-18 — Staging VM OOM-killed by an unbounded parallel build
 
 **Impact.** The entire staging VM went offline until a manual restart. The box is **shared** — it
