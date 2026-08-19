@@ -4,6 +4,8 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 **This file is maintained with the code, not at the end.** A new page, workflow, endpoint, component, validation, permission, or behaviour adds its cases in the same change; changed behaviour updates them; removed behaviour deletes them; a change that can affect existing functionality adds regression cases (`resources/rules.md` → Manual Test Cases). Automated tests do not replace this file, and this file does not replace automated tests.
 
+> **Run the automated suite first.** `npm run test:regression` covers authentication, roles and permissions, tenant isolation, the clinical workflow's state transitions, and five-app smoke. **`docs/automated-testing.md` maps each area below to the suite that covers it** and states plainly what is still manual-only. Start a manual pass from a green suite — a case already covered automatically needs a spot-check here, not a full re-run.
+
 ## How to read a case
 
 | Field | Meaning |
@@ -758,6 +760,7 @@ Run at staging bring-up and again before each production release. Every case her
 
 These are known and recorded in `BACKLOG.md` rather than silently missing:
 
-- **Automated frontend tests do not exist yet** — no unit, component or end-to-end suites in `hms_frontend`, `marketing`, `@hms/ui`, or `@hms/utils`. The backend has Vitest suites (auth, RBAC, tenancy, audit, admin, appointments, branding, events, jobs). Until the frontend suites exist, every UI case above is manual-only, which is a risk this file makes visible rather than hides.
+- **Automated coverage now exists — see `docs/automated-testing.md` for the case-by-case mapping.** Unit + integration (vitest, real PostgreSQL), **API/HTTP boundary** (vitest + supertest: authentication, role/permission enforcement, module entitlement, cross-tenant read *and* write refusal), component (`@hms/ui`: DataTable, date fields, toasts, table actions) and **E2E** (Playwright: five-app smoke, Portal authentication and quick-login gating, protected-route redirects, marketing structure, route-change scroll). Run the lot with `npm run test:regression` before a staging handover.
+- **Still manual-only:** `hms_frontend`, `marketing`, `admin`, `patient` and `aiportal` have no component suites of their own, and the clinical journey is automated at service/API level but **not yet through the UI** — the browser walk-through in `docs/manual-testing-guide.md` §10 remains a manual pass. Visual/branding, print/PDF, screen-reader, physical-device and editorial-honesty cases stay manual by design (`docs/automated-testing.md` §5).
 - **Not yet buildable as cases:** password reset / email invite, MFA challenge, branch switching, break-glass — the features are not implemented.
 - **Staging-only cases** (real SMS/WhatsApp send, deploy pipeline, backup restore drill) are blocked on infrastructure.

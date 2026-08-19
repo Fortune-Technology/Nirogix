@@ -18,6 +18,25 @@
 
 **Legend:** ✅ built & testable · ⚠ partial / not ready · 🔒 security/isolation check · 💵 uses Cash (the only payment method today).
 
+## Before you start: run the automated suite
+
+```bash
+npm run test:regression
+```
+
+Do not begin a manual pass against a red suite — fix the failure first, or you will spend the
+day rediscovering it by hand. The automated safety net already covers **authentication, roles
+and permissions, module entitlement, tenant isolation (cross-tenant read *and* write), the
+clinical workflow's state transitions (check-in → payment gate → consultation → prescription →
+dispense → lab result), and five-app smoke**. `docs/automated-testing.md` maps every area to the
+suite that covers it.
+
+What that means for this guide: the stages below stay valuable for what a machine cannot judge —
+**visual and branding fidelity, print/PDF output, screen-reader behaviour, physical-device
+checks (scanning a printed QR), and exploratory judgement**. Where a stage is already covered
+automatically, spot-check it rather than re-running every permutation by hand. §10 (the full
+browser walk-through) is **not** yet automated end to end and still needs a real manual pass.
+
 ---
 
 ## 0. Prerequisites — start from a fresh environment

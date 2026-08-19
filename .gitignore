@@ -33,3 +33,9 @@ yarn-debug.log*
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Playwright (E2E) artifacts
+playwright-report/
+test-results/
+/blob-report/
+.playwright/
