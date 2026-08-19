@@ -22,7 +22,7 @@ The public-facing product site (unauthenticated). It presents the product across
   - Canvas `#f4f7f7` (cool off-white, never cream) · surface `#fff` · hairline `#dbe6e7` · ink `#0f1e24` · ink-muted / subtle / faint · **accent = deep teal `#0e7490`** (the primary CTA is the teal accent).
   - Radii: buttons/inputs 8px, cards 12px, product tiles 16px, CTA banners 24px. Minimal, teal-tinted depth — mostly hairline borders + surface-on-canvas lift.
   - Type: **Geist** at 600 for display with negative tracking, 400 body. Helpers `.mk-display` / `.mk-heading` / `.mk-lede`.
-- **Light + Dark** (`data-theme` on `<html>`, `--mk-*` dark block in `globals.css`). `lib/theme.tsx` provides the toggle (Sun/Moon in the navbar, desktop + mobile), persisted under `mk-theme`, first visit honours `prefers-color-scheme`; a no-flash script in `layout.tsx` paints it before hydration. Framed `@hms/ui` product previews follow the same `data-theme`.
+- **Light + Dark** (`data-theme` on `<html>`, `--mk-*` dark block in `globals.css`). `lib/theme.tsx` provides the toggle (Sun/Moon in the navbar, desktop + mobile), persisted under `mk-theme`. **Light is the default for everyone** — the OS preference is never consulted (ADR-079); Dark appears only after the visitor toggles it, and then persists. A no-flash script in `layout.tsx` paints the stored theme before hydration. Framed `@hms/ui` product previews follow the same `data-theme`.
 - Motion: restrained (design-taste dials VARIANCE 6 / MOTION 3 / DENSITY 3). `Reveal` does a soft fade-up via IntersectionObserver, fully static under `prefers-reduced-motion`.
 
 ## shadcn/ui — CLI + reference layer (ADR-028)

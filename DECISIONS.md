@@ -747,4 +747,20 @@ The verification surface is fixed: browser tab, login page, header, sidebar, mob
 **Consequence:** What the dialog offers is exactly what exists in that environment's database, staging QA gets one-click sign-in with the accounts that are actually there, and the operator console presents a uniform, credential-silent login everywhere — production behaviour and staging behaviour no longer differ on the admin surface.
 
 ---
+
+## ADR-078 - No deploy baseline means full build — the HEAD fallback is retired
+**Status:** Accepted (this project). Supersedes ADR-076's bullet that the checked-out HEAD serves as the first-run diff baseline.
+**Context:** ADR-076's fallback assumed the VM's checked-out HEAD approximates "what is live" when `.last-deploy-sha` does not exist yet. Staging run #6 (2026-08-19) disproved it: run #5 had already `git reset` HEAD to its commit before dying at the PM2 step, so run #6 diffed from a commit that was checked out but **never deployed**, found only workflow-file changes, skipped the build and reload, and left run #5's Portal bundle stale — while advancing the marker, making every later diff blind to the gap.
+**Decision:** The baseline comes **only** from `.last-deploy-sha`. No marker — first run, or the file removed — means **full build + full reload**, same as an unusable baseline or a same-commit recovery redeploy. HEAD proves what is checked out, never what is live.
+**Consequence:** Bootstrap and post-failure states cost one full deploy instead of silently under-deploying; the marker remains the single honest record of live state (deploy/README.md § Incidents, 2026-08-19 second finding).
+
+---
+
+## ADR-079 - Light is the first-load theme everywhere; the OS preference is never consulted
+**Status:** Accepted (owner decision). Amends `resources/DESIGN.md` §7's first-visit rule.
+**Context:** The five apps disagreed: the Portal, Admin, Patient and AI Portal already defaulted to Light, but marketing's first visit honoured `prefers-color-scheme`, so a visitor with an OS dark preference saw the marketing site dark while every product surface opened light. The owner directed one rule for all surfaces.
+**Decision:** Every app's first load is **Light**, regardless of the OS setting — `prefers-color-scheme` is consulted nowhere. **Dark is only ever an explicit user choice**, made with the in-app toggle, persisted per app (each app has its own key on its own origin), and restored by the pre-hydration no-flash script on later loads. All five no-flash scripts now share the same shape: `stored === 'dark' ? 'dark' : 'light'`.
+**Consequence:** A consistent, deliberately-light first impression on every surface; dark mode remains fully supported but opt-in. The only behaviour change is marketing's first visit on a dark-preference OS.
+
+---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

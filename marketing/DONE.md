@@ -238,3 +238,9 @@ Audited the site against the current codebase (ADR-066…071, DONE logs, permiss
 AI (env-gated draft + dictation) deliberately kept off the marketing site (FUTURE / CDSCO-gated), consistent with the existing decision.
 
 **Testing status:** marketing typecheck + production build clean. Browser-verified the Appointments module page renders the new "What it does today" bullets (rosters, online self-booking) and the narrowed planned list.
+
+## 2026-08-19 — Light is the first-load theme; OS preference no longer consulted (ADR-079)
+
+Marketing was the one app whose first visit honoured `prefers-color-scheme` — a dark-OS visitor saw the marketing site dark while every product surface opened light. Per the owner's direction, `lib/theme.tsx` and the `layout.tsx` no-flash script now default to **Light for everyone**; Dark applies only when `mk-theme` holds an explicit prior choice, and the toggle still persists it. The no-flash script now shares the same shape as the other four apps (`stored==='dark'?'dark':'light'`).
+
+**Testing status:** typecheck clean; browser-verified with emulated OS dark preference — first load paints Light, toggling Dark persists across reload, clearing storage returns to Light.

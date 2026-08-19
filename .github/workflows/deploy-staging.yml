@@ -76,24 +76,32 @@ jobs:
 
             # ── Baseline: the commit that is actually live ─────────────────────────
             # .last-deploy-sha is written only after a fully successful deploy, so a
-            # failed run never advances the diff baseline. Fallback: the checked-out
-            # HEAD (covers the first run after this workflow landed). The file is
-            # untracked, so `git reset --hard` leaves it alone.
+            # failed run never advances the diff baseline. The file is untracked, so
+            # `git reset --hard` leaves it alone.
+            #
+            # NO marker → FULL build. Never fall back to the checked-out HEAD: a
+            # previous FAILED run has already `git reset` HEAD forward without
+            # deploying it, so HEAD does not prove what is live. Exactly this bit
+            # run #6 (2026-08-19): run #5 died at the PM2 step after resetting to its
+            # commit, run #6 then diffed from that HEAD, saw only workflow-file
+            # changes, skipped the build — and run #5's undeployed Portal bundle
+            # stayed stale on staging. Without proof of what is live, rebuild all.
+            PREV_SHA=""
             if [ -f .last-deploy-sha ]; then
               PREV_SHA="$(cat .last-deploy-sha)"
-            else
-              PREV_SHA="$(git rev-parse HEAD)"
             fi
 
             git fetch --all
             git reset --hard origin/staging
             NEW_SHA="$(git rev-parse HEAD)"
 
-            # Full rebuild when the baseline is unusable (commit vanished — force-push
-            # or gc) or when redeploying the same commit: a workflow_dispatch on an
-            # unchanged branch is a recovery action, and recovery means rebuild all.
+            # Full rebuild when: no baseline (first run, or marker removed), the
+            # baseline is unusable (commit vanished — force-push or gc), or
+            # redeploying the same commit: a workflow_dispatch on an unchanged
+            # branch is a recovery action, and recovery means rebuild all.
             MODE=affected
-            git cat-file -e "${PREV_SHA}^{commit}" 2>/dev/null || MODE=full
+            [ -n "$PREV_SHA" ] || MODE=full
+            [ "$MODE" = full ] || git cat-file -e "${PREV_SHA}^{commit}" 2>/dev/null || MODE=full
             [ "$PREV_SHA" = "$NEW_SHA" ] && MODE=full
 
             npm ci
