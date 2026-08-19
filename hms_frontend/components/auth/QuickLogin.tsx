@@ -3,18 +3,20 @@
 import { useState } from "react";
 import { Badge, Button, Dialog } from "@hms/ui";
 import { FlaskConical } from "lucide-react";
-import { DEV_USERS, isQuickLoginEnabled, type DevUser } from "../../lib/devUsers";
+import { DEV_USERS, QUICK_LOGIN_ENVIRONMENT, isQuickLoginEnabled, type DevUser } from "../../lib/devUsers";
 
 /**
- * Development/staging quick-login (issue #7, refined in issue #10).
+ * Development/staging quick-login (issue #7, refined in issue #10; environment-true per ADR-077).
  *
  * A compact "Test credentials" button that keeps the sign-in form clean; clicking it opens a modal
  * of seeded test accounts as scannable cards. Choosing one fills the SAME login form via the SAME
  * auth API (never a second auth path) and closes the modal, leaving the user to sign in with the
  * normal button.
  *
- * Returns `null` in production (gated by `isQuickLoginEnabled`, which keys off the build-time
- * `NEXT_PUBLIC_ENVIRONMENT` flag and defaults to disabled), so it can never appear there.
+ * The list, badge and reseed hint all follow the build's environment (`lib/devUsers.ts`): a
+ * development build shows the dev seeder's accounts, a staging build the staging seeder's — never
+ * each other's. Returns `null` in production (gated by `isQuickLoginEnabled`, which keys off the
+ * build-time `NEXT_PUBLIC_ENVIRONMENT` flag and defaults to disabled), so it can never appear there.
  */
 export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => void; busy?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -42,7 +44,7 @@ export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => vo
         size="lg"
       >
         <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Badge tone="warning">Development only</Badge>
+          <Badge tone="warning">{QUICK_LOGIN_ENVIRONMENT === "staging" ? "Staging only" : "Development only"}</Badge>
           <span className="text-xs text-fg-subtle">Not available in production.</span>
         </div>
 
@@ -66,7 +68,11 @@ export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => vo
         </ul>
 
         <p className="mt-3 text-xs text-fg-subtle">
-          Missing an account? Run <code className="font-mono">npm run db:seed</code> to create the seeded users.
+          Missing an account? Run{" "}
+          <code className="font-mono">
+            {QUICK_LOGIN_ENVIRONMENT === "staging" ? "npm run db:seed:staging" : "npm run db:seed"}
+          </code>{" "}
+          to create the seeded users.
         </p>
       </Dialog>
     </>

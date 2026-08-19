@@ -10,6 +10,9 @@ build/
 # Turborepo
 .turbo/
 
+# Deploy state on the VM — last successfully deployed commit (ADR-076); never committed
+.last-deploy-sha
+
 # Generated OpenAPI artifacts (the live spec is served at /api/v1/openapi.json)
 generated/
 

@@ -51,15 +51,20 @@ The product is **five separate web apps + one API**. The platform has exactly th
 - The staging/dev seeder creates the **Nirogix** platform-operator org (`NIROGIX`) with two Platform
   Super Admins, plus demo hospital(s) with one user per role.
 - **Platform Super Admins:** `jaivik@thefortunetech.com`, `nishant@thefortunetech.com` (org code `NIROGIX`).
-- **Test Credentials / Quick Login** (**development & staging only**, never production): a **Test
-  credentials** button opens a modal of seeded accounts as cards; clicking one fills the login form so
-  you sign in without typing. It appears on **both** the **Portal** (`:3001` — hospital roles *and* the
-  two Platform Admins) and the **Admin console** (`:3003` — the two Platform Admins). It folds out of a
-  production build entirely.
+- **Test Credentials / Quick Login** (**Portal only**; development & staging, never production —
+  ADR-077): a **Test credentials** button on the **Portal** sign-in (`:3001`) opens a modal of seeded
+  accounts as cards; clicking one fills the login form so you sign in without typing. The list is
+  **environment-true**: a development build shows the dev seeder's accounts (CityCare + the two
+  Platform Admins with the dev default password), a staging build shows the **staging** seeder's
+  accounts (QA General Hospital / `QAHOSP` — see `seed.staging.ts`). It folds out of a production
+  build entirely.
+- **The Admin console has NO quick-login, in any environment** (ADR-077). Operator accounts are real
+  platform credentials; sign in by typing org code `NIROGIX` + your operator email + password.
 - **Organization codes are case-insensitive.** Type `nirogix`, `Nirogix` or `NIROGIX` — all resolve the
   same operator org; likewise for the hospital codes.
-- **Do not put real passwords in this document.** In dev/staging the seeded accounts share the seeder's
-  published dev default password (see `TESTING_CREDENTIALS.md`, which is git-ignored guidance, not committed secrets). Platform Admins sign in with the same login form (org code `NIROGIX` + their email).
+- **Do not put real passwords in this document.** Seeded test-account passwords live with their
+  seeders (dev default via `TESTING_CREDENTIALS.md` — git-ignored guidance — and the staging QA
+  password in `seed.staging.ts`); real operator passwords live only with the operators.
 
 > **⚠ Production:** Test Credentials is **absent** from production builds by construction. In production,
 > use only real accounts and run **safe smoke tests only** — never destructive/demo data.

@@ -48,3 +48,11 @@ Append-only implementation log. Newest at the bottom.
 **Reaches existing tenants** via `reconcileSystemRoles()` on the next `db:migrate` — verified against all three seeded tenants.
 
 **Testing status:** the test that asserted no role held it now asserts every staff role does, and a second test pins that the key remains in the catalog so it can still be denied. Verified live: all seven hospital roles plus the platform owner get **200**; a patient token still gets **401**, as does no token at all.
+
+## 2026-08-19 — Compiled `dist/` output for the backend's production boot (ADR-075)
+
+**What:** The package now builds — `tsconfig.build.json` emits CommonJS + declarations to `dist/`, and `main`/`types`/`exports` point there instead of at raw `src/index.ts`. A `dev` watch script keeps `dist/` fresh under root `npm run dev`.
+
+**Why:** `hms_backend` in production is plain `node dist/server.js`; its compiled `require('@hms/permissions')` resolved to raw TypeScript and Node died at boot with `SyntaxError: Unexpected identifier 'as'`. The Next.js apps were immune (`transpilePackages`), which is why local dev never surfaced it. Turbo's `^build` + `outputs: dist/**` were already wired — the package just had nothing to build.
+
+**Testing status:** turbo builds this package before `hms_backend`; `node -e "require('@hms/permissions')"` from the backend resolves compiled output; full-repo typecheck 13/13, Portal production build green, backend suite 162/162.

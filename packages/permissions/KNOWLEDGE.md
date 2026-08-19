@@ -18,6 +18,11 @@ The single source of truth for permission strings and the system-role catalog, s
 - **`ai.portal.access` is held by every staff role** (ADR-055, superseding ADR-053's per-person grant). What keeps patients out of the AI Portal is the **principal-type check**, not this key — a patient is refused before any permission is read. The key still exists so a tenant can DENY it for an individual.
 - **A new key does not reach existing tenants on its own.** `provisionTenantRbac` runs at onboarding, so without a reconcile the key is enforced by the route while no current customer's role holds it — the feature 403s for everyone who signed up first. `reconcileSystemRoles()` in `hms_backend` runs during `db:migrate` and closes that gap; it is additive only, so a tenant's own role customisation survives a deploy (ADR-049).
 
+## Build (ADR-075)
+
+- The package **compiles to `dist/`** (`tsconfig.build.json` → CommonJS + declarations); `main`/`types`/`exports` point at `dist/`, never at `src/`. `hms_backend` in production is plain `node dist/server.js`, so a raw-source entry point breaks its boot. Turbo's `^build` orders this build before any consumer; the package `dev` script (`tsc --watch`) keeps `dist/` fresh under root `npm run dev`.
+- The plain `tsconfig.json` stays check-only (`tsc --noEmit`).
+
 ## Verify
 
-- `npm run typecheck -w @hms/permissions`. Behaviour is exercised by the backend RBAC tests.
+- `npm run typecheck -w @hms/permissions` · `npm run build -w @hms/permissions`. Behaviour is exercised by the backend RBAC tests; runtime resolution by `node -e "require('@hms/permissions')"` from `hms_backend`.
