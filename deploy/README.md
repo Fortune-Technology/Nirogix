@@ -241,6 +241,28 @@ rollback needs an approved down-migration plan (no destructive change without on
 A dated log of staging/production incidents and their fixes, so the next person deploying does not
 rediscover them the hard way. Newest first.
 
+### 2026-08-19 — Admin console dead on every route: ChunkLoadError from a hand-started process
+
+**Impact.** `admin-staging` served its dashboard but every other route showed Next's "This page
+couldn't load" screen. Console: `ChunkLoadError: Failed to load chunk /_next/static/chunks/….js`
+(the chunk requests 404). Login and the API were fine.
+
+**Cause.** The admin app had been started **by hand** on the VM, outside
+`deploy/ecosystem.config.cjs` (its entry was still commented out, BACKLOG F-5). The next full
+deploy rebuilt `admin/.next` on disk but `pm2 reload --only <ecosystem apps>` could not know
+about the hand-run process — so it kept serving the **old** build's prerendered HTML, whose
+chunk files the new build had deleted. Stale HTML → 404 chunks → ChunkLoadError everywhere.
+
+**Fix.** `nirogix-admin` is now a real ecosystem entry, so deploys build **and reload** it
+together. One-time VM recovery, in this order (the hand-run process holds the port):
+`pm2 ls` → `pm2 delete <the hand-run admin process>` → `set -a; . /etc/nirogix/ports.env; set +a`
+→ `pm2 start deploy/ecosystem.config.cjs --only nirogix-admin --env staging` → verify with
+`ss -tulpn` / `curl` → `pm2 save`.
+
+**Rule.** Never hand-start an app the deploy pipeline does not manage. If a surface goes live,
+its ecosystem entry goes live in the same change — a process PM2's ecosystem does not know about
+is a process the deploy will silently break on the next build.
+
 ### 2026-08-19 — Deploy died at the PM2 step: `pm2: command not found` (exit 127)
 
 **Impact.** The affected-only deploy ran git reset, `npm ci` and the Turbo build successfully, then

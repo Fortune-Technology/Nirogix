@@ -93,6 +93,40 @@
 }
 
 /* --------------------------------------------------------------------------
+ * Scrollbars — one global, token-driven treatment for every scroll container
+ * (page, sidebar, dialogs, dropdowns, tables, custom overflow areas) in every
+ * app that consumes this stylesheet. Colours come only from the tokens, so the
+ * thumb follows Light/Dark via `data-theme` automatically, and marketing's
+ * `--hms-* → --mk-*` bridge re-colours it for that site with no extra CSS.
+ * Thin + trackless on purpose: visible enough to grab, never decoration.
+ * Firefox takes the two standard properties; WebKit/Blink the pseudo-elements.
+ * ------------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hms-border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--hms-border);
+  border-radius: 999px;
+  /* Transparent outer border + padding-box clip = a slim thumb with a built-in
+   * gutter, without narrowing the hit area. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--hms-fg-subtle);
+}
+
+/* --------------------------------------------------------------------------
  * Buttons
  * ------------------------------------------------------------------------ */
 .hms-btn {

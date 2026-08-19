@@ -10,9 +10,10 @@
 //                 deterministic QA password committed in that seeder)
 //   production  → nothing, ever
 //
-// The STAGING list deliberately contains NO platform-operator account: on staging the operator
-// credentials are real (ADR-077), and no real credential is ever written to this repo or shown
-// in any UI. The dev list's Platform Admin cards carry only the dev seeder's published default.
+// NO list, in ANY environment, contains a platform-operator account (ADR-080, widening
+// ADR-077): the Portal is the hospital-staff surface, and operator credentials — real on
+// staging/production, even the synthetic dev default — are never displayed, hinted, or
+// pre-filled through it. Operators sign in on the Admin console by typing their credentials.
 //
 // The selector that renders these (`components/auth/QuickLogin.tsx`) is gated on the environment
 // (`isQuickLoginEnabled`) and returns null in production, so it never appears there. This is a
@@ -77,12 +78,7 @@ const STAGING_PASSWORD = 'StagingOnly#2026';
 // Exactly one list survives the build (see the gate comment above).
 export const DEV_USERS: DevUser[] = IS_DEVELOPMENT
   ? [
-    // Platform Admins (System Super Admins) — the Nirogix operator org (issue #15). Its code is
-    // NIROGIX; sign in on the Platform Admin console (:3003), not a hospital tenant. Dev only:
-    // on staging these accounts carry real credentials and are never listed (ADR-077).
-    { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'jaivik@thefortunetech.com', password: DEV_PASSWORD },
-    { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'nishant@thefortunetech.com', password: DEV_PASSWORD },
-
+    // Hospital roles only — never a platform operator (ADR-080).
     { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
     { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },
     { role: 'Doctor', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'doctor@citycare.example', password: DEV_PASSWORD },
@@ -95,6 +91,7 @@ export const DEV_USERS: DevUser[] = IS_DEVELOPMENT
     ? [
       // The staging seeder's QA hospital (`seed.staging.ts` — QAHOSP). No operator account here.
       { role: 'Org Admin', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.admin@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Branch Admin', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.branchadmin@qahospital.example', password: STAGING_PASSWORD },
       { role: 'Doctor', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.doctor@qahospital.example', password: STAGING_PASSWORD },
       { role: 'Receptionist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.reception@qahospital.example', password: STAGING_PASSWORD },
       { role: 'Pharmacist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.pharmacist@qahospital.example', password: STAGING_PASSWORD },

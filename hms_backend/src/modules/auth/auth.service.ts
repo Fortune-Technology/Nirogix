@@ -1,21 +1,26 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
+import { env } from '../../config/env';
 import { runWithTenant } from '../../db/tenantContext';
-import { tenants, users, sessions, type User } from '../../db/schema';
+import { tenants, users, sessions, passwordResetTokens, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { burnPasswordComparison, hashPassword, verifyPassword } from './password';
 import { listUserRoles } from '../rbac/rbac.service';
 import {
   signAccessToken,
   signRefreshToken,
+  signPasswordResetToken,
   verifyRefreshToken,
+  verifyPasswordResetToken,
   hashToken,
   tokenExpiry,
   type RefreshClaims,
+  type PasswordResetClaims,
 } from './tokens';
-import type { LoginInput, PublicUser } from './auth.schema';
+import type { ForgotPasswordInput, LoginInput, PublicUser, ResetPasswordInput } from './auth.schema';
 import { writeAudit } from '../audit/audit.service';
+import { sendEmail } from '../notification/communication.service';
 import { eventBus } from '../../events/eventBus';
 
 type ClientMeta = { userAgent?: string; ip?: string };
@@ -303,6 +308,169 @@ export async function changeOwnPassword(
       .update(sessions)
       .set({ revokedAt: new Date() })
       .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+  });
+
+  // A credential change is an audit event (closing the gap the reset flow would
+  // otherwise have copied): who, when, from where — never the password itself.
+  await writeAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'auth.password.change',
+    severity: 'notice',
+    resourceType: 'user',
+    resourceId: userId,
+  });
+}
+
+/**
+ * Forgot-password step 1 (ADR-081): create a reset token and email its link.
+ *
+ * Deliberately uniform — the caller learns nothing. Unknown org, unknown email,
+ * inactive user: every path returns void and the route answers the same 202, so
+ * this endpoint cannot be used as a directory (same rule as patient request-code).
+ * The emailed token is a signed 30-minute JWT carrying the tenant; the DB row
+ * stores only its SHA-256 hash for the single-use check. The email send itself
+ * never throws (notification.service catches provider failures), so delivery
+ * problems cannot alter the response shape either.
+ */
+export async function requestPasswordReset(
+  input: ForgotPasswordInput,
+  meta: ClientMeta,
+): Promise<void> {
+  const tenant = await resolveTenantByCode(input.orgCode);
+  if (!tenant || tenant.status !== 'active') return;
+
+  const user = await runWithTenant(tenant.id, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.tenantId, tenant.id), eq(users.email, input.email)))
+      .limit(1);
+    return rows[0] ?? null;
+  });
+  if (!user || user.status !== 'active') {
+    // Audited (internal record), but the caller still sees the uniform 202.
+    await writeAudit({
+      tenantId: tenant.id,
+      action: 'auth.password.reset.requested',
+      severity: 'notice',
+      metadata: { email: input.email, outcome: 'no_matching_active_user' },
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    return;
+  }
+
+  const token = signPasswordResetToken({ sub: user.id, tid: tenant.id });
+  await runWithTenant(tenant.id, (tx) =>
+    tx.insert(passwordResetTokens).values({
+      tenantId: tenant.id,
+      userId: user.id,
+      tokenHash: hashToken(token),
+      expiresAt: tokenExpiry(token),
+    }),
+  );
+
+  // The origin is CONFIGURED per environment (never derived from a request header —
+  // a Host-based link would let a request steer where the email points).
+  const origin = input.client === 'admin' ? env.ADMIN_URL : env.PORTAL_URL;
+  const link = `${origin.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+  await sendEmail({
+    tenantId: tenant.id,
+    to: user.email,
+    subject: 'Reset your Nirogix password',
+    body:
+      `Hello ${user.fullName},\n\n` +
+      `A password reset was requested for your Nirogix account (organization ${tenant.code}).\n\n` +
+      `Reset your password here (the link is valid for 30 minutes and works once):\n${link}\n\n` +
+      `If you did not request this, you can ignore this email — your password is unchanged.`,
+    metadata: { kind: 'password_reset', userId: user.id },
+  });
+
+  await writeAudit({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    action: 'auth.password.reset.requested',
+    severity: 'notice',
+    resourceType: 'user',
+    resourceId: user.id,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+}
+
+/**
+ * Forgot-password step 2 (ADR-081): consume a reset link and set the new password.
+ *
+ * The token's signature is verified BEFORE any DB work, and the tenant context
+ * comes from the verified claims — the `/auth/refresh` pattern. Every failure mode
+ * (bad signature, expired, unknown row, already consumed, inactive user) collapses
+ * to one message, so a probe learns nothing about which check failed. On success:
+ * the used token is consumed, every OTHER outstanding reset token for the user is
+ * consumed too (an old email's link dies once any reset lands), and every session
+ * is revoked — the user signs in fresh with the new password.
+ */
+export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta): Promise<void> {
+  let claims: PasswordResetClaims;
+  try {
+    claims = verifyPasswordResetToken(input.token);
+  } catch {
+    throw Errors.unauthorized('Invalid or expired reset link');
+  }
+
+  const now = new Date();
+  await runWithTenant(claims.tid, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, hashToken(input.token)),
+          eq(passwordResetTokens.userId, claims.sub),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row || row.consumedAt || row.expiresAt < now) {
+      throw Errors.unauthorized('Invalid or expired reset link');
+    }
+
+    const userRows = await tx.select().from(users).where(eq(users.id, claims.sub)).limit(1);
+    const user = userRows[0];
+    if (!user || user.status !== 'active') throw Errors.unauthorized('Invalid or expired reset link');
+
+    if (await verifyPassword(input.newPassword, user.passwordHash)) {
+      throw Errors.validation(undefined, 'The new password must be different from the current one');
+    }
+
+    await tx
+      .update(users)
+      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: now })
+      .where(eq(users.id, user.id));
+
+    // This link, and every other outstanding link for the user, is dead from here.
+    await tx
+      .update(passwordResetTokens)
+      .set({ consumedAt: now })
+      .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.consumedAt)));
+
+    // Same rule as change-password: a credential change signs everyone out,
+    // including whoever is holding a stolen refresh token.
+    await tx
+      .update(sessions)
+      .set({ revokedAt: now })
+      .where(and(eq(sessions.userId, user.id), isNull(sessions.revokedAt)));
+  });
+
+  await writeAudit({
+    tenantId: claims.tid,
+    actorUserId: claims.sub,
+    action: 'auth.password.reset.completed',
+    severity: 'notice',
+    resourceType: 'user',
+    resourceId: claims.sub,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
   });
 }
 

@@ -47,4 +47,30 @@ export const MessageResponseSchema = z
   .object({ message: z.string() })
   .openapi('MessageResponse');
 
+// The platform's one password policy — shared by change-password, the reset flow, and their
+// OpenAPI docs, so the bound can never drift between copies (it used to be restated inline).
+// Matches the strength the rest of the platform issues; the upper bound guards bcrypt cost.
+export const PasswordSchema = z.string().min(10).max(200);
+
+export const ForgotPasswordBody = z
+  .object({
+    orgCode: z.string().min(1).openapi({ example: 'CITYCARE', description: 'Organization / tenant code' }),
+    email: z.string().email().openapi({ example: 'admin@citycare.example' }),
+    // Which frontend's reset page the emailed link should open. The server maps this to a
+    // configured origin (PORTAL_URL / ADMIN_URL) — the client never supplies a URL.
+    client: z.enum(['portal', 'admin']).default('portal').openapi({
+      description: "Which app requested the reset; decides the link's configured origin.",
+    }),
+  })
+  .openapi('ForgotPasswordRequest');
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordBody>;
+
+export const ResetPasswordBody = z
+  .object({
+    token: z.string().min(16).openapi({ description: 'The reset token from the emailed link.' }),
+    newPassword: PasswordSchema,
+  })
+  .openapi('ResetPasswordRequest');
+export type ResetPasswordInput = z.infer<typeof ResetPasswordBody>;
+
 export const MeResponseSchema = z.object({ user: PublicUserSchema }).openapi('MeResponse');

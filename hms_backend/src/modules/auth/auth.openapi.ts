@@ -1,12 +1,15 @@
 import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
 import {
+  ForgotPasswordBody,
   LoginBody,
   LoginResponseSchema,
   RefreshResponseSchema,
   MessageResponseSchema,
   MeResponseSchema,
+  PasswordSchema,
   PublicUserSchema,
+  ResetPasswordBody,
 } from './auth.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -96,7 +99,7 @@ registry.registerPath({
     body: json(
       z.object({
         currentPassword: z.string().min(1),
-        newPassword: z.string().min(10).max(200),
+        newPassword: PasswordSchema,
       }),
     ),
   },
@@ -104,5 +107,44 @@ registry.registerPath({
     200: { description: 'Password changed', ...json(z.object({ message: z.string() })) },
     400: { description: 'Current password incorrect, or the new password is invalid', ...json(ErrorResponseSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/forgot-password',
+  operationId: 'forgotPassword',
+  tags: ['Auth'],
+  summary: 'Request a password-reset link by organization code and email',
+  description:
+    'Always answers 202 with the same message whether or not an account matches — this endpoint ' +
+    'is deliberately not usable to discover which emails exist (ADR-081). When an active account ' +
+    'matches, a single-use reset link valid for 30 minutes is emailed through the configured ' +
+    'communication provider. Rate-limited at the sign-in tier.',
+  request: { body: json(ForgotPasswordBody) },
+  responses: {
+    202: { description: 'Uniform acknowledgement (sent or not)', ...json(MessageResponseSchema) },
+    400: { description: 'Validation failed', ...json(ErrorResponseSchema) },
+    429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/reset-password',
+  operationId: 'resetPassword',
+  tags: ['Auth'],
+  summary: 'Set a new password using an emailed reset token',
+  description:
+    'Consumes a reset link from the forgot-password email. The token is single-use and expires ' +
+    '30 minutes after issue; a successful reset also invalidates every other outstanding reset ' +
+    'link and revokes every session for the user, who then signs in with the new password. All ' +
+    'token failure modes return the same message (ADR-081).',
+  request: { body: json(ResetPasswordBody) },
+  responses: {
+    200: { description: 'Password reset', ...json(MessageResponseSchema) },
+    400: { description: 'Validation failed (password policy, or new password equals the old one)', ...json(ErrorResponseSchema) },
+    401: { description: 'Invalid, expired, or already-used reset link', ...json(ErrorResponseSchema) },
+    429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
   },
 });

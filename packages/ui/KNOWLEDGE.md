@@ -4,7 +4,7 @@ The shared design system for the Nirogix monorepo. Consumed by `hms_frontend` (P
 
 ## What's here
 
-- **`src/styles.css`** — the **single design-token layer** (`--hms-*`: colour, radius, type, shadow) with **Light default (`:root`) + Dark (`[data-theme="dark"]`)**, plus overridable brand tokens (`--hms-brand*`) and the canonical CSS for every primitive. Imported once by the app: `import '@hms/ui/styles.css'`.
+- **`src/styles.css`** — the **single design-token layer** (`--hms-*`: colour, radius, type, shadow) with **Light default (`:root`) + Dark (`[data-theme="dark"]`)**, plus overridable brand tokens (`--hms-brand*`) and the canonical CSS for every primitive. Imported once by the app: `import '@hms/ui/styles.css'`. Includes the **global scrollbar treatment** (thin, token-coloured thumb, transparent track — Firefox properties + WebKit pseudo-elements) that every scroll container in every consuming app inherits in both themes; marketing's `--hms-* → --mk-*` bridge re-colours it for that site automatically.
 - **Primitives** (`src/components/`, all token-only — no hardcoded colour/spacing/radius/type): `Button`, `Field`, `PasswordField`, `Card`, `Badge`, `Alert`, `Spinner`.
 - **`Field`** takes `label`, `error` and `hint`. `error` replaces `hint` when both are set, so a field never shows two competing messages, and whichever renders is wired to the input through `aria-describedby`.
 - **Column `align` governs the heading and the cells together.** The class goes on the `th`, and a non-left alignment makes the sort control fill its cell so it can justify. Reserve `right` for magnitudes compared down a column (money, counts) and the actions column — a label containing a digit reads better left.

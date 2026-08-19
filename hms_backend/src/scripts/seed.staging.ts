@@ -51,6 +51,7 @@ const TENANT = {
   // One account per role, so every permission boundary is testable in both directions.
   users: [
     { email: 'qa.admin@qahospital.example', fullName: 'QA Org Admin', role: 'org_admin' },
+    { email: 'qa.branchadmin@qahospital.example', fullName: 'QA Branch Admin', role: 'branch_admin' },
     { email: 'qa.doctor@qahospital.example', fullName: 'QA Doctor', role: 'doctor' },
     { email: 'qa.reception@qahospital.example', fullName: 'QA Receptionist', role: 'receptionist' },
     { email: 'qa.pharmacist@qahospital.example', fullName: 'QA Pharmacist', role: 'pharmacist' },

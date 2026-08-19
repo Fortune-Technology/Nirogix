@@ -75,7 +75,12 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
       { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList },
       // The receiving side of in-hospital referrals (ADR-068).
       { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send },
-      { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_STOCK_VIEW, icon: Pill },
+      // Gated by the LANDING page's permission (the dispense queue), not the broader
+      // stock-view key: a doctor holds `pharmacy.stock.view` for the in-consult
+      // formulary picker, and advertising the pharmacy workspace to them showed a
+      // sidebar item whose destination refused them. The rule: a nav item's `perm`
+      // is always its landing page's `RequirePermission` key.
+      { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_DISPENSE, icon: Pill },
       { label: "Laboratory", href: "/laboratory", perm: PERMISSIONS.LAB_ORDER_VIEW, icon: FlaskConical },
     ],
   },

@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@hms/permissions";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Palette, ScrollText } from "lucide-react";
+import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Palette, ScrollText, UserCircle } from "lucide-react";
 
 /**
  * Platform administration navigation (ADR-037, ADR-051).
@@ -56,9 +56,14 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Security & audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },
-  // No "My profile" here: the admin app has no profile screen, and this file's own
-  // rule is that a nav item never points at an unbuilt route. Sign-out lives in the
-  // topbar. (Account management for operators is a later item — see BACKLOG.)
+  {
+    label: "Account",
+    items: [
+      // Any authenticated operator: their own account + password change (the same
+      // /auth/change-password the Portal uses; the user id comes from the token).
+      { label: "My profile", href: "/profile", perm: null, icon: UserCircle },
+    ],
+  },
 ];
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);

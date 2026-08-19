@@ -52,12 +52,12 @@ The product is **five separate web apps + one API**. The platform has exactly th
   Super Admins, plus demo hospital(s) with one user per role.
 - **Platform Super Admins:** `jaivik@thefortunetech.com`, `nishant@thefortunetech.com` (org code `NIROGIX`).
 - **Test Credentials / Quick Login** (**Portal only**; development & staging, never production —
-  ADR-077): a **Test credentials** button on the **Portal** sign-in (`:3001`) opens a modal of seeded
-  accounts as cards; clicking one fills the login form so you sign in without typing. The list is
-  **environment-true**: a development build shows the dev seeder's accounts (CityCare + the two
-  Platform Admins with the dev default password), a staging build shows the **staging** seeder's
-  accounts (QA General Hospital / `QAHOSP` — see `seed.staging.ts`). It folds out of a production
-  build entirely.
+  ADR-077, ADR-080): a **Test credentials** button on the **Portal** sign-in (`:3001`) opens a modal
+  of seeded accounts as cards; clicking one fills the login form so you sign in without typing. The
+  list is **environment-true** and contains **hospital roles only — never a platform operator, in
+  any environment** (ADR-080): a development build shows the dev seeder's CityCare roles, a staging
+  build the **staging** seeder's QA General Hospital / `QAHOSP` roles including its Branch Admin
+  (`seed.staging.ts`). It folds out of a production build entirely.
 - **The Admin console has NO quick-login, in any environment** (ADR-077). Operator accounts are real
   platform credentials; sign in by typing org code `NIROGIX` + your operator email + password.
 - **Organization codes are case-insensitive.** Type `nirogix`, `Nirogix` or `NIROGIX` — all resolve the
@@ -68,6 +68,23 @@ The product is **five separate web apps + one API**. The platform has exactly th
 
 > **⚠ Production:** Test Credentials is **absent** from production builds by construction. In production,
 > use only real accounts and run **safe smoke tests only** — never destructive/demo data.
+
+### Forgot password (both consoles — ADR-081)
+
+Available on the **Portal** (`:3001/login`) and the **Admin console** (`:3003/login`) via the
+**Forgot password?** link. In development the email is not sent — the log provider prints it (with
+the link) to the backend log.
+
+- [ ] Request a link with a real org code + staff email → the page shows the uniform "If an account
+      matches…" message inline (no toast).
+- [ ] Request with an unknown email and with an unknown org code → the **same** message both times
+      (no account enumeration).
+- [ ] Open the emailed link → set a new password (min 10 chars, entered twice) → success → sign in
+      with the new password works; the old password is refused.
+- [ ] Open the same link again → "Invalid or expired reset link" (single-use).
+- [ ] A link older than 30 minutes → same uniform refusal (expiry).
+- [ ] A session signed in elsewhere is signed out by the reset (all sessions revoked).
+- [ ] From the Admin console, the emailed link opens the **admin** app's reset page, not the Portal's.
 
 ---
 

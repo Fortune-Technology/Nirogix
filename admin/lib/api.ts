@@ -39,6 +39,22 @@ export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
 export const { setAccessToken, getAccessToken, setOnSessionExpired, tryRefresh, login, logout, me, myPermissions } =
   client;
 
+// ---- Forgot password (ADR-081) — both unauthenticated ----------------------
+
+export async function forgotPassword(body: { orgCode: string; email: string }): Promise<{ message: string }> {
+  // `client: "admin"` → the emailed link opens THIS console's reset page (ADMIN_URL).
+  // Outcomes render inline on the pages, so the shared toast stays quiet.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { ...body, client: "admin" },
+    feedback: false,
+  });
+}
+
+export async function resetPassword(body: { token: string; newPassword: string }): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/reset-password", { method: "POST", body, feedback: false });
+}
+
 export async function changePassword(body: { currentPassword: string; newPassword: string }): Promise<void> {
   await request<void>("/auth/change-password", {
     method: "POST",

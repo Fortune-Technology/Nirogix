@@ -18,8 +18,10 @@ app/
   providers.tsx           ThemeProvider + AuthProvider
   globals.css             Identical token layer to the Portal — one design system, rendered the same way
   (auth)/login/page.tsx   Platform operator sign-in — NO quick-login in any environment (ADR-077)
+  (auth)/forgot-password/ + (auth)/reset-password/   Self-service password recovery (ADR-081)
   (app)/layout.tsx        Session gate + platform-operator gate
   (app)/page.tsx          Platform dashboard — real cross-tenant aggregates + trends
+  (app)/profile/          My profile — account facts + change password (any authenticated operator)
   (app)/tenants/          Hospital list, detail (modules, users, support session), onboarding
   (app)/branding/         Platform branding — marketing + Portal default scopes (ADR-024)
   (app)/audit/            Audit trail viewer
@@ -32,6 +34,7 @@ lib/
 components/
   AppShell.tsx            Sidebar + topbar + shared mobile drawer
   Can.tsx / Forbidden.tsx / PageHeader.tsx   Shared with the Portal by copy, not by import
+  profile/                Profile pieces (header/facts/security card) — Portal copy, same rule
 ```
 
 ## Conventions specific to this app
