@@ -260,6 +260,17 @@ loudly up front** (`command -v pm2`) if pm2 is still unresolvable, instead of dy
 after the build. Same lesson as `/etc/nirogix/ports.env`: a non-interactive SSH shell inherits
 NOTHING from login dotfiles — every environment dependency must be set explicitly in the script.
 
+**Second finding (same day) — a failed run poisons the HEAD fallback.** The original affected-only
+logic fell back to the checked-out HEAD as the diff baseline when `.last-deploy-sha` did not exist
+yet. But a failed run has **already `git reset` HEAD** to its commit before dying — HEAD moves even
+when the deploy does not. Concretely: run #5 (the Portal quick-login change) reset to its commit,
+built, then died at `pm2: command not found` — nothing reloaded. Run #6 (workflow fixes only) found
+no marker, took HEAD (= run #5's commit) as baseline, saw only workflow-file changes, **skipped the
+build and reload entirely**, succeeded, and advanced the marker — leaving run #5's bundle stale on
+staging with every subsequent diff now blind to it. Fix: **no marker → full build**, never a HEAD
+fallback; HEAD proves what is checked out, not what is live. Recovery from this state is a
+`workflow_dispatch` re-run — same-commit redeploys are deliberately full build + full reload.
+
 ### 2026-08-18 — Staging VM OOM-killed by an unbounded parallel build
 
 **Impact.** The entire staging VM went offline until a manual restart. The box is **shared** — it
