@@ -2,14 +2,15 @@ name: Deploy (staging)
 
 # Auto-deploy on merge to `staging` (resources/development-plan.md §18). CI (ci.yml) must be
 # green first — this workflow assumes the branch already passed typecheck/lint/openapi/test/build.
-# It builds, then over SSH: installs, migrates the DB (migrations apply BEFORE app rollout), and
-# PM2-reloads for zero-downtime restart. All connection details are GitHub Environment secrets;
+# It builds, then over SSH: installs, builds ONLY the workspaces affected since the last
+# successful deploy (ADR-076), migrates the DB when the backend is part of the deploy, and
+# PM2-reloads only the affected apps. All connection details are GitHub Environment secrets;
 # nothing here is hard-coded.
 
 on:
   push:
     branches: [staging]
-  workflow_dispatch: # allow manual redeploy
+  workflow_dispatch: # manual redeploy — same-commit redeploys rebuild + reload EVERYTHING (recovery semantics)
 
 concurrency:
   group: deploy-staging
@@ -30,21 +31,26 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Turborepo builds everything; unchanged packages are restored from cache (affected-only
-      # deploys are a later optimization — §18). A failed build blocks the deploy.
+      # Full build on the RUNNER stays deliberately unscoped — it is the compile gate that keeps
+      # a broken commit off the VM entirely, and GitHub's runner has the memory the VM does not.
+      # Affected-only applies on the VM below, where the 2026-08-18 OOM lives.
       - name: Build
         run: npm run build
 
-      # Deploy over SSH: sync code, install, run migrations, reload PM2. The VM already holds the
-      # per-app .env files (never committed). Requires secrets: STAGING_HOST, STAGING_USER,
-      # STAGING_SSH_KEY, STAGING_PATH.
+      # Deploy over SSH — affected-only (ADR-076): diff against the last SUCCESSFULLY deployed
+      # commit (`.last-deploy-sha`, untracked on the VM), let Turborepo's `...[ref]` filter pick
+      # the changed workspaces plus everything that depends on them, build just those, migrate
+      # only when hms_backend is in the set, and reload only the matching PM2 apps. The VM already
+      # holds the per-app .env files (never committed). Requires secrets: STAGING_HOST,
+      # STAGING_USER, STAGING_SSH_KEY, STAGING_PATH.
       #
       # 2026-08-18 incident: an unbounded `npm run build` here ran all 6 Next.js/Turbopack builds
       # + tsc concurrently on the shared VM (already running 6 unrelated live apps), OOM-killed
       # (kernel log: `next-build` at 780MB RSS), and took the entire box offline until a manual
       # restart. `--concurrency=2` caps how many workspaces Turbo builds at once — same total
-      # work, bounded peak memory. Do not remove this flag or revert to a bare `npm run build`
-      # on this step without swap space + a memory recheck first (see deploy/README.md § Incidents).
+      # work, bounded peak memory. Affected-only filtering shrinks the work further, but is NOT
+      # a substitute: do not remove the flag from either build path without swap space + a memory
+      # recheck first (see deploy/README.md § Incidents).
       - name: Deploy to staging VM
         uses: appleboy/ssh-action@v1
         with:
@@ -54,11 +60,88 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.STAGING_PATH }}"
+
+            # ── Baseline: the commit that is actually live ─────────────────────────
+            # .last-deploy-sha is written only after a fully successful deploy, so a
+            # failed run never advances the diff baseline. Fallback: the checked-out
+            # HEAD (covers the first run after this workflow landed). The file is
+            # untracked, so `git reset --hard` leaves it alone.
+            if [ -f .last-deploy-sha ]; then
+              PREV_SHA="$(cat .last-deploy-sha)"
+            else
+              PREV_SHA="$(git rev-parse HEAD)"
+            fi
+
             git fetch --all
             git reset --hard origin/staging
+            NEW_SHA="$(git rev-parse HEAD)"
+
+            # Full rebuild when the baseline is unusable (commit vanished — force-push
+            # or gc) or when redeploying the same commit: a workflow_dispatch on an
+            # unchanged branch is a recovery action, and recovery means rebuild all.
+            MODE=affected
+            git cat-file -e "${PREV_SHA}^{commit}" 2>/dev/null || MODE=full
+            [ "$PREV_SHA" = "$NEW_SHA" ] && MODE=full
+
             npm ci
-            npm run build -- --concurrency=2
-            # Migrations apply before the app rollout (additive/reversible only).
-            npm run db:migrate -w hms_backend
-            pm2 reload deploy/ecosystem.config.cjs --env staging
-            pm2 save
+
+            # ── Build only what changed ────────────────────────────────────────────
+            # `...[ref]` is dependency-aware: it selects the packages whose files
+            # changed since ref PLUS everything that depends on them, so a
+            # packages/types edit rebuilds hms_backend and every portal importing it.
+            # --concurrency=2 is load-bearing on this shared VM (see header).
+            AFFECTED=""
+            if [ "$MODE" = affected ]; then
+              AFFECTED="$(npx turbo run build "--filter=...[${PREV_SHA}]" --dry=json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s.slice(s.indexOf("{")));console.log((j.packages||[]).filter(p=>p!=="//").join(" "))})')"
+              echo "Affected since ${PREV_SHA}: ${AFFECTED:-(none — docs/CI-only change)}"
+              if [ -n "$AFFECTED" ]; then
+                npx turbo run build "--filter=...[${PREV_SHA}]" --concurrency=2
+              fi
+            else
+              echo "Full build (no usable baseline, or same-commit redeploy)"
+              npm run build -- --concurrency=2
+            fi
+
+            contains() { case " $2 " in *" $1 "*) return 0;; *) return 1;; esac; }
+            in_deploy() { [ "$MODE" = full ] || contains "$1" "$AFFECTED"; }
+
+            # ── Migrations: only when the backend is part of this deploy ───────────
+            # (Additive/idempotent by rule, so running them always would be safe —
+            # skipping is about the deploy log telling the truth about what it did.)
+            if in_deploy hms_backend; then
+              npm run db:migrate -w hms_backend
+            fi
+
+            # ── Reload only the PM2 apps whose workspace was rebuilt ───────────────
+            # App names come from ecosystem.config.cjs itself (single source), so
+            # patient/admin/aiportal join automatically when BACKLOG F-5 uncomments
+            # them there — no workflow edit.
+            ECOSYSTEM_APPS="$(node -e 'console.log(require("./deploy/ecosystem.config.cjs").apps.map(a=>a.name).join(" "))')"
+            RELOAD=""
+            for pair in hms_backend:nirogix-backend hms_frontend:nirogix-portal marketing:nirogix-marketing patient:nirogix-patient admin:nirogix-admin aiportal:nirogix-aiportal; do
+              ws="${pair%%:*}"; app="${pair##*:}"
+              if in_deploy "$ws" && contains "$app" "$ECOSYSTEM_APPS"; then
+                RELOAD="${RELOAD:+$RELOAD,}$app"
+              fi
+            done
+
+            if [ -n "$RELOAD" ]; then
+              # PM2 re-parses the ecosystem file on reload, and a non-interactive SSH
+              # shell sources no .bashrc — without NIROGIX_PORT_* here every app falls
+              # back to the default ports on a SHARED VM (EADDRINUSE crash-loop).
+              # Missing file = abort before touching PM2; the old processes keep running.
+              if [ ! -f /etc/nirogix/ports.env ]; then
+                echo "FATAL: /etc/nirogix/ports.env missing — refusing to reload PM2 with default ports on a shared VM" >&2
+                exit 1
+              fi
+              set -a
+              . /etc/nirogix/ports.env
+              set +a
+              pm2 reload deploy/ecosystem.config.cjs --only "$RELOAD" --env staging
+              pm2 save
+            else
+              echo "No deployed app affected — PM2 untouched"
+            fi
+
+            # ── Advance the baseline only after everything above succeeded ─────────
+            echo "$NEW_SHA" > .last-deploy-sha

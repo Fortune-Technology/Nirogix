@@ -1,18 +1,25 @@
-// Development-only quick-login accounts (dev/staging convenience — issue #7).
+// Environment-aware quick-login accounts for the Portal sign-in (issue #7, ADR-077).
 //
-// STRICTLY non-production. These mirror the accounts created by the DEVELOPMENT seeder
-// (`hms_backend/src/scripts/seed.ts`) and documented in `TESTING_CREDENTIALS.md`. The password is
-// always the seeder's **published dev default** — never a real password. The hospital demo accounts
-// use RFC-2606 reserved `.example` emails; the two Platform Admins use the real operator emails the
-// seeder provisions (issue #15), still with the dev default password. There is no production
-// credential anywhere in this file, and the whole array folds out of a production build (below).
+// STRICTLY non-production, and STRICTLY environment-true: the list shown always mirrors the
+// seeder that actually populated the environment's database (ADR-058 — one seeder per
+// environment), so the cards on screen are accounts that really exist there:
+//
+//   development → `hms_backend/src/scripts/seed.ts`         (CITYCARE demo hospital + the two
+//                 Platform Admins, published dev default password)
+//   staging     → `hms_backend/src/scripts/seed.staging.ts` (QA General Hospital / QAHOSP,
+//                 deterministic QA password committed in that seeder)
+//   production  → nothing, ever
+//
+// The STAGING list deliberately contains NO platform-operator account: on staging the operator
+// credentials are real (ADR-077), and no real credential is ever written to this repo or shown
+// in any UI. The dev list's Platform Admin cards carry only the dev seeder's published default.
 //
 // The selector that renders these (`components/auth/QuickLogin.tsx`) is gated on the environment
 // (`isQuickLoginEnabled`) and returns null in production, so it never appears there. This is a
 // convenience over the SAME login form + API — not a second auth path.
 //
-// If the seeder's accounts change, update this list (it is the single source for the UI); the
-// dev seeder remains authoritative for what actually exists in the database.
+// If a seeder's accounts change, update the matching list here (single source for the UI); the
+// seeders remain authoritative for what actually exists in each database.
 
 export interface DevUser {
   /** Human role label shown on the card. */
@@ -24,25 +31,28 @@ export interface DevUser {
   password: string;
 }
 
-// **Build-time gate, inlined as a literal.** `NEXT_PUBLIC_ENVIRONMENT` is one of the three
-// canonical environments — `development` | `staging` | `production` (ADR-071; `local` is retired
-// in favour of `development`). It is replaced with a string literal at build, so
-// `QUICK_LOGIN_ENABLED` folds to a constant. Enabled for `development` (a developer's machine) and
-// `staging` (shared QA/demo, where the switcher is intended); disabled for `production` and any
-// other/unset value. We deliberately do NOT gate on NODE_ENV: `next build`/`next start` run with
-// NODE_ENV=production even on staging, so NODE_ENV cannot distinguish staging from production —
-// this explicit flag can.
+// **Build-time gates, inlined as literals.** `NEXT_PUBLIC_ENVIRONMENT` is one of the three
+// canonical environments — `development` | `staging` | `production` (ADR-071). It is replaced
+// with a string literal at build, so each comparison folds to a constant and the minifier drops
+// every list the build's environment does not use — a staging bundle physically contains no dev
+// account, a dev bundle no staging account, a production bundle neither.
 //
-// Keep these as INLINE literal comparisons: routing them through a function call would defeat the
-// constant-fold and ship the credential array (below) into the production bundle.
-const QUICK_LOGIN_ENABLED =
-  process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' ||
-  process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
+// Keep these as INLINE literal comparisons: routing them through a function call would defeat
+// the constant-fold and ship credential arrays into bundles they must not reach.
+const IS_DEVELOPMENT = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
+const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
 /** True only when the build was made for a non-production environment. */
 export function isQuickLoginEnabled(): boolean {
-  return QUICK_LOGIN_ENABLED;
+  return IS_DEVELOPMENT || IS_STAGING;
 }
+
+/** Which environment's account list this build carries — drives the dialog's labelling. */
+export const QUICK_LOGIN_ENVIRONMENT: 'development' | 'staging' | null = IS_DEVELOPMENT
+  ? 'development'
+  : IS_STAGING
+    ? 'staging'
+    : null;
 
 // Dev-time sanity check (ADR-071): catch a mis-set environment value (a typo like `local`/`prod`)
 // early. Folds away entirely in a production build (NODE_ENV==='production'), so no cost there.
@@ -60,14 +70,16 @@ if (process.env.NODE_ENV !== 'production') {
 // The dev-seed password (TESTING_CREDENTIALS.md) — a known synthetic value, never a real secret.
 const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? 'ChangeMe#123';
 
-// The list is built ONLY when the gate is on. In a production build `QUICK_LOGIN_ENABLED` is the
-// literal `false`, so the minifier constant-folds `false ? [...] : []` to `[]` and drops the
-// whole account array — the dev credentials are physically absent from the production bundle,
-// not merely un-rendered. (Verified by grepping the built chunks — see DONE.md.)
-export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
+// The staging seeder's deterministic QA password — already committed in
+// `hms_backend/src/scripts/seed.staging.ts` (ADR-058); mirrored here, never a real secret.
+const STAGING_PASSWORD = 'StagingOnly#2026';
+
+// Exactly one list survives the build (see the gate comment above).
+export const DEV_USERS: DevUser[] = IS_DEVELOPMENT
   ? [
     // Platform Admins (System Super Admins) — the Nirogix operator org (issue #15). Its code is
-    // NIROGIX; sign in on the Platform Admin console (:3003), not a hospital tenant.
+    // NIROGIX; sign in on the Platform Admin console (:3003), not a hospital tenant. Dev only:
+    // on staging these accounts carry real credentials and are never listed (ADR-077).
     { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'jaivik@thefortunetech.com', password: DEV_PASSWORD },
     { role: 'Platform Admin', orgCode: 'NIROGIX', orgName: 'Nirogix (Platform)', email: 'nishant@thefortunetech.com', password: DEV_PASSWORD },
 
@@ -78,7 +90,15 @@ export const DEV_USERS: DevUser[] = QUICK_LOGIN_ENABLED
     { role: 'Pharmacist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'pharmacist@citycare.example', password: DEV_PASSWORD },
     { role: 'Lab Technician', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'lab@citycare.example', password: DEV_PASSWORD },
     { role: 'Cashier', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'cashier@citycare.example', password: DEV_PASSWORD },
-    // A second hospital, for cross-tenant / isolation testing.
-
   ]
-  : [];
+  : IS_STAGING
+    ? [
+      // The staging seeder's QA hospital (`seed.staging.ts` — QAHOSP). No operator account here.
+      { role: 'Org Admin', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.admin@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Doctor', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.doctor@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Receptionist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.reception@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Pharmacist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.pharmacist@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Lab Technician', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.lab@qahospital.example', password: STAGING_PASSWORD },
+      { role: 'Cashier', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.cashier@qahospital.example', password: STAGING_PASSWORD },
+    ]
+    : [];

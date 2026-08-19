@@ -192,20 +192,49 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
     `www` → apex redirect in production, access control + `noindex` on staging, and the refresh
     cookie arriving `Secure; HttpOnly; SameSite=Lax` with **no** `Domain` attribute.
 
-## Deploy flow (staging, automated)
+## Deploy flow (staging, automated) — affected-only (ADR-076)
 
-Merge to `staging` runs `.github/workflows/deploy-staging.yml`:
-build → SSH to the VM → `git reset --hard origin/staging` → `npm ci` → `npm run build` →
-**`db:migrate` (migrations apply before rollout)** → `pm2 reload` (zero-downtime) → `pm2 save`.
+Merge to `staging` runs `.github/workflows/deploy-staging.yml`. The **runner** still does a full
+`npm ci && npm run build` — that is the compile gate keeping a broken commit off the VM, and the
+runner has the memory the VM does not. The **VM** then deploys affected-only:
+
+1. **Baseline.** The VM reads `${STAGING_PATH}/.last-deploy-sha` — untracked, written only after
+   a fully successful deploy — as "what is live right now"; first run falls back to the
+   checked-out HEAD read before `git reset`. An unusable baseline (commit vanished — force-push
+   or gc) or a **same-commit redeploy** (`workflow_dispatch` recovery) falls back to a full build
+   + full reload.
+2. **Build.** `npx turbo run build --filter=...[<baseline>] --concurrency=2` — only workspaces
+   changed since the baseline **plus everything that depends on them** (a `packages/types` edit
+   rebuilds `hms_backend` and every portal importing it; a docs-only push builds nothing).
+   `--concurrency=2` stays load-bearing on the shared VM (§ Incidents) — affected-only shrinks
+   the work, it does not replace the cap.
+3. **Migrate.** `db:migrate -w hms_backend` runs only when `hms_backend` is in the affected set
+   (or in full mode). Migrations stay additive/idempotent — the skip is honesty about what the
+   deploy did, not a safety requirement.
+4. **Reload.** Only the PM2 apps whose workspace was rebuilt:
+   `pm2 reload deploy/ecosystem.config.cjs --only <names> --env staging`, then `pm2 save`.
+   The candidate names are intersected with the apps actually defined in
+   `ecosystem.config.cjs`, so the not-yet-deployed patient/admin/aiportal are skipped until
+   BACKLOG F-5 uncomments them there — no workflow edit needed. Before any PM2 command the
+   script sources **`/etc/nirogix/ports.env`** (`set -a`) — this file is **required on the VM**:
+   a non-interactive SSH shell reads no `.bashrc`, and without `NIROGIX_PORT_*` PM2 would
+   re-parse the ecosystem onto default ports on a shared box (EADDRINUSE crash-loop). The deploy
+   aborts before touching PM2 if the file is missing.
+5. **Marker.** `.last-deploy-sha` advances to the new commit **only after** build + migrate +
+   reload all succeeded — a failed deploy keeps the old baseline, so the next run diffs against
+   what is genuinely live.
 
 Required GitHub **staging environment** secrets: `STAGING_HOST`, `STAGING_USER`,
 `STAGING_SSH_KEY`, `STAGING_PATH`.
 
 ### Rollback
 
-`git reset --hard <previous-good-sha>` on the VM → `npm ci && npm run build` → `pm2 reload`.
-Migrations are additive/reversible; a data-affecting rollback needs an approved down-migration
-plan (no destructive change without one — §16).
+`git reset --hard <previous-good-sha>` on the VM → `npm ci && npm run build` → `pm2 reload` →
+**`echo <previous-good-sha> > .last-deploy-sha`** — the marker must follow a manual rollback, or
+the next automated deploy diffs against the rolled-back-FROM commit and can skip rebuilding the
+very workspaces the rollback reverted. (Deleting the file also works: the next deploy then treats
+the checked-out HEAD as the baseline.) Migrations are additive/reversible; a data-affecting
+rollback needs an approved down-migration plan (no destructive change without one — §16).
 
 ## Incidents
 
