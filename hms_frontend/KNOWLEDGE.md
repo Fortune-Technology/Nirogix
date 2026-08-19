@@ -27,7 +27,7 @@ app/
   globals.css           Tailwind + maps --hms-* tokens into Tailwind @theme (bg-surface, text-fg, …)
   page.tsx              "/" → redirect to /dashboard
   forbidden/page.tsx    Standalone 403 route
-  (auth)/               Public route group (no shell)
+  (auth)/               Public route group (no shell): login, forgot-password, reset-password (ADR-081)
     layout.tsx          Centered card shell
     login/page.tsx      Org-code + email + password sign-in
   (app)/                Authenticated route group

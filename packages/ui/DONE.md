@@ -335,3 +335,9 @@ Now it runs in a **pre-paint** isomorphic layout effect and branches on the URL 
 `force: true` makes the reset win even if an overlay had `stop()`ped Lenis. Only the top-level document scroll is touched — `data-lenis-prevent` / `useScrollLock` regions are untouched. Component doc now warns consumers not to also set CSS `scroll-behavior: smooth` (it fights Lenis — see the marketing fix).
 
 **Testing status:** `@hms/ui` typecheck clean; marketing + Portal production builds clean; no console errors after HMR. (End-to-end visual scroll behaviour verifies in a displayed browser — this session's preview pane can't composite frames, so Lenis' RAF loop is paused there.)
+
+## 2026-08-19 — Global theme-aware scrollbars
+
+**What:** One scrollbar treatment in `styles.css` for every scroll container in every consuming app: `scrollbar-width: thin` + `scrollbar-color` (Firefox) and `::-webkit-scrollbar*` pseudo-elements (Chromium/WebKit) — token-coloured thumb (`--hms-border`, hover `--hms-fg-subtle`), transparent track/corner, padding-box gutter. Colours come only from tokens, so Light/Dark follow `data-theme` and marketing's `--hms-* → --mk-*` bridge re-colours the marketing site with zero extra CSS.
+
+**Testing status:** typecheck green; computed-style verified in the Portal — light thumb `#dbe6e7`, dark thumb `#22353c`, transparent track, `thin` — switching with the theme toggle.

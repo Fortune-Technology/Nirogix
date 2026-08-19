@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
 import { useAuth } from "../../../lib/auth";
@@ -75,6 +76,11 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        <p className="-mt-2 text-right">
+          <Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline">
+            Forgot password?
+          </Link>
+        </p>
         <Button type="submit" loading={submitting} className="mt-1 w-full">
           Sign in
         </Button>

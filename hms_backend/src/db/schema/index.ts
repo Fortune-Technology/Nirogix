@@ -37,3 +37,5 @@ export * from './referenceData';
 export * from './immunizations';
 // Per-hospital (branch) availability overlay for master-data items — ADR-073.
 export * from './branchAvailability';
+// Staff forgot-password tokens (ADR-081) — tenant-scoped, hash-only, single-use.
+export * from './passwordResetTokens';

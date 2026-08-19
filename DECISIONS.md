@@ -763,4 +763,25 @@ The verification surface is fixed: browser tab, login page, header, sidebar, mob
 **Consequence:** A consistent, deliberately-light first impression on every surface; dark mode remains fully supported but opt-in. The only behaviour change is marketing's first visit on a dark-preference OS.
 
 ---
+
+## ADR-080 - The Portal quick-login lists hospital roles only — never a platform operator, in any environment
+**Status:** Accepted (owner decision). Widens ADR-077 (which had removed operator accounts from staging but kept them in the development list).
+**Context:** The owner directed that platform-operator credentials never surface through the normal application login UI, in any environment — the Portal is the hospital-staff surface, and even the synthetic dev default password on an operator card normalises treating operator credentials as test data. Separately, the staging list was missing a Branch Admin because the staging seeder never created one, so staging QA could not exercise that role.
+**Decision:** The two Platform Admin cards are removed from the development list too — `hms_frontend/lib/devUsers.ts` now contains hospital roles only in every environment (operators type their credentials on the Admin console, which has no quick-login at all, ADR-077). The staging seeder gains `qa.branchadmin@qahospital.example` (`branch_admin`, QAHOSP) and the staging list shows it — the card exists because the seeded user exists, never the other way round. Reaching staging requires one `npm run db:seed:staging` on the VM (idempotent — it creates only the missing user).
+**Consequence:** No surface, bundle, or environment carries an operator credential in its quick-login; staging QA covers all seven hospital roles including Branch Admin.
+
+---
+
+## ADR-081 - Forgot-password flow: signed 30-minute JWT link + hashed single-use row
+**Status:** Accepted (this project). Relates to ADR-052/ADR-058/ADR-059 (principals, seeders, communication seam), SECURITY-AUDIT M-5 (enumeration/timing), ADR-076-era session rules.
+**Context:** Staff and operators had no self-service path from a forgotten password (BACKLOG: "password reset / email-invite flow"); recovery meant an admin issuing a temporary password. Any design must not create an enumeration oracle, must not weaken the session rules, and must reach the user only through the one CommunicationService seam.
+**Decision:**
+- **Token = signed JWT (30 min TTL, `prt: 'pwreset'` type pin, per-issue nonce) + tenant-scoped `password_reset_tokens` row storing only the SHA-256 hash.** The unauthenticated consume route verifies the signature FIRST and enters the RLS tenant context from the verified claims — the `/auth/refresh` pattern — so the table keeps standard tenant isolation with no RLS exception. The type pin means an access/refresh token can never be replayed as a reset link.
+- **`POST /auth/forgot-password`** (`orgCode`, `email`, `client: portal|admin`) is deliberately uniform: unknown org, unknown email, inactive user — same 202, same message, nothing created. The link's origin comes from new server config (`PORTAL_URL` / `ADMIN_URL`, per environment from `resources/domains.md`), **never from a request header**. Sign-in rate tier.
+- **`POST /auth/reset-password`** collapses every token failure (bad signature, expired JWT, expired row, unknown, already used, inactive user) into one 401 message. Success: password updated under the shared `PasswordSchema` (min 10 / max 200 — now extracted to one place), the used row **and every other outstanding row for the user** consumed, **every session revoked** (same rule as change-password), audited `auth.password.reset.completed`. Change-password also gained its previously missing audit entry.
+- **Email goes through `sendEmail`** (CommunicationService; provider failures are contained and cannot alter the response). The dev log provider now logs the body so the link is exercisable locally.
+- **Frontends:** `/forgot-password` + `/reset-password` pages on the Portal and the Admin console (same `@hms/ui` composition as their login pages), a "Forgot password?" link on both login forms; outcomes render inline (`feedback: false`), matching the login form's own convention.
+**Consequence:** Self-service recovery on both consoles with no enumeration surface, no second auth mechanism, and session semantics identical to a password change. Vitest covers request/consume/single-use/expiry/revocation (5 cases); staging/production must set `PORTAL_URL`/`ADMIN_URL` on the VM.
+
+---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

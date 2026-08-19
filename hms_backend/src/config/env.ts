@@ -39,6 +39,14 @@ const EnvSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
+  // Frontend origins the backend needs when IT composes a link into an app (today: the
+  // password-reset email). Hosts come from resources/domains.md per environment — staging/
+  // production MUST set these; the defaults cover a developer's machine only. Never used for
+  // CORS (that is CORS_ORIGINS) and never derived from a request header — a Host/Origin header
+  // is client input, and a link built from it would let a request steer where the email points.
+  PORTAL_URL: z.string().url().default('http://localhost:3001'),
+  ADMIN_URL: z.string().url().default('http://localhost:3003'),
+
   // Notifications — MSG91 for SMS/WhatsApp AND email (ADR-016). All optional: when unset, the
   // dev "log" provider is used (messages are logged, not sent). No module calls MSG91 directly.
   MSG91_API_KEY: z.string().optional(),

@@ -116,6 +116,22 @@ export async function changeOwnPassword(body: {
   return request<{ message: string }>("/auth/change-password", { method: "POST", body });
 }
 
+// ---- Forgot password (ADR-081) — both unauthenticated ----------------------
+
+export async function forgotPassword(body: { orgCode: string; email: string }): Promise<{ message: string }> {
+  // `client` tells the backend which app's configured origin the emailed link opens.
+  // The pages render the outcome inline, so the shared toast stays quiet.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { ...body, client: "portal" },
+    feedback: false,
+  });
+}
+
+export async function resetPassword(body: { token: string; newPassword: string }): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/reset-password", { method: "POST", body, feedback: false });
+}
+
 // ---- Resources -------------------------------------------------------------
 
 export async function listProviders(): Promise<Provider[]> {

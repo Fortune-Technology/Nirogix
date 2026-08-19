@@ -83,3 +83,15 @@ The sign-in screen (`:3003`) gained the dev/staging quick-login the Portal alrea
 The "Test credentials" quick-login added on 2026-08-18 (ADR-074) is **deleted** — `components/auth/QuickLogin.tsx`, `lib/devUsers.ts`, the login page's fill helper, and the `.env.example` quick-login knobs (`NEXT_PUBLIC_DEV_LOGIN_PASSWORD` and the enable/disable wording on `NEXT_PUBLIC_ENVIRONMENT`). The console now offers **no** test credentials in **any** environment: on staging and production the operator accounts carry real credentials, and a surface that displays or pre-fills them is a credential leak by design. Operators type org code `NIROGIX` (case-insensitive, ADR-074) + email + password.
 
 **Testing status:** typecheck + build clean; built chunks grepped — no "Test credentials" string, no seeded email, no password literal anywhere in the bundle.
+
+## 2026-08-19 — Forgot password on the operator console (ADR-081)
+
+**What:** `/forgot-password` + `/reset-password` pages and a "Forgot password?" link on the login form, mirroring the Portal's composition; `lib/api.ts` sends `client: "admin"` so the emailed link opens THIS console's reset page (`ADMIN_URL`). No quick-login was added back — the console remains credential-silent (ADR-077/ADR-080); recovery is now self-service instead of impossible.
+
+**Testing status:** typecheck green; browser-verified in dev — the link renders, the forgot page renders, and the previously signed-in hospital user correctly hits the operator gate, not the login page.
+
+## 2026-08-19 — My profile: operators change their own password in their own console
+
+**What:** `(app)/profile/` — account facts (`GET /auth/me`) + the Password card posting to the same `POST /auth/change-password` the Portal uses (user id from the token, never the page; success signs out everywhere and returns to `/login`). New `components/profile/` — the Portal's profile pieces **by copy, not by import** (same rule as Can/Forbidden/PageHeader; the unused editable-card piece deliberately not copied). Nav gains an **Account → My profile** entry (`perm: null` — any authenticated operator), replacing the comment that documented the gap. Closes the detour where an operator had to sign in to the hospital-staff Portal to change their own password.
+
+**Testing status:** typecheck + production build green. The change-password API path is the Portal's already-verified one; the operator-console UI run is AUTH-37 in `testcases.md` (needs an operator session — not exercised by the agent, which does not authenticate with real operator credentials).

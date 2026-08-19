@@ -64,10 +64,16 @@ module.exports = {
     },
     next('nirogix-portal', './hms_frontend', PORTS.portal),
     next('nirogix-marketing', './marketing', PORTS.marketing),
-    // The remaining three frontends deploy with BACKLOG F-5. Their entries are ready —
-    // uncomment when their Nginx server blocks land, after the same port audit.
+    // admin-staging is live (Nginx block + DNS resolve), so the console MUST be
+    // ecosystem-managed: a hand-started `next start` outside this file is invisible to
+    // the deploy's `pm2 reload --only …`, keeps serving a stale build after the files
+    // under it are replaced, and every route dies with ChunkLoadError (2026-08-19
+    // incident — deploy/README.md). If PM2 shows a hand-run admin process, delete it
+    // before starting this entry, or the port is taken (EADDRINUSE crash-loop).
+    next('nirogix-admin', './admin', PORTS.admin),
+    // patient + aiportal deploy with BACKLOG F-5. Their entries are ready — uncomment
+    // when their Nginx server blocks land, after the same port audit.
     // next('nirogix-patient', './patient', PORTS.patient),
-    // next('nirogix-admin', './admin', PORTS.admin),
     // next('nirogix-aiportal', './aiportal', PORTS.aiportal),
   ],
 };
