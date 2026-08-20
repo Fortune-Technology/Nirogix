@@ -122,7 +122,10 @@ describe('forgot-password flow (ADR-081)', () => {
     await login({ orgCode: CODE, email: ADMIN_EMAIL, password: tempPassword }, {});
 
     const token = await mintResetToken(adminUserId);
-    const NEW_PASSWORD = 'ResetFlow#2026-ok';
+    // Deliberately unrelated to the account holder's own name and organization code: the
+    // reset path enforces the platform password policy (ADR-082), which refuses a password
+    // built out of what an attacker already knows. See the test below.
+    const NEW_PASSWORD = 'Gulmohar-Terrace-88';
     await resetPassword({ token, newPassword: NEW_PASSWORD }, {});
 
     // Old password refused, new one works.
@@ -163,5 +166,20 @@ describe('forgot-password flow (ADR-081)', () => {
     await expect(resetPassword({ token: 'not-a-real-token-at-all', newPassword: 'GarbagePass#2026' }, {})).rejects.toMatchObject({
       statusCode: 401,
     });
+  });
+
+  test('the reset path enforces the password policy, including the account holder’s own details', async ({ skip }) => {
+    if (!ready) return skip();
+    // A reset link is exactly where a weak password would otherwise slip in: the user is
+    // locked out, in a hurry, and nobody is looking (ADR-082, SECURITY-AUDIT.md M-6).
+    const weak = await mintResetToken(adminUserId);
+    await expect(resetPassword({ token: weak, newPassword: 'password1234' }, {})).rejects.toMatchObject({
+      statusCode: 422,
+    });
+
+    const personal = await mintResetToken(adminUserId);
+    await expect(
+      resetPassword({ token: personal, newPassword: 'A2-Reset-Admin-99' }, {}),
+    ).rejects.toMatchObject({ statusCode: 422 });
   });
 });

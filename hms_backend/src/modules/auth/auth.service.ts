@@ -6,6 +6,8 @@ import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, sessions, passwordResetTokens, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { burnPasswordComparison, hashPassword, verifyPassword } from './password';
+import { CLEARED, afterFailure, isAlerting, isLocked, lockMinutesRemaining } from './lockout';
+import { assertAcceptablePassword } from './passwordPolicy';
 import { listUserRoles } from '../rbac/rbac.service';
 import {
   signAccessToken,
@@ -124,14 +126,58 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
     throw Errors.unauthorized('Invalid credentials');
   }
 
+  const now = new Date();
   const ok = await verifyPassword(input.password, user.passwordHash);
-  if (!ok) {
+
+  // Account-side brute-force defence (ADR-082). The password is verified FIRST even
+  // when the account is locked, so the response costs the same either way and the
+  // audit trail records whether the attacker had actually found the password.
+  if (isLocked(user, now)) {
     await writeAudit({
       tenantId: tenant.id,
       actorUserId: user.id,
-      action: 'auth.login.failure',
+      action: 'auth.login.blocked',
       severity: 'warning',
-      metadata: { reason: 'bad_password' },
+      metadata: {
+        reason: 'account_locked',
+        attempts: user.failedLoginAttempts,
+        passwordMatched: ok,
+        lockedUntil: user.lockedUntil?.toISOString() ?? null,
+      },
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    // The lock is stated only to a caller who supplied the CORRECT password — the real
+    // user, who needs to know why they are being refused. Everyone else gets the same
+    // generic failure as any wrong password, so the lock is not an enumeration oracle.
+    // Attempts made while locked never extend it (see lockout.ts).
+    if (ok) {
+      const mins = lockMinutesRemaining(user, now);
+      throw Errors.tooManyRequests(
+        `Too many failed sign-in attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+      );
+    }
+    throw Errors.unauthorized('Invalid credentials');
+  }
+
+  if (!ok) {
+    const next = afterFailure(user, now);
+    await runWithTenant(tenant.id, (tx) =>
+      tx
+        .update(users)
+        .set({ ...next, updatedAt: now })
+        .where(eq(users.id, user.id)),
+    );
+    await writeAudit({
+      tenantId: tenant.id,
+      actorUserId: user.id,
+      action: next.lockedUntil ? 'auth.login.locked' : 'auth.login.failure',
+      severity: isAlerting(next.failedLoginAttempts) ? 'critical' : 'warning',
+      metadata: {
+        reason: 'bad_password',
+        attempts: next.failedLoginAttempts,
+        lockedUntil: next.lockedUntil?.toISOString() ?? null,
+      },
       ip: meta.ip,
       userAgent: meta.userAgent,
     });
@@ -148,7 +194,9 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
   await runWithTenant(tenant.id, (tx) =>
     tx
       .update(users)
-      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      // A successful sign-in ends the streak: the counters go back to zero in the same
+      // write that stamps the login, so no separate query is needed on the happy path.
+      .set({ lastLoginAt: now, updatedAt: now, ...CLEARED })
       .where(eq(users.id, user.id)),
   );
 
@@ -296,10 +344,14 @@ export async function changeOwnPassword(
     if (await verifyPassword(input.newPassword, user.passwordHash)) {
       throw Errors.validation(undefined, 'The new password must be different from the current one');
     }
+    // The half of the policy that needs to know who the user is (ADR-082).
+    assertAcceptablePassword(input.newPassword, { email: user.email, fullName: user.fullName });
 
     await tx
       .update(users)
-      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: new Date() })
+      // The old password is dead, so any failure streak counted against it goes with it
+      // (ADR-082) — a user who just proved themselves is never left locked out.
+      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: new Date(), ...CLEARED })
       .where(eq(users.id, userId));
 
     // Every session is invalidated, including this one: a password change must log
@@ -442,10 +494,13 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
     if (await verifyPassword(input.newPassword, user.passwordHash)) {
       throw Errors.validation(undefined, 'The new password must be different from the current one');
     }
+    assertAcceptablePassword(input.newPassword, { email: user.email, fullName: user.fullName });
 
     await tx
       .update(users)
-      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: now })
+      // Completing a reset clears the lockout too: the user proved control of the
+      // mailbox, and the password an attacker was guessing at no longer exists (ADR-082).
+      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: now, ...CLEARED })
       .where(eq(users.id, user.id));
 
     // This link, and every other outstanding link for the user, is dead from here.

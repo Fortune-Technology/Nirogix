@@ -1,9 +1,9 @@
-import { randomBytes } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { users, userRoles, roles, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { hashPassword } from '../auth/password';
+import { assertAcceptablePassword, generateTempPassword } from '../auth/passwordPolicy';
 import {
   assignRoleByKey,
   resolvePermissions,
@@ -11,10 +11,6 @@ import {
   listUserOverrides,
 } from '../rbac/rbac.service';
 import { writeAudit } from '../audit/audit.service';
-
-function generateTempPassword(): string {
-  return `Hms-${randomBytes(6).toString('base64url')}`;
-}
 
 export type UserListItem = {
   id: string;
@@ -59,6 +55,11 @@ export async function createUser(
   actorUserId?: string,
 ): Promise<{ userId: string; tempPassword: string | null }> {
   const plain = input.password ?? generateTempPassword();
+  // The schema already enforced the context-free half; this adds the half that needs the
+  // person: their own email and name must not be what their password is made of (ADR-082).
+  if (input.password) {
+    assertAcceptablePassword(input.password, { email: input.email, fullName: input.fullName });
+  }
   const passwordHash = await hashPassword(plain);
   const userId = await runWithTenant(tenantId, async (tx) => {
     const existing = (

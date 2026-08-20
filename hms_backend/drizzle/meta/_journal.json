@@ -204,6 +204,13 @@
       "when": 1787122688861,
       "tag": "0028_yielding_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787230521423,
+      "tag": "0029_security_lockout_request_id",
+      "breakpoints": true
     }
   ]
 }

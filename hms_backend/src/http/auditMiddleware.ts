@@ -18,6 +18,7 @@ export function auditMiddleware(req: Request, res: Response, next: NextFunction)
       path: req.path,
       statusCode: res.statusCode,
       severity: res.statusCode >= 400 ? 'warning' : 'info',
+      requestId: req.requestId,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });

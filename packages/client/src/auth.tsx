@@ -22,9 +22,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "@hms/ui";
 import type { AuthUser, LoginRequest } from "@hms/types";
 import type { ApiClient } from "./http";
 import { describeError } from "./feedback";
+import { clearStoredActivity, DEFAULT_IDLE_TIMEOUT_MS, useIdleSignOut } from "./idle";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
@@ -47,7 +49,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const EMPTY_CAPS: Capabilities = { wildcard: false, permissions: new Set() };
 
-export function AuthProvider({ api, children }: { api: ApiClient; children: ReactNode }) {
+export function AuthProvider({
+  api,
+  children,
+  /**
+   * Idle window before the session ends (ADR-082, SECURITY-AUDIT.md L-5). Pass 0 to
+   * disable — appropriate only for a surface with nothing worth protecting on screen.
+   */
+  idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
+}: {
+  api: ApiClient;
+  children: ReactNode;
+  idleTimeoutMs?: number;
+}) {
   const [status, setStatus] = useState<Status>("loading");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [caps, setCaps] = useState<Capabilities>(EMPTY_CAPS);
@@ -112,8 +126,31 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
 
   const logout = useCallback(async () => {
     await api.logout();
+    clearStoredActivity();
     clearSession();
   }, [api, clearSession]);
+
+  /**
+   * Idle sign-out (ADR-082, SECURITY-AUDIT.md L-5). Runs only while a session exists, and
+   * revokes it server-side rather than merely forgetting it in memory. Interaction in ANY
+   * tab of this origin counts, so a second tab never signs the user out from under the one
+   * they are working in.
+   */
+  useIdleSignOut({
+    active: status === "authenticated",
+    timeoutMs: idleTimeoutMs,
+    onIdle: async () => {
+      await api.logout();
+      clearSession();
+      // Says what happened, so a returning user is not left wondering why the screen
+      // emptied. The shared toast — never a page-specific one (ADR-057).
+      toast.info({
+        title: "Signed out",
+        description: `You were signed out after ${Math.round(idleTimeoutMs / 60_000)} minutes of inactivity.`,
+        dedupeKey: "session-idle",
+      });
+    },
+  });
 
   const can = useCallback(
     (permission: string) => caps.wildcard || caps.permissions.has(permission),

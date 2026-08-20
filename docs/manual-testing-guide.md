@@ -105,6 +105,41 @@ the link) to the backend log.
 - [ ] A session signed in elsewhere is signed out by the reset (all sessions revoked).
 - [ ] From the Admin console, the emailed link opens the **admin** app's reset page, not the Portal's.
 
+### Account security: lockout, password policy, idle sign-out (ADR-082)
+
+These are the controls a real hospital meets on day one — a mistyped password at a busy front
+desk, a weak password on a new account, a workstation left open in a corridor. Run them on a
+THROWAWAY account, not on an account someone else is about to use.
+
+- [ ] **Lockout.** Sign in with a wrong password **5 times**. **Verify:** each attempt says only
+      "Invalid credentials" — the 5th does not announce a lock.
+- [ ] **The lock is real, and only the real user is told.** Now sign in with the **correct**
+      password. **Verify:** refused with "Too many failed sign-in attempts. Try again in N
+      minute(s)." (🔒 a stranger guessing passwords never sees this message).
+- [ ] **A wrong password during the lock.** **Verify:** the same generic "Invalid credentials" —
+      the lock is not a way to discover that an account exists.
+- [ ] **Nobody else is affected.** Sign in as a different user in the same hospital.
+      **Verify:** normal sign-in — a lock is per account, never per hospital or per branch (🔒).
+- [ ] **It lifts by itself.** Wait out the stated window and sign in with the right password.
+      **Verify:** you are back in; no administrator had to do anything.
+- [ ] **The defender can see it.** As an org_admin, open **Audit log** and filter to
+      Warning/Critical. **Verify:** `auth.login.locked` and `auth.login.blocked` entries, with the
+      attempt count; a sustained attempt appears as **Critical**.
+- [ ] **Password policy.** My profile → Password. Try `password1234`, then `Short#1a`, then your
+      own name plus a year. **Verify:** each is refused with a specific reason, and a genuinely
+      unrelated 12+ character password with mixed classes is accepted.
+- [ ] **No exemption for admin-created accounts.** As org_admin, create a user and supply a weak
+      password. **Verify:** refused with the same policy message.
+- [ ] **Temporary passwords.** Create two users with **no** password. **Verify:** each temp
+      password is long, mixed, and the two share no common prefix.
+- [ ] **Idle sign-out.** Sign in, then leave the tab completely untouched for **15 minutes**.
+      **Verify:** you are signed out with an info toast naming inactivity, and the back button
+      does not restore the session (it was revoked server-side, 🔒).
+- [ ] **Two tabs.** Open the Portal in two tabs and work in one for 20 minutes.
+      **Verify:** neither tab signs out — activity is shared across tabs.
+- [ ] **Patient portal.** Repeat the idle check on the patient app (`:3002`). **Verify:** same
+      behaviour — that portal is opened on borrowed phones and kiosks.
+
 ---
 
 ## 1. Platform Admin journey (Admin console)
@@ -436,6 +471,13 @@ Document expected behaviour for each:
 - [ ] **Refresh mid-workflow** → no data loss for saved steps; unsaved input behaves predictably.
 - [ ] **Back/forward navigation** → the app stays consistent; no stale/incorrect data shown.
 - [ ] **Open an old / deactivated / invalid record** → a clear empty/not-found state, not a crash.
+- [ ] **Repeated wrong passwords on one account** → locked with backoff; other accounts unaffected (🔒 ADR-082).
+- [ ] **Upload a renamed binary** (e.g. an `.exe` renamed `.png`) as a logo or report attachment →
+      refused: "contents do not match its declared type"; nothing is stored (🔒).
+- [ ] **Weak password anywhere it can be set** (self-service, reset link, admin-created user) → refused
+      with the same policy message in every place.
+- [ ] **Browser console during a full journey** → no Content-Security-Policy violations on any of the
+      five apps; logos, report images and print previews still render (🔒).
 
 ---
 

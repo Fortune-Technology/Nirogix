@@ -735,3 +735,11 @@ The "Test credentials" dialog previously showed the **development** seeder's acc
 **What:** `/forgot-password` + `/reset-password` pages and a "Forgot password?" link on the login form (ADR-081) — outcomes inline (`feedback: false`), uniform messages from the backend. Quick-login now lists **hospital roles only in every environment** (ADR-080: the two Platform Admin cards left the dev list too; staging gained the QA Branch Admin card to match the seeder). The sidebar's Pharmacy item now carries the landing page's own permission (`pharmacy.dispense.create`, was `pharmacy.stock.view`) — a doctor no longer sees an item whose destination refused them; the audit confirmed every other nav item already matched its page guard, and the rule is now written at the item ("a nav item's perm is its landing page's RequirePermission key").
 
 **Testing status:** typecheck green; browser-verified in dev — no Platform Admin card, doctor's sidebar has no Pharmacy while direct `/pharmacy` still shows the Forbidden panel, forgot-password renders the uniform 202 inline, a garbage reset link shows the uniform refusal. Happy-path consume is covered by the backend's `passwordReset.test.ts`.
+
+## 2026-08-20 — Content-Security-Policy and idle sign-out in the Portal (ADR-082)
+
+**What:** `proxy.ts` (Next 16’s replacement for `middleware.ts`) mints a per-request nonce, sends the CSP built by `@hms/utils`, and adds the platform’s static security headers. The root layout became async so it can read that nonce from `x-nonce` and stamp it on the one inline script the app owns — the no-flash theme script. Static assets and prefetch requests are excluded from the matcher: they carry no script, and a nonce minted for a prefetch would be stale by the time the page rendered.
+
+The Portal also inherits idle sign-out from `@hms/client` — 15 minutes without interaction ends the session server-side, which is what a clinical workstation in a corridor actually needs.
+
+**Testing status:** verified live against the running Portal — sign-in, dashboard, patients list and client-side navigation all work under the policy, with no violations in the console. One real gap was found this way and fixed in the shared builder: tenant logos are served by the API over plain http in development, which `img-src` had not allowed. Build and typecheck green.

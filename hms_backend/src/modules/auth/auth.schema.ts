@@ -1,4 +1,5 @@
 import { z } from '../../openapi/registry';
+import { PasswordSchema } from './passwordPolicy';
 
 // Zod schemas = single source of truth for request validation AND OpenAPI docs.
 
@@ -47,10 +48,11 @@ export const MessageResponseSchema = z
   .object({ message: z.string() })
   .openapi('MessageResponse');
 
-// The platform's one password policy — shared by change-password, the reset flow, and their
-// OpenAPI docs, so the bound can never drift between copies (it used to be restated inline).
-// Matches the strength the rest of the platform issues; the upper bound guards bcrypt cost.
-export const PasswordSchema = z.string().min(10).max(200);
+// The platform's one password policy — shared by change-password, the reset flow, user
+// creation and their OpenAPI docs, so the bound can never drift between copies. It lives in
+// `passwordPolicy.ts` (ADR-082) because "length only, on the two self-service endpoints"
+// was not a policy; re-exported here so existing importers keep their import path.
+export { PasswordSchema };
 
 export const ForgotPasswordBody = z
   .object({

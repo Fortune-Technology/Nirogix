@@ -15,6 +15,13 @@ const EnvSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().url(),
+  // Per-connection safety valves on the pool (SECURITY-AUDIT.md M-2). A single query may not
+  // run longer than DB_STATEMENT_TIMEOUT_MS, and a transaction may not sit idle longer than
+  // DB_IDLE_TX_TIMEOUT_MS — a runaway scan or a transaction left open across a round trip
+  // releases its connection instead of draining the pool. Tune per environment; the migration
+  // runner opts out for its own session (db/migrate.ts), where slow DDL is expected.
+  DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  DB_IDLE_TX_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -33,11 +40,13 @@ const EnvSchema = z.object({
   // Optional additional servers surfaced in the Swagger UI server dropdown.
   API_STAGING_URL: z.string().url().optional(),
   API_PRODUCTION_URL: z.string().url().optional(),
-  // Whether to serve the Swagger UI in this environment (JSON is always served).
-  OPENAPI_UI_ENABLED: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((v) => v === 'true'),
+  // Whether to serve the API documentation (Swagger UI *and* the raw spec) in this
+  // environment. The default is environment-aware and closed in production (ADR-082,
+  // SECURITY-AUDIT.md L-2): a public spec of every route, parameter and error code is a
+  // free map of the attack surface, and nobody outside the team consumes the production
+  // one. Set OPENAPI_UI_ENABLED=true in production only for a deliberate, temporary reason.
+  // Left unset elsewhere it stays on, which is what developers and CI need.
+  OPENAPI_UI_ENABLED: z.enum(['true', 'false']).optional(),
 
   // Frontend origins the backend needs when IT composes a link into an app (today: the
   // password-reset email). Hosts come from resources/domains.md per environment — staging/
@@ -123,7 +132,12 @@ const EnvSchema = z.object({
   }
 });
 
-export type Env = z.infer<typeof EnvSchema>;
+// `OPENAPI_UI_ENABLED` is parsed as an optional string and resolved below, because its
+// default depends on another variable (NODE_ENV) — so the exported type carries the
+// resolved boolean rather than the raw value.
+export type Env = Omit<z.infer<typeof EnvSchema>, 'OPENAPI_UI_ENABLED'> & {
+  OPENAPI_UI_ENABLED: boolean;
+};
 
 const parsed = EnvSchema.safeParse(process.env);
 if (!parsed.success) {
@@ -132,5 +146,11 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env: Env = parsed.data;
+export const env: Env = {
+  ...parsed.data,
+  OPENAPI_UI_ENABLED:
+    parsed.data.OPENAPI_UI_ENABLED === undefined
+      ? parsed.data.NODE_ENV !== 'production'
+      : parsed.data.OPENAPI_UI_ENABLED === 'true',
+};
 export const isProd = env.NODE_ENV === 'production';

@@ -244,3 +244,11 @@ AI (env-gated draft + dictation) deliberately kept off the marketing site (FUTUR
 Marketing was the one app whose first visit honoured `prefers-color-scheme` — a dark-OS visitor saw the marketing site dark while every product surface opened light. Per the owner's direction, `lib/theme.tsx` and the `layout.tsx` no-flash script now default to **Light for everyone**; Dark applies only when `mk-theme` holds an explicit prior choice, and the toggle still persists it. The no-flash script now shares the same shape as the other four apps (`stored==='dark'?'dark':'light'`).
 
 **Testing status:** typecheck clean; browser-verified with emulated OS dark preference — first load paints Light, toggling Dark persists across reload, clearing storage returns to Light.
+
+## 2026-08-20 — Content-Security-Policy on the public site (ADR-082, SECURITY-AUDIT M-1)
+
+**What:** `proxy.ts` sends the CSP from `@hms/utils` plus the platform’s static security headers, in **static mode** — no per-request nonce. That is the deliberate half of the decision: these pages are statically rendered and ISR-cached (5-minute revalidate), and reading a per-request nonce in the layout would make every page dynamic, which is exactly what this site must not become. Scripts therefore keep `unsafe-inline` while `object-src`, `frame-ancestors`, `base-uri`, `form-action` and the rest stay strict — acceptable here because the site renders no user input, holds no session and reaches no PHI. Wiring `ContactForm` (BACKLOG U-2) is the change that should move it to nonce mode.
+
+`@hms/utils` was added to this app’s dependencies and `transpilePackages` for the builder.
+
+**Testing status:** verified live — the home page renders with zero console errors, the headers are present, and the build output confirms every route stayed static/ISR (`○` with a 5m revalidate), which was the point of not using a nonce here.

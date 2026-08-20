@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -7,6 +8,7 @@ import { logger } from './config/logger';
 import { apiV1 } from './api/v1';
 import { mountApiDocs } from './openapi/swagger';
 import { auditMiddleware } from './http/auditMiddleware';
+import { requestContext } from './http/requestContext';
 import { errorHandler } from './http/errorHandler';
 import { globalLimiter } from './http/rateLimit';
 import { corsOptions } from './config/cors';
@@ -24,7 +26,10 @@ export function createApp() {
   app.use(cors(corsOptions()));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
-  app.use(pinoHttp({ logger }));
+  // One correlation id per request, before the logger so every log line for the request
+  // carries it — and before the audit middleware, which stores it on each row (ADR-082).
+  app.use(requestContext);
+  app.use(pinoHttp({ logger, genReqId: (req) => req.requestId ?? randomUUID() }));
   app.use(auditMiddleware);
 
   // Baseline limit for the whole API; credential and expensive routes add tighter

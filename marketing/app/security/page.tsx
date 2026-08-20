@@ -6,6 +6,7 @@ import {
   Lock,
   KeyRound,
   ShieldAlert,
+  Timer,
   HardDriveDownload,
   EyeOff,
   CreditCard,
@@ -40,6 +41,13 @@ const PRACTICES: { name: string; icon: typeof Lock; body: string; commitment?: b
     name: "Validated and rate-limited",
     icon: ShieldAlert,
     body: "Every request is schema-validated at the server boundary, and credential routes are rate-limited tighter than ordinary reads.",
+  },
+  {
+    // Everything here is enforced in code today (ADR-082) — no aspiration, and no
+    // certification or test-result claim, which the security page never makes.
+    name: "Sign-in and session protection",
+    icon: Timer,
+    body: "Repeated failed sign-ins lock an account with a growing delay, one password policy applies wherever a password is set, and a session left unattended for fifteen minutes signs itself out.",
   },
   {
     name: "Encryption everywhere",

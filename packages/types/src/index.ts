@@ -1246,5 +1246,11 @@ export interface AuditEntry {
   path: string | null;
   statusCode: number | null;
   severity: string;
+  /**
+   * Correlation id shared with the structured log, the error tracker and the response's
+   * `X-Request-Id` header (ADR-082). Null for rows written before the column existed and
+   * for events raised outside an HTTP request (jobs, seeders).
+   */
+  requestId: string | null;
   createdAt: string;
 }

@@ -95,3 +95,9 @@ The "Test credentials" quick-login added on 2026-08-18 (ADR-074) is **deleted** 
 **What:** `(app)/profile/` — account facts (`GET /auth/me`) + the Password card posting to the same `POST /auth/change-password` the Portal uses (user id from the token, never the page; success signs out everywhere and returns to `/login`). New `components/profile/` — the Portal's profile pieces **by copy, not by import** (same rule as Can/Forbidden/PageHeader; the unused editable-card piece deliberately not copied). Nav gains an **Account → My profile** entry (`perm: null` — any authenticated operator), replacing the comment that documented the gap. Closes the detour where an operator had to sign in to the hospital-staff Portal to change their own password.
 
 **Testing status:** typecheck + production build green. The change-password API path is the Portal's already-verified one; the operator-console UI run is AUTH-37 in `testcases.md` (needs an operator session — not exercised by the agent, which does not authenticate with real operator credentials).
+
+## 2026-08-20 — Content-Security-Policy and idle sign-out in the operator console (ADR-082)
+
+**What:** the same `proxy.ts` + nonced layout as the Portal, and the same 15-minute idle sign-out from `@hms/client`. An operator console is the one surface where an unattended screen reaches every tenant, so it gets no exemption.
+
+**Testing status:** verified live — the console renders under the policy (403 panel for a non-operator principal, as designed) with no CSP violations. Build and typecheck green.

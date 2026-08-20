@@ -53,6 +53,11 @@ A backend test asserts the list stays empty. **If it fails, an AI capability has
 
 `nirogix.ai` in production — a separate registrable domain, so its cookie scope is separate by construction rather than by configuration (ADR-051). **The domain is not registered yet** (`BACKLOG.md` F-6), so this portal is development-only regardless of what is built.
 
+
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) mints a per-request nonce and sends the Content-Security-Policy built by `@hms/utils` — `strict-dynamic`, no `unsafe-inline` — plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). The root layout is async so it can read that nonce from the `x-nonce` header and stamp it on the one inline script this app owns (the no-flash theme script); **any new inline script needs the same nonce, or it will not run**. Sessions also end after 15 minutes without interaction (`useIdleSignOut`, `@hms/client`), on the same schedule as the other authenticated apps.
+
 ## Verify
 
 `npm run dev --workspace=aiportal`, then `http://localhost:3004`. `npm run typecheck --workspace=aiportal` and `npm run build --workspace=aiportal` must pass.

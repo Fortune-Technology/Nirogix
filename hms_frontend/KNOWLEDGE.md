@@ -172,6 +172,10 @@ The Portal is private and never indexed: the root layout sets `robots: { index: 
 
 ## Frontend performance
 
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) sends the Content-Security-Policy built by `@hms/utils` plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). This app is in **nonce mode**: a per-request nonce, `strict-dynamic`, and no `unsafe-inline`. The root layout is async so it can read the nonce from the `x-nonce` header and stamp it on the one inline script the app owns (the no-flash theme script) — any new inline script needs the same treatment, or it will not run. Sessions also sign out after 15 minutes idle (`@hms/client`, ADR-082).
+
 - Fonts: `next/font` (Geist / Geist Mono). Images: `next/image` — the tenant logo (AppShell + Settings) uses `unoptimized` with explicit dimensions, because tenant assets come from per-deployment object storage whose origin cannot be enumerated in `images.remotePatterns`.
 - Heavy, non-critical UI uses `next/dynamic`; third-party scripts go through `next/script`; `<head>` comes from the Metadata API. No third-party analytics by default — and never PHI or tenant-identifying data in any telemetry.
 

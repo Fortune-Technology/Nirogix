@@ -58,6 +58,7 @@ export async function listAuditLog(req: Request, res: Response): Promise<void> {
     path: r.path,
     statusCode: r.statusCode,
     severity: r.severity,
+    requestId: r.requestId,
     createdAt: r.createdAt.toISOString(),
   }));
   res.json(paginate(data, total, page, pageSize));
