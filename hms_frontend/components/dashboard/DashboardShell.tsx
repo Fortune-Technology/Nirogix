@@ -68,48 +68,18 @@ export function DashboardRow({
   children: ReactNode;
   className?: string;
 }) {
+  // `minmax(0,…)` (not a bare `1.6fr`, which is `minmax(auto,…)`) keeps the ratio
+  // fixed: without it a panel with wide intrinsic content — e.g. a bar chart with
+  // many bars at a longer date range — pushes its own track wider and inverts the
+  // split. `[&>*]:min-w-0` lets the panels shrink to their track so their charts
+  // (already `min-width:0`) reflow instead of overflowing.
   const cols =
     split === "wide"
-      ? "xl:grid-cols-[1.6fr_1fr]"
+      ? "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
       : split === "thirds"
         ? "lg:grid-cols-3"
         : "xl:grid-cols-2";
-  return <div className={cn("grid gap-4", cols, className)}>{children}</div>;
-}
-
-/** Range chips — the same control on every dashboard that has a window. */
-export function RangeChips<T extends number>({
-  options,
-  value,
-  onChange,
-  label,
-}: {
-  options: ReadonlyArray<{ value: T; label: string }>;
-  value: T;
-  onChange: (next: T) => void;
-  label?: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      {label ? <span className="text-sm text-fg-muted">{label}</span> : null}
-      <div className="inline-flex rounded-token border border-border bg-surface p-0.5">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            aria-pressed={value === o.value}
-            className={cn(
-              "rounded-token px-3 py-1.5 text-sm font-medium transition-colors",
-              value === o.value ? "bg-brand-subtle text-brand" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return <div className={cn("grid gap-4 [&>*]:min-w-0", cols, className)}>{children}</div>;
 }
 
 /** A labelled row inside a panel — "Pending labs · 4", a provider's load, a stock line. */

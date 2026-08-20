@@ -106,7 +106,7 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
       { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
       // The Hospital Configuration console (ADR-049) — where a hospital's administrator
       // sets the organization up and sees how far that has got.
-      { label: "Hospital setup", href: "/settings", perm: PERMISSIONS.ORG_PROFILE_MANAGE, icon: Settings },
+      { label: "Hospital setup", href: "/hospital-setup", perm: PERMISSIONS.ORG_PROFILE_MANAGE, icon: Settings },
       { label: "Audit log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },

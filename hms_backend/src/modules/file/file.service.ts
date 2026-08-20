@@ -109,15 +109,17 @@ export async function getFileMetadata(tenantId: string, id: string): Promise<Fil
 }
 
 // Returns a short-lived download URL: a provider-native signed URL (S3), or the app's tokenized
-// content route (local).
+// content route (local). `disposition: 'inline'` is for display assets (logo, favicon,
+// letterhead) that render in an <img>/<link>; the default forces a download.
 export async function getDownloadUrl(
   tenantId: string,
   id: string,
+  opts?: { disposition?: 'inline' | 'attachment' },
 ): Promise<{ url: string; expiresInSeconds: number } | null> {
   const meta = await getFileMetadata(tenantId, id);
   if (!meta) return null;
   const provider = getFileStorageProvider();
-  const signed = await provider.getSignedDownloadUrl(meta.storageKey, meta.filename);
+  const signed = await provider.getSignedDownloadUrl(meta.storageKey, meta.filename, opts?.disposition);
   if (signed) return { url: signed, expiresInSeconds: 600 };
 
   const token = signFileToken(meta.id, tenantId);

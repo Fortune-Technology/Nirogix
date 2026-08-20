@@ -7,5 +7,12 @@ export interface FileStorageProvider {
   deleteObject(key: string): Promise<void>;
   // A provider-native short-lived signed URL, or null if the provider cannot mint one — then the
   // app serves the object itself via a tokenized content route (used by the local dev provider).
-  getSignedDownloadUrl(key: string, filename: string): Promise<string | null>;
+  // `disposition` picks how a browser handles the response: `attachment` (default) forces a
+  // download with the filename; `inline` lets it render in place — the right choice for display
+  // assets (a logo, favicon or letterhead) embedded in an <img>/<link>.
+  getSignedDownloadUrl(
+    key: string,
+    filename: string,
+    disposition?: 'inline' | 'attachment',
+  ): Promise<string | null>;
 }

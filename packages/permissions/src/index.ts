@@ -224,3 +224,29 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     ],
   },
 ];
+
+const SYSTEM_ROLE_NAMES: Record<string, string> = Object.fromEntries(
+  SYSTEM_ROLES.map((r) => [r.key, r.name]),
+);
+
+/**
+ * A human-readable label for a role key. Seeded roles use their declared name
+ * (`org_admin` → "Organization Admin"); a tenant's cloned/custom role, whose key is
+ * not in the system set, falls back to a humanized form of the key
+ * (`night_shift_lead` → "Night Shift Lead"). Shared FE/BE so a role reads the same in
+ * the header, the RBAC screens and any server-rendered surface.
+ */
+export function roleDisplayName(key: string): string {
+  const seeded = SYSTEM_ROLE_NAMES[key];
+  if (seeded) return seeded;
+  return key
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Join a user's role keys into one display string, e.g. "Doctor · Cashier". Empty when none. */
+export function formatRoleNames(keys: readonly string[] | null | undefined): string {
+  if (!keys || keys.length === 0) return '';
+  return keys.map(roleDisplayName).join(' · ');
+}

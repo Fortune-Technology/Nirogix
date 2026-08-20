@@ -94,11 +94,12 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
           return { ok: false, error: "This account requires MFA, which isn't supported yet.", mfa: true };
         }
         api.setAccessToken(res.accessToken);
-        setUser(res.user);
-        // Load the effective permission set so the shell renders correctly.
-        const perms = await api.myPermissions();
-        setCaps({ wildcard: perms.wildcard, permissions: new Set(perms.permissions) });
-        setStatus("authenticated");
+        // Hydrate from /auth/me (not the login response, which omits `roles`) so the
+        // session carries the user's roles and the shell shows them immediately — the
+        // same source the on-reload bootstrap uses. `loadSession` fetches the user and
+        // the effective permission set in parallel, so this costs no extra latency over
+        // the previous permissions-only await.
+        await loadSession();
         return { ok: true };
       } catch (err) {
         // Sign-in renders its failure inline (login opts out of the toast), but the
@@ -106,7 +107,7 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
         return { ok: false, error: describeError(err).description };
       }
     },
-    [api],
+    [api, loadSession],
   );
 
   const logout = useCallback(async () => {

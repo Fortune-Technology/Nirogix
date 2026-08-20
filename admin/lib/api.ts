@@ -117,8 +117,13 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   return request<PlatformStats>("/admin/stats");
 }
 
-export async function getPlatformTrends(months = 12): Promise<PlatformTrends> {
-  return request<PlatformTrends>(`/admin/trends?months=${months}`);
+// A rolling `months` count or an explicit inclusive ISO `{ from, to }` window (the
+// shared period filter). The backend honours from/to when both are present.
+export async function getPlatformTrends(
+  range: number | { from: string; to: string } = 12,
+): Promise<PlatformTrends> {
+  const qs = typeof range === "object" ? `from=${range.from}&to=${range.to}` : `months=${range}`;
+  return request<PlatformTrends>(`/admin/trends?${qs}`);
 }
 
 /**

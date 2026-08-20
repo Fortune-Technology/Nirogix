@@ -129,7 +129,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
       label: 'Hospital information',
       description:
         'Registered address, contact details, registration number and GSTIN. These print in the header of every invoice and report.',
-      href: '/settings/organization',
+      href: '/hospital-setup/hospital-information',
       permission: PERMISSIONS.ORG_PROFILE_MANAGE,
       module: null,
       required: true,
@@ -141,7 +141,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
       key: 'branding',
       label: 'Branding',
       description: 'Your logo, favicon and accent colour, applied across the Portal and your printed documents.',
-      href: '/settings/branding',
+      href: '/hospital-setup/branding',
       permission: PERMISSIONS.BRANDING_MANAGE,
       module: null,
       required: true,
@@ -248,7 +248,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     label: 'Enabled modules',
     description:
       'The modules your hospital is entitled to. These are provisioned by Nirogix. Talk to us to enable another one.',
-    href: '/settings/modules',
+    href: '/hospital-setup/enabled-modules',
     permission: null,
     module: null,
     required: false,

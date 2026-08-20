@@ -33,7 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", href: "/", perm: null, icon: LayoutDashboard },
+      { label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard },
       // A daily companion to the dashboard, built from the audit trail — the only
       // thing the platform records per-day. Shares the audit permission.
       { label: "EOD report", href: "/eod", perm: PERMISSIONS.AUDIT_VIEW, icon: CalendarCheck },

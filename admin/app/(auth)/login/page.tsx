@@ -30,7 +30,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/");
+    if (status === "authenticated") router.replace("/dashboard");
   }, [status, router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -39,7 +39,7 @@ export default function LoginPage() {
     setSubmitting(true);
     const result = await login({ orgCode: orgCode.trim(), email: email.trim(), password });
     setSubmitting(false);
-    if (result.ok) router.replace("/");
+    if (result.ok) router.replace("/dashboard");
     else setError(result.error);
   }
 

@@ -202,3 +202,164 @@ export function addDays(value: DateInput, days: number): Date | null {
   next.setDate(next.getDate() + days);
   return next;
 }
+
+// ---------------------------------------------------------------------------
+// Date-range presets (ADR-046). The one place the platform turns a named period —
+// "This month", "Last financial year" — into a concrete inclusive ISO {start, end},
+// so a filter never hand-rolls the arithmetic and every page agrees on what
+// "Last 6 months" means. Results are local calendar dates in `YYYY-MM-DD` transport
+// shape; the "this…" periods run to *today* (period-to-date), since data for future
+// days does not exist.
+// ---------------------------------------------------------------------------
+
+/**
+ * The month the financial year starts in. India runs 1 April – 31 March, and this is
+ * an India-resident platform (ADR-042). There is no per-tenant FY configuration yet,
+ * so this single convention stands; change it here (or thread a param) if that ever
+ * becomes configurable.
+ */
+export const FINANCIAL_YEAR_START_MONTH = 4; // April (1 = January)
+
+/** The weekday a week starts on for "this/last week" — Monday, the business convention. */
+const WEEK_STARTS_ON = 1; // 0 = Sunday, 1 = Monday
+
+/** Shifts by whole calendar months, clamping the day to the target month's length. */
+export function addMonths(value: DateInput, months: number): Date | null {
+  const d = parseDate(value);
+  if (!d) return null;
+  const target = new Date(d.getFullYear(), d.getMonth() + months, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d.getDate(), lastDay));
+  return target;
+}
+
+/** Monday of the week containing `value` (local midnight). */
+export function startOfWeek(value: DateInput): Date | null {
+  const d = parseDate(value);
+  if (!d) return null;
+  const base = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = (base.getDay() - WEEK_STARTS_ON + 7) % 7;
+  base.setDate(base.getDate() - diff);
+  return base;
+}
+
+export function startOfMonth(value: DateInput): Date | null {
+  const d = parseDate(value);
+  return d ? new Date(d.getFullYear(), d.getMonth(), 1) : null;
+}
+
+export function endOfMonth(value: DateInput): Date | null {
+  const d = parseDate(value);
+  return d ? new Date(d.getFullYear(), d.getMonth() + 1, 0) : null;
+}
+
+/** The financial year CONTAINING `value`: `{ start: 1 Apr, end: 31 Mar next year }` as ISO. */
+export function financialYearRange(
+  value: DateInput,
+  startMonth = FINANCIAL_YEAR_START_MONTH,
+): { start: string; end: string } | null {
+  const d = parseDate(value);
+  if (!d) return null;
+  const month = d.getMonth() + 1; // 1-12
+  const startYear = month >= startMonth ? d.getFullYear() : d.getFullYear() - 1;
+  const start = new Date(startYear, startMonth - 1, 1);
+  const end = new Date(startYear + 1, startMonth - 1, 0); // last day of the month before startMonth
+  return { start: toApiDate(start)!, end: toApiDate(end)! };
+}
+
+/** An inclusive calendar-date window, transport shape. */
+export interface DateRange {
+  start: string; // YYYY-MM-DD, inclusive
+  end: string; // YYYY-MM-DD, inclusive
+}
+
+/** The named periods the shared filter offers. `custom` is resolved by the caller. */
+export type DateRangePreset =
+  | "today"
+  | "yesterday"
+  | "last7Days"
+  | "last30Days"
+  | "last90Days"
+  | "thisWeek"
+  | "lastWeek"
+  | "thisMonth"
+  | "lastMonth"
+  | "last3Months"
+  | "last6Months"
+  | "last12Months"
+  | "last24Months"
+  | "thisFinancialYear"
+  | "lastFinancialYear"
+  | "thisYear"
+  | "lastYear"
+  | "custom";
+
+/**
+ * Resolves a preset to an inclusive ISO `{ start, end }`. Rolling day/month windows
+ * end on `today`; "this…" periods run from their start to today; "last…" periods are
+ * the whole prior period. `custom` returns null — the caller supplies its own dates.
+ */
+export function resolveDateRange(
+  preset: DateRangePreset,
+  opts: { today?: DateInput; fyStartMonth?: number } = {},
+): DateRange | null {
+  if (preset === "custom") return null;
+  const today = parseDate(opts.today) ?? new Date();
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const fy = opts.fyStartMonth ?? FINANCIAL_YEAR_START_MONTH;
+  const iso = (d: Date) => toApiDate(d)!;
+  const range = (start: Date, end: Date): DateRange => ({ start: iso(start), end: iso(end) });
+
+  // N days ending today, inclusive (Last 7 days = today-6 … today).
+  const lastDays = (n: number) => range(addDays(t, -(n - 1))!, t);
+  // N months of buckets ending this month (Last 6 months = start of the month 5 back … today).
+  const lastMonths = (n: number) => range(startOfMonth(addMonths(t, -(n - 1))!)!, t);
+
+  switch (preset) {
+    case "today":
+      return range(t, t);
+    case "yesterday": {
+      const y = addDays(t, -1)!;
+      return range(y, y);
+    }
+    case "last7Days":
+      return lastDays(7);
+    case "last30Days":
+      return lastDays(30);
+    case "last90Days":
+      return lastDays(90);
+    case "thisWeek":
+      return range(startOfWeek(t)!, t);
+    case "lastWeek": {
+      const prevStart = addDays(startOfWeek(t)!, -7)!;
+      return range(prevStart, addDays(prevStart, 6)!);
+    }
+    case "thisMonth":
+      return range(startOfMonth(t)!, t);
+    case "lastMonth": {
+      const prev = addMonths(t, -1)!;
+      return range(startOfMonth(prev)!, endOfMonth(prev)!);
+    }
+    case "last3Months":
+      return lastMonths(3);
+    case "last6Months":
+      return lastMonths(6);
+    case "last12Months":
+      return lastMonths(12);
+    case "last24Months":
+      return lastMonths(24);
+    case "thisFinancialYear": {
+      const cur = financialYearRange(t, fy)!;
+      return { start: cur.start, end: iso(t) };
+    }
+    case "lastFinancialYear": {
+      const cur = financialYearRange(t, fy)!;
+      const prevAnchor = addDays(parseDate(cur.start)!, -1)!; // a day inside the prior FY
+      return financialYearRange(prevAnchor, fy)!;
+    }
+    case "thisYear":
+      return range(new Date(t.getFullYear(), 0, 1), t);
+    case "lastYear":
+      return range(new Date(t.getFullYear() - 1, 0, 1), new Date(t.getFullYear() - 1, 11, 31));
+  }
+}

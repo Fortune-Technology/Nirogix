@@ -1727,6 +1727,37 @@
   text-overflow: ellipsis;
 }
 
+/* Data-change animation (ADR-043). When a filter changes the dataset, the chart's
+   drawing remounts (keyed on the values) and replays these once — so switching a
+   date range eases the new shape in instead of snapping to it. Hover, resize and
+   theme changes do not retrigger it, and reduced-motion disables it below. */
+.hms-bars--animate .hms-bars__stack {
+  transform-origin: bottom center;
+  animation: hms-bar-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes hms-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.hms-chart--animate .hms-chart__series {
+  /* Fade the whole series group (line + filled area) in as one. A plain opacity
+     fade is robust under `preserveAspectRatio="none"` — a stroke-dash "draw" renders
+     as a broken/dotted line once the path is non-uniformly stretched. */
+  animation: hms-series-in 0.5s ease both;
+}
+@keyframes hms-series-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* KPI tile */
 .hms-stat {
   display: flex;
@@ -1911,6 +1942,11 @@
   .hms-usage__fill,
   .hms-bars__seg {
     transition: none;
+  }
+  /* Show the final state at once — no grow-in, no fade-in. */
+  .hms-bars--animate .hms-bars__stack,
+  .hms-chart--animate .hms-chart__series {
+    animation: none;
   }
 }
 
@@ -2601,6 +2637,18 @@
   color: var(--hms-brand-fg);
   font-weight: 600;
 }
+.hms-calendar__day--range-middle .hms-calendar__day-btn {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+  border-radius: 0;
+  font-weight: 500;
+}
+.hms-calendar__day--range-start .hms-calendar__day-btn,
+.hms-calendar__day--range-end .hms-calendar__day-btn {
+  background: var(--hms-brand);
+  color: var(--hms-brand-fg);
+  font-weight: 600;
+}
 .hms-calendar__day--outside .hms-calendar__day-btn {
   color: var(--hms-fg-subtle);
   opacity: 0.6;
@@ -2617,6 +2665,135 @@
   .hms-calendar__day-btn,
   .hms-timefield__mer-btn,
   .hms-datefield__trigger {
+    transition: none;
+  }
+}
+
+/* Period / date-range filter (ADR-046) — one "Date range ▾" popover, everywhere. */
+.hms-period__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  padding: 0.4rem 0.625rem;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  color: var(--hms-fg);
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.hms-period__trigger:hover:not(:disabled) {
+  background: var(--hms-surface-2);
+  border-color: var(--hms-brand);
+}
+.hms-period__trigger:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: 1px;
+}
+.hms-period__trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hms-period__trigger > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--hms-fg-muted);
+}
+.hms-period__trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hms-period__trigger-prefix {
+  margin-right: 0.25rem;
+  color: var(--hms-fg-muted);
+}
+.hms-period__trigger-caret {
+  flex: 0 0 auto;
+  color: var(--hms-fg-subtle);
+}
+
+.hms-period__panel {
+  width: 15rem;
+  max-width: calc(100vw - 2rem);
+  max-height: min(70vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.hms-period__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.hms-period__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+.hms-period__group-label {
+  padding: 0.25rem 0.5rem 0.125rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hms-fg-subtle);
+}
+.hms-period__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: var(--hms-radius-sm);
+  background: transparent;
+  color: var(--hms-fg-muted);
+  font-family: inherit;
+  font-size: var(--hms-text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.hms-period__item:hover {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+.hms-period__item:focus-visible {
+  outline: 2px solid var(--hms-ring);
+  outline-offset: -1px;
+}
+.hms-period__item--active {
+  background: var(--hms-brand-subtle);
+  color: var(--hms-brand);
+  font-weight: 600;
+}
+.hms-period__custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.hms-period__custom-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--hms-border);
+  padding-top: 0.5rem;
+}
+.hms-period__custom-range {
+  text-align: center;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+}
+.hms-period__custom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hms-period__trigger,
+  .hms-period__item {
     transition: none;
   }
 }

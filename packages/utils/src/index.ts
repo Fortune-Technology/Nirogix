@@ -23,8 +23,15 @@ export {
   toApiTime,
   todayApiDate,
   addDays,
+  addMonths,
+  startOfWeek,
+  startOfMonth,
+  endOfMonth,
+  financialYearRange,
+  resolveDateRange,
+  FINANCIAL_YEAR_START_MONTH,
 } from "./date";
-export type { DateInput } from "./date";
+export type { DateInput, DateRange, DateRangePreset } from "./date";
 
 // Colour: only for places a brand colour must be used where the design tokens cannot
 // reach — today, the dark modules of a printed QR code (ADR-056). Components still use

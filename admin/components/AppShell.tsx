@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogOut, Menu } from "lucide-react";
-import { BrandMark, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
+import { BrandMark, Button, HeaderUser, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
+import { formatRoleNames } from "@hms/permissions";
 import { useAuth } from "../lib/auth";
 import { navGroupsFor } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
@@ -36,7 +37,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  // Highlight by route: an item is active on its own page and any page nested under it
+  // (`/tenants` stays lit on `/tenants/new`). No nav item lives at the root any more —
+  // `/` only redirects to `/dashboard` — so there is no exact-match special case.
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
     // Window-scroll shell like the Portal: sticky sidebar + topbar, one scrollbar, no
@@ -94,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Sticks while the page scrolls, so the account details and the theme toggle
             are always one click away — the sidebar does the same on its side. */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-5">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-surface px-5">
           <button
             type="button"
             className="grid h-9 w-9 place-items-center rounded-token text-fg-muted hover:bg-surface-2 hover:text-fg md:hidden"
@@ -105,13 +109,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} strokeWidth={1.75} aria-hidden />
           </button>
 
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-fg">{user?.fullName ?? "…"}</div>
-            <div className="truncate text-xs text-fg-subtle">{user?.email}</div>
-          </div>
-
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-3">
             <ThemeToggle />
+            {user ? (
+              <HeaderUser
+                name={user.fullName}
+                email={user.email}
+                role={formatRoleNames(user.roles)}
+                href="/profile"
+                linkAs={Link}
+                className="max-w-[16rem]"
+              />
+            ) : null}
             <Button variant="secondary" size="sm" onClick={signOut}>
               <LogOut size={16} strokeWidth={2} /> Sign out
             </Button>

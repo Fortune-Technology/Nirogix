@@ -243,7 +243,7 @@ export function SetupProgressCard() {
         </p>
       ) : null}
       <Link
-        href="/settings"
+        href="/hospital-setup"
         className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
       >
         Open hospital configuration

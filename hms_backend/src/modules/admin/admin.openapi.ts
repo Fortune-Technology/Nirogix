@@ -65,7 +65,15 @@ registry.registerPath({
   description:
     'Super-admin only. Monthly hospital / user / patient / appointment series derived from the records’ own `created_at`, each with a running cumulative, plus audit events per day by severity for the trailing 30 days. Counts only — never another tenant’s row-level data (ADR-023). `months` is clamped to 3–36.',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ months: z.coerce.number().int().min(3).max(36).optional() }) },
+  request: {
+    query: z.object({
+      months: z.coerce.number().int().min(3).max(36).optional(),
+      // An explicit inclusive window (used by the shared period filter's calendar presets).
+      // Takes precedence over `months` when both `from` and `to` are valid and `to >= from`.
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }),
+  },
   responses: { 200: { description: 'Platform trends', ...json(PlatformTrendsSchema) }, 401: notAuthed, 403: forbidden },
 });
 

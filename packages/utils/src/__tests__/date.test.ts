@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  addMonths,
+  financialYearRange,
+  resolveDateRange,
   compareDates,
   formatDate,
   formatDateRange,
@@ -141,5 +144,63 @@ describe("addDays", () => {
 
   it("returns null for an unparseable input", () => {
     expect(addDays("nope", 1)).toBeNull();
+  });
+});
+
+describe("resolveDateRange presets", () => {
+  // Fixed anchor: Thu 2026-08-20 (India FY 2026-27 runs 2026-04-01 .. 2027-03-31).
+  const today = "2026-08-20";
+  const r = (p: Parameters<typeof resolveDateRange>[0]) => resolveDateRange(p, { today });
+
+  it("today / yesterday are single inclusive days", () => {
+    expect(r("today")).toEqual({ start: "2026-08-20", end: "2026-08-20" });
+    expect(r("yesterday")).toEqual({ start: "2026-08-19", end: "2026-08-19" });
+  });
+
+  it("rolling day windows end today, inclusive of N days", () => {
+    expect(r("last7Days")).toEqual({ start: "2026-08-14", end: "2026-08-20" });
+    expect(r("last30Days")).toEqual({ start: "2026-07-22", end: "2026-08-20" });
+    expect(r("last90Days")).toEqual({ start: "2026-05-23", end: "2026-08-20" });
+  });
+
+  it("this/last week run Monday-based", () => {
+    // 2026-08-20 is a Thursday; that week's Monday is 2026-08-17.
+    expect(r("thisWeek")).toEqual({ start: "2026-08-17", end: "2026-08-20" });
+    expect(r("lastWeek")).toEqual({ start: "2026-08-10", end: "2026-08-16" });
+  });
+
+  it("this month is month-to-date; last month is the whole prior month", () => {
+    expect(r("thisMonth")).toEqual({ start: "2026-08-01", end: "2026-08-20" });
+    expect(r("lastMonth")).toEqual({ start: "2026-07-01", end: "2026-07-31" });
+  });
+
+  it("rolling months give N buckets ending this month", () => {
+    expect(r("last6Months")).toEqual({ start: "2026-03-01", end: "2026-08-20" });
+    expect(r("last12Months")).toEqual({ start: "2025-09-01", end: "2026-08-20" });
+    expect(r("last24Months")).toEqual({ start: "2024-09-01", end: "2026-08-20" });
+  });
+
+  it("financial year uses the Indian 1 Apr – 31 Mar convention", () => {
+    expect(r("thisFinancialYear")).toEqual({ start: "2026-04-01", end: "2026-08-20" });
+    expect(r("lastFinancialYear")).toEqual({ start: "2025-04-01", end: "2026-03-31" });
+  });
+
+  it("calendar year is Jan–Dec", () => {
+    expect(r("thisYear")).toEqual({ start: "2026-01-01", end: "2026-08-20" });
+    expect(r("lastYear")).toEqual({ start: "2025-01-01", end: "2025-12-31" });
+  });
+
+  it("custom resolves to null (caller supplies the dates)", () => {
+    expect(r("custom")).toBeNull();
+  });
+
+  it("financialYearRange picks the FY containing a date before April", () => {
+    // 2026-02-15 falls in FY 2025-26.
+    expect(financialYearRange("2026-02-15")).toEqual({ start: "2025-04-01", end: "2026-03-31" });
+    expect(financialYearRange("2026-04-01")).toEqual({ start: "2026-04-01", end: "2027-03-31" });
+  });
+
+  it("addMonths clamps to the target month length", () => {
+    expect(toApiDate(addMonths("2026-01-31", 1))).toBe("2026-02-28");
   });
 });

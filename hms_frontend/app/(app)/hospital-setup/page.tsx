@@ -72,7 +72,7 @@ const AREAS: Area[] = [
     perm: PERMISSIONS.PHARMACY_MANAGE,
   },
   {
-    href: "/settings/organization",
+    href: "/hospital-setup/hospital-information",
     label: "Hospital information",
     blurb: "Registered address, contact details and statutory numbers, printed on your documents.",
     icon: Building2,

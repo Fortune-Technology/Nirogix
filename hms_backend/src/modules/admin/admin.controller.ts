@@ -12,9 +12,19 @@ export async function getStats(_req: Request, res: Response): Promise<void> {
   res.json(await svc.getPlatformStats());
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 // Every series is derived from real `created_at` rows and the audit log (ADR-043);
-// the window is clamped so one request cannot ask for an unbounded scan.
+// the window is clamped so one request cannot ask for an unbounded scan. An explicit
+// inclusive `from`/`to` (ISO, `to >= from`) drives the shared period filter's presets;
+// otherwise the legacy rolling `months` count is used (default 12, clamped 3–36).
 export async function getTrends(req: Request, res: Response): Promise<void> {
+  const from = typeof req.query.from === 'string' && ISO_DATE.test(req.query.from) ? req.query.from : null;
+  const to = typeof req.query.to === 'string' && ISO_DATE.test(req.query.to) ? req.query.to : null;
+  if (from && to && to >= from) {
+    res.json(await svc.getPlatformTrends({ from, to }));
+    return;
+  }
   const raw = Number(req.query.months ?? 12);
   const months = Number.isFinite(raw) ? Math.min(36, Math.max(3, Math.trunc(raw))) : 12;
   res.json(await svc.getPlatformTrends(months));
