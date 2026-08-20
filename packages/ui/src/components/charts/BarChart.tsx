@@ -13,6 +13,13 @@ export interface BarChartProps {
   emptyMessage?: string;
   className?: string;
   ariaLabel?: string;
+  /**
+   * Ease the bars in when the dataset changes — switching a date-range filter grows
+   * the new bars up from the baseline instead of snapping. On by default; a hover or
+   * a re-render with the same numbers does not retrigger it, and a reduced-motion
+   * user always sees the final state at once.
+   */
+  animate?: boolean;
 }
 
 /**
@@ -32,6 +39,7 @@ export function BarChart({
   emptyMessage = "No data yet.",
   className,
   ariaLabel,
+  animate = true,
 }: BarChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -41,6 +49,9 @@ export function BarChart({
   );
   const hasData = totals.some((t) => t !== 0);
   const d = domain(totals);
+  // Changes only when the data does; used as the `.hms-bars` key so the grow-in
+  // replays on a filter switch but not on hover or an identical re-render.
+  const animKey = animate ? `${points}|${series.map((s) => s.values.join(",")).join(";")}` : undefined;
 
   if (!hasData) {
     return (
@@ -53,7 +64,8 @@ export function BarChart({
   return (
     <div className={cn("hms-chart", className)}>
       <div
-        className="hms-bars"
+        key={animKey}
+        className={cn("hms-bars", animate && "hms-bars--animate")}
         style={{ height }}
         role="img"
         aria-label={ariaLabel ?? `${series.map((s) => s.label).join(", ")} by period`}

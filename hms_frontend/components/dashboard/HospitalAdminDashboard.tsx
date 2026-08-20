@@ -15,12 +15,12 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { AreaChart, BarChart, Button, Card, StatCard, UsageBar, type Series } from "@hms/ui";
+import { AreaChart, BarChart, Button, Card, PeriodFilter, StatCard, UsageBar, usePeriodParam, type PeriodValue, type Series } from "@hms/ui";
 import type { DashboardOverview, OrgSummary } from "@hms/types";
 import * as api from "../../lib/api";
 import { formatDate, formatDayLabel, formatWeekday } from "@hms/utils";
 import { formatPaise } from "../../lib/money";
-import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, PanelRow, RangeChips, firstName } from "./DashboardShell";
+import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, PanelRow, firstName } from "./DashboardShell";
 import { SetupProgressCard } from "../settings/SetupChecklist";
 
 /**
@@ -39,24 +39,35 @@ const BRAND = "var(--hms-brand)";
 const INFO = "var(--hms-info)";
 const SUCCESS = "var(--hms-success)";
 
-const RANGES = [
-  { value: 7, label: "7 days" },
-  { value: 14, label: "14 days" },
-  { value: 30, label: "30 days" },
+// Daily buckets: the Portal dashboard reads best over days-to-months, so it offers the
+// day/short-period presets. Longer windows live on the platform console's monthly view.
+const DASHBOARD_PRESETS = [
+  "today",
+  "thisWeek",
+  "last7Days",
+  "last30Days",
+  "last90Days",
+  "thisMonth",
+  "lastMonth",
+  "custom",
 ] as const;
 
 /** Clinic hours only: a 24-bar axis of mostly zeros hides the shape of the day. */
 const CLINIC_HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 … 20:00
 
 export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
-  const [days, setDays] = useState<number>(14);
+  const [period, setPeriod] = usePeriodParam("last30Days");
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [summary, setSummary] = useState<OrgSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (range: number) => {
+  const load = useCallback(async (p: PeriodValue) => {
     try {
-      const [o, s] = await Promise.all([api.getDashboardOverview(range), api.getOrgSummary()]);
+      // Keep the previous data on screen while the next window loads (no blank, no reflow).
+      const [o, s] = await Promise.all([
+        api.getDashboardOverview({ from: p.start, to: p.end }),
+        api.getOrgSummary(),
+      ]);
       setOverview(o);
       setSummary(s);
       setError(null);
@@ -66,8 +77,8 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
   }, []);
 
   useEffect(() => {
-    void load(days);
-  }, [load, days]);
+    void load(period);
+  }, [load, period]);
 
   const revenueLabels = useMemo(() => (overview?.revenue ?? []).map((p) => formatDayLabel(p.period)), [overview]);
   const revenueSeries: Series[] = useMemo(
@@ -97,8 +108,12 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
       {
         key: "registrations",
         label: "New patients",
+        // The one series on this chart leads with the brand accent (tenant-overridable,
+        // Light/Dark-aware) so it matches Revenue and the rest of the dashboard, rather
+        // than the fixed info-blue it used before. `INFO` stays for genuine second
+        // series (e.g. walk-ins on the OPD-load chart).
         values: (overview?.registrations ?? []).map((p) => p.value),
-        color: INFO,
+        color: BRAND,
       },
     ],
     [overview],
@@ -118,7 +133,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           : "Loading today's clinic…"
       }
       title={`Hospital operations${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}
-      controls={<RangeChips options={RANGES} value={days} onChange={setDays} label="Trend" />}
+      controls={<PeriodFilter value={period} onChange={setPeriod} presets={[...DASHBOARD_PRESETS]} label="Period" align="end" />}
       actions={
         <Link href="/patients/new">
           <Button>
@@ -151,7 +166,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           label="Collected"
           value={overview ? formatPaise(collectedTotal) : null}
           icon={<Wallet size={16} strokeWidth={1.75} aria-hidden />}
-          hint={overview ? `of ${formatPaise(billedTotal)} billed in ${days} days` : undefined}
+          hint={overview ? `of ${formatPaise(billedTotal)} billed this period` : undefined}
           href="/billing"
           linkLabel="Collected, open billing"
         />

@@ -4,22 +4,13 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
+import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, HeaderUser, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
+import { formatRoleNames } from "@hms/permissions";
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { NAV_ITEMS, activeNavHref, mobilePrimaryNav, navGroupsForUser } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 // The authenticated shell: a permission-filtered sidebar + a topbar. The nav only
 // shows items the user's effective permissions allow (UX mirror of server enforcement).
@@ -154,17 +145,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Menu size={20} strokeWidth={1.75} aria-hidden />
             </button>
             {user && (
-              // The avatar is the entry point to My Profile (ADR-035).
-              <Link
+              // The account block is the entry point to My Profile (ADR-035).
+              <HeaderUser
+                name={user.fullName}
+                email={user.email}
+                role={formatRoleNames(user.roles)}
                 href="/profile"
-                className="flex items-center gap-2 rounded-token px-1 py-1 hover:bg-surface-2"
-                title={`${user.fullName} · ${user.email}`}
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-subtle text-xs font-semibold text-brand">
-                  {initials(user.fullName)}
-                </span>
-                <span className="hidden text-sm text-fg sm:inline">{user.fullName}</span>
-              </Link>
+                linkAs={Link}
+                className="max-w-[16rem]"
+              />
             )}
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Sign out

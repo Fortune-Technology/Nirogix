@@ -329,6 +329,28 @@ export function monthWindow(months: number, now: Date): string[] {
   return keys;
 }
 
+/** Month keys from the month of `from` to the month of `to` inclusive (both `YYYY-MM-DD`). */
+export function monthWindowBetween(from: string, to: string): string[] {
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  const keys: string[] = [];
+  let y = fy!;
+  let m = fm!; // 1-12
+  while (y < ty! || (y === ty! && m <= tm!)) {
+    keys.push(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  // Guard against a hand-crafted, unbounded month span.
+  return keys.length > 60 ? keys.slice(-60) : keys;
+}
+
+/** The window a trends request asked for — a rolling `months` count, or an explicit `{ from, to }`. */
+export type TrendsRange = number | { from: string; to: string };
+
 /**
  * Buckets `created_at` values into the month window and carries a running total.
  * `priorTotal` is everything created BEFORE the window, so the cumulative line
@@ -351,8 +373,8 @@ export function toSeries(dates: Date[], window: string[]): TrendPoint[] {
   });
 }
 
-export async function getPlatformTrends(months: number, now = new Date()): Promise<PlatformTrends> {
-  const window = monthWindow(months, now);
+export async function getPlatformTrends(range: TrendsRange, now = new Date()): Promise<PlatformTrends> {
+  const window = typeof range === 'object' ? monthWindowBetween(range.from, range.to) : monthWindow(range, now);
   const all = await db.select().from(tenants);
   const hospitalRows = all.filter((t) => t.code !== PLATFORM_CODE);
 

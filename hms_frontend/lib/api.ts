@@ -279,8 +279,14 @@ export async function getSystemHealth(): Promise<{ api: boolean; db: boolean }> 
   return { api, db };
 }
 
-export async function getDashboardOverview(days = 14): Promise<DashboardOverview> {
-  return request<DashboardOverview>(`/dashboard/overview?days=${days}`);
+// A rolling `days` count (legacy/fixed dashboards) or an explicit inclusive ISO
+// `{ from, to }` window (the shared period filter). The backend honours from/to when
+// both are present.
+export async function getDashboardOverview(
+  range: number | { from: string; to: string } = 14,
+): Promise<DashboardOverview> {
+  const qs = typeof range === "object" ? `from=${range.from}&to=${range.to}` : `days=${range}`;
+  return request<DashboardOverview>(`/dashboard/overview?${qs}`);
 }
 
 export async function getOrgSummary(): Promise<OrgSummary> {

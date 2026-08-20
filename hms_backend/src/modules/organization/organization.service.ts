@@ -85,7 +85,7 @@ export async function getOrganizationProfile(tenantId: string): Promise<Resolved
   // The stored file id is resolved to a short-lived URL on every read, exactly like the
   // branding logo — the id never leaves the server, and a stale URL cannot be replayed.
   const letterheadImage = row?.letterheadImageFileId
-    ? await getDownloadUrl(tenantId, row.letterheadImageFileId)
+    ? await getDownloadUrl(tenantId, row.letterheadImageFileId, { disposition: 'inline' })
     : null;
   return {
     name: tenant.name,

@@ -57,9 +57,11 @@ export async function getCurrentBranding(tenantId: string): Promise<ResolvedBran
       organization,
     };
   }
+  // Logo and favicon are rendered in an <img>/<link>, so they must serve inline (not as a
+  // forced download) — see getDownloadUrl.
   const [logo, favicon] = await Promise.all([
-    row.logoFileId ? getDownloadUrl(tenantId, row.logoFileId) : Promise.resolve(null),
-    row.faviconFileId ? getDownloadUrl(tenantId, row.faviconFileId) : Promise.resolve(null),
+    row.logoFileId ? getDownloadUrl(tenantId, row.logoFileId, { disposition: 'inline' }) : Promise.resolve(null),
+    row.faviconFileId ? getDownloadUrl(tenantId, row.faviconFileId, { disposition: 'inline' }) : Promise.resolve(null),
   ]);
   return {
     brandColor: row.brandColor,

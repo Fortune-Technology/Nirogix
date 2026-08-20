@@ -156,24 +156,30 @@ Automating these would cost more than it returns, or cannot be done honestly:
 **Pull request / push (`ci.yml`)**
 
 ```
-typecheck → lint → openapi:validate → test (unit + integration + API) → build → e2e-smoke
+typecheck → lint → openapi:validate → test (unit + integration + API) → build
 ```
 
-`e2e-smoke` is a separate job that needs `verify`, seeds the CI database, and uploads a
-Playwright report artifact on failure.
+That is the whole pipeline, on purpose. It is fast, needs one PostgreSQL service container and
+no browsers, and it still covers the security-critical layer — authentication, roles and
+permissions, module entitlement and tenant isolation all run at the API level in `npm run test`.
 
 **Staging (`deploy-staging.yml`)**
 
 ```
-deploy → staging-smoke (read-only, against the deployed hosts) → manual QA
+deploy → manual QA
 ```
 
-The smoke job does not gate the deploy — the deploy has already happened — it **flags** a bad
-one so nobody begins a manual pass against a broken environment. It skips itself when the
-staging URL variables are unset. It runs **only** the read-only smoke project: the destructive
-clinical journey never runs against a shared environment.
+**E2E runs locally, not in CI — deliberate.** Playwright needs browser downloads and all six
+dev servers booted, which costs several minutes of Actions time per run against a limited org
+budget, for coverage that is mostly UI smoke. The rule instead:
 
-**Production:** no destructive E2E, ever. Only safe smoke checks.
+> Run `npm run test:e2e` on your machine before pushing anything that touches a frontend, and
+> `npm run test:regression` before handing staging to a tester.
+
+If E2E is ever wanted in CI, add it as a **manually triggered** (`workflow_dispatch`) or
+nightly workflow rather than on every push, so it cannot slow down or block ordinary work.
+
+**Production:** no destructive E2E, ever.
 
 ---
 
@@ -211,6 +217,6 @@ clinical journey never runs against a shared environment.
   green against locally running dev servers, `tsc --noEmit` clean.
 - **vitest version skew** — `hms_backend` is on vitest 2.x, `packages/ui` on 4.x. Harmless today
   (separate workspaces) but worth aligning.
-- **`deploy-staging` requires** `STAGING_*_URL` repository variables and
-  `STAGING_BASIC_AUTH_USER` / `STAGING_BASIC_AUTH_PASS` / `STAGING_SEED_PASSWORD` secrets before
-  `staging-smoke` will run.
+- **E2E is not enforced by CI.** It only protects the codebase if someone actually runs it
+  locally before pushing frontend work. That is a discipline gap, accepted knowingly to keep the
+  deploy pipeline fast and within the org's Actions budget.
