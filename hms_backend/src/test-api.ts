@@ -156,6 +156,9 @@ export async function cleanupTenant(code: string): Promise<void> {
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
+    // ABDM first: `abdm_transactions.patient_id` is ON DELETE RESTRICT, so it has to go before
+    // the charts it points at (ADR-084).
+    'abdm_transactions', 'abdm_facility_config',
     'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
     'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses', 'encounters',
     'visits', 'invoices', 'appointments', 'patients',

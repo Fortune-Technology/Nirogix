@@ -743,3 +743,80 @@ The "Test credentials" dialog previously showed the **development** seeder's acc
 The Portal also inherits idle sign-out from `@hms/client` — 15 minutes without interaction ends the session server-side, which is what a clinical workstation in a corridor actually needs.
 
 **Testing status:** verified live against the running Portal — sign-in, dashboard, patients list and client-side navigation all work under the policy, with no violations in the console. One real gap was found this way and fixed in the shared builder: tenant logos are served by the API over plain http in development, which `img-src` had not allowed. Build and typecheck green.
+
+---
+
+## ABDM / ABHA at the registration desk (ADR-084)
+
+**What:** `components/abdm/AbhaVerificationPanel.tsx` sits above the patient registration form and
+offers three ways to reach the same place — a verified ABDM profile the operator reviews and accepts.
+**Scan & Share leads** (the patient scans the hospital's facility QR in their own ABHA app; no OTP at
+all), then verifying an ABHA the patient already holds (by number, address, mobile or Aadhaar), then
+creating one from Aadhaar with the secondary mobile check and the ABHA-address step.
+
+**The form is unchanged and stays the fallback.** The panel never registers anyone: it hands back a
+prefill and a transaction id. `applyAbhaPrefill` fills **only empty fields**, so a receptionist who
+already typed something the patient corrected in person does not lose it, and every field stays
+editable. Registration goes through the ordinary endpoint; the ABHA is linked afterwards, and a
+failure to link never blocks the redirect — the chart is saved either way. Typing over a verified
+ABHA number drops the verification with it, matching what the backend does.
+
+**Nothing is offered that cannot work.** The panel asks the API what this hospital can actually do:
+a tenant without the module gets no panel at all (the capabilities probe is deliberately silent —
+403 is a normal state for most tenants, not a toast), and Scan & Share is disabled with an
+explanation until the hospital has both a facility id and a QR payload. Test mode says so on screen,
+including the fixed OTP, so nobody mistakes a mock profile for a real ABHA.
+
+**A returning patient is presented as one.** An exact ABHA match is badged *Already registered here*
+with a link to the existing chart; a demographic look-alike is shown as *similar charts to check* —
+never merged automatically, because two people share a name, a gender and a birth year.
+
+**New screen:** Hospital configuration → **ABDM / ABHA** (`app/(app)/hospital-setup/abdm/page.tsx`),
+where org_admin enters the hospital's own HFR facility id and QR payload, previews the code, and
+switches Scan & Share on. Gated by `abdm.facility.view` / `abdm.facility.manage`, so the tab is
+absent for everyone else.
+
+**Extracted rather than duplicated:** `lib/useQrDataUrl.ts` now owns QR drawing, and
+`components/print/usePublicQr.ts` composes it (ADR-029) — the facility QR was the second QR in the
+Portal, and two copies of the drawing options would have drifted on the details that decide whether a
+camera can read the code.
+
+**Testing status:** typecheck and the production build are green; the new route appears in the build
+output. The panel's behaviour is covered end to end at the API level in the backend suite (62 tests);
+the browser walk-through is `docs/manual-testing-guide.md` §5.1a and `testcases.md` §23 (ABDM-01…34).
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the Nirogix Portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` now lists every `NEXT_PUBLIC_*` the app actually reads, all uncommented,
+with 1–2 line comments — including `NEXT_PUBLIC_DEV_LOGIN_PASSWORD`, which `lib/devUsers.ts` reads
+but the example file never documented. It is quoted (`'ChangeMe#123'`) because dotenv ends an
+unquoted value at the first `#`. The gitignored `.env` was regenerated to mirror the same keys in
+the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+---
+
+## ABDM: verification now fills the form (ADR-084)
+
+**What:** the review step no longer waits for a click. The moment a verification succeeds the
+registration form is populated and the panel says so, naming anything ABDM did not send. From a
+Scan-and-Share profile the receptionist now presses exactly one button — **Register patient** —
+and the ABHA links itself to the new chart.
+
+**With one deliberate exception.** A `returning` or `ambiguous` match does **not** auto-fill. There
+the panel still stops and offers the existing chart, because auto-filling would put a second chart
+for the same person one button away, and a duplicated clinical record costs far more to undo than a
+click costs to make. The shortcut applies exactly where it is safe: a patient this hospital has not
+seen before.
+
+**Verified live** end to end: a shared profile → one click → form filled (name, gender, date of
+birth in DD/MM/YYYY, phone, address, city, state, PIN, ABHA number and address) → Register →
+`UHID-000008` with the ABHA reading **Verified with ABDM**.

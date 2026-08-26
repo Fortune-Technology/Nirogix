@@ -101,3 +101,19 @@ The "Test credentials" quick-login added on 2026-08-18 (ADR-074) is **deleted** 
 **What:** the same `proxy.ts` + nonced layout as the Portal, and the same 15-minute idle sign-out from `@hms/client`. An operator console is the one surface where an unattended screen reaches every tenant, so it gets no exemption.
 
 **Testing status:** verified live — the console renders under the policy (403 panel for a non-operator principal, as designed) with no CSP violations. Build and typecheck green.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the Platform Admin console's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` trimmed to 1–2 line comments with every key uncommented, and
+`NEXT_PUBLIC_ENVIRONMENT` **removed** from both `.env.example` and `.env` — no code has read it
+since the quick-login was deleted under ADR-077, so it was a variable that configured nothing. The
+gitignored `.env` mirrors the remaining keys in the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.

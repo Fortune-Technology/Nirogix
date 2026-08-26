@@ -46,3 +46,17 @@ The copy does the work the security model needs it to do. Submitting sends detai
 **What:** `proxy.ts` + a nonced root layout, and idle sign-out wired into this app’s own `SessionProvider` through the shared `useIdleSignOut` hook. The session model stays separate (ADR-052) — only the policy is shared, because this portal is opened on borrowed phones and hospital kiosks as often as on a personal device.
 
 **Testing status:** verified live — the sign-in screen renders under the policy with no violations, and the idle timer starts only once a session exists. Build and typecheck green.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the patient portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` trimmed to 1–2 line comments with its key uncommented; the gitignored
+`.env` mirrors it exactly.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.

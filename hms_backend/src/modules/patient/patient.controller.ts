@@ -3,31 +3,11 @@ import { Errors } from '../../http/error';
 import { paginate } from '../../http/respond';
 import { ListPatientsQuery } from './patient.schema';
 import * as svc from './patient.service';
+import { toPatientDto } from './patient.dto';
 import type { Patient } from '../../db/schema';
 
-function toPatient(p: Patient) {
-  return {
-    id: p.id,
-    uhid: p.uhid,
-    firstName: p.firstName,
-    lastName: p.lastName,
-    gender: p.gender,
-    dateOfBirth: p.dateOfBirth, // drizzle `date` → 'YYYY-MM-DD' string
-    phone: p.phone,
-    email: p.email,
-    bloodGroup: p.bloodGroup,
-    addressLine: p.addressLine,
-    city: p.city,
-    state: p.state,
-    pincode: p.pincode,
-    abhaNumber: p.abhaNumber,
-    emergencyContactName: p.emergencyContactName,
-    emergencyContactPhone: p.emergencyContactPhone,
-    branchId: p.branchId,
-    status: p.status,
-    createdAt: p.createdAt.toISOString(),
-  };
-}
+/** The API presentation of a patient lives in `patient.dto.ts`, shared with ABDM linking. */
+const toPatient = toPatientDto;
 
 export async function listPatients(req: Request, res: Response): Promise<void> {
   const { page, pageSize, search, gender, status, city, registeredFrom, registeredTo } =

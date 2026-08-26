@@ -87,7 +87,80 @@ const EnvSchema = z.object({
   // capabilities endpoint reports it off and the Portal renders no AI control. Never a stub.
   ANTHROPIC_API_KEY: z.string().optional(),
   AI_DRAFT_MODEL: z.string().default('claude-sonnet-5'),
+
+  // Application-level encryption at rest (security/encryption.ts). 32 bytes, base64 or hex.
+  // Generate with: node -p "require('node:crypto').randomBytes(32).toString('base64')"
+  // Required in production once any feature that stores a bearer credential is enabled
+  // (today: ABDM linking tokens). Rotating it invalidates existing ciphertext, so treat it
+  // like a database credential, not like a toggle.
+  ENCRYPTION_KEY: z.string().optional(),
+
+  // ---------------------------------------------------------------------------------------
+  // ABDM / ABHA — Milestone 1 only (ADR-084).
+  //
+  // NHA issues ONE client id/secret to the registered APPLICATION (Nirogix). The per-hospital
+  // HFR facility id is NOT here: it is tenant data, held in `abdm_facility_config`, because
+  // each hospital registers its own facility. Never put a facility id in server config.
+  //
+  // `mock` is a first-class provider, not a fallback: the sandbox rate-limits OTPs to a
+  // handful per number per day, so local development and CI would otherwise be unrunnable.
+  ABDM_PROVIDER: z.enum(['mock', 'gateway']).default('mock'),
+  ABDM_CLIENT_ID: z.string().optional(),
+  ABDM_CLIENT_SECRET: z.string().optional(),
+  // Gateway host (sessions + HIP routing). Sandbox: https://dev.abdm.gov.in
+  ABDM_GATEWAY_BASE_URL: z.string().url().default('https://dev.abdm.gov.in'),
+  // ABHA enrolment/profile host. Sandbox: https://abhasbx.abdm.gov.in/abha/api
+  ABDM_ABHA_BASE_URL: z.string().url().default('https://abhasbx.abdm.gov.in/abha/api'),
+  // Consent Manager id — 'sbx' in sandbox, 'abdm' (or as issued) in production.
+  ABDM_CM_ID: z.string().default('sbx'),
+  // Version stamp written onto every stored consent record, so a later change to the consent
+  // wording is distinguishable from consent taken under the old wording.
+  ABDM_CONSENT_VERSION: z.string().default('m1-v1'),
+  // How long a verification transaction stays usable before the operator must restart it.
+  ABDM_TXN_TTL_SECONDS: z.coerce.number().int().positive().default(600),
 }).superRefine((val, ctx) => {
+  // Selecting the real ABDM gateway without credentials is a misconfiguration that would only
+  // show up as a 401 from NHA at the registration counter. Catch it at boot instead.
+  if (val.ABDM_PROVIDER === 'gateway') {
+    for (const key of ['ABDM_CLIENT_ID', 'ABDM_CLIENT_SECRET'] as const) {
+      if (!val[key] || String(val[key]).trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required when ABDM_PROVIDER=gateway`,
+        });
+      }
+    }
+    if (!val.ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ENCRYPTION_KEY'],
+        message: 'ENCRYPTION_KEY is required when ABDM_PROVIDER=gateway — ABDM linking tokens are stored encrypted',
+      });
+    }
+  }
+  // The production gateway must never be pointed at from a non-production instance, and a
+  // production instance must never talk to the sandbox: the first leaks real Aadhaar traffic
+  // into a test system, the second makes production quietly non-functional. Sandbox hosts are
+  // recognisable by their `sbx`/`dev` markers (same heuristic as the R2 bucket guard).
+  const abdmHosts = `${val.ABDM_GATEWAY_BASE_URL} ${val.ABDM_ABHA_BASE_URL}`.toLowerCase();
+  const sandboxMarker = /(sbx|dev\.abdm)/.test(abdmHosts);
+  if (val.ABDM_PROVIDER === 'gateway') {
+    if (val.NODE_ENV === 'production' && sandboxMarker) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ABDM_GATEWAY_BASE_URL'],
+        message: 'Production must not call the ABDM sandbox — point ABDM_GATEWAY_BASE_URL/ABDM_ABHA_BASE_URL at the production hosts issued by NHA',
+      });
+    }
+    if (val.NODE_ENV !== 'production' && !sandboxMarker) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ABDM_GATEWAY_BASE_URL'],
+        message: `Non-production (${val.NODE_ENV}) must call the ABDM sandbox, not production ABDM`,
+      });
+    }
+  }
   // When R2 is the chosen provider, its connection details stop being optional. Catch a
   // half-configured bucket at boot with a precise message, not at the first upload with a
   // cryptic storage/auth error.
@@ -139,7 +212,15 @@ export type Env = Omit<z.infer<typeof EnvSchema>, 'OPENAPI_UI_ENABLED'> & {
   OPENAPI_UI_ENABLED: boolean;
 };
 
-const parsed = EnvSchema.safeParse(process.env);
+// Every `.env` carries every key the app knows about, so unconfigured ones are present but
+// blank (`SENTRY_DSN=`). A blank value means "not configured" and must behave exactly like an
+// absent one — otherwise an empty optional URL or number would fail validation and stop the
+// API from booting. Strip blanks first so defaults and `.optional()` apply as intended.
+const presentEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, value]) => value !== undefined && value.trim() !== ''),
+);
+
+const parsed = EnvSchema.safeParse(presentEnv);
 if (!parsed.success) {
   // eslint-disable-next-line no-console
   console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);

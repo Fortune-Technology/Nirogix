@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import { logger } from './config/logger';
 import { apiV1 } from './api/v1';
+import { abdmGatewayRouter } from './modules/abdm/abdm.gatewayRoutes';
 import { mountApiDocs } from './openapi/swagger';
 import { auditMiddleware } from './http/auditMiddleware';
 import { requestContext } from './http/requestContext';
@@ -35,6 +36,11 @@ export function createApp() {
   // Baseline limit for the whole API; credential and expensive routes add tighter
   // limits of their own (http/rateLimit.ts).
   app.use('/api/v1', globalLimiter, apiV1);
+
+  // ABDM calls us on a path IT chooses, appended to the bridge URL we register with NHA — so it
+  // cannot live under /api/v1 (ADR-084). The single documented exception to the versioning rule,
+  // and it carries only routes ABDM originates.
+  app.use(globalLimiter, abdmGatewayRouter);
 
   // OpenAPI JSON + Swagger UI (environment-aware; see src/openapi/). Mounted after the API
   // router so module routes take precedence, before the 404 handler.

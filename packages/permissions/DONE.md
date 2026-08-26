@@ -56,3 +56,17 @@ Append-only implementation log. Newest at the bottom.
 **Why:** `hms_backend` in production is plain `node dist/server.js`; its compiled `require('@hms/permissions')` resolved to raw TypeScript and Node died at boot with `SyntaxError: Unexpected identifier 'as'`. The Next.js apps were immune (`transpilePackages`), which is why local dev never surfaced it. Turbo's `^build` + `outputs: dist/**` were already wired — the package just had nothing to build.
 
 **Testing status:** turbo builds this package before `hms_backend`; `node -e "require('@hms/permissions')"` from the backend resolves compiled output; full-repo typecheck 13/13, Portal production build green, backend suite 162/162.
+
+---
+
+## ABDM / ABHA permission keys (ADR-084)
+
+**What:** four keys for ABDM Milestone 1 — `abdm.verification.perform` (run a lookup at the desk),
+`abdm.verification.link` (attach a verified ABHA to a chart), `abdm.facility.view` /
+`abdm.facility.manage` (the hospital's own HFR facility registration). Verifying and linking are
+separate on purpose: a lookup reads national data, while linking changes an identifier on a clinical
+record. The receptionist role gets verify + link; org_admin gets those plus the facility keys.
+
+**Testing status:** `dist/` rebuilt (this package is dist-consumed by the backend). Backend suite
+317/317 with the new keys enforced at the route boundary. **Existing tenants seeded before this
+change do not hold these keys until their roles are re-seeded** — recorded in `BACKLOG.md`.

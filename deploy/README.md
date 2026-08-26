@@ -169,9 +169,10 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 3. Install (or reuse — check versions first, the box already runs Node projects) Node ≥20,
    npm ≥10, PM2 (`npm i -g pm2`), Nginx, PostgreSQL client tools, `rclone`.
 4. Clone the repo to `${STAGING_PATH}` (e.g. `/var/www/nirogix` — sibling of the existing
-   projects, never inside one); create per-app env files from each `.env.example` — one per app:
-   `hms_backend/.env`, and `.env.local` for `hms_frontend`, `marketing`, `admin`, `patient`,
-   `aiportal` (the last three deploy with `BACKLOG.md` F-5, but ship an `.env.example` now). The
+   projects, never inside one); create one `.env` per app by copying that app's `.env.example`
+   (`hms_backend`, `hms_frontend`, `marketing`, `admin`, `patient`, `aiportal` — the last three
+   deploy with `BACKLOG.md` F-5, but ship an `.env.example` now). Every key is already present and
+   uncommented, so only values change; leave a key blank to keep its feature unconfigured. The
    frontends' `NEXT_PUBLIC_*` origins use the staging hosts from `resources/domains.md`, never ports.
 5. `npm ci && npm run build`.
 6. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).

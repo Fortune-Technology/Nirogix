@@ -54,6 +54,12 @@ import type {
   AddInvoiceLineRequest,
   Referral,
   CreateReferralRequest,
+  AbdmCapabilities,
+  AbdmFacilityConfig,
+  AbdmOtpSent,
+  AbdmPendingShare,
+  AbhaIdentifierType,
+  AbhaVerificationResult,
   ScheduleWindow,
   FreeSlots,
   BookingRequestItem,
@@ -978,5 +984,142 @@ export async function setBranchAvailability(body: {
     method: "PUT",
     body,
     feedback: { success: "Availability updated." },
+  });
+}
+
+// ---- ABDM / ABHA (Milestone 1, ADR-084) ------------------------------------
+//
+// Identity verification at the registration desk. Three things this client never handles: an
+// ABDM token (they stay server-side), a stored Aadhaar number (it is sent on exactly one
+// request and never comes back), and any decision about matching — the API returns the
+// new-vs-returning outcome and the screen presents it.
+
+/** What ABDM can do for this hospital right now — drives which options the screen offers. */
+export async function getAbdmCapabilities(branchId?: string): Promise<AbdmCapabilities> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  // Silent: a hospital that is not entitled to the ABDM module answers 403 here, and that is a
+  // normal state for most tenants — not something to raise a toast about on every page load.
+  return request<AbdmCapabilities>(`/abdm/capabilities${q}`, { feedback: false });
+}
+
+/** Flow 1 — send the Aadhaar OTP. `consentGiven` must be true; the API refuses otherwise. */
+export async function startAbhaAadhaarOtp(body: {
+  aadhaar: string;
+  consentGiven: true;
+  branchId?: string;
+}): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/enrolment/aadhaar/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent to the Aadhaar-linked mobile." },
+  });
+}
+
+export async function verifyAbhaAadhaarOtp(body: {
+  transactionId: string;
+  otp: string;
+  mobile?: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/enrolment/aadhaar/verify", { method: "POST", body });
+}
+
+/** The secondary check, when the patient's mobile differs from the Aadhaar-linked one. */
+export async function requestAbhaMobileOtp(body: { transactionId: string; mobile: string }): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/enrolment/mobile/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent to the mobile number." },
+  });
+}
+
+export async function verifyAbhaMobileOtp(body: { transactionId: string; otp: string }): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/enrolment/mobile/verify", { method: "POST", body });
+}
+
+export async function suggestAbhaAddresses(transactionId: string): Promise<{ suggestions: string[] }> {
+  return request<{ suggestions: string[] }>(`/abdm/transactions/${transactionId}/abha-address/suggestions`);
+}
+
+export async function createAbhaAddress(body: {
+  transactionId: string;
+  abhaAddress: string;
+}): Promise<{ transactionId: string; abhaAddress: string }> {
+  return request<{ transactionId: string; abhaAddress: string }>("/abdm/abha-address", {
+    method: "POST",
+    body,
+    feedback: { success: "ABHA address created." },
+  });
+}
+
+/** Flow 3 — verify an ABHA the patient already holds. */
+export async function startAbhaVerification(body: {
+  identifierType: AbhaIdentifierType;
+  identifier: string;
+  consentGiven: true;
+  branchId?: string;
+}): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/verification/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent." },
+  });
+}
+
+export async function verifyAbhaIdentifierOtp(body: {
+  transactionId: string;
+  otp: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/verification/verify", { method: "POST", body });
+}
+
+/** One identifier can hold several ABHA accounts (a shared family mobile) — pick one. */
+export async function selectAbhaAccount(body: {
+  transactionId: string;
+  abhaNumber: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/verification/select-account", { method: "POST", body });
+}
+
+/** Flow 2 — profiles patients pushed by scanning the facility QR, waiting at the desk. */
+export async function listAbdmPendingShares(): Promise<AbdmPendingShare[]> {
+  // Polled while the QR is on screen, so it stays silent: a toast per poll would be unusable.
+  return request<AbdmPendingShare[]>("/abdm/pending-shares", { feedback: false });
+}
+
+export async function getAbdmVerification(transactionId: string): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>(`/abdm/transactions/${transactionId}`);
+}
+
+export async function dismissAbdmVerification(transactionId: string): Promise<void> {
+  // Silent: closing a verification the operator abandoned is not news.
+  await request<void>(`/abdm/transactions/${transactionId}/dismiss`, { method: "POST", feedback: false });
+}
+
+/** Attach a verified ABHA to a chart. The only path that marks an ABHA as verified. */
+export async function linkAbhaToPatient(body: { transactionId: string; patientId: string }): Promise<Patient> {
+  return request<Patient>("/abdm/link", {
+    method: "POST",
+    body,
+    feedback: { success: "ABHA linked to the patient record." },
+  });
+}
+
+/** The hospital's own HFR facility registration (org_admin). */
+export async function getAbdmFacility(branchId?: string): Promise<AbdmFacilityConfig | null> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<AbdmFacilityConfig | null>(`/abdm/facility${q}`);
+}
+
+export async function saveAbdmFacility(body: {
+  hipId: string;
+  facilityName?: string;
+  qrContent?: string;
+  scanShareEnabled?: boolean;
+  branchId?: string;
+}): Promise<AbdmFacilityConfig> {
+  return request<AbdmFacilityConfig>("/abdm/facility", {
+    method: "PUT",
+    body,
+    feedback: { success: "ABDM facility settings saved." },
   });
 }

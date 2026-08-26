@@ -160,6 +160,17 @@ Everything in this list is built once, in Phase 0, and every business module in 
 - Specialty-specific fields map to SNOMED CT/LOINC coding where applicable, preserving the FHIR interoperability path already committed to for ABDM without requiring full FHIR resource modeling for every field on day one
 - A facility with no clinical modules entitled at all (a standalone pharmacy, for example) requires no special-casing in the core — the entitlement model above already produces that outcome naturally
 
+### Specialty-Aware Experience Layer (ADR-083)
+
+The specialty-agnostic *core* above (fixed entities, data-driven specialty catalog, form templates) is the storage and integrity story. On top of it sits a thin **experience layer** that makes the product feel purpose-built per specialty **without** hard-coding a workflow per doctor and **without** turning specialty into a second security boundary.
+
+- **Effective features = Tenant Enabled Modules ∩ Provider Specialty Module Set ∩ User Permissions.** The intersection matters: specialty *narrows* the view, it never widens access. A pediatrician at a clinic that never enabled Immunisation does not get Immunisation. The enforced boundary stays exactly the module-entitlement + RBAC chain (`authenticated → requireModule → requirePermission → business logic`); **specialty is never an enforcement point**, only a personalization key.
+- **Layering:** `Organization → Facility Type / Enabled Modules (tenant-scoped, enforced) → Provider Specialty (personalizes) → Module Configuration (org overrides + form templates) → Permissions (RBAC) → UI + API + Workflow`.
+- **Specialty sets defaults, the organization overrides.** Each specialty maps (as seeded data — `SPECIALTY_MODULE_MAP`, beside the specialty and module catalogs) to **required / recommended / optional** modules. Choosing a specialty or facility type at onboarding expands into a module set fed through the existing hard-dependency closure and granted as normal tenant entitlements — a *starting preset*, after which the org admin may enable or disable any module within its dependencies.
+- **One typed module catalog, shared FE/BE.** The module catalog carries per-module UI metadata (display name, nav group, icon, the permission keys it unlocks) and exports a `ModuleKey` union, so the sidebar, the dashboard and the backend gate agree on one list. The tenant's entitled module set is delivered in the authenticated session, so the frontend aligns its menu with the already-enforced boundary rather than inferring it from permission prefixes.
+- **Personalization is consistent across surfaces** — sidebar, dashboard cards, quick actions, patient-screen sections, forms, search/filter options, reports, settings and notifications all read the same `{ tenant modules ∩ provider specialty ∩ permissions }` and a config-driven registry, never a per-specialty code branch.
+- **Specialty-specific clinical features are independent modules** (odontogram, antenatal/obstetric records, growth tracking, psychiatric assessment), each a module-catalog entry gated by `requireModule` + `requirePermission`, with structured fields captured through `specialty_form_templates` (no EAV on core entities). Adding a specialty later is a data change (a catalog row + a map row) plus, only when a genuinely new feature is needed, one new module — never a rewrite of the shared patient / appointment / OPD / EMR / prescription / billing / auth / user-management core.
+
 ### Data Lifecycle & Retention
 
 ### Record Lifecycle States

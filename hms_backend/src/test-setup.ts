@@ -21,3 +21,23 @@ config();
  * This only affects this process; the developer's .env file is untouched.
  */
 process.env.MSG91_API_KEY = '';
+
+/**
+ * Never let the suite reach ABDM either, and always exercise encryption.
+ *
+ * Same reasoning as the MSG91 key above, with one addition specific to ABDM: a developer with
+ * real sandbox credentials in `.env` would otherwise burn the sandbox's small daily OTP
+ * allowance on every `npm run test`, and the suite would pass or fail depending on how many OTPs
+ * that number had left today. The mock provider makes the flows deterministic.
+ *
+ * `ENCRYPTION_KEY` is set to a fixed test key so the encrypt-at-rest path is genuinely executed
+ * rather than skipped as unconfigured — a token that is silently dropped in tests would hide the
+ * bug where it is silently dropped in production. This value is a test fixture and must never
+ * appear in any deployed environment.
+ */
+process.env.ABDM_PROVIDER = 'mock';
+process.env.ABDM_CLIENT_ID = '';
+process.env.ABDM_CLIENT_SECRET = '';
+if (!process.env.ENCRYPTION_KEY) {
+  process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+}

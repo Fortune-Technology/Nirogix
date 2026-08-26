@@ -883,3 +883,192 @@ The shared staging VM was OOM-killed and taken fully offline when an unbounded `
 - **H-5, found by the new CI gate.** `drizzle-orm` 0.38.4 carried GHSA-gpj5-g38j-94v9 (SQL injection via improperly escaped identifiers). Upgraded to 0.45.2, `drizzle-kit` to 0.31.10; `npm audit --omit=dev` now reports 0 vulnerabilities.
 
 **Testing status:** 255 backend tests pass (38 files), including new suites `lockout.test.ts` (8), `lockout.api.test.ts` (6 — lock, disclosure asymmetry, no extension during a lock, audit rows, expiry, per-account scope), `passwordPolicy.test.ts` (10), `fileSniff.test.ts` (6) and `requestId.api.test.ts` (4). `passwordReset.test.ts` gained a case proving the reset path enforces the policy: its old fixture password contained the account holder's own name, which the new rule correctly refuses. Typecheck, lint and OpenAPI validate green; all five app builds pass on the upgraded ORM.
+
+---
+
+## ABDM / ABHA — Milestone 1 (ADR-084)
+
+**What:** the registration desk can now verify a patient's national health identity instead of
+retyping it. Three flows land on the same review step — Scan and Share (the patient scans the
+hospital's HFR facility QR in their own ABHA app; no OTP at all), verify an existing ABHA by number /
+address / mobile / Aadhaar, and create a new ABHA from Aadhaar with the secondary mobile check, the
+ABHA-address claim and the card download. The operator reviews the profile, the ordinary patient
+endpoint creates the chart, and `POST /abdm/link` attaches the verified ABHA.
+
+**Its own entitled module (`abdm`), not part of `patient`.** A hospital can only use ABDM after
+registering a facility with NHA, so the capability is per tenant and gated
+`requireAuth → requireModule('abdm') → requirePermission`. Four new permission keys; the front desk
+verifies and links, org_admin configures the facility.
+
+**Credentials split by owner.** NHA issues one client id/secret to the *application* (server config,
+never per tenant) and a separate HFR facility id to each *hospital* (`abdm_facility_config`, tenant
+data, sent as `X-HIP-ID`, and what the Scan-and-Share callback resolves the tenant from).
+
+**Security decisions, made once and enforced in more than one place.** Consent is a required `true`
+checked before the OTP is sent and stored with a version. The raw Aadhaar is RSA-encrypted with NHA's
+certificate, sent, and dropped — only `XXXXXXXX1234` persists, enforced by the application, by a
+`CHECK` constraint that refuses anything Aadhaar-shaped in `identifier_hint`, and by a new
+log-boundary scrub wired into pino and the error tracker (the scrub is at the log boundary and not
+the request edge, because the enrolment call legitimately carries one). ABDM tokens are encrypted at
+rest with a new shared AES-256-GCM primitive, or discarded if no key is configured — never written in
+the clear. `abha_verified_at` may only be set by a completed flow, and editing the number by hand
+clears it.
+
+**New vs returning, in NHA's order, with the second pass never automatic.** An exact verified ABHA
+number is conclusive; a demographic match (name + gender + birth year) is offered as candidates for a
+human to confirm, because merging the wrong charts is a clinical safety incident. Linking an ABHA
+that already sits on another chart is refused.
+
+**`mock` is a first-class provider.** The sandbox allows a handful of OTPs per number per day, so a
+build that could only talk to the gateway could not be developed, CI-tested or demonstrated. The mock
+holds a real RSA keypair (the encryption path is genuinely exercised), keys its scenarios off the
+Aadhaar's last digit, and refuses to start in production. Boot guards refuse `gateway` without
+credentials, production pointed at the sandbox, and non-production pointed at production ABDM.
+
+**Two defects the API tests caught and fixed:** the patient DTO silently dropped the new ABHA fields,
+and `/abdm/link` returned the raw patient row — publishing the encrypted linking token to the
+browser. Both now go through one shared allow-list DTO (`patient.dto.ts`).
+
+**Also extracted:** `useQrDataUrl` in the Portal, when the facility QR became the second QR in the
+app (ADR-029) — `usePublicQr` now composes it.
+
+**Testing status:** 62 new tests (36 ABDM service, 14 ABDM API/HTTP, 12 security primitives) covering
+all three flows, the secondary mobile step, the account picker, new-vs-returning matching, one ABHA
+per chart, hand-editing un-verifying, the callback's non-enumerability, cross-tenant isolation, that
+no Aadhaar reaches a row/log/audit, and that no token reaches a browser. **Full backend suite: 317
+passed, 41 files, 0 failed.** Typecheck, OpenAPI validation and the Portal production build are
+green. Not yet exercised against the real ABDM sandbox — that needs credentials and is tracked in
+`BACKLOG.md`.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** `.env.example` is now a *complete* configuration rather than a mix of live keys and
+commented-out documentation. Every variable `config/env.ts` reads is present and **uncommented**,
+carrying either a working local default or an empty value; comments are trimmed to 1–2 lines saying
+what the key is and what a blank value falls back to. The gitignored `.env` was regenerated to hold
+**the same keys in the same order**, with the existing local values preserved — so a new variable
+never has to be hunted down and pasted in by hand.
+
+**Changed:**
+- `src/config/env.ts` — blank values are stripped from `process.env` before Zod validation, so
+  `SENTRY_DSN=` behaves exactly like an unset `SENTRY_DSN`. Without this, keeping every key
+  uncommented would break the boot: an empty `.url()` or `z.coerce.number()` fails validation and
+  `env.ts` exits the process. Every consumer already treated `''` and `undefined` alike.
+- `.env.example` — added the keys it was missing (`REDIS_URL`, `DB_STATEMENT_TIMEOUT_MS`,
+  `DB_IDLE_TX_TIMEOUT_MS`, `PORTAL_URL`, `ADMIN_URL`), uncommented every previously commented one
+  (`CORS_ORIGINS`, `SENTRY_DSN`, `API_STAGING_URL`, `API_PRODUCTION_URL`, all `MSG91_*`, all `R2_*`,
+  `ENCRYPTION_KEY`, all `ABDM_*`), and cut the long prose blocks down to 1–2 lines each. No real
+  secret in the file — every credential slot ships empty.
+
+**Testing status:** `typecheck` green. **Full backend suite: 319 passed, 41 files, 0 failed.**
+Runtime check confirms blank `SENTRY_DSN` / `API_STAGING_URL` / `CORS_ORIGINS` / `REDIS_URL` parse
+as `undefined` and the numeric defaults still apply.
+
+**Decisions:** A blank value is the canonical way to say "not configured" — it is what makes
+"every key always present" workable, and it keeps `.env` diffable against `.env.example`. Rule
+recorded in `CLAUDE.md` → *Environment files*.
+
+---
+
+## ABDM: reconciled against the official V3 Postman collection (ADR-084)
+
+**What:** NHA's *Milestone 1 Postman Collection-18-08-2025* (143 requests) arrived, and
+`abdm.constants.ts` exists precisely so checking it is a one-file diff. Five real deviations, all
+fixed:
+
+- **`profile/login/verify` scope must be the two-element array** the OTP was requested with
+  (`['abha-login','aadhaar-verify']`). We sent one element — every verification would have failed.
+- **`login/verify/user` authenticates with `T-token`, not `X-token`.** Different credential,
+  different header; the wrong one 401s in a way that reads like broken client credentials.
+- **ABHA-address verification is a different API family.** It goes through
+  `/v3/phr/web/login/abha/*` with the `abha-address-login` scope pair, not `/v3/profile/login/*`.
+  The provider contract gained a `family` discriminator rather than a second set of methods.
+- **Scan and Share arrives on a path NHA dictates** — `/api/v3/hip/patient/share`, appended to the
+  registered bridge URL — with a **nested** payload (`metaData` + `profile.patient`, birth date in
+  three possibly-masked parts). Our own `/api/v1/abdm/callbacks/...` route was replaced rather than
+  kept alongside it: two paths for one webhook is the drift the clean-code rule exists to prevent.
+  It is mounted at the root in `abdm.gatewayRoutes.ts`, the single documented exception to the
+  `/api/v1` convention, because the versioning of a counterparty's webhook is not ours to choose.
+- **The exchange is two-way, and the second half was missing.** After receiving a share the HIP
+  must answer on `patient-share/v3/on-share` with a **token number** — the queue position the
+  patient sees on their phone. Implemented as today's share count for that hospital plus one,
+  best-effort, so a failed acknowledgement never undoes a profile already at the desk.
+
+Everything else matched: session, certificate, all three enrolment calls, the address suggestion
+and claim, the card, and the profile-login request/verify for ABHA number, mobile and Aadhaar.
+
+**Also corrected:** NHA's onboarding email quotes **outdated V1** bridge-administration commands.
+The V3 paths (and the fact that service registration is on the facility-registry host, with
+`type: "HIP"` rather than the email's `HEALTH_LOCKER`) are recorded in `abdm.constants.ts` →
+`BRIDGE_ADMIN` and in `BACKLOG.md`.
+
+**Testing status:** 52 ABDM tests (the callback suite rewritten around the real payload, including
+a masked date of birth and header-based facility routing), 319/319 backend tests, OpenAPI valid,
+typecheck green. Credentials verified live the same day (`npm run abdm:check`): session issued,
+certificate fetched.
+
+---
+
+## ABDM: the RSA padding was wrong — found by experiment, not by reading (ADR-084)
+
+**What:** the first live sandbox attempts failed on every identifier, including a perfectly
+well-formed mobile number. The cause was the encryption padding: we sent
+`RSA/ECB/PKCS1Padding`; the ABHA APIs require **`RSA/ECB/OAEPWithSHA-1AndMGF1Padding`**.
+
+**Why it took a while.** A padding NHA cannot decrypt does not produce a decryption error. It
+produces `400 {"loginId":"Invalid LoginId"}` — the same message a genuinely bad Aadhaar gets. So
+the system pointed at the value and away from the cipher, and an early conclusion of mine ("NHA
+decrypted it and rejected the value") was wrong for exactly that reason.
+
+**How it was settled.** One checksum-valid, unassigned Aadhaar (Verhoeff digit computed in the
+probe) sent under three paddings, comparing the answers:
+
+| padding | NHA |
+|---|---|
+| PKCS#1 v1.5 | `400 Invalid LoginId` — not decrypted |
+| **OAEP-SHA1** | `422 ABDM-1204 "UIDAI Error code : 998 : Aadhaar number is incorrect"` |
+| OAEP-SHA256 | `400 Invalid LoginId` — not decrypted |
+
+Only OAEP-SHA1 reached UIDAI, which is the proof: the value was decrypted, forwarded, and answered
+by the authority that owns it. `npm run abdm:check -- --probe` still runs that comparison, so the
+next question of this kind is one command rather than an afternoon.
+
+**A workaround disappeared with it.** The mock provider had been unwrapping PKCS#1 blocks by hand,
+because Node refuses `RSA_PKCS1_PADDING` for private decryption after CVE-2023-46809. OAEP has no
+such restriction, so the hand-rolled unwrapping is gone — the correct answer and the simpler one
+were the same.
+
+**Also fixed on the way:** NHA's enrolment errors are keyed by **field name**
+(`{"loginId":"Invalid LoginId"}`) with no `message` anywhere, so every rejection had been reaching
+the receptionist as "ABDM request failed (400)". The parser now reads five shapes, all unit-tested
+against verbatim bodies, and the raw body is always logged.
+
+**Testing status:** 326 backend tests (71 across ABDM and the security primitives), typecheck and
+OpenAPI green. Live sandbox: session, certificate and a decryptable enrolment request all
+confirmed.
+
+---
+
+## ABDM: three defects found by using it against the real sandbox (ADR-084)
+
+The sandbox run surfaced three things no amount of unit testing would have:
+
+- **The Aadhaar scrubber was corrupting ABHA numbers.** `91-1234-5678-9999` was being stored as
+  `91-XXXXXXXX9999`, because the last twelve digits of a formatted ABHA are a 4-4-4 group —
+  indistinguishable from a formatted Aadhaar to the pattern. The scanner now matches the longer,
+  legitimate ABHA shape **first** and returns it untouched; an Aadhaar sitting beside one is still
+  masked. Two regression tests pin both halves.
+- **The prefill now reads the identifiers from their own columns**, not from the stored profile
+  blob. The blob passes through the scrubber on the way in, so it is the wrong place to read an
+  identifier from even with the fix — the columns are both authoritative and out of reach of a
+  defensive measure aimed at something else.
+- **`mobile` was rejected at our own boundary.** The Portal's `PhoneField` produces the canonical
+  `+91XXXXXXXXXX`, correct everywhere else in the product, and the ABDM schema demanded exactly ten
+  digits — so a valid number was refused with "Invalid" **after the patient had already received an
+  OTP**. The boundary now normalises (`+91…`, `91…`, `0…`, bare) instead of insisting on one
+  spelling, with `[6-9]` as the real validity rule.
+
+**Testing status:** 328 backend tests, typecheck and OpenAPI green. Live against the ABDM sandbox:
+OTP delivered to the Aadhaar-linked mobile and verified `200 OK` — M1 enrolment works end to end.

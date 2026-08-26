@@ -53,3 +53,16 @@ Append-only implementation log. Newest at the bottom.
 **What:** the audit row now carries the correlation id shared with the structured log, the error tracker and the response’s `X-Request-Id` header. Nullable: rows written before the column existed, and events raised outside an HTTP request (jobs, seeders), have none.
 
 **Testing status:** `dist/` rebuilt (this package is dist-consumed by the backend); typecheck green across every workspace.
+
+---
+
+## ABDM / ABHA contracts (ADR-084)
+
+**What:** `AbdmCapabilities`, `AbhaPrefill`, `AbhaMatchCandidate`, `AbhaVerificationResult`,
+`AbdmOtpSent`, `AbdmPendingShare`, `AbhaIdentifierType` and `AbdmFacilityConfig`, plus
+`abhaAddress` / `abhaVerifiedAt` / `abhaSource` on `Patient`. Two things are deliberately absent
+from every type here: the Aadhaar number (sent on one request, never returned) and any ABDM token
+(server-side only) — so a frontend cannot come to depend on receiving either.
+
+**Testing status:** `dist/` rebuilt (dist-consumed by the backend); typecheck green across every
+workspace, Portal production build green.

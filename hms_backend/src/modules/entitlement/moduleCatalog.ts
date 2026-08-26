@@ -25,6 +25,10 @@ export const MODULE_CATALOG: readonly ModuleDef[] = [
   { key: 'cssd', name: 'CSSD', hardDependencies: ['ot'] },
   { key: 'blood_bank', name: 'Blood Bank', hardDependencies: [] },
   { key: 'insurance', name: 'Insurance, TPA & Govt. Schemes', hardDependencies: ['billing'] },
+  // ABDM / ABHA (ADR-084). Its own module, not part of `patient`: a hospital only gets it after
+  // it has registered a facility with NHA, and a hospital that has not should never be shown a
+  // control that cannot work. Depends on `patient` because everything it does ends on a chart.
+  { key: 'abdm', name: 'ABDM / ABHA (Milestone 1)', hardDependencies: ['patient'] },
 ];
 
 export const MODULE_KEYS: ReadonlySet<string> = new Set(MODULE_CATALOG.map((m) => m.key));

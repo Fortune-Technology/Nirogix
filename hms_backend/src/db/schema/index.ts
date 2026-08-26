@@ -39,3 +39,5 @@ export * from './immunizations';
 export * from './branchAvailability';
 // Staff forgot-password tokens (ADR-081) — tenant-scoped, hash-only, single-use.
 export * from './passwordResetTokens';
+// ABDM Milestone 1 — facility identity + verification transactions (ADR-084).
+export * from './abdm';

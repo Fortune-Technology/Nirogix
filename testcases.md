@@ -782,6 +782,53 @@ Run at staging bring-up and again before each production release. Every case her
 
 ---
 
+## 23. ABDM / ABHA — Milestone 1 (ADR-084)
+
+Run with `ABDM_PROVIDER=mock` unless a case says otherwise; the mock's OTP is `123456` and the scenario is selected by the **last digit of the Aadhaar** (`0` already has an ABHA, `1` no linked mobile, `5` two ABHA accounts, `9` OTP rejected, anything else a clean creation). Sandbox OTPs are also returned in-band, so the same steps hold against the real sandbox.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-01 | Panel absent without the module | Tenant NOT entitled to `abdm` | Patients → Register patient | No ABHA panel; the form is exactly as before; no error toast | P1 | Security | receptionist | Not run |
+| ABDM-02 | Panel absent without the permission | Tenant entitled; role lacks `abdm.verification.perform` | Register patient as a doctor | No ABHA panel; `GET /abdm/capabilities` returns 403 | P1 | Security | doctor | Not run |
+| ABDM-03 | Facility settings gated to the administrator | Tenant entitled | Open Hospital configuration as receptionist | The ABDM / ABHA tab is absent; a direct `PUT /abdm/facility` returns 403 | P1 | Security | receptionist | Not run |
+| ABDM-04 | Register the hospital's facility | org_admin | Hospital configuration → ABDM / ABHA → enter facility id, QR payload, enable Scan and Share → Save | Saved; the QR preview renders and scans in a phone camera | P1 | Functional | org_admin | Not run |
+| ABDM-05 | Scan and Share leads when configured | ABDM-04 done | Register patient | The Scan & Share tab is selected by default and marked "Fastest" | P2 | UX | receptionist | Not run |
+| ABDM-06 | Scan and Share offered only when it can work | Facility id present, QR empty | Register patient | The Scan & Share tab is disabled with a tooltip; the other two work | P1 | UX | receptionist | Not run |
+| ABDM-07 | Consent gate — Aadhaar | — | Create a new ABHA, fill an Aadhaar, do NOT tick consent | Send OTP stays disabled; forcing the call returns 422 `ABDM_CONSENT_REQUIRED` | P1 | Security | receptionist | Not run |
+| ABDM-08 | Create an ABHA with Aadhaar OTP | Consent ticked | Aadhaar `111122223333` → Send OTP → enter `123456` → Verify | Profile shown, "New ABHA created", demographics readable, match = new | P1 | Functional | receptionist | Not run |
+| ABDM-09 | Verification fills the form by itself | ABDM-08 | Complete the verification | The form is filled the moment verification succeeds — no extra click — with a "Details filled into the form below" note naming anything ABDM did not send | P1 | Functional | receptionist | Not run |
+| ABDM-09a | Prefill never overwrites typed input | A name already typed before verifying | Complete the verification | The typed value survives; only empty fields fill; every field stays editable | P1 | Functional | receptionist | Not run |
+| ABDM-09b | A returning patient does NOT auto-fill | A chart already holds that ABHA | Complete the verification | The form is left alone and the existing chart is offered; filling anyway needs the explicit "Register as a new patient anyway" | P1 | Security | receptionist | Not run |
+| ABDM-10 | One button finishes the job | ABDM-09 | Press Register patient | Chart created; the ABHA reads as verified on it; the audit log holds `abdm.abha.linked`. From a shared profile this is the ONLY button the receptionist presses | P1 | Functional | receptionist | Not run |
+| ABDM-10a | The ABHA number is stored intact | Any completed flow | Open the chart | The number reads `XX-XXXX-XXXX-XXXX` in full — not partially masked. (Regression: the Aadhaar scrubber used to mangle it, since its last 12 digits are a 4-4-4 group) | P1 | Functional | receptionist | Not run |
+| ABDM-10b | A +91 mobile is accepted | Aadhaar flow with a different mobile | Enter the mobile through the phone field | Accepted and normalised — `+91…`, `91…`, `0…` and the bare 10 digits all work | P2 | Functional | receptionist | Not run |
+| ABDM-11 | Secondary mobile verification | — | Aadhaar `444455556666` with a different mobile → verify | A second OTP step appears for that mobile; after it the profile carries the new number | P1 | Functional | receptionist | Not run |
+| ABDM-12 | ABHA address creation | A newly created ABHA | Pick a suggested address → Create ABHA address | The address is claimed and appears on the prefill | P2 | Functional | receptionist | Not run |
+| ABDM-13 | ABHA card download | A completed verification | Download the card | The card opens inline; nothing is added to the hospital's file store | P2 | Functional | receptionist | Not run |
+| ABDM-14 | Rejected OTP | — | Aadhaar `111122223339` → verify with any OTP | A clear "OTP is incorrect or has expired" message; the form is still usable | P1 | Negative | receptionist | Not run |
+| ABDM-15 | Aadhaar with no linked mobile | — | Aadhaar `111122223331` → Send OTP | ABDM's own message is shown ("No mobile number is linked to this Aadhaar"), not generic copy | P1 | Negative | receptionist | Not run |
+| ABDM-16 | Manual fallback undisturbed | Any ABDM failure | Ignore the panel and complete the form by hand | Registration succeeds exactly as before; the ABHA number stays unverified | P1 | Functional | receptionist | Not run |
+| ABDM-17 | Verify an existing ABHA by number | Patient holds an ABHA | Verify by ABHA number → OTP | Profile returned and prefilled | P1 | Functional | receptionist | Not run |
+| ABDM-18 | Verify by ABHA address | — | Verify using an `@sbx` address → OTP | Profile returned | P1 | Functional | receptionist | Not run |
+| ABDM-19 | Verify by mobile | — | Verify using a mobile → OTP | Profile returned; the hint shows a masked number only | P1 | Functional | receptionist | Not run |
+| ABDM-20 | Verify by Aadhaar | Consent ticked | Verify using an Aadhaar → OTP | Profile returned; consent is required exactly as for creation | P1 | Functional | receptionist | Not run |
+| ABDM-21 | Several ABHA accounts on one identifier | — | Verify with a mobile ending `5` | An account picker appears; choosing one loads that profile | P2 | Functional | receptionist | Not run |
+| ABDM-22 | Returning patient by ABHA number | A chart already holds that ABHA | Verify the same ABHA again | Marked "Already registered here"; the existing chart is offered; no duplicate created | P1 | Functional | receptionist | Not run |
+| ABDM-23 | Demographic look-alike is never merged | A chart with the same first name, gender and birth year | Verify a profile matching those | Shown as similar charts to check, not as a confirmed match; registering is still possible | P1 | Functional | receptionist | Not run |
+| ABDM-24 | One ABHA, one chart | ABDM-22 | Try to link the same ABHA to a second chart | 409 "This ABHA is already linked to UHID-…" | P1 | Negative | receptionist | Not run |
+| ABDM-25 | Hand-editing un-verifies | A chart with a verified ABHA | Edit the ABHA number by hand and save | The verified marker disappears; the source reads manual | P1 | Functional | receptionist | Not run |
+| ABDM-26 | Scan and Share arrival | ABDM-04 done; a PHR app, or a POST to the callback | Patient scans the facility QR | The profile appears at the desk within a few seconds and can be used | P1 | Functional | receptionist | Not run |
+| ABDM-27 | Callback cannot enumerate hospitals | — | POST the callback with a facility id that does not exist | Identical `202 {"accepted": true}` — same status and body as a real facility | P1 | Security | none (public) | Not run |
+| ABDM-28 | Tenant isolation | Two hospitals, both entitled | Hospital B checks its pending shares | B never sees A's shared profiles or verifications | P1 | Security | receptionist | Not run |
+| ABDM-29 | No Aadhaar in logs or audit | An Aadhaar flow just run | Search the API log and the audit table for the 12 digits | Not present anywhere; only `XXXXXXXX1234` hints | P1 | Security | tester | Not run |
+| ABDM-30 | No token reaches the browser | An Aadhaar flow just run | Inspect every ABDM network response in devtools | No linking token, no profile token, no Aadhaar echoed back | P1 | Security | tester | Not run |
+| ABDM-31 | Expired verification | A verification older than `ABDM_TXN_TTL_SECONDS` | Try to continue it | 410 "This verification has expired. Please start again." | P2 | Negative | receptionist | Not run |
+| ABDM-32 | Test mode is stated, never hidden | `ABDM_PROVIDER=mock` | Open the panel | A "Test mode" notice naming the fixed OTP; no claim that a real ABHA was created | P1 | Editorial | receptionist | Not run |
+| ABDM-33 | Gateway unreachable | `ABDM_PROVIDER=gateway`, network blocked | Try to send an OTP | A clear failure that points at manual registration; nothing half-written | P1 | Negative | receptionist | Not run |
+| ABDM-34 | Both themes and a tenant accent | — | Open the panel in Light and Dark under a non-default brand colour | Tabs, QR frame, badges and alerts all follow the tokens | P2 | Visual | any | Not run |
+
+---
+
 ## Coverage gaps (deliberate, tracked)
 
 These are known and recorded in `BACKLOG.md` rather than silently missing:

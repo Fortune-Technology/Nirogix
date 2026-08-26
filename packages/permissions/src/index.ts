@@ -96,6 +96,14 @@ export const PERMISSIONS = {
   // its drugs / lab tests / services / vaccines / departments each of its hospitals offers. Held by
   // org_admin; the config is the organization's own, isolated from other organizations by RLS.
   CATALOG_AVAILABILITY_MANAGE: 'platform.catalog.availability.manage',
+  // ABDM / ABHA — Milestone 1 (ADR-084). Verifying an ABHA is a front-desk action, so it sits
+  // with registration; linking a verified ABHA onto an existing chart is separated because it
+  // changes an identifier on a clinical record. Configuring the hospital's HFR facility id is
+  // org_admin work — it is the hospital's national registration, not a counter setting.
+  ABDM_VERIFY: 'abdm.verification.perform',
+  ABDM_LINK: 'abdm.verification.link',
+  ABDM_FACILITY_VIEW: 'abdm.facility.view',
+  ABDM_FACILITY_MANAGE: 'abdm.facility.manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -151,6 +159,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
+      // The hospital's ABDM/HFR facility registration is organization-level configuration.
+      P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE, P.ABDM_VERIFY, P.ABDM_LINK,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -195,6 +205,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into
       P.FILE_VIEW, P.FILE_UPLOAD,
+      // The front desk is where an ABHA is verified and attached to a chart (ADR-084).
+      P.ABDM_VERIFY, P.ABDM_LINK,
       P.AI_PORTAL_ACCESS,
     ],
   },

@@ -142,6 +142,8 @@ Before the first production deploy, confirm each of these. Items marked **Blocke
 - [ ] `DB_STATEMENT_TIMEOUT_MS` / `DB_IDLE_TX_TIMEOUT_MS` reviewed against the slowest legitimate report on production data volumes (**M-2**).
 - [ ] Database connected as a **non-superuser** role, so RLS cannot be bypassed (ADR-015 explicitly depends on this).
 - [ ] Real `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`, generated per environment, never reused from development.
+- [ ] `ENCRYPTION_KEY` set (32 bytes, per environment) wherever a feature stores a bearer credential at rest — today ABDM linking tokens (ADR-084). Held in the deployment secret store and covered by the backup/restore runbook: rotating it invalidates existing ciphertext. Without it those tokens are discarded rather than written in the clear, which is safe but silently loses them.
+- [ ] ABDM, if enabled: `ABDM_PROVIDER=gateway` with **production** credentials and hosts issued by NHA after HTC approval, never the sandbox. The boot guard refuses production pointed at a sandbox host, and `ABDM_PROVIDER=mock` refuses to start in production at all — a simulated ABHA in a live hospital is a fabricated identity.
 - [ ] Seed/demo accounts (`admin@citycare.example` and friends) **absent** from the production database.
 - [ ] TLS terminated, HSTS active, `server_tokens off` in Nginx (**L-1**).
 - [ ] R2 bucket jurisdiction-pinned to India for PHI (ADR-017, `BACKLOG.md` I-4). **Blocked**

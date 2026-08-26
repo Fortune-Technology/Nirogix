@@ -252,3 +252,19 @@ Marketing was the one app whose first visit honoured `prefers-color-scheme` — 
 `@hms/utils` was added to this app’s dependencies and `transpilePackages` for the builder.
 
 **Testing status:** verified live — the home page renders with zero console errors, the headers are present, and the build output confirms every route stayed static/ISR (`○` with a 5m revalidate), which was the point of not using a nonce here.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the marketing site's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` now lists every variable the app reads, all uncommented, with 1–2 line
+comments — including the two that were missing: `NEXT_PUBLIC_API_BASE_URL` (used by `proxy.ts` for
+the CSP `connect-src`) and `HMS_API_URL` (used server-side by `lib/branding.ts`). The gitignored
+`.env` mirrors the same keys in the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.

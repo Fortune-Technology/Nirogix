@@ -48,7 +48,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Tenant isolation:** all tenant-scoped queries run inside `runWithTenant(tenantId, tx => ...)`, which sets `app.tenant_id` (transaction-local) so PostgreSQL RLS restricts every row. `tenantId` comes only from the authenticated session. Never query tenant data through the base `db` instance.
 - **One error shape:** throw `AppError` (or a canonical `Errors.*`); `errorHandler` renders `{ error: { code, message, details? } }`. The authz chain maps to `UNAUTHORIZED` → `MODULE_NOT_ENTITLED` → `FORBIDDEN`.
 - **Validation:** every request body/query/params validated with Zod via `validate(...)` before business logic.
-- **Env:** add new config to `EnvSchema` in `config/env.ts` and to `.env.example`.
+- **Env:** add new config to `EnvSchema` in `config/env.ts`, then to `.env.example` **and** `.env` in the same change — same keys, same order, live and uncommented, 1–2 line comment (CLAUDE.md → *Environment files*). A blank value is stripped before validation, so it means “not configured” and can never block the boot; never a real secret in `.env.example`.
 
 ## Tenancy & RLS
 
@@ -260,6 +260,71 @@ The **only unauthenticated write path in the product**. Read this before adding 
 - **Failure modes are uniform.** Unknown token, regenerated token and registration-disabled all return the same 404. The endpoint must never reveal which hospitals exist or which are open. Both public routes carry `authLimiter`.
 - **Disable ≠ regenerate.** Disabling keeps the token so a hospital can pause without reprinting posters; `regenerateRegistrationToken` mints a new one and every printed poster stops working immediately — hence `sensitiveLimiter` and an audit entry at notice. Enable, disable, approve and reject are audited too; a public submission is audited against the tenant with **no actor**, which is what later answers "where did this chart come from".
 - Verified live: CityCare's QR → "Jaivik Patel" pending; `org_admin` list **200** / approve **403**; reception list **200** / approve **200** → `UHID-000005`; Sunrise's reception sees an empty queue and **404** on CityCare's request id; second approval **409**.
+
+## ABDM / ABHA — Milestone 1 (ADR-084)
+
+Identity verification at the registration desk: verify or create a patient's ABHA and fill the
+registration form from the verified profile. **M1 only** — HIP (M2) and HIU (M3) record sharing are
+not implemented and need a legal/compliance review first (`resources/development-plan.md` §36).
+**V3 APIs only**; V1/V2 implementations are rejected at NHA's sandbox-exit review.
+
+**Layout.** `src/modules/abdm/` — `abdm.constants.ts` (every path, header and scope, in one file, the
+one to reconcile against NHA's official V3 Postman collection), `providers/` (`types.ts` contract,
+`gatewayProvider.ts` real HTTP, `mockProvider.ts` offline double, `index.ts` selection),
+`abdm.session.ts` (cached gateway token with a refresh margin and a shared in-flight promise),
+`abdm.crypto.ts` (RSA encryption against NHA's certificate, cached for an hour),
+`abdm.service.ts` (all the rules), plus the usual schema/controller/routes/openapi.
+
+Two shared primitives were added outside the module because they are not ABDM-specific:
+`src/security/encryption.ts` (AES-256-GCM at rest, versioned `v1.iv.tag.ct` envelope) and
+`src/security/redaction.ts` (Aadhaar-shaped scrubbing, wired into pino's `logMethod` hook and the
+error tracker).
+
+**Three flows, one destination.** Scan and Share (patient scans the hospital's facility QR — no OTP),
+verify an existing ABHA (by ABHA number / ABHA address / mobile / Aadhaar), and create a new ABHA by
+Aadhaar OTP (including the secondary mobile check when the patient's number is not the Aadhaar-linked
+one, the ABHA-address claim, and the card download). Each ends at a **prefill** the operator reviews;
+the ordinary patient endpoint creates the chart and `POST /abdm/link` attaches the ABHA.
+
+**Rules that are not negotiable in this module.**
+- Consent is checked **before** the OTP is sent, and stored with a version.
+- A raw Aadhaar never outlives the request: encrypted, sent, dropped. Only `XXXXXXXX1234` persists —
+  enforced by the application, by a `CHECK` constraint on `abdm_transactions.identifier_hint`, and by
+  the log-boundary scrub.
+- Every ABDM token is encrypted at rest, or discarded — never stored in the clear.
+- `patients.abha_verified_at` may only be set by a completed flow; editing `abha_number` by hand
+  clears it, resets the source to `manual` and drops the token.
+- An exact ABHA-number match is `returning`; a demographic match is `ambiguous` for a human to
+  confirm, never merged automatically.
+
+**Credentials.** One client id/secret for the *application* (server config); one HFR facility id per
+*hospital* (`abdm_facility_config`, tenant-scoped, sent as `X-HIP-ID`). The facility id is what the
+Scan-and-Share callback resolves the tenant from.
+
+**`ABDM_PROVIDER=mock` is a first-class mode**, not a stub: the sandbox rate-limits OTPs to a handful
+per number per day, so CI and local work cannot use the gateway. The mock holds a real RSA keypair
+(so the encryption path is genuinely exercised), keys its behaviour off the Aadhaar's last digit,
+uses a fixed OTP of `123456`, and refuses to construct in production. Boot guards additionally refuse
+`gateway` without credentials, production pointed at the sandbox, and non-production pointed at
+production ABDM.
+
+**Tables.** `abdm_facility_config` (per tenant/branch HFR identity + QR payload + on/off) and
+`abdm_transactions` (one row per conversation, all flows, holding the masked hint, the verified
+identifiers, the demographics, the encrypted tokens, the consent stamp and the match outcome).
+Both tenant-scoped, so both inherit RLS. Migration `0030`.
+
+**The one public route, and the one exception to `/api/v1`.** `POST /api/v3/hip/patient/share`
+(`abdm.gatewayRoutes.ts`, mounted at the root in `app.ts`). The path is NHA's: a participant
+registers one bridge URL and the gateway appends that path, so it is not ours to version — the same
+situation as a payment provider's webhook. Per ADR-056: the tenant is resolved server-side from
+`metaData.hipId`, no clinical write, an identical `202 {accepted:true}` for known / unknown /
+disabled / missing facilities, sign-in rate tier, audited with no actor.
+
+**Scan and Share is two-way.** Receiving the profile is half of it; the HIP must then answer on the
+gateway's `patient-share/v3/on-share` with a **token number** — the queue position the patient sees
+on their phone. `sendOnShare` does that best-effort (today's share count for that hospital, plus
+one), so a failed acknowledgement never undoes a profile that is already safely at the desk. A
+one-way implementation looks like it works and leaves the patient's app showing nothing.
 
 ## Observability & Ops
 

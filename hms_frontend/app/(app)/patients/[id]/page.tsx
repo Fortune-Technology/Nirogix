@@ -9,6 +9,7 @@ import {
   Badge,
   Button,
   Card,
+  DateDisplay,
   DateField,
   Field,
   PhoneField,
@@ -172,9 +173,25 @@ function Profile({ id }: { id: string }) {
           <Card header="Identity">
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <Row label="Gender">{p.gender}</Row>
-              <Row label="Date of birth">{p.dateOfBirth}</Row>
+              <Row label="Date of birth"><DateDisplay value={p.dateOfBirth} /></Row>
               <Row label="Blood group">{p.bloodGroup}</Row>
-              <Row label="ABHA number">{p.abhaNumber}</Row>
+              <Row label="ABHA number">
+                {p.abhaNumber && (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {p.abhaNumber}
+                    {/* A typed ABHA number and one proved with ABDM are not the same thing
+                        (ADR-084). Only a completed verification sets `abhaVerifiedAt`, and
+                        editing the number by hand clears it — so this badge is the difference,
+                        and its absence is information rather than an omission. */}
+                    {p.abhaVerifiedAt ? (
+                      <Badge tone="success">Verified with ABDM</Badge>
+                    ) : (
+                      <Badge tone="neutral">Not verified</Badge>
+                    )}
+                  </span>
+                )}
+              </Row>
+              {p.abhaAddress && <Row label="ABHA address">{p.abhaAddress}</Row>}
             </dl>
           </Card>
           <Card header="Contact">

@@ -280,6 +280,61 @@ Sign in as the **Receptionist** (Test credentials → Receptionist).
   **Verify:** a duplicate dialog appears — **Use this patient** (open the existing chart) or **Register
   anyway** — rather than silently creating a second chart.
 
+### 5.1a ABHA verification at the desk (ABDM Milestone 1 — ADR-084)
+
+Only appears when the hospital is entitled to the **abdm** module and the signed-in role holds
+`abdm.verification.perform`. On a default development environment `ABDM_PROVIDER=mock`: no ABDM call
+is made, the OTP is always `123456`, and the scenario is chosen by the **last digit of the Aadhaar**
+(`0` already has an ABHA, `1` no linked mobile, `5` two ABHA accounts, `9` OTP rejected, anything
+else a clean creation). The panel says so on screen — if that notice is missing while the mock is
+active, stop and report it.
+
+- [ ] **5.1a.0 Not entitled:** at a hospital without the module, open **Register patient**.
+  **Verify:** no ABHA panel at all, the form is unchanged, and no error toast appears.
+- [ ] **5.1a.1 Facility first (org_admin):** Hospital configuration → **ABDM / ABHA** → enter the
+  HFR **facility ID**, paste the **QR payload**, tick Scan & Share, Save.
+  **Verify:** the QR preview renders and actually scans in a phone camera.
+- [ ] **5.1a.2** Back as the receptionist, open **Register patient**.
+  **Verify:** the **Scan & Share** tab leads and is marked *Fastest*. Without a QR configured it is
+  disabled with a tooltip and the other two tabs still work.
+- [ ] **5.1a.3 Consent gate:** on **Create a new ABHA**, type an Aadhaar but leave consent unticked.
+  **Verify:** *Send OTP* stays disabled. Consent is not a formality — an OTP reaches a real phone.
+- [ ] **5.1a.4 Create an ABHA:** tick consent, Aadhaar `111122223333`, Send OTP, enter `123456`, Verify.
+  **Verify:** the profile appears with name, gender, date of birth and address, badged *New ABHA created*.
+- [ ] **5.1a.5 The form fills itself.** **Verify:** the moment verification succeeds the registration
+  form is already populated, with a note saying so and naming anything ABDM did not send. The
+  receptionist's remaining job is to press **Register patient** — that is the point of the feature.
+- [ ] **5.1a.5a Prefill is a suggestion, not an overwrite:** type a first name **before** verifying.
+  **Verify:** what you typed survives; only empty fields fill; every field is still editable.
+- [ ] **5.1a.5b A returning patient does NOT auto-fill.** Verify an ABHA that is already on a chart
+  here. **Verify:** the form is left alone and the existing chart is offered instead. Auto-filling
+  there would put a duplicate chart one button away, which is the one thing this feature must not do.
+- [ ] **5.1a.5c ABHA number intact:** **Verify** the number shows in full (`XX-XXXX-XXXX-XXXX`),
+  not partially masked.
+- [ ] **5.1a.6** Register the patient. **Verify:** the chart is created and the ABHA now reads as
+  **verified** on it. Audit log holds `abdm.abha.linked`.
+- [ ] **5.1a.7 Returning patient:** run the same Aadhaar again.
+  **Verify:** it is flagged **Already registered here** with a link to the existing chart — the point
+  of the feature is that a second chart is not created.
+- [ ] **5.1a.8 Look-alike is not a match:** verify a profile whose name, gender and birth year match a
+  different existing patient. **Verify:** shown as *similar charts to check*, never merged for you.
+- [ ] **5.1a.9 Existing ABHA:** on **Patient has an ABHA**, verify by ABHA number, then by ABHA address,
+  then by mobile, then by Aadhaar. **Verify:** each returns a profile; the OTP hint shows a masked
+  number only. A mobile ending in `5` should offer an **account picker**.
+- [ ] **5.1a.10 Scan & Share:** have the patient scan the facility QR in their ABHA app (or POST to
+  `/api/v3/hip/patient/share`, with the facility in `metaData.hipId`). **Verify:** the profile appears under
+  *Shared just now* within a few seconds and can be used with no OTP at all.
+- [ ] **5.1a.11 Failure is not a dead end:** use Aadhaar `111122223339` (OTP rejected) and
+  `111122223331` (no linked mobile). **Verify:** the message names the real cause, and you can close
+  the panel and register by hand with nothing lost. **This is the case that matters most** — the desk
+  must never be blocked by ABDM being unavailable.
+- [ ] **5.1a.12 Nothing leaks:** with devtools open, run one Aadhaar flow. **Verify:** no response body
+  contains the Aadhaar number or any ABDM token. Then search the API log — only `XXXXXXXX…` hints.
+
+**⚠ Milestone 1 only.** Creating and verifying an ABHA is implemented. **Sharing health records with
+ABDM (M2 HIP / M3 HIU) is not** — nothing in this build sends a clinical record anywhere. Production
+access additionally needs NHA functional testing, a WASA certificate and HTC approval.
+
 ### 5.2 Visit / check-in
 
 - [ ] **5.2.1** From the patient (or Appointments), **check in** to create a visit: select **department**

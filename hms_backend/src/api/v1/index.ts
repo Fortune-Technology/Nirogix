@@ -29,6 +29,7 @@ import { referralRouter } from '../../modules/referral/referral.routes';
 import { reportsRouter } from '../../modules/reports/reports.routes';
 import { catalogRouter } from '../../modules/catalog/catalog.routes';
 import { immunizationRouter } from '../../modules/immunization/immunization.routes';
+import { abdmRouter } from '../../modules/abdm/abdm.routes';
 
 // The /api/v1 router. Every business-module router mounts here as it is built —
 // each gated by requireModule() then requirePermission() (added with the authz core).
@@ -64,6 +65,7 @@ apiV1.use(referralRouter);
 apiV1.use(reportsRouter);
 apiV1.use(catalogRouter);
 apiV1.use(immunizationRouter);
+apiV1.use(abdmRouter);
 
 // Mounted as modules land:
 // apiV1.use('/auth', authRouter);

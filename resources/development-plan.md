@@ -52,6 +52,7 @@ This is the **primary engineering execution roadmap** for the Nirogix platform. 
   - [20. Stage 0 — Platform Foundation](#20-stage-0--platform-foundation)
   - [20A. Platform Administration Surface — operator onboarding, user/permission admin, branding](#20a-platform-administration-surface--operator-onboarding-userpermission-admin-branding)
   - [20B. Platform & Organization Dashboards](#20b-platform--organization-dashboards)
+  - [20C. Specialty & Module Experience Spine — configurable-per-specialty foundation](#20c-specialty--module-experience-spine--configurable-per-specialty-foundation)
   - [21. Stage 1 — MVP 0: Clinic Pilot](#21-stage-1--mvp-0-clinic-pilot)
   - [22. Stage 2 — MVP 1: Clinic Expansion](#22-stage-2--mvp-1-clinic-expansion)
   - [23. Stage 3 — Production-Readiness Hardening](#23-stage-3--production-readiness-hardening)
@@ -566,6 +567,35 @@ Each of these is a **future group member**, not a placeholder: nothing appears i
 
 **Deliberately never a platform screen:** per-hospital clinical work. An operator reaches a hospital's data only through an audited support session (ADR-037), which switches them to that tenant's own navigation.
 
+## 20C. Specialty & Module Experience Spine — configurable-per-specialty foundation
+
+*Foundational. Decision: **ADR-083**. Config infrastructure only (no new clinical screens), so it runs in parallel with §20A/§20B and the MVP-expansion modules and is off the clinical critical path. This is the milestone that turns the specialty-agnostic core (ADR-008) + the enforced entitlement boundary (ADR-004) into an experience that feels purpose-built per specialty — without a workflow branch per doctor, and without making specialty a security boundary.*
+
+**The rule it implements:** effective features for a user = **Tenant Enabled Modules ∩ Provider Specialty Module Set ∩ User Permissions**. Specialty narrows the view; it never widens access. The enforced chain (`authenticated → requireModule → requirePermission → business logic`) is unchanged — this milestone feeds the client and the onboarding preset, it does not add an enforcement point.
+
+**Backend**
+- Promote `MODULE_CATALOG` to a **shared, typed** catalog: export a `ModuleKey` union and per-module UI metadata (display name, nav group, icon, the permission keys the module unlocks) from a package the API and every frontend consume. Closes the "modules are untyped `string[]`, a module is just `key.split('.')[0]`" gap.
+- Add `SPECIALTY_MODULE_MAP` (`specialtyCode → { required, recommended, optional: ModuleKey[] }`), seeded from code beside `SPECIALTY_CATALOG` and `moduleCatalog.ts`.
+- Specialty-preset onboarding: a chosen specialty / facility type expands into a module set through the existing `grantModule` hard-dependency closure, replacing the fixed `DEFAULT_MODULES` in `admin.service.ts`. The preset is a starting point; the org admin adjusts afterward.
+- Persist tenant **facility type / primary specialty** on `organization_profile` (additive, nullable — existing tenants default to a general/multi-specialty profile, so nothing breaks).
+- Ship the tenant's **entitled module set in the authenticated session** (extend the session bootstrap / `/auth/me` response and the `@hms/client` `Capabilities` shape to carry `modules` alongside `permissions`).
+
+**Frontend (Portal first; the pattern is shared)**
+- `NavItem` gains a `module` key; `navGroupsForUser(can, modules)` filters by `moduleEnabled(module) && can(perm)`. Removes the current mismatch where a permission a role holds can surface a module the tenant never bought.
+- Dashboard KPI cards + quick actions become a **config-driven registry** keyed by `{ module, permission, specialty? }` instead of per-role hard-coded JSX, so the dashboard, quick actions, patient-screen sections, forms, filters and reports all read the same intersection.
+- **Org module-configuration screen** (org admin, guarded by an entitlement-management permission): toggle recommended/optional modules within their hard-deps, showing which are required by the tenant's specialty preset.
+
+**Provider-level personalization (multi-specialty tenants)**
+- Within a tenant's entitled set, a provider's `practitioner_roles.specialty_code` further personalizes *their* landing surface (nav emphasis, dashboard, default forms). Still an intersection with tenant modules — a provider never sees a module the tenant lacks.
+
+**Testing**
+- Tenant-without-module-X: X absent from sidebar/dashboard/quick actions **and** its API returns `MODULE_NOT_ENTITLED` irrespective of the UI (the invariant-#2 regression — hiding is never the boundary).
+- Onboarding a specialty expands to the correct module closure; org override enabling/disabling a module reflects on the next session; hard-dependency violations are refused.
+- In one multi-specialty tenant, two providers of different specialties each get their own personalized surface over the shared entitled set.
+- Second-tenant, Light+Dark theme and non-default-branding matrix from §4 applies.
+
+**Exit:** a clinic onboarded as "Pediatric Clinic" lands on a pediatric-shaped Portal (Vaccination/Growth surfaced where entitled, no OT/antenatal), a "Maternity Hospital" on an OT/antenatal-shaped one, driven entirely by data (`SPECIALTY_MODULE_MAP` + entitlements), with every hidden module also enforced server-side. Adding a new specialty is then a `SPECIALTY_CATALOG` + `SPECIALTY_MODULE_MAP` row — and a new module only when the specialty needs a genuinely new feature (Phase 4, §21).
+
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
 *Maps to MVP 0. Goal: a real clinic runs registration → appointment → consultation → payment entirely on the platform.*
@@ -661,7 +691,7 @@ Each milestone runs the six-step loop and must satisfy the Global Definition of 
 
 | Workstream | Depends on | Execution note |
 |---|---|---|
-| **ABDM Integration** §36 | Patient | M1 (ABHA create/verify/link) first — a light lift. **M2/M3 (HIP/HIU) require legal/compliance review before build starts** and the ABDM WASA audit path (CERT-In empanelled auditor) — all Pending Verification. FHIR R4 bundles (OPConsult, DischargeSummary, Prescription, DiagnosticReport). |
+| **ABDM Integration** §36 | Patient | **M1 shipped 25/08/2026 against the ABDM sandbox (ADR-084)** — ABHA creation by Aadhaar OTP, verification by ABHA number / address / mobile / Aadhaar, scan-and-share, and new-vs-returning matching, as its own entitled `abdm` module. Production access is an **external certification path, not remaining development**: NHA functional testing → internal demo → WASA "Safe to Host" (STQC or CERT-In empanelled) → HTC approval. **M2/M3 (HIP/HIU) still require legal/compliance review before build starts** — Pending Verification. FHIR R4 bundles (OPConsult, DischargeSummary, Prescription, DiagnosticReport) belong to that later work. |
 | **Formal DPDP/Security hardening + VAPT** §55 | All prior | Formalized ahead of any customer audit; architecture already assumes it from Phase 0 — this is formalization, extending Stage 3's first pass, not first-time build. |
 | **Full Reports & BI suite** §53 | All transactional modules | The large report catalog only makes sense once underlying modules exist; custom dashboard builder, predictive analytics (AI features gated by CDSCO check). |
 | **CRM & Patient Engagement** §33 | Patient, Notifications | Recall/preventive-care campaigns reuse the Stage 0 notification engine. |
