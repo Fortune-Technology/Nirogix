@@ -90,6 +90,30 @@ export const CreateAbhaAddressBody = z.object({
     .regex(/^[a-zA-Z0-9._@-]+$/, 'An ABHA address may contain letters, numbers, dot, underscore and hyphen'),
 });
 
+/**
+ * The fields a hospital may correct on the patient's ABDM profile.
+ *
+ * Every one optional, at least one required (checked in the service): a PATCH that changes nothing
+ * is a mistake worth naming rather than a no-op worth accepting. `profilePhoto` is base64 and
+ * capped — the endpoint writes to a national register, and an unbounded string field on that path
+ * is not something to leave open.
+ */
+export const UpdateAbhaProfileBody = z.object({
+  transactionId: z.string().uuid(),
+  profilePhoto: z.string().max(2_000_000).optional(),
+  firstName: z.string().max(100).optional(),
+  middleName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  gender: z.enum(['M', 'F', 'O']).optional(),
+  /** `DD-MM-YYYY`, the form ABDM's own examples use. */
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{2}-\d{2}-\d{4}$/, 'Use DD-MM-YYYY')
+    .optional(),
+  address: z.string().max(300).optional(),
+  pincode: z.string().regex(/^\d{6}$/, 'Enter a 6-digit PIN code').optional(),
+});
+
 export const LinkPatientBody = z.object({
   transactionId: z.string().uuid(),
   patientId: z.string().uuid(),
@@ -150,6 +174,106 @@ export const HipProfileShareBody = z
         })
         .passthrough(),
     }),
+  })
+  .passthrough();
+
+/**
+ * The link token NHA delivers on our webhook after a demographic-auth request (ADR-089).
+ *
+ * `.passthrough()` because the callback carries a `response.requestId` and other correlation fields
+ * we do not consume today; dropping them from a payload we did not design would discard information
+ * a later milestone needs.
+ */
+export const OnGenerateTokenBody = z
+  .object({
+    abhaAddress: z.string().min(3).max(80),
+    linkToken: z.string().min(20),
+    response: z.object({ requestId: z.string() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/** ABDM confirming (or refusing) a care-context link. */
+export const OnLinkCareContextBody = z
+  .object({
+    abhaAddress: z.string().min(3).max(80).optional(),
+    status: z.string().optional(),
+    error: z.object({ code: z.union([z.string(), z.number()]).optional(), message: z.string().optional() }).passthrough().optional(),
+    response: z.object({ requestId: z.string() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/**
+ * Discovery, as the gateway sends it (ADR-090).
+ *
+ * `verifiedIdentifiers` carry what ABDM proved; `unverifiedIdentifiers` carry what the patient
+ * typed. Keeping them apart in the type is what stops the matcher treating a self-declared hospital
+ * number as proof.
+ */
+const Identifier = z.object({ type: z.string(), value: z.union([z.string(), z.number()]) }).passthrough();
+
+export const DiscoverBody = z
+  .object({
+    transactionId: z.string().optional(),
+    requestId: z.string().optional(),
+    patient: z
+      .object({
+        id: z.string().optional(),
+        name: z.string().optional(),
+        gender: z.string().optional(),
+        yearOfBirth: z.union([z.string(), z.number()]).optional(),
+        verifiedIdentifiers: z.array(Identifier).optional(),
+        unverifiedIdentifiers: z.array(Identifier).optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export const LinkInitBody = z
+  .object({
+    transactionId: z.string(),
+    requestId: z.string().optional(),
+    patient: z
+      .object({
+        referenceNumber: z.string(),
+        careContexts: z.array(z.object({ referenceNumber: z.string() }).passthrough()).min(1),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export const LinkConfirmBody = z
+  .object({
+    requestId: z.string().optional(),
+    confirmation: z.object({ linkRefNumber: z.string(), token: z.string().min(4).max(12) }).passthrough(),
+  })
+  .passthrough();
+
+/**
+ * A consented request for health records (ADR-091).
+ *
+ * `dataPushUrl` is accepted as any HTTPS URL by design: a HIU may nominate any endpoint, and the
+ * security of the exchange comes from the payload being unreadable to anyone but them — not from
+ * restricting where it goes. An allowlist here would break legitimate transfers.
+ */
+export const HealthInformationRequestBody = z
+  .object({
+    transactionId: z.string().min(1),
+    requestId: z.string().optional(),
+    hiRequest: z
+      .object({
+        consent: z.object({ id: z.string().min(1) }).passthrough(),
+        dataPushUrl: z.string().url(),
+        keyMaterial: z
+          .object({
+            dhPublicKey: z.object({ keyValue: z.string() }).passthrough().optional(),
+            nonce: z.string().optional(),
+          })
+          .passthrough()
+          .optional(),
+        dateRange: z.object({ from: z.string().optional(), to: z.string().optional() }).passthrough().optional(),
+        careContexts: z.array(z.object({ careContextReference: z.string() }).passthrough()).optional(),
+      })
+      .passthrough(),
   })
   .passthrough();
 

@@ -225,6 +225,34 @@
       "when": 1787718801891,
       "tag": "0031_damp_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1787734074072,
+      "tag": "0032_living_wendell_rand",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787742248434,
+      "tag": "0033_tough_naoko",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787743345493,
+      "tag": "0034_gifted_odin",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787744694775,
+      "tag": "0035_ancient_vargas",
+      "breakpoints": true
     }
   ]
 }

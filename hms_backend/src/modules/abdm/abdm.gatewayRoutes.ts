@@ -2,8 +2,21 @@ import { Router } from 'express';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { authLimiter } from '../../http/rateLimit';
-import { HIP_PROFILE_SHARE_PATH } from './abdm.constants';
-import { HipProfileShareBody } from './abdm.schema';
+import {
+  HIP_CALLBACK_PATHS,
+  HIP_DATA_REQUEST_PATH,
+  HIP_DISCOVERY_CALLBACK_PATHS,
+  HIP_PROFILE_SHARE_PATH,
+} from './abdm.constants';
+import {
+  DiscoverBody,
+  HealthInformationRequestBody,
+  HipProfileShareBody,
+  LinkConfirmBody,
+  LinkInitBody,
+  OnGenerateTokenBody,
+  OnLinkCareContextBody,
+} from './abdm.schema';
 import * as c from './abdm.controller';
 
 /**
@@ -29,4 +42,56 @@ abdmGatewayRouter.post(
   authLimiter,
   validate({ body: HipProfileShareBody }),
   asyncHandler(c.profileShareCallback),
+);
+
+// Milestone 2 callbacks (ADR-089). Same posture as the share callback above: the hospital is
+// resolved server-side from `X-HIP-ID`, and the answer is an identical 202 regardless, so neither
+// can be used to probe which facilities or ABHA addresses exist.
+abdmGatewayRouter.post(
+  HIP_CALLBACK_PATHS.onGenerateToken,
+  authLimiter,
+  validate({ body: OnGenerateTokenBody }),
+  asyncHandler(c.onGenerateToken),
+);
+
+abdmGatewayRouter.post(
+  HIP_CALLBACK_PATHS.onLinkCareContext,
+  authLimiter,
+  validate({ body: OnLinkCareContextBody }),
+  asyncHandler(c.onLinkCareContext),
+);
+
+// Discovery and user-initiated linking (ADR-090) — the patient finding and linking their own
+// records. All three answer 202 immediately and reply properly on the gateway's `on-*` endpoints,
+// because that is the shape of the protocol: the gateway is waiting for a callback, not for this
+// connection. **These three inbound paths are unverified against an official collection** — see
+// `abdm.constants.ts` and `BACKLOG.md`.
+abdmGatewayRouter.post(
+  HIP_DISCOVERY_CALLBACK_PATHS.discover,
+  authLimiter,
+  validate({ body: DiscoverBody }),
+  asyncHandler(c.discoverCareContexts),
+);
+
+abdmGatewayRouter.post(
+  HIP_DISCOVERY_CALLBACK_PATHS.linkInit,
+  authLimiter,
+  validate({ body: LinkInitBody }),
+  asyncHandler(c.initCareContextLink),
+);
+
+abdmGatewayRouter.post(
+  HIP_DISCOVERY_CALLBACK_PATHS.linkConfirm,
+  authLimiter,
+  validate({ body: LinkConfirmBody }),
+  asyncHandler(c.confirmCareContextLink),
+);
+
+// A consented request for health records (ADR-091). Acknowledged immediately; the build, encrypt
+// and push run on the queue inside NHA's twenty-minute allowance.
+abdmGatewayRouter.post(
+  HIP_DATA_REQUEST_PATH,
+  authLimiter,
+  validate({ body: HealthInformationRequestBody }),
+  asyncHandler(c.requestHealthInformation),
 );

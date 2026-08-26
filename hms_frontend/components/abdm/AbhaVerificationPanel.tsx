@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Badge, Button, Card, Field, PhoneField, Spinner } from "@hms/ui";
 import { formatDate } from "@hms/utils";
+import { PERMISSIONS } from "@hms/permissions";
 import type { AbdmCapabilities, AbdmPendingShare, AbhaIdentifierType, AbhaPrefill, AbhaVerificationResult } from "@hms/types";
 import * as api from "../../lib/api";
 import { useQrDataUrl } from "../../lib/useQrDataUrl";
+import { Can } from "../Can";
 
 /**
  * ABHA verification at the registration desk — ABDM Milestone 1 (ADR-084).
@@ -145,6 +147,7 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
             result={result}
             applied={applied}
             onAccept={accept}
+            onUpdated={setResult}
             onDismiss={() => {
               setResult(null);
               setApplied(false);
@@ -658,11 +661,13 @@ function VerifiedProfile({
   result,
   applied,
   onAccept,
+  onUpdated,
   onDismiss,
 }: {
   result: AbhaVerificationResult;
   applied: boolean;
   onAccept: (r: AbhaVerificationResult) => void;
+  onUpdated: (r: AbhaVerificationResult) => void;
   onDismiss: () => void;
 }) {
   const { prefill, match } = result;
@@ -720,6 +725,10 @@ function VerifiedProfile({
         </div>
       )}
 
+      <Can perm={PERMISSIONS.ABDM_PROFILE_UPDATE}>
+        <CorrectAtAbdm result={result} onUpdated={onUpdated} />
+      </Can>
+
       {applied ? (
         <div className="flex flex-col gap-2">
           <Alert tone="success">
@@ -744,6 +753,84 @@ function VerifiedProfile({
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Correcting the patient's record AT ABDM — not ours.
+ *
+ * Folded away behind a disclosure because it is the rare action, and the destructive-sounding one:
+ * it writes to the national identity register, so it is permission-gated (the front desk does not
+ * hold the key by default) and the copy says plainly where the change lands. Editing the
+ * registration form below changes only this hospital's chart; this changes what ABDM holds.
+ */
+function CorrectAtAbdm({
+  result,
+  onUpdated,
+}: {
+  result: AbhaVerificationResult;
+  onUpdated: (r: AbhaVerificationResult) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastName, setLastName] = useState(result.prefill.lastName ?? "");
+  const [address, setAddress] = useState(result.prefill.addressLine ?? "");
+  const [pincode, setPincode] = useState(result.prefill.pincode ?? "");
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      // Only what the operator actually changed — a PATCH that resends unchanged values would
+      // rewrite fields nobody touched, on a national record.
+      onUpdated(
+        await api.updateAbhaProfile({
+          transactionId: result.transactionId,
+          lastName: lastName !== (result.prefill.lastName ?? "") ? lastName : undefined,
+          address: address !== (result.prefill.addressLine ?? "") ? address : undefined,
+          pincode: pincode !== (result.prefill.pincode ?? "") ? pincode : undefined,
+        }),
+      );
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ABDM did not accept the change.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          Correct these details at ABDM
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <p className="text-sm text-fg-muted">
+        This changes the patient&apos;s record <strong className="font-medium text-fg">at ABDM</strong>, not just here.
+        To fix only this hospital&apos;s copy, edit the registration form below instead.
+      </p>
+      {error && <Alert tone="danger">{error}</Alert>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+        <Field label="PIN code" value={pincode} onChange={(e) => setPincode(e.target.value)} inputMode="numeric" />
+        <Field label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" loading={saving} onClick={() => void save()}>
+          Save at ABDM
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }

@@ -139,6 +139,78 @@ export const HIP_PROFILE_SHARE_PATH = '/api/v3/hip/patient/share';
 export const GATEWAY_ON_SHARE_PATH = '/api/hiecm/patient-share/v3/on-share';
 
 /**
+ * Milestone 2 — the HIP calls, all on the **gateway** host rather than the ABHA one (ADR-089).
+ *
+ * Two different hosts serve M1 and M2, which is easy to get wrong and produces a 404 that reads
+ * like a missing feature: identity lives on `ABDM_ABHA_BASE_URL`, everything a Health Information
+ * Provider does lives on `ABDM_GATEWAY_BASE_URL`.
+ */
+export const HIP_GATEWAY_PATHS = {
+  /**
+   * POST — asks for a link token by demographic auth. The token does **not** come back in the
+   * response; NHA delivers it to our webhook, which is why acquisition is a two-step flow.
+   */
+  generateLinkToken: '/api/hiecm/v3/token/generate-token',
+  /** POST — links care contexts to an ABHA address. Authenticated by `X-LINK-TOKEN`. */
+  linkCareContext: '/api/hiecm/hip/v3/link/carecontext',
+  /** POST — tells subscribed PHR apps that an already-linked context has new records. */
+  notifyCareContext: '/api/hiecm/hip/v3/link/context/notify',
+  /** POST — the fallback when we hold no ABHA: ABDM texts the patient a deep link. */
+  smsNotify: '/api/hiecm/hip/v3/link/patient/links/sms/notify2',
+} as const;
+
+/**
+ * The paths ABDM calls back on, appended to our registered bridge URL.
+ *
+ * Ours to serve, not to choose — same as the Scan-and-Share callback, and mounted alongside it
+ * outside `/api/v1` for the same reason.
+ */
+export const HIP_CALLBACK_PATHS = {
+  onGenerateToken: '/api/v3/hip/token/on-generate-token',
+  onLinkCareContext: '/api/v3/link/on_carecontext',
+} as const;
+
+/**
+ * Discovery and user-initiated linking — the patient finding their own records (ADR-090).
+ *
+ * The half ABDM calls US on. **These three inbound paths are the only ones in this file NOT
+ * confirmed against an official collection**: the Milestone 1 collection does not contain them and
+ * the M2 documentation shows only the gateway side. They follow the same convention as the
+ * confirmed Scan-and-Share path (`/api/v3/hip/...` appended to the bridge URL), which is why they
+ * are shaped this way — but **verify them against the M2 Postman collection before the exit demo**
+ * (`BACKLOG.md`). A wrong inbound path fails silently: the gateway simply never reaches us.
+ */
+export const HIP_DISCOVERY_CALLBACK_PATHS = {
+  discover: '/api/v3/hip/patient/care-context/discover',
+  linkInit: '/api/v3/hip/link/care-context/init',
+  linkConfirm: '/api/v3/hip/link/care-context/confirm',
+} as const;
+
+/** Our answers, posted back to the gateway. These ARE from the M2 documentation. */
+export const USER_LINKING_PATHS = {
+  onDiscover: '/api/hiecm/user-initiated-linking/v3/patient/care-context/on-discover',
+  onInit: '/api/hiecm/user-initiated-linking/v3/link/care-context/on-init',
+  onConfirm: '/api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm',
+} as const;
+
+/**
+ * Data flow — answering a consented request for health records (ADR-091).
+ *
+ * The outbound halves are from the M2 documentation. The **inbound** path carries the same caveat
+ * as the discovery callbacks: it is not in the Milestone 1 collection, so it follows the confirmed
+ * convention and must be verified against the M2 collection (`BACKLOG.md`).
+ */
+export const DATA_FLOW_PATHS = {
+  /** POST — our prompt "ACKNOWLEDGED", so the gateway stops waiting on the request connection. */
+  onRequest: '/api/hiecm/data-flow/v3/health-information/hip/on-request',
+  /** POST — how the flow ended, per care context. */
+  notify: '/api/hiecm/data-flow/v3/health-information/notify',
+} as const;
+
+/** Where the gateway asks us for records. **Unverified** — see the note above. */
+export const HIP_DATA_REQUEST_PATH = '/api/v3/hip/health-information/request';
+
+/**
  * Bridge administration, for reference only — these are run by hand once per environment, not
  * from application code. Recorded here because NHA's onboarding email quotes **outdated V1
  * paths** (`/gateway/v1/bridges`, `/gateway/v1/bridges/addUpdateServices`), and the V3 collection

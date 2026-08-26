@@ -852,11 +852,65 @@ Run with `ABDM_PROVIDER=mock` unless a case says otherwise; the mock's OTP is `1
 | ABDM-28 | Tenant isolation | Two hospitals, both entitled | Hospital B checks its pending shares | B never sees A's shared profiles or verifications | P1 | Security | receptionist | Not run |
 | ABDM-29 | No Aadhaar in logs or audit | An Aadhaar flow just run | Search the API log and the audit table for the 12 digits | Not present anywhere; only `XXXXXXXX1234` hints | P1 | Security | tester | Not run |
 | ABDM-30 | No token reaches the browser | An Aadhaar flow just run | Inspect every ABDM network response in devtools | No linking token, no profile token, no Aadhaar echoed back | P1 | Security | tester | Not run |
+| ABDM-35 | Profile update is not a front-desk action | Receptionist, default roles | Complete a verification and look for the ABDM correction control | Absent; a direct `PATCH /abdm/profile` returns 403. Verifying an identity and amending the register are different acts | P1 | Security | receptionist | Not run |
+| ABDM-36 | An administrator can correct the profile at ABDM | org_admin, completed verification | Correct these details at ABDM → change the last name → Save at ABDM | Saved; the panel shows the profile as ABDM now holds it | P1 | Functional | org_admin | Not run |
+| ABDM-37 | The copy says where the change lands | ABDM-36 | Open the correction panel | It states the change is at ABDM, not just at this hospital, and points at the form below for a local-only fix | P1 | Editorial | org_admin | Not run |
+| ABDM-38 | An empty correction is refused | org_admin | Open the panel and save without changing anything | 422 — a PATCH that changes nothing is named, not silently accepted | P2 | Negative | org_admin | Not run |
+| ABDM-39 | The audit records fields, never values | ABDM-36 | Check the audit log for `abdm.profile.updated` | It lists which fields changed and contains none of the new values | P1 | Security | org_admin | Not run |
 | ABDM-31 | Expired verification | A verification older than `ABDM_TXN_TTL_SECONDS` | Try to continue it | 410 "This verification has expired. Please start again." | P2 | Negative | receptionist | Not run |
 | ABDM-32 | Test mode is stated, never hidden | `ABDM_PROVIDER=mock` | Open the panel | A "Test mode" notice naming the fixed OTP; no claim that a real ABHA was created | P1 | Editorial | receptionist | Not run |
 | ABDM-33 | Gateway unreachable | `ABDM_PROVIDER=gateway`, network blocked | Try to send an OTP | A clear failure that points at manual registration; nothing half-written | P1 | Negative | receptionist | Not run |
 | ABDM-34 | Both themes and a tenant accent | — | Open the panel in Light and Dark under a non-default brand colour | Tabs, QR frame, badges and alerts all follow the tokens | P2 | Visual | any | Not run |
 
+---
+
+## 23a. ABDM / ABHA — Milestone 2, HIP (ADR-087…ADR-091)
+
+**Read this before running any of it.** Every M2 flow is a round trip with the ABDM gateway, and the
+gateway cannot reach us until the bridge URL is registered — which needs TLS on
+`api-staging.nirogix.com` (`BACKLOG.md` I-5). Until then, run with `ABDM_PROVIDER=mock`, which
+**records** each gateway call instead of sending it: what a tester verifies locally is *what we
+decided and what we would have sent*, which is the half we control. Cases needing a live gateway are
+marked **Blocked (I-5)** in Status and must not be recorded as passed on the mock.
+
+Transfer additionally needs `FIDELIUS_CLI_PATH` and a JRE in gateway mode. Unset, transfer is
+**disabled**, not degraded — every request is refused, which is the intended behaviour and is what
+ABDM-M2-24 checks.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-M2-01 | A completed consultation becomes a care context | Tenant entitled to `abdm`; a verified ABHA on the chart | Sign an OPD consultation | One `abdm_care_contexts` row for that visit, status `pending`, HI type `OPConsultation` | P1 | Functional | doctor | Not run |
+| ABDM-M2-02 | One context per visit, accumulating types | ABDM-M2-01 | Add a prescription and a verified lab result to the same visit | Still ONE row; `hi_types` grows to three; no duplicate reference number | P1 | Functional | doctor | Not run |
+| ABDM-M2-03 | The label carries no clinical information | ABDM-M2-01 | Read `display_label` | Reads `OPD records from DD/MM/YYYY` — a date and a setting, never a diagnosis; the patient sees this string in their PHR app | P1 | Security | any | Not run |
+| ABDM-M2-04 | An unverified ABHA is never linkable | A chart with a hand-typed ABHA address, never verified | Complete a visit and check the linkable list | The context is excluded; nothing is offered to the gateway | P1 | Security | receptionist | Not run |
+| ABDM-M2-05 | A revoked consent is deleted, not flagged | A stored consent artefact | Trigger the revoke notification | The `abdm_consents` row is **gone**; an audit row records the revocation | P1 | Security | org_admin | Not run |
+| ABDM-M2-06 | An expired consent is purged on schedule | An artefact whose `data_erase_at` has passed | Run the expiry sweep | The row is gone; the audit entry says expired, not revoked | P1 | Functional | org_admin | Not run |
+| ABDM-M2-07 | Deleting a consent never deletes a record | ABDM-M2-05 | Open the patient chart | Every clinical record is intact — the consent is what expired, not the care (invariant #6) | P1 | Security | doctor | Not run |
+| ABDM-M2-08 | A link token is encrypted at rest | Gateway mode, a delivered token | Read `abdm_link_tokens.token_enc` | Starts `v1.` and contains no readable JWT | P1 | Security | — | Not run |
+| ABDM-M2-09 | A near-expiry token counts as absent | A token expiring within a day | Run the linking sweep | It asks for a fresh token instead of starting a link that would die mid-flight | P2 | Functional | — | Not run |
+| ABDM-M2-10 | One notification per patient, not per record | A visit with three HI types | Run the linking sweep | ONE gateway call for that patient, its payload fanning out into per-type blocks | P2 | Functional | — | Not run |
+| ABDM-M2-11 | The sweep is safe to run twice | ABDM-M2-10 | Run it again immediately | Nothing is re-sent; already-linked contexts are skipped | P1 | Functional | — | Not run |
+| ABDM-M2-12 | A link failure returns to pending | A failure callback for a linked context | Post the failure, run the sweep | The context is `pending` again and retried; `linked_at` never drifts | P1 | Functional | — | Not run |
+| ABDM-M2-13 | Linking round trip | Bridge URL registered | Sign a consultation, wait for the sweep | The care context appears in the patient's PHR app | P1 | Functional | doctor | **Blocked (I-5)** |
+| ABDM-M2-14 | Discovery matches on a verified ABHA alone | A chart with a verified ABHA | Send a discovery request for that address | One patient, `matchedBy: HEALTH_ID`, care contexts listed by label only | P1 | Functional | — | Not run |
+| ABDM-M2-15 | Demographics alone are not enough | A chart with that mobile only | Discovery with the mobile but no name or year of birth | No match | P1 | Security | — | Not run |
+| ABDM-M2-16 | Ambiguity means no match | Two charts sharing a household mobile, name and birth year | Send that discovery | **Nobody** is returned — never a guess | P1 | Security | — | Not run |
+| ABDM-M2-17 | A registration number cannot make a match | A chart whose UHID is known | Discovery with only that number | No match; it may only break a tie between demographic candidates | P1 | Security | — | Not run |
+| ABDM-M2-18 | The OTP goes to the number on the chart | ABDM-M2-14 | Start a user-initiated link | The code is sent to the chart's mobile, never to an address supplied in the request; the code is never returned in any response | P1 | Security | — | Not run |
+| ABDM-M2-19 | A wrong code answers rather than hangs | ABDM-M2-18 | Confirm with a wrong code | `on-confirm` is answered with an empty patient list; the attempt is audited | P1 | Negative | — | Not run |
+| ABDM-M2-20 | Someone else's care context cannot be linked | A reference belonging to another patient | Init a link naming it | Refused — the request is intersected with what we hold for that patient | P1 | Security | — | Not run |
+| ABDM-M2-21 | A records request is acknowledged at once | A stored consent artefact | Post a health-information request | `ACKNOWLEDGED` is sent back before any record is built; a transfer row exists with a deadline | P1 | Functional | — | Not run |
+| ABDM-M2-22 | A consented request sends encrypted entries | ABDM-M2-21 | Let the transfer job run | Entries pushed to the HIU URL, each with a base64 MD5 checksum of the **plaintext**; `keyMaterial` names Curve25519; the gateway is notified `TRANSFERRED` | P1 | Functional | — | Not run |
+| ABDM-M2-23 | Revoking between request and send stops it | ABDM-M2-21 | Revoke the consent, then let the job run | **Nothing is pushed**; the gateway is notified `ERRORED`; the audit names the reason | P1 | Security | org_admin | Not run |
+| ABDM-M2-24 | Encryption unavailable means nothing is sent | Gateway mode, `FIDELIUS_CLI_PATH` unset | Let a transfer run | The transfer is `failed` and nothing leaves the building — never a plaintext fallback | P1 | Security | — | Not run |
+| ABDM-M2-25 | A record type outside the consent is not sent | A consent for prescriptions only, a context holding a consultation | Let the transfer run | Nothing is pushed; the refusal is audited | P1 | Security | — | Not run |
+| ABDM-M2-26 | A window outside the consented range is refused | A consent for this year | Request last year's records | Refused, with a reason naming the range — not silently truncated | P1 | Security | — | Not run |
+| ABDM-M2-27 | A care context the consent does not name is refused | A consent naming one context | Request a different one | Nothing pushed; the reason says it is not covered | P1 | Security | — | Not run |
+| ABDM-M2-28 | An expired consent is refused by its own name | An artefact past `data_erase_at` | Request records | The reason says expired — distinguishable in the log from "never granted" | P2 | Negative | — | Not run |
+| ABDM-M2-29 | A request for an unknown facility is dropped | — | Post a request with an unregistered `X-HIP-ID` | No acknowledgement, no gateway call, nothing written | P1 | Security | — | Not run |
+| ABDM-M2-30 | A late transfer is recorded as late | A transfer completing past its deadline | Check the audit | `abdm.transfer.completed` at severity `warning` with `withinSla: false` | P2 | Functional | — | Not run |
+| ABDM-M2-31 | Full transfer round trip | Bridge URL registered, JRE + Fidelius on the host | Grant a consent from a PHR app and request records | The records arrive readable in the requesting app within twenty minutes | P1 | Functional | — | **Blocked (I-5)** |
+| ABDM-M2-32 | Tenant isolation across every M2 flow | Two tenants, both ABDM-enabled | Repeat discovery and transfer against tenant B's facility id | Tenant A's contexts, consents and records are never reachable | P1 | Security | — | Not run |
 ---
 
 ## 24. Notifications & emails (ADR-086)

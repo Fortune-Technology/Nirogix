@@ -1403,6 +1403,23 @@ export interface AbdmPendingShare {
 
 export type AbhaIdentifierType = 'abha_number' | 'abha_address' | 'mobile' | 'aadhaar';
 
+/**
+ * A correction to the patient's profile AT ABDM — the one M1 call that writes to the national
+ * register. Every field optional; at least one must be set. `dateOfBirth` is `DD-MM-YYYY`, the
+ * form ABDM's own examples use, not our ISO transport format.
+ */
+export interface AbhaProfileUpdate {
+  transactionId: string;
+  profilePhoto?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  gender?: 'M' | 'F' | 'O';
+  dateOfBirth?: string;
+  address?: string;
+  pincode?: string;
+}
+
 /** The hospital's own ABDM/HFR facility registration. Issued by NHA to the hospital, not by us. */
 export interface AbdmFacilityConfig {
   id: string;

@@ -14,6 +14,7 @@ import {
   SelectAccountBody,
   StartAadhaarBody,
   StartVerificationBody,
+  UpdateAbhaProfileBody,
   TransactionParams,
   VerifyAadhaarOtpBody,
   VerifyOtpBody,
@@ -150,6 +151,17 @@ abdmRouter.post(
   requirePermission(PERMISSIONS.ABDM_VERIFY),
   validate({ params: TransactionParams }),
   asyncHandler(c.dismiss),
+);
+
+// Amending the profile at ABDM writes to the NATIONAL register, not to ours — the only M1 call
+// that does. Its own permission, deliberately absent from the receptionist's default set.
+abdmRouter.patch(
+  '/abdm/profile',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_PROFILE_UPDATE),
+  validate({ body: UpdateAbhaProfileBody }),
+  asyncHandler(c.updateProfile),
 );
 
 // Attaching a verified ABHA to a chart changes an identifier on a clinical record, so it carries

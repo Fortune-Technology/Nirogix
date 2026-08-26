@@ -162,6 +162,45 @@ describe('the Aadhaar flow over HTTP', () => {
   });
 });
 
+describe('correcting the profile at ABDM', () => {
+  test('the front desk may not amend the national register by default', async ({ skip }) => {
+    if (!ready) return skip();
+    // Verifying an identity and amending the identity register are different acts. A hospital
+    // that wants its desk to do the second one grants the key deliberately.
+    const res = await authed(receptionist)
+      .patch(`${BASE}/abdm/profile`)
+      .send({ transactionId: '00000000-0000-0000-0000-000000000000', lastName: 'Nope' });
+    expect(res.status).toBe(403);
+  });
+
+  test('an administrator can, and an empty patch is refused', async ({ skip }) => {
+    if (!ready) return skip();
+    const started = await authed(receptionist)
+      .post(`${BASE}/abdm/enrolment/aadhaar/otp`)
+      .send({ aadhaar: '888899990004', consentGiven: true });
+    const verified = await authed(receptionist)
+      .post(`${BASE}/abdm/enrolment/aadhaar/verify`)
+      .send({ transactionId: started.body.transactionId, otp: '123456' });
+
+    const empty = await authed(orgAdmin).patch(`${BASE}/abdm/profile`).send({ transactionId: verified.body.transactionId });
+    expect(empty.status).toBe(422);
+
+    const ok = await authed(orgAdmin)
+      .patch(`${BASE}/abdm/profile`)
+      .send({ transactionId: verified.body.transactionId, lastName: 'Amended', gender: 'F' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.prefill.lastName).toBe('Amended');
+  });
+
+  test('a malformed field is refused before ABDM is called', async ({ skip }) => {
+    if (!ready) return skip();
+    const res = await authed(orgAdmin)
+      .patch(`${BASE}/abdm/profile`)
+      .send({ transactionId: '00000000-0000-0000-0000-000000000000', pincode: 'abc', dateOfBirth: '1990-01-01' });
+    expect(res.status).toBe(422);
+  });
+});
+
 describe('the Scan-and-Share callback', () => {
   /** The path NHA appends to the registered bridge URL — not one of ours (ADR-084). */
   const path = '/api/v3/hip/patient/share';

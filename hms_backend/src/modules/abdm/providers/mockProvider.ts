@@ -8,6 +8,7 @@ import {
   type AbdmLoginVerifyResult,
   type AbdmOtpResult,
   type AbdmProfile,
+  type AbdmProfilePatch,
   type AbdmProvider,
 } from './types';
 
@@ -96,7 +97,19 @@ function profileFor(aadhaar: string, mobile?: string): AbdmProfile {
 }
 
 /** In-memory transaction state. Process-local by design — this provider is never clustered. */
-type MockTxn = { aadhaar: string; mobile?: string; abhaAddress?: string; scenario: string };
+type MockTxn = {
+  aadhaar: string;
+  mobile?: string;
+  abhaAddress?: string;
+  scenario: string;
+  /** Set by `updateProfile`, so an amendment is visible to a later read. */
+  profileOverride?: AbdmProfile;
+};
+
+/** Drops the keys a caller left undefined, so a patch only overwrites what it actually set. */
+function stripUndefined(patch: AbdmProfilePatch): Partial<AbdmProfile> {
+  return Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<AbdmProfile>;
+}
 const txns = new Map<string, MockTxn>();
 
 function scenarioOf(aadhaar: string): string {
@@ -259,7 +272,18 @@ export class AbdmMockProvider implements AbdmProvider {
 
   async getProfile(input: { xToken: string }): Promise<AbdmProfile> {
     const txnId = input.xToken.replace(/^mock-x-/, '');
-    return profileFor(this.require(txnId).aadhaar);
+    const txn = this.require(txnId);
+    return txn.profileOverride ?? profileFor(txn.aadhaar);
+  }
+
+  async updateProfile(input: { xToken: string; patch: AbdmProfilePatch }): Promise<AbdmProfile> {
+    const txnId = input.xToken.replace(/^mock-x-/, '');
+    const txn = this.require(txnId);
+    // The mock keeps the amendment, so a test can prove the change round-trips rather than merely
+    // that the call did not throw.
+    const updated = { ...profileFor(txn.aadhaar, txn.mobile), ...stripUndefined(input.patch) };
+    txn.profileOverride = updated;
+    return updated;
   }
 
   async getAbhaCard(input: { xToken: string }): Promise<AbdmCard> {

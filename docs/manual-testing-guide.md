@@ -331,6 +331,12 @@ active, stop and report it.
 - [ ] **5.1a.12 Nothing leaks:** with devtools open, run one Aadhaar flow. **Verify:** no response body
   contains the Aadhaar number or any ABDM token. Then search the API log — only `XXXXXXXX…` hints.
 
+- [ ] **5.1a.13 Correcting the record at ABDM (org_admin only).** As the receptionist, **verify** there
+  is no ABDM correction control. Sign in as the org_admin, complete a verification, open
+  **Correct these details at ABDM**, change the last name and save. **Verify:** it saves, the panel
+  shows what ABDM now holds, and the copy makes clear the change lands at ABDM rather than only at
+  this hospital. The audit log records which fields changed and none of the values.
+
 **⚠ Milestone 1 only.** Creating and verifying an ABHA is implemented. **Sharing health records with
 ABDM (M2 HIP / M3 HIU) is not** — nothing in this build sends a clinical record anywhere. Production
 access additionally needs NHA functional testing, a WASA certificate and HTC approval.

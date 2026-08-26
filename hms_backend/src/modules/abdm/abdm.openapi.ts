@@ -14,6 +14,7 @@ import {
   SelectAccountBody,
   StartAadhaarBody,
   StartVerificationBody,
+  UpdateAbhaProfileBody,
   VerificationResultSchema,
   VerifyAadhaarOtpBody,
   VerifyOtpBody,
@@ -222,6 +223,26 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ transactionId: z.string().uuid() }) },
   responses: { 204: { description: 'Dismissed' }, 401: notAuthed, 403: forbidden, 404: { description: 'Not found', ...json(ErrorResponseSchema) } },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/abdm/profile',
+  operationId: 'updateAbhaProfile',
+  tags: [TAG],
+  summary: "Correct the patient's profile at ABDM",
+  description:
+    "The only Milestone 1 call that WRITES to the national register rather than reading from it, so it carries its own permission (`abdm.profile.update`, deliberately not in the receptionist's default role) and its own audit action, which records which fields changed and never their values. It works only inside a completed verification, because it needs the holder's own X-token — a hospital cannot amend an ABHA it has not just been shown consent for. It does not touch the patient's chart here: correcting the national record and correcting the hospital's record are separate acts.",
+  security: [{ bearerAuth: [] }],
+  request: { body: json(UpdateAbhaProfileBody) },
+  responses: {
+    200: { description: 'The profile as ABDM now holds it', ...json(VerificationResultSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    422: { description: 'Nothing to update, or ABDM refused a field', ...json(ErrorResponseSchema) },
+    502: upstream,
+  },
 });
 
 registry.registerPath({

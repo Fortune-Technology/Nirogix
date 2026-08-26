@@ -1152,3 +1152,271 @@ still blocked on DLT — BACKLOG I-1).
 Shared `test-api.ts` `cleanupTenant` + the 22 bespoke integration teardowns now clear
 `notification_log` before deleting the tenant (business flows emit notifications now;
 `notification_log.tenant_id` is ON DELETE RESTRICT — invariant #6). Backend typecheck + OpenAPI valid.
+
+---
+
+## ABDM: profile update at ABDM (ADR-084)
+
+**What:** `PATCH /api/v1/abdm/profile` — the last outstanding item from NHA's Milestone 1
+documentation. It amends the ABHA holder's profile in the **national register**, using the
+holder's own `X-token` from a completed verification, and returns the profile as ABDM now holds it
+rather than as we asked for it.
+
+**It is the only M1 call that writes outward, and it is built to say so.** Its own permission
+(`abdm.profile.update`, org_admin by default and explicitly not the receptionist's), its own audit
+action recording **which fields changed and never their values**, and UI copy that states the change
+lands at ABDM rather than only at this hospital — with a pointer to the registration form for a
+local-only correction. It deliberately does not touch the patient's chart: correcting the national
+record and correcting ours are separate acts, and one screen quietly rewriting two systems is how
+that goes wrong.
+
+**An honest limit.** The official V3 collection demonstrates only `profilePhoto` on the `X-token`
+path; the demographic fields appear there on the **Benefit (Government) APIs**, which authenticate
+differently. Ours sends an explicit allow-list — never a passthrough, on a national register — and
+surfaces NHA's own rejection verbatim if a field is refused. Confirming the accepted set against a
+live call, and trimming the list to match, is in `BACKLOG.md`.
+
+**Also settled this change (owner decision, 25/08/2026):** the `loginHint: "mobile"` verification
+flow stays as built rather than moving to the search-and-index variant, and creation by Aadhaar
+biometric, offline demographic and driving licence remain out of scope.
+
+**Testing status:** 378 backend tests across 45 files (65 ABDM), typecheck, OpenAPI and the Portal
+production build green.
+
+---
+
+## ABDM Milestone 2 — care contexts and the consent store (ADR-087)
+
+**What:** the foundation of the HIP role. Two tables (`abdm_care_contexts`, `abdm_consents`,
+migration `0032`), two services, and the event wiring that creates a care context whenever a
+clinical record is finalised.
+
+**A care context is a pointer, never content.** Opaque reference (the visit id) plus a label built
+from the visit's date and setting. `assertNonClinicalLabel` **refuses** clinical vocabulary rather
+than scrubbing it: the correct labels are generated here, so anything tripping the check is a caller
+that built one some other way — a bug to fix at the source, because a diagnosis sent to the consent
+manager cannot be recalled.
+
+**One context per visit, `hi_types` as an array.** A visit produces a prescription, a lab report and
+an invoice; the patient looking for "my visit on the 3rd" expects one entry. ABDM's per-`hiType`
+grouping in the link payload is a wire-format detail, not a reason to fragment the model — which is
+why this deliberately departs from a single `hi_type` column.
+
+**Driven by domain events that already fire** — `encounter.signed`, `lab.result_verified`,
+`invoice.created`. Entitlement-checked and best-effort, so no ABDM failure can break a clinical
+action, and signing a consultation stays a clinical act that knows nothing about ABDM. Verified
+rather than merely resulted, because an unverified lab result is not something to publish to a
+national network. Only a **verified** ABHA makes a context linkable (ADR-084) — a typed number was
+never proved, and linking on one would attach the wrong person's records.
+
+**Consent artefacts are deleted, not deactivated,** on revoke, expiry and ABHA opt-out. NHA's
+certification checks the row is gone, and the reasoning stands alone: an artefact we keep is an
+authorisation we might act on. Invariant #6 is intact — the audit *event* survives, the *artefact*
+does not, so who was allowed what stays answerable without a live permission lying around. Expiry is
+swept proactively as well as on notification. Opt-out clears the ABHA identity and every consent
+under it while leaving the chart, which was made under the hospital's own duty of care.
+
+**One fail-closed gate for every future transfer.** `checkConsentForTransfer` refuses a missing
+artefact, an expired one, a different requester, an unlisted HI type, or a window wider than the
+grant — and says which, because "expired" and "this HIU was never granted access" are different
+incidents to an auditor.
+
+**Testing status:** 19 new tests (397 total across 46 files), covering label safety, per-visit
+accumulation and idempotency, verified-ABHA-only linking, link-failure recording, all four mandatory
+consent cases, and every branch of the transfer gate. Typecheck green.
+
+**Deliberately not built here:** everything else in M2 is an inbound webhook and needs a public
+HTTPS endpoint (`BACKLOG.md` I-5). Two mandatory HI types — DischargeSummary and WellnessRecord —
+cannot be produced from current data and are open questions for NHA rather than stubs.
+
+---
+
+## ABDM: health records as structured FHIR bundles (ADR-088)
+
+**What:** `modules/abdm/fhir/` — hand-written R4 types, resource builders, and a document composer
+that turns a visit into an NRCES-profiled FHIR **document** for seven of ABDM's eight HI types.
+
+**Structured, not attachment-wrapped — the usual advice inverted.** "Simple bundles are quicker" is
+true for a product that already stores PDFs. This one renders documents in the browser (ADR-047) and
+has no PDF library, so a simple bundle would have meant adding headless Chromium purely to
+manufacture an attachment — while the data is already partly coded (ICD-10 on diagnoses, LOINC where
+the test master knows it, discrete vitals). Structured was the smaller change *and* the destination
+NHA expects within a couple of years.
+
+**Rules the mapping holds to, each with a test:**
+- **Never invent a code.** A drug travels as `text` with no `coding`, because deriving a SNOMED code
+  from a drug name produces a document that looks machine-readable and is wrong.
+- **Units convert at the boundary** — tenths of a degree to °C, grams to kg, with UCUM codes.
+- **Blood pressure stays one Observation with two components**, as LOINC models it; splitting it
+  loses the fact the readings were taken together.
+- **Only verified lab results leave.** An unverified result is a working note, not a finding.
+- **An empty document is refused** (`ABDM_NOTHING_TO_SHARE`) rather than sent.
+
+**A bug the tests caught:** the invoice mapping recomputed each line as unit price × quantity. It now
+uses the **stored line total** — the invoice the patient settled is the authority, and any rounding
+the billing service applied has to survive into the record they read back.
+
+**Seven of eight types.** WellnessRecord is included after all, built from the vitals every
+consultation records — real measured data, not a stub. **DischargeSummary** remains the one genuine
+gap: it needs the unbuilt IPD module, and is an open question for NHA rather than an empty document.
+
+**Testing status:** 16 new tests written against real rows rather than fixtures — ICD-10 preserved
+with its system, LOINC and abnormal flags on results, units converted, BP kept whole, an unverified
+result proven absent from the payload, paise converted to rupees, and the Composition first as the
+format demands. **413 backend tests across 47 files**, typecheck and OpenAPI green.
+
+**Not done:** validation against NRCES's own FHIR validator in CI, and the transfer that carries
+these bundles — blocked on the same inbound-webhook infrastructure as the rest of M2.
+
+---
+
+## ABDM: the linking client (ADR-089)
+
+**What:** link-token acquisition and storage, HIP-initiated linking, the update notification, and the
+SMS fallback — plus the two webhooks ABDM answers on (`on-generate-token`, `on_carecontext`), mounted
+beside the Scan-and-Share callback outside `/api/v1` because the paths are NHA's to choose.
+
+**Linking is a resumable sweep, not an inline call.** Acquiring a link token is asynchronous — we
+ask, NHA answers on a webhook — so a design that linked during the clinical write would have to
+fail, block or lie whenever the token was not yet in hand. Instead the care context is recorded when
+the record is finalised (ADR-087) and the sweep links it afterwards. A consultation can never fail
+to save because NHA was slow, and running the sweep twice is safe.
+
+**Token expiry is read, not assumed.** NHA says "about six months"; we parse the token's own `exp`
+claim and treat anything inside a one-day margin as absent. A link that begins with a token about to
+expire fails at exactly the wrong moment. The claim decides only when to renew — never authorisation
+— so the unverified signature is not a security question.
+
+**One call per patient, not per context.** ABDM notifies every subscribed PHR app on each link; a
+visit that produced four records should reach the patient once. The `hi_types` array fans out into
+ABDM's per-type blocks at the boundary.
+
+**Optimistic on accept, corrected by callback.** Contexts are marked linked when the gateway accepts;
+the failure callback puts them back to **pending** (not failed) so the sweep retries — most link
+failures are transient, and the record itself is fine. A success confirmation deliberately does not
+rewrite `linked_at`.
+
+**The SMS fallback is the only place a phone number leaves the system**, so it audits that we texted
+the patient and never the number, and refuses to text someone whose records are already linked.
+
+**Testing status:** 23 new tests against a recording mock — token lifetime and encryption, refusal on
+an unverified ABHA, exact payload shape, one-call batching, sweep idempotency, failure-retry
+semantics, and a check that the payload carries no clinical information. **436 backend tests across
+48 files**, typecheck and OpenAPI green.
+
+**Cannot round-trip yet:** the webhooks need a registered bridge URL, which needs TLS (`BACKLOG.md`
+I-5). The mock records the request instead of sending it — the only half of an asynchronous protocol
+we control before the callback endpoint exists.
+
+---
+
+## ABDM: discovery and user-initiated linking (ADR-090)
+
+**What:** the patient-driven half of M2 — `discovery.service.ts` (the matcher),
+`userLinking.service.ts` (our OTP round trip and the three gateway answers), and the three inbound
+callbacks beside the others outside `/api/v1`.
+
+**The whole risk is one question: who is this?** Answer it loosely and one patient receives
+another's records. So the rules are strict and most of the tests assert that the right answer is
+*nobody*:
+
+- **Ambiguity means no match.** Twins on a household mobile are ordinary, and our own duplicate
+  guard (ADR-066) means the data deliberately contains same-name, same-phone charts. Guessing
+  between them is a disclosure; refusing costs a repeat search.
+- **A verified ABHA address is conclusive** and stops the search.
+- **Demographics need mobile AND name AND year of birth** together; any one is a coincidence.
+- **A self-declared hospital number is never enough alone** — guessable, mistypeable, readable off
+  someone else's card. Treating it as proof would make our UHID sequence an attack surface. It may
+  only break a tie between demographic candidates.
+- **Requested contexts are intersected with what we actually hold** for that patient, because the
+  references arrive from outside.
+
+**The OTP is ours, sent to the number on the chart** — an ABDM-verified number proves the ABHA, the
+chart's number is what this hospital confirmed with the patient. It runs through the existing
+communication seam, inheriting hashing, the five-attempt limit, the ten-minute life and the DLT
+template. The store is scoped to one link request, so two in flight cannot verify each other.
+
+**Every outcome answers the gateway, including refusal** — a wrong code replies with an empty
+patient list rather than throwing, because a hanging app is worse than a clear "that was wrong".
+Every discovery is audited whether or not it matched, recording which *kinds* of identifier matched
+and never their values: a run of misses against similar demographics is what enumeration looks like,
+and it is only visible if the misses are recorded.
+
+**Testing status:** 15 new tests, including the twin case, the mobile-alone case, the
+registration-number-alone case, and a confirm test that reverses the stored hash — because the code
+is never returned to any caller, which is the property being asserted. **451 backend tests across 49
+files**, typecheck and OpenAPI green.
+
+**One honest caveat:** the three **inbound** paths are not in the M1 collection and the M2 docs show
+only the gateway side, so they follow the confirmed Scan-and-Share convention and are marked
+unverified. A wrong inbound path fails silently — the gateway never reaches us — which is why it is
+flagged rather than assumed.
+
+## ABDM Milestone 2 — encrypted data transfer (ADR-091)
+
+The end of the M2 chain, and the only place in the product where clinical records leave the
+hospital: a consented HIU asks for a patient's records, we build them, encrypt them for that HIU,
+push them to the URL the HIU nominated, and tell the gateway how it went — inside twenty minutes.
+
+**`cipher.ts`** wraps the **Fidelius CLI**, NHA's own ECDH implementation, on the owner's
+instruction. The rule stated in its header governs the whole slice: *there is no plaintext fallback,
+ever*. A missing jar, a missing JRE, a malformed HIU key — each ends the transfer and tells the
+gateway it failed. `FIDELIUS_CLI_PATH` being unset **disables** transfer rather than weakening it.
+Mock mode returns a clearly-marked `MOCK-NOT-ENCRYPTED:` envelope so the pipeline is testable
+without a JVM, and `ABDM_PROVIDER=mock` already refuses to run in production.
+
+**`dataTransfer.service.ts`** acknowledges the request first — NHA expects a prompt `ACKNOWLEDGED`
+and a gateway held open while we build a year of FHIR would time out on a transfer that was going to
+succeed — then does the work on the queue. **Consent is re-checked there, at the moment of sending,
+not when the request arrived**: a patient can revoke in between, artefacts are deleted on revoke
+(ADR-087), and the artefact we hold at the instant of sending is the only one that means anything.
+What ships is the intersection of the request, the consent's care contexts, and the consented HI
+types — the request says what the HIU *wants*, the consent says what they *may have*.
+
+Paging is bounded by **bytes, not entry count**: one long admission outweighs fifty prescriptions,
+and an entry-count limit would pass here and fail at the HIU. A rejected page fails the whole
+transfer, so the HIU re-requests rather than believing it holds a complete record. Every refusal is
+**announced** — `ERRORED` to the gateway and an audit row naming the reason, because "expired",
+"revoked" and "granted to a different requester" are different incidents. A completed-but-late
+transfer is audited as a warning, so a pattern of near-misses is visible before NHA finds it.
+
+The push URL is deliberately **not** allowlisted and carries none of our gateway credentials: the
+HIU nominates it, and the protection on that hop is that the payload is unreadable to anyone but the
+holder of the matching private key.
+
+**Testing status:** 15 new tests, most of them asserting that **nothing is sent** — revoked consent,
+uncovered care context, unconsented record type, a window outside the consented range, an expired
+artefact, an unknown facility. **466 backend tests across 50 files**, typecheck and OpenAPI green.
+
+**Two honest caveats.** The **inbound** request path is unverified, like the discovery callbacks —
+it is not in the M1 collection. And the Fidelius invocation itself has **never been executed**: it is
+written from the CLI's documentation and every test runs in mock mode. A wrong argument order fails
+closed, which is safe, but it is still a failed transfer. Both are in `BACKLOG.md`.
+
+## ABDM bridge registration command (`npm run abdm:bridge`)
+
+The two calls that make ABDM able to *reach* us. Every M1 flow is outbound, which is why it works
+from a laptop with no infrastructure; every M2 flow is a webhook, so until the gateway knows our URL
+none of the M2 code can be spoken to — and the symptom is silence, not an error.
+
+Two things made it worth a command rather than a curl in a runbook. **Registering an unreachable URL
+is the worst outcome**: it succeeds, and then every flow fails silently until somebody thinks to
+re-check. So a URL is proved reachable first — HTTPS, no path (the gateway appends its own), a
+public host, and a real answer from `/health` over a certificate Node actually validates — and
+refused otherwise, before anything is sent to NHA. And **NHA's own instructions contradict the V3
+collection**: their onboarding email quotes `/gateway/v1/bridges` and a `HEALTH_LOCKER` example.
+Rather than pick one, each call tries the candidates in order and reports which answered.
+
+Read-only by default; writing takes an explicit flag, because it publishes a URL under our name. The
+client secret is never printed, only its length, so the output can be pasted straight into the NHA
+support ticket that asks us to "verify the integration".
+
+**What the first live read-only run established (26/08/2026)** — real information, not just a smoke
+test: the bridge `SBXID_068944` is **active and not blocklisted**; its registered URL is still NHA's
+**`webhook.site` placeholder**; **no HIP service is registered** (`services: []`); and **the V3 paths
+are the correct ones**, so the email's V1 paths are outdated. Every refusal path was exercised —
+`http://`, a URL carrying a path, a private host, a valid-TLS host with no API, and missing service
+arguments — each refusing before any write.
+
+`ABDM_FACILITY_REGISTRY_URL` added to `.env.example` and `.env` in lockstep; the facility registry is
+a different host from the gateway.

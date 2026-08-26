@@ -9,6 +9,7 @@ import {
   type AbdmLoginVerifyResult,
   type AbdmOtpResult,
   type AbdmProfile,
+  type AbdmProfilePatch,
   type AbdmProvider,
   type AbdmTokens,
 } from './types';
@@ -148,7 +149,7 @@ export class AbdmGatewayProvider implements AbdmProvider {
    */
   private async call<T>(
     path: string,
-    init: { method: 'GET' | 'POST'; body?: unknown; hipId?: string; xToken?: string; tToken?: string; raw?: boolean },
+    init: { method: 'GET' | 'POST' | 'PATCH'; body?: unknown; hipId?: string; xToken?: string; tToken?: string; raw?: boolean },
     retryOn401 = true,
   ): Promise<T> {
     const accessToken = await getAccessToken();
@@ -372,6 +373,33 @@ export class AbdmGatewayProvider implements AbdmProvider {
   async getProfile(input: { xToken: string; hipId?: string }): Promise<AbdmProfile> {
     const data = await this.call<Json>(ABHA_PATHS.profileAccount, { method: 'GET', hipId: input.hipId, xToken: input.xToken });
     return toProfile(data);
+  }
+
+  async updateProfile(input: { xToken: string; patch: AbdmProfilePatch; hipId?: string }): Promise<AbdmProfile> {
+    // Only the keys the caller actually set, under ABDM's own field names. `dob` rather than
+    // `dateOfBirth`, and the name split into its three parts, because that is what their profile
+    // record holds — sending our vocabulary would be rejected field by field.
+    const body: Record<string, unknown> = {};
+    const { patch } = input;
+    if (patch.profilePhoto !== undefined) body.profilePhoto = patch.profilePhoto;
+    if (patch.firstName !== undefined) body.firstName = patch.firstName;
+    if (patch.middleName !== undefined) body.middleName = patch.middleName;
+    if (patch.lastName !== undefined) body.lastName = patch.lastName;
+    if (patch.gender !== undefined) body.gender = patch.gender;
+    if (patch.dateOfBirth !== undefined) body.dob = patch.dateOfBirth;
+    if (patch.address !== undefined) body.address = patch.address;
+    if (patch.pincode !== undefined) body.pincode = patch.pincode;
+
+    const data = await this.call<Json>(ABHA_PATHS.profileAccount, {
+      method: 'PATCH',
+      hipId: input.hipId,
+      xToken: input.xToken,
+      body,
+    });
+    // Some responses echo the updated profile, some acknowledge only. Falling back to a fresh read
+    // means the caller always gets the profile as ABDM now holds it, not as we hoped it would.
+    const echoed = toProfile(pick(data, 'ABHAProfile', 'abhaProfile', 'profile') ?? data);
+    return echoed.abhaNumber || echoed.firstName ? echoed : this.getProfile({ xToken: input.xToken, hipId: input.hipId });
   }
 
   async getAbhaCard(input: { xToken: string; hipId?: string }): Promise<AbdmCard> {

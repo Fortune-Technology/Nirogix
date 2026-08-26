@@ -523,6 +523,44 @@ describe('the mock provider itself', () => {
   });
 });
 
+describe('correcting the profile at ABDM', () => {
+  test('applies the change and reflects what ABDM now holds', async ({ skip }) => {
+    if (!ready) return skip();
+    const verified = await runAadhaarFlow(AADHAAR_NEW);
+    const updated = await abdm.updateAbhaProfile(tenantId, {
+      transactionId: verified.transactionId,
+      patch: { lastName: 'Corrected', pincode: '560001' },
+    });
+    expect(updated.prefill.lastName).toBe('Corrected');
+    expect(updated.prefill.pincode).toBe('560001');
+    // The ABHA number is not something a correction may change out from under us.
+    expect(updated.prefill.abhaNumber).toBe(verified.prefill.abhaNumber);
+  });
+
+  test('an empty patch is refused rather than silently accepted', async ({ skip }) => {
+    if (!ready) return skip();
+    const verified = await runAadhaarFlow(AADHAAR_SECOND);
+    await expect(
+      abdm.updateAbhaProfile(tenantId, { transactionId: verified.transactionId, patch: {} }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'ABDM_NOTHING_TO_UPDATE' });
+  });
+
+  test('the audit records which fields changed, never their values', async ({ skip }) => {
+    if (!ready) return skip();
+    const verified = await runAadhaarFlow(AADHAAR_LINK_A);
+    await abdm.updateAbhaProfile(tenantId, {
+      transactionId: verified.transactionId,
+      patch: { firstName: 'Renamed' },
+    });
+    const rows = await pool.query(
+      "SELECT metadata FROM audit_log WHERE tenant_id = $1 AND action = 'abdm.profile.updated' ORDER BY created_at DESC LIMIT 1",
+      [tenantId],
+    );
+    expect(rows.rows[0].metadata.fields).toEqual(['firstName']);
+    expect(JSON.stringify(rows.rows[0].metadata)).not.toContain('Renamed');
+  });
+});
+
 describe("reading ABDM's error bodies", () => {
   // Found the hard way against the live sandbox: a 400 was reported as "ABDM request failed (400)"
   // because the reason sat in a `details` ARRAY, which the first parser did not look inside. These

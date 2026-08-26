@@ -341,6 +341,71 @@ on their phone. `sendOnShare` does that best-effort (today's share count for tha
 one), so a failed acknowledgement never undoes a profile that is already safely at the desk. A
 one-way implementation looks like it works and leaves the patient's app showing nothing.
 
+## ABDM Milestone 2 — HIP: care contexts + consents (ADR-087)
+
+**Where it is.** `modules/abdm/careContext.service.ts`, `modules/abdm/consent.service.ts`,
+`modules/abdm/abdm.subscribers.ts`; tables `abdm_care_contexts` and `abdm_consents`
+(`db/schema/abdmM2.ts`, migration `0032`). Both tenant-scoped, so both inherit RLS.
+
+**A care context is a pointer, never content.** An opaque reference (the visit id) plus a label
+generated from the visit's date and setting. `assertNonClinicalLabel` **refuses** a label carrying
+clinical vocabulary rather than scrubbing it — the HIE-CM is data blind by design, and a diagnosis
+sent to the consent manager cannot be recalled. One context per visit, with `hi_types` as an
+**array**: a visit produces a prescription, a lab report and an invoice, and the patient expects one
+entry, not three.
+
+**Created from domain events, never from clinical code.** `encounter.signed`,
+`lab.result_verified` and `invoice.created` already fire. The subscriber is entitlement-checked and
+best-effort, so no ABDM failure can break a clinical action, and it only *records* that a shareable
+record exists — the linking call is a separate resumable step. `lab.result_verified` rather than
+`lab.result_ready`: an unverified result is not something to publish nationally.
+
+**Consent artefacts are DELETED on revoke, expiry and opt-out**, not flagged — NHA checks the row is
+gone, and an artefact we keep is an authorisation we might act on. Invariant #6 is intact because
+the **audit event** survives while the **artefact** does not. Expiry is also swept proactively
+(`purgeExpiredConsents`), because relying on a callback leaves a live authorisation behind whenever
+one is missed. `checkConsentForTransfer` is the single fail-closed gate every transfer will pass,
+and it names *why* it refused.
+
+**Linking (ADR-089).** `linkToken.service.ts` (acquire, decrypt, expiry from the token's own `exp`),
+`linking.service.ts` (the sweep, update notify, SMS fallback), `hipGateway.ts` (the **gateway** host
+client — M1 talks to the ABHA host, M2 to the gateway; sending one to the other 404s in a way that
+reads like a missing feature). Linking is a **resumable sweep**, never inline: token acquisition is
+asynchronous, so a clinical write must not depend on it. Contexts are marked linked optimistically
+and put back to `pending` by the failure callback, so retries are automatic and `linked_at` never
+drifts. `ABDM_PROVIDER=mock` makes `hipPost` record the call instead of sending it, which is what
+makes any of this testable before the bridge URL exists.
+
+**FHIR (ADR-088).** `fhir/` builds NRCES-profiled document bundles for seven HI types from real
+rows — structured, not attachment-wrapped, because this product stores no PDFs and its data is
+already partly coded.
+
+**Discovery and user-initiated linking (ADR-090).** `discovery.service.ts` matches a patient from
+what ABDM forwards; `userLinking.service.ts` runs our own OTP round trip and posts the three `on-*`
+answers. The matching rule to remember: **ambiguity means no match** — a verified ABHA address is
+conclusive, demographics need mobile AND name AND year of birth together, and a self-declared
+hospital number can only break a tie, never make a match. The OTP goes to the number on the chart
+through the shared communication seam. The three **inbound** paths are unverified against an
+official collection (`BACKLOG.md`).
+
+**Data transfer (ADR-091).** `dataTransfer.service.ts` answers a consented request: acknowledge at
+once, then build → encrypt → push → notify on the queue, inside NHA's twenty minutes. Two rules
+carry the whole design. **Consent is re-checked at the moment of sending**, not when the request
+arrived — a patient can revoke in between and artefacts are deleted on revoke, so only the artefact
+held at send time counts. And **there is no plaintext fallback on any path**: `cipher.ts` shells out
+to the Fidelius CLI, and a missing jar, missing JRE or bad key ends the transfer rather than
+weakening it (`FIDELIUS_CLI_PATH` unset **disables** transfer). What ships is the intersection of the
+request, the consent's care contexts and the consented HI types. Paging is bounded by bytes, a
+rejected page fails the whole transfer, and every refusal is announced to the gateway and audited
+with its reason. The HIU's push URL is deliberately not allowlisted and carries none of our
+credentials — the payload's encryption is the protection there, not the host.
+
+**Bridge registration (`npm run abdm:bridge`).** The two calls that make ABDM able to *reach* us — set the bridge URL, register the HIP service — plus a read-only status view that is the default. It **proves a URL is reachable before registering it** (HTTPS, no path, public host, a real answer from `/health` over a valid certificate) because registering a dead URL succeeds and then fails silently forever. Where NHA's onboarding email and the V3 collection disagree on paths, it tries both and reports which answered.
+
+**Still blocked on infrastructure:** every M2 flow needs a public HTTPS endpoint before it can
+round-trip (`BACKLOG.md` I-5), and the Fidelius invocation has never been executed against the real
+jar — every test runs in mock mode, which returns a marked non-secret envelope.
+
 ## Observability & Ops
 
 - **Structured logging:** pino (`config/logger.ts`) with **PII/secret redaction** (authorization headers, cookies, passwords, tokens) — JSON in staging/production, pretty in dev. `pino-http` adds a per-request correlation id.

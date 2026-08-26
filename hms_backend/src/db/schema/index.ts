@@ -43,3 +43,5 @@ export * from './branchAvailability';
 export * from './passwordResetTokens';
 // ABDM Milestone 1 — facility identity + verification transactions (ADR-084).
 export * from './abdm';
+// ABDM Milestone 2 — care contexts + consent artefacts (ADR-087).
+export * from './abdmM2';

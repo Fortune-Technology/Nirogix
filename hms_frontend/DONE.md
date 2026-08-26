@@ -820,3 +820,19 @@ seen before.
 **Verified live** end to end: a shared profile → one click → form filled (name, gender, date of
 birth in DD/MM/YYYY, phone, address, city, state, PIN, ABHA number and address) → Register →
 `UHID-000008` with the ABHA reading **Verified with ABDM**.
+
+---
+
+## ABDM: correcting the profile at ABDM (ADR-084)
+
+**What:** a folded-away **Correct these details at ABDM** panel on the verified-profile card,
+rendered only for staff holding `abdm.profile.update` — which the receptionist does not hold by
+default. It sends only the fields the operator actually changed: resending unchanged values would
+rewrite fields nobody touched, on a national identity register.
+
+The copy is the important part. It states the change lands **at ABDM**, not just at this hospital,
+and points at the registration form below for a local-only fix — because those two corrections look
+identical on screen and are not remotely the same act.
+
+**Testing status:** typecheck and the production build green; the behaviour is covered end to end in
+the backend API suite, and the manual walk-through is `docs/manual-testing-guide.md` §5.1a.13.

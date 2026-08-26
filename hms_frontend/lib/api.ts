@@ -59,6 +59,7 @@ import type {
   AbdmOtpSent,
   AbdmPendingShare,
   AbhaIdentifierType,
+  AbhaProfileUpdate,
   AbhaVerificationResult,
   ScheduleWindow,
   FreeSlots,
@@ -1121,5 +1122,17 @@ export async function saveAbdmFacility(body: {
     method: "PUT",
     body,
     feedback: { success: "ABDM facility settings saved." },
+  });
+}
+
+/**
+ * Correct the patient's profile at ABDM. Writes to the national register, so it is gated by its
+ * own permission and is not something the front desk can do unless the hospital grants it.
+ */
+export async function updateAbhaProfile(body: AbhaProfileUpdate): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/profile", {
+    method: "PATCH",
+    body,
+    feedback: { success: "Profile updated at ABDM." },
   });
 }

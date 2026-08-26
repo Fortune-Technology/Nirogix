@@ -8,7 +8,7 @@ import { writeAudit } from '../audit/audit.service';
 import { encryptSecret, isEncryptionConfigured, tryDecryptSecret } from '../../security/encryption';
 import { maskAadhaar, maskMobile, scrubAadhaar } from '../../security/redaction';
 import { abdmProvider } from './providers';
-import { AbdmGatewayError, type AbdmProfile, type AbdmTokens } from './providers/types';
+import { AbdmGatewayError, type AbdmProfile, type AbdmProfilePatch, type AbdmTokens } from './providers/types';
 import { encryptForAbdm } from './abdm.crypto';
 import { ABDM_SCOPES, LOGIN_HINTS, OTP_SYSTEMS } from './abdm.constants';
 
@@ -624,6 +624,66 @@ export async function downloadAbhaCard(tenantId: string, transactionId: string):
   const txn = await loadTransaction(tenantId, transactionId);
   try {
     return await abdmProvider().getAbhaCard({ xToken: profileToken(txn), hipId: await hipIdFor(tenantId, txn.branchId) });
+  } catch (err) {
+    throw toAppError(err);
+  }
+}
+
+/**
+ * Amends the patient's profile AT ABDM, on a completed verification (`PATCH /v3/profile/account`).
+ *
+ * This is the only ABDM call in M1 that **writes to the national register** rather than reading
+ * from it, which is why it carries its own permission and its own audit action. Three consequences
+ * follow from that and are deliberate:
+ *
+ * - It needs the holder's own `X-token`, so it only works inside a verification the patient just
+ *   authenticated — a hospital cannot amend an ABHA it has not been shown consent for.
+ * - The stored profile is refreshed from ABDM's answer, not from what we asked for, so our copy
+ *   never claims a change the register did not accept.
+ * - It does **not** touch the patient's chart here. Correcting the national record and correcting
+ *   the hospital's record are separate acts; conflating them would let one screen silently rewrite
+ *   two systems.
+ */
+export async function updateAbhaProfile(
+  tenantId: string,
+  input: { transactionId: string; patch: AbdmProfilePatch },
+  actorUserId?: string,
+): Promise<VerificationResult> {
+  const txn = await loadTransaction(tenantId, input.transactionId);
+  if (Object.values(input.patch).every((v) => v === undefined)) {
+    throw new AppError(422, 'ABDM_NOTHING_TO_UPDATE', 'No changes were supplied');
+  }
+
+  try {
+    const profile = await abdmProvider().updateProfile({
+      xToken: profileToken(txn),
+      patch: input.patch,
+      hipId: await hipIdFor(tenantId, txn.branchId),
+    });
+
+    const updated = await updateTransaction(tenantId, txn.id, {
+      profile: scrubAadhaar(profile as unknown as Record<string, unknown>),
+      abhaNumber: profile.abhaNumber ?? txn.abhaNumber,
+      abhaAddress: profile.abhaAddress ?? txn.abhaAddress,
+    } as Partial<AbdmTransaction>);
+
+    await writeAudit({
+      tenantId,
+      actorUserId: actorUserId ?? null,
+      action: 'abdm.profile.updated',
+      resourceType: 'abdm_transaction',
+      resourceId: txn.id,
+      severity: 'notice',
+      // WHICH fields changed, never their values — this is a patient's national identity record.
+      metadata: { fields: Object.keys(input.patch).filter((k) => input.patch[k as keyof AbdmProfilePatch] !== undefined) },
+    });
+
+    return {
+      transactionId: updated.id,
+      state: updated.state,
+      prefill: { ...toPrefill(profile), abhaNumber: updated.abhaNumber ?? undefined, abhaAddress: updated.abhaAddress ?? undefined },
+      match: await matchPatient(tenantId, profile),
+    };
   } catch (err) {
     throw toAppError(err);
   }

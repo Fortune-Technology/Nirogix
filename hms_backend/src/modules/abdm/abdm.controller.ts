@@ -1,6 +1,11 @@
 import type { Request, Response } from 'express';
 import * as svc from './abdm.service';
 import { toPatientDto } from '../patient/patient.dto';
+import { logger } from '../../config/logger';
+import { storeLinkToken } from './linkToken.service';
+import * as userLink from './userLinking.service';
+import * as transfer from './dataTransfer.service';
+import { recordLinkCallback } from './linking.service';
 import type { AbdmProfile } from './providers/types';
 
 /**
@@ -137,12 +142,173 @@ function normaliseSharedProfile(raw: Record<string, unknown> & { name?: string }
   return profile;
 }
 
+/**
+ * ABDM delivering a link token after a demographic-auth request (ADR-089).
+ *
+ * Unauthenticated by necessity — the caller is the gateway — so it follows the same posture as the
+ * other callbacks: the hospital is resolved server-side from `X-HIP-ID`, and the answer is an
+ * identical 202 whatever we decide to do with the payload, so it cannot be used to probe which
+ * facilities or ABHA addresses exist.
+ */
+export async function onGenerateToken(req: Request, res: Response): Promise<void> {
+  const body = req.body as { abhaAddress: string; linkToken: string };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  if (hipId) {
+    await storeLinkToken({ abhaAddress: body.abhaAddress, token: body.linkToken, hipId });
+  }
+  res.status(202).json({ accepted: true });
+}
+
+/**
+ * ABDM's verdict on a care-context link.
+ *
+ * We optimistically mark contexts linked when the request is accepted, so this callback exists to
+ * *correct* that when the gateway disagrees — which is the only way a hospital would otherwise
+ * discover that records the desk believes are shared never actually reached the patient's app.
+ */
+export async function onLinkCareContext(req: Request, res: Response): Promise<void> {
+  const body = req.body as { abhaAddress?: string; status?: string; error?: { message?: string } };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  if (hipId && body.abhaAddress) {
+    await recordLinkCallback({ hipId, abhaAddress: body.abhaAddress, status: body.status, error: body.error?.message });
+  }
+  res.status(202).json({ accepted: true });
+}
+
+/**
+ * Discovery, init and confirm — the patient-driven half of linking (ADR-090).
+ *
+ * All three answer 202 immediately and do their real work against the gateway's `on-*` endpoints,
+ * because that is how the protocol is shaped: the gateway is not waiting for our answer on this
+ * connection, it is waiting for a callback. They also answer identically whatever happens, so none
+ * of them can be used to test whether a patient exists.
+ */
+export async function discoverCareContexts(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    transactionId?: string;
+    requestId?: string;
+    patient: {
+      id?: string;
+      name?: string;
+      gender?: string;
+      yearOfBirth?: string | number;
+      verifiedIdentifiers?: Array<{ type: string; value: string | number }>;
+      unverifiedIdentifiers?: Array<{ type: string; value: string | number }>;
+    };
+  };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+
+  if (!hipId) return;
+  const pick = (list: Array<{ type: string; value: string | number }> | undefined, type: string) =>
+    list?.find((i) => i.type.toUpperCase() === type)?.value;
+
+  // Verified and unverified identifiers are read from their own lists and never merged: the whole
+  // matching rule depends on knowing which is which (ADR-090).
+  await userLink
+    .respondToDiscovery({
+      hipId,
+      transactionId: body.transactionId,
+      requestId: body.requestId,
+      request: {
+        abhaAddress: body.patient.id,
+        mobile: String(pick(body.patient.verifiedIdentifiers, 'MOBILE') ?? ''),
+        name: body.patient.name,
+        gender: body.patient.gender,
+        yearOfBirth: body.patient.yearOfBirth ? Number(body.patient.yearOfBirth) : undefined,
+        medicalRecordNumber: String(pick(body.patient.unverifiedIdentifiers, 'MR') ?? '') || undefined,
+      },
+    })
+    .catch((err: unknown) => logger.error({ err }, 'ABDM discovery response failed'));
+}
+
+export async function initCareContextLink(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    transactionId: string;
+    requestId?: string;
+    patient: { referenceNumber: string; careContexts: Array<{ referenceNumber: string }> };
+  };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+
+  if (!hipId) return;
+  await userLink
+    .initUserLink({
+      hipId,
+      transactionId: body.transactionId,
+      requestId: body.requestId,
+      patientReference: body.patient.referenceNumber,
+      careContextRefs: body.patient.careContexts.map((c) => c.referenceNumber),
+    })
+    .catch((err: unknown) => logger.error({ err }, 'ABDM link init failed'));
+}
+
+export async function confirmCareContextLink(req: Request, res: Response): Promise<void> {
+  const body = req.body as { requestId?: string; confirmation: { linkRefNumber: string; token: string } };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+
+  if (!hipId) return;
+  await userLink
+    .confirmUserLink({
+      hipId,
+      referenceNumber: body.confirmation.linkRefNumber,
+      token: body.confirmation.token,
+      requestId: body.requestId,
+    })
+    .catch((err: unknown) => logger.error({ err }, 'ABDM link confirm failed'));
+}
+
+/**
+ * A consented HIU asking for records (ADR-091).
+ *
+ * Answers 202 at once and does the work on the queue: NHA allows twenty minutes, and a gateway held
+ * open while we build FHIR for a year of records would time out on a transfer that was going to
+ * succeed.
+ */
+export async function requestHealthInformation(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    transactionId: string;
+    requestId?: string;
+    hiRequest: {
+      consent: { id: string };
+      dataPushUrl: string;
+      keyMaterial?: { dhPublicKey?: { keyValue?: string }; nonce?: string };
+      dateRange?: { from?: string; to?: string };
+      careContexts?: Array<{ careContextReference: string }>;
+    };
+  };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+
+  if (!hipId) return;
+  await transfer
+    .receiveHealthInformationRequest({
+      hipId,
+      transactionId: body.transactionId,
+      requestId: body.requestId,
+      consentId: body.hiRequest.consent.id,
+      dataPushUrl: body.hiRequest.dataPushUrl,
+      hiuPublicKey: body.hiRequest.keyMaterial?.dhPublicKey?.keyValue,
+      hiuNonce: body.hiRequest.keyMaterial?.nonce,
+      careContextRefs: (body.hiRequest.careContexts ?? []).map((c) => c.careContextReference),
+      from: body.hiRequest.dateRange?.from,
+      to: body.hiRequest.dateRange?.to,
+    })
+    .catch((err: unknown) => logger.error({ err }, 'ABDM health information request failed'));
+}
+
 // --- Linking ----------------------------------------------------------------------------------
 
 export async function linkPatient(req: Request, res: Response): Promise<void> {
   // Through the shared patient DTO: the row carries the encrypted linking token, and an endpoint
   // that returned the raw record would publish a bearer credential to the browser.
   res.json(toPatientDto(await svc.linkToPatient(req.auth!.tenantId, req.body, req.auth!.userId)));
+}
+
+export async function updateProfile(req: Request, res: Response): Promise<void> {
+  const { transactionId, ...patch } = req.body as { transactionId: string } & Record<string, unknown>;
+  res.json(await svc.updateAbhaProfile(req.auth!.tenantId, { transactionId, patch }, req.auth!.userId));
 }
 
 export async function getVerification(req: Request, res: Response): Promise<void> {

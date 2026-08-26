@@ -117,3 +117,18 @@ platform_services) carry `BUILT` capabilities.
 **Testing status:** typecheck + build green, `dist/` rebuilt; `registry.test.ts` now 16 tests
 (adds domain-coverage, legacy-key and honesty assertions); full backend suite **355** green. Live
 API confirms 11 categories / 42 modules / 246 capabilities for a seeded tenant.
+
+---
+
+## `abdm.profile.update` (ADR-084)
+
+**What:** a fifth ABDM key, for correcting the patient's profile **at ABDM**. Separated from
+`abdm.verification.perform` because reading a national identity register and writing to it are
+different acts, and from `abdm.verification.link` because that one only ever touches our own chart.
+
+Granted to **org_admin only** — deliberately not in the receptionist's default set. A hospital that
+wants its front desk to amend ABDM records grants the key on purpose rather than inheriting the
+ability from a role that exists to register patients.
+
+**Testing status:** `dist/` rebuilt; 378 backend tests pass, including a case proving the front desk
+is refused by default and one proving the audit records which fields changed and never their values.

@@ -121,6 +121,14 @@ const EnvSchema = z.object({
   ABDM_CONSENT_VERSION: z.string().default('m1-v1'),
   // How long a verification transaction stays usable before the operator must restart it.
   ABDM_TXN_TTL_SECONDS: z.coerce.number().int().positive().default(600),
+  // Path to NHA's Fidelius CLI jar, used to encrypt health records for a requesting HIU (ADR-091).
+  // Requires a JRE on the host. Unset means health records CANNOT be shared: the transfer refuses
+  // rather than falling back to anything weaker, so leaving this blank disables M2 data transfer
+  // and nothing else.
+  FIDELIUS_CLI_PATH: z.string().optional(),
+  // NHA's ceiling for completing a data transfer after the request arrives. Kept configurable so a
+  // stricter internal target can be set, never a looser one than NHA allows.
+  ABDM_TRANSFER_SLA_SECONDS: z.coerce.number().int().positive().default(1200),
 }).superRefine((val, ctx) => {
   // Selecting the real ABDM gateway without credentials is a misconfiguration that would only
   // show up as a 401 from NHA at the registration counter. Catch it at boot instead.
