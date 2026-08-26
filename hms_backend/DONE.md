@@ -1072,3 +1072,83 @@ The sandbox run surfaced three things no amount of unit testing would have:
 
 **Testing status:** 328 backend tests, typecheck and OpenAPI green. Live against the ABDM sandbox:
 OTP delivered to the Aadhaar-linked mobile and verified `200 OK` — M1 enrolment works end to end.
+
+---
+
+## 2026-08-26 — Capability entitlement engine (ADR-085, P1 — built-only retrofit)
+
+**What:** the capability tier beneath module entitlement — a module's independently-toggleable
+sub-features — added without changing any running behaviour.
+- **`tenant_capability_entitlements`** (migration `0031`) — **deny-by-exception**: a capability is ON
+  whenever its module is entitled and no *effective* override disables it, so the table starts empty
+  and existing behaviour is preserved byte-for-byte (no backfill). Never physically deleted;
+  branch-nullable; RLS auto-applied via the `tenant_id` column.
+- **`modules/entitlement/capability.service.ts`** — `isCapabilityEntitled`,
+  `listEntitledCapabilities`, `setCapabilityStatus` (audited `capability.status`; enforces
+  configure-time dependency rules **both** ways). Pure, unit-tested `resolveCapabilityEnabled` /
+  `isCapabilityRowEffective`.
+- **`http/requireCapability.ts`** + `Errors.capabilityNotEntitled` (403 `CAPABILITY_NOT_ENTITLED`) —
+  the optional 3rd authz link: `requireAuth → requireModule → requireCapability → requirePermission`.
+  Wired on the `billing.services` catalogue routes (the shipped demonstrator).
+- **`moduleCatalog.ts`** now derives from `@hms/permissions` `MODULE_REGISTRY` — the module list has
+  exactly one source of truth.
+- **`GET /entitlements`** returns `{ modules, capabilities }`.
+
+**Why:** ADR-085 (extends ADR-083) — express `OT = ON, OT Billing = OFF`-style configuration, keep
+one canonical registry FE/BE, preserve existing behaviour, and make the engine the standard every
+future module is built to. The 86-module map may be described in the registry, but only `BUILT`
+entries are entitled or marketed (ADR-038). Frontend consumption (module-/capability-aware nav) is
+the later ADR-083 §20C / §20D session work.
+
+**Testing status:** full backend suite **351** green (was 328; +23 — `registry.test.ts` 14,
+`requireCapability.test.ts` 3, `capability.test.ts` 6). Typecheck + OpenAPI valid. Migration `0031`
+applied by test globalSetup. Covered: default-ON, explicit disable/re-enable, module-off cascade,
+unknown-capability rejection, and dependency guards in both directions; the billing services routes
+still answer 200 through the new capability gate (default-ON).
+
+**Admin capability configuration (same day, ADR-085 P5):** two operator endpoints —
+`GET /admin/tenants/:id/capabilities` (every declared capability of a tenant's entitled modules +
+its enabled state, via `listTenantCapabilities`) and `PUT /admin/tenants/:id/capabilities`
+(`{ module, capability, enabled }` → `setCapabilityStatus`; a dependency-guard failure is mapped to
+**409** with the backend message, not a 500). Both `platform.tenants.manage`, documented in OpenAPI.
+Drives the admin console's Capabilities card. Suite **352** with the `listTenantCapabilities` test.
+A third endpoint, `GET /admin/tenants/:id/module-config` (`getTenantModuleConfig`), returns the
+**whole** registry grouped by domain with each module's `entitled` and each capability's `enabled`
+state — the single model the three-level admin module manager consumes (ADR-085 §19). Suite **353**.
+
+## Notification & email wiring (26/08/2026, ADR-086)
+
+**Central email system.** New `modules/notification/email/` — `layout.ts` (one branded, responsive,
+inline-styled HTML renderer + plain-text twin, HTML-escaping untrusted text), `email-templates.ts`
+(THE typed catalogue: `auth_password_reset`, `auth_password_changed`, `onboarding_admin_welcome`,
+`staff_welcome`, `appointment_confirmed`, `appointment_cancelled`, `payment_receipt`,
+`lab_results_ready`, `patient_welcome` — each with `subject`/`build`/`sample`), `format.ts`
+(DD/MM/YYYY, hh:mm AM/PM, ₹). `communication.service.ts` gains `sendAppEmail(template, data)` +
+`resolveEmailBrand` (tenant accent + org name, Nirogix default; no logo — signed URLs expire). The
+password-reset email now renders through the catalogue instead of inline text.
+
+**Event → email subscribers.** `notification.subscribers.ts` (registered in `events/subscribers.ts`)
+sends on `appointment.booked`/`cancelled`, `payment.received`, `lab.result_verified` (NEW event,
+published at `verifyResult` — portal release, not raw entry), `patient.registered` — email only,
+only when the patient has an email, deduped per entity. `onboardTenant` + `createUser` send a
+welcome email with a set-your-password link (reset-token flow, new `PASSWORD_SETUP_TTL='7d'`; temp
+password still returned — non-breaking). `resetPassword` + `changeOwnPassword` send a security
+confirmation. Not wired (anti-spam): `visit.checked_in`, `encounter.signed`, `invoice.created`,
+`user.logged_in`.
+
+**Platform messages.** `messages.ts` — single catalogue of canonical success copy; `onboardTenant`
+and `createUser` controllers now return `{ message }` so all frontends show identical copy. No
+in-app notification centre (the codebase deliberately avoids faking one).
+
+**Email preview.** `GET /admin/email-templates` + `GET /admin/email-templates/:key/preview`
+(`platform.tenants.manage`, documented in OpenAPI) list the catalogue and render a template from
+sample data. Backs the new admin `/email-templates` page.
+
+**Config.** `PATIENT_URL` added (env + `.env.example` + `.env`, lockstep) for patient-email portal
+links; blank ⇒ button omitted. `NotificationJobData` gains `templateId` (prep for transactional SMS,
+still blocked on DLT — BACKLOG I-1).
+
+**Testing.** New pure `email.test.ts` (16 — layout, escaping, every template renders, formatting).
+Shared `test-api.ts` `cleanupTenant` + the 22 bespoke integration teardowns now clear
+`notification_log` before deleting the tenant (business flows emit notifications now;
+`notification_log.tenant_id` is ON DELETE RESTRICT — invariant #6). Backend typecheck + OpenAPI valid.

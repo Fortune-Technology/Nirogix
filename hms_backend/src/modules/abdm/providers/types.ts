@@ -71,6 +71,31 @@ export interface AbdmLoginVerifyResult {
   profile?: AbdmProfile;
 }
 
+/**
+ * What may be changed on an ABHA profile.
+ *
+ * An allow-list, not a passthrough: this writes to a national identity register, and forwarding
+ * arbitrary keys to it because a caller supplied them is not a risk worth taking for convenience.
+ *
+ * `profilePhoto` is the one field the official V3 collection demonstrates for the `X-token`
+ * (private-integrator) path. The demographic fields appear there only on the Benefit APIs, which
+ * are the Government variant with different authentication — so they are offered here but are
+ * **unconfirmed against a live private-sector call**, and NHA's own rejection is surfaced verbatim
+ * if it refuses one. Tracked in BACKLOG.md.
+ */
+export interface AbdmProfilePatch {
+  /** Base64 image, as ABDM stores it. */
+  profilePhoto?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  gender?: string;
+  /** `DD-MM-YYYY`, the format ABDM's own examples use for `dob`. */
+  dateOfBirth?: string;
+  address?: string;
+  pincode?: string;
+}
+
 export interface AbdmCard {
   contentType: string;
   data: Buffer;
@@ -117,6 +142,12 @@ export interface AbdmProvider {
   /** Choose one ABHA when `loginVerify` returned several. */
   loginVerifyUser(input: { txnId: string; abhaNumber: string; token: string; hipId?: string }): Promise<AbdmEnrolResult>;
   getProfile(input: { xToken: string; hipId?: string }): Promise<AbdmProfile>;
+  /**
+   * Amends the ABHA holder's own profile at ABDM (`PATCH /v3/profile/account`, authenticated with
+   * the holder's `X-token`). The field set is an explicit allow-list rather than a passthrough —
+   * see `AbdmProfilePatch`.
+   */
+  updateProfile(input: { xToken: string; patch: AbdmProfilePatch; hipId?: string }): Promise<AbdmProfile>;
   getAbhaCard(input: { xToken: string; hipId?: string }): Promise<AbdmCard>;
 }
 

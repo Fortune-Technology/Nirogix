@@ -323,7 +323,7 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
  * verify, and a corrected result always needs a fresh sign-off.
  */
 export async function verifyResult(tenantId: string, labOrderId: string, actorUserId?: string) {
-  await runWithTenant(tenantId, async (tx) => {
+  const patientId = await runWithTenant(tenantId, async (tx) => {
     const order = (
       await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
     )[0];
@@ -334,7 +334,11 @@ export async function verifyResult(tenantId: string, labOrderId: string, actorUs
       .update(labResults)
       .set({ verifiedBy: actorUserId ?? null, verifiedAt: new Date() })
       .where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)));
+    return order.patientId;
   });
+  // Verification is what releases the report to the patient portal (ADR-070) — the point at which
+  // the patient may be told it's ready. Published once, here (not on raw result entry).
+  eventBus.publish('lab.result_verified', { tenantId, labOrderId, patientId });
   await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.verify', resourceType: 'lab_order', resourceId: labOrderId, metadata: {} });
   return getLabOrder(tenantId, labOrderId);
 }

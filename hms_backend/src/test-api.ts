@@ -156,6 +156,10 @@ export async function cleanupTenant(code: string): Promise<void> {
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
+    // notification_log.tenant_id is ON DELETE RESTRICT (invariant #6 — sends are never physically
+    // deleted in production); the suite must clear it before the tenant. Business flows now emit
+    // notifications (welcome/appointment/payment/lab/patient emails, ADR-086).
+    'notification_log',
     // ABDM first: `abdm_transactions.patient_id` is ON DELETE RESTRICT, so it has to go before
     // the charts it points at (ADR-084).
     'abdm_transactions', 'abdm_facility_config',

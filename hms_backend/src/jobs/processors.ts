@@ -23,6 +23,7 @@ export function registerProcessors(): void {
         to: data.to,
         body: data.body,
         templateKey: data.templateKey,
+        templateId: data.templateId,
         idempotencyKey: data.idempotencyKey,
       });
     }

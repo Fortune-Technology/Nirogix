@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@hms/permissions";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Palette, ScrollText, UserCircle } from "lucide-react";
+import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Mail, Palette, ScrollText, UserCircle } from "lucide-react";
 
 /**
  * Platform administration navigation (ADR-037, ADR-051).
@@ -53,6 +53,8 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Platform",
     items: [
       { label: "Branding", href: "/branding", perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE, icon: Palette },
+      // Read-only preview of the platform's email templates, rendered from sample data.
+      { label: "Email templates", href: "/email-templates", perm: PERMISSIONS.TENANTS_MANAGE, icon: Mail },
       { label: "Security & audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },

@@ -3,6 +3,7 @@ import { PERMISSIONS } from '@hms/permissions';
 import { pool } from '../../../db/client';
 import { seedPermissionCatalog, resolvePermissions } from '../../rbac/rbac.service';
 import { onboardTenant, listTenants, getTenantDetail } from '../admin.service';
+import { listEntitledCapabilities } from '../../entitlement/capability.service';
 
 // Operator onboarding (ADR-020): creating a tenant provisions RBAC, grants modules, and creates
 // the first org_admin — all isolated. Skips cleanly if no DB is reachable.
@@ -14,12 +15,14 @@ async function cleanup(): Promise<void> {
   const t = (await pool.query('SELECT id FROM tenants WHERE code = $1', [CODE])).rows[0];
   if (!t) return;
   await pool.query('ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_change');
+  await pool.query('DELETE FROM notification_log WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   await pool.query('DELETE FROM user_permission_overrides WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM user_roles WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM role_permissions WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM roles WHERE tenant_id = $1', [t.id]);
+  await pool.query('DELETE FROM tenant_capability_entitlements WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM branches WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM users WHERE tenant_id = $1', [t.id]);
@@ -92,5 +95,27 @@ describe('admin / tenant onboarding', () => {
     if (!ready) return skip();
     const tenants = await listTenants();
     expect(tenants.some((t) => t.code === CODE)).toBe(true);
+  });
+  // Capability choices made at onboarding (ADR-085). Deny-by-exception: everything is on unless
+  // the operator switched it off, so only the OFF ones travel in the request.
+  test('onboarding honours capability choices', async ({ skip }) => {
+    if (!ready) return skip();
+    await cleanup();
+    await onboardTenant({
+      code: CODE,
+      name: 'Capability Choice Hospital',
+      modules: ['patient', 'billing'],
+      disabledCapabilities: ['billing.services', 'laboratory.orders'],
+      admin: { email: 'caps@admintest.example', fullName: 'Caps Admin' },
+    });
+    const t = (await pool.query('SELECT id FROM tenants WHERE code = $1', [CODE])).rows[0];
+    const caps = await listEntitledCapabilities(t.id);
+    // Switched off at onboarding.
+    expect(caps).not.toContain('billing.services');
+    // Untouched capabilities of a granted module stay on (no row needed).
+    expect(caps).toContain('billing.invoice');
+    expect(caps).toContain('patient.registration');
+    // A capability of a module that was never granted is ignored, not an error.
+    expect(caps).not.toContain('laboratory.orders');
   });
 });

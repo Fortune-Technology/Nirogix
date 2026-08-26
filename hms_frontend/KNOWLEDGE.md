@@ -203,3 +203,24 @@ The Portal is private and never indexed: the root layout sets `robots: { index: 
 - **ABDM / ABHA at registration (built, ADR-084):** `components/abdm/AbhaVerificationPanel.tsx` above the patient registration form — Scan & Share (facility QR, no OTP) leading, plus verify-an-existing-ABHA and create-from-Aadhaar. It never registers anyone: it returns a prefill (which fills **only empty fields**) and a transaction id the form links after the chart is created. The capabilities probe is silent by design, so a tenant without the `abdm` module simply sees no panel. `app/(app)/hospital-setup/abdm/` is where org_admin enters the hospital's own HFR facility id and QR payload. QR drawing is shared through `lib/useQrDataUrl.ts` (ADR-029); `components/print/usePublicQr.ts` composes it.
 - Public self-registration + self-serve billing stay in the Enterprise track. Password reset / email invite, per-branch branding, and a custom-role editor are later slices.
 - MFA challenge, forgot-password, and branch switching are stubs/not present.
+
+## Module & capability aware navigation (ADR-085)
+
+The sidebar, the mobile bottom bar and the drawer all render the intersection the backend already
+enforces: **tenant module ∩ tenant capability ∩ user permission**. `NavItem` carries an optional
+`module` and `capability`; `navEntitled(item, entitlement)` in `lib/nav.ts` is the single predicate
+both `navGroupsForUser` and `mobilePrimaryNav` use, and a group whose every item is hidden
+disappears. Entitlement comes from the shared session (`@hms/client` `useAuth().hasModule` /
+`hasCapability`, loaded from `GET /entitlements`).
+
+Rules worth keeping:
+- **Hiding is never the boundary.** Every route is independently re-checked by `requireModule` →
+  `requireCapability` → `requirePermission`; a hidden item typed as a URL still gets a 403 and the
+  screen reports *"This module is not available for your organization"*.
+- **WILDCARD does not bypass entitlement.** A platform operator in a support session still cannot
+  see a module the hospital never bought — entitlement is the tenant's, permission is the user's.
+- **No entitlement context = show everything permitted.** While the session loads (or if the
+  entitlements call fails) the menu falls back to permission-only filtering rather than emptying.
+- An item with no `module` is Platform Core (Dashboard, Profile, Users…) and is never entitlement-filtered.
+
+Covered by `lib/__tests__/nav.test.ts` (8 tests — the Portal's first automated tests).

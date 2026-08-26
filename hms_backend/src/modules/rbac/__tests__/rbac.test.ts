@@ -30,6 +30,7 @@ async function cleanup(): Promise<void> {
   await pool.query('DELETE FROM branches WHERE tenant_id = $1', [t.id]);
   // audit rows (written by role/override changes) are append-only — disable the trigger to purge.
   await pool.query('ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_change');
+  await pool.query('DELETE FROM notification_log WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);

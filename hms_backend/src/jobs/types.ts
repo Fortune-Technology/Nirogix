@@ -8,6 +8,8 @@ export type NotificationJobData = {
   subject?: string;
   body?: string;
   templateKey?: string;
+  /** DLT/provider template id for Indian SMS (required by MSG91 once transactional SMS is live). */
+  templateId?: string;
   idempotencyKey?: string;
 };
 

@@ -35,3 +35,16 @@ src/
 ## Verify
 
 `npm run typecheck -w @hms/client` and `npm run test -w @hms/client` (12 feedback tests, moved here with the code).
+
+## Entitlements in the session (ADR-085)
+
+`AuthProvider` loads `GET /entitlements` in the same round as `/auth/me` and `/rbac/permissions`,
+so the session holds the tenant's enabled **modules** and **capabilities** beside the user's
+permission set. Exposed as `hasModule(key)` / `hasCapability(key)` on the context and as the
+`useModule` / `useCapability` / `useEnabledModules` / `useEnabledCapabilities` hooks.
+
+Two deliberate rules: **WILDCARD does not bypass entitlement** (a module the tenant lacks stays
+hidden even for a platform operator — entitlement is the tenant's, permission is the user's), and an
+entitlements **fetch failure falls back to empty sets** rather than failing the session, so a
+transient error hides module-gated items instead of offering routes the API would refuse. Client
+visibility is never the boundary — the backend re-checks with `requireModule` / `requireCapability`.

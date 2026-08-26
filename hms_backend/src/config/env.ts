@@ -55,6 +55,9 @@ const EnvSchema = z.object({
   // is client input, and a link built from it would let a request steer where the email points.
   PORTAL_URL: z.string().url().default('http://localhost:3001'),
   ADMIN_URL: z.string().url().default('http://localhost:3003'),
+  // Patient-portal origin, used to add a "view in portal" link to patient-facing emails
+  // (appointment/payment/lab/welcome). Blank ⇒ those emails simply omit the button.
+  PATIENT_URL: z.string().url().default('http://localhost:3002'),
 
   // Notifications — MSG91 for SMS/WhatsApp AND email (ADR-016). All optional: when unset, the
   // dev "log" provider is used (messages are logged, not sent). No module calls MSG91 directly.

@@ -33,12 +33,27 @@ type Status = "loading" | "authenticated" | "anonymous";
 interface Capabilities {
   wildcard: boolean;
   permissions: Set<string>;
+  /** Tenant-enabled module keys (ADR-085). Empty until the session loads. */
+  modules: Set<string>;
+  /** Tenant-enabled capability keys of those modules (ADR-085). */
+  capabilities: Set<string>;
 }
 
 export interface AuthContextValue {
   status: Status;
   user: AuthUser | null;
   can: (permission: string) => boolean;
+  /**
+   * Is this module enabled for the tenant (ADR-085)? Visibility only — the backend
+   * re-checks with requireModule on every call, so hiding is never the boundary.
+   */
+  hasModule: (moduleKey: string) => boolean;
+  /** Is this capability enabled for the tenant (ADR-085)? Visibility only. */
+  hasCapability: (capabilityKey: string) => boolean;
+  /** The tenant's enabled module keys. */
+  modules: ReadonlySet<string>;
+  /** The tenant's enabled capability keys. */
+  capabilities: ReadonlySet<string>;
   login: (payload: LoginRequest) => Promise<{ ok: true } | { ok: false; error: string; mfa?: boolean }>;
   logout: () => Promise<void>;
   /** Re-reads the session after the user changes their own profile. */
@@ -47,7 +62,12 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const EMPTY_CAPS: Capabilities = { wildcard: false, permissions: new Set() };
+const EMPTY_CAPS: Capabilities = {
+  wildcard: false,
+  permissions: new Set(),
+  modules: new Set(),
+  capabilities: new Set(),
+};
 
 export function AuthProvider({
   api,
@@ -68,9 +88,21 @@ export function AuthProvider({
   const bootstrapped = useRef(false);
 
   const loadSession = useCallback(async () => {
-    const [meRes, permRes] = await Promise.all([api.me(), api.myPermissions()]);
+    // Entitlements ride alongside permissions so the UI reflects the SAME boundary the backend
+    // enforces (module → capability → permission). A failure here must not sign the user out:
+    // fall back to empty, which hides module-gated items rather than showing what the API refuses.
+    const [meRes, permRes, entRes] = await Promise.all([
+      api.me(),
+      api.myPermissions(),
+      api.myEntitlements().catch(() => ({ modules: [], capabilities: [] })),
+    ]);
     setUser(meRes.user);
-    setCaps({ wildcard: permRes.wildcard, permissions: new Set(permRes.permissions) });
+    setCaps({
+      wildcard: permRes.wildcard,
+      permissions: new Set(permRes.permissions),
+      modules: new Set(entRes.modules),
+      capabilities: new Set(entRes.capabilities),
+    });
     setStatus("authenticated");
   }, [api]);
 
@@ -157,6 +189,15 @@ export function AuthProvider({
     [caps],
   );
 
+  // A module/capability check MIRRORS the server's entitlement; it is never the boundary.
+  // WILDCARD deliberately does not bypass it — a platform operator still cannot use a module
+  // the tenant has not bought. Entitlement is the tenant's, permission is the user's (ADR-085).
+  const hasModule = useCallback((moduleKey: string) => caps.modules.has(moduleKey), [caps]);
+  const hasCapability = useCallback(
+    (capabilityKey: string) => caps.capabilities.has(capabilityKey),
+    [caps],
+  );
+
   const refresh = useCallback(async () => {
     try {
       await loadSession();
@@ -166,8 +207,19 @@ export function AuthProvider({
   }, [loadSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, can, login, logout, refresh }),
-    [status, user, can, login, logout, refresh],
+    () => ({
+      status,
+      user,
+      can,
+      hasModule,
+      hasCapability,
+      modules: caps.modules,
+      capabilities: caps.capabilities,
+      login,
+      logout,
+      refresh,
+    }),
+    [status, user, can, hasModule, hasCapability, caps, login, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -182,4 +234,24 @@ export function useAuth(): AuthContextValue {
 /** Convenience hook: does the current user hold this permission key? */
 export function useCan(permission: string): boolean {
   return useAuth().can(permission);
+}
+
+/** Is the tenant entitled to this module (ADR-085)? Visibility only, never the boundary. */
+export function useModule(moduleKey: string): boolean {
+  return useAuth().hasModule(moduleKey);
+}
+
+/** Is this capability enabled for the tenant (ADR-085)? Visibility only. */
+export function useCapability(capabilityKey: string): boolean {
+  return useAuth().hasCapability(capabilityKey);
+}
+
+/** The tenant's enabled module keys. */
+export function useEnabledModules(): ReadonlySet<string> {
+  return useAuth().modules;
+}
+
+/** The tenant's enabled capability keys. */
+export function useEnabledCapabilities(): ReadonlySet<string> {
+  return useAuth().capabilities;
 }

@@ -12,6 +12,8 @@ export * from './permissions';
 export * from './roles';
 export * from './userRoles';
 export * from './entitlements';
+// Capability tier beneath module entitlements — deny-by-exception (ADR-085).
+export * from './capabilityEntitlements';
 export * from './auditLog';
 export * from './notifications';
 export * from './files';

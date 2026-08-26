@@ -596,6 +596,36 @@ Each of these is a **future group member**, not a placeholder: nothing appears i
 
 **Exit:** a clinic onboarded as "Pediatric Clinic" lands on a pediatric-shaped Portal (Vaccination/Growth surfaced where entitled, no OT/antenatal), a "Maternity Hospital" on an OT/antenatal-shaped one, driven entirely by data (`SPECIALTY_MODULE_MAP` + entitlements), with every hidden module also enforced server-side. Adding a new specialty is then a `SPECIALTY_CATALOG` + `SPECIALTY_MODULE_MAP` row — and a new module only when the specialty needs a genuinely new feature (Phase 4, §21).
 
+## 20D. Module & Capability Engine — the capability tier + canonical registry (extends §20C)
+
+*Foundational. Decision: **ADR-085** (extends **ADR-083**). Adds a **capability tier beneath the module tier**, one canonical `Domain → Module → Capability` registry shared backend + frontend, an interconnection layer (shared entities + events + contracts), reusable domain widgets, and a layered configuration resolver. Config infrastructure only — it runs beside §20A/§20B/§20C and off the clinical critical path.*
+
+**The rule it implements (owner's brief):** every module is independently enable/disable-able **and** deeply interconnected; effective feature set = **Tenant Modules ∩ Tenant Capabilities ∩ Provider Specialty ∩ User Permissions**. The engine is the **binding standard every future module is built to**; for now it is **retrofitted only onto the modules that already run** — the registry may describe all 86 modules from the design decomposition, but only a `BUILT` entry is entitled to a real screen/API or marked `built` in marketing (ADR-038).
+
+**Scope now vs. forward**
+- **Now (built-only retrofit):** the ~8 live modules (`patient`, `appointment`, `opd`, `emr`, `billing`, `pharmacy`, `laboratory`, plus `abdm`) get canonical registry entries; capabilities are broken out **only where a real sub-feature toggle exists** (e.g. billing sub-lines, lab result files) — no capability rows in front of unbuilt screens.
+- **Forward (the standard):** a module is not "done" unless it is a registry entry (domain + capabilities + dependencies + status), gated `requireModule`(+`requireCapability`) then `requirePermission`, surfaced through module-aware nav, and connected via shared domain + events/contracts — never a private reimplementation of Patient/Appointment/Payment.
+
+**Backend**
+- Extend the shared, typed catalog from §20C into three tiers: `Category`/`Domain` (CORE, HOSPITAL, CLINIC, BILLING, ADD_ON, SPECIALTY, CLINICAL, PATIENT_ENGAGEMENT, REPORTING, AI, PLATFORM), `Module` (`key`, `name`, `category`, `status`, `defaultEnabled`, `hardDependencies`, `capabilities[]`, unlocked permission keys, nav metadata) and `Capability` (`key`, `moduleKey`, `name`, `status`, `dependencies`, permission keys). Seed the 11/86/260+ decomposition; carry a lifecycle `status` (`AVAILABLE` / `BUILT` / `PLANNED` / `FUTURE`) on every entry.
+- Add a **capability entitlement** store (extend `tenant_entitlements` or a sibling `tenant_capability_entitlements`) with the same soft-state / org-vs-branch / effective-window / never-deleted model, and a `requireCapability(moduleKey, capabilityKey)` middleware that composes after `requireModule` and before `requirePermission`. Cache capabilities beside the permission set (ADR-010 bounds).
+- **Migration preserves behaviour exactly:** every currently-entitled module maps to a registry entry with **all its capabilities defaulting ON**, so nothing a tenant can do today stops working.
+- Dependency closure at configure time, both directions: enabling a capability pulls its module + declared dependencies; disabling a depended-upon module/capability **warns with its dependents** rather than silently cascading.
+
+**Interconnection (harden what exists, do not rebuild)**
+- Keep the shared domain single-owner (one Patient/Appointment/Encounter/Invoice+Payment — invariant #8). Move cross-module reactions onto the **domain-event bus** with real subscribers: `encounter.signed → billing charge capture`, `payment.received → receipt/portal/reporting`, `lab.result_ready → portal/notification`.
+- Extract the two copy-pasted rules on next touch (ADR-029): the pay-before-consult guard (OPD+EMR, identical string today) and the visit-invoice-attach pattern (lab+pharmacy) into shared services.
+
+**Frontend**
+- Session carries **modules and capabilities** (extend the §20C `/auth/me` / `@hms/client` `Capabilities` shape). Add the consumption hooks — `useModule` / `useCapability` / `useEnabledModules` / `useSpecialty` alongside `useCan` — and make gating module- **and** capability-aware (nav `module`/`capability` keys; ship session delivery **before** any gating so entitled items never vanish).
+- Extract reusable **domain widgets** (`PaymentSummary`, `PaymentHistory`, `AppointmentSummary`, `PatientSummary`, `PrescriptionSummary`, `LabResultSummary`) into a shared home consuming the one authoritative source (ADR-029) — one Payment surfaced everywhere by reuse.
+- Capability-level configuration UI extends §20C's org module-configuration screen (toggle capabilities within a module, dependency warnings, audited).
+
+**Testing**
+- Tenant-with-module-but-capability-OFF: capability absent from UI **and** its API returns the entitlement error irrespective of the UI (invariant #2). Migration backfill leaves every existing tenant's behaviour identical (all capabilities on). Dependency-violation configure attempts are refused with the dependents named. Disabling a module keeps its historical records readable (invariant #6).
+
+**Exit:** a hospital can express `OT = ON, OT Billing = OFF` (once OT is built); the built modules read one canonical registry front-to-back; cross-module workflow (OPD → encounter → charge → invoice → payment → portal/receipt/reports/notification) runs through shared entities + events, not duplicated code; and every future module is added as a registry entry on the engine, not a bespoke workflow. Unbuilt modules remain `AVAILABLE` registry rows with no enforcement or marketing surface until their code ships.
+
 ## 21. Stage 1 — MVP 0: Clinic Pilot
 
 *Maps to MVP 0. Goal: a real clinic runs registration → appointment → consultation → payment entirely on the platform.*

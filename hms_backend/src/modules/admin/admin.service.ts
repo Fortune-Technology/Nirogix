@@ -23,9 +23,14 @@ import {
   listEntitledModules,
 } from '../entitlement/entitlement.service';
 import { MODULE_CATALOG, moduleDef } from '../entitlement/moduleCatalog';
+import { setCapabilityStatus } from '../entitlement/capability.service';
+import { capabilityDef } from '@hms/permissions';
 import { writeAudit } from '../audit/audit.service';
-import { issueImpersonatedSession, toPublicUserRow } from '../auth/auth.service';
+import { issueImpersonatedSession, toPublicUserRow, issuePasswordSetupLink } from '../auth/auth.service';
 import type { PublicUser } from '../auth/auth.schema';
+import { env } from '../../config/env';
+import { logger } from '../../config/logger';
+import { sendAppEmail } from '../notification/communication.service';
 
 // The MVP module set a new clinic gets by default (development-plan §20A). Order-independent;
 // dependency closure + hard-dependency ordering are handled below.
@@ -52,6 +57,8 @@ export type OnboardInput = {
   code: string;
   name: string;
   modules?: string[];
+  /** Capability keys to switch OFF at onboarding (deny-by-exception: everything else is on). */
+  disabledCapabilities?: string[];
   admin: { email: string; fullName: string };
   branches?: Array<{ code: string; name: string }>;
 };
@@ -77,6 +84,18 @@ export async function onboardTenant(input: OnboardInput, actorUserId?: string): 
 
   for (const m of moduleOrder) {
     await grantModule(tenant.id, m, { grantedBy: actorUserId, reason: 'tenant onboarding' });
+  }
+
+  // Capability choices made at onboarding (ADR-085). Deny-by-exception, so only the ones the
+  // operator switched OFF are written; everything else stays on by default. A capability whose
+  // module was not granted is ignored rather than failing the whole onboarding.
+  for (const capKey of input.disabledCapabilities ?? []) {
+    const def = capabilityDef(capKey);
+    if (!def || !moduleOrder.includes(def.moduleKey)) continue;
+    await setCapabilityStatus(tenant.id, def.moduleKey, capKey, 'DISABLED', {
+      changedBy: actorUserId,
+      reason: 'tenant onboarding',
+    });
   }
 
   const tempPassword = generateTempPassword();
@@ -114,6 +133,27 @@ export async function onboardTenant(input: OnboardInput, actorUserId?: string): 
     resourceId: tenant.id,
     metadata: { code: tenant.code, adminEmail: input.admin.email, modules: moduleOrder },
   });
+
+  // Welcome the new administrator with a "set your password" link (they sign in to the Portal).
+  // The temp password is still returned for the operator's manual handover — both work. Best-
+  // effort: a mail problem must never fail onboarding, so this is caught and logged.
+  try {
+    const setupUrl = await issuePasswordSetupLink(tenant.id, adminUserId, 'portal');
+    await sendAppEmail({
+      tenantId: tenant.id,
+      to: input.admin.email,
+      template: 'onboarding_admin_welcome',
+      data: {
+        userName: input.admin.fullName,
+        orgName: tenant.name,
+        setupUrl,
+        loginUrl: `${env.PORTAL_URL.replace(/\/$/, '')}/login`,
+      },
+      idempotencyKey: `welcome-admin:${adminUserId}`,
+    });
+  } catch (err) {
+    logger.error({ err, tenantId: tenant.id }, 'onboarding welcome email failed');
+  }
 
   return { tenant, admin: { email: input.admin.email, tempPassword } };
 }

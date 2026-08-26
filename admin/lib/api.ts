@@ -22,7 +22,9 @@ import type {
   StartSupportSessionRequest,
   StartSupportSessionResponse,
   Tenant,
+  TenantCapability,
   TenantDetail,
+  TenantModuleConfig,
 } from "@hms/types";
 import { createApiClient, notifyError, notifySuccess } from "@hms/client";
 
@@ -103,6 +105,30 @@ export async function revokeTenantModule(id: string, key: string): Promise<void>
 
 export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
   return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+}
+
+/** The whole module/capability configuration for a tenant, grouped by domain (ADR-085 §19). */
+export async function getTenantModuleConfig(id: string): Promise<TenantModuleConfig> {
+  return request<TenantModuleConfig>(`/admin/tenants/${id}/module-config`);
+}
+
+/** The capabilities of a tenant's entitled modules, each with its enabled state (ADR-085). */
+export async function listTenantCapabilities(id: string): Promise<TenantCapability[]> {
+  return (await request<{ capabilities: TenantCapability[] }>(`/admin/tenants/${id}/capabilities`)).capabilities;
+}
+
+/** Enable or disable one capability of a tenant's module (ADR-085). */
+export async function setTenantCapability(
+  id: string,
+  module: string,
+  capability: string,
+  enabled: boolean,
+): Promise<void> {
+  await request(`/admin/tenants/${id}/capabilities`, {
+    method: "PUT",
+    body: { module, capability, enabled },
+    feedback: { success: enabled ? "Capability enabled." : "Capability disabled." },
+  });
 }
 
 /**
@@ -190,6 +216,32 @@ export async function uploadPlatformBrandingAsset(
   const branding = (await res.json()) as PlatformBranding;
   notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
   return branding;
+}
+
+// ---- Email templates (developer/operator preview tool) ---------------------
+// A read-only window onto the backend's central email catalogue. The preview always
+// renders from static sample data — no tenant data is ever touched.
+
+export interface EmailTemplateSummary {
+  key: string;
+  name: string;
+  category: string;
+  description: string;
+  subject: string;
+}
+
+export interface EmailTemplatePreview {
+  key: string;
+  subject: string;
+  html: string;
+}
+
+export async function listEmailTemplates(): Promise<EmailTemplateSummary[]> {
+  return (await request<{ templates: EmailTemplateSummary[] }>("/admin/email-templates")).templates;
+}
+
+export async function previewEmailTemplate(key: string): Promise<EmailTemplatePreview> {
+  return request<EmailTemplatePreview>(`/admin/email-templates/${encodeURIComponent(key)}/preview`);
 }
 
 // ---- Audit -----------------------------------------------------------------

@@ -80,6 +80,23 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | TEN-02 | Tenant isolation at the API | Token for CITYCARE | Request a SUNRISE record id directly | 404/403, never another tenant's data | P1 | Security | org_admin | Not run |
 | TEN-03 | Super admin sits outside customer tenants | — | Sign in as `jaivik@thefortunetech.com` | Platform surfaces (Tenants, platform branding) are available; no clinical menu for a hospital they do not belong to | P2 | Security | super_admin | Not run |
 
+### Module & capability entitlement (ADR-085)
+
+The capability tier beneath modules. Chain: `requireAuth → requireModule → requireCapability → requirePermission`. Deny-by-exception — a capability is ON by default whenever its module is entitled. The `billing.services` capability (services & packages catalogue) is the shipped demonstrator; there is no capability-config UI yet (P5), so disable/enable is exercised at the service/API level.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CAP-07 | Sidebar hides a module the tenant lacks | Lab technician at a tenant WITHOUT `laboratory` | Sign in, read the sidebar | No **Laboratory** item, though the role holds `laboratory.order.view`; re-granting the module restores it on the next load | P1 | Security | lab_technician | Not run |
+| CAP-08 | Direct URL to a hidden module is refused | As above | Type `/laboratory` | The screen reports "This module is not available for your organization" and the API answers 403 `MODULE_NOT_ENTITLED` — hiding was never the boundary | P1 | Security | lab_technician | Not run |
+| CAP-09 | Sidebar hides a switched-off capability | Receptionist; `opd` on, `opd.referral` off | Sign in, read the sidebar | No **Referrals** item although the role holds `opd.referral.view`; OPD queue still present; re-enabling restores it | P1 | Security | receptionist | Not run |
+| CAP-10 | Operator does not bypass entitlement | Platform operator in a support session at a tenant without a module | Read the sidebar | The module is absent — WILDCARD grants permissions, never entitlement | P2 | Security | super_admin | Not run |
+| CAP-01 | Capability ON by default | Tenant entitled to `billing`, no capability config | Call `GET /api/v1/billing/services` with a permitted token | 200 — the catalogue works with no capability row (deny-by-exception default-ON) | P1 | Functional | cashier | Not run |
+| CAP-02 | Disabling a capability gates its API | `billing` entitled; `billing.services` set DISABLED for the tenant | Call `GET/POST /api/v1/billing/services` | 403 `CAPABILITY_NOT_ENTITLED` regardless of the user's `billing.services.*` permission — a capability off overrides every role that holds its permission | P1 | Security | cashier | Not run |
+| CAP-03 | Module off cascades to its capabilities | `billing` suspended | Resolve `billing.services` | Capability is off even with no capability row — a capability is never entitled when its module is not | P1 | Security | — | Not run |
+| CAP-04 | Entitlements surface carries capabilities | Signed in | `GET /api/v1/entitlements` | Response has `modules` **and** `capabilities` (enabled capability keys of entitled modules); disabling one drops it from the list | P2 | Functional | org_admin | Not run |
+| CAP-05 | Dependency guard on configure | `abdm` entitled; `abdm.facility` + `abdm.scan_share` on | Attempt to disable `abdm.facility` while `abdm.scan_share` is enabled | Refused, naming `abdm.scan_share`; enabling `abdm.scan_share` while `abdm.facility` is off is likewise refused | P2 | Functional | — | Not run |
+| CAP-06 | Disable ≠ delete (invariant #6) | Tenant had `billing.services` used, then DISABLED | Read existing invoices/lines that referenced catalogue services | Historical invoices and lines remain readable; only new catalogue operations are blocked | P1 | Security | cashier | Not run |
+
 ## 3. Shared UI: DataTable, toasts, dates
 
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
@@ -417,6 +434,19 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | ADM-01 | Onboard a tenant | — | Tenants → Create → org details → modules → first admin → branch | Tenant created; temporary password shown **once**; the new admin can sign in | P1 | Functional | super_admin | Not run |
 | ADM-02 | Duplicate org code | Existing code | Reuse it | Rejected with a clear message | P2 | Validation | super_admin | Not run |
 | ADM-03 | Grant / revoke a module | Existing tenant | Toggle a module | Entitlement changes; the tenant's menu reflects it after re-login; hard dependencies are enforced | P1 | Functional | super_admin | Not run |
+| ADM-CAP-01 | Capabilities card lists module sub-features | Tenant entitled to Billing (+ Laboratory/ABDM) | Open the tenant → Capabilities card | Each entitled module that has sub-features is listed with its capabilities, all **Enabled** by default; a module with none is absent | P1 | Functional | super_admin | Not run |
+| ADM-CAP-02 | Disable a capability | As above | Disable `billing.services` | Badge flips to Disabled + success toast; the hospital's `GET /billing/services` then returns 403 `CAPABILITY_NOT_ENTITLED` while other Billing routes still work; historical invoices remain readable | P1 | Functional | super_admin | Not run |
+| ADM-CAP-03 | Dependency conflict is refused with a message | ABDM entitled; `abdm.facility` + `abdm.scan_share` on | Disable `abdm.facility` | Refused (409); the toast shows the backend message naming `abdm.scan_share`; the badge does not change | P2 | Functional | super_admin | Not run |
+| ADM-MOD-01 | Three-level manager opens | A tenant | Tenant → Manage modules & capabilities | `tenants/[id]/modules`: Level 1 rail lists all 11 domains with counts; Level 2 lists that domain's modules; clicking one opens Level 3 (its capabilities) with a breadcrumb back | P1 | Functional | super_admin | Not run |
+| ADM-MOD-07 | Whole catalog is present | — | Walk every domain | 42 modules / 246 capabilities across Core, Clinic/OPD, Hospital, Billing, Add-ons, Specialty, Clinical Support, Patient Engagement, Reporting, AI, Platform Services — nothing from the decomposition missing | P1 | Functional | super_admin | Not run |
+| ADM-MOD-08 | Platform Services is required, not togglable | — | Open Platform Services | Shows **Required 🔒**, is always enabled, and offers no Enable/Disable control; its capabilities list Authentication, Authorization, Audit Logging etc. | P2 | Functional | super_admin | Not run |
+| ADM-MOD-02 | Enabled-configuration preview | A tenant with a mix on | Read the top "Enabled configuration" card | Lists every enabled module grouped by domain with per-module feature counts (e.g. ABDM 3/3); matches what is toggled on | P1 | Functional | super_admin | Not run |
+| ADM-MOD-03 | Unbuilt modules are honest | — | Open the Hospital domain | IPD/ICU/OT/Emergency/CSSD show **"Coming soon — no screens yet"** and their hard-deps; never presented as working | P1 | Functional | super_admin | Not run |
+| ADM-MOD-04 | Search & filter | — | Type "billing"; then the Coming-soon filter | Search spans domains and matches modules + capabilities; the filter narrows to unbuilt modules | P2 | Functional | super_admin | Not run |
+| ADM-MOD-05 | Module dependency confirmation | A tenant with `opd` (needs patient) enabled | Disable `patient` | A confirmation names the enabled modules that depend on it before revoking; Cancel leaves it enabled | P2 | Functional | super_admin | Not run |
+| ADM-MOD-09 | Capability toggles at onboarding | — | Tenants → Create → expand a selected module (chevron) | Its capabilities list with On/Off pills, all **On** by default; switching some off and creating the tenant leaves exactly those off on the new tenant's Capabilities view, everything else on | P1 | Functional | super_admin | Not run |
+| ADM-MOD-10 | Capability control needs its module | — | Expand an **unselected** module | Its capability pills are visible but disabled ("Select the module first"); selecting the module enables them | P2 | UI/UX | super_admin | Not run |
+| ADM-MOD-06 | Onboarding modules grouped by domain | — | Tenants → Create → Modules section | Chips are grouped under domain headings (Core, Clinic/OPD, Hospital, Billing, Add-ons…), not one flat list; unbuilt modules show a **soon** marker; the MVP defaults are pre-selected | P2 | UI/UX | super_admin | Not run |
 | ADM-04 | Suspend a tenant | Active tenant | Set status suspended | Its users can no longer sign in | P1 | Security | super_admin | Not run |
 | ADM-05 | Platform branding scopes | — | Admin → Branding → change marketing, then the Nirogix Portal default | Each scope changes only its own surface; the other is untouched | P2 | Functional | super_admin | Not run |
 | ADM-06 | Non-super-admin is refused | org_admin token | Open `/admin/tenants`; call the API directly | Forbidden panel; API 403 | P1 | Security | org_admin | Not run |
@@ -829,11 +859,40 @@ Run with `ABDM_PROVIDER=mock` unless a case says otherwise; the mock's OTP is `1
 
 ---
 
+## 24. Notifications & emails (ADR-086)
+
+With `MSG91_API_KEY` unset the dev **log** provider records each send in `notification_log` without
+sending — assert against that log locally. Emails are wired **per action**; a platform message
+(toast) and an email are never both raised by default. SMS transactional stays blocked on DLT
+(BACKLOG I-1) — these cases are email + in-app only.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| NOTIF-01 | Onboarding welcome email | — | Onboard a hospital | The first org_admin gets a `onboarding_admin_welcome` email with a **set-your-password** link; `notification_log` shows the send; the operator still receives the temp password too | P1 | Functional | super_admin | Not run |
+| NOTIF-02 | Staff welcome email | A hospital exists | Add a staff user | The user gets a `staff_welcome` email with a set-password link and their role name; `notification_log` shows the send | P1 | Functional | org_admin | Not run |
+| NOTIF-03 | Set-password link works | NOTIF-01/02 done | Open the link from the email | The reset-password page loads, a new password can be set (link valid 7 days, once), then sign-in works | P1 | Functional | org_admin | Not run |
+| NOTIF-04 | Password-changed confirmation | A user with a password | Change or reset the password | A `auth_password_changed` security confirmation email is sent to the account owner | P2 | Security | any | Not run |
+| NOTIF-05 | Appointment confirmed — email present | A patient WITH an email | Book an appointment | An `appointment_confirmed` email is sent with doctor + DD/MM/YYYY, hh:mm AM/PM time | P1 | Functional | receptionist | Not run |
+| NOTIF-05a | Appointment — no email on file | A patient with NO email | Book an appointment | No email is attempted; booking succeeds with no error | P1 | Functional | receptionist | Not run |
+| NOTIF-06 | Appointment cancelled email | A booked appointment for a patient with email | Cancel it | An `appointment_cancelled` email is sent, including the reason when given | P2 | Functional | receptionist | Not run |
+| NOTIF-07 | Payment receipt + no duplicate | An invoice, patient with email | Record a payment; then retry with the same idempotency key | One `payment_receipt` email (invoice number, ₹ amount, method, date); the retry sends nothing new | P1 | Functional | cashier | Not run |
+| NOTIF-08 | Lab results email fires on VERIFY, not entry | A resulted lab order, patient with email | Enter a result, then verify it | No email on entry; on **verify** a `lab_results_ready` email is sent that contains **no result values** — only a "view in portal" prompt | P1 | Security | lab_tech | Not run |
+| NOTIF-09 | Patient welcome | A patient registered WITH an email | Register the patient | A `patient_welcome` email with the UHID is sent | P2 | Functional | receptionist | Not run |
+| NOTIF-10 | No notification spam | — | Check in a visit, sign an encounter, create an invoice, sign in | None of these send an email (`notification_log` shows nothing for them) | P1 | UX | any | Not run |
+| NOTIF-11 | Idempotency / dedupe | — | Cause the same event to fire twice for one entity | Exactly one email is sent (per-entity idempotency key) | P1 | Functional | tester | Not run |
+| NOTIF-12 | Email branding | A tenant with a custom accent | Trigger a patient email, then a platform email (reset) | The patient email uses the hospital's accent + name; the platform email uses the Nirogix default; no broken logo image | P2 | Visual | tester | Not run |
+| NOTIF-13 | Backend message consistency | — | Onboard a hospital / add a user | The success toast shows the backend's own `message` (from `messages.ts`), identical wording in every frontend | P2 | UX | super_admin | Not run |
+| EMAIL-PREVIEW-01 | Preview lists + renders every template | operator | Platform → Email templates | All templates listed by category; selecting one renders its subject + the email in a sandboxed iframe; no email is sent and no tenant data is shown | P1 | Functional | super_admin | Not run |
+| EMAIL-PREVIEW-02 | Preview is operator-gated | A non-operator session | Open `/email-templates`; call `GET /admin/email-templates` | The nav item is absent and the API returns 403 | P1 | Security | org_admin | Not run |
+
+---
+
 ## Coverage gaps (deliberate, tracked)
 
 These are known and recorded in `BACKLOG.md` rather than silently missing:
 
 - **Automated coverage now exists — see `docs/automated-testing.md` for the case-by-case mapping.** Unit + integration (vitest, real PostgreSQL), **API/HTTP boundary** (vitest + supertest: authentication, role/permission enforcement, module entitlement, cross-tenant read *and* write refusal), component (`@hms/ui`: DataTable, date fields, toasts, table actions) and **E2E** (Playwright: five-app smoke, Portal authentication and quick-login gating, protected-route redirects, marketing structure, route-change scroll). Run the lot with `npm run test:regression` before a staging handover.
 - **Still manual-only:** `hms_frontend`, `marketing`, `admin`, `patient` and `aiportal` have no component suites of their own, and the clinical journey is automated at service/API level but **not yet through the UI** — the browser walk-through in `docs/manual-testing-guide.md` §10 remains a manual pass. Visual/branding, print/PDF, screen-reader, physical-device and editorial-honesty cases stay manual by design (`docs/automated-testing.md` §5).
-- **Not yet buildable as cases:** password reset / email invite, MFA challenge, branch switching, break-glass — the features are not implemented.
+- **Email invite / notifications now buildable** — see §24 (welcome + set-password-link emails, appointment/payment/lab/patient emails, the preview page). Real provider *send* (vs. the dev log provider) stays staging-only, blocked on `MSG91_*` + DLT for SMS (BACKLOG I-1).
+- **Not yet buildable as cases:** MFA challenge, branch switching, break-glass — the features are not implemented.
 - **Staging-only cases** (real SMS/WhatsApp send, deploy pipeline, backup restore drill) are blocked on infrastructure.

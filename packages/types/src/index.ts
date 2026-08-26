@@ -168,13 +168,68 @@ export interface TenantDetail extends Tenant {
 export interface ModuleCatalogItem {
   key: string;
   name: string;
+  /** Domain the module belongs to (ADR-085), e.g. CORE, HOSPITAL, ADD_ON. */
+  category: string;
+  /** Lifecycle status (ADR-085): BUILT | AVAILABLE | PLANNED | FUTURE. */
+  status: string;
+  /** Platform Core — always on, never togglable per tenant. */
+  alwaysOn: boolean;
   hardDependencies: string[];
+  /** The module's declared capabilities, so onboarding can offer capability-level choices. */
+  capabilities: Array<{ key: string; name: string; status: string; dependencies: string[] }>;
+}
+
+/** `GET /entitlements` — the tenant's enabled modules and capabilities (ADR-085). */
+export interface MyEntitlementsResponse {
+  modules: string[];
+  capabilities: string[];
+}
+
+/** A capability of a tenant's entitled module, with its current enabled state (ADR-085). */
+export interface TenantCapability {
+  module: string;
+  moduleName: string;
+  capability: string;
+  name: string;
+  status: string;
+  enabled: boolean;
+  dependencies: string[];
+}
+
+/** One capability within the module manager's config model (ADR-085). */
+export interface ModuleConfigCapability {
+  key: string;
+  name: string;
+  status: string;
+  enabled: boolean;
+  dependencies: string[];
+}
+
+/** One module within the module manager's config model, entitled or not (ADR-085). */
+export interface ModuleConfigModule {
+  key: string;
+  name: string;
+  category: string;
+  status: string;
+  /** Platform Core — always on, never togglable per tenant (ADR-085). */
+  alwaysOn: boolean;
+  hardDependencies: string[];
+  entitled: boolean;
+  capabilities: ModuleConfigCapability[];
+}
+
+/** The whole module/capability picture for a tenant, grouped by domain (ADR-085 §19). */
+export interface TenantModuleConfig {
+  categories: Array<{ key: string; name: string }>;
+  modules: ModuleConfigModule[];
 }
 
 export interface OnboardTenantRequest {
   code: string;
   name: string;
   modules?: string[];
+  /** Capability keys to switch OFF at onboarding (deny-by-exception). */
+  disabledCapabilities?: string[];
   admin: { email: string; fullName: string };
   branches?: Array<{ code: string; name: string }>;
 }

@@ -70,3 +70,50 @@ record. The receptionist role gets verify + link; org_admin gets those plus the 
 **Testing status:** `dist/` rebuilt (this package is dist-consumed by the backend). Backend suite
 317/317 with the new keys enforced at the route boundary. **Existing tenants seeded before this
 change do not hold these keys until their roles are re-seeded** — recorded in `BACKLOG.md`.
+
+---
+
+## 2026-08-26 — Module & Capability registry (ADR-085, P1)
+
+**What:** `MODULE_REGISTRY` — the canonical `Domain → Module → Capability` catalog shared FE/BE.
+Adds `ModuleCategory` (the 11 domains), `LifecycleStatus` (`BUILT`/`AVAILABLE`/`PLANNED`/`FUTURE`),
+per-module `capabilities` / `hardDependencies` / unlocked permission keys, the type-safe
+`CAPABILITIES` map (mirrors `PERMISSIONS`), and helpers (`registryModule`, `moduleCapabilities`,
+`capabilityDef`, `capabilityDependents`, `isModuleBuilt` / `isCapabilityBuilt`). Module keys, names
+and hard-dependencies mirror the backend's original `moduleCatalog.ts` **exactly** — no key added or
+removed — so the backend list becomes a thin derived view (one source of truth). Capabilities are
+declared only for shipped sub-features (built-only retrofit): `billing.services`, `opd.referral`,
+`emr.ai_assist`, `laboratory.result_files`, `abdm.{verification,facility,scan_share}`. The 8 live
+modules are `BUILT`; the rest are `AVAILABLE` with no capabilities.
+
+**Why:** ADR-085 — the capability tier plus **one** registry the backend (`requireModule` /
+`requireCapability`) and every frontend consume, instead of scattered lists. Only a `BUILT` entry is
+ever entitled to a real screen/API or marketed as available (ADR-038); a registry row is not a claim
+the module exists.
+
+**Testing status:** typecheck + build green; `dist/` rebuilt (dist-consumed by the backend).
+Registry integrity is asserted by `hms_backend` `registry.test.ts` (14 pure tests). Full backend
+suite 351 green.
+
+---
+
+## 2026-08-26 — Registry expanded to the full decomposition (ADR-085)
+
+**What:** `MODULE_REGISTRY` grew from the 17 legacy entitlement keys to the whole functional
+decomposition — **11 domains · 42 modules · 246 capabilities**. Compact `mod()` / `cap()` builders
+keep it readable. Added `alwaysOn` to `ModuleRegistryDef` for Platform Core (Platform Services),
+which is never sold or switched off per tenant and so renders as *Required* rather than togglable.
+
+The **seventeen pre-existing keys keep their exact key, name and hard dependencies** (a test pins
+this) — changing one would change what an existing tenant can be granted. Everything new lands as
+`AVAILABLE`.
+
+**Honesty rule, enforced by a test:** an unbuilt module may now *describe* its capabilities so the
+architecture, dependency graph and admin surface are complete, but **a non-`BUILT` module may not
+declare a `BUILT` capability** — nothing unbuilt is ever enforced, advertised, or shown as working.
+Only the 9 `BUILT` modules (patient, appointment, emr, opd, abdm, billing, pharmacy, laboratory,
+platform_services) carry `BUILT` capabilities.
+
+**Testing status:** typecheck + build green, `dist/` rebuilt; `registry.test.ts` now 16 tests
+(adds domain-coverage, legacy-key and honesty assertions); full backend suite **355** green. Live
+API confirms 11 categories / 42 modules / 246 capabilities for a seeded tenant.

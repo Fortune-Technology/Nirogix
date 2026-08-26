@@ -9,13 +9,13 @@ import { formatRoleNames } from "@hms/permissions";
 import { Menu, ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { NAV_ITEMS, activeNavHref, mobilePrimaryNav, navGroupsForUser } from "../lib/nav";
+import { NAV_ITEMS, activeNavHref, mobilePrimaryNav, navEntitled, navGroupsForUser } from "../lib/nav";
 import { ThemeToggle } from "./ThemeToggle";
 
 // The authenticated shell: a permission-filtered sidebar + a topbar. The nav only
 // shows items the user's effective permissions allow (UX mirror of server enforcement).
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, can, logout } = useAuth();
+  const { user, can, logout, hasModule, hasCapability } = useAuth();
   const { logoUrl } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -26,15 +26,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   // hospital's own sidebar — which is the point — and the banner below makes it
   // impossible to forget which hospital you are acting in.
   const inTenantContext = Boolean(user?.impersonatedBy);
-  const visibleNav = NAV_ITEMS.filter((item) => item.perm === null || can(item.perm));
+  // Visibility is the intersection the backend enforces (ADR-085): tenant module ∩ tenant
+  // capability ∩ user permission. An item for a module this hospital does not have is not
+  // rendered at all — and the API refuses it independently, so hiding is UX, not the boundary.
+  const entitlement = { hasModule, hasCapability };
+  const visibleNav = NAV_ITEMS.filter(
+    (item) => (item.perm === null || can(item.perm)) && navEntitled(item, entitlement),
+  );
   // The sidebar renders the same items in labelled sections, so a new capability
   // joins a group instead of lengthening one flat list (ADR-043).
-  const navGroups = navGroupsForUser(can);
+  const navGroups = navGroupsForUser(can, entitlement);
   // Mobile (ADR-033): five primary destinations in the bottom bar, everything else
   // in the drawer. Both derive from the same permission-filtered list as the
   // sidebar, so the phone never offers a route the user cannot open.
   const [menuOpen, setMenuOpen] = useState(false);
-  const ranked = mobilePrimaryNav(can);
+  const ranked = mobilePrimaryNav(can, NAV_ITEMS, entitlement);
   const primary = ranked.slice(0, BOTTOM_NAV_MAX_ITEMS);
   const secondary = visibleNav.filter((item) => !primary.some((p) => p.href === item.href));
   // The longest matching nav href wins, so a destination nested under another’s path
