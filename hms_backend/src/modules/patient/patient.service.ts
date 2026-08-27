@@ -109,7 +109,11 @@ export async function createPatient(
           branchId: data.branchId ?? null,
           createdBy: actorUserId ?? null,
         })
-        .onConflictDoNothing()
+        // Scoped to the UHID constraint on purpose. An unqualified `onConflictDoNothing()` swallows
+        // EVERY unique violation, so a duplicate ABHA number (ADR-100) would be silently retried as
+        // though it were a UHID collision and then reported as "could not allocate a UHID" — the
+        // wrong cause, and one a receptionist could never act on.
+        .onConflictDoNothing({ target: [patients.tenantId, patients.uhid] })
         .returning();
       if (rows[0]) return rows[0];
     }

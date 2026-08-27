@@ -19,6 +19,7 @@ import {
   FacilitySubmitBody,
   FacilityVerificationBody,
   RequestHistoryBody,
+  ResendOtpBody,
   RequestMobileOtpBody,
   SelectAccountBody,
   StartAadhaarBody,
@@ -756,3 +757,106 @@ for (const [path, opId, what] of [
     },
   });
 }
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/consents',
+  operationId: 'abdmListHeldConsents',
+  tags: [TAG],
+  summary: "Consents other providers hold over this hospital's records",
+  description:
+    'Certification requires all three consent cases — grant, revoke and expire — to be "seen in HMIS", so this exists to be looked at rather than only to be correct. `consents` is the live set of permissions we currently hold. `history` is drawn from the audit trail and therefore still shows a consent that has been **revoked or expired and deleted** — the artefact is the permission and it is destroyed (ADR-087), while the record that it existed and ended is metadata only and is never deleted. That is what makes a revocation watchable: the row leaves the list and appears in the history.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ abhaAddress: z.string().optional() }) },
+  responses: {
+    200: {
+      description: 'Held consents and their history',
+      ...json(
+        z.object({
+          consents: z.array(
+            z.object({
+              consentId: z.string(),
+              abhaAddress: z.string(),
+              hiuId: z.string().nullable(),
+              hipId: z.string().nullable(),
+              purposeCode: z.string().nullable(),
+              hiTypes: z.array(z.string()),
+              accessMode: z.string().nullable(),
+              dataEraseAt: z.string().nullable(),
+              grantedAt: z.string().nullable(),
+            }),
+          ),
+          history: z.array(
+            z.object({
+              consentId: z.string(),
+              event: z.enum(['granted', 'revoked', 'expired', 'erased']),
+              hiuId: z.string().optional(),
+              recordedAt: z.string(),
+            }),
+          ),
+        }),
+      ),
+    },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/otp/resend',
+  operationId: 'abdmResendOtp',
+  tags: [TAG],
+  summary: 'Send the verification code again',
+  description:
+    'ABDM publishes no resend endpoint — a resend is the same request repeated — so the rule from `CRT_ABHA_106` (at most twice, sixty seconds apart) is enforced here, **on the transaction rather than in the browser**: a reloaded page, a second tab or a direct call must not be able to spend a patient’s daily UIDAI allowance. The Aadhaar flow requires the number to be supplied again, which is deliberate: we never store an Aadhaar, so there is nothing to replay, and re-sending what the browser still holds costs nothing while storing it would create exactly the liability the design avoids. The mobile flow needs no re-entry because ABDM keys it on the transaction.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(ResendOtpBody) },
+  responses: {
+    202: {
+      description: 'Code sent again',
+      ...json(z.object({ transactionId: z.string(), mobileHint: z.string().optional(), resendsLeft: z.number() })),
+    },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'The verification is already finished', ...json(ErrorResponseSchema) },
+    410: { description: 'The verification expired — start again', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+    429: { description: 'Too soon, or the three-send limit is reached', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/history/lookup/abha',
+  operationId: 'abdmLookupAbha',
+  tags: [TAG],
+  summary: 'Find the patient an ABHA number or address belongs to',
+  description:
+    'Closes `HIU_FLOW_101`, which asks the HIU to find a patient by ABHA Number **or** Address and check the ABHA is valid. It deliberately does **not** invent an ABDM lookup call — no such endpoint exists in the published M1 collection, and guessing one is how the M2 service-registration payload came out wrong. The validity check that genuinely exists is M1’s verification flow, which puts an OTP in front of the patient; so this returns the local match plus the honest next step, and the caller runs that proven flow. Both identifier forms find the same person, and the number is matched on digits alone so formatting is not a second lookup.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ identifier: z.string().min(3) }) },
+  responses: {
+    200: {
+      description: 'What we hold for that ABHA, and what to do next',
+      ...json(
+        z.object({
+          outcome: z.enum(['verified', 'unverified', 'not_found', 'ambiguous']),
+          patient: z
+            .object({
+              id: z.string().uuid(),
+              uhid: z.string(),
+              name: z.string(),
+              abhaAddress: z.string().nullable(),
+              abhaNumber: z.string().nullable(),
+            })
+            .optional(),
+          nextStep: z.string(),
+        }),
+      ),
+    },
+    401: notAuthed,
+    403: forbidden,
+    422: unprocessable,
+  },
+});

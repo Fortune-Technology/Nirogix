@@ -5,7 +5,7 @@ import { requireModule } from '../../http/requireModule';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
-import { sensitiveLimiter } from '../../http/rateLimit';
+import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
 import {
   CreateAbhaAddressBody,
   FacilityConfigBody,
@@ -19,6 +19,7 @@ import {
   FacilitySubmitBody,
   FacilityVerificationBody,
   RequestHistoryBody,
+  ResendOtpBody,
   RequestMobileOtpBody,
   SelectAccountBody,
   StartAadhaarBody,
@@ -313,3 +314,35 @@ abdmRouter.get('/abdm/registry/bulk/professionals', requireAuth, mod, requirePer
 abdmRouter.get('/abdm/registry/bulk/facilities', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.exportBulkFacilities));
 abdmRouter.post('/abdm/registry/bulk/professionals', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkProfessionals));
 abdmRouter.post('/abdm/registry/bulk/facilities', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkFacilities));
+
+// The consents other providers hold over this hospital's records (ADR-100). Read-only, and behind
+// the facility-view permission: it is hospital configuration, not a clinical screen.
+abdmRouter.get(
+  '/abdm/consents',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_FACILITY_VIEW),
+  asyncHandler(c.listHeldConsents),
+);
+
+// Resend the code (CRT_ABHA_106). Rate-limited at the sign-in tier on top of the per-transaction
+// cap, because this endpoint spends a patient's UIDAI allowance.
+abdmRouter.post(
+  '/abdm/otp/resend',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_VERIFY),
+  authLimiter,
+  validate({ body: ResendOtpBody }),
+  asyncHandler(c.resendOtp),
+);
+
+// Find a patient by ABHA before requesting their history (HIU_FLOW_101). Read-only, so `view` is
+// enough — raising the request itself still needs `abdm.history.request`.
+abdmRouter.get(
+  '/abdm/history/lookup/abha',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
+  asyncHandler(c.lookupAbha),
+);

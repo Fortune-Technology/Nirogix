@@ -7,6 +7,7 @@ import type { AbdmFacilityConfig } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { useQrDataUrl } from "../../../../lib/useQrDataUrl";
+import { ConsentsCard } from "../../../../components/abdm/ConsentsCard";
 
 /**
  * ABDM facility registration (ADR-084).
@@ -153,6 +154,10 @@ function AbdmFacilityForm() {
         </Button>
         {config && <span className="text-sm text-fg-muted">Registered as {config.hipId}</span>}
       </div>
+
+      {/* Consents other providers hold over this hospital's records (ADR-100). Certification
+          requires all three consent cases to be "seen in HMIS", so this exists to be looked at. */}
+      <ConsentsCard />
     </form>
   );
 }

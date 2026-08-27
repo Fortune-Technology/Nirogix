@@ -1,4 +1,15 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb, index, unique } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { patients } from './patients';
@@ -120,6 +131,16 @@ export const abdmTransactions = pgTable(
     failureCode: varchar('failure_code', { length: 64 }),
     initiatedBy: uuid('initiated_by'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /**
+     * How many OTPs this transaction has sent, and when the last one went (ADR-100).
+     *
+     * ABDM publishes no resend endpoint — a resend is the same request again — so the "maximum two
+     * resends, sixty seconds apart" rule of `CRT_ABHA_106` is ours to enforce. Counting it on the
+     * transaction rather than in the browser means a reloaded page, a second tab or a direct API
+     * call cannot spend somebody's daily OTP allowance.
+     */
+    otpSends: integer('otp_sends').notNull().default(1),
+    lastOtpAt: timestamp('last_otp_at', { withTimezone: true }),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

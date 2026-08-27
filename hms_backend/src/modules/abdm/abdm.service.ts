@@ -435,6 +435,14 @@ function toAppError(err: unknown): AppError {
  * call, not recorded after it — an OTP that reached a patient's phone without consent has
  * already happened by the time an after-the-fact check would run.
  */
+/**
+ * The OTP allowance for one verification: the first send plus two resends (`CRT_ABHA_106`).
+ * UIDAI limits how many OTPs a number may receive in a day, so this protects the patient's
+ * allowance as much as it satisfies the certification case.
+ */
+const MAX_OTP_SENDS = 3;
+const OTP_RESEND_GAP_MS = 60_000;
+
 export async function startAadhaarEnrolment(
   tenantId: string,
   input: { aadhaar: string; consentGiven: boolean; branchId?: string | null },
@@ -462,7 +470,9 @@ export async function startAadhaarEnrolment(
   try {
     const encrypted = await encryptForAbdm(provider, aadhaarDigits);
     const otp = await provider.enrolRequestOtp({ encryptedAadhaar: encrypted, hipId });
-    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId });
+    // `lastOtpAt` is stamped on the FIRST send too — otherwise the sixty-second gap has nothing to
+    // measure from and the first resend is free.
+    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId, lastOtpAt: new Date() });
     await writeAudit({
       tenantId,
       actorUserId: actorUserId ?? null,
@@ -524,6 +534,81 @@ export async function verifyAadhaarOtp(
  * ABDM sub-flow, not a formality — it changes which linking token comes back, and skipping it
  * produces a token that fails later at M2 care-context linking.
  */
+/**
+ * Sends the OTP again for a transaction already in flight (ADR-100, `CRT_ABHA_106`).
+ *
+ * ABDM publishes **no resend endpoint** — a resend is the same request repeated — so the rule the
+ * certification case states ("maximum 2 times after 60 seconds") is entirely ours to enforce, and
+ * it is enforced **on the transaction, not in the browser**: a reloaded page, a second tab or a
+ * direct API call must not be able to spend a patient's daily UIDAI allowance.
+ *
+ * The Aadhaar flow needs the number supplied again, and that is deliberate rather than an
+ * oversight. We never store an Aadhaar (ADR-084), so there is nothing to replay; the browser still
+ * holds what the receptionist typed, and re-sending it costs nothing while storing it would create
+ * exactly the liability the whole design avoids. The transaction is reused, so the resend counts
+ * against the same allowance instead of quietly starting a fresh one.
+ */
+export async function resendOtp(
+  tenantId: string,
+  input: { transactionId: string; aadhaar?: string; mobile?: string },
+  actorUserId?: string,
+): Promise<{ transactionId: string; mobileHint?: string; devOtp?: string; resendsLeft: number }> {
+  const txn = await loadTransaction(tenantId, input.transactionId);
+
+  if (txn.consumedAt) {
+    throw new AppError(409, 'ABDM_TXN_ALREADY_USED', 'This verification is already finished');
+  }
+  if (txn.expiresAt && txn.expiresAt <= new Date()) {
+    throw new AppError(410, 'ABDM_TXN_EXPIRED', 'This verification has expired. Please start again.');
+  }
+
+  const sent = txn.otpSends ?? 1;
+  if (sent >= MAX_OTP_SENDS) {
+    throw new AppError(
+      429,
+      'ABDM_OTP_RESEND_LIMIT',
+      'The code has already been sent three times. Please start the verification again.',
+    );
+  }
+  const since = txn.lastOtpAt ? Date.now() - txn.lastOtpAt.getTime() : Number.POSITIVE_INFINITY;
+  if (since < OTP_RESEND_GAP_MS) {
+    const wait = Math.ceil((OTP_RESEND_GAP_MS - since) / 1000);
+    throw new AppError(429, 'ABDM_OTP_TOO_SOON', `Please wait ${wait} more second${wait === 1 ? '' : 's'} before resending`);
+  }
+
+  let result: { transactionId: string; mobileHint?: string; devOtp?: string };
+  if (txn.flow === 'enrol_aadhaar' && input.aadhaar) {
+    // A fresh send against the SAME transaction — see the note above on why the number is re-supplied.
+    const digits = input.aadhaar.replace(/\D/g, '');
+    if (!/^\d{12}$/.test(digits)) throw new AppError(422, 'ABDM_INVALID_AADHAAR', 'Enter a 12-digit Aadhaar number');
+    const provider = abdmProvider();
+    const hipId = await hipIdFor(tenantId, txn.branchId);
+    const encrypted = await encryptForAbdm(provider, digits);
+    const otp = await provider.enrolRequestOtp({ encryptedAadhaar: encrypted, hipId });
+    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId });
+    result = { transactionId: txn.id, mobileHint: otp.mobileHint, devOtp: otp.devOtp };
+  } else if (input.mobile) {
+    // The mobile flow needs no re-entry: ABDM keys it on the transaction, not on the number.
+    result = await requestMobileOtp(tenantId, { transactionId: txn.id, mobile: input.mobile }, actorUserId);
+  } else {
+    throw new AppError(422, 'ABDM_RESEND_NEEDS_IDENTIFIER', 'Re-enter the Aadhaar or mobile number to resend the code');
+  }
+
+  await updateTransaction(tenantId, txn.id, { otpSends: sent + 1, lastOtpAt: new Date() });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'abdm.otp.resent',
+    resourceType: 'abdm_transaction',
+    resourceId: txn.id,
+    severity: 'notice',
+    // The count and the flow, never the identifier that was re-sent.
+    metadata: { attempt: sent + 1, flow: txn.flow },
+  });
+
+  return { ...result, resendsLeft: MAX_OTP_SENDS - (sent + 1) };
+}
+
 export async function requestMobileOtp(
   tenantId: string,
   input: { transactionId: string; mobile: string },
@@ -538,7 +623,7 @@ export async function requestMobileOtp(
   try {
     const encrypted = await encryptForAbdm(provider, digits);
     const otp = await provider.enrolMobileRequestOtp({ txnId: txn.txnId ?? '', encryptedMobile: encrypted, hipId });
-    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId, identifierHint: maskMobile(digits) });
+    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId, identifierHint: maskMobile(digits), lastOtpAt: new Date() });
     await writeAudit({
       tenantId,
       actorUserId: actorUserId ?? null,

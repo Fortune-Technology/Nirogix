@@ -477,6 +477,18 @@ export const BulkImportBody = z.object({
   rows: z.array(z.record(z.string(), z.string())).min(1).max(5000),
 });
 
+/**
+ * Resending the code (`CRT_ABHA_106`).
+ *
+ * The Aadhaar is optional because the mobile flow does not need it — ABDM keys that one on the
+ * transaction. When it IS supplied it is validated, used and discarded, exactly as on the first send.
+ */
+export const ResendOtpBody = z.object({
+  transactionId: z.string().uuid(),
+  aadhaar: z.string().regex(/^\d{12}$/).optional(),
+  mobile: z.string().min(10).max(15).optional(),
+});
+
 export const TransactionParams = z.object({ transactionId: z.string().uuid() });
 export const FacilityParams = z.object({ hipId: z.string().min(3).max(64) });
 

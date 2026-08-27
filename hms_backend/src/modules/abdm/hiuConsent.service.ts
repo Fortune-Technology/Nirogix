@@ -546,3 +546,82 @@ export async function listHistoryRequests(tenantId: string, patientId: string): 
 }
 
 const toDate = (v?: string): Date | null => (v ? new Date(v) : null);
+
+/**
+ * Finds the patient an ABHA identifier refers to, and says what can be done next (ADR-100).
+ *
+ * Closes `HIU_FLOW_101`, which asks the HIU to find a patient by ABHA Number **or** Address and
+ * check that the ABHA is valid. Before this, the only way in was a chart that already carried a
+ * verified ABHA — correct as far as it went, but it meant a walk-in whose ABHA had never been
+ * verified here could not be searched at all.
+ *
+ * Deliberately does **not** invent an ABDM lookup call. No such endpoint exists in the published
+ * M1 collection, and guessing one is how the M2 service-registration payload ended up wrong. The
+ * validity check that does exist is M1's verification flow, which puts an OTP in front of the
+ * patient — so what this returns is the match plus the honest next step, and the caller runs that
+ * proven flow rather than a fabricated one.
+ */
+export async function findPatientByAbha(
+  tenantId: string,
+  identifier: string,
+): Promise<{
+  outcome: 'verified' | 'unverified' | 'not_found' | 'ambiguous';
+  patient?: { id: string; uhid: string; name: string; abhaAddress: string | null; abhaNumber: string | null };
+  nextStep: string;
+}> {
+  const trimmed = identifier.trim();
+  const digits = trimmed.replace(/\D/g, '');
+
+  const matches = await runWithTenant(tenantId, (tx) =>
+    tx
+      .select()
+      .from(patients)
+      .where(
+        and(
+          eq(patients.tenantId, tenantId),
+          eq(patients.status, 'active'),
+          // Either identifier form finds the same person. The number is compared on digits alone so
+          // that '91-1234-5678-9012' and '911234567890' are one lookup, not two.
+          or(
+            sql`lower(${patients.abhaAddress}) = lower(${trimmed})`,
+            digits.length === 14
+              ? sql`regexp_replace(coalesce(${patients.abhaNumber}, ''), '[^0-9]', '', 'g') = ${digits}`
+              : sql`false`,
+          ),
+        ),
+      )
+      .limit(2),
+  );
+
+  if (matches.length > 1) {
+    // Should now be unreachable — a unique index forbids it (ADR-100) — but a lookup that silently
+    // picked one of two charts claiming a national identity would be the worst possible answer.
+    return { outcome: 'ambiguous', nextStep: 'Two charts hold this ABHA. Merge them before requesting a history.' };
+  }
+
+  const found = matches[0];
+  if (!found) {
+    return {
+      outcome: 'not_found',
+      nextStep: 'No chart here holds that ABHA. Register the patient, or verify their ABHA at the desk first.',
+    };
+  }
+
+  const summary = {
+    id: found.id,
+    uhid: found.uhid,
+    name: [found.firstName, found.lastName].filter(Boolean).join(' '),
+    abhaAddress: found.abhaAddress,
+    abhaNumber: found.abhaNumber,
+  };
+
+  if (!found.abhaVerifiedAt) {
+    return {
+      outcome: 'unverified',
+      patient: summary,
+      // The real validity check, not a fabricated one.
+      nextStep: 'This ABHA was typed in and never verified. Verify it from the patient chart before requesting their history.',
+    };
+  }
+  return { outcome: 'verified', patient: summary, nextStep: 'Ready — a history can be requested for this patient.' };
+}

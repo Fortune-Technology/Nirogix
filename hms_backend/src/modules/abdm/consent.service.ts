@@ -1,6 +1,6 @@
-import { and, eq, lt, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { abdmConsents, abdmFacilityConfig, patients, type AbdmConsent } from '../../db/schema';
+import { abdmConsents, abdmFacilityConfig, auditLog, patients, type AbdmConsent } from '../../db/schema';
 import { logger } from '../../config/logger';
 import { writeAudit } from '../audit/audit.service';
 
@@ -302,4 +302,52 @@ export async function listConsents(tenantId: string, abhaAddress?: string): Prom
       )
       .orderBy(sql`${abdmConsents.grantedAt} desc nulls last`),
   );
+}
+
+/**
+ * What happened to consents at this hospital, including the ones that no longer exist (ADR-100).
+ *
+ * The certification cases `HIP_INIT_GRANT_CONSENT`, `HIP_INIT_REVOKE_CONSENT` and
+ * `HIP_INIT_EXPIRE_CONSENT` all state their expected result as **"seen in HMIS"** — the requirement
+ * is that an operator can *look*, not merely that we behave correctly.
+ *
+ * That creates a genuine tension with ADR-087, which deletes an artefact on revocation and does not
+ * bend. The resolution is that the two questions are different: the artefact is the *permission* and
+ * it is destroyed, while the audit trail is the *record that it existed and ended*, holds metadata
+ * only, and is never deleted (invariant #6). So a revoked consent disappears from the live list and
+ * appears in the history beneath it, which is exactly what an assessor needs to watch happen.
+ */
+export async function consentHistory(tenantId: string, limit = 100): Promise<Array<{
+  consentId: string;
+  event: 'granted' | 'revoked' | 'expired' | 'erased';
+  hipId?: string;
+  hiuId?: string;
+  hiTypes?: string[];
+  recordedAt: string;
+}>> {
+  const rows = await runWithTenant(tenantId, (tx) =>
+    tx
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.tenantId, tenantId), inArray(auditLog.action, [
+        'abdm.consent.granted',
+        'abdm.consent.revoked',
+        'abdm.consent.expired',
+        'abdm.consent.erased',
+      ])))
+      .orderBy(sql`${auditLog.createdAt} desc`)
+      .limit(limit),
+  );
+
+  return rows.map((r) => {
+    const meta = (r.metadata ?? {}) as Record<string, unknown>;
+    return {
+      consentId: String(meta.consentId ?? ''),
+      event: r.action.split('.').pop() as 'granted' | 'revoked' | 'expired' | 'erased',
+      hipId: typeof meta.hipId === 'string' ? meta.hipId : undefined,
+      hiuId: typeof meta.hiuId === 'string' ? meta.hiuId : undefined,
+      hiTypes: Array.isArray(meta.hiTypes) ? (meta.hiTypes as string[]) : undefined,
+      recordedAt: r.createdAt.toISOString(),
+    };
+  });
 }
