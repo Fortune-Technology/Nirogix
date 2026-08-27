@@ -9,6 +9,15 @@ import { logger } from '../config/logger';
 // tenant-scoped table. RLS lives outside Drizzle's schema DSL, so it is applied here rather
 // than in a generated migration file. Idempotent — safe to run on every deploy.
 async function main(): Promise<void> {
+  // The pool's statement / idle-transaction timeouts (M-2) protect the REQUEST path. Schema
+  // work is the one place a genuinely long statement is expected — an index build on a large
+  // table, a backfill — so this session opts out rather than failing a deploy halfway through
+  // a migration. Registered before the first query, so every connection this process opens
+  // gets it.
+  pool.on('connect', (client) => {
+    void client.query('SET statement_timeout = 0; SET idle_in_transaction_session_timeout = 0');
+  });
+
   logger.info('Running database migrations...');
   await migrate(db, { migrationsFolder: 'drizzle' });
 

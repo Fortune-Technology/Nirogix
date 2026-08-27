@@ -105,6 +105,41 @@ the link) to the backend log.
 - [ ] A session signed in elsewhere is signed out by the reset (all sessions revoked).
 - [ ] From the Admin console, the emailed link opens the **admin** app's reset page, not the Portal's.
 
+### Account security: lockout, password policy, idle sign-out (ADR-082)
+
+These are the controls a real hospital meets on day one — a mistyped password at a busy front
+desk, a weak password on a new account, a workstation left open in a corridor. Run them on a
+THROWAWAY account, not on an account someone else is about to use.
+
+- [ ] **Lockout.** Sign in with a wrong password **5 times**. **Verify:** each attempt says only
+      "Invalid credentials" — the 5th does not announce a lock.
+- [ ] **The lock is real, and only the real user is told.** Now sign in with the **correct**
+      password. **Verify:** refused with "Too many failed sign-in attempts. Try again in N
+      minute(s)." (🔒 a stranger guessing passwords never sees this message).
+- [ ] **A wrong password during the lock.** **Verify:** the same generic "Invalid credentials" —
+      the lock is not a way to discover that an account exists.
+- [ ] **Nobody else is affected.** Sign in as a different user in the same hospital.
+      **Verify:** normal sign-in — a lock is per account, never per hospital or per branch (🔒).
+- [ ] **It lifts by itself.** Wait out the stated window and sign in with the right password.
+      **Verify:** you are back in; no administrator had to do anything.
+- [ ] **The defender can see it.** As an org_admin, open **Audit log** and filter to
+      Warning/Critical. **Verify:** `auth.login.locked` and `auth.login.blocked` entries, with the
+      attempt count; a sustained attempt appears as **Critical**.
+- [ ] **Password policy.** My profile → Password. Try `password1234`, then `Short#1a`, then your
+      own name plus a year. **Verify:** each is refused with a specific reason, and a genuinely
+      unrelated 12+ character password with mixed classes is accepted.
+- [ ] **No exemption for admin-created accounts.** As org_admin, create a user and supply a weak
+      password. **Verify:** refused with the same policy message.
+- [ ] **Temporary passwords.** Create two users with **no** password. **Verify:** each temp
+      password is long, mixed, and the two share no common prefix.
+- [ ] **Idle sign-out.** Sign in, then leave the tab completely untouched for **15 minutes**.
+      **Verify:** you are signed out with an info toast naming inactivity, and the back button
+      does not restore the session (it was revoked server-side, 🔒).
+- [ ] **Two tabs.** Open the Portal in two tabs and work in one for 20 minutes.
+      **Verify:** neither tab signs out — activity is shared across tabs.
+- [ ] **Patient portal.** Repeat the idle check on the patient app (`:3002`). **Verify:** same
+      behaviour — that portal is opened on borrowed phones and kiosks.
+
 ---
 
 ## 1. Platform Admin journey (Admin console)
@@ -244,6 +279,108 @@ Sign in as the **Receptionist** (Test credentials → Receptionist).
 - [ ] **5.1.3 Duplicate handling:** register the *same* person again (same phone + name/DOB).
   **Verify:** a duplicate dialog appears — **Use this patient** (open the existing chart) or **Register
   anyway** — rather than silently creating a second chart.
+
+### 5.1a ABHA verification at the desk (ABDM Milestone 1 — ADR-084)
+
+Only appears when the hospital is entitled to the **abdm** module and the signed-in role holds
+`abdm.verification.perform`. On a default development environment `ABDM_PROVIDER=mock`: no ABDM call
+is made, the OTP is always `123456`, and the scenario is chosen by the **last digit of the Aadhaar**
+(`0` already has an ABHA, `1` no linked mobile, `5` two ABHA accounts, `9` OTP rejected, anything
+else a clean creation). The panel says so on screen — if that notice is missing while the mock is
+active, stop and report it.
+
+- [ ] **5.1a.0 Not entitled:** at a hospital without the module, open **Register patient**.
+  **Verify:** no ABHA panel at all, the form is unchanged, and no error toast appears.
+- [ ] **5.1a.1 Facility first (org_admin):** Hospital configuration → **ABDM / ABHA** → enter the
+  HFR **facility ID**, paste the **QR payload**, tick Scan & Share, Save.
+  **Verify:** the QR preview renders and actually scans in a phone camera.
+- [ ] **5.1a.2** Back as the receptionist, open **Register patient**.
+  **Verify:** the **Scan & Share** tab leads and is marked *Fastest*. Without a QR configured it is
+  disabled with a tooltip and the other two tabs still work.
+- [ ] **5.1a.3 Consent gate:** on **Create a new ABHA**, type an Aadhaar but leave consent unticked.
+  **Verify:** *Send OTP* stays disabled. Consent is not a formality — an OTP reaches a real phone.
+- [ ] **5.1a.4 Create an ABHA:** tick consent, Aadhaar `111122223333`, Send OTP, enter `123456`, Verify.
+  **Verify:** the profile appears with name, gender, date of birth and address, badged *New ABHA created*.
+- [ ] **5.1a.5 The form fills itself.** **Verify:** the moment verification succeeds the registration
+  form is already populated, with a note saying so and naming anything ABDM did not send. The
+  receptionist's remaining job is to press **Register patient** — that is the point of the feature.
+- [ ] **5.1a.5a Prefill is a suggestion, not an overwrite:** type a first name **before** verifying.
+  **Verify:** what you typed survives; only empty fields fill; every field is still editable.
+- [ ] **5.1a.5b A returning patient does NOT auto-fill.** Verify an ABHA that is already on a chart
+  here. **Verify:** the form is left alone and the existing chart is offered instead. Auto-filling
+  there would put a duplicate chart one button away, which is the one thing this feature must not do.
+- [ ] **5.1a.5c ABHA number intact:** **Verify** the number shows in full (`XX-XXXX-XXXX-XXXX`),
+  not partially masked.
+- [ ] **5.1a.6** Register the patient. **Verify:** the chart is created and the ABHA now reads as
+  **verified** on it. Audit log holds `abdm.abha.linked`.
+- [ ] **5.1a.7 Returning patient:** run the same Aadhaar again.
+  **Verify:** it is flagged **Already registered here** with a link to the existing chart — the point
+  of the feature is that a second chart is not created.
+- [ ] **5.1a.8 Look-alike is not a match:** verify a profile whose name, gender and birth year match a
+  different existing patient. **Verify:** shown as *similar charts to check*, never merged for you.
+- [ ] **5.1a.9 Existing ABHA:** on **Patient has an ABHA**, verify by ABHA number, then by ABHA address,
+  then by mobile, then by Aadhaar. **Verify:** each returns a profile; the OTP hint shows a masked
+  number only. A mobile ending in `5` should offer an **account picker**.
+- [ ] **5.1a.10 Scan & Share:** have the patient scan the facility QR in their ABHA app (or POST to
+  `/api/v3/hip/patient/share`, with the facility in `metaData.hipId`). **Verify:** the profile appears under
+  *Shared just now* within a few seconds and can be used with no OTP at all.
+- [ ] **5.1a.11 Failure is not a dead end:** use Aadhaar `111122223339` (OTP rejected) and
+  `111122223331` (no linked mobile). **Verify:** the message names the real cause, and you can close
+  the panel and register by hand with nothing lost. **This is the case that matters most** — the desk
+  must never be blocked by ABDM being unavailable.
+- [ ] **5.1a.12 Nothing leaks:** with devtools open, run one Aadhaar flow. **Verify:** no response body
+  contains the Aadhaar number or any ABDM token. Then search the API log — only `XXXXXXXX…` hints.
+
+- [ ] **5.1a.13 Correcting the record at ABDM (org_admin only).** As the receptionist, **verify** there
+  is no ABDM correction control. Sign in as the org_admin, complete a verification, open
+  **Correct these details at ABDM**, change the last name and save. **Verify:** it saves, the panel
+  shows what ABDM now holds, and the copy makes clear the change lands at ABDM rather than only at
+  this hospital. The audit log records which fields changed and none of the values.
+
+**⚠ Production access** additionally needs NHA functional testing, a WASA certificate and HTC
+approval. **M3 (fetching records from other providers) is not built.** M2 is — see 5.1b.
+
+### 5.1b Sharing records with ABDM (ABDM Milestone 2 — ADR-087…ADR-091)
+
+**This section has no clicking, and that is not an oversight.** M1 is *outbound* — the desk calls
+ABDM, so you can watch it happen in the Portal. M2 is *inbound*: ABDM calls **us**, on webhooks, and
+it has no screens by design. Nobody at a hospital ever operates M2; it answers requests from the
+patient's own app and from other providers. Until the bridge URL is registered (TLS is done as of 27/08/2026; registration is the remaining step — `BACKLOG.md` I-5) the
+gateway cannot reach us at all, so the honest way to verify M2 is to **play the gateway ourselves**.
+
+One command does that. It drives the real services through the whole chain against your local
+database and deletes its own scratch tenant afterwards:
+
+```bash
+npm run abdm:m2check
+```
+
+- [ ] **5.1b.1 The chain works end to end.** Run it. **Verify:** it finishes with *"M2 is working end
+  to end locally"* and no `✗`. Any failure is a real defect — the script asserts behaviour, not
+  wiring.
+- [ ] **5.1b.2 Read what we would actually send ABDM.** Run `npm run abdm:m2check -- --payloads`.
+  **Verify:** the linking payload's care-context `display` reads like *"OPD records from
+  27/08/2026"* — a **date and a setting, never a diagnosis**. The patient reads that string in their
+  PHR app, so a condition appearing there is a disclosure that cannot be taken back.
+- [ ] **5.1b.3 Linking waits rather than failing.** In the output, **verify** step 5 first reports
+  *"Waiting for a link token"* and only links after the token is delivered. That deferral is correct:
+  a consultation must never fail to save because NHA was slow.
+- [ ] **5.1b.4 Revocation stops a transfer that was already accepted.** **Verify** step 9 reports the
+  consent artefact **deleted** (not flagged), the clinical records **untouched**, nothing pushed to
+  the HIU, and the gateway told the flow errored. **This is the most important check in M2** — a run
+  that sends records after a revoke is a failed run.
+- [ ] **5.1b.5 Nothing goes out unencrypted.** **Verify** step 8 reports the mock payload marked
+  `MOCK-NOT-ENCRYPTED`. That marker is what stops a test envelope ever being mistaken for real
+  ciphertext. In gateway mode the same path produces Fidelius output — there is no third option and
+  no plaintext fallback.
+- [ ] **5.1b.6 It cleans up after itself.** Run it twice. **Verify:** the second run passes
+  identically and no `ZZM2CHECK` tenant is left in the database.
+
+**What this cannot prove, and what remains outstanding.** That ABDM can reach us (needs TLS —
+the bridge URL still points at NHA's placeholder — `BACKLOG.md` I-5); that the four **unverified** inbound paths are correct; and that Fidelius encrypts
+correctly, since mock mode marks rather than encrypts. **No health record has been exchanged with
+ABDM in any environment.** Do not record 5.1b as evidence of a live integration — it is evidence that
+our half is correct.
 
 ### 5.2 Visit / check-in
 
@@ -436,6 +573,13 @@ Document expected behaviour for each:
 - [ ] **Refresh mid-workflow** → no data loss for saved steps; unsaved input behaves predictably.
 - [ ] **Back/forward navigation** → the app stays consistent; no stale/incorrect data shown.
 - [ ] **Open an old / deactivated / invalid record** → a clear empty/not-found state, not a crash.
+- [ ] **Repeated wrong passwords on one account** → locked with backoff; other accounts unaffected (🔒 ADR-082).
+- [ ] **Upload a renamed binary** (e.g. an `.exe` renamed `.png`) as a logo or report attachment →
+      refused: "contents do not match its declared type"; nothing is stored (🔒).
+- [ ] **Weak password anywhere it can be set** (self-service, reset link, admin-created user) → refused
+      with the same policy message in every place.
+- [ ] **Browser console during a full journey** → no Content-Security-Policy violations on any of the
+      five apps; logos, report images and print previews still render (🔒).
 
 ---
 

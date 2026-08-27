@@ -126,6 +126,10 @@ The site currently calls no API. When `ContactForm` is wired to a real endpoint,
 
 ## Performance (binding — `resources/rules.md`)
 
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) sends the Content-Security-Policy built by `@hms/utils` plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). This site is in **static mode** — no nonce, because a per-request nonce would make every page dynamic and end the ISR caching this site depends on. Scripts therefore keep `unsafe-inline`; every other directive is strict. That is acceptable only while this site renders no user input, holds no session and reaches no PHI — wiring `ContactForm` (BACKLOG U-2) is the change that should move it to nonce mode.
+
 Fonts already use `next/font` (Geist / Geist Mono). **Outstanding:** no `next/image` usage yet — any content image added must use it (explicit dimensions, correct `sizes`, lazy by default, `priority` only for the true LCP image); below-the-fold heavy sections use `next/dynamic`; third-party scripts (none today) go through `next/script`; routes are measured against LCP ≤2.5s / INP ≤200ms / CLS ≤0.1.
 
 ## The Portal link (environment-aware)

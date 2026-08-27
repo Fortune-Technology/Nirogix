@@ -84,10 +84,17 @@ export type PasswordResetClaims = {
 };
 
 const PASSWORD_RESET_TTL = '30m';
+// A welcome / "set your password" link (onboarding, staff invite) reuses the reset-token flow but
+// lives long enough for the recipient to act on the email — the same single-use, hashed-at-rest
+// token, just a longer expiry.
+export const PASSWORD_SETUP_TTL = '7d';
 
-export function signPasswordResetToken(claims: Omit<PasswordResetClaims, 'prt' | 'gen'>): string {
+export function signPasswordResetToken(
+  claims: Omit<PasswordResetClaims, 'prt' | 'gen'>,
+  ttl: jwt.SignOptions['expiresIn'] = PASSWORD_RESET_TTL,
+): string {
   return jwt.sign({ ...claims, prt: 'pwreset', gen: randomUUID() }, env.JWT_REFRESH_SECRET, {
-    expiresIn: PASSWORD_RESET_TTL,
+    expiresIn: ttl,
   });
 }
 

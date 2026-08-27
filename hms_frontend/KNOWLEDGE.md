@@ -172,6 +172,10 @@ The Portal is private and never indexed: the root layout sets `robots: { index: 
 
 ## Frontend performance
 
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) sends the Content-Security-Policy built by `@hms/utils` plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). This app is in **nonce mode**: a per-request nonce, `strict-dynamic`, and no `unsafe-inline`. The root layout is async so it can read the nonce from the `x-nonce` header and stamp it on the one inline script the app owns (the no-flash theme script) — any new inline script needs the same treatment, or it will not run. Sessions also sign out after 15 minutes idle (`@hms/client`, ADR-082).
+
 - Fonts: `next/font` (Geist / Geist Mono). Images: `next/image` — the tenant logo (AppShell + Settings) uses `unoptimized` with explicit dimensions, because tenant assets come from per-deployment object storage whose origin cannot be enumerated in `images.remotePatterns`.
 - Heavy, non-critical UI uses `next/dynamic`; third-party scripts go through `next/script`; `<head>` comes from the Metadata API. No third-party analytics by default — and never PHI or tenant-identifying data in any telemetry.
 
@@ -196,5 +200,27 @@ The Portal is private and never indexed: the root layout sets `robots: { index: 
 - **Super-Admin area (built, A3):** `app/(app)/admin/tenants/` — Tenants list, the **Create-Tenant wizard** (org → module checklist from `GET /admin/module-catalog` → first admin → optional branch, with a **one-time temp-password reveal**), and the tenant detail page (status control, module grant/revoke, branches). Gated by `platform.tenants.manage` (only `super_admin`; the "Tenants" nav item and pages are hidden/403 for everyone else). Onboarding is operator-driven, not public self-registration (ADR-020).
 - **Org-Admin area (built, A4):** `app/(app)/users/` — Users list (roles + status) with inline create (one-time temp-password reveal) and a detail page (status, role assign/remove, effective-permission view, GRANT/DENY override add/revoke from the `@hms/permissions` catalog). `app/(app)/branches/` — list + inline create + active toggle. Reads gated by `platform.users.view`/`platform.branches.view`; mutating controls wrapped in `<Can>` for `.manage` / `platform.rbac.manage`. Nav items "Users"/"Branches" appear for `org_admin` (not for roles lacking the view permission).
 - **Master data & immunisations (built, ADR-072):** `components/catalog/CatalogPicker` (+ `CatalogPickerButton`) is the one shared, searchable "Choose from catalogue" picker over `GET /catalog/:category`; the lab-test, drug, service and department setup forms use it to pre-fill standardised fields from the seeded system catalogue (price/tax/stock stay the hospital's). `components/patients/ImmunizationsCard` on the patient record lists and records a patient's vaccinations from the India schedule or a hospital-custom vaccine. **Per-hospital availability (ADR-073):** the `/settings/availability` tab lets an org_admin toggle which drugs/lab tests/services/vaccines each hospital offers; the day-to-day pickers filter by branch (backend-enforced).
+- **ABDM / ABHA at registration (built, ADR-084):** `components/abdm/AbhaVerificationPanel.tsx` above the patient registration form — Scan & Share (facility QR, no OTP) leading, plus verify-an-existing-ABHA and create-from-Aadhaar. It never registers anyone: it returns a prefill (which fills **only empty fields**) and a transaction id the form links after the chart is created. The capabilities probe is silent by design, so a tenant without the `abdm` module simply sees no panel. `app/(app)/hospital-setup/abdm/` is where org_admin enters the hospital's own HFR facility id and QR payload. QR drawing is shared through `lib/useQrDataUrl.ts` (ADR-029); `components/print/usePublicQr.ts` composes it.
 - Public self-registration + self-serve billing stay in the Enterprise track. Password reset / email invite, per-branch branding, and a custom-role editor are later slices.
 - MFA challenge, forgot-password, and branch switching are stubs/not present.
+
+## Module & capability aware navigation (ADR-085)
+
+The sidebar, the mobile bottom bar and the drawer all render the intersection the backend already
+enforces: **tenant module ∩ tenant capability ∩ user permission**. `NavItem` carries an optional
+`module` and `capability`; `navEntitled(item, entitlement)` in `lib/nav.ts` is the single predicate
+both `navGroupsForUser` and `mobilePrimaryNav` use, and a group whose every item is hidden
+disappears. Entitlement comes from the shared session (`@hms/client` `useAuth().hasModule` /
+`hasCapability`, loaded from `GET /entitlements`).
+
+Rules worth keeping:
+- **Hiding is never the boundary.** Every route is independently re-checked by `requireModule` →
+  `requireCapability` → `requirePermission`; a hidden item typed as a URL still gets a 403 and the
+  screen reports *"This module is not available for your organization"*.
+- **WILDCARD does not bypass entitlement.** A platform operator in a support session still cannot
+  see a module the hospital never bought — entitlement is the tenant's, permission is the user's.
+- **No entitlement context = show everything permitted.** While the session loads (or if the
+  entitlements call fails) the menu falls back to permission-only filtering rather than emptying.
+- An item with no `module` is Platform Core (Dashboard, Profile, Users…) and is never entitlement-filtered.
+
+Covered by `lib/__tests__/nav.test.ts` (8 tests — the Portal's first automated tests).

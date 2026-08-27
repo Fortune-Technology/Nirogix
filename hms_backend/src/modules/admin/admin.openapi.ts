@@ -8,6 +8,10 @@ import {
   TenantDetailSchema,
   TenantStatusBody,
   GrantModuleBody,
+  SetCapabilityBody,
+  TenantCapabilitiesSchema,
+  CapabilityAckSchema,
+  TenantModuleConfigSchema,
 } from './admin.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -18,7 +22,22 @@ const AckSchema = z.object({ tenant: z.string(), module: z.string(), status: z.s
 const ModuleCatalogSchema = z
   .object({
     modules: z.array(
-      z.object({ key: z.string(), name: z.string(), hardDependencies: z.array(z.string()) }),
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        category: z.string(),
+        status: z.string(),
+        alwaysOn: z.boolean(),
+        capabilities: z.array(
+          z.object({
+            key: z.string(),
+            name: z.string(),
+            status: z.string(),
+            dependencies: z.array(z.string()),
+          }),
+        ),
+        hardDependencies: z.array(z.string()),
+      }),
     ),
   })
   .openapi('ModuleCatalog');
@@ -191,6 +210,110 @@ registry.registerPath({
   request: { params: z.object({ id: z.string().uuid(), key: z.string() }) },
   responses: {
     200: { description: 'Revoked', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/tenants/{id}/module-config',
+  operationId: 'getTenantModuleConfig',
+  tags: ['Admin'],
+  summary: 'The whole module/capability configuration for a tenant, grouped by domain (ADR-085)',
+  description:
+    'Super-admin only. Every module in the canonical registry grouped by domain, each with its entitled state and its capabilities with their enabled state (deny-by-exception). The single model the module manager consumes rather than re-deriving visibility — the backend stays the source of truth (§19).',
+  security: [{ bearerAuth: [] }],
+  request: idParam,
+  responses: {
+    200: { description: 'Tenant module configuration', ...json(TenantModuleConfigSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/tenants/{id}/capabilities',
+  operationId: 'listTenantCapabilities',
+  tags: ['Admin'],
+  summary: "List the capabilities of a tenant's entitled modules, with each one's enabled state (ADR-085)",
+  description:
+    'Super-admin only. Every declared capability of the tenant’s entitled modules; deny-by-exception, so a capability is enabled unless an override disables it. Modules with no capabilities contribute nothing.',
+  security: [{ bearerAuth: [] }],
+  request: idParam,
+  responses: {
+    200: { description: 'Tenant capabilities', ...json(TenantCapabilitiesSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/admin/tenants/{id}/capabilities',
+  operationId: 'setTenantCapability',
+  tags: ['Admin'],
+  summary: "Enable or disable one capability of a tenant's module (ADR-085)",
+  description:
+    'Super-admin only. Deny-by-exception: `enabled:false` writes a disable override, `enabled:true` clears it. Refused (409) when it would break a dependency — disabling a capability another enabled one needs, or enabling one whose dependency is off.',
+  security: [{ bearerAuth: [] }],
+  request: { ...idParam, body: json(SetCapabilityBody) },
+  responses: {
+    200: { description: 'Updated', ...json(CapabilityAckSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Dependency conflict', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+const EmailTemplatesSchema = z
+  .object({
+    templates: z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        category: z.string(),
+        description: z.string(),
+        subject: z.string(),
+      }),
+    ),
+  })
+  .openapi('EmailTemplates');
+
+const EmailTemplatePreviewSchema = z
+  .object({ key: z.string(), subject: z.string(), html: z.string() })
+  .openapi('EmailTemplatePreview');
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/email-templates',
+  operationId: 'listEmailTemplates',
+  tags: ['Admin'],
+  summary: 'List the central email template catalogue (developer/operator preview tool)',
+  description:
+    'Super-admin only. Every application email template with its category, description and rendered subject. Read-only; no tenant data is touched.',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Email templates', ...json(EmailTemplatesSchema) }, 401: notAuthed, 403: forbidden },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/email-templates/{key}/preview',
+  operationId: 'previewEmailTemplate',
+  tags: ['Admin'],
+  summary: 'Render one email template from its sample data (developer/operator preview tool)',
+  description:
+    'Super-admin only. Returns the rendered subject + HTML of a template using realistic sample data, so the design and copy can be reviewed without triggering the business action.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ key: z.string() }) },
+  responses: {
+    200: { description: 'Rendered email', ...json(EmailTemplatePreviewSchema) },
     401: notAuthed,
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },

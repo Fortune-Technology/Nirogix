@@ -25,6 +25,7 @@ export const OPENAPI_TAGS = [
   { name: 'Reports', description: 'Reporting and analytics' },
   { name: 'Config', description: 'Feature configuration and settings' },
   { name: 'Catalog', description: 'System master data + hospital custom items (ADR-072)' },
+  { name: 'ABDM', description: 'ABDM / ABHA — Milestone 1 identity verification at registration (ADR-084)' },
   { name: 'Audit', description: 'Audit log and activity timeline' },
 ] as const;
 

@@ -1,9 +1,14 @@
-import { randomBytes } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
+import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { users, userRoles, roles, type User } from '../../db/schema';
+import { users, userRoles, roles, tenants, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
+import { env } from '../../config/env';
+import { logger } from '../../config/logger';
 import { hashPassword } from '../auth/password';
+import { assertAcceptablePassword, generateTempPassword } from '../auth/passwordPolicy';
+import { issuePasswordSetupLink } from '../auth/auth.service';
+import { sendAppEmail } from '../notification/communication.service';
 import {
   assignRoleByKey,
   resolvePermissions,
@@ -12,8 +17,13 @@ import {
 } from '../rbac/rbac.service';
 import { writeAudit } from '../audit/audit.service';
 
-function generateTempPassword(): string {
-  return `Hms-${randomBytes(6).toString('base64url')}`;
+/** "front_desk" → "Front Desk" — a readable role name for the welcome email. */
+function roleDisplay(key?: string): string {
+  if (!key) return 'a staff member';
+  return key
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 export type UserListItem = {
@@ -59,6 +69,11 @@ export async function createUser(
   actorUserId?: string,
 ): Promise<{ userId: string; tempPassword: string | null }> {
   const plain = input.password ?? generateTempPassword();
+  // The schema already enforced the context-free half; this adds the half that needs the
+  // person: their own email and name must not be what their password is made of (ADR-082).
+  if (input.password) {
+    assertAcceptablePassword(input.password, { email: input.email, fullName: input.fullName });
+  }
   const passwordHash = await hashPassword(plain);
   const userId = await runWithTenant(tenantId, async (tx) => {
     const existing = (
@@ -86,6 +101,31 @@ export async function createUser(
     resourceId: userId,
     metadata: { email: input.email, roleKey: input.roleKey ?? null },
   });
+
+  // Welcome the new staff user with a "set your password" link (they sign in to the Portal).
+  // Best-effort: a mail problem must never fail user creation.
+  try {
+    const orgName =
+      (await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0]?.name ??
+      'Nirogix';
+    const setupUrl = await issuePasswordSetupLink(tenantId, userId, 'portal');
+    await sendAppEmail({
+      tenantId,
+      to: input.email,
+      template: 'staff_welcome',
+      data: {
+        userName: input.fullName,
+        orgName,
+        roleName: roleDisplay(input.roleKey),
+        setupUrl,
+        loginUrl: `${env.PORTAL_URL.replace(/\/$/, '')}/login`,
+      },
+      idempotencyKey: `welcome-staff:${userId}`,
+    });
+  } catch (err) {
+    logger.error({ err, tenantId, userId }, 'staff welcome email failed');
+  }
+
   return { userId, tempPassword: input.password ? null : plain };
 }
 

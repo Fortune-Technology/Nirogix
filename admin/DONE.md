@@ -95,3 +95,134 @@ The "Test credentials" quick-login added on 2026-08-18 (ADR-074) is **deleted** 
 **What:** `(app)/profile/` — account facts (`GET /auth/me`) + the Password card posting to the same `POST /auth/change-password` the Portal uses (user id from the token, never the page; success signs out everywhere and returns to `/login`). New `components/profile/` — the Portal's profile pieces **by copy, not by import** (same rule as Can/Forbidden/PageHeader; the unused editable-card piece deliberately not copied). Nav gains an **Account → My profile** entry (`perm: null` — any authenticated operator), replacing the comment that documented the gap. Closes the detour where an operator had to sign in to the hospital-staff Portal to change their own password.
 
 **Testing status:** typecheck + production build green. The change-password API path is the Portal's already-verified one; the operator-console UI run is AUTH-37 in `testcases.md` (needs an operator session — not exercised by the agent, which does not authenticate with real operator credentials).
+
+## 2026-08-20 — Content-Security-Policy and idle sign-out in the operator console (ADR-082)
+
+**What:** the same `proxy.ts` + nonced layout as the Portal, and the same 15-minute idle sign-out from `@hms/client`. An operator console is the one surface where an unattended screen reaches every tenant, so it gets no exemption.
+
+**Testing status:** verified live — the console renders under the policy (403 panel for a non-operator principal, as designed) with no CSP violations. Build and typecheck green.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the Platform Admin console's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` trimmed to 1–2 line comments with every key uncommented, and
+`NEXT_PUBLIC_ENVIRONMENT` **removed** from both `.env.example` and `.env` — no code has read it
+since the quick-login was deleted under ADR-077, so it was a variable that configured nothing. The
+gitignored `.env` mirrors the remaining keys in the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+---
+
+## 2026-08-26 — Capability configuration on the tenant detail screen (ADR-085, P5)
+
+**What:** the tenant detail page (`tenants/[id]`) gained a **Capabilities** card beneath Modules —
+the sub-features of the tenant's entitled modules (ADR-085), grouped by module, each with an
+Enabled/Disabled badge and a Disable/Enable button. Wired to two new operator endpoints:
+`GET /admin/tenants/:id/capabilities` (every declared capability of the entitled modules + its
+current state) and `PUT /admin/tenants/:id/capabilities` (`{ module, capability, enabled }`).
+`admin/lib/api.ts` gained `listTenantCapabilities` / `setTenantCapability`, and `@hms/types` a
+`TenantCapability`.
+
+**Why:** capabilities are the tier beneath modules; onboarding does not need them (deny-by-exception
+→ on by default), but an operator needs a place to switch a module's sub-feature off for a hospital.
+Dependency-guard failures (disabling a capability another enabled one needs, or enabling one whose
+dependency is off) come back as 409 with the backend's own message on the shared toast.
+
+**Testing status:** `admin` typecheck green; backend suite **352** green (adds `listTenantCapabilities`
+coverage); OpenAPI valid with both routes documented. Not yet live-rendered in this change — needs
+the branch running with migration `0031` applied; portal-side reflection of capabilities (nav/gating)
+is the still-open P4.
+
+---
+
+## 2026-08-26 — Three-level module & capability manager (ADR-085, P5)
+
+**What:** a dedicated `tenants/[id]/modules` screen — the enterprise three-level configurator that
+replaces the earlier inline Capabilities card (folded into it). **Level 1** domain rail (Core,
+Clinic/OPD, Hospital, Billing & Finance, Add-ons — only domains with modules, with enabled/total
+counts), **Level 2** module cards with Enable/Disable + status badge + hard-deps, **Level 3** each
+entitled module's capabilities as On/Off toggles. A top **Enabled configuration** card previews
+everything switched on, grouped by domain with per-module feature counts — the operator's
+verification view. Plus search across modules+capabilities and All/Enabled/Disabled/Coming-soon
+filters. Reached from a "Manage modules & capabilities" button on the tenant detail Modules card.
+
+It reads one model, `GET /admin/tenants/:id/module-config` (`api.getTenantModuleConfig`) — the whole
+registry by domain with each module's `entitled` and capability `enabled` state — and writes through
+the existing grant/revoke (module) and `setTenantCapability` (capability) endpoints. `BUILT` modules
+toggle for real; `AVAILABLE` ones render **"Coming soon — no screens yet"** (honest, still
+entitleable). Disabling a module other enabled modules hard-depend on prompts a `ConfirmDialog`
+naming them; a capability dependency conflict surfaces the backend's 409 message on the shared toast.
+
+**Why:** modules must be configured granularly and interconnectedly, from one centralized model all
+apps consume (ADR-085 §19), not as isolated pages — and the operator needs to preview the effective
+enabled set to verify a hospital's configuration.
+
+**Testing status:** `admin` typecheck green; backend **353** green (`getTenantModuleConfig` covered);
+OpenAPI valid. **Live-verified** against seeded CityCare: login → the manager shows "8 of 17 modules
+enabled", the Enabled-configuration preview by domain, the Hospital domain's five unbuilt modules as
+Disabled + "Coming soon", and working capability toggles (e.g. EMR → AI Clinical Drafting).
+
+### Onboarding modules grouped by domain (same day)
+
+**What:** the "Onboard a tenant" module selector (`tenants/new`) no longer renders one flat chip
+list — it groups the modules **by domain** (Core, Clinic/OPD, Hospital, Billing, Add-ons…) in the
+canonical order, so the operator sees the whole catalog organized and picks what to grant. Unbuilt
+modules carry a small **soon** marker (no screens yet). Selection + the MVP default preset are
+unchanged. To feed this, `GET /admin/module-catalog` now returns each module's `category` and
+`status` (mapped straight from `MODULE_REGISTRY`), and `@hms/types` `ModuleCatalogItem` gained those
+two fields.
+
+**Testing status:** `admin` + backend typecheck green; OpenAPI valid; the catalog endpoint
+curl-verified to return `category` + `status`.
+
+### Full catalog + Level 2/3 drill-down (same day)
+
+**What:** the registry behind these screens grew to the whole decomposition — **11 domains ·
+42 modules · 246 capabilities** — so the manager switched from one expanded tree to a proper
+drill-down: Level 2 lists the selected domain's modules (status, capability count, dependencies)
+and opening one shows Level 3, that module's capabilities with a breadcrumb back. Header counts both
+tiers (`8/42 modules · 22/246 capabilities`). The Enabled-configuration chips are clickable and jump
+straight to a module. Platform Services renders **Required 🔒** with no toggle (`alwaysOn`), and a
+capability that is not `BUILT` carries its own *Coming soon* badge. Onboarding shows all 42 grouped
+by domain.
+
+**Testing status:** `admin` typecheck green; backend **355** green; OpenAPI valid. Live API against
+CityCare returns 11 categories / 42 modules / 246 capabilities, with `platform_services`
+auto-entitled.
+
+### Capability choices at onboarding (same day)
+
+**What:** the onboarding module selector became a grouped, expandable list — each module row is a
+checkbox plus a chevron that reveals **its capabilities, each with an On/Off pill**. Defaults follow
+deny-by-exception: selecting a module turns all of its capabilities on, and the operator switches
+off only what the hospital should not have. The footer counts both tiers
+(`7 modules · 41 capabilities`). A capability control is disabled until its module is selected, and
+a non-`BUILT` module or capability carries a *Coming soon* badge.
+
+Backend: `GET /admin/module-catalog` now returns each module's `alwaysOn` and its declared
+`capabilities`; `OnboardTenantBody` accepts `disabledCapabilities: string[]`, which
+`onboardTenant` applies through `setCapabilityStatus` after the module grants (a capability whose
+module was not granted is ignored rather than failing onboarding). `@hms/types` updated to match.
+
+**Testing status:** backend **372** green — including a new `admin.test.ts` case, *onboarding
+honours capability choices*, asserting a switched-off capability is absent, untouched ones stay on
+with no row written, and a capability of an ungranted module is ignored. Typechecks + OpenAPI green;
+live catalog endpoint verified returning 42 modules / 246 capabilities.
+
+## Email template preview (26/08/2026, ADR-086)
+
+New `/email-templates` page (nav under **Platform**, `platform.tenants.manage`). Read-only window
+onto the backend's central email catalogue: lists every template grouped by category (name, subject,
+description) and renders the selected email — from realistic sample data, no tenant data — in a
+sandboxed iframe with its subject and template key. Backed by `api.listEmailTemplates()` +
+`api.previewEmailTemplate(key)` (`GET /admin/email-templates[/:key/preview]`). Lets an operator or
+developer verify email design and copy without triggering the business action that would send it.
+
+**Testing status:** `admin` typecheck green.

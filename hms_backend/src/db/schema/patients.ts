@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, date, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, date, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 
@@ -30,6 +30,18 @@ export const patients = pgTable(
     state: varchar('state', { length: 100 }),
     pincode: varchar('pincode', { length: 10 }),
     abhaNumber: varchar('abha_number', { length: 20 }), // ABHA / Ayushman Bharat Health Account
+    // ABDM Milestone 1 (ADR-084). `abhaNumber` above predates the integration and stays
+    // hand-editable, so the columns below are what say whether the number was *proved*:
+    // `abhaVerifiedAt` is set only by a completed ABDM flow and is cleared if the number is
+    // edited by hand. Nothing may treat an unverified ABHA as an identity.
+    abhaAddress: varchar('abha_address', { length: 80 }), // the @sbx / @abdm handle
+    abhaVerifiedAt: timestamp('abha_verified_at', { withTimezone: true }),
+    // manual | aadhaar_otp | scan_share | abha_login — how the identifier was obtained.
+    abhaSource: varchar('abha_source', { length: 24 }),
+    // Encrypted at rest (AES-256-GCM). Held for M2 care-context linking; unused in M1.
+    abhaLinkingTokenEnc: text('abha_linking_token_enc'),
+    // When the patient consented to the ABDM lookup. Required before any Aadhaar OTP.
+    abhaConsentAt: timestamp('abha_consent_at', { withTimezone: true }),
     emergencyContactName: varchar('emergency_contact_name', { length: 150 }),
     emergencyContactPhone: varchar('emergency_contact_phone', { length: 20 }),
     // active | archived (lifecycle; never hard-deleted while clinically/legally retained)

@@ -39,7 +39,9 @@ const STAGING_PASSWORD = 'StagingOnly#2026';
 const TENANT = {
   code: 'QAHOSP',
   name: 'QA General Hospital',
-  modules: ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'],
+  // `abdm` included (ADR-084) so QA can run the ABHA cases end to end. Which ABDM provider
+  // staging talks to is configuration (`ABDM_PROVIDER`), not a seeding decision.
+  modules: ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm'],
   branches: [
     { code: 'QA-MAIN', name: 'QA Main Campus' },
     { code: 'QA-ANNEX', name: 'QA Annexe Clinic' },

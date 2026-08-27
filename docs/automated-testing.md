@@ -110,6 +110,10 @@ is not) · **☐ manual only**.
 | Patient registration, UHID, duplicate handling, search | PAT-01…13 | ✅ | Integration | `patient/__tests__/patient.test.ts` |
 | Master data: seeded catalogue, custom items, cross-org isolation | MD-01…08, AVAIL-01…07 | ✅ | Integration | `catalog.test.ts`, `branchAvailability.test.ts` |
 | Audit on mutations and sign-in; append-only | AUD-01…07 | ✅ | Integration | `audit/__tests__/audit.test.ts` |
+| **Account lockout** — threshold, backoff, expiry, per-account scope, audit | AUTH-40…47 | ✅ | Unit + API | `auth/__tests__/lockout.test.ts`, `lockout.api.test.ts` |
+| **Password policy** — length, classes, blocklist, own-details, generated temp passwords | AUTH-48…50 | ✅ | Unit + Integration | `passwordPolicy.test.ts`, `passwordReset.test.ts` |
+| **Upload content validation** (magic bytes vs declared type) | UPLOAD-01…03 | ✅ | Unit | `file/__tests__/fileSniff.test.ts` |
+| **Request correlation id** — header, uniqueness, audit row, untrusted input | REQID-01…03 | ✅ | API | `audit/__tests__/requestId.api.test.ts` |
 
 ### Frontend
 
@@ -126,6 +130,8 @@ is not) · **☐ manual only**.
 | Date/time display + entry (`DD/MM/YYYY`, `hh:mm AM/PM`) | FMT-01…11, DATE-01/02 | ✅ | Component + Unit | `datetime.test.tsx`, `datefields.test.tsx`, `utils/date.test.ts` |
 | Toast system (variants, a11y roles) | TOAST-01…16 | ◐ | Component | `packages/ui/src/__tests__/toast.test.tsx` |
 | Row actions + confirmation | ACT-01…10 | ◐ | Component | `TableActions.test.tsx` |
+| **Content-Security-Policy builder** (nonce vs static, dev vs production, allowed origins) | CSP-01…05 | ◐ | Unit | `packages/utils/src/__tests__/security.test.ts` |
+| **Idle-session policy** (window, cross-tab activity, corrupt/unavailable storage) | AUTH-51…53 | ◐ | Unit | `packages/client/src/__tests__/idle.test.ts` |
 
 ---
 

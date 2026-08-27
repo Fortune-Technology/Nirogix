@@ -35,7 +35,10 @@ import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 const DEFAULT_PASSWORD = 'ChangeMe#123';
 
 // The MVP modules, in hard-dependency order (grantModule enforces deps).
-const MVP_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
+// The MVP modules plus `abdm` (ADR-084): a development hospital should be able to exercise ABHA
+// verification without a manual entitlement grant. Safe anywhere this seeder is allowed to run —
+// it refuses outside development, and `ABDM_PROVIDER` defaults to the offline mock.
+const MVP_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm'];
 
 interface SeedProvider {
   fullName: string;

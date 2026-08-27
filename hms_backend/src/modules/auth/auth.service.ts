@@ -6,6 +6,8 @@ import { runWithTenant } from '../../db/tenantContext';
 import { tenants, users, sessions, passwordResetTokens, type User } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { burnPasswordComparison, hashPassword, verifyPassword } from './password';
+import { CLEARED, afterFailure, isAlerting, isLocked, lockMinutesRemaining } from './lockout';
+import { assertAcceptablePassword } from './passwordPolicy';
 import { listUserRoles } from '../rbac/rbac.service';
 import {
   signAccessToken,
@@ -15,13 +17,45 @@ import {
   verifyPasswordResetToken,
   hashToken,
   tokenExpiry,
+  PASSWORD_SETUP_TTL,
   type RefreshClaims,
   type PasswordResetClaims,
 } from './tokens';
 import type { ForgotPasswordInput, LoginInput, PublicUser, ResetPasswordInput } from './auth.schema';
 import { writeAudit } from '../audit/audit.service';
-import { sendEmail } from '../notification/communication.service';
+import { sendAppEmail } from '../notification/communication.service';
 import { eventBus } from '../../events/eventBus';
+
+/** Hospital name for an email body (the `tenants` table is platform-managed, no RLS). */
+async function orgNameOf(tenantId: string): Promise<string> {
+  const row = (await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0];
+  return row?.name ?? 'Nirogix';
+}
+
+/**
+ * Mint a single-use "set your password" link for a newly created user (onboarding / staff invite).
+ * Reuses the password-reset flow — same hashed-at-rest, single-use token and the same
+ * `/reset-password` page — with a longer expiry (PASSWORD_SETUP_TTL) so the recipient can act on
+ * the email. Returns the absolute URL to embed. `client` selects which frontend origin the link
+ * points at (org admins + hospital staff use the Portal).
+ */
+export async function issuePasswordSetupLink(
+  tenantId: string,
+  userId: string,
+  client: 'portal' | 'admin' = 'portal',
+): Promise<string> {
+  const token = signPasswordResetToken({ sub: userId, tid: tenantId }, PASSWORD_SETUP_TTL);
+  await runWithTenant(tenantId, (tx) =>
+    tx.insert(passwordResetTokens).values({
+      tenantId,
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt: tokenExpiry(token),
+    }),
+  );
+  const origin = (client === 'admin' ? env.ADMIN_URL : env.PORTAL_URL).replace(/\/$/, '');
+  return `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+}
 
 type ClientMeta = { userAgent?: string; ip?: string };
 
@@ -124,14 +158,58 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
     throw Errors.unauthorized('Invalid credentials');
   }
 
+  const now = new Date();
   const ok = await verifyPassword(input.password, user.passwordHash);
-  if (!ok) {
+
+  // Account-side brute-force defence (ADR-082). The password is verified FIRST even
+  // when the account is locked, so the response costs the same either way and the
+  // audit trail records whether the attacker had actually found the password.
+  if (isLocked(user, now)) {
     await writeAudit({
       tenantId: tenant.id,
       actorUserId: user.id,
-      action: 'auth.login.failure',
+      action: 'auth.login.blocked',
       severity: 'warning',
-      metadata: { reason: 'bad_password' },
+      metadata: {
+        reason: 'account_locked',
+        attempts: user.failedLoginAttempts,
+        passwordMatched: ok,
+        lockedUntil: user.lockedUntil?.toISOString() ?? null,
+      },
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    // The lock is stated only to a caller who supplied the CORRECT password — the real
+    // user, who needs to know why they are being refused. Everyone else gets the same
+    // generic failure as any wrong password, so the lock is not an enumeration oracle.
+    // Attempts made while locked never extend it (see lockout.ts).
+    if (ok) {
+      const mins = lockMinutesRemaining(user, now);
+      throw Errors.tooManyRequests(
+        `Too many failed sign-in attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+      );
+    }
+    throw Errors.unauthorized('Invalid credentials');
+  }
+
+  if (!ok) {
+    const next = afterFailure(user, now);
+    await runWithTenant(tenant.id, (tx) =>
+      tx
+        .update(users)
+        .set({ ...next, updatedAt: now })
+        .where(eq(users.id, user.id)),
+    );
+    await writeAudit({
+      tenantId: tenant.id,
+      actorUserId: user.id,
+      action: next.lockedUntil ? 'auth.login.locked' : 'auth.login.failure',
+      severity: isAlerting(next.failedLoginAttempts) ? 'critical' : 'warning',
+      metadata: {
+        reason: 'bad_password',
+        attempts: next.failedLoginAttempts,
+        lockedUntil: next.lockedUntil?.toISOString() ?? null,
+      },
       ip: meta.ip,
       userAgent: meta.userAgent,
     });
@@ -148,7 +226,9 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<LoginR
   await runWithTenant(tenant.id, (tx) =>
     tx
       .update(users)
-      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      // A successful sign-in ends the streak: the counters go back to zero in the same
+      // write that stamps the login, so no separate query is needed on the happy path.
+      .set({ lastLoginAt: now, updatedAt: now, ...CLEARED })
       .where(eq(users.id, user.id)),
   );
 
@@ -281,7 +361,7 @@ export async function changeOwnPassword(
   userId: string,
   input: { currentPassword: string; newPassword: string },
 ): Promise<void> {
-  await runWithTenant(tenantId, async (tx) => {
+  const changed = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .select()
       .from(users)
@@ -296,10 +376,14 @@ export async function changeOwnPassword(
     if (await verifyPassword(input.newPassword, user.passwordHash)) {
       throw Errors.validation(undefined, 'The new password must be different from the current one');
     }
+    // The half of the policy that needs to know who the user is (ADR-082).
+    assertAcceptablePassword(input.newPassword, { email: user.email, fullName: user.fullName });
 
     await tx
       .update(users)
-      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: new Date() })
+      // The old password is dead, so any failure streak counted against it goes with it
+      // (ADR-082) — a user who just proved themselves is never left locked out.
+      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: new Date(), ...CLEARED })
       .where(eq(users.id, userId));
 
     // Every session is invalidated, including this one: a password change must log
@@ -308,6 +392,8 @@ export async function changeOwnPassword(
       .update(sessions)
       .set({ revokedAt: new Date() })
       .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+
+    return { email: user.email, fullName: user.fullName };
   });
 
   // A credential change is an audit event (closing the gap the reset flow would
@@ -319,6 +405,14 @@ export async function changeOwnPassword(
     severity: 'notice',
     resourceType: 'user',
     resourceId: userId,
+  });
+
+  // Security confirmation to the account owner (best-effort — send never throws).
+  await sendAppEmail({
+    tenantId,
+    to: changed.email,
+    template: 'auth_password_changed',
+    data: { userName: changed.fullName, orgName: await orgNameOf(tenantId) },
   });
 }
 
@@ -375,16 +469,11 @@ export async function requestPasswordReset(
   // a Host-based link would let a request steer where the email points).
   const origin = input.client === 'admin' ? env.ADMIN_URL : env.PORTAL_URL;
   const link = `${origin.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
-  await sendEmail({
+  await sendAppEmail({
     tenantId: tenant.id,
     to: user.email,
-    subject: 'Reset your Nirogix password',
-    body:
-      `Hello ${user.fullName},\n\n` +
-      `A password reset was requested for your Nirogix account (organization ${tenant.code}).\n\n` +
-      `Reset your password here (the link is valid for 30 minutes and works once):\n${link}\n\n` +
-      `If you did not request this, you can ignore this email — your password is unchanged.`,
-    metadata: { kind: 'password_reset', userId: user.id },
+    template: 'auth_password_reset',
+    data: { userName: user.fullName, orgName: tenant.name, resetUrl: link },
   });
 
   await writeAudit({
@@ -419,7 +508,7 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
   }
 
   const now = new Date();
-  await runWithTenant(claims.tid, async (tx) => {
+  const changed = await runWithTenant(claims.tid, async (tx) => {
     const rows = await tx
       .select()
       .from(passwordResetTokens)
@@ -442,10 +531,13 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
     if (await verifyPassword(input.newPassword, user.passwordHash)) {
       throw Errors.validation(undefined, 'The new password must be different from the current one');
     }
+    assertAcceptablePassword(input.newPassword, { email: user.email, fullName: user.fullName });
 
     await tx
       .update(users)
-      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: now })
+      // Completing a reset clears the lockout too: the user proved control of the
+      // mailbox, and the password an attacker was guessing at no longer exists (ADR-082).
+      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: now, ...CLEARED })
       .where(eq(users.id, user.id));
 
     // This link, and every other outstanding link for the user, is dead from here.
@@ -460,6 +552,8 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
       .update(sessions)
       .set({ revokedAt: now })
       .where(and(eq(sessions.userId, user.id), isNull(sessions.revokedAt)));
+
+    return { email: user.email, fullName: user.fullName };
   });
 
   await writeAudit({
@@ -471,6 +565,15 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
     resourceId: claims.sub,
     ip: meta.ip,
     userAgent: meta.userAgent,
+  });
+
+  // Security confirmation (best-effort — send never throws): tell the account owner their
+  // password just changed, so an unauthorized reset does not go unnoticed.
+  await sendAppEmail({
+    tenantId: claims.tid,
+    to: changed.email,
+    template: 'auth_password_changed',
+    data: { userName: changed.fullName, orgName: await orgNameOf(claims.tid) },
   });
 }
 

@@ -12,7 +12,14 @@
 // calls out of the admin console and platform-administration calls out of the Portal
 // (ADR-051).
 
-import type { ApiError, LoginRequest, LoginResponse, MeResponse, MyPermissionsResponse } from "@hms/types";
+import type {
+  ApiError,
+  LoginRequest,
+  LoginResponse,
+  MeResponse,
+  MyEntitlementsResponse,
+  MyPermissionsResponse,
+} from "@hms/types";
 import { ApiRequestError, NetworkError, TimeoutError } from "./errors";
 import { notifyError, notifySuccess, successMessage } from "./feedback";
 
@@ -52,6 +59,8 @@ export interface ApiClient {
   logout: () => Promise<void>;
   me: () => Promise<MeResponse>;
   myPermissions: () => Promise<MyPermissionsResponse>;
+  /** The tenant's enabled modules + capabilities (ADR-085). */
+  myEntitlements: () => Promise<MyEntitlementsResponse>;
 }
 
 export interface ApiClientOptions {
@@ -197,5 +206,6 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
     },
     me: () => request<MeResponse>("/auth/me"),
     myPermissions: () => request<MyPermissionsResponse>("/rbac/permissions"),
+    myEntitlements: () => request<MyEntitlementsResponse>("/entitlements"),
   };
 }

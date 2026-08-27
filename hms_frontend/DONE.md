@@ -735,3 +735,165 @@ The "Test credentials" dialog previously showed the **development** seeder's acc
 **What:** `/forgot-password` + `/reset-password` pages and a "Forgot password?" link on the login form (ADR-081) — outcomes inline (`feedback: false`), uniform messages from the backend. Quick-login now lists **hospital roles only in every environment** (ADR-080: the two Platform Admin cards left the dev list too; staging gained the QA Branch Admin card to match the seeder). The sidebar's Pharmacy item now carries the landing page's own permission (`pharmacy.dispense.create`, was `pharmacy.stock.view`) — a doctor no longer sees an item whose destination refused them; the audit confirmed every other nav item already matched its page guard, and the rule is now written at the item ("a nav item's perm is its landing page's RequirePermission key").
 
 **Testing status:** typecheck green; browser-verified in dev — no Platform Admin card, doctor's sidebar has no Pharmacy while direct `/pharmacy` still shows the Forbidden panel, forgot-password renders the uniform 202 inline, a garbage reset link shows the uniform refusal. Happy-path consume is covered by the backend's `passwordReset.test.ts`.
+
+## 2026-08-20 — Content-Security-Policy and idle sign-out in the Portal (ADR-082)
+
+**What:** `proxy.ts` (Next 16’s replacement for `middleware.ts`) mints a per-request nonce, sends the CSP built by `@hms/utils`, and adds the platform’s static security headers. The root layout became async so it can read that nonce from `x-nonce` and stamp it on the one inline script the app owns — the no-flash theme script. Static assets and prefetch requests are excluded from the matcher: they carry no script, and a nonce minted for a prefetch would be stale by the time the page rendered.
+
+The Portal also inherits idle sign-out from `@hms/client` — 15 minutes without interaction ends the session server-side, which is what a clinical workstation in a corridor actually needs.
+
+**Testing status:** verified live against the running Portal — sign-in, dashboard, patients list and client-side navigation all work under the policy, with no violations in the console. One real gap was found this way and fixed in the shared builder: tenant logos are served by the API over plain http in development, which `img-src` had not allowed. Build and typecheck green.
+
+---
+
+## ABDM / ABHA at the registration desk (ADR-084)
+
+**What:** `components/abdm/AbhaVerificationPanel.tsx` sits above the patient registration form and
+offers three ways to reach the same place — a verified ABDM profile the operator reviews and accepts.
+**Scan & Share leads** (the patient scans the hospital's facility QR in their own ABHA app; no OTP at
+all), then verifying an ABHA the patient already holds (by number, address, mobile or Aadhaar), then
+creating one from Aadhaar with the secondary mobile check and the ABHA-address step.
+
+**The form is unchanged and stays the fallback.** The panel never registers anyone: it hands back a
+prefill and a transaction id. `applyAbhaPrefill` fills **only empty fields**, so a receptionist who
+already typed something the patient corrected in person does not lose it, and every field stays
+editable. Registration goes through the ordinary endpoint; the ABHA is linked afterwards, and a
+failure to link never blocks the redirect — the chart is saved either way. Typing over a verified
+ABHA number drops the verification with it, matching what the backend does.
+
+**Nothing is offered that cannot work.** The panel asks the API what this hospital can actually do:
+a tenant without the module gets no panel at all (the capabilities probe is deliberately silent —
+403 is a normal state for most tenants, not a toast), and Scan & Share is disabled with an
+explanation until the hospital has both a facility id and a QR payload. Test mode says so on screen,
+including the fixed OTP, so nobody mistakes a mock profile for a real ABHA.
+
+**A returning patient is presented as one.** An exact ABHA match is badged *Already registered here*
+with a link to the existing chart; a demographic look-alike is shown as *similar charts to check* —
+never merged automatically, because two people share a name, a gender and a birth year.
+
+**New screen:** Hospital configuration → **ABDM / ABHA** (`app/(app)/hospital-setup/abdm/page.tsx`),
+where org_admin enters the hospital's own HFR facility id and QR payload, previews the code, and
+switches Scan & Share on. Gated by `abdm.facility.view` / `abdm.facility.manage`, so the tab is
+absent for everyone else.
+
+**Extracted rather than duplicated:** `lib/useQrDataUrl.ts` now owns QR drawing, and
+`components/print/usePublicQr.ts` composes it (ADR-029) — the facility QR was the second QR in the
+Portal, and two copies of the drawing options would have drifted on the details that decide whether a
+camera can read the code.
+
+**Testing status:** typecheck and the production build are green; the new route appears in the build
+output. The panel's behaviour is covered end to end at the API level in the backend suite (62 tests);
+the browser walk-through is `docs/manual-testing-guide.md` §5.1a and `testcases.md` §23 (ABDM-01…34).
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the Nirogix Portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` now lists every `NEXT_PUBLIC_*` the app actually reads, all uncommented,
+with 1–2 line comments — including `NEXT_PUBLIC_DEV_LOGIN_PASSWORD`, which `lib/devUsers.ts` reads
+but the example file never documented. It is quoted (`'ChangeMe#123'`) because dotenv ends an
+unquoted value at the first `#`. The gitignored `.env` was regenerated to mirror the same keys in
+the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+---
+
+## ABDM: verification now fills the form (ADR-084)
+
+**What:** the review step no longer waits for a click. The moment a verification succeeds the
+registration form is populated and the panel says so, naming anything ABDM did not send. From a
+Scan-and-Share profile the receptionist now presses exactly one button — **Register patient** —
+and the ABHA links itself to the new chart.
+
+**With one deliberate exception.** A `returning` or `ambiguous` match does **not** auto-fill. There
+the panel still stops and offers the existing chart, because auto-filling would put a second chart
+for the same person one button away, and a duplicated clinical record costs far more to undo than a
+click costs to make. The shortcut applies exactly where it is safe: a patient this hospital has not
+seen before.
+
+**Verified live** end to end: a shared profile → one click → form filled (name, gender, date of
+birth in DD/MM/YYYY, phone, address, city, state, PIN, ABHA number and address) → Register →
+`UHID-000008` with the ABHA reading **Verified with ABDM**.
+
+---
+
+## ABDM: correcting the profile at ABDM (ADR-084)
+
+**What:** a folded-away **Correct these details at ABDM** panel on the verified-profile card,
+rendered only for staff holding `abdm.profile.update` — which the receptionist does not hold by
+default. It sends only the fields the operator actually changed: resending unchanged values would
+rewrite fields nobody touched, on a national identity register.
+
+The copy is the important part. It states the change lands **at ABDM**, not just at this hospital,
+and points at the registration form below for a local-only fix — because those two corrections look
+identical on screen and are not remotely the same act.
+
+**Testing status:** typecheck and the production build green; the behaviour is covered end to end in
+the backend API suite, and the manual walk-through is `docs/manual-testing-guide.md` §5.1a.13.
+
+## ABDM Milestone 3 — the external history card (ADR-095)
+
+The Portal surface for M3, on the patient chart. A doctor asks the patient for permission to read
+their history at other hospitals, watches the request's status, and reads the merged result.
+
+Almost every state here is one the product cannot resolve on its own, so the card is built to be
+honest about that. **Waiting is shown as a state, not a spinner** — the patient answers in their own
+ABHA app, in seconds or never, and a spinner would imply something is on its way. **Polling stops**:
+every fifteen seconds while a request is outstanding, never past a ten-minute ceiling, so an
+unanswered request cannot leave a tab polling a national gateway all day. **Records disappearing is
+explained before it happens**, in a line under the timeline, so a doctor reads it as the system
+working rather than as a fault.
+
+Only doctors with a medical registration number can be picked, and when none exists the card says
+why instead of offering a button that always fails. The card adds no clinical judgement of its own:
+the "Abnormal finding" badge appears only where the source hospital's FHIR said so.
+
+External history sits **beside** our own records rather than merged into them — borrowed records
+vanish when consent lapses and ours never do, and one combined feed would hide which is which at
+exactly the moment it matters.
+
+**Verified in a browser against the running stack**, which is where both defects turned up:
+
+1. **A double toast.** The shared API client raised a generic "Saved." while the card raised its own,
+   more informative message — two notifications for one event, which ADR-057 forbids. The client
+   calls now opt out with `feedback: false`.
+2. **The source line printed the facility twice** when a hospital names itself as its own
+   organisation ("Sunrise Multispeciality · Sunrise Multispeciality"), which reads as a rendering
+   fault. Deduplicated.
+
+**The certification behaviour was demonstrated through the UI**, not only in tests: with the consent
+lapsed and the purge sweep deliberately not run — the record still physically on disk — the
+diagnosis, the lab value and the allergy were all gone from the doctor's screen, replaced by the
+empty state that explains why. Light and dark both resolve from the tokens; the abnormal emphasis
+reads the dark warning token rather than a literal.
+
+## ABDM Milestone 4 — the national registries screen (ADR-099)
+
+One screen under Hospital configuration for both registries. M4 moves no patient data, so the risk
+is not disclosure — it is misleading an administrator through a weeks-long external process nobody
+here controls.
+
+**Submitted is never shown as done.** A submitted facility reads "Awaiting verification", with a line
+saying a verifier at ABDM still has to approve it and that no Facility ID is issued until they do. A
+green tick would have somebody believe they hold an id they do not, and find out when the ABDM
+service registration fails a month later.
+
+**The screen is honest that bulk is a portal process** rather than offering a button implying we
+upload for them. An import failure names the row and the reason; an ambiguous row names how many
+people it matched and what would tell them apart, because a bare count leaves nobody able to act.
+
+CSV parsing handles quoted cells — a naive `split(",")` corrupts a hospital name containing a comma
+by shifting every later column, which would then match the wrong person — and strips Excel's BOM so
+it does not become part of the first column's name.
+
+**Verified in a browser against the running stack.** The permission gate bounced a doctor to the
+dashboard; the page rendered for org_admin; the export returned the real seeded roster with the id
+column blank; a results file imported, matched one clinician by registration number and named the two
+failures with their spreadsheet line numbers; the enrolment persisted and re-rendered on reload. Light
+and dark both resolve from the tokens.

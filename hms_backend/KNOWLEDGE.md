@@ -46,9 +46,9 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 ## Key conventions (enforced)
 
 - **Tenant isolation:** all tenant-scoped queries run inside `runWithTenant(tenantId, tx => ...)`, which sets `app.tenant_id` (transaction-local) so PostgreSQL RLS restricts every row. `tenantId` comes only from the authenticated session. Never query tenant data through the base `db` instance.
-- **One error shape:** throw `AppError` (or a canonical `Errors.*`); `errorHandler` renders `{ error: { code, message, details? } }`. The authz chain maps to `UNAUTHORIZED` → `MODULE_NOT_ENTITLED` → `FORBIDDEN`.
+- **One error shape:** throw `AppError` (or a canonical `Errors.*`); `errorHandler` renders `{ error: { code, message, details? } }`. The authz chain maps to `UNAUTHORIZED` → `MODULE_NOT_ENTITLED` → `CAPABILITY_NOT_ENTITLED` → `FORBIDDEN`.
 - **Validation:** every request body/query/params validated with Zod via `validate(...)` before business logic.
-- **Env:** add new config to `EnvSchema` in `config/env.ts` and to `.env.example`.
+- **Env:** add new config to `EnvSchema` in `config/env.ts`, then to `.env.example` **and** `.env` in the same change — same keys, same order, live and uncommented, 1–2 line comment (CLAUDE.md → *Environment files*). A blank value is stripped before validation, so it means “not configured” and can never block the boot; never a real secret in `.env.example`.
 
 ## Tenancy & RLS
 
@@ -72,6 +72,8 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Tokens:** short-lived JWT **access** token (`Authorization: Bearer`, claims `{ sub, tid, roles }`); long-lived **refresh** token in an **httpOnly** cookie (`hms_refresh`, path `/api/v1/auth`, `secure` in prod). Refresh is backed by a server-side `sessions` row (SHA-256 hash) → **rotation + revocation** on refresh/logout.
 - **`requireAuth`** (`http/requireAuth.ts`) verifies the access token and sets `req.auth = { userId, tenantId, roles }`. Downstream scopes RLS from `req.auth.tenantId` — tenant comes from the token, never the client. `http/asyncHandler.ts` routes async errors to the error middleware.
 - **MFA hook:** `users.mfaEnabled` → when true, login returns `{ mfaRequired: true }` instead of tokens (second-factor verification is a later phase). **SSO** (SAML/OAuth2/OIDC) is a reserved provider that plugs into the same `issueSession()`/token layer.
+- **Account lockout (ADR-082):** `auth/lockout.ts` + `users.failed_login_attempts` / `failed_login_at` / `locked_until`. Five consecutive failures lock for 60s, doubling to a 15-minute ceiling; the streak expires after 15 minutes and clears on sign-in, change-password or a completed reset. Rate limiting (ADR-036) is per IP and per route and cannot see a slow distributed attempt against one account — this can. The lock is disclosed only to a caller who supplied the **correct** password (429 naming the wait); everyone else gets the same `Invalid credentials`, and the password is verified either way so the two paths cost the same. Attempts made during a lock never extend it. Audited as `auth.login.locked` / `auth.login.blocked`, escalating to `critical` at ten failures.
+- **Password policy (ADR-082):** `auth/passwordPolicy.ts` is the ONE policy — 12–200 characters, three of four character classes, a blocklist matched after folding leetspeak, and nothing built from the account holder’s own email / name / organization code. It is enforced at the Zod boundary (`PasswordSchema`, so it reaches OpenAPI) and again inside every service that sets a password: self-service change, the reset flow, `createUser`, tenant onboarding and the production seeder. `generateTempPassword()` is the only temporary-password generator — CSPRNG, one character per class, no fixed prefix. Do not add a second one.
 - **Demo:** `npm run db:seed` → the **`PLATFORM` org** (Nirogix — the platform operator; holds the two System Super Admins `jaivik@thefortunetech.com` and `nishant@thefortunetech.com`, no clinical data; ADR-022) + **2 Indian-context hospitals** (`CITYCARE` — Pune; `SUNRISE` — Ahmedabad), each with a branch layout and **one user per role** (top role `org_admin` — no super-admin inside a hospital). Login with org code + email + `ChangeMe#123` (platform: `PLATFORM`/`jaivik@thefortunetech.com`; hospital: `CITYCARE`/`admin@citycare.example`). Idempotent; staging only (never production).
 
 ## Authorization — RBAC
@@ -93,11 +95,23 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **`requireModule(key)`** (`http/requireModule.ts`) — the **2nd authz link**: `requireAuth → requireModule → requirePermission → logic`. Returns 403 `MODULE_NOT_ENTITLED` before any permission check.
 - Verified live: `/patients` (patient entitled + PATIENT_VIEW) → 200; `/ipd/beds` (ipd not entitled) → 403.
 
+## Capability entitlement (ADR-085)
+
+The tier **beneath** module entitlement — a module's independently-toggleable sub-features. The enforced chain gains one optional link: `requireAuth → requireModule → requireCapability → requirePermission → logic`.
+- **Registry:** the canonical `Domain → Module → Capability` catalog is `MODULE_REGISTRY` in `@hms/permissions` (shared FE/BE, with `ModuleCategory`/`LifecycleStatus`) — the full decomposition, **11 domains · 42 modules · 246 capabilities**. `modules/entitlement/moduleCatalog.ts` is a thin derived view of it (one source of truth), and the 17 legacy module keys are unchanged. **Honesty rule:** an unbuilt module describes its capabilities so the architecture is complete, but a non-`BUILT` module never declares a `BUILT` capability — only `BUILT` entries are enforced or advertised (ADR-038). Enforced capabilities today: `billing.services`, `opd.referral`, `emr.ai_assist`, `laboratory.result_files`, `abdm.{verification,facility,scan_share}` (`CAPABILITIES` gives type-safe keys). `alwaysOn` marks Platform Core (`platform_services`) — entitled for every tenant, never togglable.
+- **Table (tenant-scoped, RLS):** `tenant_capability_entitlements` (migration `0031`) — **deny-by-exception**: a capability is ON whenever its module is entitled and no *effective* override disables it, so an empty table = every capability on, and the introducing migration needed **no backfill** (existing behaviour preserved byte-for-byte). Never physically deleted; branch-nullable.
+- **Service** (`modules/entitlement/capability.service.ts`): `isCapabilityEntitled(tenant, module, cap)`, `listEntitledCapabilities(tenant)` (the session/entitlements surface), `setCapabilityStatus(...)` (audited `capability.status`; enforces configure-time dependency rules **both** ways — cannot enable a capability whose dependency is off, cannot disable one an enabled capability still depends on). `resolveCapabilityEnabled` / `isCapabilityRowEffective` are the pure, unit-tested rules.
+- **`requireCapability(module, cap)`** (`http/requireCapability.ts`) — 403 `CAPABILITY_NOT_ENTITLED`. Wired today on the `billing.services` catalogue routes (the shipped demonstrator); every new module composes it where it has sub-capabilities.
+- **Onboarding:** `OnboardTenantBody.disabledCapabilities` lets the operator switch capabilities off at creation; `onboardTenant` applies them via `setCapabilityStatus` after the module grants, ignoring any capability whose module was not granted. `GET /admin/module-catalog` carries `category` / `status` / `alwaysOn` / `capabilities` so the onboarding screen can offer the choice.
+- **Surface:** `GET /entitlements` now returns `{ modules, capabilities }` (capabilities = enabled capability keys of entitled modules). The admin operator surface adds `GET /admin/tenants/:id/module-config` (`getTenantModuleConfig` — the whole registry by domain with per-module `entitled` + per-capability `enabled`), `GET/PUT /admin/tenants/:id/capabilities` — the model + writes behind the three-level module manager. FE consumption in the Portal (module-/capability-aware nav) is the later ADR-083 §20C / §20D session work.
+- Verified: full backend suite **351** green; default-ON, explicit disable, module-off cascade and dependency guards covered by `capability.test.ts`, `registry.test.ts`, `requireCapability.test.ts`.
+
 ## Audit log
 
 - **Immutable trail:** `audit_log` (tenant-scoped, RLS) is **append-only** — a DB trigger (`db/auditProtection.ts`, applied by `db:migrate`) blocks UPDATE/DELETE, so it's tamper-evident even against the app role. Never deleted. `severity` supports the enhanced break-glass event.
 - **`writeAudit(entry)`** (`modules/audit/audit.service.ts`) — best-effort (a failed audit write is logged, never breaks the request). Tenant-scoped.
 - **Auto-audit:** `http/auditMiddleware.ts` audits every authenticated mutating request (method/path/status/actor).
+- **Request correlation (ADR-082):** `http/requestContext.ts` mints one id per request (honouring an inbound `X-Request-Id` only when it matches `[A-Za-z0-9._-]{8,64}`), echoes it as `X-Request-Id`, feeds pino’s `genReqId`, and carries it in an AsyncLocalStorage so `writeAudit` records it without any caller passing it. Stored in `audit_log.request_id` and attached to the error-tracker event, so one value ties an audit row, its log lines and an exception together.
 - **`GET /audit` query surface:** `page`/`pageSize` plus `search` (ILIKE over action / path / resourceType), `severity`, and `sortBy`/`sortDir`. Sort columns are **allow-listed** (`createdAt`, `action`, `severity`, `statusCode`) so a client can never sort by an arbitrary column; everything stays inside `runWithTenant`. The Portal's audit table drives these directly (server-mode DataTable, ADR-029).
 - **Explicit events:** login success/failure (`auth.login.*`), permission grant/deny/revoke (`rbac.override.*`), role assignment (`rbac.role.assign`), entitlement changes (`entitlement.grant` / `entitlement.status`).
 - **View:** `GET /api/v1/audit` (paginated, newest first) requires `audit.log.view`.
@@ -109,6 +123,10 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **`NotificationService`** (`notification.service.ts`): `sendEmail` / `sendSms` — render a per-tenant `{{template}}`, dispatch via the provider, write `notification_log`. **Idempotent** via `idempotencyKey` (a repeat returns the original entry, no re-send).
 - **Tables (tenant-scoped, RLS):** `notification_log` (delivery status) + `notification_templates` (per-tenant, per-channel/locale).
 - **Endpoints:** `POST /notifications/test` (`notifications.send`) · `GET /notifications` (`notifications.log.view`).
+- **Email templates (ADR-086):** `modules/notification/email/` is THE catalogue of application emails. `layout.ts` renders structured content → branded (tenant accent + org wordmark, Nirogix default), responsive, inline-styled HTML **and** a plain-text twin, HTML-escaping untrusted text. `email-templates.ts` is a typed registry (`EmailTemplateDataMap` → `subject`/`build`/`sample` per key: password reset/changed, onboarding + staff welcome, appointment confirmed/cancelled, payment receipt, lab results ready, patient welcome). `format.ts` gives DD/MM/YYYY, hh:mm AM/PM and ₹. Business logic never builds email HTML — it calls **`sendAppEmail(template, data)`** (`communication.service.ts`), which resolves branding and hands HTML to `sendEmail` (log + idempotency + graceful failure). Migrate/extend a template here, not inline.
+- **Event → email subscribers (ADR-086):** `notification.subscribers.ts` (registered in `events/subscribers.ts`) reacts to `appointment.booked`/`cancelled`, `payment.received`, `lab.result_verified`, `patient.registered` — **email only, only when the patient has an email**, deduped per entity. Onboarding + `createUser` send a welcome email with a set-your-password link (reset-token flow, `PASSWORD_SETUP_TTL`); reset-completed + change send a security confirmation. Deliberately **not** wired (anti-spam): `visit.checked_in`, `encounter.signed`, `invoice.created` (receipt fires on payment), `user.logged_in`.
+- **Platform message catalogue (ADR-086):** `messages.ts` is the single source of canonical success/info copy; a controller returns `{ message: MESSAGES.x }` and the shared client shows it in every frontend (backend message wins). Email and platform-message are separate channels wired independently — never both by default. No in-app notification centre.
+- **Email preview (operator tool):** `GET /admin/email-templates` + `GET /admin/email-templates/:key/preview` (both `platform.tenants.manage`) list the catalogue and render a template from sample data (no tenant data). Backs the admin `/email-templates` page.
 - Verified live: admin sends → `sent` via the `log` provider; receptionist → 403.
 - **Go-live:** set `MSG91_*` env keys + complete DLT/sender registration (24–48h). SES stays a swappable alternative behind the same interface. Async delivery moves onto BullMQ in Task #10.
 
@@ -117,6 +135,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 - **Provider abstraction (ADR-007):** `modules/file/providers/` — `local` disk provider (dev) + `R2FileStorageProvider` (Cloudflare R2, S3-compatible object storage, via the **MinIO** client — no AWS; ADR-017) selected by `FILE_STORAGE_PROVIDER` (`local`|`r2`). No module touches the storage client.
 - **Metadata only:** `file_metadata` (tenant-scoped, RLS) stores storage key, filename, MIME, size, **sha256 checksum**, uploader, version — never file content.
 - **Server-side validation** (`file.upload.ts`, multer): MIME allow-list + size limit (`FILE_MAX_SIZE_MB`, default 25) before the handler runs.
+- **Content validation (ADR-082):** `file/fileSniff.ts` — the declared MIME type is a claim, so the leading bytes must match a type on the allow-list AND agree with the declaration; `text/plain` is accepted only when the payload decodes as UTF-8 with no NUL or control bytes. Checked in `uploadSingle`, the one middleware every upload route uses, before anything reaches disk or object storage. A new allowed MIME type needs a signature added here in the same change; refusals are `422 FILE_CONTENT_MISMATCH`.
 - **Downloads:** short-lived signed URLs — a presigned R2 URL (r2 provider) or an app-served tokenized route `/files/content/:id?token=` (local). Default-private; nothing is a permanent public URL.
 - **Endpoints:** `POST /files` (`files.document.upload`) · `GET /files/:id` → URL (`files.document.view`) · `GET /files/content/:id?token=` (token-authorized) · `DELETE /files/:id` (`files.document.delete`).
 - **Audit:** upload, download, and delete are audit-logged. Delete removes the object + soft-deletes metadata (retained for audit); `version` supports amended documents.
@@ -124,7 +143,7 @@ drizzle.config.ts     Drizzle Kit config (migrations → ./drizzle)
 
 ## Domain events & background jobs
 
-- **Event bus** (`events/`): typed in-process publish/subscribe (`eventBus.publish/subscribe`), NOT a broker. A module publishes once; subscribers react independently; a failing subscriber never breaks the publisher. Events include `user.logged_in` (published on login), `notification.requested`, `appointment.booked`, `invoice.created`. Subscribers wired in `events/subscribers.ts`.
+- **Event bus** (`events/`): typed in-process publish/subscribe (`eventBus.publish/subscribe`), NOT a broker. A module publishes once; subscribers react independently; a failing subscriber never breaks the publisher. Events include `user.logged_in` (published on login), `notification.requested`, `appointment.booked`/`cancelled`, `patient.registered`, `payment.received`, `lab.result_ready`, `lab.result_verified` (portal release, ADR-086), `encounter.signed`, `invoice.created`. Subscribers wired in `events/subscribers.ts` (+ `notification.subscribers.ts` for the email reactions).
 - **Job runner** (`jobs/`): one abstraction, two backends — **BullMQ** (Redis) when `REDIS_URL` is set, else an **inline** in-process runner (dev/CI). `getJobRunner().enqueue(name, data, { delaySeconds? })`; processors in `jobs/processors.ts`. BullMQ jobs are retryable (3 attempts, exp backoff) and schedulable (delay). **No module creates its own cron.**
 - **Bootstrap:** `initBackground()` (called by `server.ts` + tests) registers processors + subscribers.
 - **Pipeline:** `notification.requested` event → subscriber enqueues `notification.send` job → runner delivers via NotificationService. `POST /notifications/test {async:true}` → 202 (queued) exercises it end-to-end.
@@ -256,6 +275,171 @@ The **only unauthenticated write path in the product**. Read this before adding 
 - **Failure modes are uniform.** Unknown token, regenerated token and registration-disabled all return the same 404. The endpoint must never reveal which hospitals exist or which are open. Both public routes carry `authLimiter`.
 - **Disable ≠ regenerate.** Disabling keeps the token so a hospital can pause without reprinting posters; `regenerateRegistrationToken` mints a new one and every printed poster stops working immediately — hence `sensitiveLimiter` and an audit entry at notice. Enable, disable, approve and reject are audited too; a public submission is audited against the tenant with **no actor**, which is what later answers "where did this chart come from".
 - Verified live: CityCare's QR → "Jaivik Patel" pending; `org_admin` list **200** / approve **403**; reception list **200** / approve **200** → `UHID-000005`; Sunrise's reception sees an empty queue and **404** on CityCare's request id; second approval **409**.
+
+## ABDM / ABHA — Milestone 1 (ADR-084)
+
+Identity verification at the registration desk: verify or create a patient's ABHA and fill the
+registration form from the verified profile. **M1 only** — HIP (M2) and HIU (M3) record sharing are
+not implemented and need a legal/compliance review first (`resources/development-plan.md` §36).
+**V3 APIs only**; V1/V2 implementations are rejected at NHA's sandbox-exit review.
+
+**Layout.** `src/modules/abdm/` — `abdm.constants.ts` (every path, header and scope, in one file, the
+one to reconcile against NHA's official V3 Postman collection), `providers/` (`types.ts` contract,
+`gatewayProvider.ts` real HTTP, `mockProvider.ts` offline double, `index.ts` selection),
+`abdm.session.ts` (cached gateway token with a refresh margin and a shared in-flight promise),
+`abdm.crypto.ts` (RSA encryption against NHA's certificate, cached for an hour),
+`abdm.service.ts` (all the rules), plus the usual schema/controller/routes/openapi.
+
+Two shared primitives were added outside the module because they are not ABDM-specific:
+`src/security/encryption.ts` (AES-256-GCM at rest, versioned `v1.iv.tag.ct` envelope) and
+`src/security/redaction.ts` (Aadhaar-shaped scrubbing, wired into pino's `logMethod` hook and the
+error tracker).
+
+**Three flows, one destination.** Scan and Share (patient scans the hospital's facility QR — no OTP),
+verify an existing ABHA (by ABHA number / ABHA address / mobile / Aadhaar), and create a new ABHA by
+Aadhaar OTP (including the secondary mobile check when the patient's number is not the Aadhaar-linked
+one, the ABHA-address claim, and the card download). Each ends at a **prefill** the operator reviews;
+the ordinary patient endpoint creates the chart and `POST /abdm/link` attaches the ABHA.
+
+**Rules that are not negotiable in this module.**
+- Consent is checked **before** the OTP is sent, and stored with a version.
+- A raw Aadhaar never outlives the request: encrypted, sent, dropped. Only `XXXXXXXX1234` persists —
+  enforced by the application, by a `CHECK` constraint on `abdm_transactions.identifier_hint`, and by
+  the log-boundary scrub.
+- Every ABDM token is encrypted at rest, or discarded — never stored in the clear.
+- `patients.abha_verified_at` may only be set by a completed flow; editing `abha_number` by hand
+  clears it, resets the source to `manual` and drops the token.
+- An exact ABHA-number match is `returning`; a demographic match is `ambiguous` for a human to
+  confirm, never merged automatically.
+
+**Credentials.** One client id/secret for the *application* (server config); one HFR facility id per
+*hospital* (`abdm_facility_config`, tenant-scoped, sent as `X-HIP-ID`). The facility id is what the
+Scan-and-Share callback resolves the tenant from.
+
+**`ABDM_PROVIDER=mock` is a first-class mode**, not a stub: the sandbox rate-limits OTPs to a handful
+per number per day, so CI and local work cannot use the gateway. The mock holds a real RSA keypair
+(so the encryption path is genuinely exercised), keys its behaviour off the Aadhaar's last digit,
+uses a fixed OTP of `123456`, and refuses to construct in production. Boot guards additionally refuse
+`gateway` without credentials, production pointed at the sandbox, and non-production pointed at
+production ABDM.
+
+**Tables.** `abdm_facility_config` (per tenant/branch HFR identity + QR payload + on/off) and
+`abdm_transactions` (one row per conversation, all flows, holding the masked hint, the verified
+identifiers, the demographics, the encrypted tokens, the consent stamp and the match outcome).
+Both tenant-scoped, so both inherit RLS. Migration `0030`.
+
+**The one public route, and the one exception to `/api/v1`.** `POST /api/v3/hip/patient/share`
+(`abdm.gatewayRoutes.ts`, mounted at the root in `app.ts`). The path is NHA's: a participant
+registers one bridge URL and the gateway appends that path, so it is not ours to version — the same
+situation as a payment provider's webhook. Per ADR-056: the tenant is resolved server-side from
+`metaData.hipId`, no clinical write, an identical `202 {accepted:true}` for known / unknown /
+disabled / missing facilities, sign-in rate tier, audited with no actor.
+
+**Scan and Share is two-way.** Receiving the profile is half of it; the HIP must then answer on the
+gateway's `patient-share/v3/on-share` with a **token number** — the queue position the patient sees
+on their phone. `sendOnShare` does that best-effort (today's share count for that hospital, plus
+one), so a failed acknowledgement never undoes a profile that is already safely at the desk. A
+one-way implementation looks like it works and leaves the patient's app showing nothing.
+
+## ABDM Milestone 2 — HIP: care contexts + consents (ADR-087)
+
+**Where it is.** `modules/abdm/careContext.service.ts`, `modules/abdm/consent.service.ts`,
+`modules/abdm/abdm.subscribers.ts`; tables `abdm_care_contexts` and `abdm_consents`
+(`db/schema/abdmM2.ts`, migration `0032`). Both tenant-scoped, so both inherit RLS.
+
+**A care context is a pointer, never content.** An opaque reference (the visit id) plus a label
+generated from the visit's date and setting. `assertNonClinicalLabel` **refuses** a label carrying
+clinical vocabulary rather than scrubbing it — the HIE-CM is data blind by design, and a diagnosis
+sent to the consent manager cannot be recalled. One context per visit, with `hi_types` as an
+**array**: a visit produces a prescription, a lab report and an invoice, and the patient expects one
+entry, not three.
+
+**Created from domain events, never from clinical code.** `encounter.signed`,
+`lab.result_verified` and `invoice.created` already fire. The subscriber is entitlement-checked and
+best-effort, so no ABDM failure can break a clinical action, and it only *records* that a shareable
+record exists — the linking call is a separate resumable step. `lab.result_verified` rather than
+`lab.result_ready`: an unverified result is not something to publish nationally.
+
+**Consent artefacts are DELETED on revoke, expiry and opt-out**, not flagged — NHA checks the row is
+gone, and an artefact we keep is an authorisation we might act on. Invariant #6 is intact because
+the **audit event** survives while the **artefact** does not. Expiry is also swept proactively
+(`purgeExpiredConsents`), because relying on a callback leaves a live authorisation behind whenever
+one is missed. `checkConsentForTransfer` is the single fail-closed gate every transfer will pass,
+and it names *why* it refused.
+
+**Linking (ADR-089).** `linkToken.service.ts` (acquire, decrypt, expiry from the token's own `exp`),
+`linking.service.ts` (the sweep, update notify, SMS fallback), `hipGateway.ts` (the **gateway** host
+client — M1 talks to the ABHA host, M2 to the gateway; sending one to the other 404s in a way that
+reads like a missing feature). Linking is a **resumable sweep**, never inline: token acquisition is
+asynchronous, so a clinical write must not depend on it. Contexts are marked linked optimistically
+and put back to `pending` by the failure callback, so retries are automatic and `linked_at` never
+drifts. `ABDM_PROVIDER=mock` makes `hipPost` record the call instead of sending it, which is what
+makes any of this testable before the bridge URL exists.
+
+**FHIR (ADR-088).** `fhir/` builds NRCES-profiled document bundles for seven HI types from real
+rows — structured, not attachment-wrapped, because this product stores no PDFs and its data is
+already partly coded.
+
+**Discovery and user-initiated linking (ADR-090).** `discovery.service.ts` matches a patient from
+what ABDM forwards; `userLinking.service.ts` runs our own OTP round trip and posts the three `on-*`
+answers. The matching rule to remember: **ambiguity means no match** — a verified ABHA address is
+conclusive, demographics need mobile AND name AND year of birth together, and a self-declared
+hospital number can only break a tie, never make a match. The OTP goes to the number on the chart
+through the shared communication seam. The three **inbound** paths are unverified against an
+official collection (`BACKLOG.md`).
+
+**Data transfer (ADR-091).** `dataTransfer.service.ts` answers a consented request: acknowledge at
+once, then build → encrypt → push → notify on the queue, inside NHA's twenty minutes. Two rules
+carry the whole design. **Consent is re-checked at the moment of sending**, not when the request
+arrived — a patient can revoke in between and artefacts are deleted on revoke, so only the artefact
+held at send time counts. And **there is no plaintext fallback on any path**: `cipher.ts` shells out
+to the Fidelius CLI, and a missing jar, missing JRE or bad key ends the transfer rather than
+weakening it (`FIDELIUS_CLI_PATH` unset **disables** transfer). What ships is the intersection of the
+request, the consent's care contexts and the consented HI types. Paging is bounded by bytes, a
+rejected page fails the whole transfer, and every refusal is announced to the gateway and audited
+with its reason. The HIU's push URL is deliberately not allowlisted and carries none of our
+credentials — the payload's encryption is the protection there, not the host.
+
+**Bridge registration (`npm run abdm:bridge`).** The two calls that make ABDM able to *reach* us — set the bridge URL, register the HIP service — plus a read-only status view that is the default. It **proves a URL is reachable before registering it** (HTTPS, no path, public host, a real answer from `/health` over a valid certificate) because registering a dead URL succeeds and then fails silently forever. Where NHA's onboarding email and the V3 collection disagree on paths, it tries both and reports which answered.
+
+**Verifying M2 (`npm run abdm:m2check`).** M1 is checked by connecting to NHA and by clicking through registration; neither works for M2, which is inbound and has no screens. So the script **plays the gateway** and drives the real services through the whole chain — care context, FHIR bundle, link (including the deferred link-token round trip), discovery, consent, transfer, revoke — asserting at each step and printing the exact ABDM payload. `--payloads` shows the full JSON, `--logs` keeps the application log. It uses a scratch tenant it deletes afterwards, and refuses to run outside development or against a real gateway.
+
+**Milestone 3 — HIU consent (ADR-092).** `hiuConsent.service.ts` is the mirror of M2 with the
+obligations reversed: M2 governs what we may **disclose**, M3 what we must **destroy**. Three tables
+(`abdm_hiu_consent_requests`, `abdm_hiu_consents`, `abdm_hiu_records`) and one rule that shapes them
+all — **the records are built to be deleted**. No `deleted_at`, no soft flag; `consent_id` cascades so
+a purge cannot half-complete, and JSONB in the same database rather than object storage so the delete
+is atomic and provable. Expiry is decided by the **clock**, not a status column, so a missed callback
+never becomes a licence to keep reading. `hiuSweeper.ts` is an in-process timer, not a queued job,
+because this must happen *at all* rather than exactly once — it also sweeps M2's consents, which had
+no scheduler before. ABDM is acknowledged only **after** the delete. Two permissions:
+`abdm.history.request` (asks, and creates the obligation) and `abdm.history.view` (reads another
+hospital's record).
+
+**M3 slice 2 — pulling records in (ADR-093).** `hiuDataTransfer.service.ts` asks one hospital for
+what a consent covers, then reads what comes back. A **fresh ECDH key pair per request**: the public
+half goes out, the private half is stored encrypted (it has to survive until the push arrives) and
+cascades with the consent, so a purge destroys the only key that could read a later re-delivery.
+**Nothing is stored that could not be decrypted and checksum-verified** — a mismatch is discarded and
+counted, because a doctor shown a partial history cannot tell it is partial. Failures are counted
+rather than thrown, so nine good entries survive one bad one and the transfer reads `partial`.
+`cipher.ts` now holds `generateKeyPair` / `decryptFromHip` / `checksumMatches` alongside encryption,
+all through one `fidelius()` helper — which is also where M2's encrypt call was corrected to pass
+both sides' key material (ADR-093).
+
+**M3 slice 3 — the timeline (ADR-094).** `hiuTimeline.service.ts` merges every source into one
+chronological feed and normalises foreign FHIR into a render-ready view model. Two rules: **the
+consent check is in the query**, measured against the clock, so a record disappears the instant its
+permission lapses — independent of the purge sweep having run; and **nothing clinical is computed** —
+an abnormal value is surfaced only when the source's own FHIR `interpretation` says so. The
+suggested generated "key findings" summary was declined; the summary returns counts, provenance and
+a date span only.
+
+**Verifying M3 (`npm run abdm:m3check`).** The companion to `abdm:m2check`, playing the consent manager and a delivering hospital: request, grant, per-HIP artefacts, key generation, push, decrypt, checksum, timeline, revoke, expire. 36 checks. The two that matter — `HIU_FLOW_202` and `HIU_FLOW_301` — are answered by querying the tables after each purge, because certification asks whether the data is **gone**, not whether it is hidden. `--payloads` shows the ABDM JSON, `--logs` keeps the application log. `script-env.ts` (shared with the M2 check) sets the quiet log level and a self-test push URL as a side-effect import, because both must land before `config/env.ts` reads the environment.
+
+**Still blocked on infrastructure:** every M2 flow needs a public HTTPS endpoint before it can
+round-trip — **TLS is done** (verified 27/08/2026), so what remains is registering the bridge URL — and the Fidelius invocation has never been executed against the real
+jar — every test runs in mock mode, which returns a marked non-secret envelope.
 
 ## Observability & Ops
 

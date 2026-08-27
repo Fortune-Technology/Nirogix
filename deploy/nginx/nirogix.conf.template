@@ -40,6 +40,10 @@ server {
   ssl_certificate     ${SSL_CERT_PATH};
   ssl_certificate_key ${SSL_KEY_PATH};
 
+  # Do not advertise the nginx version in responses or error pages (SECURITY-AUDIT.md L-1).
+  # The app already disables Express's `x-powered-by`; this is the other half.
+  server_tokens off;
+
   client_max_body_size 30m; # matches FILE_MAX_SIZE_MB headroom
 
   location / {
@@ -64,6 +68,10 @@ server {
   ssl_certificate     ${SSL_CERT_PATH};
   ssl_certificate_key ${SSL_KEY_PATH};
 
+  # Do not advertise the nginx version in responses or error pages (SECURITY-AUDIT.md L-1).
+  # The app already disables Express's `x-powered-by`; this is the other half.
+  server_tokens off;
+
   location / {
     proxy_pass http://nirogix_portal;
     proxy_http_version 1.1;
@@ -81,6 +89,10 @@ server {
 
   ssl_certificate     ${SSL_CERT_PATH};
   ssl_certificate_key ${SSL_KEY_PATH};
+
+  # Do not advertise the nginx version in responses or error pages (SECURITY-AUDIT.md L-1).
+  # The app already disables Express's `x-powered-by`; this is the other half.
+  server_tokens off;
 
   location / {
     proxy_pass http://nirogix_marketing;
@@ -100,6 +112,10 @@ server {
   ssl_certificate     ${SSL_CERT_PATH};
   ssl_certificate_key ${SSL_KEY_PATH};
 
+  # Do not advertise the nginx version in responses or error pages (SECURITY-AUDIT.md L-1).
+  # The app already disables Express's `x-powered-by`; this is the other half.
+  server_tokens off;
+
   return 301 https://${MARKETING_HOST}$request_uri;
 }
 
@@ -117,5 +133,6 @@ server {
 server {
   listen 80;
   server_name ${API_HOST} ${PORTAL_HOST} ${MARKETING_HOST};
+  server_tokens off;
   return 301 https://$host$request_uri;
 }

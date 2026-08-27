@@ -28,6 +28,10 @@ export const Errors = {
     new AppError(403, 'FORBIDDEN', m),
   moduleNotEntitled: (m = 'This module is not available for your organization') =>
     new AppError(403, 'MODULE_NOT_ENTITLED', m),
+  // Capability tier beneath the module (ADR-085): the module is entitled but this specific
+  // feature is switched off for the organization.
+  capabilityNotEntitled: (m = 'This feature is not enabled for your organization') =>
+    new AppError(403, 'CAPABILITY_NOT_ENTITLED', m),
   notFound: (m = 'Resource not found') => new AppError(404, 'NOT_FOUND', m),
   conflict: (m = 'The resource was modified by another request') =>
     new AppError(409, 'CONFLICT', m),

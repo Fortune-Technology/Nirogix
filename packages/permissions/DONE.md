@@ -56,3 +56,92 @@ Append-only implementation log. Newest at the bottom.
 **Why:** `hms_backend` in production is plain `node dist/server.js`; its compiled `require('@hms/permissions')` resolved to raw TypeScript and Node died at boot with `SyntaxError: Unexpected identifier 'as'`. The Next.js apps were immune (`transpilePackages`), which is why local dev never surfaced it. Turbo's `^build` + `outputs: dist/**` were already wired — the package just had nothing to build.
 
 **Testing status:** turbo builds this package before `hms_backend`; `node -e "require('@hms/permissions')"` from the backend resolves compiled output; full-repo typecheck 13/13, Portal production build green, backend suite 162/162.
+
+---
+
+## ABDM / ABHA permission keys (ADR-084)
+
+**What:** four keys for ABDM Milestone 1 — `abdm.verification.perform` (run a lookup at the desk),
+`abdm.verification.link` (attach a verified ABHA to a chart), `abdm.facility.view` /
+`abdm.facility.manage` (the hospital's own HFR facility registration). Verifying and linking are
+separate on purpose: a lookup reads national data, while linking changes an identifier on a clinical
+record. The receptionist role gets verify + link; org_admin gets those plus the facility keys.
+
+**Testing status:** `dist/` rebuilt (this package is dist-consumed by the backend). Backend suite
+317/317 with the new keys enforced at the route boundary. **Existing tenants seeded before this
+change do not hold these keys until their roles are re-seeded** — recorded in `BACKLOG.md`.
+
+---
+
+## 2026-08-26 — Module & Capability registry (ADR-085, P1)
+
+**What:** `MODULE_REGISTRY` — the canonical `Domain → Module → Capability` catalog shared FE/BE.
+Adds `ModuleCategory` (the 11 domains), `LifecycleStatus` (`BUILT`/`AVAILABLE`/`PLANNED`/`FUTURE`),
+per-module `capabilities` / `hardDependencies` / unlocked permission keys, the type-safe
+`CAPABILITIES` map (mirrors `PERMISSIONS`), and helpers (`registryModule`, `moduleCapabilities`,
+`capabilityDef`, `capabilityDependents`, `isModuleBuilt` / `isCapabilityBuilt`). Module keys, names
+and hard-dependencies mirror the backend's original `moduleCatalog.ts` **exactly** — no key added or
+removed — so the backend list becomes a thin derived view (one source of truth). Capabilities are
+declared only for shipped sub-features (built-only retrofit): `billing.services`, `opd.referral`,
+`emr.ai_assist`, `laboratory.result_files`, `abdm.{verification,facility,scan_share}`. The 8 live
+modules are `BUILT`; the rest are `AVAILABLE` with no capabilities.
+
+**Why:** ADR-085 — the capability tier plus **one** registry the backend (`requireModule` /
+`requireCapability`) and every frontend consume, instead of scattered lists. Only a `BUILT` entry is
+ever entitled to a real screen/API or marketed as available (ADR-038); a registry row is not a claim
+the module exists.
+
+**Testing status:** typecheck + build green; `dist/` rebuilt (dist-consumed by the backend).
+Registry integrity is asserted by `hms_backend` `registry.test.ts` (14 pure tests). Full backend
+suite 351 green.
+
+---
+
+## 2026-08-26 — Registry expanded to the full decomposition (ADR-085)
+
+**What:** `MODULE_REGISTRY` grew from the 17 legacy entitlement keys to the whole functional
+decomposition — **11 domains · 42 modules · 246 capabilities**. Compact `mod()` / `cap()` builders
+keep it readable. Added `alwaysOn` to `ModuleRegistryDef` for Platform Core (Platform Services),
+which is never sold or switched off per tenant and so renders as *Required* rather than togglable.
+
+The **seventeen pre-existing keys keep their exact key, name and hard dependencies** (a test pins
+this) — changing one would change what an existing tenant can be granted. Everything new lands as
+`AVAILABLE`.
+
+**Honesty rule, enforced by a test:** an unbuilt module may now *describe* its capabilities so the
+architecture, dependency graph and admin surface are complete, but **a non-`BUILT` module may not
+declare a `BUILT` capability** — nothing unbuilt is ever enforced, advertised, or shown as working.
+Only the 9 `BUILT` modules (patient, appointment, emr, opd, abdm, billing, pharmacy, laboratory,
+platform_services) carry `BUILT` capabilities.
+
+**Testing status:** typecheck + build green, `dist/` rebuilt; `registry.test.ts` now 16 tests
+(adds domain-coverage, legacy-key and honesty assertions); full backend suite **355** green. Live
+API confirms 11 categories / 42 modules / 246 capabilities for a seeded tenant.
+
+---
+
+## `abdm.profile.update` (ADR-084)
+
+**What:** a fifth ABDM key, for correcting the patient's profile **at ABDM**. Separated from
+`abdm.verification.perform` because reading a national identity register and writing to it are
+different acts, and from `abdm.verification.link` because that one only ever touches our own chart.
+
+Granted to **org_admin only** — deliberately not in the receptionist's default set. A hospital that
+wants its front desk to amend ABDM records grants the key on purpose rather than inheriting the
+ability from a role that exists to register patients.
+
+**Testing status:** `dist/` rebuilt; 378 backend tests pass, including a case proving the front desk
+is refused by default and one proving the audit records which fields changed and never their values.
+
+## ABDM Milestone 3 permissions (ADR-092, ADR-095)
+
+Two keys, because asking and reading are different acts. `abdm.history.request` puts a named
+doctor's registration number in front of a patient and commits the hospital to destroying whatever
+comes back; `abdm.history.view` reads another hospital's clinical record. A role that may open a
+chart is not thereby entitled to pull a national history onto it.
+
+Granted to **doctor** (both) and **org_admin** (view only). The front desk gets neither: a consent
+request must name a clinician the patient can recognise, and an administrator reading a pulled
+history for support is a different thing from an administrator raising the request. The
+`abdm.external_history` capability is registered as **PLANNED** — describing a module is not a claim
+it exists (ADR-085), and no health record has been exchanged with ABDM in any environment.

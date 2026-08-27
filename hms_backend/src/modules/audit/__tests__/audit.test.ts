@@ -14,6 +14,7 @@ async function cleanup(): Promise<void> {
   if (!t) return;
   // The append-only trigger blocks DELETE — disable it (superuser) only to clean up test rows.
   await pool.query('ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_change');
+  await pool.query('DELETE FROM notification_log WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);

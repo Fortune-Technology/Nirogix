@@ -4,6 +4,7 @@ import { db, pool } from '../db/client';
 import { runWithTenant } from '../db/tenantContext';
 import { tenants, users } from '../db/schema';
 import { hashPassword } from '../modules/auth/password';
+import { passwordIssues } from '../modules/auth/passwordPolicy';
 import {
   seedPermissionCatalog,
   provisionTenantRbac,
@@ -82,10 +83,22 @@ async function ensureBootstrapAdmin(platformTenantId: string): Promise<void> {
     return;
   }
 
-  if (!BOOTSTRAP_PASSWORD || BOOTSTRAP_PASSWORD.length < 12) {
+  if (!BOOTSTRAP_PASSWORD) {
     throw new SeedRefused(
-      'BOOTSTRAP_ADMIN_EMAIL is set but BOOTSTRAP_ADMIN_PASSWORD is missing or shorter than 12 ' +
-        'characters. Refusing to create a production account with a weak or default password.',
+      'BOOTSTRAP_ADMIN_EMAIL is set but BOOTSTRAP_ADMIN_PASSWORD is missing. Refusing to create ' +
+        'a production account without a password.',
+    );
+  }
+  // The same policy the product enforces on every other password (ADR-082) — the first
+  // account on a production platform is the last one that should get an exemption.
+  const issues = passwordIssues(BOOTSTRAP_PASSWORD, {
+    email: BOOTSTRAP_EMAIL,
+    fullName: BOOTSTRAP_NAME,
+    orgCode: PLATFORM_CODE,
+  });
+  if (issues.length > 0) {
+    throw new SeedRefused(
+      `BOOTSTRAP_ADMIN_PASSWORD does not meet the password policy: ${issues.join(' ')}`,
     );
   }
 

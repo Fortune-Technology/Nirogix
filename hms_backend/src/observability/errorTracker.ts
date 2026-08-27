@@ -1,5 +1,6 @@
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { scrubAadhaar } from '../security/redaction';
 
 // Error tracking behind a thin abstraction (ADR-007 provider pattern) so an external
 // tracker (Sentry / GlitchTip — both use the Sentry SDK) can be wired in without touching
@@ -25,7 +26,10 @@ export interface ErrorTracker {
 
 class LogErrorTracker implements ErrorTracker {
   captureException(err: unknown, context: ErrorContext = {}): void {
-    logger.error({ err, ...context, event: 'error.captured' }, 'Captured server error');
+    // Scrubbed here as well as in the logger: when a real tracker (Sentry/GlitchTip) is wired
+    // in below, it will NOT pass through pino, and an Aadhaar number must not reach a
+    // third-party service under any transport (ADR-084).
+    logger.error({ err: scrubAadhaar(err), ...context, event: 'error.captured' }, 'Captured server error');
   }
 }
 

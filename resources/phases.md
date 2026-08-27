@@ -273,6 +273,31 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 - Report totals reconcile against underlying transaction data
 
+### Specialty & Module Experience Spine — foundational — `ADR-083 · Size: M`
+
+*Depends on: Platform Administration Surface (operator onboarding) + the existing module-entitlement engine. Config infrastructure only — no new clinical screens — so it parallelizes with the MVP-expansion modules and does not sit on the clinical critical path.*
+
+**Goal:** make the platform feel like a purpose-built application per specialty — the sidebar, dashboard, quick actions, forms, reports and settings a doctor sees match `{ tenant enabled modules ∩ provider specialty ∩ user permissions }` — while the enforced boundary stays exactly the module-entitlement + RBAC chain. Turns "add a specialty" into configuration, not a core rewrite.
+
+**Backend**
+
+- Promote `MODULE_CATALOG` to shared + typed: a `ModuleKey` union and per-module UI metadata (display name, nav group, icon, unlocked permission keys) in a package both frontends and the API consume.
+- New `SPECIALTY_MODULE_MAP` (`specialtyCode → { required, recommended, optional: ModuleKey[] }`) seeded from code beside `SPECIALTY_CATALOG` / `moduleCatalog.ts`.
+- Specialty-preset onboarding: a chosen specialty / facility type expands into a module set through the existing hard-dependency closure, replacing the fixed `DEFAULT_MODULES`; the org admin can still enable/disable within dependencies afterward.
+- Persist tenant **facility type / primary specialty** on `organization_profile`.
+- Deliver the tenant's entitled module set in the authenticated session payload.
+- (No change to enforcement — `requireModule` + `requirePermission` already gate every route; this milestone only feeds the client and the onboarding preset.)
+
+**Frontend**
+
+- `NavItem` gains a `module` key; `navGroupsForUser` filters by `moduleEnabled(module) && can(perm)` (Portal — closes the current gap where a module the tenant never bought can still appear in the menu).
+- Dashboard KPI cards + quick actions move from per-role hard-coded JSX to a config-driven registry keyed by `{ module, permission, specialty? }`.
+- Org module-configuration screen (org admin) to toggle recommended/optional modules on/off within their hard-deps.
+
+**Testing**
+
+- A tenant without module X never sees X in the sidebar, dashboard, or quick actions, and its API returns `MODULE_NOT_ENTITLED` regardless of UI (frontend-hiding-is-not-security regression). · Specialty preset expands to the correct module closure at onboarding. · Org override enabling/disabling a module reflects in the menu on next session. · Two providers of different specialties in one multi-specialty tenant each see their own personalized surface within the shared entitled set.
+
 ### Phase 2 — Small Hospital / Nursing Home Edition
 
 | Module | Depends on | Rationale |
@@ -289,7 +314,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 | Module | Depends on | Rationale |
 |---|---|---|
-| ABDM Integration (M1 first, M2/M3 after) — §36 | Patient Management | M1 (ABHA) is a light lift; M2/M3 (HIP/HIU) needs legal/compliance review before build starts |
+| ABDM Integration (M1 first, M2/M3 after) — §36 | Patient Management | **M1 built 25/08/2026 (ADR-084)**, sandbox-verified; going live is NHA certification, not development. M2/M3 (HIP/HIU) still needs legal/compliance review before build starts |
 | Formal DPDP/Security hardening, VAPT — §55 | All prior phases | Formalized ahead of any customer-driven compliance audit, not built from scratch here — the architecture already assumes this from Phase 0 |
 | Full Reports & BI suite — §53 | All transactional modules | The 300+ report catalog only makes sense once the underlying modules exist |
 | CRM & Patient Engagement — §33 | Patient, Notification service | Recall/preventive-care campaigns reuse the Phase 0 notification engine |
@@ -305,7 +330,7 @@ Build opportunistically — ideally pre-sold to a specific customer before commi
 | Operation Theatre — §18 | IPD | — |
 | CSSD — §19 | OT | — |
 | Blood Bank — §20 | Patient, Billing Core | Largely independent of the clinical modules above it |
-| Specialty Clinical Modules — §21 | EMR | Build only the specific specialty a paying customer needs, not all ten at once |
+| Specialty Clinical Modules — §21 | EMR, Specialty & Module Experience Spine (ADR-083) | Each (odontogram, antenatal/obstetric, growth tracking, psychiatric assessment, …) is an independent module that plugs into the spine as configuration — build only the specific specialty a paying customer needs, not all at once. The spine is what keeps this a data + one-module change rather than a core rewrite. |
 | Ambulance & Fleet — §29 | Patient | Sequence by customer demand |
 | Biomedical Equipment & Asset Mgmt — §30 | — | Sequence by customer demand |
 | Biomedical Waste Management — §31 | — | Sequence by customer demand |
@@ -336,6 +361,7 @@ The critical path through the MVP, and how later phases attach to it.
 | Patient → Blood Bank | Mostly independent — can be pulled forward if a customer needs it early |
 | Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns | One shared service, reused by every later module — never rebuilt |
 | Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management | Every future revenue-generating module extends this same engine with a new line-item type |
+| Module Entitlement Engine (Phase 0) → Specialty & Module Experience Spine (ADR-083) → Specialty Clinical Modules (Phase 4, §21) | The spine turns the existing enforced entitlement boundary into a per-specialty *experience*; each greenfield specialty feature then attaches as one configured module, never a core branch |
 
 ### Definition of Done
 

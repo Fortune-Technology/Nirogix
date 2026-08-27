@@ -16,9 +16,11 @@ import {
 import { PERMISSIONS } from "@hms/permissions";
 import { formatDate, todayApiDate } from "@hms/utils";
 import type { CreatePatientRequest, DuplicatePatientCandidate } from "@hms/types";
+import type { AbhaPrefill } from "@hms/types";
 import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
+import { Can, RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
+import { AbhaVerificationPanel } from "../../../../components/abdm/AbhaVerificationPanel";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -29,6 +31,10 @@ function RegisterForm() {
   const [submitting, setSubmitting] = useState(false);
   // The DUPLICATE_PATIENT 409: matching charts to review before anything is created.
   const [duplicates, setDuplicates] = useState<DuplicatePatientCandidate[] | null>(null);
+  // Set once an ABHA has been verified (ADR-084). Held until the chart exists, because the ABHA
+  // is linked to a patient id — so the verification has to outlive the form submit, and only a
+  // successful registration turns it into a link.
+  const [abhaTxnId, setAbhaTxnId] = useState<string | null>(null);
 
   function set<K extends keyof CreatePatientRequest>(key: K, value: CreatePatientRequest[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -43,11 +49,40 @@ function RegisterForm() {
     return body;
   }
 
+  /**
+   * Fills the form from a verified ABHA profile.
+   *
+   * Only empty fields are overwritten, so a receptionist who has already typed something the
+   * patient corrected in person does not lose it to the ABDM record. Every field stays editable.
+   */
+  function applyAbhaPrefill(prefill: AbhaPrefill, transactionId: string) {
+    setF((prev) => {
+      const next = { ...prev };
+      for (const [key, value] of Object.entries(prefill)) {
+        if (value == null || value === "") continue;
+        const current = (next as Record<string, unknown>)[key];
+        if (current == null || current === "") (next as Record<string, unknown>)[key] = value;
+      }
+      return next;
+    });
+    setAbhaTxnId(transactionId);
+  }
+
   async function submit(allowDuplicate?: boolean) {
     setError(null);
     setSubmitting(true);
     try {
       const created = await api.createPatient(buildBody(allowDuplicate));
+      // Registration succeeded, so the verified ABHA can now be attached to a real chart. A
+      // failure here does not undo the registration — the patient is registered either way, and
+      // the ABHA can be linked again from the chart — so it never blocks the redirect.
+      if (abhaTxnId) {
+        try {
+          await api.linkAbhaToPatient({ transactionId: abhaTxnId, patientId: created.id });
+        } catch {
+          // Reported by the shared client's error toast; the chart is already saved.
+        }
+      }
       router.replace(`/patients/${created.id}`);
     } catch (err) {
       if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
@@ -68,6 +103,15 @@ function RegisterForm() {
   return (
     <>
       <PageHeader title="Register patient" description="A UHID is assigned automatically on save." />
+      {/* ABDM Milestone 1 (ADR-084): verify first, type second. Rendered only for staff who hold
+          the permission; the API additionally refuses any hospital not entitled to the module, so
+          this is UX, never the boundary. */}
+      <div className="mb-5 max-w-3xl">
+        <Can perm={PERMISSIONS.ABDM_VERIFY}>
+          <AbhaVerificationPanel onUseDetails={applyAbhaPrefill} />
+        </Can>
+      </div>
+
       <form className="flex max-w-3xl flex-col gap-5" onSubmit={handleSubmit}>
         {error && <Alert tone="danger">{error}</Alert>}
 
@@ -97,7 +141,17 @@ function RegisterForm() {
                 {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </label>
-            <Field label="ABHA number (optional)" value={f.abhaNumber ?? ""} onChange={(e) => set("abhaNumber", e.target.value)} />
+            <Field
+              label="ABHA number (optional)"
+              value={f.abhaNumber ?? ""}
+              onChange={(e) => {
+                // Typing over a verified number drops the verification with it: what follows is
+                // a hand-entered value, and the backend would un-verify it anyway (ADR-084).
+                if (abhaTxnId) setAbhaTxnId(null);
+                set("abhaNumber", e.target.value);
+              }}
+              hint={abhaTxnId ? "Verified with ABDM — it will be linked when you register." : undefined}
+            />
           </div>
         </Card>
 

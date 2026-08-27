@@ -9,6 +9,7 @@ import {
   Badge,
   Button,
   Card,
+  DateDisplay,
   DateField,
   Field,
   PhoneField,
@@ -22,6 +23,7 @@ import { RequirePermission, Can } from "../../../../components/Can";
 import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
 import { PatientHistory } from "../../../../components/patients/PatientHistory";
 import { ImmunizationsCard } from "../../../../components/patients/ImmunizationsCard";
+import { ExternalHistoryCard } from "../../../../components/patients/ExternalHistoryCard";
 import { PageHeader } from "../../../../components/PageHeader";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -172,9 +174,25 @@ function Profile({ id }: { id: string }) {
           <Card header="Identity">
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <Row label="Gender">{p.gender}</Row>
-              <Row label="Date of birth">{p.dateOfBirth}</Row>
+              <Row label="Date of birth"><DateDisplay value={p.dateOfBirth} /></Row>
               <Row label="Blood group">{p.bloodGroup}</Row>
-              <Row label="ABHA number">{p.abhaNumber}</Row>
+              <Row label="ABHA number">
+                {p.abhaNumber && (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {p.abhaNumber}
+                    {/* A typed ABHA number and one proved with ABDM are not the same thing
+                        (ADR-084). Only a completed verification sets `abhaVerifiedAt`, and
+                        editing the number by hand clears it — so this badge is the difference,
+                        and its absence is information rather than an omission. */}
+                    {p.abhaVerifiedAt ? (
+                      <Badge tone="success">Verified with ABDM</Badge>
+                    ) : (
+                      <Badge tone="neutral">Not verified</Badge>
+                    )}
+                  </span>
+                )}
+              </Row>
+              {p.abhaAddress && <Row label="ABHA address">{p.abhaAddress}</Row>}
             </dl>
           </Card>
           <Card header="Contact">
@@ -205,6 +223,11 @@ function Profile({ id }: { id: string }) {
           <ImmunizationsCard patientId={p.id} />
         </Can>
       )}
+      {/* Records from OTHER hospitals, held on loan under the patient's consent (ADR-092…094).
+          Kept beside our own history rather than merged into it: borrowed records disappear the
+          moment consent lapses, and blurring the two would hide which is which. */}
+      {!editing && <ExternalHistoryCard patient={p} />}
+
       {!editing && <PatientHistory patientId={p.id} />}
     </>
   );

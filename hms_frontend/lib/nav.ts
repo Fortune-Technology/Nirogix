@@ -33,6 +33,14 @@ export interface NavItem {
   href: string;
   perm: string | null;
   icon: LucideIcon;
+  /**
+   * Module this screen belongs to (ADR-085). The sidebar hides the item when the tenant is
+   * not entitled, so the menu agrees with the boundary the backend already enforces
+   * (requireModule). `undefined` = Platform Core, shown to anyone permitted.
+   */
+  module?: string;
+  /** Capability this screen belongs to (ADR-085). Hidden when the tenant has it switched off. */
+  capability?: string;
 }
 
 /**
@@ -65,29 +73,29 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
   {
     label: "Clinical",
     items: [
-      { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users },
+      { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users, module: "patient" },
       // Visible to anyone who may see patients; only the front desk can act on a request.
-      { label: "Registration requests", href: "/patients/registrations", perm: PERMISSIONS.PATIENT_VIEW, icon: UserPlus },
-      { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays },
+      { label: "Registration requests", href: "/patients/registrations", perm: PERMISSIONS.PATIENT_VIEW, icon: UserPlus, module: "opd", capability: "opd.self_registration" },
+      { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays, module: "appointment" },
       // Online-booking review queue (ADR-069). Nested under /appointments so the
       // longest-match rule highlights it on its own route.
-      { label: "Booking requests", href: "/appointments/requests", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarCheck },
-      { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList },
+      { label: "Booking requests", href: "/appointments/requests", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarCheck, module: "appointment", capability: "appointment.online_booking" },
+      { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList, module: "opd", capability: "opd.queue" },
       // The receiving side of in-hospital referrals (ADR-068).
-      { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send },
+      { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send, module: "opd", capability: "opd.referral" },
       // Gated by the LANDING page's permission (the dispense queue), not the broader
       // stock-view key: a doctor holds `pharmacy.stock.view` for the in-consult
       // formulary picker, and advertising the pharmacy workspace to them showed a
       // sidebar item whose destination refused them. The rule: a nav item's `perm`
       // is always its landing page's `RequirePermission` key.
-      { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_DISPENSE, icon: Pill },
-      { label: "Laboratory", href: "/laboratory", perm: PERMISSIONS.LAB_ORDER_VIEW, icon: FlaskConical },
+      { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_DISPENSE, icon: Pill, module: "pharmacy" },
+      { label: "Laboratory", href: "/laboratory", perm: PERMISSIONS.LAB_ORDER_VIEW, icon: FlaskConical, module: "laboratory" },
     ],
   },
   {
     label: "Revenue",
     items: [
-      { label: "Billing", href: "/billing", perm: PERMISSIONS.BILLING_VIEW, icon: Receipt },
+      { label: "Billing", href: "/billing", perm: PERMISSIONS.BILLING_VIEW, icon: Receipt, module: "billing" },
       // The services & packages catalogue (ADR-067, E-3) — priced items billing consumes.
       { label: "Services", href: "/services", perm: PERMISSIONS.BILLING_SERVICES_VIEW, icon: ListChecks },
       { label: "Reports", href: "/reports", perm: PERMISSIONS.REPORTS_VIEW, icon: BarChart3 },
@@ -162,9 +170,31 @@ export const MOBILE_PRIMARY_ORDER = [
   "/users",
 ] as const;
 
+/**
+ * The entitlement half of nav visibility (ADR-085): a module-backed item is shown only when the
+ * tenant has that module — and that capability, when the item names one. Callers that have no
+ * entitlement context yet pass nothing, which keeps every item visible (the pre-ADR-085 behaviour)
+ * rather than emptying the menu while the session loads. Hiding is UX; the backend re-checks.
+ */
+export function navEntitled(
+  item: NavItem,
+  entitlement?: { hasModule: (k: string) => boolean; hasCapability: (k: string) => boolean },
+): boolean {
+  if (!entitlement) return true;
+  if (item.module && !entitlement.hasModule(item.module)) return false;
+  if (item.capability && !entitlement.hasCapability(item.capability)) return false;
+  return true;
+}
+
 /** The bottom bar's items for this user: permitted, in priority order, capped by the caller. */
-export function mobilePrimaryNav(can: (perm: string) => boolean, source: NavItem[] = NAV_ITEMS): NavItem[] {
-  const permitted = source.filter((item) => item.perm === null || can(item.perm));
+export function mobilePrimaryNav(
+  can: (perm: string) => boolean,
+  source: NavItem[] = NAV_ITEMS,
+  entitlement?: { hasModule: (k: string) => boolean; hasCapability: (k: string) => boolean },
+): NavItem[] {
+  const permitted = source.filter(
+    (item) => (item.perm === null || can(item.perm)) && navEntitled(item, entitlement),
+  );
   const ranked = [...permitted].sort((a, b) => {
     const ia = MOBILE_PRIMARY_ORDER.indexOf(a.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
     const ib = MOBILE_PRIMARY_ORDER.indexOf(b.href as (typeof MOBILE_PRIMARY_ORDER)[number]);
@@ -182,9 +212,12 @@ export function mobilePrimaryNav(can: (perm: string) => boolean, source: NavItem
  * support session — which is exactly right: they are working as a hospital user, and
  * the support banner says so.
  */
-export function navGroupsForUser(can: (perm: string) => boolean): NavGroup[] {
+export function navGroupsForUser(
+  can: (perm: string) => boolean,
+  entitlement?: { hasModule: (k: string) => boolean; hasCapability: (k: string) => boolean },
+): NavGroup[] {
   return TENANT_NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((i) => i.perm === null || can(i.perm)),
+    items: g.items.filter((i) => (i.perm === null || can(i.perm)) && navEntitled(i, entitlement)),
   })).filter((g) => g.items.length > 0);
 }
