@@ -12,6 +12,7 @@ import * as timeline from './hiuTimeline.service';
 import * as hfr from './hfr.service';
 import * as hpr from './hpr.service';
 import * as bulk from './registryBulk.service';
+import * as consent from './consent.service';
 import { recordLinkCallback } from './linking.service';
 import type { AbdmProfile } from './providers/types';
 
@@ -628,4 +629,52 @@ export async function importBulkProfessionals(req: Request, res: Response): Prom
 export async function importBulkFacilities(req: Request, res: Response): Promise<void> {
   const body = req.body as { rows: Record<string, string>[] };
   res.json(await bulk.importFacilityResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows));
+}
+
+// --- Consents this hospital holds (ADR-100) ---------------------------------------------------
+//
+// Certification requires all three consent cases to be "seen in HMIS". The live list is the
+// permissions we currently hold; the history beside it is the record that one existed and ended,
+// which is what makes a revocation watchable rather than merely correct.
+export async function listHeldConsents(req: Request, res: Response): Promise<void> {
+  const tenantId = req.auth!.tenantId;
+  const abhaAddress = typeof req.query.abhaAddress === 'string' ? req.query.abhaAddress : undefined;
+  const [held, history] = await Promise.all([
+    consent.listConsents(tenantId, abhaAddress),
+    consent.consentHistory(tenantId),
+  ]);
+  res.json({
+    consents: held.map((c) => ({
+      consentId: c.consentId,
+      abhaAddress: c.abhaAddress,
+      hiuId: c.hiuId,
+      hipId: c.hipId,
+      purposeCode: c.purposeCode,
+      hiTypes: c.hiTypes,
+      accessMode: c.accessMode,
+      dateRangeFrom: c.dateRangeFrom,
+      dateRangeTo: c.dateRangeTo,
+      dataEraseAt: c.dataEraseAt,
+      grantedAt: c.grantedAt,
+    })),
+    history,
+  });
+}
+
+/** Resends the OTP for a verification in flight, throttled server-side (ADR-100). */
+export async function resendOtp(req: Request, res: Response): Promise<void> {
+  const body = req.body as { transactionId: string; aadhaar?: string; mobile?: string };
+  res.status(202).json(await svc.resendOtp(req.auth!.tenantId, body, req.auth!.userId));
+}
+
+/**
+ * Finds the patient an ABHA identifier belongs to (HIU_FLOW_101, ADR-100).
+ *
+ * Answers with the match and the honest next step rather than a bare boolean, because "not found"
+ * and "found but never verified" need different actions from the person at the desk.
+ */
+export async function lookupAbha(req: Request, res: Response): Promise<void> {
+  const identifier = String(req.query.identifier ?? '').trim();
+  if (identifier.length < 3) throw new AppError(422, 'ABDM_IDENTIFIER_REQUIRED', 'Enter an ABHA number or address');
+  res.json(await hiu.findPatientByAbha(req.auth!.tenantId, identifier));
 }

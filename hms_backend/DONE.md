@@ -1677,3 +1677,44 @@ administrator counts them — header is line 1.
 **One flagged limitation:** the column headings are derived from the verified API contracts, not from
 ABDM's downloadable template. They live in one object per registry so correcting them is a single
 edit — see `BACKLOG.md`.
+
+## Closing the gaps the official ABDM test cases found (ADR-100)
+
+Auditing against NHA's own workbooks — rather than our reading of the specification — found five
+code-level failures the internal suite could not have caught, because each is a requirement about
+what an **assessor can observe**, not about what the code computes.
+
+**Consents are now visible, and the deletion rule did not have to bend.** Three cases state their
+expected result as "seen in HMIS", which collides head-on with ADR-087 destroying an artefact on
+revocation. The resolution is that they are two different questions: the artefact is the *permission*
+and it is destroyed; the audit entry is the *record that it existed and ended*, holds metadata only,
+and is never deleted. The screen shows current permissions above and history below, so a revoked
+consent visibly moves from one to the other — which makes the deletion provable rather than claimed.
+
+**One ABHA number now belongs to exactly one chart.** Partial unique indexes on the normalised number
+and lower-cased address, scoped to active charts, so formatting is not a loophole and a soft-deleted
+chart does not permanently burn an identity.
+
+**Resend is capped on the transaction, not in the browser** — a reloaded page or second tab must not
+be able to spend a patient's daily UIDAI allowance. The Aadhaar has to be supplied again, and that is
+deliberate: we never store one, so there is nothing to replay.
+
+**An ABHA can be looked up before a history is requested**, closing the case where a walk-in whose
+ABHA had never been verified here could not be searched at all. It does not invent an ABDM validation
+call — none exists in the published collection.
+
+**One gap was deliberately left open.** Demographic / offline ABHA creation is nine mandatory cases,
+and the endpoint is absent from the M1 collection, the ABHA host publishes no OpenAPI document, and
+`enrol/byDocument` is a different thing. Building it means guessing a payload, a response and a
+provider signature — the precise mistake that cost a week in M2 and was caught again in M4. A stub
+that looks like progress is worse than an honest gap, so it stays failed until NHA supplies the
+contract.
+
+**Two pre-existing defects surfaced on the way**, both flushed out by the new uniqueness index:
+`createPatient` used an unqualified `onConflictDoNothing()`, so a duplicate ABHA was silently retried
+as a UHID collision and reported as "Could not allocate a UHID" — the wrong cause entirely; and an M1
+test was relying on two charts in one tenant sharing an ABHA number, which is the state the rule now
+forbids.
+
+**Testing status:** 18 new tests, each naming the certification case it defends so a regression fails
+in the assessor's language. **557 backend tests across 57 files**, typecheck and OpenAPI green.

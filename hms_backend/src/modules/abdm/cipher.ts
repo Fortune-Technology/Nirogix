@@ -16,7 +16,8 @@ const run = promisify(execFile);
  * key-derivation details of somebody else's protocol is how interoperability failures are
  * discovered in production rather than in review.
  *
- * Fidelius is a Java CLI, so this shells out to it. Two consequences are load-bearing:
+ * Fidelius is a Java CLI shipped as a launcher script plus a `lib/` directory, so this shells out
+ * to `bin/fidelius-cli` rather than to a jar. Two consequences are load-bearing:
  *
  * 1. **A JRE is a deployment dependency.** Its absence is not a warning to log past — see below.
  * 2. **There is no plaintext fallback. Ever.** If encryption cannot be performed, the transfer
@@ -75,8 +76,14 @@ export interface KeyPair {
  * One invocation of the Fidelius CLI.
  *
  * Every call goes through here so the argument order — the part most likely to be wrong until the
- * jar has actually run — exists in exactly one place, and so "java is missing" produces the same
- * refusal as "Fidelius rejected the input" rather than an unhandled spawn error.
+ * binary has actually run — exists in exactly one place, and so "the CLI is missing" produces the
+ * same refusal as "Fidelius rejected the input" rather than an unhandled spawn error.
+ *
+ * **`FIDELIUS_CLI_PATH` points at the `bin/fidelius-cli` launcher from the release, not at a jar.**
+ * The published distribution is a script plus a `lib/` directory, so `java -jar <path>` — which is
+ * what this file did until the CLI's own documentation was read — could never have worked. It is
+ * invoked directly, which also means the JRE is found the way the launcher expects rather than
+ * whichever `java` happens to be first on our PATH.
  */
 async function fidelius(args: string[], what: string): Promise<Record<string, string>> {
   if (!env.FIDELIUS_CLI_PATH) {
@@ -85,7 +92,7 @@ async function fidelius(args: string[], what: string): Promise<Record<string, st
     );
   }
   try {
-    const { stdout } = await run('java', ['-jar', env.FIDELIUS_CLI_PATH, ...args], {
+    const { stdout } = await run(env.FIDELIUS_CLI_PATH, args, {
       maxBuffer: 64 * 1024 * 1024,
       timeout: 60_000,
     });
@@ -114,7 +121,8 @@ export async function generateKeyPair(): Promise<KeyPair> {
     const nonce = randomBytes(32).toString('base64');
     return { privateKey: `MOCK-PRIVATE-${nonce.slice(0, 12)}`, publicKey: 'MOCK-PUBLIC-KEY', nonce };
   }
-  const parsed = await fidelius(['g'], 'key generation');
+  // `gkm` — `generate-key-material`. There is no `g`.
+  const parsed = await fidelius(['gkm'], 'key generation');
   if (!parsed.privateKey || !parsed.publicKey) {
     throw new EncryptionUnavailableError('Fidelius returned no key pair');
   }
@@ -149,10 +157,15 @@ export async function decryptFromHip(input: {
     }
     return decoded.slice(MOCK_PREFIX.length);
   }
+  // The CLI's own order, read from its documentation:
+  //   d <encrypted-data> <requester-nonce> <sender-nonce> <requester-private-key> <sender-public-key>
+  // We are the requester here; the HIP is the sender. The ciphertext comes FIRST — it was last in
+  // an earlier version of this file, which would have failed on the first real record.
   const parsed = await fidelius(
-    ['d', input.ourNonce, input.hipNonce, input.ourPrivateKey, input.hipPublicKey, input.ciphertext],
+    ['d', input.ciphertext, input.ourNonce, input.hipNonce, input.ourPrivateKey, input.hipPublicKey],
     'decryption',
   );
+  // `decryptedData` is the CLI's own field name, confirmed from its documentation.
   if (!parsed.decryptedData) throw new EncryptionUnavailableError('Fidelius returned no plaintext');
   return parsed.decryptedData;
 }
@@ -202,8 +215,25 @@ export async function encryptForHiu(input: {
   // Our own half of the exchange, fresh for this document set. Fidelius encrypts with BOTH sides'
   // material — this was previously omitted, which would have produced ciphertext no HIU could read.
   const ours = await generateKeyPair();
+
+  // `se` (sane-encrypt), not `e`, and the payload base64-encoded. The CLI provides `se` precisely
+  // to "circumvent the need to escape special characters in strings (e.g. JSON values)" — and every
+  // single thing we encrypt is a FHIR JSON bundle. Passing raw JSON as a shell argument is the
+  // fragility that command exists to remove.
+  //
+  //   se <string-to-encrypt-base64> <sender-nonce> <requester-nonce> <sender-private-key> <requester-public-key>
+  //
+  // We are the sender; the HIU is the requester. The payload comes FIRST — it was last in an
+  // earlier version of this file, which would have produced ciphertext no HIU could read.
   const parsed = await fidelius(
-    ['e', ours.nonce, input.hiuNonce, ours.privateKey, input.hiuPublicKey, input.plaintext],
+    [
+      'se',
+      Buffer.from(input.plaintext, 'utf8').toString('base64'),
+      ours.nonce,
+      input.hiuNonce,
+      ours.privateKey,
+      input.hiuPublicKey,
+    ],
     'encryption',
   );
   if (!parsed.encryptedData) throw new EncryptionUnavailableError('Fidelius returned no ciphertext');
@@ -218,7 +248,10 @@ export async function encryptForHiu(input: {
         expiry: expiryIso(),
         parameters: 'Curve25519/32byte random key',
         // What the HIU needs to derive the same secret: our PUBLIC key, never the private one.
-        keyValue: parsed.keyToShare ?? ours.publicKey,
+        //
+        // Taken from the key pair rather than the encrypt response, because `se`/`e` return only
+        // `encryptedData` — an earlier version read a `keyToShare` field the CLI does not emit.
+        keyValue: ours.publicKey,
       },
       nonce: ours.nonce,
     },

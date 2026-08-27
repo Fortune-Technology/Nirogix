@@ -36,6 +36,8 @@ const AADHAAR_NO_MOBILE = '111122223331';
 const AADHAAR_LINK_A = '222233334444';
 const AADHAAR_LINK_B = '777788889992';
 const AADHAAR_LINK_C = '333344445556';
+/** Its own identity, because one ABHA number may now belong to exactly one chart (ADR-100). */
+const AADHAAR_ISOLATED = '555566667778';
 
 let ready = false;
 let tenantId = '';
@@ -262,7 +264,10 @@ describe('new vs returning patient', () => {
 
   test('a match never reaches across tenants', async ({ skip }) => {
     if (!ready) return skip();
-    const verified = await runAadhaarFlow(AADHAAR_NEW);
+    // A distinct Aadhaar, so this chart gets its own ABHA number: the mock is deterministic, and
+    // reusing AADHAAR_NEW would mean two charts in one tenant claiming one national identity —
+    // which the uniqueness rule now correctly refuses (ADR-100).
+    const verified = await runAadhaarFlow(AADHAAR_ISOLATED);
     await createPatient(tenantId, {
       firstName: 'Isolated',
       phone: '9111100003',

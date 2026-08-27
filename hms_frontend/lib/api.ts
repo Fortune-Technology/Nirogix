@@ -1290,3 +1290,49 @@ export async function importAbdmBulk(
   // The page reports matched/unmatched/ambiguous itself; a generic "Saved." would say less.
   return request<AbdmImportOutcome>(`/abdm/registry/bulk/${kind}`, { method: "POST", body: { rows }, feedback: false });
 }
+
+// --- Consents other providers hold over our records (ADR-100) ---------------------------------
+
+export interface AbdmHeldConsent {
+  consentId: string;
+  abhaAddress: string;
+  hiuId: string | null;
+  hipId: string | null;
+  purposeCode: string | null;
+  hiTypes: string[];
+  accessMode: string | null;
+  dateRangeFrom: string | null;
+  dateRangeTo: string | null;
+  dataEraseAt: string | null;
+  grantedAt: string | null;
+}
+
+export interface AbdmConsentEvent {
+  consentId: string;
+  event: "granted" | "revoked" | "expired" | "erased";
+  hiuId?: string;
+  hiTypes?: string[];
+  recordedAt: string;
+}
+
+export async function listAbdmConsents(): Promise<{ consents: AbdmHeldConsent[]; history: AbdmConsentEvent[] }> {
+  return request<{ consents: AbdmHeldConsent[]; history: AbdmConsentEvent[] }>("/abdm/consents", { feedback: false });
+}
+
+/** Finds the patient an ABHA belongs to before a history is requested (HIU_FLOW_101). */
+export async function lookupAbdmAbha(identifier: string): Promise<{
+  outcome: "verified" | "unverified" | "not_found" | "ambiguous";
+  patient?: { id: string; uhid: string; name: string; abhaAddress: string | null; abhaNumber: string | null };
+  nextStep: string;
+}> {
+  return request(`/abdm/history/lookup/abha?identifier=${encodeURIComponent(identifier)}`, { feedback: false });
+}
+
+/** Resends the verification code, throttled server-side (CRT_ABHA_106). */
+export async function resendAbdmOtp(body: {
+  transactionId: string;
+  aadhaar?: string;
+  mobile?: string;
+}): Promise<{ transactionId: string; mobileHint?: string; resendsLeft: number }> {
+  return request("/abdm/otp/resend", { method: "POST", body });
+}
