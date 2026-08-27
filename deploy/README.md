@@ -143,6 +143,17 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 - Update the port matrix in `resources/domains.md` (§ per-environment variables) with the ports
   actually claimed, so the next deploy reads them instead of re-deriving them.
 
+## Provisioning a fresh E2E account
+
+> **Building a new environment from nothing? Start at [`e2e-provisioning.md`](./e2e-provisioning.md).**
+> It covers the E2E-specific decisions this checklist assumes are already made — region, node size
+> (with the build-memory arithmetic behind it), reserved IP, firewall, DBaaS-versus-VM PostgreSQL —
+> and its **Step 0 proves ABDM is reachable from the region before anything is built on it**. The
+> previous host was never tested that way, which is how an unusable environment survived for weeks
+> (`BACKLOG.md` I-6).
+>
+> The checklist below remains the reference for the steps once a node exists.
+
 ## First-time VM provisioning (baseline checklist)
 
 > Step 0 is the port audit above. Nothing binds before it.

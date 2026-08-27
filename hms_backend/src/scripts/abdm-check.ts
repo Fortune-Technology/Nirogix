@@ -39,6 +39,58 @@ const CLIENT_SECRET = notBlank(process.env.ABDM_CLIENT_SECRET);
 
 const ok = (m: string) => console.log(`  ✓ ${m}`);
 const bad = (m: string) => console.log(`  ✗ ${m}`);
+const note = (m: string) => console.log(`    ${m}`);
+
+/**
+ * Says what a failure actually was, rather than guessing at credentials.
+ *
+ * This exists because the previous version printed "a 401 here is almost always the credential
+ * pair" underneath a **403**, and sent somebody looking for a bad secret when the real answer was
+ * that a CDN in front of NHA had blocked the host outright. A diagnostic that names the wrong cause
+ * is worse than none: it spends someone's afternoon.
+ *
+ * The distinction is easy to make and worth making. An application rejection is JSON from ABDM. An
+ * edge block is HTML from a CDN, arrives with `server: CloudFront` or similar, and answers the same
+ * way to an unauthenticated request to the bare domain — which is the one-line test printed below.
+ */
+export function explainFailure(res: Response, body: string): void {
+  const server = res.headers.get('server') ?? '';
+  const viaCdn = /cloudfront|akamai|cloudflare|fastly/i.test(`${server} ${res.headers.get('via') ?? ''}`);
+  const looksLikeHtml = /^\s*<(!doctype|html)/i.test(body) || /request blocked|could not be satisfied/i.test(body);
+
+  if (res.status === 403 && (viaCdn || looksLikeHtml)) {
+    console.log('');
+    bad('This is a NETWORK-level block, not a credential problem.');
+    note(`The response is HTML from a CDN${server ? ` (server: ${server})` : ''}, so it never reached ABDM.`);
+    note('NHA’s sandbox is known to refuse foreign and hosting-provider IP ranges; a host outside');
+    note('India will be blocked before any request of ours is evaluated.');
+    note('');
+    note('Confirm in one line — this needs no credentials and should also return 403:');
+    note(`  curl -sS -o /dev/null -w '%{http_code}\n' ${GATEWAY}`);
+    note('');
+    note('If it does, no change to .env, code or credentials will help. The host has to reach ABDM.');
+    console.log('');
+    return;
+  }
+
+  console.log('');
+  // NHA answers bad credentials with **400**, not 401 — observed, not assumed. Matching on the
+  // status alone would drop the most common real failure into the "unexpected" branch, which is
+  // how the previous version of this diagnostic managed to be unhelpful twice over.
+  if (res.status === 401 || /invalid user credentials|invalid client/i.test(body)) {
+    note('This is the credential pair, not the code.');
+    note('Check ABDM_CLIENT_ID / ABDM_CLIENT_SECRET against the bridge NHA created for you.');
+    note('They come from NHA’s bridge-creation email, not from the sandbox portal login.');
+  } else if (res.status === 403) {
+    note('A 403 that is genuine JSON usually means the client lacks a role for this call.');
+    note('`npm run abdm:bridge` prints the roles the session token actually carries.');
+  } else if (res.status >= 500) {
+    note('A 5xx is NHA’s side. Worth retrying before investigating anything here.');
+  } else {
+    note('Unexpected. The body above is what NHA returned.');
+  }
+  console.log('');
+}
 
 /** A short, non-reversible fingerprint — enough to tell two tokens apart, useless to anyone else. */
 function fingerprint(value: string): string {
@@ -82,7 +134,7 @@ async function main(): Promise<void> {
       bad(`HTTP ${res.status}`);
       // The body can echo the request back, so it is printed truncated and never parsed for secrets.
       console.log(`    ${text.slice(0, 300)}`);
-      console.log('\n    A 401 here is almost always the credential pair, not the code.\n');
+      explainFailure(res, text);
       process.exit(1);
     }
     const data = JSON.parse(text) as { accessToken?: string; expiresIn?: number; tokenType?: string };
@@ -246,4 +298,13 @@ async function probeEnrolment(accessToken: string): Promise<void> {
   console.log('\n    A DIFFERENT message from one padding is the answer: that is the one NHA can read.');
 }
 
-void main();
+/**
+ * Run only when invoked as a script, never on import.
+ *
+ * `explainFailure` is imported by its tests, and an unguarded `main()` would fire a real network
+ * call — and then `process.exit(1)` — the moment the module loaded. A diagnostic helper should be
+ * testable without the CLI around it.
+ */
+if (process.argv[1] && /abdm-check\.(ts|js)$/.test(process.argv[1])) {
+  void main();
+}

@@ -1718,3 +1718,32 @@ forbids.
 
 **Testing status:** 18 new tests, each naming the certification case it defends so a regression fails
 in the assessor's language. **557 backend tests across 57 files**, typecheck and OpenAPI green.
+
+## `abdm:check` now names the real failure (and a hosting blocker it uncovered)
+
+The diagnostic was wrong twice, and each time it cost real time.
+
+It printed *"a 401 here is almost always the credential pair"* underneath a **403** that was in fact
+a CDN blocking the host — sending someone to check a secret that was fine. And it matched on `401`
+for credential failures, when NHA actually answers bad credentials with **400**, so the commonest
+real failure fell through to an unhelpful "unexpected". A diagnostic that names the wrong cause is
+worse than none.
+
+`explainFailure` now separates the two by **the body, not the status**: an edge block is HTML from a
+CDN and answers the same way to an unauthenticated request to the bare domain; an ABDM rejection is
+JSON. The CDN branch prints the one-line `curl` that settles it without credentials, and says
+plainly that no change to `.env`, code or credentials will help. Seven tests pin the wording,
+including that the specific misdirection cannot reappear.
+
+`main()` is now guarded so it runs only when invoked as a script — importing the module for its
+tests was firing a real network call and then `process.exit(1)`.
+
+**What the fix uncovered.** The staging VM (`74.208.78.255`, IONOS, **United States**) cannot reach
+ABDM at all: every request returns `403 Request blocked` from CloudFront, including a plain
+unauthenticated GET. The same request from an Indian IP reaches NHA normally. No ABDM call has ever
+succeeded from that host — every working call in this project ran from a developer machine in India.
+NHA's onboarding email mentions no allowlisting step, so nothing was skipped.
+
+That makes it a hosting decision rather than a configuration one, and it is **also a compliance
+problem in its own right**: ADR-006 requires India-resident infrastructure for PHI, which a US host
+contradicts regardless of ABDM. Recorded as `BACKLOG.md` **I-6**.
