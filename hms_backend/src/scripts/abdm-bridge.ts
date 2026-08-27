@@ -27,9 +27,14 @@ import { randomUUID } from 'node:crypto';
  * It never prints the client secret — only its length — so the output is safe to paste into an NHA
  * support ticket, which is exactly what closes their "verify the integration" request.
  *
- *   npm run abdm:bridge
- *   npm run abdm:bridge -- --set-url https://api-staging.nirogix.com
- *   npm run abdm:bridge -- --register-service --service-id IN0710-XXXX --name "Nirogix HIP"
+ *   npm run abdm:bridge                                     (read-only, safe anywhere)
+ *   npx tsx src/scripts/abdm-bridge.ts --set-url https://api-staging.nirogix.com
+ *   npx tsx src/scripts/abdm-bridge.ts --set-url <url> --register-service --service-id … --name …
+ *   npx tsx src/scripts/abdm-bridge.ts --set-url <url> --skip-reachability-check   (parking only)
+ *
+ * The writes are shown invoked **directly rather than through `npm run`**: PowerShell strips
+ * `--flag` tokens passed after `--`, so `npm run abdm:bridge -- --set-url <url>` reaches the
+ * script as a bare URL and would otherwise have degraded into another read-only run.
  */
 
 const GATEWAY = process.env.ABDM_GATEWAY_BASE_URL ?? 'https://dev.abdm.gov.in';
@@ -45,12 +50,45 @@ const ok = (m: string) => console.log(`  ✓ ${m}`);
 const bad = (m: string) => console.log(`  ✗ ${m}`);
 const note = (m: string) => console.log(`    ${m}`);
 
-/** `--flag value` → value; `--flag` alone → ''; absent → undefined. */
+/**
+ * `--flag value`, `--flag=value`, `--flag` alone → '', absent → undefined.
+ *
+ * Both forms are supported because **PowerShell strips `--flag` tokens** passed through
+ * `npm run … -- --flag value`: the flag never reaches the script and only its value arrives. That
+ * turned a write command into a silent read-only run once, which is the exact failure this script
+ * exists to prevent — see `assertFlagsSurvived` below.
+ */
 function arg(name: string): string | undefined {
+  const equals = process.argv.find((a) => a.startsWith(`--${name}=`));
+  if (equals) return equals.slice(name.length + 3);
   const i = process.argv.indexOf(`--${name}`);
   if (i === -1) return undefined;
   const next = process.argv[i + 1];
   return next && !next.startsWith('--') ? next : '';
+}
+
+/**
+ * Refuses to continue when a URL was clearly supplied but its flag was eaten by the shell.
+ *
+ * Registering a URL under our name at a national registry is not something to infer from an
+ * ambiguous argv — so a bare URL is neither ignored nor obeyed. It stops, says what happened, and
+ * gives invocations that survive PowerShell. Silently falling through to a read-only run let
+ * somebody believe they had registered when they had not.
+ */
+function assertFlagsSurvived(): void {
+  const bareUrl = process.argv.slice(2).find((a) => /^https?:\/\//i.test(a));
+  const hasAction = process.argv.slice(2).some((a) => a.startsWith('--'));
+  if (!bareUrl || hasAction) return;
+
+  bad(`Received a bare URL (${bareUrl}) with no flag — your shell stripped it.`);
+  note('PowerShell drops `--flag` tokens passed through `npm run … -- --flag value`, so the script');
+  note('saw only the value. NOTHING was sent to NHA; the bridge is unchanged.');
+  note('');
+  note('Either of these survives PowerShell:');
+  note(`  npx tsx src/scripts/abdm-bridge.ts --set-url ${bareUrl}`);
+  note(`  npm run abdm:bridge -- "--set-url=${bareUrl}"`);
+  note('');
+  process.exit(1);
 }
 
 /**
@@ -141,25 +179,41 @@ async function verifyReachable(raw: string): Promise<boolean> {
 
   // The real proof: a live request. Node's fetch validates the certificate chain, so an expired or
   // self-signed certificate fails here rather than silently at NHA.
-  const health = `${url.origin}/health`;
-  try {
-    const res = await fetch(health, { method: 'GET', signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) {
-      bad(`${health} answered HTTP ${res.status}. The API is not serving on that host yet.`);
+  //
+  // Both health paths are tried because the versioned one is what this API actually serves; `/health`
+  // is checked second only so a differently-configured deployment still passes. Getting this wrong
+  // once meant the probe would have refused a host that was working perfectly.
+  const candidates = [`${url.origin}/api/v1/health`, `${url.origin}/health`];
+  let lastStatus: number | null = null;
+
+  for (const health of candidates) {
+    try {
+      const res = await fetch(health, { method: 'GET', signal: AbortSignal.timeout(15_000) });
+      if (res.ok) {
+        ok(`${health} answers over TLS — DNS, certificate and the API are all live.`);
+        return true;
+      }
+      lastStatus = res.status;
+    } catch (err) {
+      // A transport failure is conclusive for the whole origin, so it stops here rather than
+      // trying the second path against a host that cannot be reached at all.
+      const message = (err as Error).message;
+      bad(`Could not reach ${url.origin}: ${message}`);
+      if (/certificate|SSL|TLS/i.test(message)) {
+        note('That is a certificate problem. Issue one with certbot first — deploy/README.md.');
+      } else {
+        note('Check DNS, the firewall, and that Nginx and PM2 are actually running on the VM.');
+      }
       return false;
     }
-    ok(`${health} answers over TLS — DNS, certificate and the API are all live.`);
-    return true;
-  } catch (err) {
-    const message = (err as Error).message;
-    bad(`Could not reach ${health}: ${message}`);
-    if (/certificate|SSL|TLS/i.test(message)) {
-      note('That is a certificate problem. Issue one with certbot first — deploy/README.md.');
-    } else {
-      note('Check DNS, the firewall, and that Nginx and PM2 are actually running on the VM.');
-    }
-    return false;
   }
+
+  // TLS and DNS are fine — something answered — but our API is not the thing answering. Registering
+  // anyway would mean the gateway reaches Nginx and gets a 404 for every callback.
+  bad(`${url.origin} is reachable over TLS, but no health endpoint answered (last status ${lastStatus}).`);
+  note('The certificate is fine; the API is not serving on that host. Check PM2 and the Nginx');
+  note('server block before registering, or every ABDM callback will 404 into nothing.');
+  return false;
 }
 
 /** A session token. Identical to the one `abdm:check` proves, so a failure here is a credential problem. */
@@ -206,6 +260,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  assertFlagsSurvived();
+
   const token = await session();
   const setUrl = arg('set-url');
   const registerService = process.argv.includes('--register-service');
@@ -236,8 +292,19 @@ async function main(): Promise<void> {
       bad('--set-url needs a value, e.g. --set-url https://api-staging.nirogix.com');
       process.exit(1);
     }
+    // The escape hatch exists for exactly one legitimate case: restoring an intentionally inert
+    // placeholder, which is what NHA themselves set a new bridge to. It is not the failure the
+    // check guards against — that is registering a dead URL by ACCIDENT — so it is allowed, named
+    // plainly, and shouted about rather than hidden behind a terse flag.
+    const skipCheck = process.argv.includes('--skip-reachability-check');
+    if (skipCheck) {
+      bad('Reachability check SKIPPED at your explicit request.');
+      note('If this URL cannot serve ABDM callbacks, every inbound flow will fail in silence.');
+      note('Only correct when deliberately parking the bridge on an inert placeholder.');
+    }
+
     console.log(`  checking ${setUrl} before asking NHA to trust it`);
-    if (!(await verifyReachable(setUrl))) {
+    if (!skipCheck && !(await verifyReachable(setUrl))) {
       console.log('\n  Nothing was registered. Registering an unreachable URL is worse than not');
       console.log('  registering one: it succeeds, and then every M2 flow fails in silence.\n');
       process.exit(1);

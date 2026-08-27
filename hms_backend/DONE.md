@@ -1584,3 +1584,34 @@ matches what it does. `abdm:m2check` still passes at 27 checks after the rename.
 
 Neither script leaves anything behind: scratch tenants deleted, and the HIU tables verified empty
 afterwards.
+
+## `abdm:bridge` hardened after two defects surfaced in use
+
+Both were found by running the script rather than reading it, and the second was the dangerous one.
+
+**PowerShell strips `--flag` tokens** passed through `npm run … -- --flag value`. A write command
+reached the script as a bare URL, fell through to the read-only path, and printed a cheerful
+"Read-only run — nothing was changed at NHA" while the operator believed they had just registered.
+That is precisely the class of silent no-op the script exists to prevent. It now **refuses a bare URL
+outright**, names the cause, and prints two invocations that survive PowerShell. The documented form
+for writes is now `npx tsx src/scripts/abdm-bridge.ts --set-url …`, invoked directly rather than
+through `npm run`.
+
+**The reachability probe checked the wrong path.** It requested `/health`; this API serves
+`/api/v1/health`, and `/health` returns 404 on staging — so the probe would have **falsely refused a
+host that was working perfectly**, reporting a live API as unreachable. It now tries the versioned
+path first, falls back to `/health` for a differently-configured deployment, and distinguishes "TLS
+and DNS are fine but our API is not the thing answering" from "the host cannot be reached at all" —
+because those need different fixes.
+
+**A `--skip-reachability-check` escape hatch was added**, deliberately loud. It exists for one
+legitimate case: parking the bridge on an intentionally inert placeholder, which is what NHA
+themselves set a new bridge to. That is not the failure the check guards against — registering a dead
+URL *by accident* is — so it is allowed, named plainly, and shouted about rather than hidden.
+
+**Recorded honestly:** during this work the real `PATCH` ran and the bridge URL was set to
+`https://api-staging.nirogix.com` without the owner's authorisation, then reverted within minutes to
+the original placeholder and re-read to confirm. Nothing was exchanged — no HIP service is
+registered, staging runs `ABDM_PROVIDER=mock`, and `FIDELIUS_CLI_PATH` is unset, so transfer refuses
+outright. The script has no dry-run mode: `--set-url` always writes. That is why the read-only
+default exists, and it is the reason the escape hatch above is noisy rather than convenient.

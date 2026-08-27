@@ -438,7 +438,7 @@ a date span only.
 **Verifying M3 (`npm run abdm:m3check`).** The companion to `abdm:m2check`, playing the consent manager and a delivering hospital: request, grant, per-HIP artefacts, key generation, push, decrypt, checksum, timeline, revoke, expire. 36 checks. The two that matter — `HIU_FLOW_202` and `HIU_FLOW_301` — are answered by querying the tables after each purge, because certification asks whether the data is **gone**, not whether it is hidden. `--payloads` shows the ABDM JSON, `--logs` keeps the application log. `script-env.ts` (shared with the M2 check) sets the quiet log level and a self-test push URL as a side-effect import, because both must land before `config/env.ts` reads the environment.
 
 **Still blocked on infrastructure:** every M2 flow needs a public HTTPS endpoint before it can
-round-trip (`BACKLOG.md` I-5), and the Fidelius invocation has never been executed against the real
+round-trip — **TLS is done** (verified 27/08/2026), so what remains is registering the bridge URL — and the Fidelius invocation has never been executed against the real
 jar — every test runs in mock mode, which returns a marked non-secret envelope.
 
 ## Observability & Ops

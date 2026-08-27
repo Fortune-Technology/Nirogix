@@ -345,7 +345,7 @@ approval. **M3 (fetching records from other providers) is not built.** M2 is —
 **This section has no clicking, and that is not an oversight.** M1 is *outbound* — the desk calls
 ABDM, so you can watch it happen in the Portal. M2 is *inbound*: ABDM calls **us**, on webhooks, and
 it has no screens by design. Nobody at a hospital ever operates M2; it answers requests from the
-patient's own app and from other providers. Until the bridge URL is registered (`BACKLOG.md` I-5) the
+patient's own app and from other providers. Until the bridge URL is registered (TLS is done as of 27/08/2026; registration is the remaining step — `BACKLOG.md` I-5) the
 gateway cannot reach us at all, so the honest way to verify M2 is to **play the gateway ourselves**.
 
 One command does that. It drives the real services through the whole chain against your local
@@ -377,7 +377,7 @@ npm run abdm:m2check
   identically and no `ZZM2CHECK` tenant is left in the database.
 
 **What this cannot prove, and what remains outstanding.** That ABDM can reach us (needs TLS —
-`BACKLOG.md` I-5); that the four **unverified** inbound paths are correct; and that Fidelius encrypts
+the bridge URL still points at NHA's placeholder — `BACKLOG.md` I-5); that the four **unverified** inbound paths are correct; and that Fidelius encrypts
 correctly, since mock mode marks rather than encrypts. **No health record has been exchanged with
 ABDM in any environment.** Do not record 5.1b as evidence of a live integration — it is evidence that
 our half is correct.

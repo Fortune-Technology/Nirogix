@@ -867,8 +867,9 @@ Run with `ABDM_PROVIDER=mock` unless a case says otherwise; the mock's OTP is `1
 ## 23a. ABDM / ABHA — Milestone 2, HIP (ADR-087…ADR-091)
 
 **Read this before running any of it.** Every M2 flow is a round trip with the ABDM gateway, and the
-gateway cannot reach us until the bridge URL is registered — which needs TLS on
-`api-staging.nirogix.com` (`BACKLOG.md` I-5). Until then, run with `ABDM_PROVIDER=mock`, which
+gateway cannot reach us until the bridge URL is registered. **TLS on `api-staging.nirogix.com` is
+done** (verified 27/08/2026); registering the bridge URL is the remaining step, and it still points at
+NHA's `webhook.site` placeholder (`BACKLOG.md` I-5). Until then, run with `ABDM_PROVIDER=mock`, which
 **records** each gateway call instead of sending it: what a tester verifies locally is *what we
 decided and what we would have sent*, which is the half we control. Cases needing a live gateway are
 marked **Blocked (I-5)** in Status and must not be recorded as passed on the mock.
