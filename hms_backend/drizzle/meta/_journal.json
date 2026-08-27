@@ -267,6 +267,27 @@
       "when": 1787805899799,
       "tag": "0037_daffy_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787820914055,
+      "tag": "0038_old_flatman",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787821196333,
+      "tag": "0039_volatile_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787821657010,
+      "tag": "0040_fair_blue_marvel",
+      "breakpoints": true
     }
   ]
 }

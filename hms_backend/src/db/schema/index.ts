@@ -46,3 +46,4 @@ export * from './abdm';
 // ABDM Milestone 2 — care contexts + consent artefacts (ADR-087).
 export * from './abdmM2';
 export * from './abdmM3';
+export * from './abdmM4';

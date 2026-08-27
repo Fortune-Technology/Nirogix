@@ -119,6 +119,15 @@ export const PERMISSIONS = {
    * destroy what comes back; viewing is reading another hospital's clinical record. A clerk who
    * may see a chart is not thereby permitted to pull a national history onto it.
    */
+  /**
+   * Milestone 4 — listing the hospital in the national Health Facility Registry (ADR-096).
+   *
+   * Separate from `abdm.facility.manage`, which edits the LOCAL configuration. This one submits the
+   * organisation's own details to a government registry under its name and creates a public listing,
+   * which is an organisational act rather than a settings change.
+   */
+  ABDM_REGISTRY_VIEW: 'abdm.registry.view',
+  ABDM_REGISTRY_MANAGE: 'abdm.registry.manage',
   ABDM_HISTORY_REQUEST: 'abdm.history.request',
   ABDM_HISTORY_VIEW: 'abdm.history.view',
 } as const;
@@ -181,6 +190,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // View a pulled external history for support and audit, but NOT request one: a consent
       // request must name a clinician the patient can recognise, not an administrator.
       P.ABDM_HISTORY_VIEW,
+      // Listing the hospital itself in the national registry (M4) — organisation-level, org_admin only.
+      P.ABDM_REGISTRY_VIEW, P.ABDM_REGISTRY_MANAGE,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -469,6 +480,8 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       P.ABDM_FACILITY_MANAGE,
       P.ABDM_HISTORY_REQUEST,
       P.ABDM_HISTORY_VIEW,
+      P.ABDM_REGISTRY_VIEW,
+      P.ABDM_REGISTRY_MANAGE,
     ],
     capabilities: [
       cap('abdm', 'verification', 'ABHA Verification', 'BUILT', { permissions: [P.ABDM_VERIFY, P.ABDM_LINK] }),
@@ -479,6 +492,9 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       cap('abdm', 'record_exchange', 'Health Record Exchange (M2, HIP)'),
       // M3 — pulling history FROM other hospitals. Registry entry only; describing a module is
       // not a claim it exists (ADR-085), and nothing here is BUILT or marketable yet.
+      cap('abdm', 'facility_registry', 'Health Facility Registry (M4, HFR)', 'PLANNED', {
+        permissions: [P.ABDM_REGISTRY_VIEW, P.ABDM_REGISTRY_MANAGE],
+      }),
       cap('abdm', 'external_history', 'External Health History (M3, HIU)', 'PLANNED', {
         permissions: [P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW],
       }),

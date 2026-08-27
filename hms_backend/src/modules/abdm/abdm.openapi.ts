@@ -10,6 +10,14 @@ import {
   OtpSentSchema,
   PendingShareListSchema,
   HipProfileShareBody,
+  BulkImportBody,
+  HprCompleteBody,
+  HprMobileBody,
+  HprOtpBody,
+  HprStartBody,
+  FacilityRegistryDraftBody,
+  FacilitySubmitBody,
+  FacilityVerificationBody,
   RequestHistoryBody,
   RequestMobileOtpBody,
   SelectAccountBody,
@@ -451,3 +459,300 @@ registry.registerPath({
     403: forbidden,
   },
 });
+
+// --- Milestone 4: the Health Facility Registry (ADR-096) --------------------------------------
+
+const FacilityRegistrationSchema = z.object({
+  id: z.string().uuid(),
+  branchId: z.string().uuid().nullable(),
+  trackingId: z.string().nullable(),
+  facilityId: z.string().nullable(),
+  status: z.enum(['draft', 'submitted', 'under_review', 'verified', 'rejected']),
+  statusMessage: z.string().nullable(),
+  facilityName: z.string(),
+  submittedAt: z.string().nullable(),
+  verifiedAt: z.string().nullable(),
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/registry/facilities',
+  operationId: 'abdmListFacilityRegistrations',
+  tags: [TAG],
+  summary: 'Facilities this organisation has registered with HFR, or begun to',
+  description:
+    'One row per facility — a multi-branch group registers each branch separately, so `branchId` is null for the organisation’s principal facility and set for a branch.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Registrations', ...json(z.object({ registrations: z.array(FacilityRegistrationSchema) })) },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/abdm/registry/facility',
+  operationId: 'abdmSaveFacilityRegistration',
+  tags: [TAG],
+  summary: "Save a facility's HFR details without submitting them",
+  description:
+    'Registration is a long, resumable process, so the form saves locally first and nothing reaches HFR until it is submitted. Only `facilityName` is required here: HFR decides the rest, and duplicating its required-field set would mean maintaining a second copy of somebody else’s contract.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(FacilityRegistryDraftBody) },
+  responses: {
+    200: { description: 'Saved', ...json(FacilityRegistrationSchema) },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'Already verified — update instead', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/facility/submit',
+  operationId: 'abdmSubmitFacilityRegistration',
+  tags: [TAG],
+  summary: 'Submit the facility to the Health Facility Registry',
+  description:
+    "Runs HFR's four-step wizard — basic, additional, detailed, submit — all quoting the tracking id the first step mints. That tracking id is persisted before any later step runs, because losing it means restarting the whole registration. Answers `submitted`, **never** `verified`: HFR routes every registration to a human verifier, and a green tick here would have an administrator believe they hold a Facility ID they do not.",
+  security: [{ bearerAuth: [] }],
+  request: { body: json(FacilitySubmitBody) },
+  responses: {
+    202: { description: 'Submitted for verification', ...json(FacilityRegistrationSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Nothing saved to submit', ...json(ErrorResponseSchema) },
+    409: { description: 'Not a legal transition from the current status', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/facility/verification',
+  operationId: 'abdmRecordFacilityVerification',
+  tags: [TAG],
+  summary: "Record the HFR verifier's decision",
+  description:
+    'Recorded by an operator until HFR offers a status webhook. Approving **adopts the issued Facility ID as the `hipId` M1–M3 already use** — but never overwrites a different id that is already configured, because an integration may be live on it; that conflict is logged for a human instead.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(FacilityVerificationBody) },
+  responses: {
+    200: { description: 'Recorded', ...json(FacilityRegistrationSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No registration', ...json(ErrorResponseSchema) },
+    409: { description: 'Not a legal transition', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/registry/master/{kind}',
+  operationId: 'abdmFacilityRegistryMasterData',
+  tags: [TAG],
+  summary: 'Reference data the HFR registration form needs',
+  description:
+    'States, districts, sub-districts, facility types, owner sub-types and specialities, proxied from HFR and cached for six hours. Fetched rather than hard-coded: LGD codes are the registry’s to define, and a local copy would drift silently into rejections that look like our bug.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ kind: z.enum(['states', 'districts', 'subDistricts', 'facilityType', 'ownerSubtype', 'specialities']) }),
+    query: z.object({ code: z.string().optional() }),
+  },
+  responses: {
+    200: { description: 'Reference list', ...json(z.array(z.record(z.string(), z.unknown()))) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No such list', ...json(ErrorResponseSchema) },
+  },
+});
+
+// --- Milestone 4: the Healthcare Professional Registry (ADR-097) ------------------------------
+
+const HprEnrolmentSchema = z.object({
+  id: z.string().uuid(),
+  providerId: z.string().uuid(),
+  hprId: z.string().nullable(),
+  status: z.enum(['not_started', 'aadhaar_verified', 'mobile_verified', 'registered', 'already_registered']),
+  statusMessage: z.string().nullable(),
+  professionalCategory: z.string().nullable(),
+  registrationCouncil: z.string().nullable(),
+  registrationNumber: z.string().nullable(),
+  lastSyncedAt: z.string().nullable(),
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/registry/professionals',
+  operationId: 'abdmListHprEnrolments',
+  tags: [TAG],
+  summary: 'HPR enrolment state for this hospital’s clinicians',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Enrolments', ...json(z.object({ enrolments: z.array(HprEnrolmentSchema) })) },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/professional/start',
+  operationId: 'abdmStartHprEnrolment',
+  tags: [TAG],
+  summary: 'Begin a clinician’s HPR enrolment',
+  description:
+    'Encrypts the Aadhaar with ABDM’s public certificate (the same helper M1 uses for patients), sends the OTP, and **checks whether this person already holds an HPR id before creating a second one** — a duplicate here is not a spare row, it is a second national identity for a real person. The Aadhaar is never stored, never logged and never echoed back; only ABDM’s transaction reference survives the call.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(HprStartBody) },
+  responses: {
+    202: { description: 'OTP sent', ...json(z.object({ status: z.string(), alreadyRegistered: z.boolean() })) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No such staff member', ...json(ErrorResponseSchema) },
+    409: { description: 'Already enrolled', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+  },
+});
+
+for (const [path, opId, summary, body] of [
+  ['/api/v1/abdm/registry/professional/aadhaar-otp', 'abdmVerifyHprAadhaarOtp', 'Verify the Aadhaar OTP', HprOtpBody],
+  ['/api/v1/abdm/registry/professional/mobile-otp/verify', 'abdmVerifyHprMobileOtp', 'Verify the mobile OTP', HprOtpBody],
+] as const) {
+  registry.registerPath({
+    method: 'post',
+    path,
+    operationId: opId,
+    tags: [TAG],
+    summary,
+    description:
+      'Part of the resumable enrolment chain. A transaction older than thirty minutes is refused with 410 rather than failing three steps later with a message about something else.',
+    security: [{ bearerAuth: [] }],
+    request: { body: json(body) },
+    responses: {
+      200: { description: 'Verified', ...json(HprEnrolmentSchema) },
+      401: notAuthed,
+      403: forbidden,
+      409: { description: 'No enrolment in progress', ...json(ErrorResponseSchema) },
+      410: { description: 'The enrolment expired — start again', ...json(ErrorResponseSchema) },
+      422: unprocessable,
+    },
+  });
+}
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/professional/mobile-otp/send',
+  operationId: 'abdmSendHprMobileOtp',
+  tags: [TAG],
+  summary: 'Send the mobile OTP for an HPR enrolment',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(HprMobileBody) },
+  responses: {
+    202: { description: 'Sent', ...json(z.object({ sent: z.boolean() })) },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'No enrolment in progress', ...json(ErrorResponseSchema) },
+    410: { description: 'The enrolment expired', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/professional/complete',
+  operationId: 'abdmCompleteHprEnrolment',
+  tags: [TAG],
+  summary: 'Mint the HPR id and register the professional profile',
+  description:
+    'Two registry calls that belong together: the id first, then the clinical profile that hangs off it — splitting them would leave a doctor holding an id with no council registration against it. On success the verified council registration number is written onto the provider **if that field is blank**, never over an existing value, because M3’s consent requests already need it.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(HprCompleteBody) },
+  responses: {
+    200: { description: 'Registered', ...json(HprEnrolmentSchema) },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'Not a legal transition', ...json(ErrorResponseSchema) },
+    410: { description: 'The enrolment expired', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/registry/hpr-master/{kind}',
+  operationId: 'abdmHprMasterData',
+  tags: [TAG],
+  summary: 'Reference data the HPR enrolment form needs',
+  description: 'Medical and nursing councils, systems of medicine, universities and courses — proxied from HPR and cached.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      kind: z.enum(['states', 'districts', 'subDistricts', 'countries', 'languages', 'systemsOfMedicine', 'medicalCouncils', 'nurseCouncils', 'universities', 'courses']),
+    }),
+  },
+  responses: {
+    200: { description: 'Reference list', ...json(z.array(z.record(z.string(), z.unknown()))) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No such list', ...json(ErrorResponseSchema) },
+  },
+});
+
+// --- Milestone 4: bulk onboarding (ADR-098) ---------------------------------------------------
+
+const ImportOutcomeSchema = z.object({
+  matched: z.number(),
+  unmatched: z.array(z.object({ row: z.number(), identifier: z.string(), reason: z.string() })),
+  ambiguous: z.array(z.object({ row: z.number(), identifier: z.string(), candidates: z.number() })),
+});
+
+const BulkExportSchema = z.object({
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.string())),
+});
+
+for (const [path, opId, what] of [
+  ['/api/v1/abdm/registry/bulk/professionals', 'abdmExportBulkProfessionals', 'staff roster'],
+  ['/api/v1/abdm/registry/bulk/facilities', 'abdmExportBulkFacilities', 'facility list'],
+] as const) {
+  registry.registerPath({
+    method: 'get',
+    path,
+    operationId: opId,
+    tags: [TAG],
+    summary: `Export the ${what} for ABDM’s bulk upload template`,
+    description:
+      'There is **no bulk-upload API** — both published V4 specs were searched and neither has one, so ABDM’s bulk path is a portal process. This returns the rows so nobody re-keys a roster by hand; the browser turns them into a CSV. Anyone who already holds an id is excluded, because submitting them again invites a duplicate identity. **The column headings are derived from the API contracts, not from ABDM’s downloadable template** — confirm them before a real upload.',
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: { description: 'Rows', ...json(BulkExportSchema) },
+      401: notAuthed,
+      403: forbidden,
+    },
+  });
+}
+
+for (const [path, opId, what] of [
+  ['/api/v1/abdm/registry/bulk/professionals', 'abdmImportBulkProfessionals', 'issued HPR ids'],
+  ['/api/v1/abdm/registry/bulk/facilities', 'abdmImportBulkFacilities', 'issued facility ids'],
+] as const) {
+  registry.registerPath({
+    method: 'post',
+    path,
+    operationId: opId,
+    tags: [TAG],
+    summary: `Read ${what} back from an ABDM bulk upload`,
+    description:
+      'Matching is **strict, and ambiguity is refused rather than guessed**: registration number first, then an exact full name, and only when it identifies exactly one active person. A row matching two people is reported and skipped — attaching a real person’s national identity to the wrong staff record is a defect nobody would notice, and a row a human must look at costs far less. There is deliberately no fuzzy matching.',
+    security: [{ bearerAuth: [] }],
+    request: { body: json(BulkImportBody) },
+    responses: {
+      200: { description: 'What matched, and what a human must look at', ...json(ImportOutcomeSchema) },
+      401: notAuthed,
+      403: forbidden,
+      422: unprocessable,
+    },
+  });
+}

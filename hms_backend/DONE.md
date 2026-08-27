@@ -1615,3 +1615,65 @@ the original placeholder and re-read to confirm. Nothing was exchanged — no HI
 registered, staging runs `ABDM_PROVIDER=mock`, and `FIDELIUS_CLI_PATH` is unset, so transfer refuses
 outright. The script has no dry-run mode: `--set-url` always writes. That is why the read-only
 default exists, and it is the reason the escape hatch above is noisy rather than convenient.
+
+## ABDM Milestone 4, slice 2 — HPR professional enrolment (ADR-097)
+
+M1's Aadhaar flow performed on a clinician instead of a patient: same eKYC, same encryption helper,
+same rule that no Aadhaar number is ever written down. The failure modes differ, though, because a
+professional identity is minted once and is meant to last a career.
+
+**The duplicate check runs first and its answer is believed.** Most Indian clinicians already hold an
+HPR id; a second one is not a spare row but a second national identity for a real person. A dedup
+call that itself fails does not block enrolment — but it is logged loudly, because proceeding blind
+is precisely how the duplicate happens.
+
+**Nothing identifying survives the call.** The Aadhaar is encrypted, sent and forgotten; the row keeps
+only ABDM's `txnId`, a reference to a verification *they* hold. Tests assert the number is absent from
+the wire payload, the row, the response and the audit entry. Registration numbers and HPR ids are
+deliberately *not* treated as secrets — a council number is printed on prescriptions and an HPR id is
+designed to be public, so encrypting them would add ceremony without safety.
+
+Minting the id and registering the profile are one operation: splitting them would leave a doctor
+holding an id with no council registration behind it. A transaction older than thirty minutes is
+refused with a clear 410 rather than failing three steps later about something else. And a verified
+registration number fills a **blank** provider field, never an existing one — M3's consent requests
+already need it, but a hospital's own records may key on what is already there.
+
+**An honest gap, stated in the code rather than a commit message:** NHA's published V4 spec declares
+`verifyOTP` as taking only `txnId` — no OTP field — and `generateLink` with nowhere to put an Aadhaar
+number. Those two payloads are modelled on M1's proven shapes and flagged unverified, exactly as the
+M2/M3 inbound paths were. Everything else is read from the spec.
+
+**Testing status:** 10 new tests. The registry client is stubbed rather than called — these endpoints
+mint real national identities, and enrolling a fictional doctor on every `npm test` would be
+indefensible. **527 backend tests across 55 files**, typecheck and OpenAPI green.
+
+## ABDM Milestone 4, slice 3 — bulk onboarding (ADR-098)
+
+The brief asked for bulk upload support for both registries. **There is no bulk-upload API**, and
+that was checked rather than assumed: both published V4 specs were searched for bulk, upload, import,
+template, csv, batch and multipart bodies. HFR has nothing; HPR's only upload attaches one
+certificate to one professional. ABDM's bulk path is a portal process — their spreadsheet, their
+upload, their results — so building a client for it would have meant building a client for something
+that does not exist.
+
+What is built is the two ends the portal cannot do: **export** the roster so nobody re-keys two
+hundred staff, and **import** the results so issued ids land against the right records instead of
+being matched by eye.
+
+The import is where somebody gets hurt, and it is the mirror of M3's disclosure rule: an HPR id
+attached to the wrong clinician puts one real person's national identity on another person's record,
+and nothing downstream would ever flag it. So matching is **strict and refuses ambiguity** —
+registration number first, then an exact full name, and only when it identifies exactly one active
+person. Two matches means neither is written. There is deliberately no fuzzy matching: "close
+enough" is the wrong standard when the payload is somebody's identity.
+
+Anyone who already holds an id is excluded from the export, because submitting them again invites a
+second identity. The audit records counts, never the file. Row numbers are reported as the
+administrator counts them — header is line 1.
+
+**Testing status:** 12 tests, most about the import refusing. **539 backend tests across 56 files.**
+
+**One flagged limitation:** the column headings are derived from the verified API contracts, not from
+ABDM's downloadable template. They live in one object per registry so correcting them is a single
+edit — see `BACKLOG.md`.

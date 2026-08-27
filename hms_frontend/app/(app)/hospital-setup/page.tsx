@@ -6,6 +6,7 @@ import {
   Building2,
   FlaskConical,
   GitBranch,
+  Landmark,
   Network,
   Pill,
   Stethoscope,
@@ -56,6 +57,13 @@ const AREAS: Area[] = [
     blurb: "Accounts, the role each person holds, and individual permission exceptions.",
     icon: UserCog,
     perm: PERMISSIONS.USERS_VIEW,
+  },
+  {
+    href: "/hospital-setup/registry",
+    label: "National registries (ABDM)",
+    blurb: "List this hospital in the Health Facility Registry and its clinicians in the Professional Registry.",
+    icon: Landmark,
+    perm: PERMISSIONS.ABDM_REGISTRY_VIEW,
   },
   {
     href: "/laboratory/tests",

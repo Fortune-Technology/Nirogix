@@ -131,6 +131,11 @@ const EnvSchema = z.object({
    * push URL is accepted by ABDM and then silently delivers nothing.
    */
   ABDM_HIU_PUSH_BASE_URL: z.string().url().optional(),
+  /**
+   * The national-registry host (HFR + HPR, Milestone 4) — a third ABDM base URL, neither the ABHA
+   * host nor the HIE-CM gateway. It accepts the same session token; only the URL differs.
+   */
+  ABDM_HFR_BASE_URL: z.string().url().default('https://apihspsbx.abdm.gov.in/v4/int'),
   FIDELIUS_CLI_PATH: z.string().optional(),
   // NHA's ceiling for completing a data transfer after the request arrives. Kept configurable so a
   // stricter internal target can be set, never a looser one than NHA allows.

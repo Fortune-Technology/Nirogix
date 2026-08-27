@@ -1214,3 +1214,79 @@ export async function getAbdmTimeline(patientId: string): Promise<AbdmTimeline> 
   // Silent: it reloads whenever a consent lands or records arrive, and a toast each time is noise.
   return request<AbdmTimeline>(`/abdm/history/${patientId}/timeline`, { feedback: false });
 }
+
+// --- ABDM Milestone 4: the national registries (ADR-096…ADR-098) ------------------------------
+
+export interface AbdmFacilityRegistration {
+  id: string;
+  branchId: string | null;
+  trackingId: string | null;
+  facilityId: string | null;
+  status: "draft" | "submitted" | "under_review" | "verified" | "rejected";
+  statusMessage: string | null;
+  facilityName: string;
+  submittedAt: string | null;
+  verifiedAt: string | null;
+}
+
+export interface AbdmHprEnrolment {
+  id: string;
+  providerId: string;
+  hprId: string | null;
+  status: "not_started" | "aadhaar_verified" | "mobile_verified" | "registered" | "already_registered";
+  statusMessage: string | null;
+  professionalCategory: string | null;
+  registrationCouncil: string | null;
+  registrationNumber: string | null;
+  lastSyncedAt: string | null;
+}
+
+export interface AbdmBulkExport {
+  columns: string[];
+  rows: Record<string, string>[];
+}
+
+export interface AbdmImportOutcome {
+  matched: number;
+  unmatched: Array<{ row: number; identifier: string; reason: string }>;
+  ambiguous: Array<{ row: number; identifier: string; candidates: number }>;
+}
+
+export async function listAbdmFacilityRegistrations(): Promise<AbdmFacilityRegistration[]> {
+  const data = await request<{ registrations: AbdmFacilityRegistration[] }>("/abdm/registry/facilities", {
+    feedback: false,
+  });
+  return data.registrations;
+}
+
+export async function saveAbdmFacilityRegistration(
+  body: Record<string, unknown>,
+): Promise<AbdmFacilityRegistration> {
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility", { method: "PUT", body });
+}
+
+export async function submitAbdmFacilityRegistration(branchId?: string | null): Promise<AbdmFacilityRegistration> {
+  // The page raises its own message, which says a verifier still has to look at it (ADR-057).
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility/submit", {
+    method: "POST",
+    body: { branchId: branchId ?? null },
+    feedback: false,
+  });
+}
+
+export async function listAbdmHprEnrolments(): Promise<AbdmHprEnrolment[]> {
+  const data = await request<{ enrolments: AbdmHprEnrolment[] }>("/abdm/registry/professionals", { feedback: false });
+  return data.enrolments;
+}
+
+export async function exportAbdmBulk(kind: "professionals" | "facilities"): Promise<AbdmBulkExport> {
+  return request<AbdmBulkExport>(`/abdm/registry/bulk/${kind}`, { feedback: false });
+}
+
+export async function importAbdmBulk(
+  kind: "professionals" | "facilities",
+  rows: Record<string, string>[],
+): Promise<AbdmImportOutcome> {
+  // The page reports matched/unmatched/ambiguous itself; a generic "Saved." would say less.
+  return request<AbdmImportOutcome>(`/abdm/registry/bulk/${kind}`, { method: "POST", body: { rows }, feedback: false });
+}

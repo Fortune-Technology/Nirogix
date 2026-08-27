@@ -245,6 +245,94 @@ export const HIU_CALLBACK_PATHS = {
 } as const;
 
 /**
+ * Milestone 4 — the national registries (ADR-096).
+ *
+ * A **third host**, neither the ABHA host (M1) nor the HIE-CM gateway (M2/M3):
+ * `https://apihspsbx.abdm.gov.in/v4/int` serves both the Health Facility Registry and the
+ * Healthcare Professional Registry. Unlike every other path in this file these are **not guesses** —
+ * they are read from NHA's published V4 OpenAPI documents, saved in `docs/abdm/`, and the master-data
+ * endpoints have been called successfully with our ordinary gateway session token.
+ *
+ * That last point is the one worth remembering: `apihspsbx` accepts the **same** session token as the
+ * gateway, so there is no separate credential to obtain — only a different base URL.
+ */
+export const HFR_PATHS = {
+  /** Facility registration is a four-step wizard keyed by a `trackingId` the first call returns. */
+  basicInformation: '/v1.5/facility/basic-information',
+  additionalInformation: '/v1.5/facility/additional-information',
+  detailedInformation: '/v1.5/facility/detailed-information',
+  submitFacility: '/v1.5/facility/submit-facility',
+  /** Contact verification during registration. */
+  sendOtpToContact: '/v1.5/facility/sendOtpToContact',
+  validateOtp: '/v1.5/facility/validateOtp',
+  /** Search — also how a facility already listed by somebody else is found before duplicating it. */
+  searchFacility: '/FacilityManagement/v1.5/facility/search',
+  deduplicate: '/search/address/filter/deduplicate',
+  /** Master data the registration form needs. Cached, not asked on every keystroke. */
+  states: '/v1.5/facility/lgd/states',
+  districts: '/v1.5/facility/lgd/districts',
+  subDistricts: '/v1.5/facility/lgd/subdistricts',
+  facilityType: '/v1.5/facility/fetch-facility-type',
+  facilitySubType: '/v1.5/facility/fetch-facility-Sub-type',
+  ownerSubtype: '/v1.5/facility/get-owner-subtype',
+  specialities: '/v1.5/facility/get-specialities',
+  masterData: '/v1.5/facility/get-master-data',
+  masterTypes: '/v1.5/facility/get-master-types',
+  /**
+   * Attaching our bridge to a registered facility.
+   *
+   * `facilityId` is an INPUT, so the facility must already exist in HFR before a HIP/HIU service can
+   * be attached — which is why M4 Part A precedes the bridge service registration M2 needs, and why
+   * the HFR-issued id is what belongs in `abdm_facility_config.hipId`.
+   */
+  addUpdateServices: '/v1/bridges/MutipleHRPAddUpdateServices',
+} as const;
+
+/**
+ * The professional registry.
+ *
+ * The enrolment chain reuses M1's Aadhaar machinery wholesale — same RSA-OAEP-SHA1 encryption, same
+ * "never persist a raw Aadhaar" rule — because it is the same UIDAI eKYC underneath, performed on a
+ * clinician rather than a patient.
+ */
+export const HPR_PATHS = {
+  /** Does this person already hold an HPR id? Asked FIRST, so nobody is enrolled twice. */
+  checkAccountExists: '/v1/registration/aadhaar/checkHpIdAccountExist',
+  aadhaarGenerateOtp: '/aadhaar/generateLink',
+  aadhaarVerifyOtp: '/v2/registration/aadhaar/verifyOTP',
+  demographicAuthViaMobile: '/v2/registration/aadhaar/demographicAuthViaMobile',
+  generateMobileOtp: '/v1/registration/aadhaar/generateMobileOTP',
+  verifyMobileOtp: '/v1/registration/aadhaar/verifyMobileOTP',
+  hprIdSuggestion: '/v1/registration/aadhaar/hpid/suggestion',
+  createHprId: '/v2/registration/aadhaar/createHprIdWithPreVerified',
+  /** The professional's clinical profile, once they hold an id. */
+  registerProfessional: '/apis/v1/doctors/register-professional-new',
+  updateProfessional: '/apis/v1/doctors/update-professional-new',
+  fetchProfessional: '/apis/v1/doctors/fetch-professional-info',
+  fetchDocuments: '/apis/v1/doctors/fetch-documents-list',
+  uploadDocument: '/apis/v1/uploads/upload-document',
+  /** Linking a professional to the facility they work at. */
+  facilitySuggestions: '/hprFacilitySuggestions',
+  professionalFacility: '/fetchProfessionalFacility',
+  relinkOrDelink: '/relinkOrDelinkProfessionalFromFacility',
+  workDetailsStatus: '/hprWorkDetails/status',
+} as const;
+
+/** HPR master data — councils, colleges, courses. Needed to make a registration form truthful. */
+export const HPR_MASTER_PATHS = {
+  states: '/apis/v1/masters/states',
+  districts: '/apis/v1/masters/district',
+  subDistricts: '/apis/v1/masters/sub-districts',
+  countries: '/apis/v1/masters/countries',
+  languages: '/apis/v1/masters/languages',
+  systemsOfMedicine: '/apis/v1/masters/system-of-medicines',
+  medicalCouncils: '/apis/v1/masters/medical-councils',
+  nurseCouncils: '/apis/v1/masters/nurse-councils',
+  universities: '/apis/v1/masters/universites',
+  courses: '/apis/v1/masters/courses',
+} as const;
+
+/**
  * Bridge administration, for reference only — these are run by hand once per environment, not
  * from application code. Recorded here because NHA's onboarding email quotes **outdated V1
  * paths** (`/gateway/v1/bridges`, `/gateway/v1/bridges/addUpdateServices`), and the V3 collection

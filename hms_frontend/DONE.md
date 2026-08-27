@@ -872,3 +872,28 @@ lapsed and the purge sweep deliberately not run — the record still physically 
 diagnosis, the lab value and the allergy were all gone from the doctor's screen, replaced by the
 empty state that explains why. Light and dark both resolve from the tokens; the abnormal emphasis
 reads the dark warning token rather than a literal.
+
+## ABDM Milestone 4 — the national registries screen (ADR-099)
+
+One screen under Hospital configuration for both registries. M4 moves no patient data, so the risk
+is not disclosure — it is misleading an administrator through a weeks-long external process nobody
+here controls.
+
+**Submitted is never shown as done.** A submitted facility reads "Awaiting verification", with a line
+saying a verifier at ABDM still has to approve it and that no Facility ID is issued until they do. A
+green tick would have somebody believe they hold an id they do not, and find out when the ABDM
+service registration fails a month later.
+
+**The screen is honest that bulk is a portal process** rather than offering a button implying we
+upload for them. An import failure names the row and the reason; an ambiguous row names how many
+people it matched and what would tell them apart, because a bare count leaves nobody able to act.
+
+CSV parsing handles quoted cells — a naive `split(",")` corrupts a hospital name containing a comma
+by shifting every later column, which would then match the wrong person — and strips Excel's BOM so
+it does not become part of the first column's name.
+
+**Verified in a browser against the running stack.** The permission gate bounced a doctor to the
+dashboard; the page rendered for org_admin; the export returned the real seeded roster with the id
+column blank; a results file imported, matched one clinician by registration number and named the two
+failures with their spreadsheet line numbers; the enrolment persisted and re-rendered on reload. Light
+and dark both resolve from the tokens.

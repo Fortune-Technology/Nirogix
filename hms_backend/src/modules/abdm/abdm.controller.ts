@@ -9,6 +9,9 @@ import * as transfer from './dataTransfer.service';
 import * as hiu from './hiuConsent.service';
 import * as hiuTransfer from './hiuDataTransfer.service';
 import * as timeline from './hiuTimeline.service';
+import * as hfr from './hfr.service';
+import * as hpr from './hpr.service';
+import * as bulk from './registryBulk.service';
 import { recordLinkCallback } from './linking.service';
 import type { AbdmProfile } from './providers/types';
 
@@ -518,4 +521,111 @@ export async function externalHistoryTimeline(req: Request, res: Response): Prom
     timeline.timelineSummary(tenantId, patientId, { hiTypes, sourceHipId }),
   ]);
   res.json({ summary, entries });
+}
+
+// --- Milestone 4: the Health Facility Registry (ADR-096) --------------------------------------
+
+/** Every facility this organisation has registered, or begun to. */
+export async function listFacilityRegistrations(req: Request, res: Response): Promise<void> {
+  res.json({ registrations: await hfr.listRegistrations(req.auth!.tenantId) });
+}
+
+/** Saves the form without sending anything to HFR — registration is a long, resumable process. */
+export async function saveFacilityRegistration(req: Request, res: Response): Promise<void> {
+  const saved = await hfr.saveDraft(req.auth!.tenantId, req.auth!.userId ?? null, req.body as hfr.FacilityDraft);
+  res.json(saved);
+}
+
+/** Sends it. Answers with `submitted`, never `verified` — a human verifier decides that. */
+export async function submitFacilityRegistration(req: Request, res: Response): Promise<void> {
+  const body = req.body as { branchId?: string | null };
+  const submitted = await hfr.submitRegistration(req.auth!.tenantId, req.auth!.userId ?? null, body.branchId ?? null);
+  res.status(202).json(submitted);
+}
+
+/** Records the verifier's decision, and adopts the issued facility id as our hipId. */
+export async function recordFacilityVerification(req: Request, res: Response): Promise<void> {
+  const body = req.body as { branchId?: string | null; status: 'under_review' | 'verified' | 'rejected'; facilityId?: string; message?: string };
+  res.json(await hfr.recordVerification(req.auth!.tenantId, body));
+}
+
+/** The registry's own reference data, cached — never a hard-coded copy that can drift. */
+export async function facilityRegistryMasterData(req: Request, res: Response): Promise<void> {
+  const kind = req.params.kind as 'states' | 'districts' | 'subDistricts' | 'facilityType' | 'ownerSubtype' | 'specialities';
+  const allowed = ['states', 'districts', 'subDistricts', 'facilityType', 'ownerSubtype', 'specialities'];
+  if (!allowed.includes(kind)) throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
+  const query = typeof req.query.code === 'string' ? { code: req.query.code } : undefined;
+  res.json(await hfr.facilityMasterData(kind, query));
+}
+
+// --- Milestone 4: the Healthcare Professional Registry (ADR-097) ------------------------------
+
+export async function listHprEnrolments(req: Request, res: Response): Promise<void> {
+  res.json({ enrolments: await hpr.listEnrolments(req.auth!.tenantId) });
+}
+
+/**
+ * Starts an enrolment: encrypts the Aadhaar, sends the OTP, and checks whether this person already
+ * holds an HPR id. The Aadhaar is never echoed back and never stored.
+ */
+export async function startHprEnrolment(req: Request, res: Response): Promise<void> {
+  const body = req.body as { providerId: string; aadhaar: string; category: hpr.ProfessionalCategory };
+  const started = await hpr.startEnrolment(req.auth!.tenantId, req.auth!.userId ?? null, body);
+  // The transaction id is ABDM's, not a secret, but nothing derived from the Aadhaar goes back.
+  res.status(202).json({ status: started.status, alreadyRegistered: started.alreadyRegistered ?? false });
+}
+
+export async function verifyHprAadhaarOtp(req: Request, res: Response): Promise<void> {
+  const body = req.body as { providerId: string; otp: string };
+  res.json(await hpr.verifyAadhaarOtp(req.auth!.tenantId, body));
+}
+
+export async function sendHprMobileOtp(req: Request, res: Response): Promise<void> {
+  const body = req.body as { providerId: string; mobile: string };
+  await hpr.sendMobileOtp(req.auth!.tenantId, body.providerId, body.mobile);
+  res.status(202).json({ sent: true });
+}
+
+export async function verifyHprMobileOtp(req: Request, res: Response): Promise<void> {
+  const body = req.body as { providerId: string; otp: string };
+  res.json(await hpr.verifyMobileOtp(req.auth!.tenantId, body.providerId, body.otp));
+}
+
+/** Mints the HPR id and registers the professional profile — two calls that belong together. */
+export async function completeHprEnrolment(req: Request, res: Response): Promise<void> {
+  const body = req.body as Parameters<typeof hpr.completeEnrolment>[2];
+  res.json(await hpr.completeEnrolment(req.auth!.tenantId, req.auth!.userId ?? null, body));
+}
+
+export async function hprMasterData(req: Request, res: Response): Promise<void> {
+  const allowed = ['states', 'districts', 'subDistricts', 'countries', 'languages', 'systemsOfMedicine', 'medicalCouncils', 'nurseCouncils', 'universities', 'courses'];
+  const kind = req.params.kind as string;
+  if (!allowed.includes(kind)) throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
+  res.json(await hpr.hprMasterData(kind as never));
+}
+
+// --- Milestone 4: bulk onboarding via ABDM's portal (ADR-098) ---------------------------------
+//
+// There is no bulk API — the export feeds ABDM's own spreadsheet upload, and the import reads its
+// results back. The client turns these rows into a CSV with the shared `downloadCsv`.
+
+export async function exportBulkProfessionals(req: Request, res: Response): Promise<void> {
+  const rows = await bulk.exportProfessionals(req.auth!.tenantId);
+  res.json({ columns: Object.values(bulk.PROFESSIONAL_COLUMNS), rows });
+}
+
+export async function exportBulkFacilities(req: Request, res: Response): Promise<void> {
+  const rows = await bulk.exportFacilities(req.auth!.tenantId);
+  res.json({ columns: Object.values(bulk.FACILITY_COLUMNS), rows });
+}
+
+/** Attaches issued HPR ids to the right clinicians; ambiguity is reported, never guessed. */
+export async function importBulkProfessionals(req: Request, res: Response): Promise<void> {
+  const body = req.body as { rows: Record<string, string>[] };
+  res.json(await bulk.importProfessionalResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows));
+}
+
+export async function importBulkFacilities(req: Request, res: Response): Promise<void> {
+  const body = req.body as { rows: Record<string, string>[] };
+  res.json(await bulk.importFacilityResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows));
 }

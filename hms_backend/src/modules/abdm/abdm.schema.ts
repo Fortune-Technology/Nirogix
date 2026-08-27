@@ -383,6 +383,100 @@ export const HiuDataPushBody = z
   })
   .passthrough();
 
+/**
+ * Milestone 4 — a facility's details for the Health Facility Registry (ADR-096).
+ *
+ * Only `facilityName` is required by us. HFR decides the rest, and mirroring its full required-field
+ * set here would mean maintaining two copies of somebody else's contract that drift apart — the
+ * registry rejects an incomplete submission with its own message, which is more accurate than
+ * anything we could assert locally.
+ */
+export const FacilityRegistryDraftBody = z.object({
+  branchId: z.string().uuid().nullish(),
+  facilityName: z.string().min(2).max(200),
+  ownershipCode: z.string().max(32).optional(),
+  ownershipSubTypeCode: z.string().max(32).optional(),
+  facilityTypeCode: z.string().max(32).optional(),
+  facilitySubType: z.string().max(64).optional(),
+  systemOfMedicineCode: z.string().max(32).optional(),
+  specialityTypeCode: z.string().max(32).optional(),
+  typeOfServiceCode: z.string().max(32).optional(),
+  facilityOperationalStatus: z.string().max(32).optional(),
+  address: z.object({
+    stateLGDCode: z.string().max(16).optional(),
+    districtLGDCode: z.string().max(16).optional(),
+    subDistrictLGDCode: z.string().max(16).optional(),
+    villageCityTownLGDCode: z.string().max(16).optional(),
+    facilityRegion: z.string().max(32).optional(),
+    addressLine1: z.string().max(200).optional(),
+    addressLine2: z.string().max(200).optional(),
+    pincode: z.string().regex(/^\d{6}$/).optional(),
+    latitude: z.string().max(32).optional(),
+    longitude: z.string().max(32).optional(),
+  }),
+  contact: z.object({
+    facilityEmailId: z.string().email().optional(),
+    facilityContactNumber: z.string().max(20).optional(),
+    facilityLandlineNumber: z.string().max(20).optional(),
+    facilityStdCode: z.string().max(8).optional(),
+    websiteLink: z.string().url().optional(),
+  }),
+  timings: z.array(z.object({ workingDays: z.string(), openingHours: z.string() })).max(7).optional(),
+});
+
+export const FacilitySubmitBody = z.object({ branchId: z.string().uuid().nullish() });
+
+/** A verifier's decision, recorded by an operator until HFR offers a status webhook. */
+export const FacilityVerificationBody = z.object({
+  branchId: z.string().uuid().nullish(),
+  status: z.enum(['under_review', 'verified', 'rejected']),
+  facilityId: z.string().max(64).optional(),
+  message: z.string().max(500).optional(),
+});
+
+/**
+ * Milestone 4 — enrolling a clinician in the professional registry (ADR-097).
+ *
+ * `aadhaar` is validated for shape and then **never stored**: it is encrypted, sent, and forgotten.
+ * The rule is M1's, and it is the reason none of these schemas has a field the row could keep.
+ */
+export const HprStartBody = z.object({
+  providerId: z.string().uuid(),
+  aadhaar: z.string().regex(/^\d{12}$/, 'Aadhaar must be 12 digits'),
+  category: z.enum(['doctor', 'nurse', 'pharmacist']),
+});
+
+export const HprOtpBody = z.object({
+  providerId: z.string().uuid(),
+  otp: z.string().regex(/^\d{4,8}$/),
+});
+
+export const HprMobileBody = z.object({
+  providerId: z.string().uuid(),
+  mobile: z.string().min(10).max(15),
+});
+
+export const HprCompleteBody = z.object({
+  providerId: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().max(100).optional(),
+  registrationCouncil: z.string().min(2).max(120),
+  registrationNumber: z.string().min(1).max(64),
+  systemOfMedicine: z.string().max(64).optional(),
+});
+
+/**
+ * A parsed spreadsheet from ABDM's portal (ADR-098).
+ *
+ * Rows are free-form key/value because the headings belong to ABDM's template, not to us. Capped at
+ * 5000: a hospital group's roster fits comfortably, and a larger file is a mistake worth stopping
+ * before it becomes 5000 writes.
+ */
+export const BulkImportBody = z.object({
+  rows: z.array(z.record(z.string(), z.string())).min(1).max(5000),
+});
+
 export const TransactionParams = z.object({ transactionId: z.string().uuid() });
 export const FacilityParams = z.object({ hipId: z.string().min(3).max(64) });
 

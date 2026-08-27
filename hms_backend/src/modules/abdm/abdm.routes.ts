@@ -10,6 +10,14 @@ import {
   CreateAbhaAddressBody,
   FacilityConfigBody,
   LinkPatientBody,
+  BulkImportBody,
+  HprCompleteBody,
+  HprMobileBody,
+  HprOtpBody,
+  HprStartBody,
+  FacilityRegistryDraftBody,
+  FacilitySubmitBody,
+  FacilityVerificationBody,
   RequestHistoryBody,
   RequestMobileOtpBody,
   SelectAccountBody,
@@ -237,3 +245,71 @@ abdmRouter.get(
   requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
   asyncHandler(c.externalHistoryTimeline),
 );
+
+// --- Milestone 4: the Health Facility Registry (ADR-096) --------------------------------------
+//
+// Its own permissions, not `abdm.facility.*`: those edit the LOCAL configuration, while these
+// submit the organisation's details to a government registry under its name.
+abdmRouter.get(
+  '/abdm/registry/facilities',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.listFacilityRegistrations),
+);
+
+abdmRouter.put(
+  '/abdm/registry/facility',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE),
+  validate({ body: FacilityRegistryDraftBody }),
+  asyncHandler(c.saveFacilityRegistration),
+);
+
+abdmRouter.post(
+  '/abdm/registry/facility/submit',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE),
+  validate({ body: FacilitySubmitBody }),
+  asyncHandler(c.submitFacilityRegistration),
+);
+
+abdmRouter.post(
+  '/abdm/registry/facility/verification',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE),
+  validate({ body: FacilityVerificationBody }),
+  asyncHandler(c.recordFacilityVerification),
+);
+
+// Reference data for the form. Read-only, and `view` is enough to render a picker.
+abdmRouter.get(
+  '/abdm/registry/master/:kind',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.facilityRegistryMasterData),
+);
+
+// --- Milestone 4: the Healthcare Professional Registry (ADR-097) ------------------------------
+//
+// Same permissions as the facility registry: enrolling staff in a national registry is an
+// organisational act, and the Aadhaar handling alone puts it beyond ordinary staff management.
+const registryManage = requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE);
+
+abdmRouter.get('/abdm/registry/professionals', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.listHprEnrolments));
+abdmRouter.post('/abdm/registry/professional/start', requireAuth, mod, registryManage, validate({ body: HprStartBody }), asyncHandler(c.startHprEnrolment));
+abdmRouter.post('/abdm/registry/professional/aadhaar-otp', requireAuth, mod, registryManage, validate({ body: HprOtpBody }), asyncHandler(c.verifyHprAadhaarOtp));
+abdmRouter.post('/abdm/registry/professional/mobile-otp/send', requireAuth, mod, registryManage, validate({ body: HprMobileBody }), asyncHandler(c.sendHprMobileOtp));
+abdmRouter.post('/abdm/registry/professional/mobile-otp/verify', requireAuth, mod, registryManage, validate({ body: HprOtpBody }), asyncHandler(c.verifyHprMobileOtp));
+abdmRouter.post('/abdm/registry/professional/complete', requireAuth, mod, registryManage, validate({ body: HprCompleteBody }), asyncHandler(c.completeHprEnrolment));
+abdmRouter.get('/abdm/registry/hpr-master/:kind', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.hprMasterData));
+
+// --- Milestone 4: bulk onboarding (ADR-098) ---------------------------------------------------
+abdmRouter.get('/abdm/registry/bulk/professionals', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.exportBulkProfessionals));
+abdmRouter.get('/abdm/registry/bulk/facilities', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.exportBulkFacilities));
+abdmRouter.post('/abdm/registry/bulk/professionals', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkProfessionals));
+abdmRouter.post('/abdm/registry/bulk/facilities', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkFacilities));

@@ -39,6 +39,8 @@ import { randomUUID } from 'node:crypto';
 
 const GATEWAY = process.env.ABDM_GATEWAY_BASE_URL ?? 'https://dev.abdm.gov.in';
 const FACILITY_REGISTRY = process.env.ABDM_FACILITY_REGISTRY_URL ?? 'https://facilitysbx.abdm.gov.in';
+/** The HFR/HPR host (M4). A third base URL — neither the ABHA host nor the HIE-CM gateway. */
+const FACILITY_SERVICES = process.env.ABDM_HFR_BASE_URL ?? 'https://apihspsbx.abdm.gov.in/v4/int';
 const CM_ID = process.env.ABDM_CM_ID ?? 'sbx';
 
 /** Blank means "not configured" and behaves exactly like unset — the rule `config/env.ts` applies. */
@@ -336,36 +338,33 @@ async function main(): Promise<void> {
     const name = arg('name');
     if (!serviceId || !name) {
       bad('--register-service needs --service-id and --name.');
-      note('The service id you choose here becomes the facility id a hospital enters in');
-      note('Hospital configuration → ABDM / ABHA. Pick it deliberately; it is not a throwaway.');
+      note('--service-id is the HFR **facility id**, not a name of our choosing: the facility must');
+      note('already be registered in the Health Facility Registry (M4, Part A) for this to succeed.');
+      note('It is also what a hospital enters in Hospital configuration → ABDM / ABHA.');
       process.exit(1);
     }
-    const endpoint = setUrl || arg('url');
-    if (!endpoint) {
-      bad('Pass --set-url (or --url) so the service can carry its registration endpoint.');
-      process.exit(1);
-    }
-
-    // `type: HIP` — NHA's own example says HEALTH_LOCKER, which is a different participant type
-    // and is not what we are. Getting this wrong registers us in the wrong role entirely.
-    const payload = [
-      {
-        id: serviceId,
-        name,
-        type: 'HIP',
-        active: true,
-        alias: [serviceId],
-        endpoints: [{ address: endpoint, connectionType: 'https', use: 'registration' }],
-      },
-    ];
+    // The real V4 contract, read from the published HFR spec — NOT the shape NHA's onboarding email
+    // shows. The email quotes an ARRAY of `{id, name, type, alias, endpoints}`; the actual endpoint
+    // takes an OBJECT of `{facilityId, facilityName, HRP[{bridgeId, hipName, type, active}]}` with
+    // no endpoints and no alias. The email's shape would simply have been rejected.
+    //
+    // `facilityId` is an INPUT here, which carries a dependency worth knowing: the facility must
+    // already exist in the Health Facility Registry before a bridge service can be attached to it.
+    // That is M4's job, and its HFR-issued id is what belongs in `abdm_facility_config.hipId`.
+    //
+    // `type: HIP` — the email's `HEALTH_LOCKER` example is a different participant type entirely.
+    const payload = {
+      facilityId: serviceId,
+      facilityName: name,
+      HRP: [{ bridgeId: CLIENT_ID, hipName: name, type: 'HIP', active: true }],
+    };
     console.log('  sending:');
     console.log(indent(JSON.stringify(payload, null, 2)));
 
+    // One candidate now, not two: the published HFR V4 spec puts this on the facility-registry
+    // host, so the old gateway fallback was guesswork that can only produce a confusing error.
     const registered = await firstThatAnswers(
-      [
-        { label: 'facility registry /v1/bridges/MutipleHRPAddUpdateServices', url: `${FACILITY_REGISTRY}/v1/bridges/MutipleHRPAddUpdateServices` },
-        { label: 'V1 gateway /gateway/v1/bridges/addUpdateServices', url: `${GATEWAY}/gateway/v1/bridges/addUpdateServices` },
-      ],
+      [{ label: 'HFR V4 /v1/bridges/MutipleHRPAddUpdateServices', url: `${FACILITY_SERVICES}/v1/bridges/MutipleHRPAddUpdateServices` }],
       'POST',
       token,
       payload,
