@@ -132,3 +132,16 @@ ability from a role that exists to register patients.
 
 **Testing status:** `dist/` rebuilt; 378 backend tests pass, including a case proving the front desk
 is refused by default and one proving the audit records which fields changed and never their values.
+
+## ABDM Milestone 3 permissions (ADR-092, ADR-095)
+
+Two keys, because asking and reading are different acts. `abdm.history.request` puts a named
+doctor's registration number in front of a patient and commits the hospital to destroying whatever
+comes back; `abdm.history.view` reads another hospital's clinical record. A role that may open a
+chart is not thereby entitled to pull a national history onto it.
+
+Granted to **doctor** (both) and **org_admin** (view only). The front desk gets neither: a consent
+request must name a clinician the patient can recognise, and an administrator reading a pulled
+history for support is a different thing from an administrator raising the request. The
+`abdm.external_history` capability is registered as **PLANNED** — describing a module is not a claim
+it exists (ADR-085), and no health record has been exchanged with ABDM in any environment.

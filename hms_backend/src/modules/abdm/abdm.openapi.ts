@@ -10,6 +10,7 @@ import {
   OtpSentSchema,
   PendingShareListSchema,
   HipProfileShareBody,
+  RequestHistoryBody,
   RequestMobileOtpBody,
   SelectAccountBody,
   StartAadhaarBody,
@@ -302,5 +303,151 @@ registry.registerPath({
     202: { description: 'Accepted', ...json(z.object({ accepted: z.boolean() })) },
     422: unprocessable,
     429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
+  },
+});
+
+// --- Milestone 3: a patient's history from other hospitals (ADR-092) --------------------------
+
+const HistoryRequestSchema = z.object({
+  id: z.string().uuid(),
+  patientId: z.string().uuid(),
+  consentRequestId: z.string().nullable(),
+  requesterName: z.string(),
+  requesterRegistrationNumber: z.string(),
+  hiTypes: z.array(z.string()),
+  purposeCode: z.string(),
+  status: z.string(),
+  dataEraseAt: z.string().nullable(),
+  lastCheckedAt: z.string().nullable(),
+  lastError: z.string().nullable(),
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/history/request',
+  operationId: 'abdmRequestPatientHistory',
+  tags: [TAG],
+  summary: "Ask a patient for permission to read their history at other hospitals",
+  description:
+    "Sends a consent request to the patient's consent manager. Returns 202 as soon as ABDM acknowledges — the consent request id arrives asynchronously on our `on-init` callback, and the patient grants or denies in their own PHR app, which we do not control. Refused with 422 unless the patient's ABHA address is **verified** (a hand-typed identifier was never proved to be theirs) and unless the requesting doctor has a medical registration number on file, because that is what the patient reads when deciding whether to grant. The purpose is always `CAREMGT`.",
+  security: [{ bearerAuth: [] }],
+  request: { body: json(RequestHistoryBody) },
+  responses: {
+    202: { description: 'Request sent to the consent manager', ...json(HistoryRequestSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No such patient or doctor', ...json(ErrorResponseSchema) },
+    422: unprocessable,
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/history/{patientId}',
+  operationId: 'abdmListHistoryRequests',
+  tags: [TAG],
+  summary: "History requests raised for a patient, newest first",
+  description:
+    'Drives the live status the doctor sees while waiting for the patient to grant, so a request is never a dead end after the button is pressed.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ patientId: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Requests', ...json(z.object({ requests: z.array(HistoryRequestSchema) })) },
+    401: notAuthed,
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/history/{requestId}/refresh',
+  operationId: 'abdmRefreshHistoryRequest',
+  tags: [TAG],
+  summary: 'Ask ABDM where a consent request got to',
+  description:
+    'The fallback for a callback that never arrived. A request stuck in `requested` is indistinguishable from one the patient ignored, so the doctor is shown whichever is true.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ requestId: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Current status', ...json(HistoryRequestSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'No such request', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/history/{patientId}/fetch',
+  operationId: 'abdmFetchExternalRecords',
+  tags: [TAG],
+  summary: "Pull the records every granted consent for this patient unlocks",
+  description:
+    'One request per hospital that granted a consent. Answers 202 because the records arrive later, pushed to our own endpoint on a separate connection — a 200 would imply they are already here. Each consent is re-checked against the clock at the moment of asking, so one revoked since the doctor pressed the button produces no request at all. A hospital that cannot be reached is skipped rather than failing the others: a partial history is worth more than none, provided the doctor is told which sources answered.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ patientId: z.string().uuid() }) },
+  responses: {
+    202: {
+      description: 'Requests sent',
+      ...json(
+        z.object({
+          requested: z.number(),
+          transfers: z.array(z.object({ transferId: z.string(), transactionId: z.string() })),
+        }),
+      ),
+    },
+    401: notAuthed,
+    403: forbidden,
+    503: { description: 'No push URL configured', ...json(ErrorResponseSchema) },
+  },
+});
+
+const TimelineEntrySchema = z.object({
+  id: z.string().uuid(),
+  date: z.string().nullable(),
+  hiType: z.string(),
+  sourceHipId: z.string().nullable(),
+  careContextReference: z.string().nullable(),
+  title: z.string(),
+  author: z.string().nullable(),
+  details: z.array(
+    z.object({ group: z.string(), label: z.string(), value: z.string(), emphasis: z.literal('abnormal').optional() }),
+  ),
+  hasAbnormalFinding: z.boolean(),
+  receivedAt: z.string(),
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/history/{patientId}/timeline',
+  operationId: 'abdmExternalHistoryTimeline',
+  tags: [TAG],
+  summary: "A patient's history from other hospitals, merged chronologically",
+  description:
+    "One timeline across every source rather than a tab per hospital — a prescription from March is only useful beside the diagnosis from February. A record is returned **only while a granted, unexpired consent still covers it**, enforced in the query and measured against the clock, so a record becomes invisible the instant its permission lapses, before the purge sweep runs and whether or not the revocation callback arrived. `hasAbnormalFinding` reflects the SOURCE hospital's own FHIR interpretation codes and is never our own inference — this endpoint arranges records, it never interprets them. The summary carries counts and provenance only, deliberately not a generated clinical summary.",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ patientId: z.string().uuid() }),
+    query: z.object({ hiTypes: z.string().optional(), sourceHipId: z.string().optional() }),
+  },
+  responses: {
+    200: {
+      description: 'Timeline',
+      ...json(
+        z.object({
+          summary: z.object({
+            total: z.number(),
+            sources: z.array(z.string()),
+            byType: z.record(z.string(), z.number()),
+            abnormalCount: z.number(),
+            earliest: z.string().nullable(),
+            latest: z.string().nullable(),
+          }),
+          entries: z.array(TimelineEntrySchema),
+        }),
+      ),
+    },
+    401: notAuthed,
+    403: forbidden,
   },
 });

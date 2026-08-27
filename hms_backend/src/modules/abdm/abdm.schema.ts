@@ -277,6 +277,112 @@ export const HealthInformationRequestBody = z
   })
   .passthrough();
 
+/**
+ * Milestone 3 — asking for a patient's history from other hospitals (ADR-092).
+ *
+ * `providerId` is required and never inferred from the session: the doctor whose name and
+ * registration number reach the patient's app must be a deliberate choice, not whoever happened to
+ * be logged in. A nurse operating a doctor's screen must not have the doctor's identity attached to
+ * a national consent request by accident.
+ */
+export const RequestHistoryBody = z.object({
+  patientId: z.string().uuid(),
+  providerId: z.string().uuid(),
+  hiTypes: z.array(z.string().min(1)).max(7).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  dataEraseAt: z.string().datetime().optional(),
+});
+
+/** ABDM naming our consent request, asynchronously. */
+export const HiuOnInitBody = z
+  .object({
+    consentRequest: z.object({ id: z.string().min(1) }).passthrough(),
+    response: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/** One granted artefact, delivered after we asked to fetch it. */
+export const HiuOnFetchBody = z
+  .object({
+    consent: z
+      .object({
+        status: z.string().optional(),
+        consentDetail: z
+          .object({
+            consentId: z.string().min(1),
+            consentManager: z.object({ id: z.string() }).passthrough().optional(),
+            patient: z.object({ id: z.string() }).passthrough(),
+            hip: z.object({ id: z.string().optional() }).passthrough().optional(),
+            hiu: z.object({ id: z.string().optional() }).passthrough().optional(),
+            purpose: z.object({ code: z.string().optional(), text: z.string().optional() }).passthrough().optional(),
+            hiTypes: z.array(z.string()).optional(),
+            careContexts: z.array(z.object({}).passthrough()).optional(),
+            permission: z.object({}).passthrough().optional(),
+            createdAt: z.string().optional(),
+          })
+          .passthrough(),
+        signature: z.string().optional(),
+      })
+      .passthrough(),
+    response: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/**
+ * ABDM telling us a consent was revoked or expired.
+ *
+ * The most consequential inbound call in M3: it obliges us to destroy another hospital's records.
+ * Deliberately permissive on shape and strict on the two fields that matter, because a parse failure
+ * here would mean silently keeping data we promised to delete.
+ */
+export const HiuConsentNotifyBody = z
+  .object({
+    notification: z
+      .object({
+        status: z.string().min(1),
+        consentId: z.string().optional(),
+        consentDetail: z.object({ consentId: z.string().optional() }).passthrough().optional(),
+        consentRequestId: z.string().optional(),
+        consentArtefacts: z.array(z.object({ id: z.string() }).passthrough()).optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+/**
+ * A hospital pushing records we asked for (ADR-093).
+ *
+ * Deliberately permissive: this arrives from a stranger's system, and a schema strict enough to
+ * reject an unfamiliar field would discard a patient's history over a formatting difference. The
+ * integrity guarantee is the checksum after decryption, not this shape.
+ */
+export const HiuDataPushBody = z
+  .object({
+    transactionId: z.string().min(1),
+    pageNumber: z.coerce.number().int().positive().optional(),
+    pageCount: z.coerce.number().int().positive().optional(),
+    entries: z.array(
+      z
+        .object({
+          content: z.string().optional(),
+          media: z.string().optional(),
+          checksum: z.string().optional(),
+          careContextReference: z.string().optional(),
+          link: z.string().optional(),
+        })
+        .passthrough(),
+    ),
+    keyMaterial: z
+      .object({
+        dhPublicKey: z.object({ keyValue: z.string().optional() }).passthrough().optional(),
+        nonce: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
 export const TransactionParams = z.object({ transactionId: z.string().uuid() });
 export const FacilityParams = z.object({ hipId: z.string().min(3).max(64) });
 

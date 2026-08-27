@@ -402,6 +402,41 @@ credentials — the payload's encryption is the protection there, not the host.
 
 **Bridge registration (`npm run abdm:bridge`).** The two calls that make ABDM able to *reach* us — set the bridge URL, register the HIP service — plus a read-only status view that is the default. It **proves a URL is reachable before registering it** (HTTPS, no path, public host, a real answer from `/health` over a valid certificate) because registering a dead URL succeeds and then fails silently forever. Where NHA's onboarding email and the V3 collection disagree on paths, it tries both and reports which answered.
 
+**Verifying M2 (`npm run abdm:m2check`).** M1 is checked by connecting to NHA and by clicking through registration; neither works for M2, which is inbound and has no screens. So the script **plays the gateway** and drives the real services through the whole chain — care context, FHIR bundle, link (including the deferred link-token round trip), discovery, consent, transfer, revoke — asserting at each step and printing the exact ABDM payload. `--payloads` shows the full JSON, `--logs` keeps the application log. It uses a scratch tenant it deletes afterwards, and refuses to run outside development or against a real gateway.
+
+**Milestone 3 — HIU consent (ADR-092).** `hiuConsent.service.ts` is the mirror of M2 with the
+obligations reversed: M2 governs what we may **disclose**, M3 what we must **destroy**. Three tables
+(`abdm_hiu_consent_requests`, `abdm_hiu_consents`, `abdm_hiu_records`) and one rule that shapes them
+all — **the records are built to be deleted**. No `deleted_at`, no soft flag; `consent_id` cascades so
+a purge cannot half-complete, and JSONB in the same database rather than object storage so the delete
+is atomic and provable. Expiry is decided by the **clock**, not a status column, so a missed callback
+never becomes a licence to keep reading. `hiuSweeper.ts` is an in-process timer, not a queued job,
+because this must happen *at all* rather than exactly once — it also sweeps M2's consents, which had
+no scheduler before. ABDM is acknowledged only **after** the delete. Two permissions:
+`abdm.history.request` (asks, and creates the obligation) and `abdm.history.view` (reads another
+hospital's record).
+
+**M3 slice 2 — pulling records in (ADR-093).** `hiuDataTransfer.service.ts` asks one hospital for
+what a consent covers, then reads what comes back. A **fresh ECDH key pair per request**: the public
+half goes out, the private half is stored encrypted (it has to survive until the push arrives) and
+cascades with the consent, so a purge destroys the only key that could read a later re-delivery.
+**Nothing is stored that could not be decrypted and checksum-verified** — a mismatch is discarded and
+counted, because a doctor shown a partial history cannot tell it is partial. Failures are counted
+rather than thrown, so nine good entries survive one bad one and the transfer reads `partial`.
+`cipher.ts` now holds `generateKeyPair` / `decryptFromHip` / `checksumMatches` alongside encryption,
+all through one `fidelius()` helper — which is also where M2's encrypt call was corrected to pass
+both sides' key material (ADR-093).
+
+**M3 slice 3 — the timeline (ADR-094).** `hiuTimeline.service.ts` merges every source into one
+chronological feed and normalises foreign FHIR into a render-ready view model. Two rules: **the
+consent check is in the query**, measured against the clock, so a record disappears the instant its
+permission lapses — independent of the purge sweep having run; and **nothing clinical is computed** —
+an abnormal value is surfaced only when the source's own FHIR `interpretation` says so. The
+suggested generated "key findings" summary was declined; the summary returns counts, provenance and
+a date span only.
+
+**Verifying M3 (`npm run abdm:m3check`).** The companion to `abdm:m2check`, playing the consent manager and a delivering hospital: request, grant, per-HIP artefacts, key generation, push, decrypt, checksum, timeline, revoke, expire. 36 checks. The two that matter — `HIU_FLOW_202` and `HIU_FLOW_301` — are answered by querying the tables after each purge, because certification asks whether the data is **gone**, not whether it is hidden. `--payloads` shows the ABDM JSON, `--logs` keeps the application log. `script-env.ts` (shared with the M2 check) sets the quiet log level and a self-test push URL as a side-effect import, because both must land before `config/env.ts` reads the environment.
+
 **Still blocked on infrastructure:** every M2 flow needs a public HTTPS endpoint before it can
 round-trip (`BACKLOG.md` I-5), and the Fidelius invocation has never been executed against the real
 jar — every test runs in mock mode, which returns a marked non-secret envelope.

@@ -7,11 +7,16 @@ import {
   HIP_DATA_REQUEST_PATH,
   HIP_DISCOVERY_CALLBACK_PATHS,
   HIP_PROFILE_SHARE_PATH,
+  HIU_CALLBACK_PATHS,
 } from './abdm.constants';
 import {
   DiscoverBody,
   HealthInformationRequestBody,
   HipProfileShareBody,
+  HiuConsentNotifyBody,
+  HiuDataPushBody,
+  HiuOnFetchBody,
+  HiuOnInitBody,
   LinkConfirmBody,
   LinkInitBody,
   OnGenerateTokenBody,
@@ -94,4 +99,40 @@ abdmGatewayRouter.post(
   authLimiter,
   validate({ body: HealthInformationRequestBody }),
   asyncHandler(c.requestHealthInformation),
+);
+
+// --- Milestone 3, inbound (ADR-092) -----------------------------------------------------------
+// Unverified paths, exactly like the M2 discovery callbacks: not in the M1 collection, so they
+// follow the confirmed convention and are flagged in BACKLOG.md until the M3 collection confirms.
+
+abdmGatewayRouter.post(
+  HIU_CALLBACK_PATHS.onInit,
+  authLimiter,
+  validate({ body: HiuOnInitBody }),
+  asyncHandler(c.hiuOnInit),
+);
+
+abdmGatewayRouter.post(
+  HIU_CALLBACK_PATHS.onFetch,
+  authLimiter,
+  validate({ body: HiuOnFetchBody }),
+  asyncHandler(c.hiuOnFetch),
+);
+
+// The one that obliges us to destroy records. Answered 202; ABDM is acknowledged only after the
+// purge has actually happened.
+abdmGatewayRouter.post(
+  HIU_CALLBACK_PATHS.onNotify,
+  authLimiter,
+  validate({ body: HiuConsentNotifyBody }),
+  asyncHandler(c.hiuConsentNotify),
+);
+
+// Where a HIP delivers the records we asked for. Our own dataPushUrl, so the path is ours to
+// choose — but still unverified against an official collection, like the rest of M3's inbound side.
+abdmGatewayRouter.post(
+  HIU_CALLBACK_PATHS.dataPush,
+  authLimiter,
+  validate({ body: HiuDataPushBody }),
+  asyncHandler(c.hiuDataPush),
 );

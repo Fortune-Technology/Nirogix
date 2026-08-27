@@ -111,6 +111,16 @@ export const PERMISSIONS = {
    * hospital that wants its desk to do it grants the key.
    */
   ABDM_PROFILE_UPDATE: 'abdm.profile.update',
+  /**
+   * Milestone 3 — reading a patient's history from OTHER hospitals (ADR-092).
+   *
+   * Two keys, not one, because asking and reading are different acts. Requesting puts this
+   * doctor's name and registration number in front of the patient and creates an obligation to
+   * destroy what comes back; viewing is reading another hospital's clinical record. A clerk who
+   * may see a chart is not thereby permitted to pull a national history onto it.
+   */
+  ABDM_HISTORY_REQUEST: 'abdm.history.request',
+  ABDM_HISTORY_VIEW: 'abdm.history.view',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -168,6 +178,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
       // The hospital's ABDM/HFR facility registration is organization-level configuration.
       P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE, P.ABDM_VERIFY, P.ABDM_LINK, P.ABDM_PROFILE_UPDATE,
+      // View a pulled external history for support and audit, but NOT request one: a consent
+      // request must name a clinician the patient can recognise, not an administrator.
+      P.ABDM_HISTORY_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -197,6 +210,11 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // Read the drug master while prescribing — the formulary picker needs the list (and its
       // stock levels) even though dispensing stays with the pharmacist.
       P.PHARMACY_STOCK_VIEW,
+      // Ask the patient for their history at other hospitals, and read what comes back (ADR-092).
+      // Doctor-only among clinical staff: the consent request carries THIS doctor's name and
+      // registration number to the patient, and it commits the hospital to destroying the records
+      // on revocation — not a decision that belongs at the front desk.
+      P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -444,14 +462,26 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
   }),
   mod('abdm', 'ABDM / ABHA (Milestone 1)', 'CLINIC', 'BUILT', {
     hardDependencies: ['patient'],
-    permissions: [P.ABDM_VERIFY, P.ABDM_LINK, P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE],
+    permissions: [
+      P.ABDM_VERIFY,
+      P.ABDM_LINK,
+      P.ABDM_FACILITY_VIEW,
+      P.ABDM_FACILITY_MANAGE,
+      P.ABDM_HISTORY_REQUEST,
+      P.ABDM_HISTORY_VIEW,
+    ],
     capabilities: [
       cap('abdm', 'verification', 'ABHA Verification', 'BUILT', { permissions: [P.ABDM_VERIFY, P.ABDM_LINK] }),
       cap('abdm', 'facility', 'HFR Facility Configuration', 'BUILT', {
         permissions: [P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE],
       }),
       cap('abdm', 'scan_share', 'Scan & Share', 'BUILT', { dependencies: ['abdm.facility'] }),
-      cap('abdm', 'record_exchange', 'Health Record Exchange (M2/M3)'),
+      cap('abdm', 'record_exchange', 'Health Record Exchange (M2, HIP)'),
+      // M3 — pulling history FROM other hospitals. Registry entry only; describing a module is
+      // not a claim it exists (ADR-085), and nothing here is BUILT or marketable yet.
+      cap('abdm', 'external_history', 'External Health History (M3, HIU)', 'PLANNED', {
+        permissions: [P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW],
+      }),
     ],
   }),
   mod('self_checkin', 'Patient Self Check-in', 'CLINIC', 'AVAILABLE', {

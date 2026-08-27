@@ -23,6 +23,7 @@ import { RequirePermission, Can } from "../../../../components/Can";
 import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
 import { PatientHistory } from "../../../../components/patients/PatientHistory";
 import { ImmunizationsCard } from "../../../../components/patients/ImmunizationsCard";
+import { ExternalHistoryCard } from "../../../../components/patients/ExternalHistoryCard";
 import { PageHeader } from "../../../../components/PageHeader";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -222,6 +223,11 @@ function Profile({ id }: { id: string }) {
           <ImmunizationsCard patientId={p.id} />
         </Can>
       )}
+      {/* Records from OTHER hospitals, held on loan under the patient's consent (ADR-092…094).
+          Kept beside our own history rather than merged into it: borrowed records disappear the
+          moment consent lapses, and blurring the two would hide which is which. */}
+      {!editing && <ExternalHistoryCard patient={p} />}
+
       {!editing && <PatientHistory patientId={p.id} />}
     </>
   );

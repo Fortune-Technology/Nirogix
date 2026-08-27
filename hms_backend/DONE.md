@@ -1420,3 +1420,167 @@ arguments — each refusing before any write.
 
 `ABDM_FACILITY_REGISTRY_URL` added to `.env.example` and `.env` in lockstep; the facility registry is
 a different host from the gateway.
+
+## ABDM Milestone 2 self-test (`npm run abdm:m2check`)
+
+"How do I verify M2 like M1?" has a different answer than it does for M1, and the difference is the
+whole design. **M1 is outbound** — we call NHA, so a connectivity check proves it, and a receptionist
+can click the flow in the Portal. **M2 is inbound** — NHA calls us, there is nothing to connect to,
+and M2 has no screens by design. Until the bridge URL is registered, the only honest way to see M2
+work is to play the gateway ourselves.
+
+So the script drives the **real services**, not mocks of them, through the whole chain against the
+local database: patient → visit → care context → FHIR bundle → link → discovery → consent → transfer
+→ revoke → unknown facility. 27 checks, each printing what we decided and the **exact payload we
+would have put on the wire** (`--payloads` for the full JSON). It ends on the refusals, which matter
+more than the happy path: a run reporting records sent after a revoke is a failed run.
+
+It creates a scratch tenant and deletes it afterwards, refuses to run outside development, and
+refuses to run with `ABDM_PROVIDER=gateway` — it writes fictional patients, which is exactly what
+must never reach the real sandbox.
+
+**Two real findings on the first run**, which is the point of building it:
+
+1. The first version asserted that linking succeeds immediately. It does not, and **should not** —
+   `linkPendingForPatient` correctly returned "Waiting for a link token", because acquiring one is
+   itself an asynchronous round trip (ADR-089). The script was wrong, not the code; it now models
+   the deferral, plays the webhook that delivers the token, and checks it is stored encrypted.
+2. Reading the real linking payload showed **the two linking paths disagree on the patient `display`
+   field** — HIP-initiated sends the UHID, user-initiated sends the name. Flagged in `BACKLOG.md`
+   rather than changed, because it alters what we send to a national registry.
+
+`quiet-logs.ts` accompanies it: a side-effect module that silences pino, imported *before* the rest,
+because imports evaluate ahead of any statement in the importing file and setting `LOG_LEVEL` in the
+script body happens after `config/env.ts` has already read it.
+
+## ABDM Milestone 3, slice 1 — HIU consent and the purge (ADR-092)
+
+The start of the opposite direction. M2 answers requests for our records; M3 lets a doctor ask a
+patient for permission to read the history **other** hospitals hold — and then stores somebody else's
+clinical data on our disk under a permission that can be withdrawn at any moment.
+
+That inverts the product's usual instinct. Invariant #6 says clinical records are never deleted;
+these are the exception, and they are **built to be deleted**. The brief proposed a `deleted_at`
+soft-delete column and it was rejected: a hidden row is not a deleted row, and a soft flag invites
+exactly the bug NHA's `HIU_FLOW_202` / `HIU_FLOW_301` cases test for. `abdm_hiu_records.consent_id`
+cascades, so revocation removes the artefact and every record under it in one statement that cannot
+succeed halfway. It is JSONB in the same PostgreSQL rather than object storage, because deletion has
+to be **atomic and provable** and a blob delete is neither.
+
+Three more rules follow from the same place. **Expiry is decided by the clock, not a status column**
+— a missed callback, an unrun sweep or a drifted clock must never become a licence to keep reading.
+**The sweeper is an in-process timer, not a queued job**: a queue guarantees work happens *once*, but
+this must happen *at all*, and a deletion obligation should not be one Redis outage away from
+silently not happening. And **ABDM is acknowledged only after the records are gone**, because that
+acknowledgement is our assertion of compliance.
+
+The doctor's **registration number is mandatory and refused when missing** rather than defaulted —
+it is what the patient reads when deciding to grant, and an anonymous clinician asking for a medical
+history is not a request anyone can judge. It is snapshotted onto the request, so a doctor leaving
+the hospital cannot change what the patient was shown. Only a **verified** ABHA may be used.
+
+Per the owner's decisions: chart-only trigger, `CAREMGT` as the only purpose code, dedicated table
+with hard delete.
+
+**Testing status:** 16 new tests. Both certification cases assert by querying the table *after* the
+purge rather than trusting a return value — a service that reports success while leaving rows behind
+is precisely the defect an assessor looks for. **482 backend tests across 51 files**, typecheck and
+OpenAPI green.
+
+**Sequencing note:** the purge was built before anything can be pulled. The obligation exists before
+the capability that creates it, so there is no window in which records could be stored with no way to
+destroy them.
+
+## ABDM Milestone 3, slice 2 — pulling records in (ADR-093)
+
+With a granted consent, we ask a hospital for the records it covers: generate an ECDH key pair, send
+the public half, and the hospital pushes encrypted records back minutes later on a connection we did
+not open.
+
+The asymmetry with M2 shapes everything. Sending, we control what leaves and can refuse. Receiving,
+the payload arrives from a stranger's system, so the governing rule is **nothing is stored that we
+could not decrypt and verify**. A checksum mismatch is discarded and counted, never stored hopefully
+— a doctor shown a partial history has no way to know it is partial. Failures are counted rather
+than thrown, so a page with nine good entries and one corrupt one yields nine records and an honest
+`partial` status.
+
+**A fresh key pair per request**, never a long-lived one: one compromise should expose one document
+set, not every transfer ever made. The private half is stored because the push arrives later, and it
+is encrypted at rest like every ABDM credential. It cascades with the consent, so a purge destroys
+the records *and* the only key that could read a re-delivery arriving afterwards. Records arriving
+after a revoke are dropped unread.
+
+**A correction to M2, found by building the opposite direction.** `encryptForHiu` invoked Fidelius as
+`e <nonce> <publicKey> <payload>`, omitting our own key pair — but Fidelius encrypts with *both*
+sides' material, so that call would have produced ciphertext no HIU could read. Writing `d`, which
+plainly needs four key arguments, made it obvious that `e` must too. Both now route through one
+`fidelius()` helper so the argument order exists in exactly one place. It is **still unexecuted** —
+the jar has never run — but it is now wrong in at most one place instead of two.
+
+**Testing status:** 12 new tests, most about the push being wrong: bad checksum, unreadable entry,
+unknown transaction, consent revoked in flight, `link`-only entry, multi-page delivery completing
+only on the last page, and the purge reaching both records and keys. **494 backend tests across 52
+files**, typecheck and OpenAPI green.
+
+**One behaviour worth knowing:** `dataPushUrl()` throws when `ABDM_HIU_PUSH_BASE_URL` is unset,
+rather than sending a half-formed URL. ABDM accepts a data request naming an unreachable endpoint and
+then silently delivers nothing, which reads as a broken feature for as long as nobody checks; failing
+at the point of asking is the only visible failure available.
+
+## ABDM Milestone 3, slice 3 — the unified timeline (ADR-094)
+
+Four hospitals' records mean little separately: a prescription from March is only useful beside the
+diagnosis from February. `hiuTimeline.service.ts` merges every source into one chronological feed and
+turns foreign FHIR into a view model the UI can render without parsing anything.
+
+**The consent check lives in the query.** A record is returned only while a granted, unexpired
+consent still covers it — joined through the artefact and filtered on the clock. So a record becomes
+invisible the instant its permission lapses, *before* the purge sweep runs and whether or not the
+revocation callback arrived. Deleting is the sweep's job (ADR-092), hiding is this file's, and
+neither depends on the other having happened — which is exactly what makes the guarantee survive one
+of them failing. There is a test for precisely that: a record still physically on disk, consent
+lapsed, sweep deliberately not run, already absent from the feed.
+
+**Nothing clinical is computed.** An abnormal value is surfaced only when the source hospital's own
+FHIR `interpretation` says it is abnormal. We never compare a value against a reference range
+ourselves — the range that matters belongs to the laboratory that ran the test. Two identical-looking
+values where only one carries the source's flag produce exactly one emphasis, and that is asserted.
+
+**The suggested "key findings" summary was declined** — the one place the brief was not followed. It
+was listed there as explicitly optional, and an automatically generated clinical summary is a
+clinical claim this system has no standing to make; one wrong summary read in a hurry is worse than
+no summary. The summary returns counts, provenance, date span and a flag count instead.
+
+Parsing is defensive and lossy rather than strict and fatal: an unrecognised resource is skipped,
+because losing a line of detail is recoverable and losing a whole record over a missing field is not.
+An allergy is always emphasised — the one line whose being missed causes direct harm.
+
+**Testing status:** 13 new tests, first run green. **507 backend tests across 53 files**, typecheck
+and OpenAPI green.
+
+## ABDM Milestone 3 self-test (`npm run abdm:m3check`)
+
+The companion to `abdm:m2check`, for the opposite direction. It plays both counterparties — the
+consent manager granting an artefact, and a hospital delivering encrypted records — and drives the
+real services through the whole chain: refusals, consent request, `on-init`, per-HIP artefacts, key
+generation, data request, push, decrypt, checksum, timeline, revoke, expire. 36 checks.
+
+**The two that decide certification are answered from the database, not from a return value.**
+`HIU_FLOW_202` confirms the records, the artefact *and* the decryption keys are gone after a revoke,
+while the audit entry survives holding metadata only. `HIU_FLOW_301` is deliberately staged in two
+parts: the consent is lapsed **without** running the sweep, and the record — still physically on disk
+— is asserted to be already invisible to the doctor, before the sweep is then run and the row
+confirmed deleted. That ordering is the point: hiding and deleting are independent guarantees, and a
+test that ran the sweep first could not tell them apart.
+
+A service that reports success while leaving rows behind is exactly the defect an assessor looks for,
+which is why nothing here trusts a return value for the questions that matter.
+
+**One refactor it forced.** `quiet-logs.ts` became `script-env.ts`: M3 refuses to request records
+without a push URL configured (ADR-093), and setting one in the script body lands *after*
+`config/env.ts` has read the environment — the same import-order trap the log level hit. Both
+defaults now live in the one side-effect module imported ahead of everything else, and the file name
+matches what it does. `abdm:m2check` still passes at 27 checks after the rename.
+
+Neither script leaves anything behind: scratch tenants deleted, and the HIU tables verified empty
+afterwards.

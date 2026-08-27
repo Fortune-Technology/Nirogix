@@ -162,6 +162,7 @@ export async function cleanupTenant(code: string): Promise<void> {
     'notification_log',
     // ABDM first: `abdm_transactions.patient_id` is ON DELETE RESTRICT, so it has to go before
     // the charts it points at (ADR-084).
+    'abdm_hiu_records', 'abdm_hiu_data_transfers', 'abdm_hiu_consents', 'abdm_hiu_consent_requests',
     'abdm_data_transfers', 'abdm_link_requests', 'abdm_care_contexts', 'abdm_consents', 'abdm_link_tokens', 'abdm_transactions', 'abdm_facility_config',
     'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
     'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses', 'encounters',

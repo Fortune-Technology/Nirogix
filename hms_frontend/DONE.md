@@ -836,3 +836,39 @@ identical on screen and are not remotely the same act.
 
 **Testing status:** typecheck and the production build green; the behaviour is covered end to end in
 the backend API suite, and the manual walk-through is `docs/manual-testing-guide.md` §5.1a.13.
+
+## ABDM Milestone 3 — the external history card (ADR-095)
+
+The Portal surface for M3, on the patient chart. A doctor asks the patient for permission to read
+their history at other hospitals, watches the request's status, and reads the merged result.
+
+Almost every state here is one the product cannot resolve on its own, so the card is built to be
+honest about that. **Waiting is shown as a state, not a spinner** — the patient answers in their own
+ABHA app, in seconds or never, and a spinner would imply something is on its way. **Polling stops**:
+every fifteen seconds while a request is outstanding, never past a ten-minute ceiling, so an
+unanswered request cannot leave a tab polling a national gateway all day. **Records disappearing is
+explained before it happens**, in a line under the timeline, so a doctor reads it as the system
+working rather than as a fault.
+
+Only doctors with a medical registration number can be picked, and when none exists the card says
+why instead of offering a button that always fails. The card adds no clinical judgement of its own:
+the "Abnormal finding" badge appears only where the source hospital's FHIR said so.
+
+External history sits **beside** our own records rather than merged into them — borrowed records
+vanish when consent lapses and ours never do, and one combined feed would hide which is which at
+exactly the moment it matters.
+
+**Verified in a browser against the running stack**, which is where both defects turned up:
+
+1. **A double toast.** The shared API client raised a generic "Saved." while the card raised its own,
+   more informative message — two notifications for one event, which ADR-057 forbids. The client
+   calls now opt out with `feedback: false`.
+2. **The source line printed the facility twice** when a hospital names itself as its own
+   organisation ("Sunrise Multispeciality · Sunrise Multispeciality"), which reads as a rendering
+   fault. Deduplicated.
+
+**The certification behaviour was demonstrated through the UI**, not only in tests: with the consent
+lapsed and the purge sweep deliberately not run — the record still physically on disk — the
+diagnosis, the lab value and the allergy were all gone from the doctor's screen, replaced by the
+empty state that explains why. Light and dark both resolve from the tokens; the abnormal emphasis
+reads the dark warning token rather than a literal.

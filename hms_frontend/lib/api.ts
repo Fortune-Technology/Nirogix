@@ -1136,3 +1136,81 @@ export async function updateAbhaProfile(body: AbhaProfileUpdate): Promise<AbhaVe
     feedback: { success: "Profile updated at ABDM." },
   });
 }
+
+// --- ABDM Milestone 3: a patient's history from other hospitals (ADR-092…ADR-094) --------------
+
+export interface AbdmHistoryRequest {
+  id: string;
+  patientId: string;
+  consentRequestId: string | null;
+  requesterName: string;
+  requesterRegistrationNumber: string;
+  hiTypes: string[];
+  purposeCode: string;
+  /** pending | requested | granted | denied | expired | failed */
+  status: string;
+  dataEraseAt: string | null;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface AbdmTimelineDetail {
+  group: string;
+  label: string;
+  value: string;
+  /** Set only when the SOURCE hospital flagged it — never our own inference. */
+  emphasis?: "abnormal";
+}
+
+export interface AbdmTimelineEntry {
+  id: string;
+  date: string | null;
+  hiType: string;
+  sourceHipId: string | null;
+  careContextReference: string | null;
+  title: string;
+  author: string | null;
+  details: AbdmTimelineDetail[];
+  hasAbnormalFinding: boolean;
+  receivedAt: string;
+}
+
+export interface AbdmTimeline {
+  summary: {
+    total: number;
+    sources: string[];
+    byType: Record<string, number>;
+    abnormalCount: number;
+    earliest: string | null;
+    latest: string | null;
+  };
+  entries: AbdmTimelineEntry[];
+}
+
+export async function requestAbdmHistory(body: { patientId: string; providerId: string }): Promise<AbdmHistoryRequest> {
+  // The card raises its own message, which says what actually happens next ("the patient decides in
+  // their own ABHA app"). The client's generic "Saved." alongside it would be two toasts for one
+  // event, and the less informative one at that (ADR-057).
+  return request<AbdmHistoryRequest>("/abdm/history/request", { method: "POST", body, feedback: false });
+}
+
+export async function listAbdmHistoryRequests(patientId: string): Promise<AbdmHistoryRequest[]> {
+  // Polled while a request is outstanding, so it stays silent — a toast per poll would be unusable.
+  const data = await request<{ requests: AbdmHistoryRequest[] }>(`/abdm/history/${patientId}`, { feedback: false });
+  return data.requests;
+}
+
+export async function refreshAbdmHistoryRequest(requestId: string): Promise<AbdmHistoryRequest> {
+  return request<AbdmHistoryRequest>(`/abdm/history/${requestId}/refresh`, { method: "POST", feedback: false });
+}
+
+export async function fetchAbdmExternalRecords(patientId: string): Promise<{ requested: number }> {
+  // Same reason: the card's own message names how many hospitals were asked (ADR-057).
+  return request<{ requested: number }>(`/abdm/history/${patientId}/fetch`, { method: "POST", feedback: false });
+}
+
+export async function getAbdmTimeline(patientId: string): Promise<AbdmTimeline> {
+  // Silent: it reloads whenever a consent lands or records arrive, and a toast each time is noise.
+  return request<AbdmTimeline>(`/abdm/history/${patientId}/timeline`, { feedback: false });
+}

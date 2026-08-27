@@ -2,9 +2,13 @@ import type { Request, Response } from 'express';
 import * as svc from './abdm.service';
 import { toPatientDto } from '../patient/patient.dto';
 import { logger } from '../../config/logger';
+import { AppError } from '../../http/error';
 import { storeLinkToken } from './linkToken.service';
 import * as userLink from './userLinking.service';
 import * as transfer from './dataTransfer.service';
+import * as hiu from './hiuConsent.service';
+import * as hiuTransfer from './hiuDataTransfer.service';
+import * as timeline from './hiuTimeline.service';
 import { recordLinkCallback } from './linking.service';
 import type { AbdmProfile } from './providers/types';
 
@@ -341,4 +345,177 @@ export async function getFacility(req: Request, res: Response): Promise<void> {
 
 export async function putFacility(req: Request, res: Response): Promise<void> {
   res.json(toFacility(await svc.upsertFacilityConfig(req.auth!.tenantId, req.body, req.auth!.userId)));
+}
+
+// --- Milestone 3: reading a patient's history from other hospitals (ADR-092) -----------------
+
+/** A doctor asking the patient for permission to read their history elsewhere. */
+export async function requestHistory(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    patientId: string;
+    providerId: string;
+    hiTypes?: string[];
+    from?: string;
+    to?: string;
+    dataEraseAt?: string;
+  };
+  const saved = await hiu.requestPatientHistory(req.auth!.tenantId, req.auth!.userId ?? null, {
+    patientId: body.patientId,
+    providerId: body.providerId,
+    hiTypes: body.hiTypes,
+    from: body.from ? new Date(body.from) : undefined,
+    to: body.to ? new Date(body.to) : undefined,
+    dataEraseAt: body.dataEraseAt ? new Date(body.dataEraseAt) : undefined,
+  });
+  res.status(202).json(saved);
+}
+
+/** What the chart panel polls: every history request for this patient, newest first. */
+export async function listHistoryRequests(req: Request, res: Response): Promise<void> {
+  const requests = await hiu.listHistoryRequests(req.auth!.tenantId, req.params.patientId!);
+  res.json({ requests });
+}
+
+/** Asks ABDM where one request got to — the fallback for a callback that never arrived. */
+export async function refreshHistoryRequest(req: Request, res: Response): Promise<void> {
+  const updated = await hiu.pollConsentRequest(req.auth!.tenantId, req.params.requestId!);
+  if (!updated) throw new AppError(404, 'ABDM_REQUEST_NOT_FOUND', 'No such history request');
+  res.json(updated);
+}
+
+// --- Inbound HIU callbacks ---------------------------------------------------------------------
+
+/** ABDM naming our consent request. Answered 202 at once; the work is trivial. */
+export async function hiuOnInit(req: Request, res: Response): Promise<void> {
+  const body = req.body as { consentRequest: { id: string }; response?: { requestId?: string } };
+  res.status(202).json({ accepted: true });
+  await hiu
+    .recordConsentRequestId({ requestId: body.response?.requestId, consentRequestId: body.consentRequest.id })
+    .catch((err: unknown) => logger.error({ err }, 'Could not record an ABDM consent request id'));
+}
+
+/** A granted artefact arriving. */
+export async function hiuOnFetch(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    consent: {
+      consentDetail: {
+        consentId: string;
+        consentManager?: { id?: string };
+        patient: { id: string };
+        hip?: { id?: string };
+        hiu?: { id?: string };
+        purpose?: { code?: string; text?: string };
+        hiTypes?: string[];
+        careContexts?: unknown[];
+        permission?: {
+          accessMode?: string;
+          dateRange?: { from?: string; to?: string };
+          dataEraseAt?: string;
+          frequency?: { unit?: string; value?: number; repeats?: number };
+        };
+        createdAt?: string;
+      };
+      signature?: string;
+    };
+    response?: { requestId?: string };
+  };
+  res.status(202).json({ accepted: true });
+
+  const detail = body.consent.consentDetail;
+  const permission = detail.permission ?? {};
+  await hiu
+    .storeConsentArtefact({
+      consentId: detail.consentId,
+      consentRequestId: body.response?.requestId,
+      hipId: detail.hip?.id,
+      hiuId: detail.hiu?.id,
+      consentManagerId: detail.consentManager?.id,
+      abhaAddress: detail.patient.id,
+      purposeCode: detail.purpose?.code,
+      purposeText: detail.purpose?.text,
+      hiTypes: detail.hiTypes ?? [],
+      careContexts: detail.careContexts,
+      accessMode: permission.accessMode,
+      dateRangeFrom: permission.dateRange?.from,
+      dateRangeTo: permission.dateRange?.to,
+      dataEraseAt: permission.dataEraseAt,
+      frequencyUnit: permission.frequency?.unit,
+      frequencyValue: permission.frequency?.value,
+      frequencyRepeats: permission.frequency?.repeats,
+      signature: body.consent.signature,
+      grantedAt: detail.createdAt,
+    })
+    .catch((err: unknown) => logger.error({ err }, 'Could not store an ABDM consent artefact'));
+}
+
+/**
+ * ABDM telling us a consent is revoked or expired.
+ *
+ * Answered 202 immediately, then the purge runs. The **acknowledgement to ABDM** is sent by the
+ * service only after the records are actually gone — that acknowledgement is our assertion that we
+ * complied, and sending it before the delete would make it a lie whenever the delete then failed.
+ */
+export async function hiuConsentNotify(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    notification: {
+      status: string;
+      consentId?: string;
+      consentDetail?: { consentId?: string };
+      consentArtefacts?: Array<{ id: string }>;
+    };
+  };
+  res.status(202).json({ accepted: true });
+
+  // A revocation can name one consent or a list of artefacts; both shapes appear in the wild.
+  const ids = [
+    body.notification.consentId,
+    body.notification.consentDetail?.consentId,
+    ...(body.notification.consentArtefacts ?? []).map((a) => a.id),
+  ].filter((id): id is string => Boolean(id));
+
+  for (const consentId of ids) {
+    await hiu
+      .handleConsentNotification({ consentId, status: body.notification.status })
+      .catch((err: unknown) => logger.error({ err, consentId }, 'Could not act on an ABDM consent notification'));
+  }
+}
+
+/** A doctor pulling the records every granted consent for this patient unlocks. */
+export async function fetchExternalRecords(req: Request, res: Response): Promise<void> {
+  const results = await hiuTransfer.requestAllRecords(req.auth!.tenantId, req.params.patientId!);
+  // 202: the records arrive later, on a push. Saying 200 would imply they are already here.
+  res.status(202).json({ requested: results.length, transfers: results });
+}
+
+/**
+ * A hospital delivering records we asked for (ADR-093).
+ *
+ * Answered 202 immediately: decrypting and verifying a year of records is real work, and the
+ * pushing HIP should not hold a connection open through it.
+ */
+export async function hiuDataPush(req: Request, res: Response): Promise<void> {
+  const body = req.body as hiuTransfer.PushedPage;
+  res.status(202).json({ accepted: true });
+  await hiuTransfer
+    .receivePushedRecords(body)
+    .catch((err: unknown) => logger.error({ err }, 'Could not process pushed health records'));
+}
+
+/**
+ * The patient's history from every other hospital, merged into one chronological feed.
+ *
+ * The consent check is in the query, not here — a record is returned only while a granted,
+ * unexpired consent still covers it, measured against the clock rather than a status column.
+ */
+export async function externalHistoryTimeline(req: Request, res: Response): Promise<void> {
+  const tenantId = req.auth!.tenantId;
+  const patientId = req.params.patientId!;
+  const hiTypes = typeof req.query.hiTypes === 'string' ? req.query.hiTypes.split(',').filter(Boolean) : undefined;
+  const sourceHipId = typeof req.query.sourceHipId === 'string' ? req.query.sourceHipId : undefined;
+
+  const [entries, summary] = await Promise.all([
+    timeline.patientTimeline(tenantId, patientId, { hiTypes, sourceHipId }),
+    timeline.timelineSummary(tenantId, patientId, { hiTypes, sourceHipId }),
+  ]);
+  res.json({ summary, entries });
 }

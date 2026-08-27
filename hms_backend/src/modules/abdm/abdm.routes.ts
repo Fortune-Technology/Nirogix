@@ -10,6 +10,7 @@ import {
   CreateAbhaAddressBody,
   FacilityConfigBody,
   LinkPatientBody,
+  RequestHistoryBody,
   RequestMobileOtpBody,
   SelectAccountBody,
   StartAadhaarBody,
@@ -184,4 +185,55 @@ abdmRouter.put(
   requirePermission(PERMISSIONS.ABDM_FACILITY_MANAGE),
   validate({ body: FacilityConfigBody }),
   asyncHandler(c.putFacility),
+);
+
+// --- Milestone 3: a patient's history from other hospitals (ADR-092) --------------------------
+//
+// Two permissions, not one. Requesting puts this doctor's name and registration number in front of
+// the patient and creates an obligation to destroy what comes back; reading is another hospital's
+// clinical record. A role that may open a chart is not thereby entitled to pull a national history
+// onto it.
+abdmRouter.post(
+  '/abdm/history/request',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_REQUEST),
+  validate({ body: RequestHistoryBody }),
+  asyncHandler(c.requestHistory),
+);
+
+abdmRouter.get(
+  '/abdm/history/:patientId',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
+  asyncHandler(c.listHistoryRequests),
+);
+
+abdmRouter.post(
+  '/abdm/history/:requestId/refresh',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
+  asyncHandler(c.refreshHistoryRequest),
+);
+
+// Pulling the records themselves. Same permission as requesting: it is the act that puts another
+// hospital's clinical data on our disk and starts the destruction clock.
+abdmRouter.post(
+  '/abdm/history/:patientId/fetch',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_REQUEST),
+  asyncHandler(c.fetchExternalRecords),
+);
+
+// Reading the pulled history. `view`, not `request`: reading is a different act from asking, and a
+// record whose consent has lapsed is filtered out by the query itself.
+abdmRouter.get(
+  '/abdm/history/:patientId/timeline',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
+  asyncHandler(c.externalHistoryTimeline),
 );

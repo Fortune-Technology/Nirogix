@@ -16,6 +16,8 @@
     "openapi:validate": "tsx src/scripts/openapi-validate.ts",
     "abdm:check": "tsx src/scripts/abdm-check.ts",
     "abdm:bridge": "tsx src/scripts/abdm-bridge.ts",
+    "abdm:m2check": "tsx src/scripts/abdm-m2check.ts",
+    "abdm:m3check": "tsx src/scripts/abdm-m3check.ts",
     "db:create": "tsx src/scripts/create-database.ts",
     "db:seed": "tsx src/scripts/seed.ts",
     "db:seed:staging": "tsx src/scripts/seed.staging.ts",

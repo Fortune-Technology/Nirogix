@@ -253,6 +253,20 @@
       "when": 1787744694775,
       "tag": "0035_ancient_vargas",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787803374235,
+      "tag": "0036_cheerful_roland_deschain",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1787805899799,
+      "tag": "0037_daffy_shaman",
+      "breakpoints": true
     }
   ]
 }

@@ -211,6 +211,40 @@ export const DATA_FLOW_PATHS = {
 export const HIP_DATA_REQUEST_PATH = '/api/v3/hip/health-information/request';
 
 /**
+ * Milestone 3 — being a Health Information USER (ADR-092).
+ *
+ * The mirror image of M2: instead of answering requests for our records, we ask a patient for
+ * permission to read the history other hospitals hold. The outbound halves come from the M3
+ * documentation; the **inbound** callbacks carry the same caveat as every other M2/M3 inbound path —
+ * they are not in the Milestone 1 collection, so they follow the confirmed convention and must be
+ * verified against the M3 collection (`BACKLOG.md`).
+ *
+ * HIU calls additionally carry `X-HIU-ID`, which HIP calls do not.
+ */
+export const HIU_CONSENT_PATHS = {
+  /** POST — ask the patient, through their consent manager. Answers async on `on-init`. */
+  requestInit: '/api/hiecm/consent/v3/request/init',
+  /** POST — where has this request got to? The fallback for a callback that never arrived. */
+  requestStatus: '/api/hiecm/consent/v3/request/status',
+  /** POST — fetch one granted artefact. Answers async on `on-fetch`. */
+  fetch: '/api/hiecm/consent/v3/fetch',
+  /** POST — acknowledge a revoke/expire notification, so ABDM knows we acted on it. */
+  onNotify: '/api/hiecm/consent/v3/request/hiu/on-notify',
+} as const;
+
+/** POST — ask a HIP to send the records. Answers by pushing to our `dataPushUrl`. */
+export const HIU_DATA_REQUEST_PATH = '/api/hiecm/data-flow/v3/health-information/request';
+
+/** Where ABDM calls US as an HIU. **Unverified** — see the note above. */
+export const HIU_CALLBACK_PATHS = {
+  onInit: '/api/v3/hiu/consent/request/on-init',
+  onFetch: '/api/v3/hiu/consent/on-fetch',
+  onNotify: '/api/v3/hiu/consent/request/notify',
+  /** Our `dataPushUrl`: where a HIP delivers the encrypted records. */
+  dataPush: '/api-hiu/data/notification',
+} as const;
+
+/**
  * Bridge administration, for reference only — these are run by hand once per environment, not
  * from application code. Recorded here because NHA's onboarding email quotes **outdated V1
  * paths** (`/gateway/v1/bridges`, `/gateway/v1/bridges/addUpdateServices`), and the V3 collection

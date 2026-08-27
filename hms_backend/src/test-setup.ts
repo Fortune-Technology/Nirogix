@@ -41,3 +41,13 @@ process.env.ABDM_CLIENT_SECRET = '';
 if (!process.env.ENCRYPTION_KEY) {
   process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 }
+
+/**
+ * A push URL, so the M3 receive path is exercised rather than refused.
+ *
+ * `dataPushUrl()` throws when this is unset — deliberately, because ABDM accepts a data request
+ * naming an unreachable endpoint and then delivers nothing (ADR-093). That refusal is correct
+ * behaviour and is asserted in its own test; leaving it unset here would instead make every other
+ * M3 test fail for a configuration reason rather than a behavioural one.
+ */
+process.env.ABDM_HIU_PUSH_BASE_URL = 'https://api-test.example.org';

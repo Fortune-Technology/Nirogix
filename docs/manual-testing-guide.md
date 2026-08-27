@@ -337,9 +337,50 @@ active, stop and report it.
   shows what ABDM now holds, and the copy makes clear the change lands at ABDM rather than only at
   this hospital. The audit log records which fields changed and none of the values.
 
-**⚠ Milestone 1 only.** Creating and verifying an ABHA is implemented. **Sharing health records with
-ABDM (M2 HIP / M3 HIU) is not** — nothing in this build sends a clinical record anywhere. Production
-access additionally needs NHA functional testing, a WASA certificate and HTC approval.
+**⚠ Production access** additionally needs NHA functional testing, a WASA certificate and HTC
+approval. **M3 (fetching records from other providers) is not built.** M2 is — see 5.1b.
+
+### 5.1b Sharing records with ABDM (ABDM Milestone 2 — ADR-087…ADR-091)
+
+**This section has no clicking, and that is not an oversight.** M1 is *outbound* — the desk calls
+ABDM, so you can watch it happen in the Portal. M2 is *inbound*: ABDM calls **us**, on webhooks, and
+it has no screens by design. Nobody at a hospital ever operates M2; it answers requests from the
+patient's own app and from other providers. Until the bridge URL is registered (`BACKLOG.md` I-5) the
+gateway cannot reach us at all, so the honest way to verify M2 is to **play the gateway ourselves**.
+
+One command does that. It drives the real services through the whole chain against your local
+database and deletes its own scratch tenant afterwards:
+
+```bash
+npm run abdm:m2check
+```
+
+- [ ] **5.1b.1 The chain works end to end.** Run it. **Verify:** it finishes with *"M2 is working end
+  to end locally"* and no `✗`. Any failure is a real defect — the script asserts behaviour, not
+  wiring.
+- [ ] **5.1b.2 Read what we would actually send ABDM.** Run `npm run abdm:m2check -- --payloads`.
+  **Verify:** the linking payload's care-context `display` reads like *"OPD records from
+  27/08/2026"* — a **date and a setting, never a diagnosis**. The patient reads that string in their
+  PHR app, so a condition appearing there is a disclosure that cannot be taken back.
+- [ ] **5.1b.3 Linking waits rather than failing.** In the output, **verify** step 5 first reports
+  *"Waiting for a link token"* and only links after the token is delivered. That deferral is correct:
+  a consultation must never fail to save because NHA was slow.
+- [ ] **5.1b.4 Revocation stops a transfer that was already accepted.** **Verify** step 9 reports the
+  consent artefact **deleted** (not flagged), the clinical records **untouched**, nothing pushed to
+  the HIU, and the gateway told the flow errored. **This is the most important check in M2** — a run
+  that sends records after a revoke is a failed run.
+- [ ] **5.1b.5 Nothing goes out unencrypted.** **Verify** step 8 reports the mock payload marked
+  `MOCK-NOT-ENCRYPTED`. That marker is what stops a test envelope ever being mistaken for real
+  ciphertext. In gateway mode the same path produces Fidelius output — there is no third option and
+  no plaintext fallback.
+- [ ] **5.1b.6 It cleans up after itself.** Run it twice. **Verify:** the second run passes
+  identically and no `ZZM2CHECK` tenant is left in the database.
+
+**What this cannot prove, and what remains outstanding.** That ABDM can reach us (needs TLS —
+`BACKLOG.md` I-5); that the four **unverified** inbound paths are correct; and that Fidelius encrypts
+correctly, since mock mode marks rather than encrypts. **No health record has been exchanged with
+ABDM in any environment.** Do not record 5.1b as evidence of a live integration — it is evidence that
+our half is correct.
 
 ### 5.2 Visit / check-in
 

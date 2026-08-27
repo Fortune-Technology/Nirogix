@@ -125,6 +125,12 @@ const EnvSchema = z.object({
   // Requires a JRE on the host. Unset means health records CANNOT be shared: the transfer refuses
   // rather than falling back to anything weaker, so leaving this blank disables M2 data transfer
   // and nothing else.
+  /**
+   * The public base URL a HIP pushes our requested records to (ADR-092) — the same host registered
+   * as the bridge URL. Blank means M3 cannot ask for records: a data request naming an unreachable
+   * push URL is accepted by ABDM and then silently delivers nothing.
+   */
+  ABDM_HIU_PUSH_BASE_URL: z.string().url().optional(),
   FIDELIUS_CLI_PATH: z.string().optional(),
   // NHA's ceiling for completing a data transfer after the request arrives. Kept configurable so a
   // stricter internal target can be set, never a looser one than NHA allows.

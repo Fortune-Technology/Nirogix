@@ -913,6 +913,49 @@ ABDM-M2-24 checks.
 | ABDM-M2-32 | Tenant isolation across every M2 flow | Two tenants, both ABDM-enabled | Repeat discovery and transfer against tenant B's facility id | Tenant A's contexts, consents and records are never reachable | P1 | Security | — | Not run |
 ---
 
+## 23b. ABDM / ABHA — Milestone 3, HIU (ADR-092…ADR-095)
+
+**What M3 is:** the opposite direction from M2. M2 shares *our* records when somebody asks; M3 lets
+our doctor ask a patient for permission to read the history *other* hospitals hold, and then pulls,
+decrypts, stores and displays it.
+
+**Unlike M2, this one has a screen.** The card lives on the patient chart, so most of it can be
+clicked through with `ABDM_PROVIDER=mock` — the gateway calls are recorded rather than sent, and the
+patient's grant is simulated by writing the artefact directly. What cannot be exercised locally is
+marked **Blocked (I-5)**.
+
+**The two cases that decide certification are M3-12 (revoke) and M3-13 (expiry).** Both ask the same
+question, and it is not "is it hidden" — it is **is the data gone**. Check the database, not just the
+screen.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-M3-01 | The card is absent without the module | Tenant NOT entitled to `abdm` | Open a patient chart | No "History from other hospitals" card; no error | P1 | Security | doctor | Not run |
+| ABDM-M3-02 | The front desk cannot request | Tenant entitled | Open a chart as receptionist | No card at all — the desk holds neither `abdm.history.*` key | P1 | Security | receptionist | Not run |
+| ABDM-M3-03 | An administrator may read but not ask | org_admin | Open a chart | The card renders; there is **no** "Request patient consent" button. A direct `POST /abdm/history/request` returns 403 | P1 | Security | org_admin | Not run |
+| ABDM-M3-04 | An unverified ABHA cannot be used | A chart with a hand-typed, unverified ABHA | Open the card | It explains the ABHA must be verified first, and offers no request button. Forcing the call returns 422 | P1 | Security | doctor | Not run |
+| ABDM-M3-05 | A doctor with no registration number cannot be picked | A provider with the field blank | Open the doctor picker | That doctor is absent. With none eligible, the card explains why and offers no button | P1 | Functional | doctor | Not run |
+| ABDM-M3-06 | The request names the doctor the patient will see | ABDM-M3-05 satisfied | Pick a doctor → Request patient consent | The recorded gateway call carries that doctor's name and registration number, and `purpose.code` is `CAREMGT` | P1 | Functional | doctor | Not run |
+| ABDM-M3-07 | Waiting is shown as a state, not a spinner | ABDM-M3-06 | Watch the card | "Waiting for the patient", the asking doctor and the date in `DD/MM/YYYY`, plus a line saying nothing arrives until the patient acts. **Not** a spinner | P1 | UX | doctor | Not run |
+| ABDM-M3-08 | One event raises one notification | ABDM-M3-06 | Press the button once | Exactly one toast, naming what happens next. No second generic "Saved." (ADR-057) | P2 | UX | doctor | Not run |
+| ABDM-M3-09 | Polling stops on its own | A request left unanswered | Leave the chart open past ten minutes; watch the network tab | Polling ceases. An unanswered request must not poll a national gateway all day | P2 | Functional | doctor | Not run |
+| ABDM-M3-10 | One request, several hospitals | Simulate three artefacts against one request | Check `abdm_hiu_consents` | Three rows, one per HIP, each with its own expiry — they are revoked and expire individually | P1 | Functional | — | Not run |
+| ABDM-M3-11 | The merged timeline is chronological, not siloed | Records from three hospitals with different dates | Open the card | One feed, newest first, sources interleaved — **not** a section per hospital | P1 | Functional | doctor | Not run |
+| **ABDM-M3-12** | **HIU_FLOW_202 — revoke deletes the data** | A granted consent with stored records | Post the revoke notification, then check **the database** | `abdm_hiu_records` rows are **gone**, the consent artefact is gone, the keys in `abdm_hiu_data_transfers` are gone, and the records have vanished from the card. An audit row records the purge with counts only | P1 | Security | — | Not run |
+| **ABDM-M3-13** | **HIU_FLOW_301 — expiry deletes the data** | A consent past `data_erase_at` | Wait for the sweep (or run it), then check **the database** | Same as M3-12. Then repeat *without* running the sweep: the records must already be absent from the card while still on disk — hiding and deleting are independent guarantees | P1 | Security | — | Not run |
+| ABDM-M3-14 | Deleting borrowed records never touches ours | ABDM-M3-12 | Open the chart's own History section | Our visits, consultations and lab orders are untouched. Only the borrowed copy was destroyed | P1 | Security | doctor | Not run |
+| ABDM-M3-15 | The audit survives what it records | ABDM-M3-12 | Read `audit_log` for `abdm.hiu.consent_purged` | The entry exists after the data is gone, and contains counts and identifiers only — no clinical content | P1 | Security | org_admin | Not run |
+| ABDM-M3-16 | A checksum mismatch is discarded | Simulate a push with a wrong checksum | Let it process | Nothing stored; the transfer reads `partial` or `failed` with a reason. A record we cannot verify is never shown to a clinician | P1 | Security | — | Not run |
+| ABDM-M3-17 | Encryption unavailable means nothing is read | Gateway mode, `FIDELIUS_CLI_PATH` unset | Push records | Nothing is stored, and the flow is reported errored. There is no plaintext path in either direction | P1 | Security | — | Not run |
+| ABDM-M3-18 | Private keys are unreadable at rest | Any data request | Read `abdm_hiu_data_transfers.private_key_enc` | Starts `v1.`, contains no readable key. Each request has its own — never one reused key | P1 | Security | — | Not run |
+| ABDM-M3-19 | Abnormality is the source's, never ours | A bundle with one flagged and one unflagged value | Open the card | Only the value the source flagged is emphasised. The product never decides a result is abnormal | P1 | Security | doctor | Not run |
+| ABDM-M3-20 | Borrowed records are visibly separate | Records pulled and our own visits present | Open the chart | Two distinct sections. Borrowed records are never merged into our own history | P1 | UX | doctor | Not run |
+| ABDM-M3-21 | The disappearance is explained before it happens | Records on screen | Read the note under the timeline | It states the records vanish when consent is withdrawn or expires and our copy is deleted | P2 | Editorial | doctor | Not run |
+| ABDM-M3-22 | Both themes and a tenant accent | — | Open the card in Light and Dark under a non-default brand colour | Badges, alerts and the abnormal emphasis all follow the tokens; no literal colours | P2 | Visual | any | Not run |
+| ABDM-M3-23 | Tenant isolation | Two tenants, both ABDM-enabled | Request and pull under tenant A, then query as tenant B | None of tenant A's consents, transfers or borrowed records are reachable | P1 | Security | — | Not run |
+| ABDM-M3-24 | Full round trip | Bridge registered, JRE + Fidelius, consent granted from a real PHR app | Request → grant → fetch → read | Records from a real HIP appear on the timeline within the flow's normal time | P1 | Functional | doctor | **Blocked (I-5)** |
+---
+
 ## 24. Notifications & emails (ADR-086)
 
 With `MSG91_API_KEY` unset the dev **log** provider records each send in `notification_log` without
