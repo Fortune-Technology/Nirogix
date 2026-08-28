@@ -31,10 +31,14 @@
 
 :root {
   /* Surfaces — cool-neutral, never warm cream */
-  --mk-canvas: #f4f7f7;        /* page ground */
-  --mk-surface: #ffffff;       /* cards / panels lift off the canvas */
-  --mk-surface-2: #eaf1f1;     /* alt rows, tints, hovers */
-  --mk-surface-ink: #0e1f26;   /* inverted panels (deep CTA) — cool teal-black */
+  --mk-canvas: #f4f7f7;
+  /* page ground */
+  --mk-surface: #ffffff;
+  /* cards / panels lift off the canvas */
+  --mk-surface-2: #eaf1f1;
+  /* alt rows, tints, hovers */
+  --mk-surface-ink: #0e1f26;
+  /* inverted panels (deep CTA) — cool teal-black */
 
   /* Hairlines */
   --mk-hairline: #dbe6e7;
@@ -71,10 +75,14 @@
   /* Radii */
   --mk-radius-xs: 4px;
   --mk-radius-sm: 6px;
-  --mk-radius-md: 8px;   /* buttons, inputs */
-  --mk-radius-lg: 12px;  /* cards */
-  --mk-radius-xl: 16px;  /* product-mockup tiles */
-  --mk-radius-2xl: 24px; /* oversized CTA banners */
+  --mk-radius-md: 8px;
+  /* buttons, inputs */
+  --mk-radius-lg: 12px;
+  /* cards */
+  --mk-radius-xl: 16px;
+  /* product-mockup tiles */
+  --mk-radius-2xl: 24px;
+  /* oversized CTA banners */
 }
 
 /* Dark theme — the cool-neutral palette's dark counterpart (resources/DESIGN.md §2).
@@ -84,7 +92,8 @@
   --mk-canvas: #0b1418;
   --mk-surface: #112128;
   --mk-surface-2: #16272e;
-  --mk-surface-ink: #17303a; /* elevated dark panel for the inverted CTA */
+  --mk-surface-ink: #17303a;
+  /* elevated dark panel for the inverted CTA */
 
   --mk-hairline: #22353c;
   --mk-hairline-soft: #1a2a30;
@@ -95,8 +104,10 @@
   --mk-ink-faint: #566a70;
   --mk-ink-inverse: #ffffff;
 
-  --mk-accent: #22b8cf;         /* brightened teal for contrast on dark */
-  --mk-accent-ink: #052027;     /* dark text on bright teal */
+  --mk-accent: #22b8cf;
+  /* brightened teal for contrast on dark */
+  --mk-accent-ink: #052027;
+  /* dark text on bright teal */
   --mk-accent-hover: color-mix(in srgb, var(--mk-accent) 82%, #fff);
   --mk-accent-subtle: color-mix(in srgb, var(--mk-accent) 18%, var(--mk-surface));
   --mk-accent-border: color-mix(in srgb, var(--mk-accent) 40%, var(--mk-surface));
@@ -106,7 +117,8 @@
   --mk-success: #3fb27f;
   --mk-danger: #f0776a;
 
-  --mk-illustration-stage: #e9eff1; /* soft light medallion for the doctor on dark */
+  --mk-illustration-stage: #e9eff1;
+  /* soft light medallion for the doctor on dark */
 }
 
 /*
@@ -240,7 +252,8 @@ html {
      reset, anchor scrolling) get animated by the browser and interrupted midway, which parks a
      freshly-navigated page slightly below the top. Smoothness comes from Lenis; this element
      only carries the sticky-nav offset that anchor scrolling reads. */
-  scroll-padding-top: 5rem; /* sticky-nav offset for #anchors (read by Lenis + native fallback) */
+  scroll-padding-top: 5rem;
+  /* sticky-nav offset for #anchors (read by Lenis + native fallback) */
 }
 
 body {
@@ -277,7 +290,7 @@ a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--mk-accent);
+  outline: 2.1px solid var(--mk-accent);
   outline-offset: 2px;
   border-radius: var(--mk-radius-xs);
 }
