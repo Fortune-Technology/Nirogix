@@ -71,9 +71,12 @@ module.exports = {
     // incident — deploy/README.md). If PM2 shows a hand-run admin process, delete it
     // before starting this entry, or the port is taken (EADDRINUSE crash-loop).
     next('nirogix-admin', './admin', PORTS.admin),
-    // patient + aiportal deploy with BACKLOG F-5. Their entries are ready — uncomment
-    // when their Nginx server blocks land, after the same port audit.
-    // next('nirogix-patient', './patient', PORTS.patient),
-    // next('nirogix-aiportal', './aiportal', PORTS.aiportal),
+    // Live since BACKLOG F-5 (28/08/2026), landed in one change with their Nginx server blocks
+    // and the `certbot --expand` covering patient-staging + ai-staging. Same rule the admin
+    // entry above was written for: a surface goes live only WITH its ecosystem entry — never
+    // hand-started beside it, or the next deploy replaces the files under a process this file
+    // does not name and every route dies with ChunkLoadError (2026-08-19 incident).
+    next('nirogix-patient', './patient', PORTS.patient),
+    next('nirogix-aiportal', './aiportal', PORTS.aiportal),
   ],
 };

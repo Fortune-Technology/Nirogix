@@ -452,14 +452,20 @@ pm2 startup
 
 Run the command `pm2 startup` prints, as root — that is what survives a reboot.
 
-Confirm four listeners, one per app:
+Confirm six listeners, one per app:
 
 ```bash
-ss -tulpn | grep -E ':(3000|3001|3003|4000)\b'
+ss -tulpn | grep -E ':(3000|3001|3002|3003|3004|4000)\b'
 ```
 
-`patient` and `aiportal` are intentionally commented out in `ecosystem.config.cjs` until
-`BACKLOG.md` F-5 ships. Four processes is correct, not a fault.
+All six apps are ecosystem-managed since `BACKLOG.md` F-5 (28/08/2026) — `4000` API, `3000`
+marketing, `3001` Portal, `3002` patient, `3003` admin, `3004` AI Portal. Fewer than six means
+a process failed to start, not that something is deliberately held back; read `pm2 logs` for the
+missing name before continuing.
+
+> **Each Next.js app needs its `.env` on the VM before it is built**, not after —
+> `NEXT_PUBLIC_*` values are inlined at build time, so a file written later leaves a bundle
+> still pointing at `localhost`. See each app's `.env.example`; nothing there is committed.
 
 ---
 
@@ -477,7 +483,9 @@ Edit `/etc/nginx/sites-available/nirogix.conf` and replace every `${...}` placeh
 | `${PORTAL_HOST}` | `portal-staging.nirogix.com` |
 | `${API_HOST}` | `api-staging.nirogix.com` |
 | `${ADMIN_HOST}` | `admin-staging.nirogix.com` |
-| `${NIROGIX_PORT_API}` … | `4000` / `3000` / `3001` / `3003` |
+| `${PATIENT_HOST}` | `patient-staging.nirogix.com` |
+| `${AIPORTAL_HOST}` | `ai-staging.nirogix.com` |
+| `${NIROGIX_PORT_API}` … | `4000` / `3000` / `3001` / `3002` / `3003` / `3004` |
 | `${SSL_CERT_PATH}` / `${SSL_KEY_PATH}` | Filled in by certbot below |
 
 Delete the `www.${MARKETING_HOST}` redirect block — it is production-only, and staging has no
@@ -487,8 +495,9 @@ Delete the `www.${MARKETING_HOST}` redirect block — it is production-only, and
 sudo ln -sf /etc/nginx/sites-available/nirogix.conf /etc/nginx/sites-enabled/nirogix.conf && sudo nginx -t
 ```
 
-Issue certificates for **the four hosts that actually serve**. `patient-staging` and `ai-staging`
-resolve but run no process (`BACKLOG.md` F-5), so they are left out until they do.
+Issue certificates for **all six hosts** — every one of them now serves (`BACKLOG.md` F-5,
+28/08/2026). On a box whose certificate predates F-5 and covers only four, add `--expand` to the
+same command and it is widened in place rather than replaced.
 
 > **Check every name in the command resolves to THIS box first.** Certbot validates each one over
 > HTTP-01 against whatever DNS says, and **one failure fails the whole request** — no certificate
@@ -496,17 +505,21 @@ resolve but run no process (`BACKLOG.md` F-5), so they are left out until they d
 > repointed and `staging` had not, which would have taken all four down with it.
 >
 > ```bash
-> for h in staging portal-staging api-staging admin-staging; do printf "%-18s %s\n" "$h" "$(dig +short $h.nirogix.com)"; done
+> for h in staging portal-staging api-staging admin-staging patient-staging ai-staging; do printf "%-18s %s\n" "$h" "$(dig +short $h.nirogix.com)"; done
 > ```
 >
 > Every line must show this node's address before you run certbot.
 
 ```bash
-sudo certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com -d admin-staging.nirogix.com
+sudo certbot --nginx --expand -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com -d admin-staging.nirogix.com -d patient-staging.nirogix.com -d ai-staging.nirogix.com
 ```
 
-Certbot fills in the certificate paths and reloads Nginx. Add the remaining two hosts with
-`certbot --expand` in the change that deploys those apps.
+Certbot fills in the certificate paths and reloads Nginx. `--expand` is a no-op on a fresh box
+and widens an existing four-host certificate on one that already ran this step.
+
+**This must come after the Nginx config above is installed and reloaded.** HTTP-01 reaches the
+challenge through the port-80 block, which answers for a hostname only once that hostname is in
+its `server_name` — the F-5 template lists all six.
 
 ### Basic auth — now, not later
 
@@ -517,13 +530,35 @@ a production-shaped dataset; it is not public.
 sudo htpasswd -c /etc/nginx/.htpasswd-staging nirogix
 ```
 
-Add these three lines inside **each** of the four `server` blocks listening on 443:
+Add the `X-Robots-Tag` line to every 443 block that does not already carry it (the patient and
+AI Portal blocks set it in the template, because neither is indexable in any environment):
+
+```nginx
+add_header X-Robots-Tag "noindex, nofollow" always;
+```
+
+Add the two `auth_basic` lines to **four** of the six 443 blocks — `${MARKETING_HOST}`,
+`${PORTAL_HOST}`, `${ADMIN_HOST}`, `${AIPORTAL_HOST}`:
 
 ```nginx
 auth_basic "Nirogix staging";
 auth_basic_user_file /etc/nginx/.htpasswd-staging;
-add_header X-Robots-Tag "noindex, nofollow" always;
 ```
+
+**Two hosts are excluded on purpose. Each exclusion is a decision, and re-adding auth to either
+one breaks something real:**
+
+- **`${API_HOST}`** — browser XHR from the other apps is cross-origin and sends no
+  `Authorization: Basic` header, so auth here breaks the apps it would be protecting. The API
+  authenticates every route itself.
+- **`${PATIENT_HOST}`** — `/register/{token}` is the ADR-056 public self-registration form
+  reached from a hospital's printed QR. Password-protecting it means staging never exercises the
+  one flow a stranger is supposed to reach. The accepted consequence is that patient
+  self-registration is publicly reachable on staging; what holds it safe is the endpoint's own
+  posture — opaque path token, tenant resolved server-side, identical answer for unknown /
+  retired / disabled, no clinical write, sign-in-tier rate limit, audited with no actor — plus
+  staging carrying only the ADR-058 synthetic dataset. Reasoning also recorded on the server
+  block itself and in `resources/domains.md` §9.
 
 The ACME challenge is already exempt: the port-80 block carries a
 `location ^~ /.well-known/acme-challenge/` with `auth_basic off`. Without it, basic auth breaks

@@ -28,11 +28,12 @@ state with production and is never indexable.
 
 ## Topology (single VM, per architecture)
 
-- **Nginx** terminates TLS on the origin (Let's Encrypt via certbot) and reverse-proxies to three PM2 apps
-  (`deploy/nginx/nirogix.conf.template`): Marketing→:3000, Portal→:3001, API→:4000. The
-  `patient`, `admin` and `aiportal` apps are not deployed yet (`BACKLOG.md` F-5); their ports
-  are reserved and their upstreams land in the same file when they are.
-- **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`, `nirogix-marketing`
+- **Nginx** terminates TLS on the origin (Let's Encrypt via certbot) and reverse-proxies to all six PM2
+  apps (`deploy/nginx/nirogix.conf.template`): Marketing→:3000, Portal→:3001, Patient→:3002,
+  Admin→:3003, AI Portal→:3004, API→:4000. One upstream and one 443 server block each.
+  `patient` and `aiportal` completed the set on 28/08/2026 (`BACKLOG.md` F-5).
+- **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`,
+  `nirogix-marketing`, `nirogix-admin`, `nirogix-patient`, `nirogix-aiportal`
   (`deploy/ecosystem.config.cjs`).
 - **PostgreSQL** = managed E2E DBaaS, provisioned **separately** from the app VM. The app
   connects as a **non-superuser** role (RLS `FORCE` is bypassed by superusers — see
@@ -227,9 +228,9 @@ runner has the memory the VM does not. The **VM** then deploys affected-only:
 4. **Reload.** Only the PM2 apps whose workspace was rebuilt:
    `pm2 reload deploy/ecosystem.config.cjs --only <names> --env staging`, then `pm2 save`.
    The candidate names are intersected with the apps actually defined in
-   `ecosystem.config.cjs`, so the not-yet-deployed patient/admin/aiportal are skipped until
-   BACKLOG F-5 uncomments them there — no workflow edit needed. Before any PM2 command the
-   script sources **`/etc/nirogix/ports.env`** (`set -a`) — this file is **required on the VM**:
+   `ecosystem.config.cjs` — all six since BACKLOG F-5 (28/08/2026), and the workflow needed no
+   edit to pick the last two up. Before any PM2 command the script sources
+   **`/etc/nirogix/ports.env`** (`set -a`) — this file is **required on the VM**:
    a non-interactive SSH shell reads no `.bashrc`, and without `NIROGIX_PORT_*` PM2 would
    re-parse the ecosystem onto default ports on a shared box (EADDRINUSE crash-loop). The deploy
    aborts before touching PM2 if the file is missing.
@@ -239,6 +240,42 @@ runner has the memory the VM does not. The **VM** then deploys affected-only:
 
 Required GitHub **staging environment** secrets: `STAGING_HOST`, `STAGING_USER`,
 `STAGING_SSH_KEY`, `STAGING_PATH`.
+
+### Bringing a NEW workspace online — affected-only will not do it for you
+
+Affected-only (step 2) diffs the *files* changed since the last deployed commit. A change that
+only **enables** a workspace — uncommenting its `ecosystem.config.cjs` entry, adding its Nginx
+block — touches none of that workspace's own files, so Turbo reports it as unaffected, builds
+nothing, and the deploy prints `No deployed app affected — PM2 untouched`. The new app never
+starts. Its `.next` output does not exist on the VM at all, so there is nothing for `next start`
+to serve even if PM2 tried.
+
+So the first deploy of a workspace is **always** a manual `workflow_dispatch` run on the branch,
+which is a same-commit redeploy and therefore takes the full-build path (`MODE=full`) and reloads
+everything. `pm2 reload` on a name PM2 has never seen starts it, so no `pm2 start` is needed —
+but check `pm2 ls` rather than assuming, and check the port is genuinely free first: a leftover
+hand-started process on the same port turns this into an `EADDRINUSE` crash-loop.
+
+Order matters, because each step depends on the one before it:
+
+1. **Per-app `.env` on the VM first.** `NEXT_PUBLIC_*` is inlined at **build** time, so an env
+   file written after the build produces a bundle still pointing at `localhost`. Nothing here is
+   committed — see each app's `.env.example`.
+2. **Full deploy** (`workflow_dispatch`) — builds the new workspace and starts its PM2 app.
+   Confirm the listener exists before touching Nginx, or the proxy has nothing to reach.
+3. **Nginx** — install the updated template, `nginx -t`, reload. Proxying to a dead port is a
+   502; proxying to a port that was never built is a 502 that looks like an app bug.
+4. **Certificate** — `certbot --nginx --expand` with the full host list. This must come *after*
+   step 3, because HTTP-01 reaches the challenge through the port-80 block, which only answers
+   for a hostname once that hostname is in its `server_name`.
+5. **Backend `CORS_ORIGINS`** — add the new origin to the API's `.env` on the VM and restart the
+   backend. It is an explicit allowlist with no wildcard (ADR-036), so a new frontend whose
+   origin is missing loads fine and then fails every XHR, which reads as an auth bug rather than
+   a configuration one. The full per-environment list is in `resources/domains.md` §8.
+
+Until step 4 lands, the new host answers on 443 with a certificate that does not name it, and
+every client fails the hostname check outright rather than degrading — `SEC_E_WRONG_PRINCIPAL`
+in curl, `ERR_CERT_COMMON_NAME_INVALID` in a browser.
 
 ### Rollback
 

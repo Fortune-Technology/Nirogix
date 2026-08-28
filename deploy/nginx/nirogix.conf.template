@@ -6,17 +6,30 @@
 #
 # Hosts come from resources/domains.md. Issue one certificate covering the hosts on this VM:
 #   certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com \
-#                   -d api-staging.nirogix.com -d admin-staging.nirogix.com
+#                   -d api-staging.nirogix.com -d admin-staging.nirogix.com \
+#                   -d patient-staging.nirogix.com -d ai-staging.nirogix.com
+#   An existing four-host certificate is widened in place with that same list plus --expand.
+#   Every name must already resolve to THIS box: HTTP-01 validates each one, and a single
+#   failure fails the whole request — no certificate for any host, not merely the broken one.
+#
 #   Production  PORTAL_HOST=portal.nirogix.com          MARKETING_HOST=nirogix.com
 #               API_HOST=api.nirogix.com                ADMIN_HOST=admin.nirogix.com
+#               PATIENT_HOST=patient.nirogix.com        AIPORTAL_HOST=nirogix.ai
+#                 AIPORTAL_HOST has no production value yet: nirogix.ai is not registered
+#                 (BACKLOG F-6) and a *.nirogix.com certificate cannot cover it. Omit the AI
+#                 block from a production install until that zone exists.
 #   Staging     PORTAL_HOST=portal-staging.nirogix.com  MARKETING_HOST=staging.nirogix.com
 #               API_HOST=api-staging.nirogix.com        ADMIN_HOST=admin-staging.nirogix.com
+#               PATIENT_HOST=patient-staging.nirogix.com
+#               AIPORTAL_HOST=ai-staging.nirogix.com    staging AI stays on the nirogix.com zone
 #
 # Routing:
 #   ${PORTAL_HOST}      -> Portal (Next.js, PM2 nirogix-portal, :${NIROGIX_PORT_PORTAL})
 #   ${MARKETING_HOST}   -> Marketing (Next.js, PM2 nirogix-marketing, :${NIROGIX_PORT_MARKETING})
 #   ${API_HOST}         -> API (Express, PM2 nirogix-backend, :${NIROGIX_PORT_API})
 #   ${ADMIN_HOST}       -> Platform administration (Next.js, PM2 nirogix-admin, :${NIROGIX_PORT_ADMIN})
+#   ${PATIENT_HOST}     -> Patient portal (Next.js, PM2 nirogix-patient, :${NIROGIX_PORT_PATIENT})
+#   ${AIPORTAL_HOST}    -> AI Portal (Next.js, PM2 nirogix-aiportal, :${NIROGIX_PORT_AIPORTAL})
 #
 # SHARED VM (deploy/README.md → "Shared VM: audit ports first"): the upstream ports below are
 # PLACEHOLDERS substituted at install time with the SAME NIROGIX_PORT_* values the PM2 ecosystem
@@ -34,6 +47,8 @@ upstream nirogix_backend  { server 127.0.0.1:${NIROGIX_PORT_API}; keepalive 16; 
 upstream nirogix_portal   { server 127.0.0.1:${NIROGIX_PORT_PORTAL}; keepalive 16; }
 upstream nirogix_marketing{ server 127.0.0.1:${NIROGIX_PORT_MARKETING}; keepalive 16; }
 upstream nirogix_admin    { server 127.0.0.1:${NIROGIX_PORT_ADMIN}; keepalive 16; }
+upstream nirogix_patient  { server 127.0.0.1:${NIROGIX_PORT_PATIENT}; keepalive 16; }
+upstream nirogix_aiportal { server 127.0.0.1:${NIROGIX_PORT_AIPORTAL}; keepalive 16; }
 
 # --- API -------------------------------------------------------------------
 server {
@@ -108,6 +123,78 @@ server {
   }
 }
 
+# --- Patient portal ---------------------------------------------------------
+# Verified, hospital-provisioned patients (ADR-052) — plus ONE deliberately public route,
+# `/register/{token}`, the hospital's own registration form reached from its printed QR
+# (ADR-056).
+#
+# THAT ROUTE IS WHY THIS HOST CARRIES NO BASIC AUTH — the only staging UI host that does not
+# (BACKLOG F-5, decided 28/08/2026). Password-protecting it would make the one flow that must
+# be reachable by a stranger untestable, so staging would never exercise the real thing.
+# Accepted consequence, stated plainly: patient self-registration is publicly reachable on
+# staging. What keeps that safe is the endpoint's own posture, never the host — the tenant is
+# resolved server-side from an opaque token in the path, unknown / retired / disabled all
+# answer identically so tenants cannot be enumerated, it writes no clinical row, it is
+# rate-limited at the sign-in tier, it is audited with no actor, and it creates a request for
+# the front desk rather than an account. Staging holds only the ADR-058 deterministic
+# synthetic dataset — never real patient information.
+#
+# Every other route on this host still requires a patient session; basic auth was never the
+# boundary. Adding it here later is a decision to stop testing ADR-056 on staging.
+server {
+  listen 443 ssl http2;
+  server_name ${PATIENT_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  server_tokens off;
+
+  # noindex in EVERY environment, not only staging (ADR-027, resources/domains.md §2): the
+  # patient portal is never an indexable surface. Belt and braces over the app's own robots.ts.
+  add_header X-Robots-Tag "noindex, nofollow" always;
+
+  location / {
+    proxy_pass http://nirogix_patient;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+# --- AI Portal --------------------------------------------------------------
+# Authorised staff and operators only, behind `ai.portal.access` — a key no role holds, so
+# only WILDCARD reaches it — and a patient principal is refused server-side by principal type
+# before the permission is even read (ADR-053). No public route by design, so staging basic
+# auth costs nothing here and keeps an unreleased surface off the open internet: this host
+# DOES take the two staging auth_basic lines, ${PATIENT_HOST} does not.
+#
+# Staging runs on ${AIPORTAL_HOST} (ai-staging.nirogix.com — on the nirogix.com zone, and
+# therefore on the same certificate). Production is nirogix.ai, unregistered — BACKLOG F-6.
+server {
+  listen 443 ssl http2;
+  server_name ${AIPORTAL_HOST};
+
+  ssl_certificate     ${SSL_CERT_PATH};
+  ssl_certificate_key ${SSL_KEY_PATH};
+
+  server_tokens off;
+
+  # Never indexable, in any environment (ADR-027).
+  add_header X-Robots-Tag "noindex, nofollow" always;
+
+  location / {
+    proxy_pass http://nirogix_aiportal;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
 # --- Marketing (root domain) -----------------------------------------------
 server {
   listen 443 ssl http2;
@@ -147,18 +234,37 @@ server {
 
 # --- Staging only -----------------------------------------------------------
 # Uncomment on the staging VM. Belt-and-braces on top of each app's robots.ts: an
-# indexed staging copy is both an SEO defect and a leak of unreleased copy. Access
-# control (Nginx basic auth, ADR-045) sits in front of all three hosts as well.
+# indexed staging copy is both an SEO defect and a leak of unreleased copy.
 #
 #   add_header X-Robots-Tag "noindex, nofollow" always;
 #
-# Add it inside each server block above, not here.
+# Add it inside each server block above that does not already carry it — the patient and AI
+# Portal blocks set it unconditionally, because neither is indexable in ANY environment.
+#
+# -- Basic auth: which hosts get it, and why two do not (ADR-045; BACKLOG F-5) --
+#
+#   auth_basic "Nirogix staging";
+#   auth_basic_user_file /etc/nginx/.htpasswd-staging;
+#
+#   YES  ${MARKETING_HOST}  ${PORTAL_HOST}  ${ADMIN_HOST}  ${AIPORTAL_HOST}
+#
+#   NO   ${API_HOST}      Browser XHR from those apps is cross-origin and carries no
+#                         Authorization: Basic header, so auth here breaks the very apps it
+#                         would be protecting. The API authenticates every route itself.
+#
+#   NO   ${PATIENT_HOST}  /register/{token} is the ADR-056 public self-registration form —
+#                         see the reasoning on that server block. Deliberate, and the one
+#                         staging UI host a stranger can reach.
+#
+# The ACME challenge is already exempt in the port-80 block below (auth_basic off). Without
+# that exemption basic auth breaks certificate RENEWAL while issuance still works — a failure
+# that surfaces ~60 days later as an expired certificate.
 
 # Redirect plain HTTP to HTTPS. Keep the ACME challenge path reachable over HTTP so
 # certbot can renew (HTTP-01) — that exception is below.
 server {
   listen 80;
-  server_name ${API_HOST} ${PORTAL_HOST} ${MARKETING_HOST} ${ADMIN_HOST};
+  server_name ${API_HOST} ${PORTAL_HOST} ${MARKETING_HOST} ${ADMIN_HOST} ${PATIENT_HOST} ${AIPORTAL_HOST};
   server_tokens off;
 
   # The exception the redirect depends on. `^~` beats the prefix match below it, so the

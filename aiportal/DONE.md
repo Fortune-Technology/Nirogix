@@ -71,3 +71,34 @@ values change (CLAUDE.md → *Environment files*).
 
 **Testing status:** no runtime change — env keys and their values are unchanged for local
 development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+## 2026-08-28 — Deployed to staging: PM2 entry, Nginx server block, certificate, basic auth on
+
+**What:** the AI Portal is now a deployed surface rather than a local-only one (`BACKLOG.md`
+F-5), shipped in the same change as `patient/` so neither host could go live half-configured
+(the 2026-08-19 ChunkLoadError incident).
+
+**Changed:** `deploy/ecosystem.config.cjs` — `nirogix-aiportal` uncommented, `next start` on
+`NIROGIX_PORT_AIPORTAL` (:3004); `deploy/nginx/nirogix.conf.template` — a `nirogix_aiportal`
+upstream, a 443 server block for `${AIPORTAL_HOST}` with the websocket headers, `server_tokens
+off` and an unconditional `X-Robots-Tag: noindex, nofollow`, and the hostname added to the
+port-80 redirect so HTTP-01 can validate it; `resources/domains.md`, `deploy/README.md` and
+`deploy/e2e-provisioning.md` updated to six hosts, six ports and six PM2 apps.
+
+**Basic auth: on.** The AI Portal has no public route by design — `ai.portal.access` is held by
+no role, and a patient principal is refused by principal type before the permission is read
+(ADR-053) — so staging basic auth costs nothing and keeps an unreleased surface off the open
+internet. This is the opposite call from `patient-staging`, and for a reason recorded in both
+places.
+
+**Host:** staging runs on `ai-staging.nirogix.com`, which sits on the `nirogix.com` zone and
+therefore on the same certificate as every other staging host. `nirogix.ai` is still
+unregistered (`BACKLOG.md` F-6), so it blocks only the **production** AI host — it never blocked
+this. A `*.nirogix.com` certificate cannot cover it, so production AI needs its own zone and its
+own certificate.
+
+**Testing status:** no application code changed, so no test was added or affected. The Nginx
+template passes a structural lint; `nginx -t` still runs on the VM at install. **The first
+deploy of this workspace needs a manual `workflow_dispatch` run** — affected-only builds nothing
+when a change touches no file inside the workspace (deploy/README.md § Bringing a NEW workspace
+online).

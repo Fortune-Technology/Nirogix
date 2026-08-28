@@ -60,3 +60,34 @@ values change (CLAUDE.md → *Environment files*).
 
 **Testing status:** no runtime change — env keys and their values are unchanged for local
 development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+## 2026-08-28 — Deployed to staging: PM2 entry, Nginx server block, certificate, no basic auth
+
+**What:** the patient portal is now a deployed surface rather than a local-only one
+(`BACKLOG.md` F-5). It shipped in the same change as `aiportal`, deliberately — a partial
+rollout is the 2026-08-19 ChunkLoadError incident again, where a surface existed on the VM
+without being ecosystem-managed and served a stale build after the next deploy.
+
+**Changed:** `deploy/ecosystem.config.cjs` — `nirogix-patient` uncommented, `next start` on
+`NIROGIX_PORT_PATIENT` (:3002); `deploy/nginx/nirogix.conf.template` — a `nirogix_patient`
+upstream, a 443 server block for `${PATIENT_HOST}` with the websocket headers, `server_tokens
+off` and an unconditional `X-Robots-Tag: noindex, nofollow`, and the hostname added to the
+port-80 redirect so HTTP-01 can validate it; `resources/domains.md`, `deploy/README.md` and
+`deploy/e2e-provisioning.md` updated to six hosts, six ports and six PM2 apps.
+
+**Basic auth: deliberately not on this host.** Every other staging UI host is behind Nginx basic
+auth. `patient-staging` is not, because `/register/{token}` is the ADR-056 public
+self-registration form a hospital prints on a QR poster — password-protecting it would mean
+staging never exercises the one flow a stranger is supposed to reach. The consequence is
+accepted and written down rather than left implicit: patient self-registration is publicly
+reachable on staging. What holds it safe is the endpoint's own posture, never the host — opaque
+path token, tenant resolved server-side, identical answer for unknown / retired / disabled, no
+clinical write, sign-in-tier rate limit, audited with no actor — plus staging carrying only the
+ADR-058 synthetic dataset. Every other route on the host still needs a patient session.
+
+**Testing status:** no application code changed, so no test was added or affected. The Nginx
+template passes a structural lint (placeholder substitution, brace balance, statement
+termination, duplicate `server_name`, upstream/`proxy_pass` agreement); `nginx -t` still runs on
+the VM at install. **The first deploy of this workspace needs a manual `workflow_dispatch` run**
+— affected-only builds nothing when a change touches no file inside the workspace, and there is
+no `.next` output on the VM yet (deploy/README.md § Bringing a NEW workspace online).
