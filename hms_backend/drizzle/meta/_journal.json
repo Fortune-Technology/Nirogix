@@ -197,6 +197,111 @@
       "when": 1787037641321,
       "tag": "0027_happy_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1787122688861,
+      "tag": "0028_yielding_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787230521423,
+      "tag": "0029_security_lockout_request_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787631996140,
+      "tag": "0030_violet_sleeper",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787718801891,
+      "tag": "0031_damp_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1787734074072,
+      "tag": "0032_living_wendell_rand",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787742248434,
+      "tag": "0033_tough_naoko",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787743345493,
+      "tag": "0034_gifted_odin",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787744694775,
+      "tag": "0035_ancient_vargas",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787803374235,
+      "tag": "0036_cheerful_roland_deschain",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1787805899799,
+      "tag": "0037_daffy_shaman",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787820914055,
+      "tag": "0038_old_flatman",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787821196333,
+      "tag": "0039_volatile_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787821657010,
+      "tag": "0040_fair_blue_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787821657011,
+      "tag": "0041_abha_number_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1787826650003,
+      "tag": "0042_sour_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

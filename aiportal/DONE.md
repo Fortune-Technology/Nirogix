@@ -51,3 +51,23 @@ None of these is a security control, and the code says so: the backend refuses e
 The *Access restricted* screen is still worth having — it now means a deliberate denial rather than the default, which is what a screen like that should mean.
 
 **Testing status:** verified live — all seven hospital roles and the platform owner get **200**; a patient token gets **401** and no token gets **401**. 103 backend tests pass.
+
+## 2026-08-20 — Content-Security-Policy and idle sign-out in the AI Portal (ADR-082)
+
+**What:** the same `proxy.ts` + nonced layout and shared idle sign-out as the other authenticated apps. This app is still a boundary with no capability behind it (ADR-053); it is hardened on the same schedule as the rest rather than being left as the one app without a policy.
+
+**Testing status:** verified live — the landing screen renders under the policy with no violations. Build and typecheck green.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the AI Portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` trimmed to 1–2 line comments with every key uncommented; the gitignored
+`.env` mirrors the same keys in the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.

@@ -316,6 +316,7 @@ export const ADDONS: ModuleEntry[] = [
     planned: [],
   },
   {
+    // Stays `planned` until NHA certifies production access — see catalogue.ts and ADR-084.
     slug: "abdm",
     name: "ABDM & Health Records",
     icon: Network,

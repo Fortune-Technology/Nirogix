@@ -24,17 +24,20 @@ import {
   Button,
   Card,
   DataTable,
+  PeriodFilter,
   StatCard,
   UsageBar,
+  usePeriodParam,
   type Column,
+  type PeriodValue,
   type Series,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AuditEntry, PlatformStats, PlatformTrends } from "@hms/types";
 import { formatDateTime, formatDayLabel, formatMonthLabel } from "@hms/utils";
-import * as api from "../../lib/api";
-import { RequirePermission } from "../../components/Can";
-import { PageHeader } from "../../components/PageHeader";
+import * as api from "../../../lib/api";
+import { RequirePermission } from "../../../components/Can";
+import { PageHeader } from "../../../components/PageHeader";
 
 /**
  * The System Admin dashboard (ADR-037, ADR-043) — the whole platform, never one
@@ -53,11 +56,18 @@ import { PageHeader } from "../../components/PageHeader";
  * hospital's records.
  */
 
-/** Ranges the operator can ask for. Kept small — each one is a real query. */
-const RANGES = [
-  { months: 6, label: "6 months" },
-  { months: 12, label: "12 months" },
-  { months: 24, label: "24 months" },
+// Monthly buckets: the platform growth story reads over months-to-years, so the console
+// offers the month/financial-year presets (the Portal's daily view carries the short ones).
+const TREND_PRESETS = [
+  "last3Months",
+  "last6Months",
+  "last12Months",
+  "last24Months",
+  "thisFinancialYear",
+  "lastFinancialYear",
+  "thisYear",
+  "lastYear",
+  "custom",
 ] as const;
 
 /** Metrics the platform cannot report yet, named honestly instead of estimated. */
@@ -98,7 +108,7 @@ const securityColumns: Array<Column<AuditEntry>> = [
 ];
 
 function PlatformOverview() {
-  const [months, setMonths] = useState<number>(12);
+  const [period, setPeriod] = usePeriodParam("last12Months");
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [trends, setTrends] = useState<PlatformTrends | null>(null);
   const [security, setSecurity] = useState<AuditEntry[]>([]);
@@ -107,18 +117,21 @@ function PlatformOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (range: number) => {
+  // Range-independent metrics — fetched once. The KPI row, security table and system
+  // health do not change with the trend window, so switching 6/12/24 months must not
+  // refetch them or toggle their loading state (which is what made the whole page
+  // reflow). Mirrors the Portal dashboard, where the range filter touches only the
+  // trend data.
+  const loadStatic = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, t, sec, failed, h] = await Promise.all([
+      const [s, sec, failed, h] = await Promise.all([
         api.getPlatformStats(),
-        api.getPlatformTrends(range),
         api.listAudit({ pageSize: 8, severity: "warning", sortBy: "createdAt", sortDir: "desc" }),
         api.listAudit({ pageSize: 1, search: "auth.login.failure" }),
         api.getSystemHealth(),
       ]);
       setStats(s);
-      setTrends(t);
       setSecurity(sec.data);
       setFailedLogins(failed.page.total);
       setHealth(h);
@@ -130,9 +143,24 @@ function PlatformOverview() {
     }
   }, []);
 
+  // The only range-dependent data. The previous trend stays on screen while the next
+  // one loads, so a filter switch eases the charts to their new shape without blanking
+  // or resizing anything around them.
+  const loadTrends = useCallback(async (p: PeriodValue) => {
+    try {
+      setTrends(await api.getPlatformTrends({ from: p.start, to: p.end }));
+    } catch {
+      setError("Could not load platform metrics.");
+    }
+  }, []);
+
   useEffect(() => {
-    void load(months);
-  }, [load, months]);
+    void loadStatic();
+  }, [loadStatic]);
+
+  useEffect(() => {
+    void loadTrends(period);
+  }, [loadTrends, period]);
 
   const monthLabels = useMemo(() => (trends?.hospitals ?? []).map((p) => formatMonthLabel(p.period)), [trends]);
   const dayLabels = useMemo(() => (trends?.events ?? []).map((p) => formatDayLabel(p.period)), [trends]);
@@ -177,22 +205,7 @@ function PlatformOverview() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-fg-muted">Showing</span>
-          <div className="inline-flex rounded-token border border-border bg-surface p-0.5">
-            {RANGES.map((r) => (
-              <button
-                key={r.months}
-                type="button"
-                onClick={() => setMonths(r.months)}
-                aria-pressed={months === r.months}
-                className={
-                  "rounded-token px-3 py-1.5 text-sm font-medium transition-colors " +
-                  (months === r.months ? "bg-brand-subtle text-brand" : "text-fg-muted hover:text-fg")
-                }
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          <PeriodFilter value={period} onChange={setPeriod} presets={[...TREND_PRESETS]} align="start" />
         </div>
         {trends ? (
           <span className="text-xs text-fg-subtle">
@@ -238,8 +251,12 @@ function PlatformOverview() {
         />
       </div>
 
-      {/* Growth + onboarding */}
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      {/* Growth + onboarding.
+          `minmax(0,…)` (not a bare `1.6fr`, which is `minmax(auto,…)`) keeps the split
+          ratio fixed at every range — otherwise the Onboarding bar chart, wider at 24
+          months than at 6, pushes its own track and inverts the layout. `[&>*]:min-w-0`
+          lets the cards shrink to their track so the charts reflow instead of overflowing. */}
+      <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Card
           header={
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -292,7 +309,7 @@ function PlatformOverview() {
       </div>
 
       {/* Adoption + health */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
         <Card
           header={
             <div className="flex items-center justify-between gap-2">
@@ -375,7 +392,7 @@ function PlatformOverview() {
             rows={security}
             rowKey={(r) => r.id}
             loading={loading}
-            onRetry={() => void load(months)}
+            onRetry={() => void loadStatic()}
             pagination={false}
             columnVisibility={false}
             searchable={false}

@@ -4,6 +4,8 @@ The complete manual test pass for the platform, organised by module. A tester wh
 
 **This file is maintained with the code, not at the end.** A new page, workflow, endpoint, component, validation, permission, or behaviour adds its cases in the same change; changed behaviour updates them; removed behaviour deletes them; a change that can affect existing functionality adds regression cases (`resources/rules.md` → Manual Test Cases). Automated tests do not replace this file, and this file does not replace automated tests.
 
+> **Run the automated suite first.** `npm run test:regression` covers authentication, roles and permissions, tenant isolation, the clinical workflow's state transitions, and five-app smoke. **`docs/automated-testing.md` maps each area below to the suite that covers it** and states plainly what is still manual-only. Start a manual pass from a green suite — a case already covered automatically needs a spot-check here, not a full re-run.
+
 ## How to read a case
 
 | Field | Meaning |
@@ -40,6 +42,28 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | AUTH-20 | Refresh rotation invalidates the previous token (H-4 regression) | Signed in | Trigger a refresh, then replay the previous `hms_refresh` cookie | **401** — before this was fixed, two tokens minted in the same second were identical and the old one stayed valid for its whole lifetime | P1 | Security | receptionist | Not run |
 | AUTH-21 | Refresh cookie is path-scoped | Signed in | Inspect the cookie | `HttpOnly`, `SameSite=Lax`, `Path=/api/v1/auth`, `Secure` in production, and **no** `Domain` attribute | P1 | Security | receptionist | Not run |
 | AUTH-22 | A patient token is not a staff token | A patient token | Call any staff route with it | **401** — refused by principal type, before any permission is read (ADR-052) | P1 | Security | — | Not run |
+| AUTH-30 | Forgot password — request (Portal) | Seeded tenant | `/login` → **Forgot password?** → enter org code + a real staff email → submit | Inline success: "If an account matches, a password-reset link has been emailed…" — no toast; an email is sent (dev: logged by the log provider) | P1 | Functional | any | Not run |
+| AUTH-31 | Forgot password — uniform response | — | Same, with an unknown email, then an unknown org code | The **same** inline message and timing as AUTH-30 — the endpoint is not a directory (ADR-081) | P1 | Security | anonymous | Not run |
+| AUTH-32 | Reset link sets a new password | A reset email's link | Open the link → enter a new password (≥10 chars) twice → submit | Success message; sign-in works with the new password and refuses the old one | P1 | Functional | any | Not run |
+| AUTH-33 | Reset link is single-use | AUTH-32 done | Open the same link again and submit another password | "Invalid or expired reset link" — the consumed link is dead | P1 | Security | any | Not run |
+| AUTH-34 | Reset link expires | A link older than 30 min | Open and submit | Same uniform "Invalid or expired reset link" | P1 | Security | any | Not run |
+| AUTH-35 | Reset revokes every session | Signed in on another browser when the reset lands | Complete AUTH-32, then act in the other browser | The other session is signed out (refresh refused); user signs in again with the new password | P1 | Security | any | Not run |
+| AUTH-36 | Forgot password on the Admin console | — | `admin` app `/login` → **Forgot password?** → operator org code + email | Same flow as the Portal; the emailed link opens the **admin** app's reset page (ADMIN_URL), not the Portal's | P1 | Functional | super_admin | Not run |
+| AUTH-37 | Operator changes own password in the Admin console | Signed in as an operator | Sidebar → **My profile** → Password card → current + new (≥10, twice) → Change password | Success toast; signed out everywhere (this session too); sign-in works with the new password only. Wrong current password → 422 message, nothing changes | P1 | Security | super_admin | Not run |
+| AUTH-40 | Account locks after repeated failures (H-3) | A test staff account | Sign in with a wrong password 5 times in a row | The 5th attempt still says "Invalid credentials"; the account is now locked for 1 minute | P1 | Security | any | Not run |
+| AUTH-41 | The real user is told about the lock | AUTH-40 done | Sign in with the CORRECT password while locked | 429 with "Too many failed sign-in attempts. Try again in N minute(s)." — only a caller with the right password learns a lock exists | P1 | Security | any | Not run |
+| AUTH-42 | The lock is not an enumeration oracle | AUTH-40 done | Sign in with a wrong password while locked | The same generic "Invalid credentials" as any wrong password — no mention of a lock | P1 | Security | anonymous | Not run |
+| AUTH-43 | Attempts during a lock do not extend it | AUTH-40 done | Keep attempting wrong passwords, then wait out the original window | The account unlocks on the original schedule; somebody who knows an email cannot hold it shut | P1 | Security | anonymous | Not run |
+| AUTH-44 | Backoff grows, then the lock lifts | A locked account | Fail again after the first lock expires; note the wait each time | 60s, 2 min, 4 min… to a 15-minute ceiling; no administrator action is ever needed | P2 | Security | any | Not run |
+| AUTH-45 | A lock is per account, not per hospital | AUTH-40 done | Sign in as a DIFFERENT user in the same tenant | Signs in normally — one locked account never blocks a ward | P1 | Security | any | Not run |
+| AUTH-46 | The lock is in the audit trail | AUTH-40/41 done | Audit log → filter Warning/Critical | `auth.login.locked` when it locked and `auth.login.blocked` for attempts against it; ≥10 failures shows as **Critical** | P1 | Security | org_admin | Not run |
+| AUTH-47 | Success clears the streak | A partly-failed account (fewer than 5) | Sign in correctly, then fail once | The next lock takes a full 5 failures again — the counter reset on success | P2 | Functional | any | Not run |
+| AUTH-48 | Password policy on change and reset (M-6) | Signed in | My profile → Password → try `password1234`, then `Short#1a`, then your own name + year | Each is refused with a specific reason (commonly guessed / too short / built from your own details); a genuinely strong one is accepted | P1 | Security | any | Not run |
+| AUTH-49 | Password policy on admin-created accounts | org_admin | Users → New user → supply a weak password | 422 with the same policy message the user sees on self-service — an admin-created account is not an exemption | P1 | Security | org_admin | Not run |
+| AUTH-50 | Generated temporary passwords are strong | org_admin | Users → New user with **no** password → note the temp password; repeat 3 times | 16 characters, mixed classes, and no shared prefix between them (it used to start `Hms-` every time) | P2 | Security | org_admin | Not run |
+| AUTH-51 | Idle sign-out (L-5) | Signed in | Leave the tab untouched for 15 minutes, then return | Signed out, back at `/login`, with an info toast naming inactivity; the session is dead server-side, not just in the tab | P1 | Security | any | Not run |
+| AUTH-52 | Idle timer is per browser, not per tab | Signed in, two tabs open | Work continuously in tab A for 20 minutes without touching tab B | Neither tab signs out — activity is shared across tabs | P2 | Functional | any | Not run |
+| AUTH-53 | Idle sign-out on the patient portal | A signed-in patient | Leave the portal idle for 15 minutes | Same behaviour on the patient app, which is opened on borrowed phones and kiosks | P1 | Security | patient | Not run |
 
 ## 2. Authorization, roles & tenancy
 
@@ -50,9 +74,28 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | RBAC-03 | API refuses what the UI hides | Signed in as receptionist | Call `GET /api/v1/audit` with that token (Swagger/curl) | HTTP 403 with the canonical error shape — visibility is not the control | P1 | Security | receptionist | Not run |
 | RBAC-04 | Explicit DENY beats a role grant | org_admin can manage overrides | Users → pick a user with `patient.view` via role → add DENY override for it → sign in as them | Patients is hidden and `/patients` 403s despite the role granting it | P1 | Security | org_admin | Not run |
 | RBAC-05 | Temporary override window | — | Add a GRANT with `validUntil` in the past, then one valid now | Expired override grants nothing; current one grants immediately | P2 | Security | org_admin | Not run |
+| RBAC-06 | Sidebar item ↔ page guard parity | — | For each role, compare every sidebar item against opening its route directly | Every item the sidebar shows opens without a Forbidden panel; nothing permitted is missing. The rule: a nav item's permission is its landing page's guard (nav.ts) | P1 | Security | all roles | Not run |
+| RBAC-07 | Doctor and the pharmacy workspace | Signed in as doctor | Check the sidebar; then open `/pharmacy` directly | No **Pharmacy** item (doctor holds stock-view for the in-consult formulary, not dispense); direct `/pharmacy` still shows the Forbidden panel and the API still 403s | P1 | Security | doctor | Not run |
 | TEN-01 | Tenant isolation in the UI | Two seeded tenants | Sign in to CITYCARE, note a patient UHID; sign in to SUNRISE and search for it | Not found — no cross-tenant record is reachable | P1 | Security | org_admin | Not run |
 | TEN-02 | Tenant isolation at the API | Token for CITYCARE | Request a SUNRISE record id directly | 404/403, never another tenant's data | P1 | Security | org_admin | Not run |
 | TEN-03 | Super admin sits outside customer tenants | — | Sign in as `jaivik@thefortunetech.com` | Platform surfaces (Tenants, platform branding) are available; no clinical menu for a hospital they do not belong to | P2 | Security | super_admin | Not run |
+
+### Module & capability entitlement (ADR-085)
+
+The capability tier beneath modules. Chain: `requireAuth → requireModule → requireCapability → requirePermission`. Deny-by-exception — a capability is ON by default whenever its module is entitled. The `billing.services` capability (services & packages catalogue) is the shipped demonstrator; there is no capability-config UI yet (P5), so disable/enable is exercised at the service/API level.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CAP-07 | Sidebar hides a module the tenant lacks | Lab technician at a tenant WITHOUT `laboratory` | Sign in, read the sidebar | No **Laboratory** item, though the role holds `laboratory.order.view`; re-granting the module restores it on the next load | P1 | Security | lab_technician | Not run |
+| CAP-08 | Direct URL to a hidden module is refused | As above | Type `/laboratory` | The screen reports "This module is not available for your organization" and the API answers 403 `MODULE_NOT_ENTITLED` — hiding was never the boundary | P1 | Security | lab_technician | Not run |
+| CAP-09 | Sidebar hides a switched-off capability | Receptionist; `opd` on, `opd.referral` off | Sign in, read the sidebar | No **Referrals** item although the role holds `opd.referral.view`; OPD queue still present; re-enabling restores it | P1 | Security | receptionist | Not run |
+| CAP-10 | Operator does not bypass entitlement | Platform operator in a support session at a tenant without a module | Read the sidebar | The module is absent — WILDCARD grants permissions, never entitlement | P2 | Security | super_admin | Not run |
+| CAP-01 | Capability ON by default | Tenant entitled to `billing`, no capability config | Call `GET /api/v1/billing/services` with a permitted token | 200 — the catalogue works with no capability row (deny-by-exception default-ON) | P1 | Functional | cashier | Not run |
+| CAP-02 | Disabling a capability gates its API | `billing` entitled; `billing.services` set DISABLED for the tenant | Call `GET/POST /api/v1/billing/services` | 403 `CAPABILITY_NOT_ENTITLED` regardless of the user's `billing.services.*` permission — a capability off overrides every role that holds its permission | P1 | Security | cashier | Not run |
+| CAP-03 | Module off cascades to its capabilities | `billing` suspended | Resolve `billing.services` | Capability is off even with no capability row — a capability is never entitled when its module is not | P1 | Security | — | Not run |
+| CAP-04 | Entitlements surface carries capabilities | Signed in | `GET /api/v1/entitlements` | Response has `modules` **and** `capabilities` (enabled capability keys of entitled modules); disabling one drops it from the list | P2 | Functional | org_admin | Not run |
+| CAP-05 | Dependency guard on configure | `abdm` entitled; `abdm.facility` + `abdm.scan_share` on | Attempt to disable `abdm.facility` while `abdm.scan_share` is enabled | Refused, naming `abdm.scan_share`; enabling `abdm.scan_share` while `abdm.facility` is off is likewise refused | P2 | Functional | — | Not run |
+| CAP-06 | Disable ≠ delete (invariant #6) | Tenant had `billing.services` used, then DISABLED | Read existing invoices/lines that referenced catalogue services | Historical invoices and lines remain readable; only new catalogue operations are blocked | P1 | Security | cashier | Not run |
 
 ## 3. Shared UI: DataTable, toasts, dates
 
@@ -68,6 +111,7 @@ The complete manual test pass for the platform, organised by module. A tester wh
 | TBL-08 | Empty state | Search for nonsense on any table | — | Shared empty state with a clear message (and an action where offered), never a blank table | P2 | UI/UX | any | Not run |
 | TBL-09 | Loading state | Throttle the network, open a list page | — | Skeleton rows render, not a layout jump | P3 | UI/UX | any | Not run |
 | TBL-10 | Error state + retry | Stop the API, open a list page | — | Shared error state with a Try again control; retry works once the API is back | P2 | UI/UX | any | Not run |
+| UI-30 | Scrollbars follow the theme | Any app, any scrollable view (page, sidebar, dialog, dropdown, table) | Check scrollbars in Light, toggle Dark, re-check; hover the thumb | Thin token-coloured thumb on a transparent track in BOTH themes (never the browser default white/grey in Dark); hover darkens the thumb; consistent across all five apps | P2 | UI/UX | any | Not run |
 | TBL-11 | Overflow row actions | Any table using `MoreActions` | Open the "…" menu on a row | Same menu everywhere; only permitted actions appear; Esc closes; arrow keys move between items | P2 | Accessibility | any | Not run |
 | ACT-01 | The Action column is identical everywhere | `/patients`, `/users`, `/branches`, `/appointments`, `/opd`, `/billing`, `/admin/tenants` | Compare the last column on each | Always last, **left-aligned** (ADR-064), headed "Actions", same icon size, spacing and hover treatment; never more than three inline icons | P1 | UI/UX | org_admin | Not run |
 | ACT-02 | Action tooltips and labels | Any table with row actions | Hover, then tab to each action | Every action has a tooltip and the same accessible name; icons are never unlabelled | P1 | Accessibility | any | Not run |
@@ -390,6 +434,19 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | ADM-01 | Onboard a tenant | — | Tenants → Create → org details → modules → first admin → branch | Tenant created; temporary password shown **once**; the new admin can sign in | P1 | Functional | super_admin | Not run |
 | ADM-02 | Duplicate org code | Existing code | Reuse it | Rejected with a clear message | P2 | Validation | super_admin | Not run |
 | ADM-03 | Grant / revoke a module | Existing tenant | Toggle a module | Entitlement changes; the tenant's menu reflects it after re-login; hard dependencies are enforced | P1 | Functional | super_admin | Not run |
+| ADM-CAP-01 | Capabilities card lists module sub-features | Tenant entitled to Billing (+ Laboratory/ABDM) | Open the tenant → Capabilities card | Each entitled module that has sub-features is listed with its capabilities, all **Enabled** by default; a module with none is absent | P1 | Functional | super_admin | Not run |
+| ADM-CAP-02 | Disable a capability | As above | Disable `billing.services` | Badge flips to Disabled + success toast; the hospital's `GET /billing/services` then returns 403 `CAPABILITY_NOT_ENTITLED` while other Billing routes still work; historical invoices remain readable | P1 | Functional | super_admin | Not run |
+| ADM-CAP-03 | Dependency conflict is refused with a message | ABDM entitled; `abdm.facility` + `abdm.scan_share` on | Disable `abdm.facility` | Refused (409); the toast shows the backend message naming `abdm.scan_share`; the badge does not change | P2 | Functional | super_admin | Not run |
+| ADM-MOD-01 | Three-level manager opens | A tenant | Tenant → Manage modules & capabilities | `tenants/[id]/modules`: Level 1 rail lists all 11 domains with counts; Level 2 lists that domain's modules; clicking one opens Level 3 (its capabilities) with a breadcrumb back | P1 | Functional | super_admin | Not run |
+| ADM-MOD-07 | Whole catalog is present | — | Walk every domain | 42 modules / 246 capabilities across Core, Clinic/OPD, Hospital, Billing, Add-ons, Specialty, Clinical Support, Patient Engagement, Reporting, AI, Platform Services — nothing from the decomposition missing | P1 | Functional | super_admin | Not run |
+| ADM-MOD-08 | Platform Services is required, not togglable | — | Open Platform Services | Shows **Required 🔒**, is always enabled, and offers no Enable/Disable control; its capabilities list Authentication, Authorization, Audit Logging etc. | P2 | Functional | super_admin | Not run |
+| ADM-MOD-02 | Enabled-configuration preview | A tenant with a mix on | Read the top "Enabled configuration" card | Lists every enabled module grouped by domain with per-module feature counts (e.g. ABDM 3/3); matches what is toggled on | P1 | Functional | super_admin | Not run |
+| ADM-MOD-03 | Unbuilt modules are honest | — | Open the Hospital domain | IPD/ICU/OT/Emergency/CSSD show **"Coming soon — no screens yet"** and their hard-deps; never presented as working | P1 | Functional | super_admin | Not run |
+| ADM-MOD-04 | Search & filter | — | Type "billing"; then the Coming-soon filter | Search spans domains and matches modules + capabilities; the filter narrows to unbuilt modules | P2 | Functional | super_admin | Not run |
+| ADM-MOD-05 | Module dependency confirmation | A tenant with `opd` (needs patient) enabled | Disable `patient` | A confirmation names the enabled modules that depend on it before revoking; Cancel leaves it enabled | P2 | Functional | super_admin | Not run |
+| ADM-MOD-09 | Capability toggles at onboarding | — | Tenants → Create → expand a selected module (chevron) | Its capabilities list with On/Off pills, all **On** by default; switching some off and creating the tenant leaves exactly those off on the new tenant's Capabilities view, everything else on | P1 | Functional | super_admin | Not run |
+| ADM-MOD-10 | Capability control needs its module | — | Expand an **unselected** module | Its capability pills are visible but disabled ("Select the module first"); selecting the module enables them | P2 | UI/UX | super_admin | Not run |
+| ADM-MOD-06 | Onboarding modules grouped by domain | — | Tenants → Create → Modules section | Chips are grouped under domain headings (Core, Clinic/OPD, Hospital, Billing, Add-ons…), not one flat list; unbuilt modules show a **soon** marker; the MVP defaults are pre-selected | P2 | UI/UX | super_admin | Not run |
 | ADM-04 | Suspend a tenant | Active tenant | Set status suspended | Its users can no longer sign in | P1 | Security | super_admin | Not run |
 | ADM-05 | Platform branding scopes | — | Admin → Branding → change marketing, then the Nirogix Portal default | Each scope changes only its own surface; the other is untouched | P2 | Functional | super_admin | Not run |
 | ADM-06 | Non-super-admin is refused | org_admin token | Open `/admin/tenants`; call the API directly | Forbidden panel; API 403 | P1 | Security | org_admin | Not run |
@@ -711,6 +768,18 @@ Run at staging bring-up and again before each production release. Every case her
 | RATE-02 | Successful logins are not penalised | Same | Sign in and out repeatedly | Never throttled — only failures consume the allowance | P2 | Functional | any | Not run |
 | RATE-03 | Password-change throttling | Same | Submit the change form 21 times in 15 minutes | Refused with 429 | P2 | Security | any | Not run |
 | CORS-01 | Cross-origin is refused in production | Production build with `CORS_ORIGINS` set | Call the API from an origin outside the allowlist | Browser blocks it; the server logs the refused origin | P1 | Security | anonymous | Not run |
+| CSP-01 | Every app sends a Content-Security-Policy (M-1) | Each app running | Load each of the five apps and inspect the response headers | A `content-security-policy` header on all five; the four authenticated apps carry `'nonce-…' 'strict-dynamic'`, marketing carries the static policy | P1 | Security | any | Not run |
+| CSP-02 | No CSP violations in normal use | Portal running | Walk sign-in → patients → a patient → billing → print preview with the console open | No "violates the following Content Security Policy directive" messages; tenant logos and report images render | P1 | Security | any | Not run |
+| CSP-03 | An injected inline script does not run | Portal running | In devtools, append `<script>window.__x=1</script>` to the DOM | Blocked by policy; `window.__x` stays undefined (the nonce is what makes this hold) | P1 | Security | any | Not run |
+| CSP-04 | The app cannot be framed | Any app | Embed a page in an `<iframe>` from another origin | Refused — `frame-ancestors 'none'` plus `X-Frame-Options: DENY` | P1 | Security | anonymous | Not run |
+| CSP-05 | Device permissions are closed | Any app | Inspect `Permissions-Policy` | Camera, geolocation, payment and topics are empty; only `microphone=(self)` is allowed, for dictation (ADR-070) | P2 | Security | any | Not run |
+| REQID-01 | Every response carries a request id (L-3) | — | Make any API call and inspect the response headers | `X-Request-Id` present on every response, different per request | P2 | Functional | any | Not run |
+| REQID-02 | The id ties a response to its audit row | Signed in as org_admin | Perform a mutation, note `X-Request-Id`, then open Audit log | A row exists carrying that same request id, so a support report can be traced without matching timestamps | P1 | Security | org_admin | Not run |
+| REQID-03 | A supplied id cannot poison the trail | — | Send `X-Request-Id: <script>alert(1)</script>` and then a clean `X-Request-Id: trace-0123456789` | The junk value is replaced with a fresh UUID; the plain id is honoured | P2 | Security | anonymous | Not run |
+| UPLOAD-01 | A renamed binary is refused (M-4) | Signed in with upload rights | Rename any `.exe`/binary to `.png` and upload it as a logo or report attachment | 422 "contents do not match its declared type" — nothing is stored | P1 | Security | org_admin | Not run |
+| UPLOAD-02 | A real file declared as the wrong type is refused | Same | Upload a genuine PDF with its type declared as `image/png` | 422, same message | P2 | Security | org_admin | Not run |
+| UPLOAD-03 | Genuine files still upload | Same | Upload a real PNG, JPEG, PDF and a `.txt` | All succeed; existing logo, letterhead and lab-report attachment flows are unaffected | P1 | Functional | org_admin | Not run |
+| DOCS-01 | API documentation is closed in production (L-2) | Production build | Open `/api/v1/docs` and `/api/v1/openapi.json` | Both 404 unless `OPENAPI_UI_ENABLED=true` is deliberately set; in development and staging both still work | P1 | Security | anonymous | Not run |
 
 ## 21. System master data & immunisations (ADR-072)
 
@@ -743,10 +812,221 @@ Run at staging bring-up and again before each production release. Every case her
 
 ---
 
+## 23. ABDM / ABHA — Milestone 1 (ADR-084)
+
+Run with `ABDM_PROVIDER=mock` unless a case says otherwise; the mock's OTP is `123456` and the scenario is selected by the **last digit of the Aadhaar** (`0` already has an ABHA, `1` no linked mobile, `5` two ABHA accounts, `9` OTP rejected, anything else a clean creation). Sandbox OTPs are also returned in-band, so the same steps hold against the real sandbox.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-01 | Panel absent without the module | Tenant NOT entitled to `abdm` | Patients → Register patient | No ABHA panel; the form is exactly as before; no error toast | P1 | Security | receptionist | Not run |
+| ABDM-02 | Panel absent without the permission | Tenant entitled; role lacks `abdm.verification.perform` | Register patient as a doctor | No ABHA panel; `GET /abdm/capabilities` returns 403 | P1 | Security | doctor | Not run |
+| ABDM-03 | Facility settings gated to the administrator | Tenant entitled | Open Hospital configuration as receptionist | The ABDM / ABHA tab is absent; a direct `PUT /abdm/facility` returns 403 | P1 | Security | receptionist | Not run |
+| ABDM-04 | Register the hospital's facility | org_admin | Hospital configuration → ABDM / ABHA → enter facility id, QR payload, enable Scan and Share → Save | Saved; the QR preview renders and scans in a phone camera | P1 | Functional | org_admin | Not run |
+| ABDM-05 | Scan and Share leads when configured | ABDM-04 done | Register patient | The Scan & Share tab is selected by default and marked "Fastest" | P2 | UX | receptionist | Not run |
+| ABDM-06 | Scan and Share offered only when it can work | Facility id present, QR empty | Register patient | The Scan & Share tab is disabled with a tooltip; the other two work | P1 | UX | receptionist | Not run |
+| ABDM-07 | Consent gate — Aadhaar | — | Create a new ABHA, fill an Aadhaar, do NOT tick consent | Send OTP stays disabled; forcing the call returns 422 `ABDM_CONSENT_REQUIRED` | P1 | Security | receptionist | Not run |
+| ABDM-08 | Create an ABHA with Aadhaar OTP | Consent ticked | Aadhaar `111122223333` → Send OTP → enter `123456` → Verify | Profile shown, "New ABHA created", demographics readable, match = new | P1 | Functional | receptionist | Not run |
+| ABDM-09 | Verification fills the form by itself | ABDM-08 | Complete the verification | The form is filled the moment verification succeeds — no extra click — with a "Details filled into the form below" note naming anything ABDM did not send | P1 | Functional | receptionist | Not run |
+| ABDM-09a | Prefill never overwrites typed input | A name already typed before verifying | Complete the verification | The typed value survives; only empty fields fill; every field stays editable | P1 | Functional | receptionist | Not run |
+| ABDM-09b | A returning patient does NOT auto-fill | A chart already holds that ABHA | Complete the verification | The form is left alone and the existing chart is offered; filling anyway needs the explicit "Register as a new patient anyway" | P1 | Security | receptionist | Not run |
+| ABDM-10 | One button finishes the job | ABDM-09 | Press Register patient | Chart created; the ABHA reads as verified on it; the audit log holds `abdm.abha.linked`. From a shared profile this is the ONLY button the receptionist presses | P1 | Functional | receptionist | Not run |
+| ABDM-10a | The ABHA number is stored intact | Any completed flow | Open the chart | The number reads `XX-XXXX-XXXX-XXXX` in full — not partially masked. (Regression: the Aadhaar scrubber used to mangle it, since its last 12 digits are a 4-4-4 group) | P1 | Functional | receptionist | Not run |
+| ABDM-10b | A +91 mobile is accepted | Aadhaar flow with a different mobile | Enter the mobile through the phone field | Accepted and normalised — `+91…`, `91…`, `0…` and the bare 10 digits all work | P2 | Functional | receptionist | Not run |
+| ABDM-11 | Secondary mobile verification | — | Aadhaar `444455556666` with a different mobile → verify | A second OTP step appears for that mobile; after it the profile carries the new number | P1 | Functional | receptionist | Not run |
+| ABDM-12 | ABHA address creation | A newly created ABHA | Pick a suggested address → Create ABHA address | The address is claimed and appears on the prefill | P2 | Functional | receptionist | Not run |
+| ABDM-13 | ABHA card download | A completed verification | Download the card | The card opens inline; nothing is added to the hospital's file store | P2 | Functional | receptionist | Not run |
+| ABDM-14 | Rejected OTP | — | Aadhaar `111122223339` → verify with any OTP | A clear "OTP is incorrect or has expired" message; the form is still usable | P1 | Negative | receptionist | Not run |
+| ABDM-15 | Aadhaar with no linked mobile | — | Aadhaar `111122223331` → Send OTP | ABDM's own message is shown ("No mobile number is linked to this Aadhaar"), not generic copy | P1 | Negative | receptionist | Not run |
+| ABDM-16 | Manual fallback undisturbed | Any ABDM failure | Ignore the panel and complete the form by hand | Registration succeeds exactly as before; the ABHA number stays unverified | P1 | Functional | receptionist | Not run |
+| ABDM-17 | Verify an existing ABHA by number | Patient holds an ABHA | Verify by ABHA number → OTP | Profile returned and prefilled | P1 | Functional | receptionist | Not run |
+| ABDM-18 | Verify by ABHA address | — | Verify using an `@sbx` address → OTP | Profile returned | P1 | Functional | receptionist | Not run |
+| ABDM-19 | Verify by mobile | — | Verify using a mobile → OTP | Profile returned; the hint shows a masked number only | P1 | Functional | receptionist | Not run |
+| ABDM-20 | Verify by Aadhaar | Consent ticked | Verify using an Aadhaar → OTP | Profile returned; consent is required exactly as for creation | P1 | Functional | receptionist | Not run |
+| ABDM-21 | Several ABHA accounts on one identifier | — | Verify with a mobile ending `5` | An account picker appears; choosing one loads that profile | P2 | Functional | receptionist | Not run |
+| ABDM-22 | Returning patient by ABHA number | A chart already holds that ABHA | Verify the same ABHA again | Marked "Already registered here"; the existing chart is offered; no duplicate created | P1 | Functional | receptionist | Not run |
+| ABDM-23 | Demographic look-alike is never merged | A chart with the same first name, gender and birth year | Verify a profile matching those | Shown as similar charts to check, not as a confirmed match; registering is still possible | P1 | Functional | receptionist | Not run |
+| ABDM-24 | One ABHA, one chart | ABDM-22 | Try to link the same ABHA to a second chart | 409 "This ABHA is already linked to UHID-…" | P1 | Negative | receptionist | Not run |
+| ABDM-25 | Hand-editing un-verifies | A chart with a verified ABHA | Edit the ABHA number by hand and save | The verified marker disappears; the source reads manual | P1 | Functional | receptionist | Not run |
+| ABDM-26 | Scan and Share arrival | ABDM-04 done; a PHR app, or a POST to the callback | Patient scans the facility QR | The profile appears at the desk within a few seconds and can be used | P1 | Functional | receptionist | Not run |
+| ABDM-27 | Callback cannot enumerate hospitals | — | POST the callback with a facility id that does not exist | Identical `202 {"accepted": true}` — same status and body as a real facility | P1 | Security | none (public) | Not run |
+| ABDM-28 | Tenant isolation | Two hospitals, both entitled | Hospital B checks its pending shares | B never sees A's shared profiles or verifications | P1 | Security | receptionist | Not run |
+| ABDM-29 | No Aadhaar in logs or audit | An Aadhaar flow just run | Search the API log and the audit table for the 12 digits | Not present anywhere; only `XXXXXXXX1234` hints | P1 | Security | tester | Not run |
+| ABDM-30 | No token reaches the browser | An Aadhaar flow just run | Inspect every ABDM network response in devtools | No linking token, no profile token, no Aadhaar echoed back | P1 | Security | tester | Not run |
+| ABDM-35 | Profile update is not a front-desk action | Receptionist, default roles | Complete a verification and look for the ABDM correction control | Absent; a direct `PATCH /abdm/profile` returns 403. Verifying an identity and amending the register are different acts | P1 | Security | receptionist | Not run |
+| ABDM-36 | An administrator can correct the profile at ABDM | org_admin, completed verification | Correct these details at ABDM → change the last name → Save at ABDM | Saved; the panel shows the profile as ABDM now holds it | P1 | Functional | org_admin | Not run |
+| ABDM-37 | The copy says where the change lands | ABDM-36 | Open the correction panel | It states the change is at ABDM, not just at this hospital, and points at the form below for a local-only fix | P1 | Editorial | org_admin | Not run |
+| ABDM-38 | An empty correction is refused | org_admin | Open the panel and save without changing anything | 422 — a PATCH that changes nothing is named, not silently accepted | P2 | Negative | org_admin | Not run |
+| ABDM-39 | The audit records fields, never values | ABDM-36 | Check the audit log for `abdm.profile.updated` | It lists which fields changed and contains none of the new values | P1 | Security | org_admin | Not run |
+| ABDM-31 | Expired verification | A verification older than `ABDM_TXN_TTL_SECONDS` | Try to continue it | 410 "This verification has expired. Please start again." | P2 | Negative | receptionist | Not run |
+| ABDM-32 | Test mode is stated, never hidden | `ABDM_PROVIDER=mock` | Open the panel | A "Test mode" notice naming the fixed OTP; no claim that a real ABHA was created | P1 | Editorial | receptionist | Not run |
+| ABDM-33 | Gateway unreachable | `ABDM_PROVIDER=gateway`, network blocked | Try to send an OTP | A clear failure that points at manual registration; nothing half-written | P1 | Negative | receptionist | Not run |
+| ABDM-34 | Both themes and a tenant accent | — | Open the panel in Light and Dark under a non-default brand colour | Tabs, QR frame, badges and alerts all follow the tokens | P2 | Visual | any | Not run |
+
+---
+
+## 23a. ABDM / ABHA — Milestone 2, HIP (ADR-087…ADR-091)
+
+**Read this before running any of it.** Every M2 flow is a round trip with the ABDM gateway, and the
+gateway cannot reach us until the bridge URL is registered. **TLS on `api-staging.nirogix.com` is
+done** (verified 27/08/2026); registering the bridge URL is the remaining step, and it still points at
+NHA's `webhook.site` placeholder (`BACKLOG.md` I-5). Until then, run with `ABDM_PROVIDER=mock`, which
+**records** each gateway call instead of sending it: what a tester verifies locally is *what we
+decided and what we would have sent*, which is the half we control. Cases needing a live gateway are
+marked **Blocked (I-5)** in Status and must not be recorded as passed on the mock.
+
+Transfer additionally needs `FIDELIUS_CLI_PATH` and a JRE in gateway mode. Unset, transfer is
+**disabled**, not degraded — every request is refused, which is the intended behaviour and is what
+ABDM-M2-24 checks.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-M2-01 | A completed consultation becomes a care context | Tenant entitled to `abdm`; a verified ABHA on the chart | Sign an OPD consultation | One `abdm_care_contexts` row for that visit, status `pending`, HI type `OPConsultation` | P1 | Functional | doctor | Not run |
+| ABDM-M2-02 | One context per visit, accumulating types | ABDM-M2-01 | Add a prescription and a verified lab result to the same visit | Still ONE row; `hi_types` grows to three; no duplicate reference number | P1 | Functional | doctor | Not run |
+| ABDM-M2-03 | The label carries no clinical information | ABDM-M2-01 | Read `display_label` | Reads `OPD records from DD/MM/YYYY` — a date and a setting, never a diagnosis; the patient sees this string in their PHR app | P1 | Security | any | Not run |
+| ABDM-M2-04 | An unverified ABHA is never linkable | A chart with a hand-typed ABHA address, never verified | Complete a visit and check the linkable list | The context is excluded; nothing is offered to the gateway | P1 | Security | receptionist | Not run |
+| ABDM-M2-05 | A revoked consent is deleted, not flagged | A stored consent artefact | `POST /api/v3/consent/request/hip/notify` with `X-HIP-ID` set and `notification.status = REVOKED` | The `abdm_consents` row is **gone**; an audit row records the revocation. (Until 27/08/2026 this case could not be run at all — the callback did not exist, so a real revocation never reached us: ADR-101) | P1 | Security | org_admin | Not run |
+| ABDM-M2-05a | A granted consent arrives and is stored | Facility registered with that `X-HIP-ID` | Post the same callback with `status = GRANTED` and a full `consentDetail` | An `abdm_consents` row appears carrying the ABHA address, HIU id, purpose code, HI types and the **exact** permission window; audit records `abdm.consent.granted` | P1 | Functional | org_admin | Not run |
+| ABDM-M2-05b | An expired consent is treated exactly like a revocation | A stored artefact | Post the callback with `status = EXPIRED` | The row is gone; the audit entry says expired, not revoked | P1 | Functional | org_admin | Not run |
+| ABDM-M2-05c | An unrecognised status changes nothing | A stored artefact | Post the callback with `status = PENDING` | The artefact is **still there** and nothing new is stored; a warning names the unknown status. Guessing either way is unsafe — inventing a revocation destroys permission the patient still wants | P1 | Security | org_admin | Not run |
+| ABDM-M2-05d | A grant naming no patient is refused | — | Post `status = GRANTED` with an empty `consentDetail.patient.id` | Nothing is stored. Every transfer check matches on the ABHA address, so such a row would read as consent while behaving as though none existed | P1 | Security | org_admin | Not run |
+| ABDM-M2-05e | The acknowledgement follows the action, never precedes it | Mock mode | Post a revocation, then read the recorded gateway calls | `consent/v3/request/hip/on-notify` was called with `acknowledgement.status = OK`, the consent id, and `response.requestId` equal to the **inbound `REQUEST-ID` header**; the artefact was already deleted when it went out | P1 | Security | — | Not run |
+| ABDM-M2-05f | An unknown facility is dropped silently | — | Post the callback with an `X-HIP-ID` no tenant owns | `202` exactly as for a known facility, nothing stored, no acknowledgement sent. The response must not differ in status, body or timing, or it becomes a way to enumerate hospitals (ADR-056) | P1 | Security | — | Not run |
+| ABDM-M2-05g | A re-sent revocation is not an error | ABDM-M2-05 done | Post the identical revocation again | Accepted; still no row; no failure. The gateway retries, and a second revocation must be a no-op | P2 | Functional | — | Not run |
+| ABDM-M2-06 | An expired consent is purged on schedule | An artefact whose `data_erase_at` has passed | Run the expiry sweep | The row is gone; the audit entry says expired, not revoked | P1 | Functional | org_admin | Not run |
+| ABDM-M2-07 | Deleting a consent never deletes a record | ABDM-M2-05 | Open the patient chart | Every clinical record is intact — the consent is what expired, not the care (invariant #6) | P1 | Security | doctor | Not run |
+| ABDM-M2-08 | A link token is encrypted at rest | Gateway mode, a delivered token | Read `abdm_link_tokens.token_enc` | Starts `v1.` and contains no readable JWT | P1 | Security | — | Not run |
+| ABDM-M2-09 | A near-expiry token counts as absent | A token expiring within a day | Run the linking sweep | It asks for a fresh token instead of starting a link that would die mid-flight | P2 | Functional | — | Not run |
+| ABDM-M2-10 | One notification per patient, not per record | A visit with three HI types | Run the linking sweep | ONE gateway call for that patient, its payload fanning out into per-type blocks | P2 | Functional | — | Not run |
+| ABDM-M2-11 | The sweep is safe to run twice | ABDM-M2-10 | Run it again immediately | Nothing is re-sent; already-linked contexts are skipped | P1 | Functional | — | Not run |
+| ABDM-M2-12 | A link failure returns to pending | A failure callback for a linked context | Post the failure, run the sweep | The context is `pending` again and retried; `linked_at` never drifts | P1 | Functional | — | Not run |
+| ABDM-M2-13 | Linking round trip | Bridge URL registered | Sign a consultation, wait for the sweep | The care context appears in the patient's PHR app | P1 | Functional | doctor | **Blocked (I-5)** |
+| ABDM-M2-14 | Discovery matches on a verified ABHA alone | A chart with a verified ABHA | Send a discovery request for that address | One patient, `matchedBy: HEALTH_ID`, care contexts listed by label only | P1 | Functional | — | Not run |
+| ABDM-M2-15 | Demographics alone are not enough | A chart with that mobile only | Discovery with the mobile but no name or year of birth | No match | P1 | Security | — | Not run |
+| ABDM-M2-16 | Ambiguity means no match | Two charts sharing a household mobile, name and birth year | Send that discovery | **Nobody** is returned — never a guess | P1 | Security | — | Not run |
+| ABDM-M2-17 | A registration number cannot make a match | A chart whose UHID is known | Discovery with only that number | No match; it may only break a tie between demographic candidates | P1 | Security | — | Not run |
+| ABDM-M2-18 | The OTP goes to the number on the chart | ABDM-M2-14 | Start a user-initiated link | The code is sent to the chart's mobile, never to an address supplied in the request; the code is never returned in any response | P1 | Security | — | Not run |
+| ABDM-M2-19 | A wrong code answers rather than hangs | ABDM-M2-18 | Confirm with a wrong code | `on-confirm` is answered with an empty patient list; the attempt is audited | P1 | Negative | — | Not run |
+| ABDM-M2-20 | Someone else's care context cannot be linked | A reference belonging to another patient | Init a link naming it | Refused — the request is intersected with what we hold for that patient | P1 | Security | — | Not run |
+| ABDM-M2-21 | A records request is acknowledged at once | A stored consent artefact | Post a health-information request | `ACKNOWLEDGED` is sent back before any record is built; a transfer row exists with a deadline | P1 | Functional | — | Not run |
+| ABDM-M2-22 | A consented request sends encrypted entries | ABDM-M2-21 | Let the transfer job run | Entries pushed to the HIU URL, each with a base64 MD5 checksum of the **plaintext**; `keyMaterial` names Curve25519; the gateway is notified `TRANSFERRED` | P1 | Functional | — | Not run |
+| ABDM-M2-23 | Revoking between request and send stops it | ABDM-M2-21 | Revoke the consent, then let the job run | **Nothing is pushed**; the gateway is notified `ERRORED`; the audit names the reason | P1 | Security | org_admin | Not run |
+| ABDM-M2-24 | Encryption unavailable means nothing is sent | Gateway mode, `FIDELIUS_CLI_PATH` unset | Let a transfer run | The transfer is `failed` and nothing leaves the building — never a plaintext fallback | P1 | Security | — | Not run |
+| ABDM-M2-25 | A record type outside the consent is not sent | A consent for prescriptions only, a context holding a consultation | Let the transfer run | Nothing is pushed; the refusal is audited | P1 | Security | — | Not run |
+| ABDM-M2-26 | A window outside the consented range is refused | A consent for this year | Request last year's records | Refused, with a reason naming the range — not silently truncated | P1 | Security | — | Not run |
+| ABDM-M2-27 | A care context the consent does not name is refused | A consent naming one context | Request a different one | Nothing pushed; the reason says it is not covered | P1 | Security | — | Not run |
+| ABDM-M2-28 | An expired consent is refused by its own name | An artefact past `data_erase_at` | Request records | The reason says expired — distinguishable in the log from "never granted" | P2 | Negative | — | Not run |
+| ABDM-M2-29 | A request for an unknown facility is dropped | — | Post a request with an unregistered `X-HIP-ID` | No acknowledgement, no gateway call, nothing written | P1 | Security | — | Not run |
+| ABDM-M2-30 | A late transfer is recorded as late | A transfer completing past its deadline | Check the audit | `abdm.transfer.completed` at severity `warning` with `withinSla: false` | P2 | Functional | — | Not run |
+| ABDM-M2-31 | Full transfer round trip | Bridge URL registered, JRE + Fidelius on the host | Grant a consent from a PHR app and request records | The records arrive readable in the requesting app within twenty minutes | P1 | Functional | — | **Blocked (I-5)** |
+| ABDM-M2-32 | Tenant isolation across every M2 flow | Two tenants, both ABDM-enabled | Repeat discovery and transfer against tenant B's facility id | Tenant A's contexts, consents and records are never reachable | P1 | Security | — | Not run |
+---
+
+## 23b. ABDM / ABHA — Milestone 3, HIU (ADR-092…ADR-095)
+
+**What M3 is:** the opposite direction from M2. M2 shares *our* records when somebody asks; M3 lets
+our doctor ask a patient for permission to read the history *other* hospitals hold, and then pulls,
+decrypts, stores and displays it.
+
+**Unlike M2, this one has a screen.** The card lives on the patient chart, so most of it can be
+clicked through with `ABDM_PROVIDER=mock` — the gateway calls are recorded rather than sent, and the
+patient's grant is simulated by writing the artefact directly. What cannot be exercised locally is
+marked **Blocked (I-5)**.
+
+**The two cases that decide certification are M3-12 (revoke) and M3-13 (expiry).** Both ask the same
+question, and it is not "is it hidden" — it is **is the data gone**. Check the database, not just the
+screen.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABDM-M3-01 | The card is absent without the module | Tenant NOT entitled to `abdm` | Open a patient chart | No "History from other hospitals" card; no error | P1 | Security | doctor | Not run |
+| ABDM-M3-02 | The front desk cannot request | Tenant entitled | Open a chart as receptionist | No card at all — the desk holds neither `abdm.history.*` key | P1 | Security | receptionist | Not run |
+| ABDM-M3-03 | An administrator may read but not ask | org_admin | Open a chart | The card renders; there is **no** "Request patient consent" button. A direct `POST /abdm/history/request` returns 403 | P1 | Security | org_admin | Not run |
+| ABDM-M3-04 | An unverified ABHA cannot be used | A chart with a hand-typed, unverified ABHA | Open the card | It explains the ABHA must be verified first, and offers no request button. Forcing the call returns 422 | P1 | Security | doctor | Not run |
+| ABDM-M3-05 | A doctor with no registration number cannot be picked | A provider with the field blank | Open the doctor picker | That doctor is absent. With none eligible, the card explains why and offers no button | P1 | Functional | doctor | Not run |
+| ABDM-M3-06 | The request names the doctor the patient will see | ABDM-M3-05 satisfied | Pick a doctor → Request patient consent | The recorded gateway call carries that doctor's name and registration number, and `purpose.code` is `CAREMGT` | P1 | Functional | doctor | Not run |
+| ABDM-M3-07 | Waiting is shown as a state, not a spinner | ABDM-M3-06 | Watch the card | "Waiting for the patient", the asking doctor and the date in `DD/MM/YYYY`, plus a line saying nothing arrives until the patient acts. **Not** a spinner | P1 | UX | doctor | Not run |
+| ABDM-M3-08 | One event raises one notification | ABDM-M3-06 | Press the button once | Exactly one toast, naming what happens next. No second generic "Saved." (ADR-057) | P2 | UX | doctor | Not run |
+| ABDM-M3-09 | Polling stops on its own | A request left unanswered | Leave the chart open past ten minutes; watch the network tab | Polling ceases. An unanswered request must not poll a national gateway all day | P2 | Functional | doctor | Not run |
+| ABDM-M3-10 | One request, several hospitals | Simulate three artefacts against one request | Check `abdm_hiu_consents` | Three rows, one per HIP, each with its own expiry — they are revoked and expire individually | P1 | Functional | — | Not run |
+| ABDM-M3-11 | The merged timeline is chronological, not siloed | Records from three hospitals with different dates | Open the card | One feed, newest first, sources interleaved — **not** a section per hospital | P1 | Functional | doctor | Not run |
+| **ABDM-M3-12** | **HIU_FLOW_202 — revoke deletes the data** | A granted consent with stored records | Post the revoke notification, then check **the database** | `abdm_hiu_records` rows are **gone**, the consent artefact is gone, the keys in `abdm_hiu_data_transfers` are gone, and the records have vanished from the card. An audit row records the purge with counts only | P1 | Security | — | Not run |
+| **ABDM-M3-13** | **HIU_FLOW_301 — expiry deletes the data** | A consent past `data_erase_at` | Wait for the sweep (or run it), then check **the database** | Same as M3-12. Then repeat *without* running the sweep: the records must already be absent from the card while still on disk — hiding and deleting are independent guarantees | P1 | Security | — | Not run |
+| ABDM-M3-14 | Deleting borrowed records never touches ours | ABDM-M3-12 | Open the chart's own History section | Our visits, consultations and lab orders are untouched. Only the borrowed copy was destroyed | P1 | Security | doctor | Not run |
+| ABDM-M3-15 | The audit survives what it records | ABDM-M3-12 | Read `audit_log` for `abdm.hiu.consent_purged` | The entry exists after the data is gone, and contains counts and identifiers only — no clinical content | P1 | Security | org_admin | Not run |
+| ABDM-M3-16 | A checksum mismatch is discarded | Simulate a push with a wrong checksum | Let it process | Nothing stored; the transfer reads `partial` or `failed` with a reason. A record we cannot verify is never shown to a clinician | P1 | Security | — | Not run |
+| ABDM-M3-17 | Encryption unavailable means nothing is read | Gateway mode, `FIDELIUS_CLI_PATH` unset | Push records | Nothing is stored, and the flow is reported errored. There is no plaintext path in either direction | P1 | Security | — | Not run |
+| ABDM-M3-18 | Private keys are unreadable at rest | Any data request | Read `abdm_hiu_data_transfers.private_key_enc` | Starts `v1.`, contains no readable key. Each request has its own — never one reused key | P1 | Security | — | Not run |
+| ABDM-M3-19 | Abnormality is the source's, never ours | A bundle with one flagged and one unflagged value | Open the card | Only the value the source flagged is emphasised. The product never decides a result is abnormal | P1 | Security | doctor | Not run |
+| ABDM-M3-20 | Borrowed records are visibly separate | Records pulled and our own visits present | Open the chart | Two distinct sections. Borrowed records are never merged into our own history | P1 | UX | doctor | Not run |
+| ABDM-M3-21 | The disappearance is explained before it happens | Records on screen | Read the note under the timeline | It states the records vanish when consent is withdrawn or expires and our copy is deleted | P2 | Editorial | doctor | Not run |
+| ABDM-M3-22 | Both themes and a tenant accent | — | Open the card in Light and Dark under a non-default brand colour | Badges, alerts and the abnormal emphasis all follow the tokens; no literal colours | P2 | Visual | any | Not run |
+| ABDM-M3-23 | Tenant isolation | Two tenants, both ABDM-enabled | Request and pull under tenant A, then query as tenant B | None of tenant A's consents, transfers or borrowed records are reachable | P1 | Security | — | Not run |
+| ABDM-M3-24 | Full round trip | Bridge registered, JRE + Fidelius, consent granted from a real PHR app | Request → grant → fetch → read | Records from a real HIP appear on the timeline within the flow's normal time | P1 | Functional | doctor | **Blocked (I-5)** |
+---
+
+## 23c. ABDM Milestone 4 — Health Facility Registry, registration form (ADR-102)
+
+Run signed in as `org_admin` with the `abdm` module entitled. The reference dropdowns read the
+**live ABDM sandbox**, so `ABDM_PROVIDER=gateway` and working credentials are needed for any case
+below that mentions a list; the form itself renders without them.
+
+Reached from `Hospital configuration → ABDM registries → Register this hospital`.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HFR-UI-01 | The form is permission-gated | Role lacks `abdm.registry.view` | Open the URL directly | Refused; no form renders | P1 | Security | receptionist | Not run |
+| HFR-UI-02 | Read-only without manage | View but not `abdm.registry.manage` | Open the form | Every field disabled; no Save or Submit | P1 | Security | doctor | Not run |
+| HFR-UI-03 | A half-filled draft saves | — | Enter only a facility name, then Save draft | Saved; the toast says nothing has been sent to the registry | P1 | Functional | org_admin | Not run |
+| HFR-UI-04 | A draft reopens exactly as left | HFR-UI-03 plus several fields | Leave the page and return | Every field repopulated, dropdowns included | P1 | Functional | org_admin | Not run |
+| HFR-UI-05 | Submit refuses an incomplete form | A draft with no state chosen | Press Submit to HFR | Refused; missing fields marked; nothing sent | P1 | Functional | org_admin | Not run |
+| HFR-UI-06 | Facility name must start with a letter | — | Enter `123 Clinic`, then Submit | Rejected, per HFR-010 | P2 | Functional | org_admin | Not run |
+| HFR-UI-07 | Pincode is six digits | — | Type letters, then a seventh digit | Non-digits refused; input stops at six | P2 | Functional | org_admin | Not run |
+| HFR-UI-08 | **The dependency chain populates** | Gateway mode | Ownership `Private`, tick `Modern Medicine (Allopathy)`, open Facility type | The list fills (Hospital, Clinic/Dispensary, Pharmacy…); choosing `Hospital` fills sub-type (Civil Hospital, General Hospital, Nursing Home…) | P1 | Functional | org_admin | Not run |
+| HFR-UI-09 | Facility type says what it waits for | Nothing chosen | Read the Facility type field | Disabled, reading "Choose an ownership and at least one system of medicine first" — never an unexplained empty dropdown | P1 | UX | org_admin | Not run |
+| HFR-UI-10 | A dependent value clears with its parent | State and district chosen | Change the state | The district empties rather than keeping a code from the old state, which would otherwise be submitted | P1 | Security | org_admin | Not run |
+| HFR-UI-11 | A failed list reports itself in place | Break `ABDM_CLIENT_SECRET`, reload | Read any dropdown | The field itself says the registry did not answer. **No toast** — twenty broken lists raise twenty in-place messages, not twenty toasts | P1 | UX | org_admin | Not run |
+| HFR-UI-12 | Registry codes are not padded | Gateway mode | Choose an ownership, inspect the facility-type request | The query carries `ownershipCode=P`, not `P` followed by spaces. (Regression: HFR validates it against a strict two-character ownership pattern, and the padded form returns 500) | P1 | Functional | — | Not run |
+| HFR-UI-13 | Submitted is never shown as approved | A complete draft | Submit | Badge reads "Awaiting verification"; the note says a verifier reviews it by hand and no Facility ID exists yet | P1 | Security | org_admin | Not run |
+| HFR-UI-14 | A submitted registration cannot be edited | HFR-UI-13 | Reopen the form | All fields disabled, with a note that it is with the registry | P1 | Functional | org_admin | Not run |
+| HFR-UI-15 | A rejection shows the registry's own words | A rejected registration | Open the form | The verifier's message verbatim; the form editable again with everything still in it | P1 | UX | org_admin | Not run |
+| HFR-UI-16 | Bed totals are questioned, not corrected | — | ICU-with-ventilator 5, total ventilators 2 | A hint says the beds add to 5 and asks which is right. The value is NOT overwritten | P2 | UX | org_admin | Not run |
+| HFR-UI-17 | Each branch is its own facility | Two branches exist | Switch the Facility selector | The form reloads that branch's own registration and status | P1 | Functional | org_admin | Not run |
+
+
+## 24. Notifications & emails (ADR-086)
+
+With `MSG91_API_KEY` unset the dev **log** provider records each send in `notification_log` without
+sending — assert against that log locally. Emails are wired **per action**; a platform message
+(toast) and an email are never both raised by default. SMS transactional stays blocked on DLT
+(BACKLOG I-1) — these cases are email + in-app only.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| NOTIF-01 | Onboarding welcome email | — | Onboard a hospital | The first org_admin gets a `onboarding_admin_welcome` email with a **set-your-password** link; `notification_log` shows the send; the operator still receives the temp password too | P1 | Functional | super_admin | Not run |
+| NOTIF-02 | Staff welcome email | A hospital exists | Add a staff user | The user gets a `staff_welcome` email with a set-password link and their role name; `notification_log` shows the send | P1 | Functional | org_admin | Not run |
+| NOTIF-03 | Set-password link works | NOTIF-01/02 done | Open the link from the email | The reset-password page loads, a new password can be set (link valid 7 days, once), then sign-in works | P1 | Functional | org_admin | Not run |
+| NOTIF-04 | Password-changed confirmation | A user with a password | Change or reset the password | A `auth_password_changed` security confirmation email is sent to the account owner | P2 | Security | any | Not run |
+| NOTIF-05 | Appointment confirmed — email present | A patient WITH an email | Book an appointment | An `appointment_confirmed` email is sent with doctor + DD/MM/YYYY, hh:mm AM/PM time | P1 | Functional | receptionist | Not run |
+| NOTIF-05a | Appointment — no email on file | A patient with NO email | Book an appointment | No email is attempted; booking succeeds with no error | P1 | Functional | receptionist | Not run |
+| NOTIF-06 | Appointment cancelled email | A booked appointment for a patient with email | Cancel it | An `appointment_cancelled` email is sent, including the reason when given | P2 | Functional | receptionist | Not run |
+| NOTIF-07 | Payment receipt + no duplicate | An invoice, patient with email | Record a payment; then retry with the same idempotency key | One `payment_receipt` email (invoice number, ₹ amount, method, date); the retry sends nothing new | P1 | Functional | cashier | Not run |
+| NOTIF-08 | Lab results email fires on VERIFY, not entry | A resulted lab order, patient with email | Enter a result, then verify it | No email on entry; on **verify** a `lab_results_ready` email is sent that contains **no result values** — only a "view in portal" prompt | P1 | Security | lab_tech | Not run |
+| NOTIF-09 | Patient welcome | A patient registered WITH an email | Register the patient | A `patient_welcome` email with the UHID is sent | P2 | Functional | receptionist | Not run |
+| NOTIF-10 | No notification spam | — | Check in a visit, sign an encounter, create an invoice, sign in | None of these send an email (`notification_log` shows nothing for them) | P1 | UX | any | Not run |
+| NOTIF-11 | Idempotency / dedupe | — | Cause the same event to fire twice for one entity | Exactly one email is sent (per-entity idempotency key) | P1 | Functional | tester | Not run |
+| NOTIF-12 | Email branding | A tenant with a custom accent | Trigger a patient email, then a platform email (reset) | The patient email uses the hospital's accent + name; the platform email uses the Nirogix default; no broken logo image | P2 | Visual | tester | Not run |
+| NOTIF-13 | Backend message consistency | — | Onboard a hospital / add a user | The success toast shows the backend's own `message` (from `messages.ts`), identical wording in every frontend | P2 | UX | super_admin | Not run |
+| EMAIL-PREVIEW-01 | Preview lists + renders every template | operator | Platform → Email templates | All templates listed by category; selecting one renders its subject + the email in a sandboxed iframe; no email is sent and no tenant data is shown | P1 | Functional | super_admin | Not run |
+| EMAIL-PREVIEW-02 | Preview is operator-gated | A non-operator session | Open `/email-templates`; call `GET /admin/email-templates` | The nav item is absent and the API returns 403 | P1 | Security | org_admin | Not run |
+
+---
+
 ## Coverage gaps (deliberate, tracked)
 
 These are known and recorded in `BACKLOG.md` rather than silently missing:
 
-- **Automated frontend tests do not exist yet** — no unit, component or end-to-end suites in `hms_frontend`, `marketing`, `@hms/ui`, or `@hms/utils`. The backend has Vitest suites (auth, RBAC, tenancy, audit, admin, appointments, branding, events, jobs). Until the frontend suites exist, every UI case above is manual-only, which is a risk this file makes visible rather than hides.
-- **Not yet buildable as cases:** password reset / email invite, MFA challenge, branch switching, break-glass — the features are not implemented.
+- **Automated coverage now exists — see `docs/automated-testing.md` for the case-by-case mapping.** Unit + integration (vitest, real PostgreSQL), **API/HTTP boundary** (vitest + supertest: authentication, role/permission enforcement, module entitlement, cross-tenant read *and* write refusal), component (`@hms/ui`: DataTable, date fields, toasts, table actions) and **E2E** (Playwright: five-app smoke, Portal authentication and quick-login gating, protected-route redirects, marketing structure, route-change scroll). Run the lot with `npm run test:regression` before a staging handover.
+- **Still manual-only:** `hms_frontend`, `marketing`, `admin`, `patient` and `aiportal` have no component suites of their own, and the clinical journey is automated at service/API level but **not yet through the UI** — the browser walk-through in `docs/manual-testing-guide.md` §10 remains a manual pass. Visual/branding, print/PDF, screen-reader, physical-device and editorial-honesty cases stay manual by design (`docs/automated-testing.md` §5).
+- **Email invite / notifications now buildable** — see §24 (welcome + set-password-link emails, appointment/payment/lab/patient emails, the preview page). Real provider *send* (vs. the dev log provider) stays staging-only, blocked on `MSG91_*` + DLT for SMS (BACKLOG I-1).
+- **Not yet buildable as cases:** MFA challenge, branch switching, break-glass — the features are not implemented.
 - **Staging-only cases** (real SMS/WhatsApp send, deploy pipeline, backup restore drill) are blocked on infrastructure.

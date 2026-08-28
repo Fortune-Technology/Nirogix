@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { PERMISSIONS } from '@hms/permissions';
+import { PERMISSIONS, CAPABILITIES } from '@hms/permissions';
 import { requireAuth } from '../../http/requireAuth';
 import { requireModule } from '../../http/requireModule';
+import { requireCapability } from '../../http/requireCapability';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
@@ -12,6 +13,9 @@ import * as c from './billing.controller';
 // then per-action billing permissions (cashier holds all three; admins get view-only).
 export const billingRouter = Router();
 const mod = requireModule('billing');
+// The services & packages catalogue is a capability of Billing (ADR-085) — a hospital may run
+// Billing while switching this feature off. Deny-by-exception, so it is on by default.
+const servicesCap = requireCapability('billing', CAPABILITIES.BILLING_SERVICES);
 
 billingRouter.get('/invoices', requireAuth, mod, requirePermission(PERMISSIONS.BILLING_VIEW), asyncHandler(c.listInvoices));
 billingRouter.get('/invoices/:id', requireAuth, mod, requirePermission(PERMISSIONS.BILLING_VIEW), asyncHandler(c.getInvoice));
@@ -42,11 +46,13 @@ billingRouter.post(
 );
 
 // Services & packages catalogue (ADR-067, E-3) — hospital configuration billing consumes.
-billingRouter.get('/services', requireAuth, mod, requirePermission(PERMISSIONS.BILLING_SERVICES_VIEW), asyncHandler(c.listServices));
+// Gated by the `billing.services` capability (ADR-085) after the module gate, before permissions.
+billingRouter.get('/services', requireAuth, mod, servicesCap, requirePermission(PERMISSIONS.BILLING_SERVICES_VIEW), asyncHandler(c.listServices));
 billingRouter.post(
   '/services',
   requireAuth,
   mod,
+  servicesCap,
   requirePermission(PERMISSIONS.BILLING_SERVICES_MANAGE),
   validate({ body: CreateServiceBody }),
   asyncHandler(c.createService),
@@ -55,6 +61,7 @@ billingRouter.patch(
   '/services/:id',
   requireAuth,
   mod,
+  servicesCap,
   requirePermission(PERMISSIONS.BILLING_SERVICES_MANAGE),
   validate({ body: UpdateServiceBody }),
   asyncHandler(c.updateService),

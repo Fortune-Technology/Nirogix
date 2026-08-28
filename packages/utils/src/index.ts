@@ -23,11 +23,24 @@ export {
   toApiTime,
   todayApiDate,
   addDays,
+  addMonths,
+  startOfWeek,
+  startOfMonth,
+  endOfMonth,
+  financialYearRange,
+  resolveDateRange,
+  FINANCIAL_YEAR_START_MONTH,
 } from "./date";
-export type { DateInput } from "./date";
+export type { DateInput, DateRange, DateRangePreset } from "./date";
 
 // Colour: only for places a brand colour must be used where the design tokens cannot
 // reach — today, the dark modules of a printed QR code (ADR-056). Components still use
 // the tokens and never a literal.
 export { parseHexColor, toHexColor, relativeLuminance, contrastRatio, ensureContrast } from "./color";
 export type { Rgb } from "./color";
+
+// Browser security headers: one Content-Security-Policy builder and one static header set
+// for all five frontends (ADR-082). An app supplies only what differs — the origins it
+// calls, and whether it can carry a per-request nonce.
+export { buildContentSecurityPolicy, originOf, SECURITY_HEADERS } from "./security";
+export type { CspOptions } from "./security";

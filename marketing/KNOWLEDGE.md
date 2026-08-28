@@ -22,7 +22,7 @@ The public-facing product site (unauthenticated). It presents the product across
   - Canvas `#f4f7f7` (cool off-white, never cream) · surface `#fff` · hairline `#dbe6e7` · ink `#0f1e24` · ink-muted / subtle / faint · **accent = deep teal `#0e7490`** (the primary CTA is the teal accent).
   - Radii: buttons/inputs 8px, cards 12px, product tiles 16px, CTA banners 24px. Minimal, teal-tinted depth — mostly hairline borders + surface-on-canvas lift.
   - Type: **Geist** at 600 for display with negative tracking, 400 body. Helpers `.mk-display` / `.mk-heading` / `.mk-lede`.
-- **Light + Dark** (`data-theme` on `<html>`, `--mk-*` dark block in `globals.css`). `lib/theme.tsx` provides the toggle (Sun/Moon in the navbar, desktop + mobile), persisted under `mk-theme`, first visit honours `prefers-color-scheme`; a no-flash script in `layout.tsx` paints it before hydration. Framed `@hms/ui` product previews follow the same `data-theme`.
+- **Light + Dark** (`data-theme` on `<html>`, `--mk-*` dark block in `globals.css`). `lib/theme.tsx` provides the toggle (Sun/Moon in the navbar, desktop + mobile), persisted under `mk-theme`. **Light is the default for everyone** — the OS preference is never consulted (ADR-079); Dark appears only after the visitor toggles it, and then persists. A no-flash script in `layout.tsx` paints the stored theme before hydration. Framed `@hms/ui` product previews follow the same `data-theme`.
 - Motion: restrained (design-taste dials VARIANCE 6 / MOTION 3 / DENSITY 3). `Reveal` does a soft fade-up via IntersectionObserver, fully static under `prefers-reduced-motion`.
 
 ## shadcn/ui — CLI + reference layer (ADR-028)
@@ -125,6 +125,10 @@ Module pages carry their own intent map (`MODULE_SEO` in `app/modules/[slug]/pag
 The site currently calls no API. When `ContactForm` is wired to a real endpoint, its result **must** go through the shared `@hms/ui` toast raised by the shared API client — displaying the backend's own message, handling network/timeout/validation/5xx, never a raw technical error. Do not build a form-local success/error banner.
 
 ## Performance (binding — `resources/rules.md`)
+
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) sends the Content-Security-Policy built by `@hms/utils` plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). This site is in **static mode** — no nonce, because a per-request nonce would make every page dynamic and end the ISR caching this site depends on. Scripts therefore keep `unsafe-inline`; every other directive is strict. That is acceptable only while this site renders no user input, holds no session and reaches no PHI — wiring `ContactForm` (BACKLOG U-2) is the change that should move it to nonce mode.
 
 Fonts already use `next/font` (Geist / Geist Mono). **Outstanding:** no `next/image` usage yet — any content image added must use it (explicit dimensions, correct `sizes`, lazy by default, `priority` only for the true LCP image); below-the-fold heavy sections use `next/dynamic`; third-party scripts (none today) go through `next/script`; routes are measured against LCP ≤2.5s / INP ≤200ms / CLS ≤0.1.
 

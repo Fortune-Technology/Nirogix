@@ -4,7 +4,7 @@ import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
-import { OnboardTenantBody, TenantStatusBody, GrantModuleBody } from './admin.schema';
+import { OnboardTenantBody, TenantStatusBody, GrantModuleBody, SetCapabilityBody } from './admin.schema';
 import * as c from './admin.controller';
 
 // Super-Admin (platform) surface — tenant onboarding + management. Cross-tenant by nature, so it
@@ -38,6 +38,23 @@ adminRouter.post(
   asyncHandler(c.grantModule),
 );
 adminRouter.delete('/admin/tenants/:id/modules/:key', ...guard, asyncHandler(c.revokeModule));
+
+// The whole module/capability configuration for a tenant (three-level manager, ADR-085 §19).
+adminRouter.get('/admin/tenants/:id/module-config', ...guard, asyncHandler(c.getModuleConfig));
+
+// Capability configuration (ADR-085) — toggle a module's sub-features on/off for a tenant.
+adminRouter.get('/admin/tenants/:id/capabilities', ...guard, asyncHandler(c.getTenantCapabilities));
+adminRouter.put(
+  '/admin/tenants/:id/capabilities',
+  ...guard,
+  validate({ body: SetCapabilityBody }),
+  asyncHandler(c.setTenantCapability),
+);
+
+// Email template preview (developer/operator tool) — list the central catalogue and render one
+// from sample data. Read-only, no tenant data; gated like the rest of the platform surface.
+adminRouter.get('/admin/email-templates', ...guard, asyncHandler(c.listEmailTemplatesCtl));
+adminRouter.get('/admin/email-templates/:key/preview', ...guard, asyncHandler(c.previewEmailTemplateCtl));
 
 // Support sessions (ADR-037). Gated by its own permission so a future support role
 // can be granted this WITHOUT full tenant management.

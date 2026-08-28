@@ -18,6 +18,9 @@ export const OnboardTenantBody = z
     // Initial module entitlements. Defaults to the MVP set in the service. Order-independent —
     // the service grants in hard-dependency order.
     modules: z.array(z.string()).optional(),
+    // Capability keys to switch OFF at onboarding. Deny-by-exception (ADR-085): every capability
+    // of a granted module is on unless it is listed here.
+    disabledCapabilities: z.array(z.string()).optional(),
     admin: z.object({
       email: z.string().email(),
       fullName: z.string().min(2).max(200),
@@ -35,6 +38,16 @@ export const TenantStatusBody = z
 export const GrantModuleBody = z
   .object({ module: z.string().min(1) })
   .openapi('GrantModuleBody');
+
+// Toggle one capability of an entitled module on/off for a tenant (ADR-085). Deny-by-exception:
+// `enabled: true` clears any disable (ACTIVE); `enabled: false` writes a disable override.
+export const SetCapabilityBody = z
+  .object({
+    module: z.string().min(1),
+    capability: z.string().min(1),
+    enabled: z.boolean(),
+  })
+  .openapi('SetCapabilityBody');
 
 // ---- Responses -------------------------------------------------------------
 
@@ -60,6 +73,52 @@ export const OnboardResponseSchema = z
     admin: z.object({ email: z.string(), tempPassword: z.string() }),
   })
   .openapi('OnboardTenantResponse');
+
+export const TenantCapabilitiesSchema = z
+  .object({
+    capabilities: z.array(
+      z.object({
+        module: z.string(),
+        moduleName: z.string(),
+        capability: z.string(),
+        name: z.string(),
+        status: z.string(),
+        enabled: z.boolean(),
+        dependencies: z.array(z.string()),
+      }),
+    ),
+  })
+  .openapi('TenantCapabilities');
+
+export const CapabilityAckSchema = z
+  .object({ tenant: z.string(), capability: z.string(), enabled: z.boolean() })
+  .openapi('CapabilityAck');
+
+export const TenantModuleConfigSchema = z
+  .object({
+    categories: z.array(z.object({ key: z.string(), name: z.string() })),
+    modules: z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        category: z.string(),
+        status: z.string(),
+        alwaysOn: z.boolean(),
+        hardDependencies: z.array(z.string()),
+        entitled: z.boolean(),
+        capabilities: z.array(
+          z.object({
+            key: z.string(),
+            name: z.string(),
+            status: z.string(),
+            enabled: z.boolean(),
+            dependencies: z.array(z.string()),
+          }),
+        ),
+      }),
+    ),
+  })
+  .openapi('TenantModuleConfig');
 
 export const TenantDetailSchema = z
   .object({

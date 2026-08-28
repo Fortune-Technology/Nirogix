@@ -15,6 +15,13 @@ const EnvSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().url(),
+  // Per-connection safety valves on the pool (SECURITY-AUDIT.md M-2). A single query may not
+  // run longer than DB_STATEMENT_TIMEOUT_MS, and a transaction may not sit idle longer than
+  // DB_IDLE_TX_TIMEOUT_MS — a runaway scan or a transaction left open across a round trip
+  // releases its connection instead of draining the pool. Tune per environment; the migration
+  // runner opts out for its own session (db/migrate.ts), where slow DDL is expected.
+  DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  DB_IDLE_TX_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -33,11 +40,24 @@ const EnvSchema = z.object({
   // Optional additional servers surfaced in the Swagger UI server dropdown.
   API_STAGING_URL: z.string().url().optional(),
   API_PRODUCTION_URL: z.string().url().optional(),
-  // Whether to serve the Swagger UI in this environment (JSON is always served).
-  OPENAPI_UI_ENABLED: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((v) => v === 'true'),
+  // Whether to serve the API documentation (Swagger UI *and* the raw spec) in this
+  // environment. The default is environment-aware and closed in production (ADR-082,
+  // SECURITY-AUDIT.md L-2): a public spec of every route, parameter and error code is a
+  // free map of the attack surface, and nobody outside the team consumes the production
+  // one. Set OPENAPI_UI_ENABLED=true in production only for a deliberate, temporary reason.
+  // Left unset elsewhere it stays on, which is what developers and CI need.
+  OPENAPI_UI_ENABLED: z.enum(['true', 'false']).optional(),
+
+  // Frontend origins the backend needs when IT composes a link into an app (today: the
+  // password-reset email). Hosts come from resources/domains.md per environment — staging/
+  // production MUST set these; the defaults cover a developer's machine only. Never used for
+  // CORS (that is CORS_ORIGINS) and never derived from a request header — a Host/Origin header
+  // is client input, and a link built from it would let a request steer where the email points.
+  PORTAL_URL: z.string().url().default('http://localhost:3001'),
+  ADMIN_URL: z.string().url().default('http://localhost:3003'),
+  // Patient-portal origin, used to add a "view in portal" link to patient-facing emails
+  // (appointment/payment/lab/welcome). Blank ⇒ those emails simply omit the button.
+  PATIENT_URL: z.string().url().default('http://localhost:3002'),
 
   // Notifications — MSG91 for SMS/WhatsApp AND email (ADR-016). All optional: when unset, the
   // dev "log" provider is used (messages are logged, not sent). No module calls MSG91 directly.
@@ -70,7 +90,99 @@ const EnvSchema = z.object({
   // capabilities endpoint reports it off and the Portal renders no AI control. Never a stub.
   ANTHROPIC_API_KEY: z.string().optional(),
   AI_DRAFT_MODEL: z.string().default('claude-sonnet-5'),
+
+  // Application-level encryption at rest (security/encryption.ts). 32 bytes, base64 or hex.
+  // Generate with: node -p "require('node:crypto').randomBytes(32).toString('base64')"
+  // Required in production once any feature that stores a bearer credential is enabled
+  // (today: ABDM linking tokens). Rotating it invalidates existing ciphertext, so treat it
+  // like a database credential, not like a toggle.
+  ENCRYPTION_KEY: z.string().optional(),
+
+  // ---------------------------------------------------------------------------------------
+  // ABDM / ABHA — Milestone 1 only (ADR-084).
+  //
+  // NHA issues ONE client id/secret to the registered APPLICATION (Nirogix). The per-hospital
+  // HFR facility id is NOT here: it is tenant data, held in `abdm_facility_config`, because
+  // each hospital registers its own facility. Never put a facility id in server config.
+  //
+  // `mock` is a first-class provider, not a fallback: the sandbox rate-limits OTPs to a
+  // handful per number per day, so local development and CI would otherwise be unrunnable.
+  ABDM_PROVIDER: z.enum(['mock', 'gateway']).default('mock'),
+  ABDM_CLIENT_ID: z.string().optional(),
+  ABDM_CLIENT_SECRET: z.string().optional(),
+  // Gateway host (sessions + HIP routing). Sandbox: https://dev.abdm.gov.in
+  ABDM_GATEWAY_BASE_URL: z.string().url().default('https://dev.abdm.gov.in'),
+  // ABHA enrolment/profile host. Sandbox: https://abhasbx.abdm.gov.in/abha/api
+  ABDM_ABHA_BASE_URL: z.string().url().default('https://abhasbx.abdm.gov.in/abha/api'),
+  // Consent Manager id — 'sbx' in sandbox, 'abdm' (or as issued) in production.
+  ABDM_CM_ID: z.string().default('sbx'),
+  // Version stamp written onto every stored consent record, so a later change to the consent
+  // wording is distinguishable from consent taken under the old wording.
+  ABDM_CONSENT_VERSION: z.string().default('m1-v1'),
+  // How long a verification transaction stays usable before the operator must restart it.
+  ABDM_TXN_TTL_SECONDS: z.coerce.number().int().positive().default(600),
+  // Path to NHA's Fidelius CLI jar, used to encrypt health records for a requesting HIU (ADR-091).
+  // Requires a JRE on the host. Unset means health records CANNOT be shared: the transfer refuses
+  // rather than falling back to anything weaker, so leaving this blank disables M2 data transfer
+  // and nothing else.
+  /**
+   * The public base URL a HIP pushes our requested records to (ADR-092) — the same host registered
+   * as the bridge URL. Blank means M3 cannot ask for records: a data request naming an unreachable
+   * push URL is accepted by ABDM and then silently delivers nothing.
+   */
+  ABDM_HIU_PUSH_BASE_URL: z.string().url().optional(),
+  /**
+   * The national-registry host (HFR + HPR, Milestone 4) — a third ABDM base URL, neither the ABHA
+   * host nor the HIE-CM gateway. It accepts the same session token; only the URL differs.
+   */
+  ABDM_HFR_BASE_URL: z.string().url().default('https://apihspsbx.abdm.gov.in/v4/int'),
+  FIDELIUS_CLI_PATH: z.string().optional(),
+  // NHA's ceiling for completing a data transfer after the request arrives. Kept configurable so a
+  // stricter internal target can be set, never a looser one than NHA allows.
+  ABDM_TRANSFER_SLA_SECONDS: z.coerce.number().int().positive().default(1200),
 }).superRefine((val, ctx) => {
+  // Selecting the real ABDM gateway without credentials is a misconfiguration that would only
+  // show up as a 401 from NHA at the registration counter. Catch it at boot instead.
+  if (val.ABDM_PROVIDER === 'gateway') {
+    for (const key of ['ABDM_CLIENT_ID', 'ABDM_CLIENT_SECRET'] as const) {
+      if (!val[key] || String(val[key]).trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required when ABDM_PROVIDER=gateway`,
+        });
+      }
+    }
+    if (!val.ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ENCRYPTION_KEY'],
+        message: 'ENCRYPTION_KEY is required when ABDM_PROVIDER=gateway — ABDM linking tokens are stored encrypted',
+      });
+    }
+  }
+  // The production gateway must never be pointed at from a non-production instance, and a
+  // production instance must never talk to the sandbox: the first leaks real Aadhaar traffic
+  // into a test system, the second makes production quietly non-functional. Sandbox hosts are
+  // recognisable by their `sbx`/`dev` markers (same heuristic as the R2 bucket guard).
+  const abdmHosts = `${val.ABDM_GATEWAY_BASE_URL} ${val.ABDM_ABHA_BASE_URL}`.toLowerCase();
+  const sandboxMarker = /(sbx|dev\.abdm)/.test(abdmHosts);
+  if (val.ABDM_PROVIDER === 'gateway') {
+    if (val.NODE_ENV === 'production' && sandboxMarker) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ABDM_GATEWAY_BASE_URL'],
+        message: 'Production must not call the ABDM sandbox — point ABDM_GATEWAY_BASE_URL/ABDM_ABHA_BASE_URL at the production hosts issued by NHA',
+      });
+    }
+    if (val.NODE_ENV !== 'production' && !sandboxMarker) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ABDM_GATEWAY_BASE_URL'],
+        message: `Non-production (${val.NODE_ENV}) must call the ABDM sandbox, not production ABDM`,
+      });
+    }
+  }
   // When R2 is the chosen provider, its connection details stop being optional. Catch a
   // half-configured bucket at boot with a precise message, not at the first upload with a
   // cryptic storage/auth error.
@@ -115,14 +227,33 @@ const EnvSchema = z.object({
   }
 });
 
-export type Env = z.infer<typeof EnvSchema>;
+// `OPENAPI_UI_ENABLED` is parsed as an optional string and resolved below, because its
+// default depends on another variable (NODE_ENV) — so the exported type carries the
+// resolved boolean rather than the raw value.
+export type Env = Omit<z.infer<typeof EnvSchema>, 'OPENAPI_UI_ENABLED'> & {
+  OPENAPI_UI_ENABLED: boolean;
+};
 
-const parsed = EnvSchema.safeParse(process.env);
+// Every `.env` carries every key the app knows about, so unconfigured ones are present but
+// blank (`SENTRY_DSN=`). A blank value means "not configured" and must behave exactly like an
+// absent one — otherwise an empty optional URL or number would fail validation and stop the
+// API from booting. Strip blanks first so defaults and `.optional()` apply as intended.
+const presentEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, value]) => value !== undefined && value.trim() !== ''),
+);
+
+const parsed = EnvSchema.safeParse(presentEnv);
 if (!parsed.success) {
   // eslint-disable-next-line no-console
   console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
 
-export const env: Env = parsed.data;
+export const env: Env = {
+  ...parsed.data,
+  OPENAPI_UI_ENABLED:
+    parsed.data.OPENAPI_UI_ENABLED === undefined
+      ? parsed.data.NODE_ENV !== 'production'
+      : parsed.data.OPENAPI_UI_ENABLED === 'true',
+};
 export const isProd = env.NODE_ENV === 'production';

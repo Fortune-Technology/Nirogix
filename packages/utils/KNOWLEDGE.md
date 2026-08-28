@@ -37,8 +37,13 @@ Absent or unparseable values render an em dash, never "Invalid Date". No compone
 
 ## Colour (`src/color.ts`)
 
+
 Only for the few places a brand colour must be used where the design tokens cannot reach — today, the dark modules of a printed QR code (ADR-056). Components still use the tokens and never a literal.
 
 `ensureContrast(color)` returns the darkest-necessary version of a colour that still reads against a background, blending toward black in 5% steps so the **hue survives** — a hospital's pale teal becomes a darker teal, not black. The default threshold is **5:1**, above WCAG's 4.5:1 for text because the reader is a camera and the paper may be a photocopy, but not so strict that it overrides a colour already dark enough: measured on white, `#0f766e` (5.5:1) and `#7c3aed` (5.7:1) pass untouched, `#0d9488` (3.7:1) is nudged, and pale yellows and pinks around 2:1 are darkened properly.
 
 `parseHexColor` / `toHexColor` / `relativeLuminance` / `contrastRatio` are the pieces it is built from, exported because they are useful on their own. `parseHexColor` returns `null` rather than guessing at anything that is not `#rgb` or `#rrggbb`.
+
+## Browser security headers (`src/security.ts`, ADR-082)
+
+`buildContentSecurityPolicy()` + `SECURITY_HEADERS` are the one source of the frontends’ browser policy, consumed from each app’s `proxy.ts`. Two shapes: **nonce mode** (`nonce` + `strict-dynamic`, no `unsafe-inline`) for the four authenticated apps, and **static mode** for `marketing`, whose pages must stay statically rendered. An app passes only its API origin and whether it is in development; it never writes directives of its own. `connectSrc` feeds both `connect-src` and `img-src`, because the API serves tenant logos and report attachments itself — over plain http in development.

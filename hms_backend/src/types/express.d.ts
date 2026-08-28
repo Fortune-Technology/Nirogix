@@ -4,6 +4,11 @@
 declare global {
   namespace Express {
     interface Request {
+      /**
+       * Correlation id for this request, set by the requestContext middleware and echoed
+       * as `X-Request-Id`. Present on every request (ADR-082).
+       */
+      requestId?: string;
       auth?: {
         userId: string;
         tenantId: string;

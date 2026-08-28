@@ -53,7 +53,20 @@ export class R2FileStorageProvider implements FileStorageProvider {
     await this.client.removeObject(this.bucket, key);
   }
 
-  async getSignedDownloadUrl(key: string, filename: string): Promise<string | null> {
+  async getSignedDownloadUrl(
+    key: string,
+    filename: string,
+    disposition: 'inline' | 'attachment' = 'attachment',
+  ): Promise<string | null> {
+    // Display assets (a tenant logo, favicon or letterhead) are embedded in an <img>/<link>,
+    // so they must render inline — the same way the local provider serves them. An inline
+    // asset also carries NO signed `response-content-disposition` override, keeping the
+    // presigned GET a plain, robustly-signed request (a forced-download override is the one
+    // response-header R2 has to validate on top of the base signature). Documents keep the
+    // attachment disposition so they download with their original filename.
+    if (disposition === 'inline') {
+      return this.client.presignedGetObject(this.bucket, key, 600);
+    }
     return this.client.presignedGetObject(this.bucket, key, 600, {
       'response-content-disposition': `attachment; filename="${filename}"`,
     });

@@ -4,13 +4,17 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
-    "rootDir": ".",
+    // Flatten src/ into dist/ so the entry is dist/server.js (what deploy/ecosystem.config.cjs
+    // runs), not dist/src/server.js. `drizzle.config.ts` is therefore NOT part of this build —
+    // it lives outside src/ and is loaded directly by drizzle-kit (db:generate/studio), never
+    // emitted — so keeping it here would force the common root back to "." and re-nest the output.
+    "rootDir": "src",
     "declaration": false,
     "sourceMap": true,
     "types": ["node"],
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "drizzle.config.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

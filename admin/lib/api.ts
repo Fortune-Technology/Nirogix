@@ -22,7 +22,9 @@ import type {
   StartSupportSessionRequest,
   StartSupportSessionResponse,
   Tenant,
+  TenantCapability,
   TenantDetail,
+  TenantModuleConfig,
 } from "@hms/types";
 import { createApiClient, notifyError, notifySuccess } from "@hms/client";
 
@@ -38,6 +40,22 @@ export const apiClient = client;
 export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
 export const { setAccessToken, getAccessToken, setOnSessionExpired, tryRefresh, login, logout, me, myPermissions } =
   client;
+
+// ---- Forgot password (ADR-081) — both unauthenticated ----------------------
+
+export async function forgotPassword(body: { orgCode: string; email: string }): Promise<{ message: string }> {
+  // `client: "admin"` → the emailed link opens THIS console's reset page (ADMIN_URL).
+  // Outcomes render inline on the pages, so the shared toast stays quiet.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { ...body, client: "admin" },
+    feedback: false,
+  });
+}
+
+export async function resetPassword(body: { token: string; newPassword: string }): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/reset-password", { method: "POST", body, feedback: false });
+}
 
 export async function changePassword(body: { currentPassword: string; newPassword: string }): Promise<void> {
   await request<void>("/auth/change-password", {
@@ -89,6 +107,30 @@ export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
   return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
 }
 
+/** The whole module/capability configuration for a tenant, grouped by domain (ADR-085 §19). */
+export async function getTenantModuleConfig(id: string): Promise<TenantModuleConfig> {
+  return request<TenantModuleConfig>(`/admin/tenants/${id}/module-config`);
+}
+
+/** The capabilities of a tenant's entitled modules, each with its enabled state (ADR-085). */
+export async function listTenantCapabilities(id: string): Promise<TenantCapability[]> {
+  return (await request<{ capabilities: TenantCapability[] }>(`/admin/tenants/${id}/capabilities`)).capabilities;
+}
+
+/** Enable or disable one capability of a tenant's module (ADR-085). */
+export async function setTenantCapability(
+  id: string,
+  module: string,
+  capability: string,
+  enabled: boolean,
+): Promise<void> {
+  await request(`/admin/tenants/${id}/capabilities`, {
+    method: "PUT",
+    body: { module, capability, enabled },
+    feedback: { success: enabled ? "Capability enabled." : "Capability disabled." },
+  });
+}
+
 /**
  * Starts a support session (ADR-037). The token belongs to the TARGET user in the
  * TARGET tenant, and is handed to a Portal tab — never used on this origin (ADR-051).
@@ -101,8 +143,13 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   return request<PlatformStats>("/admin/stats");
 }
 
-export async function getPlatformTrends(months = 12): Promise<PlatformTrends> {
-  return request<PlatformTrends>(`/admin/trends?months=${months}`);
+// A rolling `months` count or an explicit inclusive ISO `{ from, to }` window (the
+// shared period filter). The backend honours from/to when both are present.
+export async function getPlatformTrends(
+  range: number | { from: string; to: string } = 12,
+): Promise<PlatformTrends> {
+  const qs = typeof range === "object" ? `from=${range.from}&to=${range.to}` : `months=${range}`;
+  return request<PlatformTrends>(`/admin/trends?${qs}`);
 }
 
 /**
@@ -169,6 +216,32 @@ export async function uploadPlatformBrandingAsset(
   const branding = (await res.json()) as PlatformBranding;
   notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
   return branding;
+}
+
+// ---- Email templates (developer/operator preview tool) ---------------------
+// A read-only window onto the backend's central email catalogue. The preview always
+// renders from static sample data — no tenant data is ever touched.
+
+export interface EmailTemplateSummary {
+  key: string;
+  name: string;
+  category: string;
+  description: string;
+  subject: string;
+}
+
+export interface EmailTemplatePreview {
+  key: string;
+  subject: string;
+  html: string;
+}
+
+export async function listEmailTemplates(): Promise<EmailTemplateSummary[]> {
+  return (await request<{ templates: EmailTemplateSummary[] }>("/admin/email-templates")).templates;
+}
+
+export async function previewEmailTemplate(key: string): Promise<EmailTemplatePreview> {
+  return request<EmailTemplatePreview>(`/admin/email-templates/${encodeURIComponent(key)}/preview`);
 }
 
 // ---- Audit -----------------------------------------------------------------

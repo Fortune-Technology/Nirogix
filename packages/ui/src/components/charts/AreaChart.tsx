@@ -19,6 +19,13 @@ export interface AreaChartProps {
   className?: string;
   /** Describes the chart for screen readers; the data table below it carries the numbers. */
   ariaLabel?: string;
+  /**
+   * Draw the line and fade the area in when the dataset changes — a date-range
+   * filter switch eases the new shape in instead of snapping. On by default; the
+   * hover cursor does not retrigger it, and a reduced-motion user sees the final
+   * state at once.
+   */
+  animate?: boolean;
 }
 
 /**
@@ -43,6 +50,7 @@ export function AreaChart({
   emptyMessage = "No data yet.",
   className,
   ariaLabel,
+  animate = true,
 }: AreaChartProps) {
   const gradientId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
@@ -53,6 +61,9 @@ export function AreaChart({
   const hasData = points > 0 && all.some((v) => v !== 0);
   const d = domain(all);
   const ticks = tickIndices(points);
+  // Changes only when the data does; keys the series group so the draw-in replays on
+  // a filter switch, while a hover (cursor state) leaves it untouched.
+  const animKey = series.map((s) => s.values.join(",")).join(";");
 
   if (!hasData) {
     return (
@@ -69,7 +80,7 @@ export function AreaChart({
   }
 
   return (
-    <div className={cn("hms-chart", className)}>
+    <div className={cn("hms-chart", animate && "hms-chart--animate", className)}>
       <div
         ref={plotRef}
         className="hms-chart__plot"
@@ -99,7 +110,7 @@ export function AreaChart({
             ))}
 
           {series.map((s, i) => (
-            <g key={s.key}>
+            <g className="hms-chart__series" key={animate ? `${s.key}:${animKey}` : s.key}>
               <path d={areaPath(s.values, d)} fill={`url(#${gradientId}-${i})`} />
               <path
                 d={linePath(s.values, d)}

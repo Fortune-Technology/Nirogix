@@ -39,7 +39,9 @@ const STAGING_PASSWORD = 'StagingOnly#2026';
 const TENANT = {
   code: 'QAHOSP',
   name: 'QA General Hospital',
-  modules: ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'],
+  // `abdm` included (ADR-084) so QA can run the ABHA cases end to end. Which ABDM provider
+  // staging talks to is configuration (`ABDM_PROVIDER`), not a seeding decision.
+  modules: ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm'],
   branches: [
     { code: 'QA-MAIN', name: 'QA Main Campus' },
     { code: 'QA-ANNEX', name: 'QA Annexe Clinic' },
@@ -51,6 +53,7 @@ const TENANT = {
   // One account per role, so every permission boundary is testable in both directions.
   users: [
     { email: 'qa.admin@qahospital.example', fullName: 'QA Org Admin', role: 'org_admin' },
+    { email: 'qa.branchadmin@qahospital.example', fullName: 'QA Branch Admin', role: 'branch_admin' },
     { email: 'qa.doctor@qahospital.example', fullName: 'QA Doctor', role: 'doctor' },
     { email: 'qa.reception@qahospital.example', fullName: 'QA Receptionist', role: 'receptionist' },
     { email: 'qa.pharmacist@qahospital.example', fullName: 'QA Pharmacist', role: 'pharmacist' },
@@ -75,7 +78,7 @@ const TENANT = {
 
 /** The Nirogix platform-operator org, so operator-side flows are testable too. */
 const PLATFORM = {
-  code: 'PLATFORM',
+  code: 'NIROGIX',
   name: 'Nirogix',
   users: [
     { email: 'jaivik@thefortunetech.com', fullName: 'Jaivik Patel', role: 'super_admin' },

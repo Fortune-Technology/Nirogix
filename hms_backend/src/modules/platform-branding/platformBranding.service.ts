@@ -22,7 +22,7 @@ export interface ResolvedPlatformBranding {
 
 // The PLATFORM org's tenant id (ADR-022), used for asset storage + audit.
 export async function platformTenantId(): Promise<string> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'PLATFORM')).limit(1);
+  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'NIROGIX')).limit(1);
   const id = rows[0]?.id;
   if (!id) throw new Error('PLATFORM tenant not found (run db:seed)');
   return id;
@@ -48,9 +48,10 @@ export async function getPlatformBranding(scope: PlatformBrandingScope): Promise
   let faviconUrl: string | null = null;
   if (row.logoFileId || row.faviconFileId) {
     const tid = await platformTenantId();
+    // Rendered in an <img>/<link>, so served inline rather than as a forced download.
     const [logo, favicon] = await Promise.all([
-      row.logoFileId ? getDownloadUrl(tid, row.logoFileId) : Promise.resolve(null),
-      row.faviconFileId ? getDownloadUrl(tid, row.faviconFileId) : Promise.resolve(null),
+      row.logoFileId ? getDownloadUrl(tid, row.logoFileId, { disposition: 'inline' }) : Promise.resolve(null),
+      row.faviconFileId ? getDownloadUrl(tid, row.faviconFileId, { disposition: 'inline' }) : Promise.resolve(null),
     ]);
     logoUrl = logo?.url ?? null;
     faviconUrl = favicon?.url ?? null;

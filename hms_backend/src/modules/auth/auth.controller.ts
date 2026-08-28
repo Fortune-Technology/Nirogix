@@ -7,6 +7,7 @@ import * as authService from './auth.service';
 import { writeAudit } from '../audit/audit.service';
 
 import { REFRESH_COOKIE, REFRESH_PATH, setRefreshCookie } from './auth.cookie';
+import { PasswordSchema } from './auth.schema';
 
 function clientMeta(req: Request) {
   return { userAgent: req.headers['user-agent'], ip: req.ip };
@@ -71,8 +72,7 @@ const ProfilePatchSchema = z.object({
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(200),
-  // Matches the strength the rest of the platform issues; upper bound guards bcrypt cost.
-  newPassword: z.string().min(10).max(200),
+  newPassword: PasswordSchema,
 });
 
 export async function patchProfile(req: Request, res: Response): Promise<void> {
@@ -87,4 +87,18 @@ export async function postChangePassword(req: Request, res: Response): Promise<v
   const input = ChangePasswordSchema.parse(req.body);
   await authService.changeOwnPassword(tenantId, userId, input);
   res.json({ message: 'Password changed. Please sign in again.' });
+}
+
+export async function postForgotPassword(req: Request, res: Response): Promise<void> {
+  // Body already validated by the route's `validate({ body: ForgotPasswordBody })`.
+  await authService.requestPasswordReset(req.body, clientMeta(req));
+  // Uniform 202 no matter what happened — this endpoint is not a directory.
+  res.status(202).json({
+    message: 'If an account matches, a password-reset link has been emailed. It is valid for 30 minutes.',
+  });
+}
+
+export async function postResetPassword(req: Request, res: Response): Promise<void> {
+  await authService.resetPassword(req.body, clientMeta(req));
+  res.json({ message: 'Password reset. Sign in with your new password.' });
 }

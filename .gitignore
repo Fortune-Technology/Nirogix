@@ -10,6 +10,9 @@ build/
 # Turborepo
 .turbo/
 
+# Deploy state on the VM — last successfully deployed commit (ADR-076); never committed
+.last-deploy-sha
+
 # Generated OpenAPI artifacts (the live spec is served at /api/v1/openapi.json)
 generated/
 
@@ -30,3 +33,9 @@ yarn-debug.log*
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Playwright (E2E) artifacts
+playwright-report/
+test-results/
+/blob-report/
+.playwright/

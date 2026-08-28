@@ -6,6 +6,7 @@ import {
   Building2,
   FlaskConical,
   GitBranch,
+  Landmark,
   Network,
   Pill,
   Stethoscope,
@@ -58,6 +59,13 @@ const AREAS: Area[] = [
     perm: PERMISSIONS.USERS_VIEW,
   },
   {
+    href: "/hospital-setup/registry",
+    label: "National registries (ABDM)",
+    blurb: "List this hospital in the Health Facility Registry and its clinicians in the Professional Registry.",
+    icon: Landmark,
+    perm: PERMISSIONS.ABDM_REGISTRY_VIEW,
+  },
+  {
     href: "/laboratory/tests",
     label: "Laboratory test master",
     blurb: "The tests you offer, with price and reference ranges.",
@@ -72,7 +80,7 @@ const AREAS: Area[] = [
     perm: PERMISSIONS.PHARMACY_MANAGE,
   },
   {
-    href: "/settings/organization",
+    href: "/hospital-setup/hospital-information",
     label: "Hospital information",
     blurb: "Registered address, contact details and statutory numbers, printed on your documents.",
     icon: Building2,

@@ -843,3 +843,974 @@ Within one organization, hospitals can now carry different items — Hospital 1 
 - **Deferred** (issue #14's "full" option): real per-hospital STOCK needs a server-side current-branch (branch in the token/session + a validated switcher + user↔branch membership) — a change to authentication. The overlay ships without it; a per-branch price override is included.
 
 **Testing status:** new `branchAvailability.test.ts` (5 tests: disabling at one hospital doesn't affect the other or org-wide; price override applies only at that branch; vaccines branch-scoped by code; one org can't see another's config; a foreign branch is refused). Full backend suite **162/162** green. Typecheck + OpenAPI validate clean (migration 0027).
+
+## 2026-08-18 — Operator org code → `NIROGIX`; case-insensitive org-code login (ADR-074)
+
+The operator org (ADR-022) is now coded **`NIROGIX`** (was `PLATFORM`) — consistent with `CITYCARE` / `SUNRISE` and with the org's own name, so operators sign in with the product name. Changed the three services that resolve the operator org by literal — `patient-identity` (verification sender), `platform-branding` (default scopes), `admin` onboarding (`PLATFORM_CODE`) — and the three seeders (`seed.ts`, `seed.staging.ts`, `seed.production.ts`). The running dev DB was migrated **in place** (a code rename on the existing row; the two Platform Admins stayed attached — no duplicate org). `PLATFORM` is retired as a code; the word survives only as the *concept* "platform operator".
+
+`resolveTenantByCode` is now **case-insensitive** (`lower(code) = lower(input)`, limit 1), so every sign-in form accepts the org code in any case. Codes stay stored canonical/upper; they are unique and uppercase by convention, so the read stays single-row.
+
+**Testing status:** verified live against the API — `nirogix`, `Nirogix`, `NIROGIX`, `NiRoGiX` each return a `super_admin` token for both `jaivik@` and `nishant@`; the retired `PLATFORM` code now returns `UNAUTHORIZED`. Auth + admin + patient-identity module suites **28/28** green; the three affected workspaces typecheck clean.
+
+## 2026-08-18 — Deploy hardening after the staging-VM OOM outage
+
+The shared staging VM was OOM-killed and taken fully offline when an unbounded `npm run build` ran all six workspaces' Turbopack/`tsc` builds concurrently (zero swap). Real-source fixes for what had been live only as VM symlinks + workarounds:
+
+- **`tsconfig.json` `rootDir: "."` → `"src"`** so `tsc` emits `dist/server.js` (what `deploy/ecosystem.config.cjs` runs), not `dist/src/server.js`. `drizzle.config.ts` was dropped from `include` (it lives outside `src/` and is loaded directly by drizzle-kit, never emitted; keeping it forced the common root back to `.` and re-nested the output). Verified: clean build emits `dist/server.js` with no `dist/src/`, typecheck still green, `drizzle.config.ts` still valid standalone.
+- **`deploy/pm2.ecosystem.cjs` → `deploy/ecosystem.config.cjs`** (`git mv`). PM2 only parses the `apps` array from files matching `*.config.{js,cjs,mjs}`/`.json`/`.yml`; the old name silently ran as one inert script instead of six apps. Updated every live reference (the workflow's `pm2 reload` line, `deploy/README.md` ×3, `hms_backend/KNOWLEDGE.md`) and added a "do not rename" note in the file; append-only DONE history keeps the old name in past tense.
+- **`deploy-staging.yml` SSH step** already runs `npm run build -- --concurrency=2` (bounded peak memory — the direct OOM fix); its incident comment now points at the new runbook § Incidents.
+- **`admin` / `patient` / `aiportal` gained committed `.env.example` files** (they had none — env had to be reverse-derived from source). Each lists exactly the `NEXT_PUBLIC_*` its source reads, with per-environment hosts from `resources/domains.md`. Also fixed a latent bug: those three apps' local `.gitignore` lacked the `!.env.example` negation `hms_frontend`/`marketing` have, so the new templates were being silently ignored.
+- **`deploy/README.md`** gained a **required** swap-space provisioning step (Step 0b — 4 GB swapfile) and an **`## Incidents`** section recording the outage, cause, fixes, and the shared-VM operating rules (never bare `npm run build` by hand; verify bound ports with `ss`/`curl` not PM2's "launched"; inline env vars; `pm2 save` only after verifying; clean `su -` switches).
+
+**Testing status:** backend build emits `dist/server.js` (verified, no `dist/src/`); backend typecheck clean; the three `.env.example` files confirmed git-trackable after the `.gitignore` fix. No app-code behaviour changed — this is deploy/build configuration + docs.
+
+## 2026-08-19 — Forgot-password flow (ADR-081) + staging Branch Admin (ADR-080)
+
+**What:** `POST /auth/forgot-password` (uniform 202, sign-in rate tier) and `POST /auth/reset-password`. Token = signed 30-minute JWT (`prt: 'pwreset'` type pin, per-issue nonce) whose SHA-256 hash lives in the new tenant-scoped `password_reset_tokens` table (migration 0028); the consume route enters RLS from the verified claims — the `/auth/refresh` pattern. Success consumes the used row AND every other outstanding row for the user, revokes every session, audits `auth.password.reset.completed`. `changeOwnPassword` gained its missing audit entry; the password policy is extracted to one shared `PasswordSchema`. Email goes through `sendEmail`; the dev log provider now logs the body so the link is exercisable locally. New env: `PORTAL_URL` / `ADMIN_URL` (link origins — configured, never derived from a request header). The staging seeder also gained `qa.branchadmin@qahospital.example` (`branch_admin`, ADR-080).
+
+**Testing status:** new `passwordReset.test.ts` 5/5 (request+audit, uniform unknown paths, full reset with session revocation and single-use refusal, expired row, garbage token); OpenAPI validate green; full suite 166 passed / 1 failed — the one failure is `notification.test.ts`'s dev-provider case, failing only because the local `.env` carries an `MSG91_API_KEY` (provider selection is by env; recorded in BACKLOG.md).
+
+## 2026-08-20 — Every open security finding closed on the API (ADR-082)
+
+**What:** the backend half of `SECURITY-AUDIT.md`'s remaining findings — H-3, M-2 (remainder), M-4, M-6, L-2, L-3, plus H-5, which the new CI gate discovered.
+
+- **Per-account lockout (H-3).** `auth/lockout.ts` + migration 0029 (`users.failed_login_attempts`, `failed_login_at`, `locked_until`). Five consecutive failures lock for 60s, doubling to a 15-minute ceiling; the streak expires after 15 minutes, so an occasional mistyped password never locks anyone. The password is verified even while locked, so the locked and unlocked paths cost the same, and the lock is disclosed **only** to a caller who got the password right (429 naming the wait) — everyone else gets the unchanged `Invalid credentials`. Attempts during a lock never extend it, so nobody can hold an account shut. Audits `auth.login.locked` / `auth.login.blocked`, escalating to `critical` at ten failures. Sign-in, change-password and a completed reset clear the state.
+- **One password policy (M-6).** `auth/passwordPolicy.ts`: 12–200 characters, three of four character classes, a blocklist matched after folding leetspeak, and nothing built from the holder's own email / name / organization code. Enforced at the Zod boundary (so it reaches OpenAPI) and again in every service that sets a password — self-service change, the reset flow, `createUser`, tenant onboarding, and the production bootstrap seeder, which previously checked length ≥ 12 and nothing else. `generateTempPassword` is CSPRNG with one character per class and **no fixed prefix**; the two duplicated `Hms-` + six-bytes generators are gone.
+- **Upload content validation (M-4).** `file/fileSniff.ts` checks magic bytes for every allowed type, requires them to agree with the declared MIME, and accepts `text/plain` only when the payload is valid UTF-8 with no NUL or control bytes. Enforced in the single `uploadSingle` choke point every upload route already goes through, before anything reaches storage; refusals are `422 FILE_CONTENT_MISMATCH`.
+- **Pool timeouts (M-2 remainder).** `statement_timeout` (30s) and `idle_in_transaction_session_timeout` (15s) as connection parameters, both configurable per environment. `db/migrate.ts` opts its own session out — slow DDL is expected there.
+- **API docs closed in production (L-2).** `OPENAPI_UI_ENABLED` now governs the raw spec as well as the Swagger UI (the spec was served unconditionally), and its default follows the environment: on outside production, off in production.
+- **Request correlation (L-3).** `http/requestContext.ts` mints one id per request, echoes `X-Request-Id`, feeds pino’s `genReqId`, and reaches `writeAudit` through an AsyncLocalStorage — so an audit written five calls deep records it without a new parameter. New `audit_log.request_id` column (migration 0029), surfaced on the audit API and in `@hms/types`. An inbound id is honoured only when it matches `[A-Za-z0-9._-]{8,64}` and replaced otherwise, so a caller cannot poison the log or the table.
+- **H-5, found by the new CI gate.** `drizzle-orm` 0.38.4 carried GHSA-gpj5-g38j-94v9 (SQL injection via improperly escaped identifiers). Upgraded to 0.45.2, `drizzle-kit` to 0.31.10; `npm audit --omit=dev` now reports 0 vulnerabilities.
+
+**Testing status:** 255 backend tests pass (38 files), including new suites `lockout.test.ts` (8), `lockout.api.test.ts` (6 — lock, disclosure asymmetry, no extension during a lock, audit rows, expiry, per-account scope), `passwordPolicy.test.ts` (10), `fileSniff.test.ts` (6) and `requestId.api.test.ts` (4). `passwordReset.test.ts` gained a case proving the reset path enforces the policy: its old fixture password contained the account holder's own name, which the new rule correctly refuses. Typecheck, lint and OpenAPI validate green; all five app builds pass on the upgraded ORM.
+
+---
+
+## ABDM / ABHA — Milestone 1 (ADR-084)
+
+**What:** the registration desk can now verify a patient's national health identity instead of
+retyping it. Three flows land on the same review step — Scan and Share (the patient scans the
+hospital's HFR facility QR in their own ABHA app; no OTP at all), verify an existing ABHA by number /
+address / mobile / Aadhaar, and create a new ABHA from Aadhaar with the secondary mobile check, the
+ABHA-address claim and the card download. The operator reviews the profile, the ordinary patient
+endpoint creates the chart, and `POST /abdm/link` attaches the verified ABHA.
+
+**Its own entitled module (`abdm`), not part of `patient`.** A hospital can only use ABDM after
+registering a facility with NHA, so the capability is per tenant and gated
+`requireAuth → requireModule('abdm') → requirePermission`. Four new permission keys; the front desk
+verifies and links, org_admin configures the facility.
+
+**Credentials split by owner.** NHA issues one client id/secret to the *application* (server config,
+never per tenant) and a separate HFR facility id to each *hospital* (`abdm_facility_config`, tenant
+data, sent as `X-HIP-ID`, and what the Scan-and-Share callback resolves the tenant from).
+
+**Security decisions, made once and enforced in more than one place.** Consent is a required `true`
+checked before the OTP is sent and stored with a version. The raw Aadhaar is RSA-encrypted with NHA's
+certificate, sent, and dropped — only `XXXXXXXX1234` persists, enforced by the application, by a
+`CHECK` constraint that refuses anything Aadhaar-shaped in `identifier_hint`, and by a new
+log-boundary scrub wired into pino and the error tracker (the scrub is at the log boundary and not
+the request edge, because the enrolment call legitimately carries one). ABDM tokens are encrypted at
+rest with a new shared AES-256-GCM primitive, or discarded if no key is configured — never written in
+the clear. `abha_verified_at` may only be set by a completed flow, and editing the number by hand
+clears it.
+
+**New vs returning, in NHA's order, with the second pass never automatic.** An exact verified ABHA
+number is conclusive; a demographic match (name + gender + birth year) is offered as candidates for a
+human to confirm, because merging the wrong charts is a clinical safety incident. Linking an ABHA
+that already sits on another chart is refused.
+
+**`mock` is a first-class provider.** The sandbox allows a handful of OTPs per number per day, so a
+build that could only talk to the gateway could not be developed, CI-tested or demonstrated. The mock
+holds a real RSA keypair (the encryption path is genuinely exercised), keys its scenarios off the
+Aadhaar's last digit, and refuses to start in production. Boot guards refuse `gateway` without
+credentials, production pointed at the sandbox, and non-production pointed at production ABDM.
+
+**Two defects the API tests caught and fixed:** the patient DTO silently dropped the new ABHA fields,
+and `/abdm/link` returned the raw patient row — publishing the encrypted linking token to the
+browser. Both now go through one shared allow-list DTO (`patient.dto.ts`).
+
+**Also extracted:** `useQrDataUrl` in the Portal, when the facility QR became the second QR in the
+app (ADR-029) — `usePublicQr` now composes it.
+
+**Testing status:** 62 new tests (36 ABDM service, 14 ABDM API/HTTP, 12 security primitives) covering
+all three flows, the secondary mobile step, the account picker, new-vs-returning matching, one ABHA
+per chart, hand-editing un-verifying, the callback's non-enumerability, cross-tenant isolation, that
+no Aadhaar reaches a row/log/audit, and that no token reaches a browser. **Full backend suite: 317
+passed, 41 files, 0 failed.** Typecheck, OpenAPI validation and the Portal production build are
+green. Not yet exercised against the real ABDM sandbox — that needs credentials and is tracked in
+`BACKLOG.md`.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** `.env.example` is now a *complete* configuration rather than a mix of live keys and
+commented-out documentation. Every variable `config/env.ts` reads is present and **uncommented**,
+carrying either a working local default or an empty value; comments are trimmed to 1–2 lines saying
+what the key is and what a blank value falls back to. The gitignored `.env` was regenerated to hold
+**the same keys in the same order**, with the existing local values preserved — so a new variable
+never has to be hunted down and pasted in by hand.
+
+**Changed:**
+- `src/config/env.ts` — blank values are stripped from `process.env` before Zod validation, so
+  `SENTRY_DSN=` behaves exactly like an unset `SENTRY_DSN`. Without this, keeping every key
+  uncommented would break the boot: an empty `.url()` or `z.coerce.number()` fails validation and
+  `env.ts` exits the process. Every consumer already treated `''` and `undefined` alike.
+- `.env.example` — added the keys it was missing (`REDIS_URL`, `DB_STATEMENT_TIMEOUT_MS`,
+  `DB_IDLE_TX_TIMEOUT_MS`, `PORTAL_URL`, `ADMIN_URL`), uncommented every previously commented one
+  (`CORS_ORIGINS`, `SENTRY_DSN`, `API_STAGING_URL`, `API_PRODUCTION_URL`, all `MSG91_*`, all `R2_*`,
+  `ENCRYPTION_KEY`, all `ABDM_*`), and cut the long prose blocks down to 1–2 lines each. No real
+  secret in the file — every credential slot ships empty.
+
+**Testing status:** `typecheck` green. **Full backend suite: 319 passed, 41 files, 0 failed.**
+Runtime check confirms blank `SENTRY_DSN` / `API_STAGING_URL` / `CORS_ORIGINS` / `REDIS_URL` parse
+as `undefined` and the numeric defaults still apply.
+
+**Decisions:** A blank value is the canonical way to say "not configured" — it is what makes
+"every key always present" workable, and it keeps `.env` diffable against `.env.example`. Rule
+recorded in `CLAUDE.md` → *Environment files*.
+
+---
+
+## ABDM: reconciled against the official V3 Postman collection (ADR-084)
+
+**What:** NHA's *Milestone 1 Postman Collection-18-08-2025* (143 requests) arrived, and
+`abdm.constants.ts` exists precisely so checking it is a one-file diff. Five real deviations, all
+fixed:
+
+- **`profile/login/verify` scope must be the two-element array** the OTP was requested with
+  (`['abha-login','aadhaar-verify']`). We sent one element — every verification would have failed.
+- **`login/verify/user` authenticates with `T-token`, not `X-token`.** Different credential,
+  different header; the wrong one 401s in a way that reads like broken client credentials.
+- **ABHA-address verification is a different API family.** It goes through
+  `/v3/phr/web/login/abha/*` with the `abha-address-login` scope pair, not `/v3/profile/login/*`.
+  The provider contract gained a `family` discriminator rather than a second set of methods.
+- **Scan and Share arrives on a path NHA dictates** — `/api/v3/hip/patient/share`, appended to the
+  registered bridge URL — with a **nested** payload (`metaData` + `profile.patient`, birth date in
+  three possibly-masked parts). Our own `/api/v1/abdm/callbacks/...` route was replaced rather than
+  kept alongside it: two paths for one webhook is the drift the clean-code rule exists to prevent.
+  It is mounted at the root in `abdm.gatewayRoutes.ts`, the single documented exception to the
+  `/api/v1` convention, because the versioning of a counterparty's webhook is not ours to choose.
+- **The exchange is two-way, and the second half was missing.** After receiving a share the HIP
+  must answer on `patient-share/v3/on-share` with a **token number** — the queue position the
+  patient sees on their phone. Implemented as today's share count for that hospital plus one,
+  best-effort, so a failed acknowledgement never undoes a profile already at the desk.
+
+Everything else matched: session, certificate, all three enrolment calls, the address suggestion
+and claim, the card, and the profile-login request/verify for ABHA number, mobile and Aadhaar.
+
+**Also corrected:** NHA's onboarding email quotes **outdated V1** bridge-administration commands.
+The V3 paths (and the fact that service registration is on the facility-registry host, with
+`type: "HIP"` rather than the email's `HEALTH_LOCKER`) are recorded in `abdm.constants.ts` →
+`BRIDGE_ADMIN` and in `BACKLOG.md`.
+
+**Testing status:** 52 ABDM tests (the callback suite rewritten around the real payload, including
+a masked date of birth and header-based facility routing), 319/319 backend tests, OpenAPI valid,
+typecheck green. Credentials verified live the same day (`npm run abdm:check`): session issued,
+certificate fetched.
+
+---
+
+## ABDM: the RSA padding was wrong — found by experiment, not by reading (ADR-084)
+
+**What:** the first live sandbox attempts failed on every identifier, including a perfectly
+well-formed mobile number. The cause was the encryption padding: we sent
+`RSA/ECB/PKCS1Padding`; the ABHA APIs require **`RSA/ECB/OAEPWithSHA-1AndMGF1Padding`**.
+
+**Why it took a while.** A padding NHA cannot decrypt does not produce a decryption error. It
+produces `400 {"loginId":"Invalid LoginId"}` — the same message a genuinely bad Aadhaar gets. So
+the system pointed at the value and away from the cipher, and an early conclusion of mine ("NHA
+decrypted it and rejected the value") was wrong for exactly that reason.
+
+**How it was settled.** One checksum-valid, unassigned Aadhaar (Verhoeff digit computed in the
+probe) sent under three paddings, comparing the answers:
+
+| padding | NHA |
+|---|---|
+| PKCS#1 v1.5 | `400 Invalid LoginId` — not decrypted |
+| **OAEP-SHA1** | `422 ABDM-1204 "UIDAI Error code : 998 : Aadhaar number is incorrect"` |
+| OAEP-SHA256 | `400 Invalid LoginId` — not decrypted |
+
+Only OAEP-SHA1 reached UIDAI, which is the proof: the value was decrypted, forwarded, and answered
+by the authority that owns it. `npm run abdm:check -- --probe` still runs that comparison, so the
+next question of this kind is one command rather than an afternoon.
+
+**A workaround disappeared with it.** The mock provider had been unwrapping PKCS#1 blocks by hand,
+because Node refuses `RSA_PKCS1_PADDING` for private decryption after CVE-2023-46809. OAEP has no
+such restriction, so the hand-rolled unwrapping is gone — the correct answer and the simpler one
+were the same.
+
+**Also fixed on the way:** NHA's enrolment errors are keyed by **field name**
+(`{"loginId":"Invalid LoginId"}`) with no `message` anywhere, so every rejection had been reaching
+the receptionist as "ABDM request failed (400)". The parser now reads five shapes, all unit-tested
+against verbatim bodies, and the raw body is always logged.
+
+**Testing status:** 326 backend tests (71 across ABDM and the security primitives), typecheck and
+OpenAPI green. Live sandbox: session, certificate and a decryptable enrolment request all
+confirmed.
+
+---
+
+## ABDM: three defects found by using it against the real sandbox (ADR-084)
+
+The sandbox run surfaced three things no amount of unit testing would have:
+
+- **The Aadhaar scrubber was corrupting ABHA numbers.** `91-1234-5678-9999` was being stored as
+  `91-XXXXXXXX9999`, because the last twelve digits of a formatted ABHA are a 4-4-4 group —
+  indistinguishable from a formatted Aadhaar to the pattern. The scanner now matches the longer,
+  legitimate ABHA shape **first** and returns it untouched; an Aadhaar sitting beside one is still
+  masked. Two regression tests pin both halves.
+- **The prefill now reads the identifiers from their own columns**, not from the stored profile
+  blob. The blob passes through the scrubber on the way in, so it is the wrong place to read an
+  identifier from even with the fix — the columns are both authoritative and out of reach of a
+  defensive measure aimed at something else.
+- **`mobile` was rejected at our own boundary.** The Portal's `PhoneField` produces the canonical
+  `+91XXXXXXXXXX`, correct everywhere else in the product, and the ABDM schema demanded exactly ten
+  digits — so a valid number was refused with "Invalid" **after the patient had already received an
+  OTP**. The boundary now normalises (`+91…`, `91…`, `0…`, bare) instead of insisting on one
+  spelling, with `[6-9]` as the real validity rule.
+
+**Testing status:** 328 backend tests, typecheck and OpenAPI green. Live against the ABDM sandbox:
+OTP delivered to the Aadhaar-linked mobile and verified `200 OK` — M1 enrolment works end to end.
+
+---
+
+## 2026-08-26 — Capability entitlement engine (ADR-085, P1 — built-only retrofit)
+
+**What:** the capability tier beneath module entitlement — a module's independently-toggleable
+sub-features — added without changing any running behaviour.
+- **`tenant_capability_entitlements`** (migration `0031`) — **deny-by-exception**: a capability is ON
+  whenever its module is entitled and no *effective* override disables it, so the table starts empty
+  and existing behaviour is preserved byte-for-byte (no backfill). Never physically deleted;
+  branch-nullable; RLS auto-applied via the `tenant_id` column.
+- **`modules/entitlement/capability.service.ts`** — `isCapabilityEntitled`,
+  `listEntitledCapabilities`, `setCapabilityStatus` (audited `capability.status`; enforces
+  configure-time dependency rules **both** ways). Pure, unit-tested `resolveCapabilityEnabled` /
+  `isCapabilityRowEffective`.
+- **`http/requireCapability.ts`** + `Errors.capabilityNotEntitled` (403 `CAPABILITY_NOT_ENTITLED`) —
+  the optional 3rd authz link: `requireAuth → requireModule → requireCapability → requirePermission`.
+  Wired on the `billing.services` catalogue routes (the shipped demonstrator).
+- **`moduleCatalog.ts`** now derives from `@hms/permissions` `MODULE_REGISTRY` — the module list has
+  exactly one source of truth.
+- **`GET /entitlements`** returns `{ modules, capabilities }`.
+
+**Why:** ADR-085 (extends ADR-083) — express `OT = ON, OT Billing = OFF`-style configuration, keep
+one canonical registry FE/BE, preserve existing behaviour, and make the engine the standard every
+future module is built to. The 86-module map may be described in the registry, but only `BUILT`
+entries are entitled or marketed (ADR-038). Frontend consumption (module-/capability-aware nav) is
+the later ADR-083 §20C / §20D session work.
+
+**Testing status:** full backend suite **351** green (was 328; +23 — `registry.test.ts` 14,
+`requireCapability.test.ts` 3, `capability.test.ts` 6). Typecheck + OpenAPI valid. Migration `0031`
+applied by test globalSetup. Covered: default-ON, explicit disable/re-enable, module-off cascade,
+unknown-capability rejection, and dependency guards in both directions; the billing services routes
+still answer 200 through the new capability gate (default-ON).
+
+**Admin capability configuration (same day, ADR-085 P5):** two operator endpoints —
+`GET /admin/tenants/:id/capabilities` (every declared capability of a tenant's entitled modules +
+its enabled state, via `listTenantCapabilities`) and `PUT /admin/tenants/:id/capabilities`
+(`{ module, capability, enabled }` → `setCapabilityStatus`; a dependency-guard failure is mapped to
+**409** with the backend message, not a 500). Both `platform.tenants.manage`, documented in OpenAPI.
+Drives the admin console's Capabilities card. Suite **352** with the `listTenantCapabilities` test.
+A third endpoint, `GET /admin/tenants/:id/module-config` (`getTenantModuleConfig`), returns the
+**whole** registry grouped by domain with each module's `entitled` and each capability's `enabled`
+state — the single model the three-level admin module manager consumes (ADR-085 §19). Suite **353**.
+
+## Notification & email wiring (26/08/2026, ADR-086)
+
+**Central email system.** New `modules/notification/email/` — `layout.ts` (one branded, responsive,
+inline-styled HTML renderer + plain-text twin, HTML-escaping untrusted text), `email-templates.ts`
+(THE typed catalogue: `auth_password_reset`, `auth_password_changed`, `onboarding_admin_welcome`,
+`staff_welcome`, `appointment_confirmed`, `appointment_cancelled`, `payment_receipt`,
+`lab_results_ready`, `patient_welcome` — each with `subject`/`build`/`sample`), `format.ts`
+(DD/MM/YYYY, hh:mm AM/PM, ₹). `communication.service.ts` gains `sendAppEmail(template, data)` +
+`resolveEmailBrand` (tenant accent + org name, Nirogix default; no logo — signed URLs expire). The
+password-reset email now renders through the catalogue instead of inline text.
+
+**Event → email subscribers.** `notification.subscribers.ts` (registered in `events/subscribers.ts`)
+sends on `appointment.booked`/`cancelled`, `payment.received`, `lab.result_verified` (NEW event,
+published at `verifyResult` — portal release, not raw entry), `patient.registered` — email only,
+only when the patient has an email, deduped per entity. `onboardTenant` + `createUser` send a
+welcome email with a set-your-password link (reset-token flow, new `PASSWORD_SETUP_TTL='7d'`; temp
+password still returned — non-breaking). `resetPassword` + `changeOwnPassword` send a security
+confirmation. Not wired (anti-spam): `visit.checked_in`, `encounter.signed`, `invoice.created`,
+`user.logged_in`.
+
+**Platform messages.** `messages.ts` — single catalogue of canonical success copy; `onboardTenant`
+and `createUser` controllers now return `{ message }` so all frontends show identical copy. No
+in-app notification centre (the codebase deliberately avoids faking one).
+
+**Email preview.** `GET /admin/email-templates` + `GET /admin/email-templates/:key/preview`
+(`platform.tenants.manage`, documented in OpenAPI) list the catalogue and render a template from
+sample data. Backs the new admin `/email-templates` page.
+
+**Config.** `PATIENT_URL` added (env + `.env.example` + `.env`, lockstep) for patient-email portal
+links; blank ⇒ button omitted. `NotificationJobData` gains `templateId` (prep for transactional SMS,
+still blocked on DLT — BACKLOG I-1).
+
+**Testing.** New pure `email.test.ts` (16 — layout, escaping, every template renders, formatting).
+Shared `test-api.ts` `cleanupTenant` + the 22 bespoke integration teardowns now clear
+`notification_log` before deleting the tenant (business flows emit notifications now;
+`notification_log.tenant_id` is ON DELETE RESTRICT — invariant #6). Backend typecheck + OpenAPI valid.
+
+---
+
+## ABDM: profile update at ABDM (ADR-084)
+
+**What:** `PATCH /api/v1/abdm/profile` — the last outstanding item from NHA's Milestone 1
+documentation. It amends the ABHA holder's profile in the **national register**, using the
+holder's own `X-token` from a completed verification, and returns the profile as ABDM now holds it
+rather than as we asked for it.
+
+**It is the only M1 call that writes outward, and it is built to say so.** Its own permission
+(`abdm.profile.update`, org_admin by default and explicitly not the receptionist's), its own audit
+action recording **which fields changed and never their values**, and UI copy that states the change
+lands at ABDM rather than only at this hospital — with a pointer to the registration form for a
+local-only correction. It deliberately does not touch the patient's chart: correcting the national
+record and correcting ours are separate acts, and one screen quietly rewriting two systems is how
+that goes wrong.
+
+**An honest limit.** The official V3 collection demonstrates only `profilePhoto` on the `X-token`
+path; the demographic fields appear there on the **Benefit (Government) APIs**, which authenticate
+differently. Ours sends an explicit allow-list — never a passthrough, on a national register — and
+surfaces NHA's own rejection verbatim if a field is refused. Confirming the accepted set against a
+live call, and trimming the list to match, is in `BACKLOG.md`.
+
+**Also settled this change (owner decision, 25/08/2026):** the `loginHint: "mobile"` verification
+flow stays as built rather than moving to the search-and-index variant, and creation by Aadhaar
+biometric, offline demographic and driving licence remain out of scope.
+
+**Testing status:** 378 backend tests across 45 files (65 ABDM), typecheck, OpenAPI and the Portal
+production build green.
+
+---
+
+## ABDM Milestone 2 — care contexts and the consent store (ADR-087)
+
+**What:** the foundation of the HIP role. Two tables (`abdm_care_contexts`, `abdm_consents`,
+migration `0032`), two services, and the event wiring that creates a care context whenever a
+clinical record is finalised.
+
+**A care context is a pointer, never content.** Opaque reference (the visit id) plus a label built
+from the visit's date and setting. `assertNonClinicalLabel` **refuses** clinical vocabulary rather
+than scrubbing it: the correct labels are generated here, so anything tripping the check is a caller
+that built one some other way — a bug to fix at the source, because a diagnosis sent to the consent
+manager cannot be recalled.
+
+**One context per visit, `hi_types` as an array.** A visit produces a prescription, a lab report and
+an invoice; the patient looking for "my visit on the 3rd" expects one entry. ABDM's per-`hiType`
+grouping in the link payload is a wire-format detail, not a reason to fragment the model — which is
+why this deliberately departs from a single `hi_type` column.
+
+**Driven by domain events that already fire** — `encounter.signed`, `lab.result_verified`,
+`invoice.created`. Entitlement-checked and best-effort, so no ABDM failure can break a clinical
+action, and signing a consultation stays a clinical act that knows nothing about ABDM. Verified
+rather than merely resulted, because an unverified lab result is not something to publish to a
+national network. Only a **verified** ABHA makes a context linkable (ADR-084) — a typed number was
+never proved, and linking on one would attach the wrong person's records.
+
+**Consent artefacts are deleted, not deactivated,** on revoke, expiry and ABHA opt-out. NHA's
+certification checks the row is gone, and the reasoning stands alone: an artefact we keep is an
+authorisation we might act on. Invariant #6 is intact — the audit *event* survives, the *artefact*
+does not, so who was allowed what stays answerable without a live permission lying around. Expiry is
+swept proactively as well as on notification. Opt-out clears the ABHA identity and every consent
+under it while leaving the chart, which was made under the hospital's own duty of care.
+
+**One fail-closed gate for every future transfer.** `checkConsentForTransfer` refuses a missing
+artefact, an expired one, a different requester, an unlisted HI type, or a window wider than the
+grant — and says which, because "expired" and "this HIU was never granted access" are different
+incidents to an auditor.
+
+**Testing status:** 19 new tests (397 total across 46 files), covering label safety, per-visit
+accumulation and idempotency, verified-ABHA-only linking, link-failure recording, all four mandatory
+consent cases, and every branch of the transfer gate. Typecheck green.
+
+**Deliberately not built here:** everything else in M2 is an inbound webhook and needs a public
+HTTPS endpoint (`BACKLOG.md` I-5). Two mandatory HI types — DischargeSummary and WellnessRecord —
+cannot be produced from current data and are open questions for NHA rather than stubs.
+
+---
+
+## ABDM: health records as structured FHIR bundles (ADR-088)
+
+**What:** `modules/abdm/fhir/` — hand-written R4 types, resource builders, and a document composer
+that turns a visit into an NRCES-profiled FHIR **document** for seven of ABDM's eight HI types.
+
+**Structured, not attachment-wrapped — the usual advice inverted.** "Simple bundles are quicker" is
+true for a product that already stores PDFs. This one renders documents in the browser (ADR-047) and
+has no PDF library, so a simple bundle would have meant adding headless Chromium purely to
+manufacture an attachment — while the data is already partly coded (ICD-10 on diagnoses, LOINC where
+the test master knows it, discrete vitals). Structured was the smaller change *and* the destination
+NHA expects within a couple of years.
+
+**Rules the mapping holds to, each with a test:**
+- **Never invent a code.** A drug travels as `text` with no `coding`, because deriving a SNOMED code
+  from a drug name produces a document that looks machine-readable and is wrong.
+- **Units convert at the boundary** — tenths of a degree to °C, grams to kg, with UCUM codes.
+- **Blood pressure stays one Observation with two components**, as LOINC models it; splitting it
+  loses the fact the readings were taken together.
+- **Only verified lab results leave.** An unverified result is a working note, not a finding.
+- **An empty document is refused** (`ABDM_NOTHING_TO_SHARE`) rather than sent.
+
+**A bug the tests caught:** the invoice mapping recomputed each line as unit price × quantity. It now
+uses the **stored line total** — the invoice the patient settled is the authority, and any rounding
+the billing service applied has to survive into the record they read back.
+
+**Seven of eight types.** WellnessRecord is included after all, built from the vitals every
+consultation records — real measured data, not a stub. **DischargeSummary** remains the one genuine
+gap: it needs the unbuilt IPD module, and is an open question for NHA rather than an empty document.
+
+**Testing status:** 16 new tests written against real rows rather than fixtures — ICD-10 preserved
+with its system, LOINC and abnormal flags on results, units converted, BP kept whole, an unverified
+result proven absent from the payload, paise converted to rupees, and the Composition first as the
+format demands. **413 backend tests across 47 files**, typecheck and OpenAPI green.
+
+**Not done:** validation against NRCES's own FHIR validator in CI, and the transfer that carries
+these bundles — blocked on the same inbound-webhook infrastructure as the rest of M2.
+
+---
+
+## ABDM: the linking client (ADR-089)
+
+**What:** link-token acquisition and storage, HIP-initiated linking, the update notification, and the
+SMS fallback — plus the two webhooks ABDM answers on (`on-generate-token`, `on_carecontext`), mounted
+beside the Scan-and-Share callback outside `/api/v1` because the paths are NHA's to choose.
+
+**Linking is a resumable sweep, not an inline call.** Acquiring a link token is asynchronous — we
+ask, NHA answers on a webhook — so a design that linked during the clinical write would have to
+fail, block or lie whenever the token was not yet in hand. Instead the care context is recorded when
+the record is finalised (ADR-087) and the sweep links it afterwards. A consultation can never fail
+to save because NHA was slow, and running the sweep twice is safe.
+
+**Token expiry is read, not assumed.** NHA says "about six months"; we parse the token's own `exp`
+claim and treat anything inside a one-day margin as absent. A link that begins with a token about to
+expire fails at exactly the wrong moment. The claim decides only when to renew — never authorisation
+— so the unverified signature is not a security question.
+
+**One call per patient, not per context.** ABDM notifies every subscribed PHR app on each link; a
+visit that produced four records should reach the patient once. The `hi_types` array fans out into
+ABDM's per-type blocks at the boundary.
+
+**Optimistic on accept, corrected by callback.** Contexts are marked linked when the gateway accepts;
+the failure callback puts them back to **pending** (not failed) so the sweep retries — most link
+failures are transient, and the record itself is fine. A success confirmation deliberately does not
+rewrite `linked_at`.
+
+**The SMS fallback is the only place a phone number leaves the system**, so it audits that we texted
+the patient and never the number, and refuses to text someone whose records are already linked.
+
+**Testing status:** 23 new tests against a recording mock — token lifetime and encryption, refusal on
+an unverified ABHA, exact payload shape, one-call batching, sweep idempotency, failure-retry
+semantics, and a check that the payload carries no clinical information. **436 backend tests across
+48 files**, typecheck and OpenAPI green.
+
+**Cannot round-trip yet:** the webhooks need a registered bridge URL, which needs TLS (`BACKLOG.md`
+I-5). The mock records the request instead of sending it — the only half of an asynchronous protocol
+we control before the callback endpoint exists.
+
+---
+
+## ABDM: discovery and user-initiated linking (ADR-090)
+
+**What:** the patient-driven half of M2 — `discovery.service.ts` (the matcher),
+`userLinking.service.ts` (our OTP round trip and the three gateway answers), and the three inbound
+callbacks beside the others outside `/api/v1`.
+
+**The whole risk is one question: who is this?** Answer it loosely and one patient receives
+another's records. So the rules are strict and most of the tests assert that the right answer is
+*nobody*:
+
+- **Ambiguity means no match.** Twins on a household mobile are ordinary, and our own duplicate
+  guard (ADR-066) means the data deliberately contains same-name, same-phone charts. Guessing
+  between them is a disclosure; refusing costs a repeat search.
+- **A verified ABHA address is conclusive** and stops the search.
+- **Demographics need mobile AND name AND year of birth** together; any one is a coincidence.
+- **A self-declared hospital number is never enough alone** — guessable, mistypeable, readable off
+  someone else's card. Treating it as proof would make our UHID sequence an attack surface. It may
+  only break a tie between demographic candidates.
+- **Requested contexts are intersected with what we actually hold** for that patient, because the
+  references arrive from outside.
+
+**The OTP is ours, sent to the number on the chart** — an ABDM-verified number proves the ABHA, the
+chart's number is what this hospital confirmed with the patient. It runs through the existing
+communication seam, inheriting hashing, the five-attempt limit, the ten-minute life and the DLT
+template. The store is scoped to one link request, so two in flight cannot verify each other.
+
+**Every outcome answers the gateway, including refusal** — a wrong code replies with an empty
+patient list rather than throwing, because a hanging app is worse than a clear "that was wrong".
+Every discovery is audited whether or not it matched, recording which *kinds* of identifier matched
+and never their values: a run of misses against similar demographics is what enumeration looks like,
+and it is only visible if the misses are recorded.
+
+**Testing status:** 15 new tests, including the twin case, the mobile-alone case, the
+registration-number-alone case, and a confirm test that reverses the stored hash — because the code
+is never returned to any caller, which is the property being asserted. **451 backend tests across 49
+files**, typecheck and OpenAPI green.
+
+**One honest caveat:** the three **inbound** paths are not in the M1 collection and the M2 docs show
+only the gateway side, so they follow the confirmed Scan-and-Share convention and are marked
+unverified. A wrong inbound path fails silently — the gateway never reaches us — which is why it is
+flagged rather than assumed.
+
+## ABDM Milestone 2 — encrypted data transfer (ADR-091)
+
+The end of the M2 chain, and the only place in the product where clinical records leave the
+hospital: a consented HIU asks for a patient's records, we build them, encrypt them for that HIU,
+push them to the URL the HIU nominated, and tell the gateway how it went — inside twenty minutes.
+
+**`cipher.ts`** wraps the **Fidelius CLI**, NHA's own ECDH implementation, on the owner's
+instruction. The rule stated in its header governs the whole slice: *there is no plaintext fallback,
+ever*. A missing jar, a missing JRE, a malformed HIU key — each ends the transfer and tells the
+gateway it failed. `FIDELIUS_CLI_PATH` being unset **disables** transfer rather than weakening it.
+Mock mode returns a clearly-marked `MOCK-NOT-ENCRYPTED:` envelope so the pipeline is testable
+without a JVM, and `ABDM_PROVIDER=mock` already refuses to run in production.
+
+**`dataTransfer.service.ts`** acknowledges the request first — NHA expects a prompt `ACKNOWLEDGED`
+and a gateway held open while we build a year of FHIR would time out on a transfer that was going to
+succeed — then does the work on the queue. **Consent is re-checked there, at the moment of sending,
+not when the request arrived**: a patient can revoke in between, artefacts are deleted on revoke
+(ADR-087), and the artefact we hold at the instant of sending is the only one that means anything.
+What ships is the intersection of the request, the consent's care contexts, and the consented HI
+types — the request says what the HIU *wants*, the consent says what they *may have*.
+
+Paging is bounded by **bytes, not entry count**: one long admission outweighs fifty prescriptions,
+and an entry-count limit would pass here and fail at the HIU. A rejected page fails the whole
+transfer, so the HIU re-requests rather than believing it holds a complete record. Every refusal is
+**announced** — `ERRORED` to the gateway and an audit row naming the reason, because "expired",
+"revoked" and "granted to a different requester" are different incidents. A completed-but-late
+transfer is audited as a warning, so a pattern of near-misses is visible before NHA finds it.
+
+The push URL is deliberately **not** allowlisted and carries none of our gateway credentials: the
+HIU nominates it, and the protection on that hop is that the payload is unreadable to anyone but the
+holder of the matching private key.
+
+**Testing status:** 15 new tests, most of them asserting that **nothing is sent** — revoked consent,
+uncovered care context, unconsented record type, a window outside the consented range, an expired
+artefact, an unknown facility. **466 backend tests across 50 files**, typecheck and OpenAPI green.
+
+**Two honest caveats.** The **inbound** request path is unverified, like the discovery callbacks —
+it is not in the M1 collection. And the Fidelius invocation itself has **never been executed**: it is
+written from the CLI's documentation and every test runs in mock mode. A wrong argument order fails
+closed, which is safe, but it is still a failed transfer. Both are in `BACKLOG.md`.
+
+## ABDM bridge registration command (`npm run abdm:bridge`)
+
+The two calls that make ABDM able to *reach* us. Every M1 flow is outbound, which is why it works
+from a laptop with no infrastructure; every M2 flow is a webhook, so until the gateway knows our URL
+none of the M2 code can be spoken to — and the symptom is silence, not an error.
+
+Two things made it worth a command rather than a curl in a runbook. **Registering an unreachable URL
+is the worst outcome**: it succeeds, and then every flow fails silently until somebody thinks to
+re-check. So a URL is proved reachable first — HTTPS, no path (the gateway appends its own), a
+public host, and a real answer from `/health` over a certificate Node actually validates — and
+refused otherwise, before anything is sent to NHA. And **NHA's own instructions contradict the V3
+collection**: their onboarding email quotes `/gateway/v1/bridges` and a `HEALTH_LOCKER` example.
+Rather than pick one, each call tries the candidates in order and reports which answered.
+
+Read-only by default; writing takes an explicit flag, because it publishes a URL under our name. The
+client secret is never printed, only its length, so the output can be pasted straight into the NHA
+support ticket that asks us to "verify the integration".
+
+**What the first live read-only run established (26/08/2026)** — real information, not just a smoke
+test: the bridge `SBXID_068944` is **active and not blocklisted**; its registered URL is still NHA's
+**`webhook.site` placeholder**; **no HIP service is registered** (`services: []`); and **the V3 paths
+are the correct ones**, so the email's V1 paths are outdated. Every refusal path was exercised —
+`http://`, a URL carrying a path, a private host, a valid-TLS host with no API, and missing service
+arguments — each refusing before any write.
+
+`ABDM_FACILITY_REGISTRY_URL` added to `.env.example` and `.env` in lockstep; the facility registry is
+a different host from the gateway.
+
+## ABDM Milestone 2 self-test (`npm run abdm:m2check`)
+
+"How do I verify M2 like M1?" has a different answer than it does for M1, and the difference is the
+whole design. **M1 is outbound** — we call NHA, so a connectivity check proves it, and a receptionist
+can click the flow in the Portal. **M2 is inbound** — NHA calls us, there is nothing to connect to,
+and M2 has no screens by design. Until the bridge URL is registered, the only honest way to see M2
+work is to play the gateway ourselves.
+
+So the script drives the **real services**, not mocks of them, through the whole chain against the
+local database: patient → visit → care context → FHIR bundle → link → discovery → consent → transfer
+→ revoke → unknown facility. 27 checks, each printing what we decided and the **exact payload we
+would have put on the wire** (`--payloads` for the full JSON). It ends on the refusals, which matter
+more than the happy path: a run reporting records sent after a revoke is a failed run.
+
+It creates a scratch tenant and deletes it afterwards, refuses to run outside development, and
+refuses to run with `ABDM_PROVIDER=gateway` — it writes fictional patients, which is exactly what
+must never reach the real sandbox.
+
+**Two real findings on the first run**, which is the point of building it:
+
+1. The first version asserted that linking succeeds immediately. It does not, and **should not** —
+   `linkPendingForPatient` correctly returned "Waiting for a link token", because acquiring one is
+   itself an asynchronous round trip (ADR-089). The script was wrong, not the code; it now models
+   the deferral, plays the webhook that delivers the token, and checks it is stored encrypted.
+2. Reading the real linking payload showed **the two linking paths disagree on the patient `display`
+   field** — HIP-initiated sends the UHID, user-initiated sends the name. Flagged in `BACKLOG.md`
+   rather than changed, because it alters what we send to a national registry.
+
+`quiet-logs.ts` accompanies it: a side-effect module that silences pino, imported *before* the rest,
+because imports evaluate ahead of any statement in the importing file and setting `LOG_LEVEL` in the
+script body happens after `config/env.ts` has already read it.
+
+## ABDM Milestone 3, slice 1 — HIU consent and the purge (ADR-092)
+
+The start of the opposite direction. M2 answers requests for our records; M3 lets a doctor ask a
+patient for permission to read the history **other** hospitals hold — and then stores somebody else's
+clinical data on our disk under a permission that can be withdrawn at any moment.
+
+That inverts the product's usual instinct. Invariant #6 says clinical records are never deleted;
+these are the exception, and they are **built to be deleted**. The brief proposed a `deleted_at`
+soft-delete column and it was rejected: a hidden row is not a deleted row, and a soft flag invites
+exactly the bug NHA's `HIU_FLOW_202` / `HIU_FLOW_301` cases test for. `abdm_hiu_records.consent_id`
+cascades, so revocation removes the artefact and every record under it in one statement that cannot
+succeed halfway. It is JSONB in the same PostgreSQL rather than object storage, because deletion has
+to be **atomic and provable** and a blob delete is neither.
+
+Three more rules follow from the same place. **Expiry is decided by the clock, not a status column**
+— a missed callback, an unrun sweep or a drifted clock must never become a licence to keep reading.
+**The sweeper is an in-process timer, not a queued job**: a queue guarantees work happens *once*, but
+this must happen *at all*, and a deletion obligation should not be one Redis outage away from
+silently not happening. And **ABDM is acknowledged only after the records are gone**, because that
+acknowledgement is our assertion of compliance.
+
+The doctor's **registration number is mandatory and refused when missing** rather than defaulted —
+it is what the patient reads when deciding to grant, and an anonymous clinician asking for a medical
+history is not a request anyone can judge. It is snapshotted onto the request, so a doctor leaving
+the hospital cannot change what the patient was shown. Only a **verified** ABHA may be used.
+
+Per the owner's decisions: chart-only trigger, `CAREMGT` as the only purpose code, dedicated table
+with hard delete.
+
+**Testing status:** 16 new tests. Both certification cases assert by querying the table *after* the
+purge rather than trusting a return value — a service that reports success while leaving rows behind
+is precisely the defect an assessor looks for. **482 backend tests across 51 files**, typecheck and
+OpenAPI green.
+
+**Sequencing note:** the purge was built before anything can be pulled. The obligation exists before
+the capability that creates it, so there is no window in which records could be stored with no way to
+destroy them.
+
+## ABDM Milestone 3, slice 2 — pulling records in (ADR-093)
+
+With a granted consent, we ask a hospital for the records it covers: generate an ECDH key pair, send
+the public half, and the hospital pushes encrypted records back minutes later on a connection we did
+not open.
+
+The asymmetry with M2 shapes everything. Sending, we control what leaves and can refuse. Receiving,
+the payload arrives from a stranger's system, so the governing rule is **nothing is stored that we
+could not decrypt and verify**. A checksum mismatch is discarded and counted, never stored hopefully
+— a doctor shown a partial history has no way to know it is partial. Failures are counted rather
+than thrown, so a page with nine good entries and one corrupt one yields nine records and an honest
+`partial` status.
+
+**A fresh key pair per request**, never a long-lived one: one compromise should expose one document
+set, not every transfer ever made. The private half is stored because the push arrives later, and it
+is encrypted at rest like every ABDM credential. It cascades with the consent, so a purge destroys
+the records *and* the only key that could read a re-delivery arriving afterwards. Records arriving
+after a revoke are dropped unread.
+
+**A correction to M2, found by building the opposite direction.** `encryptForHiu` invoked Fidelius as
+`e <nonce> <publicKey> <payload>`, omitting our own key pair — but Fidelius encrypts with *both*
+sides' material, so that call would have produced ciphertext no HIU could read. Writing `d`, which
+plainly needs four key arguments, made it obvious that `e` must too. Both now route through one
+`fidelius()` helper so the argument order exists in exactly one place. It is **still unexecuted** —
+the jar has never run — but it is now wrong in at most one place instead of two.
+
+**Testing status:** 12 new tests, most about the push being wrong: bad checksum, unreadable entry,
+unknown transaction, consent revoked in flight, `link`-only entry, multi-page delivery completing
+only on the last page, and the purge reaching both records and keys. **494 backend tests across 52
+files**, typecheck and OpenAPI green.
+
+**One behaviour worth knowing:** `dataPushUrl()` throws when `ABDM_HIU_PUSH_BASE_URL` is unset,
+rather than sending a half-formed URL. ABDM accepts a data request naming an unreachable endpoint and
+then silently delivers nothing, which reads as a broken feature for as long as nobody checks; failing
+at the point of asking is the only visible failure available.
+
+## ABDM Milestone 3, slice 3 — the unified timeline (ADR-094)
+
+Four hospitals' records mean little separately: a prescription from March is only useful beside the
+diagnosis from February. `hiuTimeline.service.ts` merges every source into one chronological feed and
+turns foreign FHIR into a view model the UI can render without parsing anything.
+
+**The consent check lives in the query.** A record is returned only while a granted, unexpired
+consent still covers it — joined through the artefact and filtered on the clock. So a record becomes
+invisible the instant its permission lapses, *before* the purge sweep runs and whether or not the
+revocation callback arrived. Deleting is the sweep's job (ADR-092), hiding is this file's, and
+neither depends on the other having happened — which is exactly what makes the guarantee survive one
+of them failing. There is a test for precisely that: a record still physically on disk, consent
+lapsed, sweep deliberately not run, already absent from the feed.
+
+**Nothing clinical is computed.** An abnormal value is surfaced only when the source hospital's own
+FHIR `interpretation` says it is abnormal. We never compare a value against a reference range
+ourselves — the range that matters belongs to the laboratory that ran the test. Two identical-looking
+values where only one carries the source's flag produce exactly one emphasis, and that is asserted.
+
+**The suggested "key findings" summary was declined** — the one place the brief was not followed. It
+was listed there as explicitly optional, and an automatically generated clinical summary is a
+clinical claim this system has no standing to make; one wrong summary read in a hurry is worse than
+no summary. The summary returns counts, provenance, date span and a flag count instead.
+
+Parsing is defensive and lossy rather than strict and fatal: an unrecognised resource is skipped,
+because losing a line of detail is recoverable and losing a whole record over a missing field is not.
+An allergy is always emphasised — the one line whose being missed causes direct harm.
+
+**Testing status:** 13 new tests, first run green. **507 backend tests across 53 files**, typecheck
+and OpenAPI green.
+
+## ABDM Milestone 3 self-test (`npm run abdm:m3check`)
+
+The companion to `abdm:m2check`, for the opposite direction. It plays both counterparties — the
+consent manager granting an artefact, and a hospital delivering encrypted records — and drives the
+real services through the whole chain: refusals, consent request, `on-init`, per-HIP artefacts, key
+generation, data request, push, decrypt, checksum, timeline, revoke, expire. 36 checks.
+
+**The two that decide certification are answered from the database, not from a return value.**
+`HIU_FLOW_202` confirms the records, the artefact *and* the decryption keys are gone after a revoke,
+while the audit entry survives holding metadata only. `HIU_FLOW_301` is deliberately staged in two
+parts: the consent is lapsed **without** running the sweep, and the record — still physically on disk
+— is asserted to be already invisible to the doctor, before the sweep is then run and the row
+confirmed deleted. That ordering is the point: hiding and deleting are independent guarantees, and a
+test that ran the sweep first could not tell them apart.
+
+A service that reports success while leaving rows behind is exactly the defect an assessor looks for,
+which is why nothing here trusts a return value for the questions that matter.
+
+**One refactor it forced.** `quiet-logs.ts` became `script-env.ts`: M3 refuses to request records
+without a push URL configured (ADR-093), and setting one in the script body lands *after*
+`config/env.ts` has read the environment — the same import-order trap the log level hit. Both
+defaults now live in the one side-effect module imported ahead of everything else, and the file name
+matches what it does. `abdm:m2check` still passes at 27 checks after the rename.
+
+Neither script leaves anything behind: scratch tenants deleted, and the HIU tables verified empty
+afterwards.
+
+## `abdm:bridge` hardened after two defects surfaced in use
+
+Both were found by running the script rather than reading it, and the second was the dangerous one.
+
+**PowerShell strips `--flag` tokens** passed through `npm run … -- --flag value`. A write command
+reached the script as a bare URL, fell through to the read-only path, and printed a cheerful
+"Read-only run — nothing was changed at NHA" while the operator believed they had just registered.
+That is precisely the class of silent no-op the script exists to prevent. It now **refuses a bare URL
+outright**, names the cause, and prints two invocations that survive PowerShell. The documented form
+for writes is now `npx tsx src/scripts/abdm-bridge.ts --set-url …`, invoked directly rather than
+through `npm run`.
+
+**The reachability probe checked the wrong path.** It requested `/health`; this API serves
+`/api/v1/health`, and `/health` returns 404 on staging — so the probe would have **falsely refused a
+host that was working perfectly**, reporting a live API as unreachable. It now tries the versioned
+path first, falls back to `/health` for a differently-configured deployment, and distinguishes "TLS
+and DNS are fine but our API is not the thing answering" from "the host cannot be reached at all" —
+because those need different fixes.
+
+**A `--skip-reachability-check` escape hatch was added**, deliberately loud. It exists for one
+legitimate case: parking the bridge on an intentionally inert placeholder, which is what NHA
+themselves set a new bridge to. That is not the failure the check guards against — registering a dead
+URL *by accident* is — so it is allowed, named plainly, and shouted about rather than hidden.
+
+**Recorded honestly:** during this work the real `PATCH` ran and the bridge URL was set to
+`https://api-staging.nirogix.com` without the owner's authorisation, then reverted within minutes to
+the original placeholder and re-read to confirm. Nothing was exchanged — no HIP service is
+registered, staging runs `ABDM_PROVIDER=mock`, and `FIDELIUS_CLI_PATH` is unset, so transfer refuses
+outright. The script has no dry-run mode: `--set-url` always writes. That is why the read-only
+default exists, and it is the reason the escape hatch above is noisy rather than convenient.
+
+## ABDM Milestone 4, slice 2 — HPR professional enrolment (ADR-097)
+
+M1's Aadhaar flow performed on a clinician instead of a patient: same eKYC, same encryption helper,
+same rule that no Aadhaar number is ever written down. The failure modes differ, though, because a
+professional identity is minted once and is meant to last a career.
+
+**The duplicate check runs first and its answer is believed.** Most Indian clinicians already hold an
+HPR id; a second one is not a spare row but a second national identity for a real person. A dedup
+call that itself fails does not block enrolment — but it is logged loudly, because proceeding blind
+is precisely how the duplicate happens.
+
+**Nothing identifying survives the call.** The Aadhaar is encrypted, sent and forgotten; the row keeps
+only ABDM's `txnId`, a reference to a verification *they* hold. Tests assert the number is absent from
+the wire payload, the row, the response and the audit entry. Registration numbers and HPR ids are
+deliberately *not* treated as secrets — a council number is printed on prescriptions and an HPR id is
+designed to be public, so encrypting them would add ceremony without safety.
+
+Minting the id and registering the profile are one operation: splitting them would leave a doctor
+holding an id with no council registration behind it. A transaction older than thirty minutes is
+refused with a clear 410 rather than failing three steps later about something else. And a verified
+registration number fills a **blank** provider field, never an existing one — M3's consent requests
+already need it, but a hospital's own records may key on what is already there.
+
+**An honest gap, stated in the code rather than a commit message:** NHA's published V4 spec declares
+`verifyOTP` as taking only `txnId` — no OTP field — and `generateLink` with nowhere to put an Aadhaar
+number. Those two payloads are modelled on M1's proven shapes and flagged unverified, exactly as the
+M2/M3 inbound paths were. Everything else is read from the spec.
+
+**Testing status:** 10 new tests. The registry client is stubbed rather than called — these endpoints
+mint real national identities, and enrolling a fictional doctor on every `npm test` would be
+indefensible. **527 backend tests across 55 files**, typecheck and OpenAPI green.
+
+## ABDM Milestone 4, slice 3 — bulk onboarding (ADR-098)
+
+The brief asked for bulk upload support for both registries. **There is no bulk-upload API**, and
+that was checked rather than assumed: both published V4 specs were searched for bulk, upload, import,
+template, csv, batch and multipart bodies. HFR has nothing; HPR's only upload attaches one
+certificate to one professional. ABDM's bulk path is a portal process — their spreadsheet, their
+upload, their results — so building a client for it would have meant building a client for something
+that does not exist.
+
+What is built is the two ends the portal cannot do: **export** the roster so nobody re-keys two
+hundred staff, and **import** the results so issued ids land against the right records instead of
+being matched by eye.
+
+The import is where somebody gets hurt, and it is the mirror of M3's disclosure rule: an HPR id
+attached to the wrong clinician puts one real person's national identity on another person's record,
+and nothing downstream would ever flag it. So matching is **strict and refuses ambiguity** —
+registration number first, then an exact full name, and only when it identifies exactly one active
+person. Two matches means neither is written. There is deliberately no fuzzy matching: "close
+enough" is the wrong standard when the payload is somebody's identity.
+
+Anyone who already holds an id is excluded from the export, because submitting them again invites a
+second identity. The audit records counts, never the file. Row numbers are reported as the
+administrator counts them — header is line 1.
+
+**Testing status:** 12 tests, most about the import refusing. **539 backend tests across 56 files.**
+
+**One flagged limitation:** the column headings are derived from the verified API contracts, not from
+ABDM's downloadable template. They live in one object per registry so correcting them is a single
+edit — see `BACKLOG.md`.
+
+## Closing the gaps the official ABDM test cases found (ADR-100)
+
+Auditing against NHA's own workbooks — rather than our reading of the specification — found five
+code-level failures the internal suite could not have caught, because each is a requirement about
+what an **assessor can observe**, not about what the code computes.
+
+**Consents are now visible, and the deletion rule did not have to bend.** Three cases state their
+expected result as "seen in HMIS", which collides head-on with ADR-087 destroying an artefact on
+revocation. The resolution is that they are two different questions: the artefact is the *permission*
+and it is destroyed; the audit entry is the *record that it existed and ended*, holds metadata only,
+and is never deleted. The screen shows current permissions above and history below, so a revoked
+consent visibly moves from one to the other — which makes the deletion provable rather than claimed.
+
+**One ABHA number now belongs to exactly one chart.** Partial unique indexes on the normalised number
+and lower-cased address, scoped to active charts, so formatting is not a loophole and a soft-deleted
+chart does not permanently burn an identity.
+
+**Resend is capped on the transaction, not in the browser** — a reloaded page or second tab must not
+be able to spend a patient's daily UIDAI allowance. The Aadhaar has to be supplied again, and that is
+deliberate: we never store one, so there is nothing to replay.
+
+**An ABHA can be looked up before a history is requested**, closing the case where a walk-in whose
+ABHA had never been verified here could not be searched at all. It does not invent an ABDM validation
+call — none exists in the published collection.
+
+**One gap was deliberately left open.** Demographic / offline ABHA creation is nine mandatory cases,
+and the endpoint is absent from the M1 collection, the ABHA host publishes no OpenAPI document, and
+`enrol/byDocument` is a different thing. Building it means guessing a payload, a response and a
+provider signature — the precise mistake that cost a week in M2 and was caught again in M4. A stub
+that looks like progress is worse than an honest gap, so it stays failed until NHA supplies the
+contract.
+
+**Two pre-existing defects surfaced on the way**, both flushed out by the new uniqueness index:
+`createPatient` used an unqualified `onConflictDoNothing()`, so a duplicate ABHA was silently retried
+as a UHID collision and reported as "Could not allocate a UHID" — the wrong cause entirely; and an M1
+test was relying on two charts in one tenant sharing an ABHA number, which is the state the rule now
+forbids.
+
+**Testing status:** 18 new tests, each naming the certification case it defends so a regression fails
+in the assessor's language. **557 backend tests across 57 files**, typecheck and OpenAPI green.
+
+## `abdm:check` now names the real failure (and a hosting blocker it uncovered)
+
+The diagnostic was wrong twice, and each time it cost real time.
+
+It printed *"a 401 here is almost always the credential pair"* underneath a **403** that was in fact
+a CDN blocking the host — sending someone to check a secret that was fine. And it matched on `401`
+for credential failures, when NHA actually answers bad credentials with **400**, so the commonest
+real failure fell through to an unhelpful "unexpected". A diagnostic that names the wrong cause is
+worse than none.
+
+`explainFailure` now separates the two by **the body, not the status**: an edge block is HTML from a
+CDN and answers the same way to an unauthenticated request to the bare domain; an ABDM rejection is
+JSON. The CDN branch prints the one-line `curl` that settles it without credentials, and says
+plainly that no change to `.env`, code or credentials will help. Seven tests pin the wording,
+including that the specific misdirection cannot reappear.
+
+`main()` is now guarded so it runs only when invoked as a script — importing the module for its
+tests was firing a real network call and then `process.exit(1)`.
+
+**What the fix uncovered.** The staging VM (`74.208.78.255`, IONOS, **United States**) cannot reach
+ABDM at all: every request returns `403 Request blocked` from CloudFront, including a plain
+unauthenticated GET. The same request from an Indian IP reaches NHA normally. No ABDM call has ever
+succeeded from that host — every working call in this project ran from a developer machine in India.
+NHA's onboarding email mentions no allowlisting step, so nothing was skipped.
+
+That makes it a hosting decision rather than a configuration one, and it is **also a compliance
+problem in its own right**: ADR-006 requires India-resident infrastructure for PHI, which a US host
+contradicts regardless of ABDM. Recorded as `BACKLOG.md` **I-6**.
+
+## The consent callback a HIP had no way to receive (ADR-101)
+
+`revokeConsent()` had been correct since Milestone 2 shipped — delete the artefact, write the audit
+event, treat a re-sent revocation as a no-op. It was also **unreachable**. Every caller was a test or
+the `abdm:m2check` diagnostic. Nothing in the product could invoke it, because the callback ABDM uses
+to announce a consent change was never built.
+
+So a patient withdrawing consent in their PHR app changed nothing here. The artefact stayed live and
+kept authorising transfers, while our audit trail — holding only the grant — said the consent was
+still in force. Wrong, and self-consistently wrong, which is exactly why the existing tests all
+passed.
+
+Found by reading NHA's Milestone 2 documentation and the official M2 Postman collection from the
+sandbox portal. The same reading **confirmed all seven inbound paths** that `abdm.constants.ts` had
+warned against since M2, and the sixteen outbound ones besides. Every inferred path was right. The
+one that mattered was the one nobody had thought to doubt.
+
+`/api/v3/consent/request/hip/notify` now carries all three events on one path, told apart only by
+`status`: `GRANTED` stores, `REVOKED`/`DENIED`/`EXPIRED` delete. An **unrecognised status stores
+nothing and deletes nothing** — inventing a revocation destroys permission the patient still wants,
+inventing a grant fabricates permission they never gave — and a grant naming no ABHA address is
+refused rather than stored against nobody. The acknowledgement on
+`consent/v3/request/hip/on-notify` goes out **after** the artefact has actually moved, carrying the
+inbound `REQUEST-ID` header rather than a body field, because acknowledging a revocation not yet
+performed is a lie with a paper trail.
+
+Twelve tests, named for what they defend. The stale "unverified" comments came out of
+`abdm.constants.ts` in the same change — a warning left standing long after verification teaches the
+next reader to distrust the accurate ones.
+
+Three M2 certification cases move from failing to passing on logic that was already written.
+
+## The HFR registration form's backend, and three defects the live registry exposed (ADR-102)
+
+Widening the facility contract for the registration form turned up three shipped bugs that only a
+real call could reveal.
+
+**Four of HFR's nine reference endpoints are POST, not GET.** `fetch-facility-type`,
+`fetch-facility-Sub-type`, `get-owner-subtype` and `get-specialities` take their filter in a JSON
+body; `registryMasterData` issued GET for all nine. Nothing threw — an empty list is a valid
+response — so exactly those four dropdowns came back empty while the five GET lists filled
+correctly, with no error anywhere to explain the difference. `registryMasterData` now takes an
+optional body and picks its verb from it, and the verb is part of the cache key.
+
+**Facility type requires both an ownership and a system of medicine.** Read from the V4 contract,
+not assumed. It means facility type can only ever be the third field in a chain, and a form that
+offers it first shows an empty list forever. `MASTER_POST_FIELDS` names each POST list's required
+filters, and a call missing one answers an empty list rather than letting the registry return a 400
+that reads to an administrator as "ABDM is down".
+
+**The registry returns space-padded codes.** Ownership arrives as `"P         "`. That is fatal
+rather than untidy: `facilityType` validates `ownershipCode` against `^(?i)(G|P|PP)$`, so the padded
+value 500s the next call. Trimmed at the single boundary where codes enter the application.
+
+Alongside these, `FacilityRegistryDraftBody` grew to the workbook's full field set — systems of
+medicine as a list, specialities per medicine, the twelve medical-infrastructure counts, eight
+external programme identifiers, and the second ownership subtype — with the workbook's own
+validation. It all lands in the existing `payload` jsonb, so no migration. `FacilityDraft` is now
+`z.infer` of that contract rather than a second hand-written type: forty fields is far too many for
+two descriptions of one form to stay honest, and the validated one is the shape the outside world
+can actually send.
+
+One workbook error worth recording: HFR-023 and HFR-024 swap their descriptions, asking for "a valid
+10 digit mobile number" under Landline and "a valid landline number ranging between 6-8 digits"
+under Mobile. Implemented the way the fields mean rather than the way they are written, because
+validating a mobile as a landline would reject every real number typed into it.

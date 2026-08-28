@@ -29,9 +29,10 @@ export function errorHandler(
   }
 
   // Unexpected (5xx): send to the error tracker with request correlation, never leak internals.
-  const requestId = (req as { id?: unknown }).id; // pino-http sets a per-request id
+  // The id is the one the audit row, the log lines and the `X-Request-Id` response header all
+  // carry (ADR-082) — one value ties the three records of this request together.
   errorTracker.captureException(err, {
-    requestId: requestId != null ? String(requestId) : undefined,
+    requestId: req.requestId,
     tenantId: req.auth?.tenantId,
     userId: req.auth?.userId,
     method: req.method,

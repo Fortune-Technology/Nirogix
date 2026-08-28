@@ -33,7 +33,7 @@ state with production and is never indexable.
   `patient`, `admin` and `aiportal` apps are not deployed yet (`BACKLOG.md` F-5); their ports
   are reserved and their upstreams land in the same file when they are.
 - **PM2** (dedicated non-root service user) runs `nirogix-backend`, `nirogix-portal`, `nirogix-marketing`
-  (`deploy/pm2.ecosystem.cjs`).
+  (`deploy/ecosystem.config.cjs`).
 - **PostgreSQL** = managed E2E DBaaS, provisioned **separately** from the app VM. The app
   connects as a **non-superuser** role (RLS `FORCE` is bypassed by superusers — see
   hms_backend RLS notes). **Redis** runs on the app VM for BullMQ. **DNS is GoDaddy** with no
@@ -129,7 +129,7 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 - Set them in **one place**: export `NIROGIX_PORT_API`, `NIROGIX_PORT_MARKETING`,
   `NIROGIX_PORT_PORTAL`, `NIROGIX_PORT_PATIENT`, `NIROGIX_PORT_ADMIN`, `NIROGIX_PORT_AIPORTAL`
   in the service user's environment (e.g. a root-only `/etc/nirogix/ports.env` sourced from the
-  user's profile) before `pm2 start`. `deploy/pm2.ecosystem.cjs` reads them and passes `PORT` to
+  user's profile) before `pm2 start`. `deploy/ecosystem.config.cjs` reads them and passes `PORT` to
   each app; no `start` script and no source file carries a port any more.
 - The Nginx `proxy_pass` upstream ports in the site file **must be the same values** — substitute
   them when installing `deploy/nginx/nirogix.conf.template`, and re-run `ss -tulpn` after
@@ -143,9 +143,34 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 - Update the port matrix in `resources/domains.md` (§ per-environment variables) with the ports
   actually claimed, so the next deploy reads them instead of re-deriving them.
 
+## Provisioning a fresh E2E account
+
+> **Building a new environment from nothing? Start at [`e2e-provisioning.md`](./e2e-provisioning.md).**
+> It covers the E2E-specific decisions this checklist assumes are already made — region, node size
+> (with the build-memory arithmetic behind it), reserved IP, firewall, DBaaS-versus-VM PostgreSQL —
+> and its **Step 0 proves ABDM is reachable from the region before anything is built on it**. The
+> previous host was never tested that way, which is how an unusable environment survived for weeks
+> (`BACKLOG.md` I-6).
+>
+> The checklist below remains the reference for the steps once a node exists.
+
 ## First-time VM provisioning (baseline checklist)
 
 > Step 0 is the port audit above. Nothing binds before it.
+>
+> **Step 0b — swap space (REQUIRED, once, as root).** The shared VM runs with **zero swap**, so a
+> memory spike during `npm run build` has nowhere to go — the kernel OOM-killer takes down
+> processes and can hang the entire box, taking the other projects with it (this is exactly what
+> happened on 2026-08-18 — see [§ Incidents](#incidents)). A swap file lets a spike degrade to disk
+> instead of getting killed. Do this **before** the first build:
+>
+> ```bash
+> fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+> echo '/swapfile none swap sw 0 0' >> /etc/fstab   # survive reboot
+> free -h                                            # confirm Swap: total ≈ 4.0Gi
+> ```
+>
+> Swap is a safety net, **not** a substitute for bounded build concurrency — keep both.
 
 1. **Run the shared-VM port audit above**; export the six `NIROGIX_PORT_*` variables with the
    free ports it found.
@@ -154,15 +179,18 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
    snapshot isolated from theirs.
 3. Install (or reuse — check versions first, the box already runs Node projects) Node ≥20,
    npm ≥10, PM2 (`npm i -g pm2`), Nginx, PostgreSQL client tools, `rclone`.
-4. Clone the repo to `${STAGING_PATH}` (e.g. `/var/www/nirogix` — sibling of the existing
-   projects, never inside one); create per-app env files (`hms_backend/.env`,
-   `hms_frontend/.env.local`, `marketing/.env.local`) from each `.env.example`. The frontends'
-   `NEXT_PUBLIC_*` origins use the staging hosts from `resources/domains.md`, never ports.
+4. Clone the repo to `${STAGING_PATH}` (on the E2E staging node this is
+   `/var/www/projects/nirogix` — a sibling of any other project under `/var/www/projects`, never
+   inside one); create one `.env` per app by copying that app's `.env.example`
+   (`hms_backend`, `hms_frontend`, `marketing`, `admin`, `patient`, `aiportal` — the last three
+   deploy with `BACKLOG.md` F-5, but ship an `.env.example` now). Every key is already present and
+   uncommented, so only values change; leave a key blank to keep its feature unconfigured. The
+   frontends' `NEXT_PUBLIC_*` origins use the staging hosts from `resources/domains.md`, never ports.
 5. `npm ci && npm run build`.
 6. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
 7. `npm run db:seed:staging -w hms_backend` (staging only — deterministic QA dataset; the
    development and production seeders refuse to run here by design, ADR-058).
-8. `pm2 start deploy/pm2.ecosystem.cjs --env staging && pm2 save && pm2 startup` **as the
+8. `pm2 start deploy/ecosystem.config.cjs --env staging && pm2 save && pm2 startup` **as the
    Nirogix service user** (so `pm2 save` snapshots only our apps), then
    `ss -tulpn | grep -E "<the six ports>"` to confirm each app bound where expected.
 8. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
@@ -177,20 +205,146 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
     `www` → apex redirect in production, access control + `noindex` on staging, and the refresh
     cookie arriving `Secure; HttpOnly; SameSite=Lax` with **no** `Domain` attribute.
 
-## Deploy flow (staging, automated)
+## Deploy flow (staging, automated) — affected-only (ADR-076)
 
-Merge to `staging` runs `.github/workflows/deploy-staging.yml`:
-build → SSH to the VM → `git reset --hard origin/staging` → `npm ci` → `npm run build` →
-**`db:migrate` (migrations apply before rollout)** → `pm2 reload` (zero-downtime) → `pm2 save`.
+Merge to `staging` runs `.github/workflows/deploy-staging.yml`. The **runner** still does a full
+`npm ci && npm run build` — that is the compile gate keeping a broken commit off the VM, and the
+runner has the memory the VM does not. The **VM** then deploys affected-only:
+
+1. **Baseline.** The VM reads `${STAGING_PATH}/.last-deploy-sha` — untracked, written only after
+   a fully successful deploy — as "what is live right now"; first run falls back to the
+   checked-out HEAD read before `git reset`. An unusable baseline (commit vanished — force-push
+   or gc) or a **same-commit redeploy** (`workflow_dispatch` recovery) falls back to a full build
+   + full reload.
+2. **Build.** `npx turbo run build --filter=...[<baseline>] --concurrency=2` — only workspaces
+   changed since the baseline **plus everything that depends on them** (a `packages/types` edit
+   rebuilds `hms_backend` and every portal importing it; a docs-only push builds nothing).
+   `--concurrency=2` stays load-bearing on the shared VM (§ Incidents) — affected-only shrinks
+   the work, it does not replace the cap.
+3. **Migrate.** `db:migrate -w hms_backend` runs only when `hms_backend` is in the affected set
+   (or in full mode). Migrations stay additive/idempotent — the skip is honesty about what the
+   deploy did, not a safety requirement.
+4. **Reload.** Only the PM2 apps whose workspace was rebuilt:
+   `pm2 reload deploy/ecosystem.config.cjs --only <names> --env staging`, then `pm2 save`.
+   The candidate names are intersected with the apps actually defined in
+   `ecosystem.config.cjs`, so the not-yet-deployed patient/admin/aiportal are skipped until
+   BACKLOG F-5 uncomments them there — no workflow edit needed. Before any PM2 command the
+   script sources **`/etc/nirogix/ports.env`** (`set -a`) — this file is **required on the VM**:
+   a non-interactive SSH shell reads no `.bashrc`, and without `NIROGIX_PORT_*` PM2 would
+   re-parse the ecosystem onto default ports on a shared box (EADDRINUSE crash-loop). The deploy
+   aborts before touching PM2 if the file is missing.
+5. **Marker.** `.last-deploy-sha` advances to the new commit **only after** build + migrate +
+   reload all succeeded — a failed deploy keeps the old baseline, so the next run diffs against
+   what is genuinely live.
 
 Required GitHub **staging environment** secrets: `STAGING_HOST`, `STAGING_USER`,
 `STAGING_SSH_KEY`, `STAGING_PATH`.
 
 ### Rollback
 
-`git reset --hard <previous-good-sha>` on the VM → `npm ci && npm run build` → `pm2 reload`.
-Migrations are additive/reversible; a data-affecting rollback needs an approved down-migration
-plan (no destructive change without one — §16).
+`git reset --hard <previous-good-sha>` on the VM → `npm ci && npm run build` → `pm2 reload` →
+**`echo <previous-good-sha> > .last-deploy-sha`** — the marker must follow a manual rollback, or
+the next automated deploy diffs against the rolled-back-FROM commit and can skip rebuilding the
+very workspaces the rollback reverted. (Deleting the file also works: the next deploy then treats
+the checked-out HEAD as the baseline.) Migrations are additive/reversible; a data-affecting
+rollback needs an approved down-migration plan (no destructive change without one — §16).
+
+## Incidents
+
+A dated log of staging/production incidents and their fixes, so the next person deploying does not
+rediscover them the hard way. Newest first.
+
+### 2026-08-19 — Admin console dead on every route: ChunkLoadError from a hand-started process
+
+**Impact.** `admin-staging` served its dashboard but every other route showed Next's "This page
+couldn't load" screen. Console: `ChunkLoadError: Failed to load chunk /_next/static/chunks/….js`
+(the chunk requests 404). Login and the API were fine.
+
+**Cause.** The admin app had been started **by hand** on the VM, outside
+`deploy/ecosystem.config.cjs` (its entry was still commented out, BACKLOG F-5). The next full
+deploy rebuilt `admin/.next` on disk but `pm2 reload --only <ecosystem apps>` could not know
+about the hand-run process — so it kept serving the **old** build's prerendered HTML, whose
+chunk files the new build had deleted. Stale HTML → 404 chunks → ChunkLoadError everywhere.
+
+**Fix.** `nirogix-admin` is now a real ecosystem entry, so deploys build **and reload** it
+together. One-time VM recovery, in this order (the hand-run process holds the port):
+`pm2 ls` → `pm2 delete <the hand-run admin process>` → `set -a; . /etc/nirogix/ports.env; set +a`
+→ `pm2 start deploy/ecosystem.config.cjs --only nirogix-admin --env staging` → verify with
+`ss -tulpn` / `curl` → `pm2 save`.
+
+**Rule.** Never hand-start an app the deploy pipeline does not manage. If a surface goes live,
+its ecosystem entry goes live in the same change — a process PM2's ecosystem does not know about
+is a process the deploy will silently break on the next build.
+
+### 2026-08-19 — Deploy died at the PM2 step: `pm2: command not found` (exit 127)
+
+**Impact.** The affected-only deploy ran git reset, `npm ci` and the Turbo build successfully, then
+failed at the first `pm2` call — apps kept running the previous release (no outage), but the deploy
+never completed and `.last-deploy-sha` correctly did not advance.
+
+**Cause.** `appleboy/ssh-action` runs a **non-interactive** shell that sources no
+`.bashrc`/`.profile`, so NVM's PATH additions never apply. `pm2` lives only under
+`~/.nvm/versions/node/<version>/bin`; `npm` happened to resolve anyway, which is why everything
+before the PM2 step worked.
+
+**Fix (in `deploy-staging.yml`).** The SSH script now, immediately after `set -euo pipefail`,
+prepends the **newest** installed NVM Node's `bin` to PATH — `find "$HOME/.nvm/versions/node"
+-maxdepth 1 -type d | sort -V | tail -1` (`sort -V` is load-bearing: plain sort would rank
+`v20.9.0` above `v20.11.1`) — so node/npm/pm2 all come from the same install, and then **fails
+loudly up front** (`command -v pm2`) if pm2 is still unresolvable, instead of dying mid-deploy
+after the build. Same lesson as `/etc/nirogix/ports.env`: a non-interactive SSH shell inherits
+NOTHING from login dotfiles — every environment dependency must be set explicitly in the script.
+
+**Second finding (same day) — a failed run poisons the HEAD fallback.** The original affected-only
+logic fell back to the checked-out HEAD as the diff baseline when `.last-deploy-sha` did not exist
+yet. But a failed run has **already `git reset` HEAD** to its commit before dying — HEAD moves even
+when the deploy does not. Concretely: run #5 (the Portal quick-login change) reset to its commit,
+built, then died at `pm2: command not found` — nothing reloaded. Run #6 (workflow fixes only) found
+no marker, took HEAD (= run #5's commit) as baseline, saw only workflow-file changes, **skipped the
+build and reload entirely**, succeeded, and advanced the marker — leaving run #5's bundle stale on
+staging with every subsequent diff now blind to it. Fix: **no marker → full build**, never a HEAD
+fallback; HEAD proves what is checked out, not what is live. Recovery from this state is a
+`workflow_dispatch` re-run — same-commit redeploys are deliberately full build + full reload.
+
+### 2026-08-18 — Staging VM OOM-killed by an unbounded parallel build
+
+**Impact.** The entire staging VM went offline until a manual restart. The box is **shared** — it
+also hosts five unrelated live projects (`/var/www`: `CSV_Filter_Project`, `Storv_POS_All`,
+`The-Fortune-Tech`, `rapidrunner`, plus the default `html` site) — so the outage hit those too, not
+just Nirogix.
+
+**Cause.** The deploy step ran a bare `npm run build`, which let Turborepo build all six workspaces'
+Next.js/Turbopack bundles **plus** the backend `tsc` concurrently. Peak memory exceeded available
+RAM — and the VM had **zero swap**, so there was no cushion — and the kernel OOM-killer took the
+machine down (kernel log showed a `next-build` process at ~780 MB RSS at the time of the kill).
+
+**Fixes (all landed in this change):**
+
+1. **Bounded build concurrency.** The `deploy-staging.yml` SSH step runs
+   `npm run build -- --concurrency=2` — same total work, at most two workspaces building at once.
+   Do not revert it to a bare `npm run build` on the VM.
+2. **Swap is now a required provisioning step** (§ First-time VM provisioning, Step 0b) — a 4 GB
+   swap file lets a spike degrade to disk instead of triggering the OOM-killer.
+3. **`tsc` output path fixed at the source** — `hms_backend/tsconfig.json` gained `rootDir: "src"`,
+   so the entry emits at `dist/server.js` (what `ecosystem.config.cjs` runs), not `dist/src/server.js`.
+4. **PM2 config renamed** `pm2.ecosystem.cjs` → `ecosystem.config.cjs`, so PM2 actually parses the
+   `apps` array instead of silently running it as one inert script.
+
+Items 3 and 4 were live on the VM only as **symlinks** during the recovery; this change makes both
+real in source so a fresh clone is correct without hand-patching.
+
+**Operating rules that came out of the night** (do these, every deploy — the box is shared):
+
+- **Never** run a bare `npm run build` by hand on the VM. Scope it: `npx turbo run build --filter=<app>`,
+  one app at a time, checking `free -h` between each.
+- **Verify, don't trust "launched".** A PM2 "launched"/"started" line is not proof a port bound.
+  Confirm with `ss -tulpn` (real bound ports) or `curl` (real HTTP response) before moving on.
+- **Set critical env vars inline** on the command that uses them (`VAR=value command`), not via a
+  separate `export`/`source` in an earlier shell — a stale `source` caused a multi-hour ports mixup.
+- **`pm2 save` only after verifying**, never right after `pm2 start` — saving early overwrote a good
+  snapshot with a broken one.
+- **Switch users cleanly.** Run `su - <user>` on its own line and confirm the prompt changed before
+  the next command; do not chain commands across the `su -` in a single paste.
 
 ## Backups & DR
 

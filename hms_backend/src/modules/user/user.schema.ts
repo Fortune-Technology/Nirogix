@@ -1,4 +1,5 @@
 import { z } from '../../openapi/registry';
+import { PasswordSchema } from '../auth/passwordPolicy';
 
 // ---- Requests --------------------------------------------------------------
 
@@ -8,7 +9,9 @@ export const CreateUserBody = z
     fullName: z.string().min(2).max(200),
     roleKey: z.string().optional(),
     // Optional: when omitted, a one-time temp password is generated and returned once.
-    password: z.string().min(8).max(200).optional(),
+    // When supplied, it meets the SAME policy a user's own password does (ADR-082) — an
+    // administrator-created account was the way around it before.
+    password: PasswordSchema.optional(),
   })
   .openapi('CreateUserBody');
 

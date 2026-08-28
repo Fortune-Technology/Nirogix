@@ -21,6 +21,11 @@ export const auditLog = pgTable('audit_log', {
   path: varchar('path', { length: 300 }),
   statusCode: integer('status_code'),
   severity: varchar('severity', { length: 20 }).notNull().default('info'),
+  // The id of the HTTP request that produced this row, echoed to the caller as
+  // `X-Request-Id` and attached to the structured log and error-tracker event for the
+  // same request (SECURITY-AUDIT.md L-3). One value correlates an audit row, a log line
+  // and an exception without anyone matching timestamps by hand.
+  requestId: varchar('request_id', { length: 64 }),
   metadata: jsonb('metadata'),
   ip: varchar('ip', { length: 64 }),
   userAgent: varchar('user_agent', { length: 300 }),

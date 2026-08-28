@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
 import { useAuth } from "../../../lib/auth";
@@ -13,10 +14,10 @@ import { useAuth } from "../../../lib/auth";
  * differs is the organization: operators live in the PLATFORM org (ADR-022), never
  * inside a customer hospital.
  *
- * **No credentials are pre-filled or hinted here.** The seeded development account
- * exists in `hms_backend/src/scripts/seed.ts` and in the QA checklist, which is
- * where development credentials belong — not in a shipped bundle where they would
- * reach production.
+ * Deliberately NO "Test credentials" quick-login here, in ANY environment (ADR-077,
+ * superseding ADR-074 on this point): the operator accounts are real platform
+ * credentials, and this console never displays, hints, or pre-fills them. Operators
+ * type org code `NIROGIX` (case-insensitive, ADR-074) + their email + password.
  */
 export default function LoginPage() {
   const { status, login } = useAuth();
@@ -29,7 +30,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/");
+    if (status === "authenticated") router.replace("/dashboard");
   }, [status, router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -38,7 +39,7 @@ export default function LoginPage() {
     setSubmitting(true);
     const result = await login({ orgCode: orgCode.trim(), email: email.trim(), password });
     setSubmitting(false);
-    if (result.ok) router.replace("/");
+    if (result.ok) router.replace("/dashboard");
     else setError(result.error);
   }
 
@@ -75,6 +76,11 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        <p className="-mt-2 text-right">
+          <Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline">
+            Forgot password?
+          </Link>
+        </p>
         <Button type="submit" loading={submitting} className="mt-1 w-full">
           Sign in
         </Button>

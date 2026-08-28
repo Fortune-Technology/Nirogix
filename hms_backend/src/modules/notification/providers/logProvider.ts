@@ -8,8 +8,12 @@ import type { EmailProvider, SmsProvider, EmailMessage, SmsMessage, SendResult }
 export class LogEmailProvider implements EmailProvider {
   readonly name = 'log';
   async sendEmail(msg: EmailMessage): Promise<SendResult> {
+    // The body is included so link-carrying emails (e.g. the password-reset link,
+    // ADR-081) are actually exercisable in development. This provider only ever
+    // runs when no real provider is configured — a production box with MSG91 set
+    // never reaches this class, so no real message content lands in production logs.
     logger.info(
-      { channel: 'email', to: msg.to, subject: msg.subject },
+      { channel: 'email', to: msg.to, subject: msg.subject, body: msg.body },
       '[dev] email logged (not sent — no provider configured)',
     );
     return { provider: this.name, providerMessageId: `log-${randomUUID()}` };

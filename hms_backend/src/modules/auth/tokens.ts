@@ -68,6 +68,42 @@ export function verifyRefreshToken(token: string): RefreshClaims {
   return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshClaims & jwt.JwtPayload;
 }
 
+// Password-reset token (ADR-081): short-lived, emailed as a link, stored server-side only as a
+// SHA-256 hash. Carries `tid` so the unauthenticated consume route can verify the signature and
+// enter the RLS tenant context from the CLAIMS — the same pattern as refresh. `prt` pins the
+// type so an access or refresh token can never be replayed as a reset link (and vice versa:
+// verifyAccessToken/verifyRefreshToken use different secrets or reject on shape, and this
+// verifier explicitly requires `prt`).
+export type PasswordResetClaims = {
+  sub: string;
+  tid: string;
+  /** Discriminates this token type; required by the verifier. */
+  prt: 'pwreset';
+  /** Per-issue nonce, same reasoning as RefreshClaims.gen. */
+  gen?: string;
+};
+
+const PASSWORD_RESET_TTL = '30m';
+// A welcome / "set your password" link (onboarding, staff invite) reuses the reset-token flow but
+// lives long enough for the recipient to act on the email — the same single-use, hashed-at-rest
+// token, just a longer expiry.
+export const PASSWORD_SETUP_TTL = '7d';
+
+export function signPasswordResetToken(
+  claims: Omit<PasswordResetClaims, 'prt' | 'gen'>,
+  ttl: jwt.SignOptions['expiresIn'] = PASSWORD_RESET_TTL,
+): string {
+  return jwt.sign({ ...claims, prt: 'pwreset', gen: randomUUID() }, env.JWT_REFRESH_SECRET, {
+    expiresIn: ttl,
+  });
+}
+
+export function verifyPasswordResetToken(token: string): PasswordResetClaims {
+  const claims = jwt.verify(token, env.JWT_REFRESH_SECRET) as PasswordResetClaims & jwt.JwtPayload;
+  if (claims.prt !== 'pwreset') throw new Error('Not a password-reset token');
+  return claims;
+}
+
 // The `exp` (seconds) embedded in a freshly signed token — used to set the session's expiry so
 // the DB row and the JWT agree.
 export function tokenExpiry(token: string): Date {

@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useIdleSignOut } from "@hms/client";
+import { toast } from "@hms/ui";
 import type { PatientSession } from "@hms/types";
 import * as api from "./api";
 
@@ -66,6 +68,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setIdentity(null);
     setStatus("signed-out");
   }, []);
+
+  /**
+   * Idle sign-out (ADR-082, SECURITY-AUDIT.md L-5). The same policy the staff apps use —
+   * this portal shows a patient their own records, and it is opened on borrowed phones and
+   * hospital kiosks as often as on a personal device. The hook is shared with `@hms/client`
+   * rather than written twice; only the sign-out call differs, because a patient session is
+   * its own principal (ADR-052).
+   */
+  useIdleSignOut({
+    active: status === "signed-in",
+    onIdle: async () => {
+      await signOut();
+      toast.info({
+        title: "Signed out",
+        description: "You were signed out after a period of inactivity.",
+        dedupeKey: "session-idle",
+      });
+    },
+  });
 
   const value = useMemo<SessionContextValue>(
     () => ({ status, identity, signedIn: status === "signed-in", signIn, signOut }),

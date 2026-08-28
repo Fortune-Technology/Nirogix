@@ -168,13 +168,68 @@ export interface TenantDetail extends Tenant {
 export interface ModuleCatalogItem {
   key: string;
   name: string;
+  /** Domain the module belongs to (ADR-085), e.g. CORE, HOSPITAL, ADD_ON. */
+  category: string;
+  /** Lifecycle status (ADR-085): BUILT | AVAILABLE | PLANNED | FUTURE. */
+  status: string;
+  /** Platform Core — always on, never togglable per tenant. */
+  alwaysOn: boolean;
   hardDependencies: string[];
+  /** The module's declared capabilities, so onboarding can offer capability-level choices. */
+  capabilities: Array<{ key: string; name: string; status: string; dependencies: string[] }>;
+}
+
+/** `GET /entitlements` — the tenant's enabled modules and capabilities (ADR-085). */
+export interface MyEntitlementsResponse {
+  modules: string[];
+  capabilities: string[];
+}
+
+/** A capability of a tenant's entitled module, with its current enabled state (ADR-085). */
+export interface TenantCapability {
+  module: string;
+  moduleName: string;
+  capability: string;
+  name: string;
+  status: string;
+  enabled: boolean;
+  dependencies: string[];
+}
+
+/** One capability within the module manager's config model (ADR-085). */
+export interface ModuleConfigCapability {
+  key: string;
+  name: string;
+  status: string;
+  enabled: boolean;
+  dependencies: string[];
+}
+
+/** One module within the module manager's config model, entitled or not (ADR-085). */
+export interface ModuleConfigModule {
+  key: string;
+  name: string;
+  category: string;
+  status: string;
+  /** Platform Core — always on, never togglable per tenant (ADR-085). */
+  alwaysOn: boolean;
+  hardDependencies: string[];
+  entitled: boolean;
+  capabilities: ModuleConfigCapability[];
+}
+
+/** The whole module/capability picture for a tenant, grouped by domain (ADR-085 §19). */
+export interface TenantModuleConfig {
+  categories: Array<{ key: string; name: string }>;
+  modules: ModuleConfigModule[];
 }
 
 export interface OnboardTenantRequest {
   code: string;
   name: string;
   modules?: string[];
+  /** Capability keys to switch OFF at onboarding (deny-by-exception). */
+  disabledCapabilities?: string[];
   admin: { email: string; fullName: string };
   branches?: Array<{ code: string; name: string }>;
 }
@@ -567,6 +622,10 @@ export interface Patient {
   state: string | null;
   pincode: string | null;
   abhaNumber: string | null;
+  /** ABDM Milestone 1 (ADR-084). `abhaVerifiedAt` is null for a hand-typed ABHA number. */
+  abhaAddress?: string | null;
+  abhaVerifiedAt?: string | null;
+  abhaSource?: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
   branchId: string | null;
@@ -1246,5 +1305,127 @@ export interface AuditEntry {
   path: string | null;
   statusCode: number | null;
   severity: string;
+  /**
+   * Correlation id shared with the structured log, the error tracker and the response's
+   * `X-Request-Id` header (ADR-082). Null for rows written before the column existed and
+   * for events raised outside an HTTP request (jobs, seeders).
+   */
+  requestId: string | null;
   createdAt: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// ABDM / ABHA — Milestone 1 (ADR-084)
+//
+// Identity verification at registration. Nothing here carries an Aadhaar number or an ABDM
+// token: the browser sends an Aadhaar once, on one request, and receives demographics and a
+// transaction id in return.
+// ---------------------------------------------------------------------------------------------
+
+/** What the registration screen may offer for this hospital right now. */
+export interface AbdmCapabilities {
+  provider: 'mock' | 'gateway';
+  creationEnabled: boolean;
+  verificationEnabled: boolean;
+  /** Scan and Share needs an HFR facility id, a QR payload and the flow switched on. */
+  scanShareEnabled: boolean;
+  facilityConfigured: boolean;
+  facilityName: string | null;
+  qrContent: string | null;
+  encryptionConfigured: boolean;
+  consentVersion: string;
+}
+
+/** Registration-form values taken from a verified ABHA profile. Editable before submit. */
+export interface AbhaPrefill {
+  firstName?: string;
+  lastName?: string;
+  gender?: string | null;
+  dateOfBirth?: string;
+  phone?: string;
+  email?: string;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  abhaNumber?: string;
+  abhaAddress?: string;
+}
+
+/** A chart that may already belong to this ABHA. */
+export interface AbhaMatchCandidate {
+  id: string;
+  uhid: string;
+  firstName: string;
+  lastName: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  phone: string | null;
+  abhaNumber: string | null;
+  /** exact_abha = a verified ABHA number matched; demographic = name + gender + birth year. */
+  reason: 'exact_abha' | 'demographic';
+}
+
+export interface AbhaVerificationResult {
+  transactionId: string;
+  state: string;
+  prefill: AbhaPrefill;
+  match: {
+    /** returning = one confident ABHA-number match; ambiguous = a human must confirm. */
+    outcome: 'returning' | 'ambiguous' | 'new';
+    candidates: AbhaMatchCandidate[];
+  };
+  isNewAbha?: boolean;
+  /** The patient's chosen mobile differs from the Aadhaar-linked one — a second OTP is due. */
+  requiresMobileVerification?: boolean;
+  requiresAbhaAddress?: boolean;
+  /** Present when one identifier resolved to several ABHA accounts and one must be chosen. */
+  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string }>;
+}
+
+export interface AbdmOtpSent {
+  transactionId: string;
+  /** Masked destination, e.g. `XXXXXX7890`. */
+  mobileHint?: string;
+  /** Sandbox/mock only — no SMS is sent, so the OTP comes back in-band. Never in production. */
+  devOtp?: string;
+}
+
+/** A profile a patient pushed by scanning the hospital's QR, waiting at the desk. */
+export interface AbdmPendingShare {
+  transactionId: string;
+  abhaNumber: string | null;
+  abhaAddress: string | null;
+  prefill: AbhaPrefill;
+  matchOutcome: string | null;
+  receivedAt: string;
+}
+
+export type AbhaIdentifierType = 'abha_number' | 'abha_address' | 'mobile' | 'aadhaar';
+
+/**
+ * A correction to the patient's profile AT ABDM — the one M1 call that writes to the national
+ * register. Every field optional; at least one must be set. `dateOfBirth` is `DD-MM-YYYY`, the
+ * form ABDM's own examples use, not our ISO transport format.
+ */
+export interface AbhaProfileUpdate {
+  transactionId: string;
+  profilePhoto?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  gender?: 'M' | 'F' | 'O';
+  dateOfBirth?: string;
+  address?: string;
+  pincode?: string;
+}
+
+/** The hospital's own ABDM/HFR facility registration. Issued by NHA to the hospital, not by us. */
+export interface AbdmFacilityConfig {
+  id: string;
+  hipId: string;
+  facilityName: string | null;
+  qrContent: string | null;
+  scanShareEnabled: boolean;
+  branchId: string | null;
 }

@@ -1,6 +1,17 @@
 import { createHash, randomInt } from 'node:crypto';
+import { and, eq, isNull } from 'drizzle-orm';
 import { env } from '../../config/env';
+import { db } from '../../db/client';
+import { runWithTenant } from '../../db/tenantContext';
+import { tenants, tenantBranding } from '../../db/schema';
 import { sendEmail, sendSms } from './notification.service';
+import {
+  DEFAULT_BRAND_COLOR,
+  renderEmailTemplate,
+  type EmailBrand,
+  type EmailTemplateKey,
+  type EmailTemplateDataMap,
+} from './email';
 
 /**
  * The one seam between the platform and a communication provider (ADR-059).
@@ -125,6 +136,61 @@ export async function verifyOtp(input: {
  */
 export async function resendOtp(input: SendOtpInput): Promise<void> {
   await sendOtp(input);
+}
+
+/**
+ * The branding an email is dressed in: the tenant's accent + organization name, falling back to
+ * the Nirogix default when the tenant has set no colour (or for platform mail). Deliberately does
+ * NOT resolve the tenant logo — a logo is a short-lived signed URL that would be dead by the time
+ * the email is opened, so emails brand through colour + wordmark, which never expire.
+ */
+async function resolveEmailBrand(tenantId: string): Promise<EmailBrand> {
+  // Org name from the platform-managed `tenants` table (no RLS); accent from the org-wide
+  // branding row (branch_id NULL) inside the tenant's own RLS context.
+  const nameRow = (
+    await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  )[0];
+  const brandRow = (
+    await runWithTenant(tenantId, (tx) =>
+      tx
+        .select({ brandColor: tenantBranding.brandColor })
+        .from(tenantBranding)
+        .where(and(eq(tenantBranding.tenantId, tenantId), isNull(tenantBranding.branchId)))
+        .limit(1),
+    )
+  )[0];
+  return {
+    brandColor: brandRow?.brandColor ?? DEFAULT_BRAND_COLOR,
+    brandColorFg: '#ffffff',
+    orgName: nameRow?.name ?? 'Nirogix',
+  };
+}
+
+/**
+ * Send one of the catalogued application emails (email/email-templates.ts). This is the ONE way
+ * business logic sends a rich email: it renders the named template with the tenant's branding and
+ * hands the HTML to `sendEmail`, which logs it, dedupes on `idempotencyKey`, and never throws on a
+ * provider failure (delivery problems are logged, not surfaced to the caller). Business logic never
+ * builds email HTML itself.
+ */
+export async function sendAppEmail<K extends EmailTemplateKey>(input: {
+  tenantId: string;
+  to: string;
+  template: K;
+  data: EmailTemplateDataMap[K];
+  /** Same key ⇒ never sent twice (e.g. a retried event). */
+  idempotencyKey?: string;
+}): Promise<void> {
+  const brand = await resolveEmailBrand(input.tenantId);
+  const { subject, html } = renderEmailTemplate(input.template, input.data, brand);
+  await sendEmail({
+    tenantId: input.tenantId,
+    to: input.to,
+    subject,
+    body: html,
+    idempotencyKey: input.idempotencyKey,
+    metadata: { emailTemplate: input.template },
+  });
 }
 
 // Re-exported so a caller has one import for every channel, and no reason to reach

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
-import { LoginBody } from './auth.schema';
+import { ForgotPasswordBody, LoginBody, ResetPasswordBody } from './auth.schema';
 import * as controller from './auth.controller';
 import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
 
@@ -18,3 +18,6 @@ authRouter.get('/auth/me', requireAuth, asyncHandler(controller.getMe));
 // from the verified token, never the body).
 authRouter.patch('/auth/profile', requireAuth, sensitiveLimiter, asyncHandler(controller.patchProfile));
 authRouter.post('/auth/change-password', requireAuth, sensitiveLimiter, asyncHandler(controller.postChangePassword));
+// Forgot-password (ADR-081). Both unauthenticated by design, at the sign-in rate tier.
+authRouter.post('/auth/forgot-password', authLimiter, validate({ body: ForgotPasswordBody }), asyncHandler(controller.postForgotPassword));
+authRouter.post('/auth/reset-password', authLimiter, validate({ body: ResetPasswordBody }), asyncHandler(controller.postResetPassword));

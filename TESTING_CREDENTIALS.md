@@ -14,9 +14,9 @@
 Login needs three fields: **Organization code**, **Email**, **Password**.
 
 - **Password (every account):** `ChangeMe#123`
-- **Organization codes:** `PLATFORM` (the vendor) · `CITYCARE` · `SUNRISE` (hospitals)
+- **Organization codes:** `NIROGIX` (the vendor) · `CITYCARE` · `SUNRISE` (hospitals)
 
-Two tiers (ADR-022): **Tier 0 = the platform owner** (the `PLATFORM` org — the vendor who provisions
+Two tiers (ADR-022): **Tier 0 = the platform owner** (the `NIROGIX` org — the vendor who provisions
 Nirogix to hospitals). **Tier 1+ = each hospital** (`org_admin` down to the operational roles). A
 hospital never contains a System Super Admin.
 
@@ -25,12 +25,12 @@ hospital never contains a System Super Admin.
 ## ⭐ Tier 0 — Platform Super-Admins — start here
 
 The Nirogix operator accounts that onboard new hospitals and operate **across all tenants**. They
-live in their **own `PLATFORM` org** — *not* inside any hospital — and hold no clinical data. There
+live in their **own `NIROGIX` org** — *not* inside any hospital — and hold no clinical data. There
 are **two** (so the platform is never down to a single operator account):
 
 | Field | Value |
 |---|---|
-| Organization code | `PLATFORM` |
+| Organization code | `NIROGIX` |
 | Emails | `jaivik@thefortunetech.com` · `nishant@thefortunetech.com` |
 | Password | `ChangeMe#123` (dev/staging default) |
 
@@ -43,7 +43,7 @@ Signed in you get the **Tenants** menu (nobody else does). From there you can:
 ```bash
 curl -s -X POST http://localhost:4000/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"orgCode":"PLATFORM","email":"jaivik@thefortunetech.com","password":"ChangeMe#123"}'
+  -d '{"orgCode":"NIROGIX","email":"jaivik@thefortunetech.com","password":"ChangeMe#123"}'
 ```
 
 ---
@@ -84,7 +84,7 @@ Branches: Satellite (Main), Maninagar.
 
 ## Quick tests
 
-- **Onboarding (platform admin):** `PLATFORM` / `jaivik@thefortunetech.com` → Tenants → Onboard tenant →
+- **Onboarding (platform admin):** `NIROGIX` / `jaivik@thefortunetech.com` → Tenants → Onboard tenant →
   the new org-admin's one-time temp password is shown; log out and sign in as that new admin.
 - **Org admin (org_admin):** `admin@citycare.example` → **Users** (create a user with a role, add a
   GRANT/DENY override), **Branches** (add a branch), **Settings → Branding** (pick a brand colour,
@@ -102,7 +102,7 @@ Branches: Satellite (Main), Maninagar.
 ```bash
 curl -s -X POST http://localhost:4000/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"orgCode":"PLATFORM","email":"jaivik@thefortunetech.com","password":"ChangeMe#123"}'
+  -d '{"orgCode":"NIROGIX","email":"jaivik@thefortunetech.com","password":"ChangeMe#123"}'
 ```
 
 Returns `{ accessToken, user }` and sets the `hms_refresh` httpOnly cookie. Send the token as

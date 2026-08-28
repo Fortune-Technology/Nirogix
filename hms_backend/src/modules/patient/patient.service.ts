@@ -109,7 +109,11 @@ export async function createPatient(
           branchId: data.branchId ?? null,
           createdBy: actorUserId ?? null,
         })
-        .onConflictDoNothing()
+        // Scoped to the UHID constraint on purpose. An unqualified `onConflictDoNothing()` swallows
+        // EVERY unique violation, so a duplicate ABHA number (ADR-100) would be silently retried as
+        // though it were a UHID collision and then reported as "could not allocate a UHID" — the
+        // wrong cause, and one a receptionist could never act on.
+        .onConflictDoNothing({ target: [patients.tenantId, patients.uhid] })
         .returning();
       if (rows[0]) return rows[0];
     }
@@ -204,6 +208,15 @@ export async function updatePatient(
   ];
   for (const f of fields) {
     if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+  }
+  // Editing the ABHA number by hand un-verifies it (ADR-084). Only a completed ABDM flow may set
+  // `abhaVerifiedAt`, so a number that was proved and has since been retyped must stop claiming to
+  // be proved — otherwise the verified flag would vouch for a value ABDM never saw. The linking
+  // token goes with it: it belongs to the ABHA that was verified, not to whatever replaced it.
+  if (patch.abhaNumber !== undefined) {
+    set.abhaVerifiedAt = null;
+    set.abhaSource = 'manual';
+    set.abhaLinkingTokenEnc = null;
   }
   const updated = (
     await runWithTenant(tenantId, (tx) =>

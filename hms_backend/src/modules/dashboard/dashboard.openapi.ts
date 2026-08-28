@@ -70,7 +70,15 @@ registry.registerPath({
   description:
     'RLS-scoped to the caller’s tenant. Today’s OPD load by hour (check-ins split into scheduled and walk-in), today’s queue counts, billed vs collected per day, registrations per day, total outstanding, pending lab orders, low-stock drugs, and today’s load per provider. Amounts are in paise. `days` is clamped to 7–90.',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ days: z.coerce.number().int().min(7).max(90).optional() }) },
+  request: {
+    query: z.object({
+      days: z.coerce.number().int().min(7).max(90).optional(),
+      // An explicit inclusive window (used by the shared period filter's calendar presets).
+      // Takes precedence over `days` when both `from` and `to` are valid and `to >= from`.
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }),
+  },
   responses: {
     200: { description: 'Dashboard overview', ...json(DashboardOverviewSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },

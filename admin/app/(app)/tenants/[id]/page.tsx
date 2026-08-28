@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Ban, LifeBuoy } from "lucide-react";
+import { ArrowLeft, Ban, LifeBuoy, SlidersHorizontal } from "lucide-react";
 import {
   Alert,
   Badge,
@@ -238,6 +238,13 @@ function Detail({ id }: { id: string }) {
             </Button>
           </div>
         )}
+        <div className="mt-4 border-t border-border pt-4">
+          <Link href={`/tenants/${id}/modules`}>
+            <Button variant="secondary" size="sm">
+              <SlidersHorizontal size={16} strokeWidth={2} /> Manage modules &amp; capabilities
+            </Button>
+          </Link>
+        </div>
       </Card>
 
       <Card

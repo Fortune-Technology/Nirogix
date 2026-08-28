@@ -46,3 +46,13 @@ Append-only implementation log. Newest at the bottom.
 **The threshold was set from measurement, not instinct.** The first draft used 7:1 and darkened the platform's own signature teal, which was the tell that the number had been guessed. Measured on white: `#0f766e` 5.5:1, `#7c3aed` 5.7:1, `#b91c1c` 6.5:1, `#0d9488` 3.7:1, and pale accents 1.3–2.3:1. The default is now **5:1** — above WCAG's 4.5:1 for text, because the reader is a camera and the paper may be a photocopy, but not so strict that it overrides a colour already dark enough to work.
 
 **Testing status:** 11 new tests (31 in this package), covering parse rejection, the luminance and contrast bounds, a colour left alone, a marginal one nudged, a pale one darkened, hue survival, and termination even for white.
+
+## 2026-08-20 — One Content-Security-Policy builder for all five frontends (ADR-082, SECURITY-AUDIT M-1)
+
+**What:** `security.ts` — `buildContentSecurityPolicy()`, `SECURITY_HEADERS` and `originOf()`. No frontend had a CSP at all; five per-app policies would have drifted inside a release, so the policy is built here and each app supplies only what differs: its API origin, and whether it can carry a per-request nonce.
+
+Two shapes, deliberately. **Nonce mode** (`nonce` + `strict-dynamic`, no `unsafe-inline`) for the four authenticated apps, which already render per request. **Static mode** for `marketing`, whose pages are statically rendered and ISR-cached — a per-request nonce would end that, so scripts fall back to `unsafe-inline` while every other directive stays strict. The trade is written into the file rather than left implicit: that site renders no user input, holds no session and reaches no PHI, and a form or authenticated surface there moves it to nonce mode.
+
+`img-src` carries the app’s API origin as well as `https:` — added after loading the running Portal, where tenant logos are served over plain http from `localhost:4000` in development and were being blocked. `Permissions-Policy` closes camera, geolocation, payment and topics, and leaves `microphone=(self)` for dictation (ADR-070).
+
+**Testing status:** 10 new tests (51 in this package) over the directive set, nonce vs static mode, the development relaxations, the API origin in `connect-src` and `img-src`, `upgrade-insecure-requests`, and `originOf` refusing to widen the policy on a missing or relative value.

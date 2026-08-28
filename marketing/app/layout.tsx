@@ -60,11 +60,12 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-// Paints the persisted (or system-preferred) theme before first paint, no flash.
+// Paints the persisted theme before first paint, no flash. Light for everyone unless
+// the visitor explicitly chose Dark before — the OS preference is never consulted
+// (ADR-079; same script shape as the other four apps).
 const noFlashScript = `(function(){try{
   var t=localStorage.getItem('mk-theme');
-  if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
-  document.documentElement.setAttribute('data-theme',t);
+  document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light');
 }catch(e){}})();`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

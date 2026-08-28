@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, type SQL } fro
 import { runWithTenant } from '../../db/tenantContext';
 import { auditLog, type AuditLog } from '../../db/schema';
 import { logger } from '../../config/logger';
+import { currentRequestId } from '../../http/requestContext';
 
 export type AuditSeverity = 'info' | 'notice' | 'warning' | 'critical';
 
@@ -18,6 +19,12 @@ export type AuditEntry = {
   metadata?: Record<string, unknown> | null;
   ip?: string | null;
   userAgent?: string | null;
+  /**
+   * Correlation id. Defaults to the id of the request being served (ADR-082), so a
+   * service-level audit written five calls deep still points at the log lines and the
+   * error-tracker event for the same request without threading a parameter through.
+   */
+  requestId?: string | null;
 };
 
 // Writes one audit entry. Best-effort: a failed audit write is logged but never breaks the
@@ -35,6 +42,7 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
         path: entry.path ?? null,
         statusCode: entry.statusCode ?? null,
         severity: entry.severity ?? 'info',
+        requestId: entry.requestId ?? currentRequestId() ?? null,
         metadata: entry.metadata ?? null,
         ip: entry.ip ?? null,
         userAgent: entry.userAgent?.slice(0, 300) ?? null,

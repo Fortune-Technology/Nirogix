@@ -35,7 +35,10 @@ import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 const DEFAULT_PASSWORD = 'ChangeMe#123';
 
 // The MVP modules, in hard-dependency order (grantModule enforces deps).
-const MVP_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
+// The MVP modules plus `abdm` (ADR-084): a development hospital should be able to exercise ABHA
+// verification without a manual entitlement grant. Safe anywhere this seeder is allowed to run —
+// it refuses outside development, and `ABDM_PROVIDER` defaults to the offline mock.
+const MVP_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm'];
 
 interface SeedProvider {
   fullName: string;
@@ -97,7 +100,7 @@ const SEED_TENANTS: SeedTenant[] = [
     // Tier 0 — the Nirogix platform operator. Home of the System Super Admins, who operate ACROSS
     // all tenants and onboard hospitals. Not a hospital: no modules, branches, or clinical data
     // (ADR-022). Two Platform Admins so the platform is never down to a single operator account.
-    code: 'PLATFORM',
+    code: 'NIROGIX',
     name: 'Nirogix',
     modules: [],
     branches: [],

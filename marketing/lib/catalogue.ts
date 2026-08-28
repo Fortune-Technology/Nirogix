@@ -100,6 +100,11 @@ export const OPERATIONAL_MODULES: ModuleEntry[] = [
 
 export const CATALOGUE_ADDONS: ModuleEntry[] = [
   { slug: "telemedicine", name: "Telemedicine", icon: Video, tagline: "Video consults with in-call e-prescription, a virtual queue, and pre-consult payment.", status: "planned", live: [], planned: [] },
+  // ABDM stays `planned` on purpose (ADR-084). ABHA *identity* verification — Milestone 1 —
+  // is implemented and passes against the ABDM sandbox, but production access needs NHA
+  // functional testing, a WASA certificate and Health Tech Committee approval, so no customer
+  // can use it. A capability nobody can use is not `built` (ADR-038). Record exchange (M2/M3)
+  // is not built at all. Do not flip this without the NHA approval in hand.
   { slug: "abdm", name: "ABDM & Health Records", icon: Network, tagline: "ABHA linking and consent-based record exchange with FHIR R4 bundles.", status: "planned", live: [], planned: [] },
 ];
 
@@ -176,8 +181,10 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         name: "ABDM & ABHA",
         icon: Network,
         status: "planned",
-        // A patient's ABHA number can be recorded today; ABDM linking and consent
-        // exchange are the ABDM add-on module, not built.
+        // A patient's ABHA number can be recorded today. ABHA identity verification
+        // (ABDM Milestone 1) is implemented but awaits NHA certification before any
+        // customer can use it, and record exchange (M2/M3) is not built — so this stays
+        // `planned` (ADR-084).
         body: "ABHA creation and linking, and consent-based record sharing. A patient's ABHA number can already be recorded against their file.",
       },
       {

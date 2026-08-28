@@ -65,14 +65,39 @@ function dayWindow(days: number, now: Date): string[] {
   return keys;
 }
 
+/**
+ * Day keys from `from` to `to` inclusive (both `YYYY-MM-DD`, local calendar), oldest
+ * first. Capped at 366 days so a hand-crafted request cannot force an unbounded daily
+ * scan (the same ceiling the reports endpoints use).
+ */
+function rangeWindow(from: string, to: string): { window: string[]; windowStart: Date } {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  const start = new Date(fy!, fm! - 1, fd!);
+  const end = new Date(ty!, tm! - 1, td!);
+  const keys: string[] = [];
+  for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) keys.push(dayKey(cur));
+  const capped = keys.length > 366 ? keys.slice(-366) : keys;
+  const [sy, sm, sd] = (capped[0] ?? dayKey(start)).split('-').map(Number);
+  return { window: capped, windowStart: new Date(sy!, sm! - 1, sd!) };
+}
+
+/** The window a request asked for — a rolling `days` count, or an explicit inclusive `{ from, to }`. */
+export type OverviewRange = number | { from: string; to: string };
+
 export async function getDashboardOverview(
   tenantId: string,
-  days: number,
+  range: OverviewRange,
   now = new Date(),
 ): Promise<DashboardOverview> {
   const today = dayKey(now);
-  const window = dayWindow(days, now);
-  const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1));
+  const { window, windowStart } =
+    typeof range === 'object'
+      ? rangeWindow(range.from, range.to)
+      : {
+          window: dayWindow(range, now),
+          windowStart: new Date(now.getFullYear(), now.getMonth(), now.getDate() - (range - 1)),
+        };
 
   return runWithTenant(tenantId, async (tx) => {
     const scope = (col: { tenantId: unknown }) => eq(col.tenantId as never, tenantId);

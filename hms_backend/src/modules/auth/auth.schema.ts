@@ -1,4 +1,5 @@
 import { z } from '../../openapi/registry';
+import { PasswordSchema } from './passwordPolicy';
 
 // Zod schemas = single source of truth for request validation AND OpenAPI docs.
 
@@ -46,5 +47,32 @@ export const RefreshResponseSchema = z
 export const MessageResponseSchema = z
   .object({ message: z.string() })
   .openapi('MessageResponse');
+
+// The platform's one password policy — shared by change-password, the reset flow, user
+// creation and their OpenAPI docs, so the bound can never drift between copies. It lives in
+// `passwordPolicy.ts` (ADR-082) because "length only, on the two self-service endpoints"
+// was not a policy; re-exported here so existing importers keep their import path.
+export { PasswordSchema };
+
+export const ForgotPasswordBody = z
+  .object({
+    orgCode: z.string().min(1).openapi({ example: 'CITYCARE', description: 'Organization / tenant code' }),
+    email: z.string().email().openapi({ example: 'admin@citycare.example' }),
+    // Which frontend's reset page the emailed link should open. The server maps this to a
+    // configured origin (PORTAL_URL / ADMIN_URL) — the client never supplies a URL.
+    client: z.enum(['portal', 'admin']).default('portal').openapi({
+      description: "Which app requested the reset; decides the link's configured origin.",
+    }),
+  })
+  .openapi('ForgotPasswordRequest');
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordBody>;
+
+export const ResetPasswordBody = z
+  .object({
+    token: z.string().min(16).openapi({ description: 'The reset token from the emailed link.' }),
+    newPassword: PasswordSchema,
+  })
+  .openapi('ResetPasswordRequest');
+export type ResetPasswordInput = z.infer<typeof ResetPasswordBody>;
 
 export const MeResponseSchema = z.object({ user: PublicUserSchema }).openapi('MeResponse');

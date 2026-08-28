@@ -67,6 +67,10 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 
 - Tenant isolation is enforced by PostgreSQL Row-Level Security. Tenant A must never access Tenant B's data — this is tested, not assumed, on every milestone.
 - Frontend visibility is never security. Every backend endpoint independently re-checks entitlement and permission regardless of what the UI already hid.
+- **A raw Aadhaar number is never persisted, logged or echoed (ADR-084).** It exists in memory only for the length of one encrypt-and-send call; what survives is a masked hint (`XXXXXXXX1234`), enforced by the application, by a database CHECK constraint, and by an Aadhaar-shaped scrub at the log/error-tracker boundary. **Every ABDM token is encrypted at rest or discarded** — never written in the clear.
+- **ABDM verifies an identity; it never creates a clinical record (ADR-084).** Every verification ends at a prefill a human reviews, or at a link onto a chart that already exists. Only a completed ABDM flow may set `abha_verified_at`; a hand-typed ABHA number stays unverified for ever. An exact ABHA-number match is a returning patient; a demographic match is a candidate for a human to confirm, never an automatic merge.
+- **Specialty is a personalization key, never a security boundary (ADR-083).** The effective feature set for a user = **tenant enabled modules ∩ provider specialty module set ∩ user permissions** — an intersection: specialty narrows the view, it can never widen access. The enforced chain stays `authenticated → requireModule → requirePermission → business logic`; specialty is not an enforcement point. Specialty maps (as seeded data) to a required/recommended/optional module preset chosen at onboarding, which the organization may then override — a starting default, not a lock.
+- **A module has a capability tier, and both are runtime-checked entitlements, never a security bypass (ADR-085, extends ADR-083).** Effective features = tenant enabled modules ∩ tenant enabled capabilities ∩ provider specialty set ∩ user permissions; the enforced chain is `authenticated → requireModule → requireCapability → requirePermission → business logic`. A capability is *what the system supports*; a permission is *who may use it* — a hospital disabling a capability overrides every role that holds its permission. One canonical `Domain → Module → Capability` registry is shared backend + every frontend; **only a `BUILT` registry entry is ever entitled to a real screen/API or marked available in marketing (ADR-038)** — listing a module in the registry is not a claim it exists. The engine is the standard every new module is built to; existing modules are retrofitted onto it without rewrite; disabling a module or capability hides and protects it but never deletes historical records (invariant #6); and cross-module workflow runs through the shared single-owner entities + events/contracts, never a duplicated implementation (one Payment, invariant #8).
 - Modular monolith for MVP. No microservices split happens without a recorded decision in DECISIONS.md.
 - Core clinical entities — Patient, Provider, Encounter, Diagnosis, Prescription, Invoice — stay strongly typed. Never modeled as EAV, even for specialty variation.
 - Entitlement and permission-override records are never physically deleted.
@@ -110,7 +114,7 @@ New architectural decisions of similar weight are appended here as they are made
 - ADR-010 — Permission cache TTL is bounded by the earliest temporary override's `valid_until`; `revoked_at` triggers immediate targeted cache invalidation
 - ADR-011 — Break-glass notification is tenant-configurable; post-event review is a review-only workflow and never modifies RBAC
 
-> The list above is the seed set only. **`DECISIONS.md` in the repository root is the live, authoritative ADR log** (ADR-012 … onward: ORM, monorepo, providers, storage, Portal session model, ops baseline, platform admin/branding, money convention, API feedback, SEO boundary). Read it, not this list, before making an architectural change.
+> The list above is the seed set only. **`DECISIONS.md` in the repository root is the live, authoritative ADR log** (ADR-012 … onward: ORM, monorepo, providers, storage, Portal session model, ops baseline, platform admin/branding, money convention, API feedback, SEO boundary, master data & catalogues, and — ADR-083 — the specialty-aware experience layer that makes the platform configurable-per-specialty on top of the existing entitlement boundary). Read it, not this list, before making an architectural change.
 
 ## Module Relationships
 
@@ -167,6 +171,7 @@ All 25 modules list **Platform Core** as an implicit prerequisite (omitted from 
 - Self-serve plan management / payment-integrated billing — explicitly deferred; MVP uses manual, operator-driven entitlement provisioning.
 - Branch-scoped entitlement management UI — the schema supports it (nullable `branch_id`) from day one; the admin UI to manage it does not exist yet.
 - Break-glass full implementation — architecture and insertion point defined; UI and enforcement not built for MVP.
+- Module & Capability Engine (ADR-085, extends ADR-083) — decided, not yet built: capability tier + `requireCapability`, canonical `Domain→Module→Capability` registry, event-driven interconnection hardening, and reusable domain widgets. Built-only retrofit now, forward standard for future modules (`resources/development-plan.md` §20D, `BACKLOG.md` §3).
 
 ## Implementation Context
 

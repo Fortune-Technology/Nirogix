@@ -54,6 +54,13 @@ import type {
   AddInvoiceLineRequest,
   Referral,
   CreateReferralRequest,
+  AbdmCapabilities,
+  AbdmFacilityConfig,
+  AbdmOtpSent,
+  AbdmPendingShare,
+  AbhaIdentifierType,
+  AbhaProfileUpdate,
+  AbhaVerificationResult,
   ScheduleWindow,
   FreeSlots,
   BookingRequestItem,
@@ -114,6 +121,22 @@ export async function changeOwnPassword(body: {
   newPassword: string;
 }): Promise<{ message: string }> {
   return request<{ message: string }>("/auth/change-password", { method: "POST", body });
+}
+
+// ---- Forgot password (ADR-081) — both unauthenticated ----------------------
+
+export async function forgotPassword(body: { orgCode: string; email: string }): Promise<{ message: string }> {
+  // `client` tells the backend which app's configured origin the emailed link opens.
+  // The pages render the outcome inline, so the shared toast stays quiet.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { ...body, client: "portal" },
+    feedback: false,
+  });
+}
+
+export async function resetPassword(body: { token: string; newPassword: string }): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/reset-password", { method: "POST", body, feedback: false });
 }
 
 // ---- Resources -------------------------------------------------------------
@@ -263,8 +286,14 @@ export async function getSystemHealth(): Promise<{ api: boolean; db: boolean }> 
   return { api, db };
 }
 
-export async function getDashboardOverview(days = 14): Promise<DashboardOverview> {
-  return request<DashboardOverview>(`/dashboard/overview?days=${days}`);
+// A rolling `days` count (legacy/fixed dashboards) or an explicit inclusive ISO
+// `{ from, to }` window (the shared period filter). The backend honours from/to when
+// both are present.
+export async function getDashboardOverview(
+  range: number | { from: string; to: string } = 14,
+): Promise<DashboardOverview> {
+  const qs = typeof range === "object" ? `from=${range.from}&to=${range.to}` : `days=${range}`;
+  return request<DashboardOverview>(`/dashboard/overview?${qs}`);
 }
 
 export async function getOrgSummary(): Promise<OrgSummary> {
@@ -957,4 +986,454 @@ export async function setBranchAvailability(body: {
     body,
     feedback: { success: "Availability updated." },
   });
+}
+
+// ---- ABDM / ABHA (Milestone 1, ADR-084) ------------------------------------
+//
+// Identity verification at the registration desk. Three things this client never handles: an
+// ABDM token (they stay server-side), a stored Aadhaar number (it is sent on exactly one
+// request and never comes back), and any decision about matching — the API returns the
+// new-vs-returning outcome and the screen presents it.
+
+/** What ABDM can do for this hospital right now — drives which options the screen offers. */
+export async function getAbdmCapabilities(branchId?: string): Promise<AbdmCapabilities> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  // Silent: a hospital that is not entitled to the ABDM module answers 403 here, and that is a
+  // normal state for most tenants — not something to raise a toast about on every page load.
+  return request<AbdmCapabilities>(`/abdm/capabilities${q}`, { feedback: false });
+}
+
+/** Flow 1 — send the Aadhaar OTP. `consentGiven` must be true; the API refuses otherwise. */
+export async function startAbhaAadhaarOtp(body: {
+  aadhaar: string;
+  consentGiven: true;
+  branchId?: string;
+}): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/enrolment/aadhaar/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent to the Aadhaar-linked mobile." },
+  });
+}
+
+export async function verifyAbhaAadhaarOtp(body: {
+  transactionId: string;
+  otp: string;
+  mobile?: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/enrolment/aadhaar/verify", { method: "POST", body });
+}
+
+/** The secondary check, when the patient's mobile differs from the Aadhaar-linked one. */
+export async function requestAbhaMobileOtp(body: { transactionId: string; mobile: string }): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/enrolment/mobile/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent to the mobile number." },
+  });
+}
+
+export async function verifyAbhaMobileOtp(body: { transactionId: string; otp: string }): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/enrolment/mobile/verify", { method: "POST", body });
+}
+
+export async function suggestAbhaAddresses(transactionId: string): Promise<{ suggestions: string[] }> {
+  return request<{ suggestions: string[] }>(`/abdm/transactions/${transactionId}/abha-address/suggestions`);
+}
+
+export async function createAbhaAddress(body: {
+  transactionId: string;
+  abhaAddress: string;
+}): Promise<{ transactionId: string; abhaAddress: string }> {
+  return request<{ transactionId: string; abhaAddress: string }>("/abdm/abha-address", {
+    method: "POST",
+    body,
+    feedback: { success: "ABHA address created." },
+  });
+}
+
+/** Flow 3 — verify an ABHA the patient already holds. */
+export async function startAbhaVerification(body: {
+  identifierType: AbhaIdentifierType;
+  identifier: string;
+  consentGiven: true;
+  branchId?: string;
+}): Promise<AbdmOtpSent> {
+  return request<AbdmOtpSent>("/abdm/verification/otp", {
+    method: "POST",
+    body,
+    feedback: { success: "OTP sent." },
+  });
+}
+
+export async function verifyAbhaIdentifierOtp(body: {
+  transactionId: string;
+  otp: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/verification/verify", { method: "POST", body });
+}
+
+/** One identifier can hold several ABHA accounts (a shared family mobile) — pick one. */
+export async function selectAbhaAccount(body: {
+  transactionId: string;
+  abhaNumber: string;
+}): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/verification/select-account", { method: "POST", body });
+}
+
+/** Flow 2 — profiles patients pushed by scanning the facility QR, waiting at the desk. */
+export async function listAbdmPendingShares(): Promise<AbdmPendingShare[]> {
+  // Polled while the QR is on screen, so it stays silent: a toast per poll would be unusable.
+  return request<AbdmPendingShare[]>("/abdm/pending-shares", { feedback: false });
+}
+
+export async function getAbdmVerification(transactionId: string): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>(`/abdm/transactions/${transactionId}`);
+}
+
+export async function dismissAbdmVerification(transactionId: string): Promise<void> {
+  // Silent: closing a verification the operator abandoned is not news.
+  await request<void>(`/abdm/transactions/${transactionId}/dismiss`, { method: "POST", feedback: false });
+}
+
+/** Attach a verified ABHA to a chart. The only path that marks an ABHA as verified. */
+export async function linkAbhaToPatient(body: { transactionId: string; patientId: string }): Promise<Patient> {
+  return request<Patient>("/abdm/link", {
+    method: "POST",
+    body,
+    feedback: { success: "ABHA linked to the patient record." },
+  });
+}
+
+/** The hospital's own HFR facility registration (org_admin). */
+export async function getAbdmFacility(branchId?: string): Promise<AbdmFacilityConfig | null> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<AbdmFacilityConfig | null>(`/abdm/facility${q}`);
+}
+
+export async function saveAbdmFacility(body: {
+  hipId: string;
+  facilityName?: string;
+  qrContent?: string;
+  scanShareEnabled?: boolean;
+  branchId?: string;
+}): Promise<AbdmFacilityConfig> {
+  return request<AbdmFacilityConfig>("/abdm/facility", {
+    method: "PUT",
+    body,
+    feedback: { success: "ABDM facility settings saved." },
+  });
+}
+
+/**
+ * Correct the patient's profile at ABDM. Writes to the national register, so it is gated by its
+ * own permission and is not something the front desk can do unless the hospital grants it.
+ */
+export async function updateAbhaProfile(body: AbhaProfileUpdate): Promise<AbhaVerificationResult> {
+  return request<AbhaVerificationResult>("/abdm/profile", {
+    method: "PATCH",
+    body,
+    feedback: { success: "Profile updated at ABDM." },
+  });
+}
+
+// --- ABDM Milestone 3: a patient's history from other hospitals (ADR-092…ADR-094) --------------
+
+export interface AbdmHistoryRequest {
+  id: string;
+  patientId: string;
+  consentRequestId: string | null;
+  requesterName: string;
+  requesterRegistrationNumber: string;
+  hiTypes: string[];
+  purposeCode: string;
+  /** pending | requested | granted | denied | expired | failed */
+  status: string;
+  dataEraseAt: string | null;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface AbdmTimelineDetail {
+  group: string;
+  label: string;
+  value: string;
+  /** Set only when the SOURCE hospital flagged it — never our own inference. */
+  emphasis?: "abnormal";
+}
+
+export interface AbdmTimelineEntry {
+  id: string;
+  date: string | null;
+  hiType: string;
+  sourceHipId: string | null;
+  careContextReference: string | null;
+  title: string;
+  author: string | null;
+  details: AbdmTimelineDetail[];
+  hasAbnormalFinding: boolean;
+  receivedAt: string;
+}
+
+export interface AbdmTimeline {
+  summary: {
+    total: number;
+    sources: string[];
+    byType: Record<string, number>;
+    abnormalCount: number;
+    earliest: string | null;
+    latest: string | null;
+  };
+  entries: AbdmTimelineEntry[];
+}
+
+export async function requestAbdmHistory(body: { patientId: string; providerId: string }): Promise<AbdmHistoryRequest> {
+  // The card raises its own message, which says what actually happens next ("the patient decides in
+  // their own ABHA app"). The client's generic "Saved." alongside it would be two toasts for one
+  // event, and the less informative one at that (ADR-057).
+  return request<AbdmHistoryRequest>("/abdm/history/request", { method: "POST", body, feedback: false });
+}
+
+export async function listAbdmHistoryRequests(patientId: string): Promise<AbdmHistoryRequest[]> {
+  // Polled while a request is outstanding, so it stays silent — a toast per poll would be unusable.
+  const data = await request<{ requests: AbdmHistoryRequest[] }>(`/abdm/history/${patientId}`, { feedback: false });
+  return data.requests;
+}
+
+export async function refreshAbdmHistoryRequest(requestId: string): Promise<AbdmHistoryRequest> {
+  return request<AbdmHistoryRequest>(`/abdm/history/${requestId}/refresh`, { method: "POST", feedback: false });
+}
+
+export async function fetchAbdmExternalRecords(patientId: string): Promise<{ requested: number }> {
+  // Same reason: the card's own message names how many hospitals were asked (ADR-057).
+  return request<{ requested: number }>(`/abdm/history/${patientId}/fetch`, { method: "POST", feedback: false });
+}
+
+export async function getAbdmTimeline(patientId: string): Promise<AbdmTimeline> {
+  // Silent: it reloads whenever a consent lands or records arrive, and a toast each time is noise.
+  return request<AbdmTimeline>(`/abdm/history/${patientId}/timeline`, { feedback: false });
+}
+
+// --- ABDM Milestone 4: the national registries (ADR-096…ADR-098) ------------------------------
+
+export interface AbdmFacilityRegistration {
+  id: string;
+  branchId: string | null;
+  trackingId: string | null;
+  facilityId: string | null;
+  status: "draft" | "submitted" | "under_review" | "verified" | "rejected";
+  statusMessage: string | null;
+  facilityName: string;
+  submittedAt: string | null;
+  verifiedAt: string | null;
+  /** The whole form as last saved. HFR registration spans days, so a draft must reopen filled in. */
+  payload: Record<string, unknown> | null;
+}
+
+export interface AbdmHprEnrolment {
+  id: string;
+  providerId: string;
+  hprId: string | null;
+  status: "not_started" | "aadhaar_verified" | "mobile_verified" | "registered" | "already_registered";
+  statusMessage: string | null;
+  professionalCategory: string | null;
+  registrationCouncil: string | null;
+  registrationNumber: string | null;
+  lastSyncedAt: string | null;
+}
+
+export interface AbdmBulkExport {
+  columns: string[];
+  rows: Record<string, string>[];
+}
+
+export interface AbdmImportOutcome {
+  matched: number;
+  unmatched: Array<{ row: number; identifier: string; reason: string }>;
+  ambiguous: Array<{ row: number; identifier: string; candidates: number }>;
+}
+
+export async function listAbdmFacilityRegistrations(): Promise<AbdmFacilityRegistration[]> {
+  const data = await request<{ registrations: AbdmFacilityRegistration[] }>("/abdm/registry/facilities", {
+    feedback: false,
+  });
+  return data.registrations;
+}
+
+export async function saveAbdmFacilityRegistration(
+  body: Record<string, unknown>,
+): Promise<AbdmFacilityRegistration> {
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility", { method: "PUT", body });
+}
+
+export async function submitAbdmFacilityRegistration(branchId?: string | null): Promise<AbdmFacilityRegistration> {
+  // The page raises its own message, which says a verifier still has to look at it (ADR-057).
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility/submit", {
+    method: "POST",
+    body: { branchId: branchId ?? null },
+    feedback: false,
+  });
+}
+
+export async function listAbdmHprEnrolments(): Promise<AbdmHprEnrolment[]> {
+  const data = await request<{ enrolments: AbdmHprEnrolment[] }>("/abdm/registry/professionals", { feedback: false });
+  return data.enrolments;
+}
+
+/** One entry in a registry reference list, normalised to a shape a picker can render. */
+export interface AbdmMasterOption {
+  code: string;
+  label: string;
+}
+
+/**
+ * The registry's reference lists, normalised (HFR-014…038, ADR-096).
+ *
+ * HFR and HPR publish no schema for these, and the two registries disagree with each other about
+ * key names — `code`/`value`, `id`/`name`, sometimes wrapped in `data`. Rather than guess one shape
+ * and render an empty dropdown when it differs, this accepts the forms actually seen and falls back
+ * to the raw string. An option that arrives unrecognisable shows its own value rather than blank,
+ * because a picker with invisible entries is worse than an ugly one.
+ */
+function normaliseMasterList(raw: unknown): AbdmMasterOption[] {
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as { data?: unknown[] })?.data)
+      ? (raw as { data: unknown[] }).data
+      : Array.isArray((raw as { results?: unknown[] })?.results)
+        ? (raw as { results: unknown[] }).results
+        : [];
+
+  return list
+    .map((item): AbdmMasterOption | null => {
+      // HFR returns fixed-width codes, space-padded — ownership comes back as `"P         "`.
+      // Carrying that padding into the next request is fatal rather than untidy: the registry
+      // validates `facilityType`'s ownershipCode against `^(?i)(G|P|PP)$`, which a padded value
+      // fails, and the whole call 500s. Trimmed here, once, at the only place codes enter the app.
+      if (typeof item === "string") return { code: item.trim(), label: item.trim() };
+      if (!item || typeof item !== "object") return null;
+      const o = item as Record<string, unknown>;
+      const code = o.code ?? o.id ?? o.value ?? o.key ?? o.lgdCode;
+      const label = o.value ?? o.name ?? o.label ?? o.text ?? o.title ?? code;
+      if (code == null) return null;
+      return { code: String(code).trim(), label: String(label ?? code).trim() };
+    })
+    .filter((o): o is AbdmMasterOption => o !== null);
+}
+
+export type AbdmFacilityMasterKind =
+  | "states"
+  | "districts"
+  | "subDistricts"
+  | "facilityType"
+  | "facilitySubType"
+  | "ownerSubtype"
+  | "specialities"
+  | "masterData"
+  | "masterTypes";
+
+/**
+ * Reads one registry reference list.
+ *
+ * `code` scopes an LGD list to its parent and `type` selects which list `masterData` returns. The
+ * rest are the named filters HFR's POST lists require — notably `facilityType`, which needs BOTH an
+ * ownership and a system of medicine, so it can only be offered after those two are chosen.
+ */
+export interface AbdmFacilityMasterParams {
+  code?: string;
+  type?: string;
+  ownershipCode?: string;
+  systemOfMedicineCode?: string;
+  facilityTypeCode?: string;
+  ownerSubtypeCode?: string;
+}
+
+export async function abdmFacilityMaster(
+  kind: AbdmFacilityMasterKind,
+  params?: AbdmFacilityMasterParams,
+): Promise<AbdmMasterOption[]> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params ?? {})) if (v) q.set(k, v);
+  const suffix = q.toString() ? `?${q}` : "";
+  const raw = await request<unknown>(`/abdm/registry/master/${kind}${suffix}`, { feedback: false });
+  return normaliseMasterList(raw);
+}
+
+export async function abdmHprMaster(kind: string): Promise<AbdmMasterOption[]> {
+  const raw = await request<unknown>(`/abdm/registry/hpr-master/${kind}`, { feedback: false });
+  return normaliseMasterList(raw);
+}
+
+/**
+ * Records what a human verifier decided (ADR-096).
+ *
+ * HFR has no status webhook, so until it does an operator transcribes the outcome. `verified` also
+ * adopts the issued facility id as our `hipId`, which is why it is a write and not a display state.
+ */
+export async function recordAbdmFacilityVerification(body: {
+  branchId?: string | null;
+  status: "under_review" | "verified" | "rejected";
+  facilityId?: string;
+  message?: string;
+}): Promise<AbdmFacilityRegistration> {
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility/verification", { method: "POST", body });
+}
+
+export async function exportAbdmBulk(kind: "professionals" | "facilities"): Promise<AbdmBulkExport> {
+  return request<AbdmBulkExport>(`/abdm/registry/bulk/${kind}`, { feedback: false });
+}
+
+export async function importAbdmBulk(
+  kind: "professionals" | "facilities",
+  rows: Record<string, string>[],
+): Promise<AbdmImportOutcome> {
+  // The page reports matched/unmatched/ambiguous itself; a generic "Saved." would say less.
+  return request<AbdmImportOutcome>(`/abdm/registry/bulk/${kind}`, { method: "POST", body: { rows }, feedback: false });
+}
+
+// --- Consents other providers hold over our records (ADR-100) ---------------------------------
+
+export interface AbdmHeldConsent {
+  consentId: string;
+  abhaAddress: string;
+  hiuId: string | null;
+  hipId: string | null;
+  purposeCode: string | null;
+  hiTypes: string[];
+  accessMode: string | null;
+  dateRangeFrom: string | null;
+  dateRangeTo: string | null;
+  dataEraseAt: string | null;
+  grantedAt: string | null;
+}
+
+export interface AbdmConsentEvent {
+  consentId: string;
+  event: "granted" | "revoked" | "expired" | "erased";
+  hiuId?: string;
+  hiTypes?: string[];
+  recordedAt: string;
+}
+
+export async function listAbdmConsents(): Promise<{ consents: AbdmHeldConsent[]; history: AbdmConsentEvent[] }> {
+  return request<{ consents: AbdmHeldConsent[]; history: AbdmConsentEvent[] }>("/abdm/consents", { feedback: false });
+}
+
+/** Finds the patient an ABHA belongs to before a history is requested (HIU_FLOW_101). */
+export async function lookupAbdmAbha(identifier: string): Promise<{
+  outcome: "verified" | "unverified" | "not_found" | "ambiguous";
+  patient?: { id: string; uhid: string; name: string; abhaAddress: string | null; abhaNumber: string | null };
+  nextStep: string;
+}> {
+  return request(`/abdm/history/lookup/abha?identifier=${encodeURIComponent(identifier)}`, { feedback: false });
+}
+
+/** Resends the verification code, throttled server-side (CRT_ABHA_106). */
+export async function resendAbdmOtp(body: {
+  transactionId: string;
+  aadhaar?: string;
+  mobile?: string;
+}): Promise<{ transactionId: string; mobileHint?: string; resendsLeft: number }> {
+  return request("/abdm/otp/resend", { method: "POST", body });
 }

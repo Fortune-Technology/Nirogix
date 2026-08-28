@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@hms/ui/styles.css";
 import "./globals.css";
@@ -39,7 +40,11 @@ const noFlashScript = `(function(){try{
   if(b){document.documentElement.style.setProperty('--hms-brand',b);}
 }catch(e){}})();`;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The nonce minted for THIS request by proxy.ts (ADR-082). Next stamps it on the scripts
+  // it emits; the one inline script this app owns has to be given it by hand.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -48,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body className="min-h-full">
         <Providers>

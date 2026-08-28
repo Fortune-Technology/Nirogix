@@ -45,6 +45,11 @@ Sessions are stored in their own `patient_sessions` table, rotate on every refre
 
 The signed-in layout distinguishes *restoring* from *signed out*, and redirects only on the latter; redirecting during the restore attempt would bounce every reload to sign-in.
 
+
+## Browser security headers (ADR-082)
+
+`proxy.ts` (Next 16’s replacement for `middleware.ts`) mints a per-request nonce and sends the Content-Security-Policy built by `@hms/utils` — `strict-dynamic`, no `unsafe-inline` — plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (dictation, ADR-070). The root layout is async so it can read that nonce from the `x-nonce` header and stamp it on the one inline script this app owns (the no-flash theme script); **any new inline script needs the same nonce, or it will not run**. Sessions also end after 15 minutes without interaction: this app’s own `SessionProvider` uses the shared `useIdleSignOut` hook from `@hms/client`, because the portal is opened on borrowed phones and hospital kiosks as often as on a personal device. The session model itself stays separate (ADR-052) — only the policy is shared.
+
 ## Verify
 
 `npm run dev --workspace=patient`, then `http://localhost:3002`. `npm run typecheck --workspace=patient` and `npm run build --workspace=patient` must pass.

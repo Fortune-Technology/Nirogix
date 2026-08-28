@@ -16,7 +16,7 @@ export default function RegistrationQrPrintPage() {
         sub="Scan this code with your phone camera and send us your details. It takes about a minute."
         whatNext="Our reception team checks your details and completes your registration when you arrive. Sending this form does not book an appointment, and it does not create an account."
         disabledMessage="Patient self-registration is switched off, so there is no poster to print. Turn it on under Hospital configuration → Patient registration."
-        backHref="/settings/registration"
+        backHref="/hospital-setup/patient-registration"
         load={api.getRegistrationSettings}
         useQr={useRegistrationQr}
       />

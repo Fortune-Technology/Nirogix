@@ -53,6 +53,17 @@ jobs:
       - name: Install (all workspaces)
         run: npm ci
 
+      # Dependency vulnerability gate (SECURITY-AUDIT.md L-4, ADR-082). Fails the build on a
+      # high or critical advisory in anything that SHIPS — `--omit=dev`, because a build-tool
+      # advisory (vitest, the bundler's dev server) is not reachable from production and must
+      # not block a release. Dev-tool advisories are reported in the next step, unfailing, so
+      # they are visible rather than invisible.
+      - name: Audit shipped dependencies (fails on high/critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit dev dependencies (report only)
+        run: npm audit --audit-level=high || true
+
       - name: Type-check
         run: npm run typecheck
 
@@ -64,8 +75,10 @@ jobs:
       - name: Validate OpenAPI (no undocumented APIs)
         run: npm run openapi:validate
 
-      # Tenant-isolation RLS test + any other suites, against the real PostgreSQL above.
-      - name: Test (incl. tenant-isolation RLS)
+      # Unit + integration + API suites, against the real PostgreSQL above. Includes the
+      # tenant-isolation RLS test and the HTTP-boundary suites (*.api.test.ts), which prove
+      # authn/authz/entitlement refusals at the layer an attacker actually reaches.
+      - name: Test (unit, integration, API, tenant isolation)
         run: npm run test
 
       - name: Build

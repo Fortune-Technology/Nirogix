@@ -22,21 +22,38 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "@hms/ui";
 import type { AuthUser, LoginRequest } from "@hms/types";
 import type { ApiClient } from "./http";
 import { describeError } from "./feedback";
+import { clearStoredActivity, DEFAULT_IDLE_TIMEOUT_MS, useIdleSignOut } from "./idle";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
 interface Capabilities {
   wildcard: boolean;
   permissions: Set<string>;
+  /** Tenant-enabled module keys (ADR-085). Empty until the session loads. */
+  modules: Set<string>;
+  /** Tenant-enabled capability keys of those modules (ADR-085). */
+  capabilities: Set<string>;
 }
 
 export interface AuthContextValue {
   status: Status;
   user: AuthUser | null;
   can: (permission: string) => boolean;
+  /**
+   * Is this module enabled for the tenant (ADR-085)? Visibility only — the backend
+   * re-checks with requireModule on every call, so hiding is never the boundary.
+   */
+  hasModule: (moduleKey: string) => boolean;
+  /** Is this capability enabled for the tenant (ADR-085)? Visibility only. */
+  hasCapability: (capabilityKey: string) => boolean;
+  /** The tenant's enabled module keys. */
+  modules: ReadonlySet<string>;
+  /** The tenant's enabled capability keys. */
+  capabilities: ReadonlySet<string>;
   login: (payload: LoginRequest) => Promise<{ ok: true } | { ok: false; error: string; mfa?: boolean }>;
   logout: () => Promise<void>;
   /** Re-reads the session after the user changes their own profile. */
@@ -45,18 +62,47 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const EMPTY_CAPS: Capabilities = { wildcard: false, permissions: new Set() };
+const EMPTY_CAPS: Capabilities = {
+  wildcard: false,
+  permissions: new Set(),
+  modules: new Set(),
+  capabilities: new Set(),
+};
 
-export function AuthProvider({ api, children }: { api: ApiClient; children: ReactNode }) {
+export function AuthProvider({
+  api,
+  children,
+  /**
+   * Idle window before the session ends (ADR-082, SECURITY-AUDIT.md L-5). Pass 0 to
+   * disable — appropriate only for a surface with nothing worth protecting on screen.
+   */
+  idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
+}: {
+  api: ApiClient;
+  children: ReactNode;
+  idleTimeoutMs?: number;
+}) {
   const [status, setStatus] = useState<Status>("loading");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [caps, setCaps] = useState<Capabilities>(EMPTY_CAPS);
   const bootstrapped = useRef(false);
 
   const loadSession = useCallback(async () => {
-    const [meRes, permRes] = await Promise.all([api.me(), api.myPermissions()]);
+    // Entitlements ride alongside permissions so the UI reflects the SAME boundary the backend
+    // enforces (module → capability → permission). A failure here must not sign the user out:
+    // fall back to empty, which hides module-gated items rather than showing what the API refuses.
+    const [meRes, permRes, entRes] = await Promise.all([
+      api.me(),
+      api.myPermissions(),
+      api.myEntitlements().catch(() => ({ modules: [], capabilities: [] })),
+    ]);
     setUser(meRes.user);
-    setCaps({ wildcard: permRes.wildcard, permissions: new Set(permRes.permissions) });
+    setCaps({
+      wildcard: permRes.wildcard,
+      permissions: new Set(permRes.permissions),
+      modules: new Set(entRes.modules),
+      capabilities: new Set(entRes.capabilities),
+    });
     setStatus("authenticated");
   }, [api]);
 
@@ -94,11 +140,12 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
           return { ok: false, error: "This account requires MFA, which isn't supported yet.", mfa: true };
         }
         api.setAccessToken(res.accessToken);
-        setUser(res.user);
-        // Load the effective permission set so the shell renders correctly.
-        const perms = await api.myPermissions();
-        setCaps({ wildcard: perms.wildcard, permissions: new Set(perms.permissions) });
-        setStatus("authenticated");
+        // Hydrate from /auth/me (not the login response, which omits `roles`) so the
+        // session carries the user's roles and the shell shows them immediately — the
+        // same source the on-reload bootstrap uses. `loadSession` fetches the user and
+        // the effective permission set in parallel, so this costs no extra latency over
+        // the previous permissions-only await.
+        await loadSession();
         return { ok: true };
       } catch (err) {
         // Sign-in renders its failure inline (login opts out of the toast), but the
@@ -106,16 +153,48 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
         return { ok: false, error: describeError(err).description };
       }
     },
-    [api],
+    [api, loadSession],
   );
 
   const logout = useCallback(async () => {
     await api.logout();
+    clearStoredActivity();
     clearSession();
   }, [api, clearSession]);
 
+  /**
+   * Idle sign-out (ADR-082, SECURITY-AUDIT.md L-5). Runs only while a session exists, and
+   * revokes it server-side rather than merely forgetting it in memory. Interaction in ANY
+   * tab of this origin counts, so a second tab never signs the user out from under the one
+   * they are working in.
+   */
+  useIdleSignOut({
+    active: status === "authenticated",
+    timeoutMs: idleTimeoutMs,
+    onIdle: async () => {
+      await api.logout();
+      clearSession();
+      // Says what happened, so a returning user is not left wondering why the screen
+      // emptied. The shared toast — never a page-specific one (ADR-057).
+      toast.info({
+        title: "Signed out",
+        description: `You were signed out after ${Math.round(idleTimeoutMs / 60_000)} minutes of inactivity.`,
+        dedupeKey: "session-idle",
+      });
+    },
+  });
+
   const can = useCallback(
     (permission: string) => caps.wildcard || caps.permissions.has(permission),
+    [caps],
+  );
+
+  // A module/capability check MIRRORS the server's entitlement; it is never the boundary.
+  // WILDCARD deliberately does not bypass it — a platform operator still cannot use a module
+  // the tenant has not bought. Entitlement is the tenant's, permission is the user's (ADR-085).
+  const hasModule = useCallback((moduleKey: string) => caps.modules.has(moduleKey), [caps]);
+  const hasCapability = useCallback(
+    (capabilityKey: string) => caps.capabilities.has(capabilityKey),
     [caps],
   );
 
@@ -128,8 +207,19 @@ export function AuthProvider({ api, children }: { api: ApiClient; children: Reac
   }, [loadSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, can, login, logout, refresh }),
-    [status, user, can, login, logout, refresh],
+    () => ({
+      status,
+      user,
+      can,
+      hasModule,
+      hasCapability,
+      modules: caps.modules,
+      capabilities: caps.capabilities,
+      login,
+      logout,
+      refresh,
+    }),
+    [status, user, can, hasModule, hasCapability, caps, login, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -144,4 +234,24 @@ export function useAuth(): AuthContextValue {
 /** Convenience hook: does the current user hold this permission key? */
 export function useCan(permission: string): boolean {
   return useAuth().can(permission);
+}
+
+/** Is the tenant entitled to this module (ADR-085)? Visibility only, never the boundary. */
+export function useModule(moduleKey: string): boolean {
+  return useAuth().hasModule(moduleKey);
+}
+
+/** Is this capability enabled for the tenant (ADR-085)? Visibility only. */
+export function useCapability(capabilityKey: string): boolean {
+  return useAuth().hasCapability(capabilityKey);
+}
+
+/** The tenant's enabled module keys. */
+export function useEnabledModules(): ReadonlySet<string> {
+  return useAuth().modules;
+}
+
+/** The tenant's enabled capability keys. */
+export function useEnabledCapabilities(): ReadonlySet<string> {
+  return useAuth().capabilities;
 }

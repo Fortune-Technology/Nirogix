@@ -32,3 +32,4 @@ import '../modules/appointment/appointment.openapi';
 import '../modules/referral/referral.openapi';
 import '../modules/catalog/catalog.openapi';
 import '../modules/immunization/immunization.openapi';
+import '../modules/abdm/abdm.openapi';

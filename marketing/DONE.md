@@ -238,3 +238,33 @@ Audited the site against the current codebase (ADR-066…071, DONE logs, permiss
 AI (env-gated draft + dictation) deliberately kept off the marketing site (FUTURE / CDSCO-gated), consistent with the existing decision.
 
 **Testing status:** marketing typecheck + production build clean. Browser-verified the Appointments module page renders the new "What it does today" bullets (rosters, online self-booking) and the narrowed planned list.
+
+## 2026-08-19 — Light is the first-load theme; OS preference no longer consulted (ADR-079)
+
+Marketing was the one app whose first visit honoured `prefers-color-scheme` — a dark-OS visitor saw the marketing site dark while every product surface opened light. Per the owner's direction, `lib/theme.tsx` and the `layout.tsx` no-flash script now default to **Light for everyone**; Dark applies only when `mk-theme` holds an explicit prior choice, and the toggle still persists it. The no-flash script now shares the same shape as the other four apps (`stored==='dark'?'dark':'light'`).
+
+**Testing status:** typecheck clean; browser-verified with emulated OS dark preference — first load paints Light, toggling Dark persists across reload, clearing storage returns to Light.
+
+## 2026-08-20 — Content-Security-Policy on the public site (ADR-082, SECURITY-AUDIT M-1)
+
+**What:** `proxy.ts` sends the CSP from `@hms/utils` plus the platform’s static security headers, in **static mode** — no per-request nonce. That is the deliberate half of the decision: these pages are statically rendered and ISR-cached (5-minute revalidate), and reading a per-request nonce in the layout would make every page dynamic, which is exactly what this site must not become. Scripts therefore keep `unsafe-inline` while `object-src`, `frame-ancestors`, `base-uri`, `form-action` and the rest stay strict — acceptable here because the site renders no user input, holds no session and reaches no PHI. Wiring `ContactForm` (BACKLOG U-2) is the change that should move it to nonce mode.
+
+`@hms/utils` was added to this app’s dependencies and `transpilePackages` for the builder.
+
+**Testing status:** verified live — the home page renders with zero console errors, the headers are present, and the build output confirms every route stayed static/ISR (`○` with a 5m revalidate), which was the point of not using a nonce here.
+
+---
+
+## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
+
+**What:** the marketing site's `.env.example` and its gitignored `.env` now hold the same keys in the same
+order, every one live and uncommented, so copying the example gives a boot-ready file where only
+values change (CLAUDE.md → *Environment files*).
+
+**Changed:** `.env.example` now lists every variable the app reads, all uncommented, with 1–2 line
+comments — including the two that were missing: `NEXT_PUBLIC_API_BASE_URL` (used by `proxy.ts` for
+the CSP `connect-src`) and `HMS_API_URL` (used server-side by `lib/branding.ts`). The gitignored
+`.env` mirrors the same keys in the same order.
+
+**Testing status:** no runtime change — env keys and their values are unchanged for local
+development. Repo-wide rule and the `README.md` environment table updated in the same change.

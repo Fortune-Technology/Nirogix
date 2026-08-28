@@ -1,20 +1,55 @@
 import type { Request, Response } from 'express';
 import { z } from '../../openapi/registry';
+import { MODULE_REGISTRY } from '@hms/permissions';
 import { Errors } from '../../http/error';
-import { MODULE_CATALOG } from '../entitlement/moduleCatalog';
+import {
+  getTenantModuleConfig,
+  listTenantCapabilities,
+  setCapabilityStatus,
+} from '../entitlement/capability.service';
 import * as svc from './admin.service';
+import { EMAIL_TEMPLATES, listEmailTemplates, renderEmailTemplateSample, type EmailTemplateKey } from '../notification/email';
+import { MESSAGES } from '../notification/messages';
 
 export async function listModuleCatalog(_req: Request, res: Response): Promise<void> {
-  res.json({ modules: MODULE_CATALOG.map((m) => ({ key: m.key, name: m.name, hardDependencies: m.hardDependencies })) });
+  // The whole registry with its domain + lifecycle status, so onboarding can group modules by
+  // domain and mark the ones with no screens yet (ADR-085).
+  res.json({
+    modules: MODULE_REGISTRY.map((m) => ({
+      key: m.key,
+      name: m.name,
+      category: m.category,
+      status: m.status,
+      alwaysOn: m.alwaysOn === true,
+      hardDependencies: [...m.hardDependencies],
+      // Declared capabilities, so onboarding can offer capability-level choices up front.
+      capabilities: m.capabilities.map((c) => ({
+        key: c.key,
+        name: c.name,
+        status: c.status,
+        dependencies: [...(c.dependencies ?? [])],
+      })),
+    })),
+  });
 }
 
 export async function getStats(_req: Request, res: Response): Promise<void> {
   res.json(await svc.getPlatformStats());
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 // Every series is derived from real `created_at` rows and the audit log (ADR-043);
-// the window is clamped so one request cannot ask for an unbounded scan.
+// the window is clamped so one request cannot ask for an unbounded scan. An explicit
+// inclusive `from`/`to` (ISO, `to >= from`) drives the shared period filter's presets;
+// otherwise the legacy rolling `months` count is used (default 12, clamped 3–36).
 export async function getTrends(req: Request, res: Response): Promise<void> {
+  const from = typeof req.query.from === 'string' && ISO_DATE.test(req.query.from) ? req.query.from : null;
+  const to = typeof req.query.to === 'string' && ISO_DATE.test(req.query.to) ? req.query.to : null;
+  if (from && to && to >= from) {
+    res.json(await svc.getPlatformTrends({ from, to }));
+    return;
+  }
   const raw = Number(req.query.months ?? 12);
   const months = Number.isFinite(raw) ? Math.min(36, Math.max(3, Math.trunc(raw))) : 12;
   res.json(await svc.getPlatformTrends(months));
@@ -29,6 +64,8 @@ export async function onboardTenant(req: Request, res: Response): Promise<void> 
   res.status(201).json({
     tenant: toTenant(result.tenant),
     admin: result.admin,
+    // Canonical copy from the central catalogue — the shared client shows this in every frontend.
+    message: MESSAGES.tenant.onboarded,
   });
 }
 
@@ -67,6 +104,38 @@ export async function revokeModule(req: Request, res: Response): Promise<void> {
   res.json({ tenant: req.params.id, module: req.params.key, status: 'revoked' });
 }
 
+// The whole module/capability configuration for a tenant (ADR-085 §19) — every module by domain
+// with each capability's enabled state. Drives the three-level admin module manager.
+export async function getModuleConfig(req: Request, res: Response): Promise<void> {
+  if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
+  res.json(await getTenantModuleConfig(req.params.id!));
+}
+
+// Capability configuration (ADR-085) — the sub-features of the tenant's entitled modules.
+export async function getTenantCapabilities(req: Request, res: Response): Promise<void> {
+  if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
+  res.json({ capabilities: await listTenantCapabilities(req.params.id!) });
+}
+
+export async function setTenantCapability(req: Request, res: Response): Promise<void> {
+  if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
+  const { module, capability, enabled } = req.body as { module: string; capability: string; enabled: boolean };
+  try {
+    await setCapabilityStatus(
+      req.params.id!,
+      module,
+      capability,
+      enabled ? 'ACTIVE' : 'DISABLED',
+      { changedBy: req.auth!.userId },
+    );
+  } catch (e) {
+    // Dependency guards and unknown-capability checks throw plain Errors — surface the message
+    // to the operator (409) rather than a 500, so the shared toast explains what to fix.
+    throw Errors.conflict(e instanceof Error ? e.message : 'Could not change the capability');
+  }
+  res.json({ tenant: req.params.id, capability, enabled });
+}
+
 const SupportSessionBody = z.object({
   tenantId: z.string().uuid(),
   userId: z.string().uuid(),
@@ -102,4 +171,21 @@ export async function postSupportSession(req: Request, res: Response): Promise<v
     tenant: result.tenant,
     message: `Support session started in ${result.tenant.name}.`,
   });
+}
+
+// ---- Email template preview (developer/operator tool) -----------------------
+// A read-only window onto the central email catalogue (notification/email/email-templates.ts):
+// list every template, and render one from its own realistic sample data — so the design and copy
+// can be reviewed without triggering the underlying business action. No tenant data is touched;
+// the preview always renders from static sample data.
+
+export async function listEmailTemplatesCtl(_req: Request, res: Response): Promise<void> {
+  res.json({ templates: listEmailTemplates() });
+}
+
+export async function previewEmailTemplateCtl(req: Request, res: Response): Promise<void> {
+  const key = req.params.key as EmailTemplateKey;
+  if (!(key in EMAIL_TEMPLATES)) throw Errors.notFound('Email template not found');
+  const { subject, html } = renderEmailTemplateSample(key);
+  res.json({ key, subject, html });
 }

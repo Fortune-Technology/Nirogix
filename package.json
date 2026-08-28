@@ -23,6 +23,13 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:unit": "turbo run test --filter=@hms/*",
+    "test:api": "npm run test -w hms_backend -- api.test",
+    "test:backend": "npm run test -w hms_backend",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:smoke": "playwright test --project=apps-smoke",
+    "test:regression": "npm run test && npm run test:e2e",
     "typecheck": "turbo run typecheck",
     "openapi:generate": "turbo run openapi:generate",
     "openapi:validate": "turbo run openapi:validate",
@@ -30,6 +37,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "prettier": "^3.4.2",
     "turbo": "^2.5.0",
     "typescript": "^5.7.3"

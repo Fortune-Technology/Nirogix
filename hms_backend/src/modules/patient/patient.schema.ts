@@ -70,6 +70,11 @@ export const PatientSchema = z
     state: z.string().nullable(),
     pincode: z.string().nullable(),
     abhaNumber: z.string().nullable(),
+    // ABDM Milestone 1 (ADR-084). `abhaVerifiedAt` is what separates a proved ABHA from one
+    // somebody typed into the form; the linking token is never exposed.
+    abhaAddress: z.string().nullable().optional(),
+    abhaVerifiedAt: z.string().nullable().optional(),
+    abhaSource: z.string().nullable().optional(),
     emergencyContactName: z.string().nullable(),
     emergencyContactPhone: z.string().nullable(),
     branchId: z.string().nullable(),

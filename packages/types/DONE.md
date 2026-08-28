@@ -39,3 +39,30 @@ Append-only implementation log. Newest at the bottom.
 `OrganizationProfile` gains `letterheadImageUrl` (short-lived, read-only) and `documentPageSize`. A new `DOCUMENT_PAGE_SIZES` tuple + `DocumentPageSize` union is the one shared contract for the settings selector, the backend Zod enum and the print layer. `UpdateOrganizationProfileRequest` now also omits `letterheadImageUrl` (it is upload-only, via its own multipart route), so only `documentPageSize` rides the partial text update.
 
 **Testing status:** `typecheck` green across the backend, the Portal and `@hms/ui`.
+
+## 2026-08-19 — Compiled `dist/` output (ADR-075)
+
+**What:** The package now builds — `tsconfig.build.json` emits CommonJS + declarations to `dist/`, and `main`/`types`/`exports` point there instead of at raw `src/index.ts`. A `dev` watch script keeps `dist/` fresh under root `npm run dev`.
+
+**Why:** Same failure shape as `@hms/permissions` — a plain-Node consumer resolving `main` to raw TypeScript cannot boot. The backend does not import this package *today*, but it is the declared backend/frontend contract package, so both halves of the recurrence path close together (ADR-075). If the backend ever imports it, it must also be added to `hms_backend`'s `dependencies`.
+
+**Testing status:** builds clean; full-repo typecheck 13/13; Portal production build green against the `dist/` entry.
+
+## 2026-08-20 — `AuditEntry.requestId` (ADR-082, SECURITY-AUDIT L-3)
+
+**What:** the audit row now carries the correlation id shared with the structured log, the error tracker and the response’s `X-Request-Id` header. Nullable: rows written before the column existed, and events raised outside an HTTP request (jobs, seeders), have none.
+
+**Testing status:** `dist/` rebuilt (this package is dist-consumed by the backend); typecheck green across every workspace.
+
+---
+
+## ABDM / ABHA contracts (ADR-084)
+
+**What:** `AbdmCapabilities`, `AbhaPrefill`, `AbhaMatchCandidate`, `AbhaVerificationResult`,
+`AbdmOtpSent`, `AbdmPendingShare`, `AbhaIdentifierType` and `AbdmFacilityConfig`, plus
+`abhaAddress` / `abhaVerifiedAt` / `abhaSource` on `Patient`. Two things are deliberately absent
+from every type here: the Aadhaar number (sent on one request, never returned) and any ABDM token
+(server-side only) — so a frontend cannot come to depend on receiving either.
+
+**Testing status:** `dist/` rebuilt (dist-consumed by the backend); typecheck green across every
+workspace, Portal production build green.

@@ -13,6 +13,9 @@ export type DomainEventPayload = {
   'visit.checked_in': { tenantId: string; visitId: string; patientId: string };
   'encounter.signed': { tenantId: string; encounterId: string; visitId: string };
   'lab.result_ready': { tenantId: string; labOrderId: string; patientId: string };
+  // Result verified & released to the patient portal (ADR-070). Distinct from result_ready
+  // (raw entry) — this is the point at which a patient may be told their report is available.
+  'lab.result_verified': { tenantId: string; labOrderId: string; patientId: string };
   'invoice.created': { tenantId: string; invoiceId: string };
   'payment.received': { tenantId: string; paymentId: string; invoiceId: string };
 };

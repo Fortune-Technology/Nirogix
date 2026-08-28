@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { Errors } from '../../http/error';
 import * as svc from './user.service';
+import { MESSAGES } from '../notification/messages';
 import {
   assignRoleByKey,
   removeRoleByKey,
@@ -14,7 +15,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
 
 export async function createUser(req: Request, res: Response): Promise<void> {
   const { userId, tempPassword } = await svc.createUser(req.auth!.tenantId, req.body, req.auth!.userId);
-  res.status(201).json({ id: userId, tempPassword });
+  res.status(201).json({ id: userId, tempPassword, message: MESSAGES.user.created });
 }
 
 export async function getUser(req: Request, res: Response): Promise<void> {

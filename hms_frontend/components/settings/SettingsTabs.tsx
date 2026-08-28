@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarPlus, FileText, ListChecks, Palette, Layers, QrCode, Hospital, type LucideIcon } from "lucide-react";
+import { Building2, CalendarPlus, FileText, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, type LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@hms/permissions";
 import { useCan } from "../../lib/auth";
 
@@ -21,14 +21,15 @@ import { useCan } from "../../lib/auth";
 type Tab = { href: string; label: string; icon: LucideIcon; perm: string | null };
 
 const TABS: Tab[] = [
-  { href: "/settings", label: "Setup overview", icon: ListChecks, perm: null },
-  { href: "/settings/organization", label: "Hospital information", icon: Building2, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/settings/documents", label: "Letterhead", icon: FileText, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/settings/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
-  { href: "/settings/registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/settings/booking", label: "Online booking", icon: CalendarPlus, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/settings/availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
-  { href: "/settings/modules", label: "Enabled modules", icon: Layers, perm: null },
+  { href: "/hospital-setup", label: "Setup overview", icon: ListChecks, perm: null },
+  { href: "/hospital-setup/hospital-information", label: "Hospital information", icon: Building2, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/hospital-setup/letterhead", label: "Letterhead", icon: FileText, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/hospital-setup/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
+  { href: "/hospital-setup/patient-registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/hospital-setup/online-booking", label: "Online booking", icon: CalendarPlus, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/hospital-setup/hospital-availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
+  { href: "/hospital-setup/abdm", label: "ABDM / ABHA", icon: ShieldCheck, perm: PERMISSIONS.ABDM_FACILITY_VIEW },
+  { href: "/hospital-setup/enabled-modules", label: "Enabled modules", icon: Layers, perm: null },
 ];
 
 function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
