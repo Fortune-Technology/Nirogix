@@ -897,3 +897,35 @@ dashboard; the page rendered for org_admin; the export returned the real seeded 
 column blank; a results file imported, matched one clinician by registration number and named the two
 failures with their spreadsheet line numbers; the enrolment persisted and re-rendered on reload. Light
 and dark both resolve from the tokens.
+
+## Health Facility Registry — the registration form (ADR-102)
+
+Milestone 4's services shipped without screens, so 123 HFR certification cases were failing for want
+of a form rather than for want of logic. This is the first of them.
+
+Around forty fields — identity, ownership, location, contact, systems of medicine, medical
+infrastructure, eight external programme identifiers — each traceable to a numbered case in NHA's
+HFR workbook. Four things shape it, all following from one fact: **registration is filled over days
+and judged by a human, weeks later.**
+
+- **Save is not submit.** A draft saves in any state, with anything blank. Nobody has the CEA number
+  and the ventilator count to hand in one sitting.
+- **Submitted is never shown as approved.** A green tick would have somebody believe they hold a
+  Facility ID they do not, and find out when service registration fails a month later.
+- **A rejection reopens the form with everything still in it**, and shows the verifier's own words
+  verbatim — they are the instruction, and rewording them would obscure it.
+- **Totals are stated, not computed.** The workbook asks an operator to be accountable for the bed
+  totals; a mismatch is pointed out, never silently corrected.
+
+`RegistryMasterSelect` is new and serves all twenty registry-backed dropdowns (ADR-029). It knows
+which filters each list cannot be read without, clears a dependent value when its scope changes —
+pick Karnataka, choose a district, switch to Kerala, and the stale district must not be submitted —
+keeps a saved code that arrives before its list, and reports a failed list **in place** rather than
+rendering an empty box. It never raises a toast: one registry outage would otherwise raise twenty
+(ADR-057).
+
+Pointing the form at the real sandbox immediately earned that last decision. Four of the nine
+reference lists came back empty — they are POST endpoints, not GET — and the field order was wrong,
+because facility type turns out to require both an ownership and a system of medicine and so can
+only come third. Both are recorded in ADR-102. The chain now works end to end against ABDM's own
+sandbox: Private → Allopathy → Hospital → Civil Hospital / General Hospital / Nursing Home.

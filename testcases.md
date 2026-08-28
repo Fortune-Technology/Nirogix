@@ -884,7 +884,14 @@ ABDM-M2-24 checks.
 | ABDM-M2-02 | One context per visit, accumulating types | ABDM-M2-01 | Add a prescription and a verified lab result to the same visit | Still ONE row; `hi_types` grows to three; no duplicate reference number | P1 | Functional | doctor | Not run |
 | ABDM-M2-03 | The label carries no clinical information | ABDM-M2-01 | Read `display_label` | Reads `OPD records from DD/MM/YYYY` — a date and a setting, never a diagnosis; the patient sees this string in their PHR app | P1 | Security | any | Not run |
 | ABDM-M2-04 | An unverified ABHA is never linkable | A chart with a hand-typed ABHA address, never verified | Complete a visit and check the linkable list | The context is excluded; nothing is offered to the gateway | P1 | Security | receptionist | Not run |
-| ABDM-M2-05 | A revoked consent is deleted, not flagged | A stored consent artefact | Trigger the revoke notification | The `abdm_consents` row is **gone**; an audit row records the revocation | P1 | Security | org_admin | Not run |
+| ABDM-M2-05 | A revoked consent is deleted, not flagged | A stored consent artefact | `POST /api/v3/consent/request/hip/notify` with `X-HIP-ID` set and `notification.status = REVOKED` | The `abdm_consents` row is **gone**; an audit row records the revocation. (Until 27/08/2026 this case could not be run at all — the callback did not exist, so a real revocation never reached us: ADR-101) | P1 | Security | org_admin | Not run |
+| ABDM-M2-05a | A granted consent arrives and is stored | Facility registered with that `X-HIP-ID` | Post the same callback with `status = GRANTED` and a full `consentDetail` | An `abdm_consents` row appears carrying the ABHA address, HIU id, purpose code, HI types and the **exact** permission window; audit records `abdm.consent.granted` | P1 | Functional | org_admin | Not run |
+| ABDM-M2-05b | An expired consent is treated exactly like a revocation | A stored artefact | Post the callback with `status = EXPIRED` | The row is gone; the audit entry says expired, not revoked | P1 | Functional | org_admin | Not run |
+| ABDM-M2-05c | An unrecognised status changes nothing | A stored artefact | Post the callback with `status = PENDING` | The artefact is **still there** and nothing new is stored; a warning names the unknown status. Guessing either way is unsafe — inventing a revocation destroys permission the patient still wants | P1 | Security | org_admin | Not run |
+| ABDM-M2-05d | A grant naming no patient is refused | — | Post `status = GRANTED` with an empty `consentDetail.patient.id` | Nothing is stored. Every transfer check matches on the ABHA address, so such a row would read as consent while behaving as though none existed | P1 | Security | org_admin | Not run |
+| ABDM-M2-05e | The acknowledgement follows the action, never precedes it | Mock mode | Post a revocation, then read the recorded gateway calls | `consent/v3/request/hip/on-notify` was called with `acknowledgement.status = OK`, the consent id, and `response.requestId` equal to the **inbound `REQUEST-ID` header**; the artefact was already deleted when it went out | P1 | Security | — | Not run |
+| ABDM-M2-05f | An unknown facility is dropped silently | — | Post the callback with an `X-HIP-ID` no tenant owns | `202` exactly as for a known facility, nothing stored, no acknowledgement sent. The response must not differ in status, body or timing, or it becomes a way to enumerate hospitals (ADR-056) | P1 | Security | — | Not run |
+| ABDM-M2-05g | A re-sent revocation is not an error | ABDM-M2-05 done | Post the identical revocation again | Accepted; still no row; no failure. The gateway retries, and a second revocation must be a no-op | P2 | Functional | — | Not run |
 | ABDM-M2-06 | An expired consent is purged on schedule | An artefact whose `data_erase_at` has passed | Run the expiry sweep | The row is gone; the audit entry says expired, not revoked | P1 | Functional | org_admin | Not run |
 | ABDM-M2-07 | Deleting a consent never deletes a record | ABDM-M2-05 | Open the patient chart | Every clinical record is intact — the consent is what expired, not the care (invariant #6) | P1 | Security | doctor | Not run |
 | ABDM-M2-08 | A link token is encrypted at rest | Gateway mode, a delivered token | Read `abdm_link_tokens.token_enc` | Starts `v1.` and contains no readable JWT | P1 | Security | — | Not run |
@@ -956,6 +963,35 @@ screen.
 | ABDM-M3-23 | Tenant isolation | Two tenants, both ABDM-enabled | Request and pull under tenant A, then query as tenant B | None of tenant A's consents, transfers or borrowed records are reachable | P1 | Security | — | Not run |
 | ABDM-M3-24 | Full round trip | Bridge registered, JRE + Fidelius, consent granted from a real PHR app | Request → grant → fetch → read | Records from a real HIP appear on the timeline within the flow's normal time | P1 | Functional | doctor | **Blocked (I-5)** |
 ---
+
+## 23c. ABDM Milestone 4 — Health Facility Registry, registration form (ADR-102)
+
+Run signed in as `org_admin` with the `abdm` module entitled. The reference dropdowns read the
+**live ABDM sandbox**, so `ABDM_PROVIDER=gateway` and working credentials are needed for any case
+below that mentions a list; the form itself renders without them.
+
+Reached from `Hospital configuration → ABDM registries → Register this hospital`.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HFR-UI-01 | The form is permission-gated | Role lacks `abdm.registry.view` | Open the URL directly | Refused; no form renders | P1 | Security | receptionist | Not run |
+| HFR-UI-02 | Read-only without manage | View but not `abdm.registry.manage` | Open the form | Every field disabled; no Save or Submit | P1 | Security | doctor | Not run |
+| HFR-UI-03 | A half-filled draft saves | — | Enter only a facility name, then Save draft | Saved; the toast says nothing has been sent to the registry | P1 | Functional | org_admin | Not run |
+| HFR-UI-04 | A draft reopens exactly as left | HFR-UI-03 plus several fields | Leave the page and return | Every field repopulated, dropdowns included | P1 | Functional | org_admin | Not run |
+| HFR-UI-05 | Submit refuses an incomplete form | A draft with no state chosen | Press Submit to HFR | Refused; missing fields marked; nothing sent | P1 | Functional | org_admin | Not run |
+| HFR-UI-06 | Facility name must start with a letter | — | Enter `123 Clinic`, then Submit | Rejected, per HFR-010 | P2 | Functional | org_admin | Not run |
+| HFR-UI-07 | Pincode is six digits | — | Type letters, then a seventh digit | Non-digits refused; input stops at six | P2 | Functional | org_admin | Not run |
+| HFR-UI-08 | **The dependency chain populates** | Gateway mode | Ownership `Private`, tick `Modern Medicine (Allopathy)`, open Facility type | The list fills (Hospital, Clinic/Dispensary, Pharmacy…); choosing `Hospital` fills sub-type (Civil Hospital, General Hospital, Nursing Home…) | P1 | Functional | org_admin | Not run |
+| HFR-UI-09 | Facility type says what it waits for | Nothing chosen | Read the Facility type field | Disabled, reading "Choose an ownership and at least one system of medicine first" — never an unexplained empty dropdown | P1 | UX | org_admin | Not run |
+| HFR-UI-10 | A dependent value clears with its parent | State and district chosen | Change the state | The district empties rather than keeping a code from the old state, which would otherwise be submitted | P1 | Security | org_admin | Not run |
+| HFR-UI-11 | A failed list reports itself in place | Break `ABDM_CLIENT_SECRET`, reload | Read any dropdown | The field itself says the registry did not answer. **No toast** — twenty broken lists raise twenty in-place messages, not twenty toasts | P1 | UX | org_admin | Not run |
+| HFR-UI-12 | Registry codes are not padded | Gateway mode | Choose an ownership, inspect the facility-type request | The query carries `ownershipCode=P`, not `P` followed by spaces. (Regression: HFR validates it against a strict two-character ownership pattern, and the padded form returns 500) | P1 | Functional | — | Not run |
+| HFR-UI-13 | Submitted is never shown as approved | A complete draft | Submit | Badge reads "Awaiting verification"; the note says a verifier reviews it by hand and no Facility ID exists yet | P1 | Security | org_admin | Not run |
+| HFR-UI-14 | A submitted registration cannot be edited | HFR-UI-13 | Reopen the form | All fields disabled, with a note that it is with the registry | P1 | Functional | org_admin | Not run |
+| HFR-UI-15 | A rejection shows the registry's own words | A rejected registration | Open the form | The verifier's message verbatim; the form editable again with everything still in it | P1 | UX | org_admin | Not run |
+| HFR-UI-16 | Bed totals are questioned, not corrected | — | ICU-with-ventilator 5, total ventilators 2 | A hint says the beds add to 5 and asks which is right. The value is NOT overwritten | P2 | UX | org_admin | Not run |
+| HFR-UI-17 | Each branch is its own facility | Two branches exist | Switch the Facility selector | The form reloads that branch's own registration and status | P1 | Functional | org_admin | Not run |
+
 
 ## 24. Notifications & emails (ADR-086)
 

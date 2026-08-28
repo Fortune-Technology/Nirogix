@@ -190,7 +190,15 @@ async function main(): Promise<void> {
     await probeEnrolment(accessToken);
   }
 
-  console.log('\nBoth calls succeeded. Set ABDM_PROVIDER=gateway to run the real flows.');
+  // Advice, only when it is actually advice. Telling someone to "set ABDM_PROVIDER=gateway" when
+  // they already have reads as though the check found a problem — the same class of misdirection
+  // as the old "a 401 is almost always the credential pair" line printed under a CDN block.
+  const provider = notBlank(process.env.ABDM_PROVIDER) ?? 'mock';
+  console.log(
+    provider === 'gateway'
+      ? '\nBoth calls succeeded, and ABDM_PROVIDER is already gateway — the real flows will run.'
+      : `\nBoth calls succeeded. ABDM_PROVIDER is '${provider}'; set it to gateway to run the real flows.`,
+  );
   console.log('Still separate from this check: registering the bridge URL and the HIP service,');
   console.log('which need a public HTTPS endpoint with a valid certificate.\n');
 }

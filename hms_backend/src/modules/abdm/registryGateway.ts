@@ -95,15 +95,35 @@ async function registryCall<T>(url: string, method: string, body?: unknown, retr
 const masterCache = new Map<string, { value: unknown; expiresAt: number }>();
 const MASTER_TTL_MS = 6 * 60 * 60_000;
 
+/**
+ * Reads a registry reference list — by GET or by POST, whichever that list actually uses.
+ *
+ * **Four of HFR's nine reference endpoints are POST**, and they take their filter in a JSON body
+ * rather than a query string: `fetch-facility-type`, `fetch-facility-Sub-type`, `get-owner-subtype`
+ * and `get-specialities`. This function fetched every one of them with GET until the registration
+ * form was first pointed at a live sandbox, at which point exactly those four came back empty while
+ * the five GET lists filled correctly. Nothing threw — an empty list is a valid response — so the
+ * form simply showed four dropdowns with no options and no reason why.
+ *
+ * `body` is what decides the verb. Callers pass the filter the endpoint documents; a list that
+ * takes no filter stays a GET.
+ */
 export async function registryMasterData<T = unknown>(
   path: string,
   query?: Record<string, string | number>,
+  body?: Record<string, string>,
 ): Promise<T> {
-  const key = `${path}?${Object.entries(query ?? {}).map(([k, v]) => `${k}=${String(v)}`).sort().join('&')}`;
+  const parts = Object.entries(query ?? {})
+    .concat(Object.entries(body ?? {}))
+    .map(([k, v]) => `${k}=${String(v)}`)
+    .sort()
+    .join('&');
+  // The verb is part of the cache key: the same path can legitimately be read both ways.
+  const key = `${body ? 'POST' : 'GET'} ${path}?${parts}`;
   const hit = masterCache.get(key);
   if (hit && hit.expiresAt > Date.now()) return hit.value as T;
 
-  const value = await registryGet<T>(path, query);
+  const value = body ? await registryPost<T>(path, body) : await registryGet<T>(path, query);
   masterCache.set(key, { value, expiresAt: Date.now() + MASTER_TTL_MS });
   return value;
 }

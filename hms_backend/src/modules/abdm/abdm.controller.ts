@@ -459,6 +459,68 @@ export async function hiuOnFetch(req: Request, res: Response): Promise<void> {
  * service only after the records are actually gone — that acknowledgement is our assertion that we
  * complied, and sending it before the delete would make it a lie whenever the delete then failed.
  */
+/**
+ * ABDM telling us, as the HIP, that a consent was granted, revoked or expired (ADR-101).
+ *
+ * Answered `202` before any work happens, because that is what the gateway is waiting on — it is
+ * not waiting for us to finish deleting rows. The acknowledgement that we *acted* is a separate
+ * outbound call on `on-notify`, sent only once the artefact has actually been stored or purged.
+ *
+ * The ordering matters and is the whole point of the endpoint: acknowledge after acting, never
+ * before. A revocation acknowledged but not performed leaves the patient believing they withdrew
+ * access that we are in fact still honouring.
+ */
+export async function hipConsentNotify(req: Request, res: Response): Promise<void> {
+  const body = req.body as {
+    notification: {
+      status: string;
+      consentId?: string;
+      signature?: string;
+      consentDetail?: Parameters<typeof consent.applyHipConsentNotification>[0]['detail'];
+    };
+  };
+  const hipId = req.header('X-HIP-ID') ?? '';
+  // The correlation id for the acknowledgement is the inbound header, not a body field.
+  const requestId = req.header('REQUEST-ID') ?? '';
+
+  res.status(202).json({ accepted: true });
+
+  const consentId = body.notification.consentId ?? body.notification.consentDetail?.consentId;
+
+  try {
+    const outcome = await consent.applyHipConsentNotification({
+      hipId,
+      status: body.notification.status,
+      consentId: body.notification.consentId,
+      detail: body.notification.consentDetail,
+      signature: body.notification.signature,
+    });
+
+    // Nothing to acknowledge when we could not tell which consent, or which hospital, it concerned:
+    // an ack naming an empty consent id is noise the gateway cannot correlate either.
+    if (!consentId || outcome === 'unknown_facility') return;
+
+    await consent.acknowledgeHipConsentNotification({
+      requestId,
+      consentId,
+      hipId,
+      ok: outcome !== 'ignored',
+      errorMessage: outcome === 'ignored' ? 'Notification could not be applied' : undefined,
+    });
+  } catch (err) {
+    logger.error({ err, hipId, consentId }, 'Could not apply an ABDM consent notification');
+    if (consentId) {
+      await consent.acknowledgeHipConsentNotification({
+        requestId,
+        consentId,
+        hipId,
+        ok: false,
+        errorMessage: 'Could not apply the consent notification',
+      });
+    }
+  }
+}
+
 export async function hiuConsentNotify(req: Request, res: Response): Promise<void> {
   const body = req.body as {
     notification: {
@@ -552,11 +614,32 @@ export async function recordFacilityVerification(req: Request, res: Response): P
 
 /** The registry's own reference data, cached — never a hard-coded copy that can drift. */
 export async function facilityRegistryMasterData(req: Request, res: Response): Promise<void> {
-  const kind = req.params.kind as 'states' | 'districts' | 'subDistricts' | 'facilityType' | 'ownerSubtype' | 'specialities';
-  const allowed = ['states', 'districts', 'subDistricts', 'facilityType', 'ownerSubtype', 'specialities'];
+  const allowed: hfr.FacilityMasterKind[] = [
+    'states',
+    'districts',
+    'subDistricts',
+    'facilityType',
+    'facilitySubType',
+    'ownerSubtype',
+    'specialities',
+    'masterData',
+    'masterTypes',
+  ];
+  const kind = req.params.kind as hfr.FacilityMasterKind;
+  // An allowlist rather than a passthrough: `kind` indexes a path table, so an unchecked value is a
+  // way to aim our authenticated registry client at any path in it.
   if (!allowed.includes(kind)) throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
-  const query = typeof req.query.code === 'string' ? { code: req.query.code } : undefined;
-  res.json(await hfr.facilityMasterData(kind, query));
+
+  // `code` scopes an LGD list to its parent and `type` selects which list `get-master-data`
+  // returns; the rest are the named filters HFR's POST lists require in their body. Allowlisted
+  // by name rather than forwarding `req.query` wholesale, so a caller cannot inject a field into
+  // a request we make with our own registry credentials.
+  const query: Record<string, string> = {};
+  for (const key of ['code', 'type', 'ownershipCode', 'systemOfMedicineCode', 'facilityTypeCode', 'ownerSubtypeCode']) {
+    const v = req.query[key];
+    if (typeof v === 'string' && v !== '') query[key] = v;
+  }
+  res.json(await hfr.facilityMasterData(kind, Object.keys(query).length ? query : undefined));
 }
 
 // --- Milestone 4: the Healthcare Professional Registry (ADR-097) ------------------------------

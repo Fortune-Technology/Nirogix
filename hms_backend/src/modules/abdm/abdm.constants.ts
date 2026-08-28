@@ -173,12 +173,11 @@ export const HIP_CALLBACK_PATHS = {
 /**
  * Discovery and user-initiated linking — the patient finding their own records (ADR-090).
  *
- * The half ABDM calls US on. **These three inbound paths are the only ones in this file NOT
- * confirmed against an official collection**: the Milestone 1 collection does not contain them and
- * the M2 documentation shows only the gateway side. They follow the same convention as the
- * confirmed Scan-and-Share path (`/api/v3/hip/...` appended to the bridge URL), which is why they
- * are shaped this way — but **verify them against the M2 Postman collection before the exit demo**
- * (`BACKLOG.md`). A wrong inbound path fails silently: the gateway simply never reaches us.
+ * The half ABDM calls US on. **Confirmed against the official M2 documentation** (§5.3.2 and the
+ * user-initiated-linking section), which spells each one out as `{callback_url}` plus the path
+ * below. They were previously inferred from the Scan-and-Share convention and carried a warning
+ * here; the convention turned out to be exactly right. A wrong inbound path fails silently — the
+ * gateway simply never reaches us — so leave them alone without a document that says otherwise.
  */
 export const HIP_DISCOVERY_CALLBACK_PATHS = {
   discover: '/api/v3/hip/patient/care-context/discover',
@@ -194,11 +193,25 @@ export const USER_LINKING_PATHS = {
 } as const;
 
 /**
+ * The consent lifecycle, as a Health Information Provider hears about it (M2 §6.3.1–6.3.2).
+ *
+ * A HIP never authors a consent and is never asked to approve one: the patient decides in their own
+ * PHR app, and the gateway tells us afterwards. This pair is how it tells us — the same callback
+ * carries a grant, a revocation and an expiry, distinguished only by `notification.status`.
+ *
+ * **Missing this pair means revocations never arrive.** The artefact stays in our table and keeps
+ * authorising transfers the patient has already withdrawn, which is the one consent bug with a real
+ * clinical and legal consequence. Both halves are confirmed against the M2 documentation and the
+ * official Milestone 2 Postman collection (`Data Transfer(HIP) / Consent HIP on notify`).
+ */
+export const HIP_CONSENT_NOTIFY_PATH = '/api/v3/consent/request/hip/notify';
+export const HIP_CONSENT_ON_NOTIFY_PATH = '/api/hiecm/consent/v3/request/hip/on-notify';
+
+/**
  * Data flow — answering a consented request for health records (ADR-091).
  *
- * The outbound halves are from the M2 documentation. The **inbound** path carries the same caveat
- * as the discovery callbacks: it is not in the Milestone 1 collection, so it follows the confirmed
- * convention and must be verified against the M2 collection (`BACKLOG.md`).
+ * Both halves are confirmed: the outbound pair against the official M2 Postman collection
+ * (`Data Transfer(HIP)`), the inbound path against M2 §6.3.3.
  */
 export const DATA_FLOW_PATHS = {
   /** POST — our prompt "ACKNOWLEDGED", so the gateway stops waiting on the request connection. */
@@ -207,17 +220,16 @@ export const DATA_FLOW_PATHS = {
   notify: '/api/hiecm/data-flow/v3/health-information/notify',
 } as const;
 
-/** Where the gateway asks us for records. **Unverified** — see the note above. */
+/** Where the gateway asks us for records. Confirmed against M2 §6.3.3. */
 export const HIP_DATA_REQUEST_PATH = '/api/v3/hip/health-information/request';
 
 /**
  * Milestone 3 — being a Health Information USER (ADR-092).
  *
  * The mirror image of M2: instead of answering requests for our records, we ask a patient for
- * permission to read the history other hospitals hold. The outbound halves come from the M3
- * documentation; the **inbound** callbacks carry the same caveat as every other M2/M3 inbound path —
- * they are not in the Milestone 1 collection, so they follow the confirmed convention and must be
- * verified against the M3 collection (`BACKLOG.md`).
+ * permission to read the history other hospitals hold. Every path here is confirmed — the outbound
+ * ones against the official M3 Postman collection (`HIU APIs`), the inbound ones against the M3
+ * documentation.
  *
  * HIU calls additionally carry `X-HIU-ID`, which HIP calls do not.
  */
@@ -235,7 +247,7 @@ export const HIU_CONSENT_PATHS = {
 /** POST — ask a HIP to send the records. Answers by pushing to our `dataPushUrl`. */
 export const HIU_DATA_REQUEST_PATH = '/api/hiecm/data-flow/v3/health-information/request';
 
-/** Where ABDM calls US as an HIU. **Unverified** — see the note above. */
+/** Where ABDM calls US as an HIU. Confirmed against the M3 documentation. */
 export const HIU_CALLBACK_PATHS = {
   onInit: '/api/v3/hiu/consent/request/on-init',
   onFetch: '/api/v3/hiu/consent/on-fetch',

@@ -1227,6 +1227,8 @@ export interface AbdmFacilityRegistration {
   facilityName: string;
   submittedAt: string | null;
   verifiedAt: string | null;
+  /** The whole form as last saved. HFR registration spans days, so a draft must reopen filled in. */
+  payload: Record<string, unknown> | null;
 }
 
 export interface AbdmHprEnrolment {
@@ -1277,6 +1279,105 @@ export async function submitAbdmFacilityRegistration(branchId?: string | null): 
 export async function listAbdmHprEnrolments(): Promise<AbdmHprEnrolment[]> {
   const data = await request<{ enrolments: AbdmHprEnrolment[] }>("/abdm/registry/professionals", { feedback: false });
   return data.enrolments;
+}
+
+/** One entry in a registry reference list, normalised to a shape a picker can render. */
+export interface AbdmMasterOption {
+  code: string;
+  label: string;
+}
+
+/**
+ * The registry's reference lists, normalised (HFR-014…038, ADR-096).
+ *
+ * HFR and HPR publish no schema for these, and the two registries disagree with each other about
+ * key names — `code`/`value`, `id`/`name`, sometimes wrapped in `data`. Rather than guess one shape
+ * and render an empty dropdown when it differs, this accepts the forms actually seen and falls back
+ * to the raw string. An option that arrives unrecognisable shows its own value rather than blank,
+ * because a picker with invisible entries is worse than an ugly one.
+ */
+function normaliseMasterList(raw: unknown): AbdmMasterOption[] {
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as { data?: unknown[] })?.data)
+      ? (raw as { data: unknown[] }).data
+      : Array.isArray((raw as { results?: unknown[] })?.results)
+        ? (raw as { results: unknown[] }).results
+        : [];
+
+  return list
+    .map((item): AbdmMasterOption | null => {
+      // HFR returns fixed-width codes, space-padded — ownership comes back as `"P         "`.
+      // Carrying that padding into the next request is fatal rather than untidy: the registry
+      // validates `facilityType`'s ownershipCode against `^(?i)(G|P|PP)$`, which a padded value
+      // fails, and the whole call 500s. Trimmed here, once, at the only place codes enter the app.
+      if (typeof item === "string") return { code: item.trim(), label: item.trim() };
+      if (!item || typeof item !== "object") return null;
+      const o = item as Record<string, unknown>;
+      const code = o.code ?? o.id ?? o.value ?? o.key ?? o.lgdCode;
+      const label = o.value ?? o.name ?? o.label ?? o.text ?? o.title ?? code;
+      if (code == null) return null;
+      return { code: String(code).trim(), label: String(label ?? code).trim() };
+    })
+    .filter((o): o is AbdmMasterOption => o !== null);
+}
+
+export type AbdmFacilityMasterKind =
+  | "states"
+  | "districts"
+  | "subDistricts"
+  | "facilityType"
+  | "facilitySubType"
+  | "ownerSubtype"
+  | "specialities"
+  | "masterData"
+  | "masterTypes";
+
+/**
+ * Reads one registry reference list.
+ *
+ * `code` scopes an LGD list to its parent and `type` selects which list `masterData` returns. The
+ * rest are the named filters HFR's POST lists require — notably `facilityType`, which needs BOTH an
+ * ownership and a system of medicine, so it can only be offered after those two are chosen.
+ */
+export interface AbdmFacilityMasterParams {
+  code?: string;
+  type?: string;
+  ownershipCode?: string;
+  systemOfMedicineCode?: string;
+  facilityTypeCode?: string;
+  ownerSubtypeCode?: string;
+}
+
+export async function abdmFacilityMaster(
+  kind: AbdmFacilityMasterKind,
+  params?: AbdmFacilityMasterParams,
+): Promise<AbdmMasterOption[]> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params ?? {})) if (v) q.set(k, v);
+  const suffix = q.toString() ? `?${q}` : "";
+  const raw = await request<unknown>(`/abdm/registry/master/${kind}${suffix}`, { feedback: false });
+  return normaliseMasterList(raw);
+}
+
+export async function abdmHprMaster(kind: string): Promise<AbdmMasterOption[]> {
+  const raw = await request<unknown>(`/abdm/registry/hpr-master/${kind}`, { feedback: false });
+  return normaliseMasterList(raw);
+}
+
+/**
+ * Records what a human verifier decided (ADR-096).
+ *
+ * HFR has no status webhook, so until it does an operator transcribes the outcome. `verified` also
+ * adopts the issued facility id as our `hipId`, which is why it is a write and not a display state.
+ */
+export async function recordAbdmFacilityVerification(body: {
+  branchId?: string | null;
+  status: "under_review" | "verified" | "rejected";
+  facilityId?: string;
+  message?: string;
+}): Promise<AbdmFacilityRegistration> {
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility/verification", { method: "POST", body });
 }
 
 export async function exportAbdmBulk(kind: "professionals" | "facilities"): Promise<AbdmBulkExport> {

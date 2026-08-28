@@ -1747,3 +1747,70 @@ NHA's onboarding email mentions no allowlisting step, so nothing was skipped.
 That makes it a hosting decision rather than a configuration one, and it is **also a compliance
 problem in its own right**: ADR-006 requires India-resident infrastructure for PHI, which a US host
 contradicts regardless of ABDM. Recorded as `BACKLOG.md` **I-6**.
+
+## The consent callback a HIP had no way to receive (ADR-101)
+
+`revokeConsent()` had been correct since Milestone 2 shipped — delete the artefact, write the audit
+event, treat a re-sent revocation as a no-op. It was also **unreachable**. Every caller was a test or
+the `abdm:m2check` diagnostic. Nothing in the product could invoke it, because the callback ABDM uses
+to announce a consent change was never built.
+
+So a patient withdrawing consent in their PHR app changed nothing here. The artefact stayed live and
+kept authorising transfers, while our audit trail — holding only the grant — said the consent was
+still in force. Wrong, and self-consistently wrong, which is exactly why the existing tests all
+passed.
+
+Found by reading NHA's Milestone 2 documentation and the official M2 Postman collection from the
+sandbox portal. The same reading **confirmed all seven inbound paths** that `abdm.constants.ts` had
+warned against since M2, and the sixteen outbound ones besides. Every inferred path was right. The
+one that mattered was the one nobody had thought to doubt.
+
+`/api/v3/consent/request/hip/notify` now carries all three events on one path, told apart only by
+`status`: `GRANTED` stores, `REVOKED`/`DENIED`/`EXPIRED` delete. An **unrecognised status stores
+nothing and deletes nothing** — inventing a revocation destroys permission the patient still wants,
+inventing a grant fabricates permission they never gave — and a grant naming no ABHA address is
+refused rather than stored against nobody. The acknowledgement on
+`consent/v3/request/hip/on-notify` goes out **after** the artefact has actually moved, carrying the
+inbound `REQUEST-ID` header rather than a body field, because acknowledging a revocation not yet
+performed is a lie with a paper trail.
+
+Twelve tests, named for what they defend. The stale "unverified" comments came out of
+`abdm.constants.ts` in the same change — a warning left standing long after verification teaches the
+next reader to distrust the accurate ones.
+
+Three M2 certification cases move from failing to passing on logic that was already written.
+
+## The HFR registration form's backend, and three defects the live registry exposed (ADR-102)
+
+Widening the facility contract for the registration form turned up three shipped bugs that only a
+real call could reveal.
+
+**Four of HFR's nine reference endpoints are POST, not GET.** `fetch-facility-type`,
+`fetch-facility-Sub-type`, `get-owner-subtype` and `get-specialities` take their filter in a JSON
+body; `registryMasterData` issued GET for all nine. Nothing threw — an empty list is a valid
+response — so exactly those four dropdowns came back empty while the five GET lists filled
+correctly, with no error anywhere to explain the difference. `registryMasterData` now takes an
+optional body and picks its verb from it, and the verb is part of the cache key.
+
+**Facility type requires both an ownership and a system of medicine.** Read from the V4 contract,
+not assumed. It means facility type can only ever be the third field in a chain, and a form that
+offers it first shows an empty list forever. `MASTER_POST_FIELDS` names each POST list's required
+filters, and a call missing one answers an empty list rather than letting the registry return a 400
+that reads to an administrator as "ABDM is down".
+
+**The registry returns space-padded codes.** Ownership arrives as `"P         "`. That is fatal
+rather than untidy: `facilityType` validates `ownershipCode` against `^(?i)(G|P|PP)$`, so the padded
+value 500s the next call. Trimmed at the single boundary where codes enter the application.
+
+Alongside these, `FacilityRegistryDraftBody` grew to the workbook's full field set — systems of
+medicine as a list, specialities per medicine, the twelve medical-infrastructure counts, eight
+external programme identifiers, and the second ownership subtype — with the workbook's own
+validation. It all lands in the existing `payload` jsonb, so no migration. `FacilityDraft` is now
+`z.infer` of that contract rather than a second hand-written type: forty fields is far too many for
+two descriptions of one form to stay honest, and the validated one is the shape the outside world
+can actually send.
+
+One workbook error worth recording: HFR-023 and HFR-024 swap their descriptions, asking for "a valid
+10 digit mobile number" under Landline and "a valid landline number ranging between 6-8 digits"
+under Mobile. Implemented the way the fields mean rather than the way they are written, because
+validating a mobile as a landline would reject every real number typed into it.

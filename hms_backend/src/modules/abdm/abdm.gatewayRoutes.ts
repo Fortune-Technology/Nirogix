@@ -4,6 +4,7 @@ import { asyncHandler } from '../../http/asyncHandler';
 import { authLimiter } from '../../http/rateLimit';
 import {
   HIP_CALLBACK_PATHS,
+  HIP_CONSENT_NOTIFY_PATH,
   HIP_DATA_REQUEST_PATH,
   HIP_DISCOVERY_CALLBACK_PATHS,
   HIP_PROFILE_SHARE_PATH,
@@ -12,6 +13,7 @@ import {
 import {
   DiscoverBody,
   HealthInformationRequestBody,
+  HipConsentNotifyBody,
   HipProfileShareBody,
   HiuConsentNotifyBody,
   HiuDataPushBody,
@@ -90,6 +92,16 @@ abdmGatewayRouter.post(
   authLimiter,
   validate({ body: LinkConfirmBody }),
   asyncHandler(c.confirmCareContextLink),
+);
+
+// How a consent reaches a HIP at all — granted, revoked or expired (ADR-101). Without this route
+// `revokeConsent` is unreachable and a withdrawn consent keeps authorising transfers, which is the
+// one consent defect with a real clinical consequence rather than a retryable one.
+abdmGatewayRouter.post(
+  HIP_CONSENT_NOTIFY_PATH,
+  authLimiter,
+  validate({ body: HipConsentNotifyBody }),
+  asyncHandler(c.hipConsentNotify),
 );
 
 // A consented request for health records (ADR-091). Acknowledged immediately; the build, encrypt
