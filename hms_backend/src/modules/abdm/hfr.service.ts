@@ -7,6 +7,8 @@ import { writeAudit } from '../audit/audit.service';
 import { HFR_PATHS } from './abdm.constants';
 import { registryMasterData, registryPost } from './registryGateway';
 import { getFacilityConfig, upsertFacilityConfig } from './abdm.service';
+import type { z } from '../../openapi/registry';
+import type { FacilityRegistryDraftBody } from './abdm.schema';
 
 /**
  * Listing the hospital in the Health Facility Registry (ADR-096).
@@ -38,39 +40,15 @@ const ALLOWED: Record<string, readonly string[]> = {
   verified: ['verified'],
 };
 
-export type FacilityDraft = {
-  branchId?: string | null;
-  facilityName: string;
-  ownershipCode?: string;
-  ownershipSubTypeCode?: string;
-  facilityTypeCode?: string;
-  facilitySubType?: string;
-  systemOfMedicineCode?: string;
-  specialityTypeCode?: string;
-  typeOfServiceCode?: string;
-  facilityOperationalStatus?: string;
-  address: {
-    country?: string;
-    stateLGDCode?: string;
-    districtLGDCode?: string;
-    subDistrictLGDCode?: string;
-    villageCityTownLGDCode?: string;
-    facilityRegion?: string;
-    addressLine1?: string;
-    addressLine2?: string;
-    pincode?: string;
-    latitude?: string;
-    longitude?: string;
-  };
-  contact: {
-    facilityEmailId?: string;
-    facilityContactNumber?: string;
-    facilityLandlineNumber?: string;
-    facilityStdCode?: string;
-    websiteLink?: string;
-  };
-  timings?: Array<{ workingDays: string; openingHours: string }>;
-};
+/**
+ * The facility form, inferred from its own request contract.
+ *
+ * Deliberately `z.infer` rather than a second hand-written shape. There were two descriptions of
+ * this form — the Zod body the route validates and a type this file declared — and forty-odd
+ * fields is far too many for both to stay honest. One of them had to be the source; the validated
+ * one wins, because that is the shape the outside world can actually send.
+ */
+export type FacilityDraft = z.infer<typeof FacilityRegistryDraftBody>;
 
 /** Saves the administrator's work without sending anything to HFR. */
 export async function saveDraft(
@@ -284,10 +262,60 @@ export async function listRegistrations(tenantId: string): Promise<AbdmFacilityR
  * types are the registry's to define, and a hard-coded copy would drift silently into rejections
  * that look like our bug.
  */
-export async function facilityMasterData(kind: 'states' | 'districts' | 'subDistricts' | 'facilityType' | 'ownerSubtype' | 'specialities', query?: Record<string, string>) {
+/** Every reference list the registration form can ask for, by the name the form uses. */
+export type FacilityMasterKind =
+  | 'states'
+  | 'districts'
+  | 'subDistricts'
+  | 'facilityType'
+  | 'facilitySubType'
+  | 'ownerSubtype'
+  | 'specialities'
+  | 'masterData'
+  | 'masterTypes';
+
+/**
+ * The registry's own reference data (HFR-014…038).
+ *
+ * Never a hard-coded copy. Facility types, ownership subtypes, working-day codes and speciality
+ * lists are the registry's to change, and a list that has drifted produces a rejection weeks later
+ * with no clue as to which field caused it.
+ *
+ * `masterData` is the general-purpose endpoint: it needs a `type` (`OWNER`, `MEDICINE`,
+ * `WORKING-DAYS`, `ADDRESS-PROOF`, `CENTRAL-GOVERNMENT`, …), and `masterTypes` lists what types
+ * exist. `districts`, `subDistricts`, `facilitySubType` and `specialities` are scoped by a parent
+ * `code`, so callers pass it through rather than fetching everything and filtering in the browser.
+ */
+/**
+ * Which reference lists are POST, and what filter each requires (HFR V4 spec).
+ *
+ * Read from the published contract rather than assumed. `fetch-facility-type` needing BOTH an
+ * ownership and a system of medicine is the load-bearing one: it means facility type is not a
+ * free-standing dropdown but the third field in a chain, and a form that offers it first can only
+ * ever show an empty list.
+ */
+const MASTER_POST_FIELDS: Partial<Record<FacilityMasterKind, string[]>> = {
+  facilityType: ['ownershipCode', 'systemOfMedicineCode'],
+  facilitySubType: ['facilityTypeCode'],
+  ownerSubtype: ['ownershipCode', 'ownerSubtypeCode'],
+  specialities: ['systemOfMedicineCode'],
+};
+
+export async function facilityMasterData(kind: FacilityMasterKind, query?: Record<string, string>) {
   const path = HFR_PATHS[kind];
-  // Districts and sub-districts are scoped by their parent code; the rest are flat lists.
-  return registryMasterData(path, query);
+  const fields = MASTER_POST_FIELDS[kind];
+  if (!fields) return registryMasterData(path, query);
+
+  // A POST list with a missing required filter would be a 400 from the registry, which reads to an
+  // administrator as "the registry is down". Answer an empty list instead — the picker already
+  // says which parent field to fill in first.
+  const body: Record<string, string> = {};
+  for (const f of fields) {
+    const v = query?.[f];
+    if (!v) return [];
+    body[f] = v;
+  }
+  return registryMasterData(path, undefined, body);
 }
 
 function assertTransition(from: string, to: string): void {

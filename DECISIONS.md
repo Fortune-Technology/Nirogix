@@ -1048,5 +1048,121 @@ The verification surface is fixed: browser tab, login page, header, sidebar, mob
 - **An ABHA can be looked up before a history is requested.** `HIU_FLOW_101`. Previously the only way in was a chart already carrying a verified ABHA — right as far as it went, but it meant a walk-in whose ABHA had never been verified here could not be searched at all. The lookup deliberately does **not** invent an ABDM validation call: none exists in the published M1 collection, and guessing one is exactly how the M2 service-registration payload came out wrong. It returns the local match plus the honest next step, and the real validity check remains M1's verification flow, which puts an OTP in front of the patient.
 - **Demographic / offline ABHA creation is NOT built, and is not stubbed.** `CRT_ABHA_301…309`, nine mandatory cases. The endpoint is absent from the published M1 Postman collection, the ABHA host publishes no OpenAPI document (unlike HFR and HPR, which do), and `enrol/byDocument` is a different thing — driving-licence enrolment, not demographic authentication. Building it would mean guessing a payload, a response and a provider signature, which is the precise mistake that cost a week in M2 and was found again in M4. **A stub that looks like progress is worse than an honest gap**, so this stays failed until NHA supplies the contract.
 **Consequence:** Four of five gaps closed, with 18 tests that name the certification case they defend so a future regression fails in the assessor's language rather than ours. **557 backend tests across 57 files.** Two pre-existing defects surfaced on the way, both from the uniqueness index: `createPatient` used an unqualified `onConflictDoNothing()`, so a duplicate ABHA was silently retried as a UHID collision and reported as "could not allocate a UHID" — the wrong cause, and one a receptionist could never act on; and an M1 test was relying on two charts in one tenant sharing an ABHA number, which is the very state the new rule forbids. Both fixed. The demographic-mode gap and the 177 M4 screen cases remain the blockers to sign-off.
+## ADR-101 - The consent callback a HIP had no way to receive
+
+**Date:** 27/08/2026 · **Status:** Accepted
+
+**Context.** Milestone 2 shipped with `revokeConsent()` implemented, unit-tested and correct: it
+deletes the artefact, writes the audit event, and treats a re-sent revocation as a no-op. It was
+also **unreachable**. Every caller was a test or the `abdm:m2check` diagnostic; no route in the
+product could ever invoke it, because the callback ABDM uses to announce a consent change was never
+built.
+
+The consequence is the worst shape a consent defect can take. A patient withdrawing consent in their
+PHR app changed nothing here — the artefact stayed live and went on authorising transfers — while
+our own audit trail, having recorded only the grant, said the consent was still in force. The system
+was wrong and self-consistently wrong, which is why no test caught it: everything that existed
+passed.
+
+It was found by reading NHA's own **Milestone 2 documentation** and the official **Milestone 2
+Postman collection**, obtained from the ABDM sandbox portal. The same reading confirmed all seven
+inbound paths that `abdm.constants.ts` had carried a warning against since M2 — every one inferred
+from convention, every one correct — and confirmed the sixteen outbound paths besides. One missing
+endpoint, zero wrong ones.
+
+**Decision.**
+
+- **Serve `/api/v3/consent/request/hip/notify`** (M2 §6.3.1) on the bridge URL, alongside the other
+  gateway callbacks outside `/api/v1` for the reason ADR-084 already gives.
+- **One path, three events, separated only by `status`.** `GRANTED` stores the artefact;
+  `REVOKED` and `DENIED` delete it; `EXPIRED` deletes it. Deletion, never a flag — an artefact
+  retained is an authorisation we might act on, and NHA checks the row is gone.
+- **An unrecognised status stores nothing and deletes nothing, and says so in the log.** Guessing is
+  unsafe in both directions: inventing a revocation destroys permission the patient still wants,
+  inventing a grant fabricates permission they never gave. The schema is deliberately permissive so
+  a formatting difference cannot discard a revocation; the strictness lives in the handler.
+- **A grant naming no ABHA address is refused rather than stored.** Every transfer check matches on
+  that address, so such a row would present as consent while behaving as though none existed.
+- **Acknowledge after acting, never before.** `consent/v3/request/hip/on-notify` (M2 §6.3.2) is sent
+  only once the artefact has actually been stored or purged, and carries the **inbound `REQUEST-ID`
+  header** as its correlation id — not a body field. A failure to acknowledge is logged rather than
+  thrown: the patient's wish has already been honoured locally and the gateway retries, so throwing
+  would only discard that fact.
+- **The stale warnings in `abdm.constants.ts` are removed**, replaced by what each path was verified
+  against. A comment that says "unverified" long after verification trains the next reader to
+  distrust the accurate ones.
+
+**Consequence.** Three M2 certification cases move from failing to passing — *revoke a granted
+request*, *consent status as revoked can be seen in the HMIS*, *records for revoked consent cannot be
+seen in the system* — on logic that was already written. Twelve tests pin the behaviour, including
+that an unknown status changes nothing and that the artefact is gone before the acknowledgement
+claims it is.
+
+The wider lesson is the one this project keeps relearning, now four times out of four: **the
+published contract beats inference, and it beats it most on the endpoints nobody asked about.** The
+six paths we worried over were all correct. The one that broke us was the one we never knew existed,
+and no amount of re-examining what we had built would have surfaced it.
+
+Two related gaps stay open and are recorded in `BACKLOG.md`: four acknowledgement callbacks we send
+without listening for the reply, and demographic ABHA enrolment, whose contract the M1 collection has
+now supplied (`authMethods: ["demo_auth"]` on an endpoint we already call).
+
+## ADR-102 - The HFR registration form, and what running it against the real registry found
+
+**Date:** 27/08/2026 · **Status:** Accepted
+
+**Context.** Milestone 4's services shipped without screens, leaving 123 HFR and 60 HPR
+certification cases failing for want of a form rather than for want of logic. This ADR covers the
+facility-registration form; HPR enrolment and facility search/update follow.
+
+The form is large — around forty fields across identity, ownership, location, contact, systems of
+medicine, medical infrastructure and eight external programme identifiers — and every one traces to
+a numbered case in NHA's HFR workbook.
+
+**Decision.**
+
+- **Save is not submit.** A draft saves in any state. Nobody has the CEA number and the ventilator
+  count to hand in one sitting, and refusing to save an incomplete form loses an afternoon's typing.
+  Completeness is checked once, at submit.
+- **Submitted is never shown as approved**, continuing the rule the registry status screen already
+  set: HFR routes every registration to a human verifier, and a green tick would have somebody
+  believe they hold a Facility ID they do not.
+- **The whole form lives in the row's `payload` jsonb**, so widening it needs no migration, and
+  `FacilityDraft` is now `z.infer` of the request contract rather than a second hand-written shape.
+  Forty fields is far too many for two descriptions to stay honest.
+- **One `RegistryMasterSelect`** serves all twenty reference dropdowns (ADR-029). A list that fails
+  to load says so in place rather than rendering empty — an empty dropdown reads as "this hospital
+  has no options" rather than "the registry did not answer" — and it never raises a toast, because
+  one outage would otherwise raise twenty (ADR-057).
+- **Totals are stated, not computed.** The workbook asks an operator to be accountable for the bed
+  totals; a mismatch against the itemised counts is pointed out, never silently corrected.
+
+**What running it against the live sandbox found.** Three defects, none of which any amount of
+re-reading the code would have surfaced, and all of which were shipped:
+
+1. **Four of HFR's nine reference endpoints are POST, not GET** — `fetch-facility-type`,
+   `fetch-facility-Sub-type`, `get-owner-subtype`, `get-specialities` — and take their filter in a
+   JSON body. `registryMasterData` issued GET for all nine. Nothing threw: the four POST lists
+   simply returned nothing, so four dropdowns were empty with no reason given.
+2. **Facility type is not a free-standing field.** Its contract requires **both** an `ownershipCode`
+   and a `systemOfMedicineCode`, so it can only be offered third in a chain. The form asked for it
+   first, where it could never have populated. The field order is now
+   *ownership → systems of medicine → facility type → sub-type*, which is a fact about HFR rather
+   than a layout preference.
+3. **HFR returns fixed-width, space-padded codes** — ownership comes back as `"P         "`.
+   Carrying that padding into the next request is fatal rather than untidy: `facilityType`
+   validates its `ownershipCode` against `^(?i)(G|P|PP)$`, which a padded value fails, and the call
+   500s. Codes are now trimmed once, where they enter the application.
+
+**Consequence.** The chain works end to end against the real sandbox — Private → Allopathy →
+Hospital (code 40) → Civil Hospital / General Hospital / Nursing Home — and 263 ABDM backend tests
+still pass.
+
+The lesson repeats the one ADR-101 recorded, from the other direction. There it was the published
+contract that beat inference; here it was **actually running the thing**. Two of these three bugs
+are invisible to a type checker, a unit test and a code review alike, because an empty list is a
+valid response and a padded string is a valid string. A screen that has never been pointed at the
+system it integrates with has not been tested, however green its suite.
+
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*

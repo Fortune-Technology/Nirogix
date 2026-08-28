@@ -130,17 +130,61 @@ The application has exactly three environments — **development | staging | pro
 
 **Every frontend reads its API base URL from configuration.** No app holds a host in source, and all five point at the same backend — there is one API, one database, one permission catalog and one audit trail behind every one of them (ADR-051).
 
-## 8a. Provisioned state — staging (as of 17/08/2026)
+## 8a. Provisioned state — staging (as of 28/08/2026)
 
-Recorded from the live GoDaddy zone so a deploy reads reality, not the placeholders above. The staging VM is a **shared box** (hosts other projects too — see `deploy/README.md` → "Shared VM: audit ports first"); its public IP is **`74.208.78.255`**.
+Recorded from the live GoDaddy zone so a deploy reads reality, not the placeholders above.
 
-- **Staging `A` records — all six created**, each → `74.208.78.255`: `staging`, `portal-staging`, `api-staging`, `admin-staging`, `patient-staging`, `ai-staging`. (The last three resolve now but **do not serve** until the patient/admin/aiportal apps are actually deployed — PM2 entries uncommented after the port audit, an Nginx server block per host, and a certbot cert — `BACKLOG.md` F-5.)
+> **The staging host has moved.** The old VM — `74.208.78.255`, IONOS, **United States** — is retired
+> for two independent reasons: ABDM's CDN refuses non-Indian IPs outright, and `ADR-006` requires
+> India-resident infrastructure for PHI regardless of that (`BACKLOG.md` **I-6**). Staging now runs on
+> a dedicated **E2E Networks node in India**, `e2e-131-182`, service user `deploy`, application root
+> `/var/www/projects/nirogix`. Unlike the old box this one is **ours alone**, so the shared-VM port
+> compromises do not carry over — but `/etc/nirogix/ports.env` is still written, because the deploy
+> workflow refuses to run without it.
+>
+> **The node's public IP is `151.185.42.182`** (confirmed 28/08/2026 from the box itself). The six
+> staging `A` records still point at the retired address and must be repointed to it; until they
+> are, staging DNS resolves to a host that no longer serves anything, and certbot cannot validate.
+
+- **Staging `A` records — five of six repointed (verified 28/08/2026):**
+
+  | Host | Resolves to | |
+  |---|---|---|
+  | `portal-staging` | `151.185.42.182` | ✅ |
+  | `api-staging` | `151.185.42.182` | ✅ |
+  | `admin-staging` | `151.185.42.182` | ✅ |
+  | `patient-staging` | `151.185.42.182` | ✅ |
+  | `ai-staging` | `151.185.42.182` | ✅ |
+  | **`staging`** | **`74.208.78.255`** | ❌ **still the retired box** |
+
+  **`staging` blocks the certificate for all four serving hosts, not just its own.** Certbot is
+  issued one certificate covering `staging`, `portal-staging`, `api-staging` and `admin-staging`;
+  HTTP-01 validates each name against whatever DNS says, and **a single failure fails the entire
+  request**. Repoint it before Step 10 of `deploy/e2e-provisioning.md`.
+
+- **The apex and `www` serve nothing of ours, and never have.** Verified 28/08/2026: with
+  `nirogix.com` / `www.nirogix.com` pointed at the old IONOS box, HTTPS to either presents a
+  certificate for **`storeveu.com`** (`test.admin.storeveu.com`, `test.api.storeveu.com`,
+  `test.shop.storeveu.com`, …) — an unrelated project sharing that box. There is no apex server block
+  on that host; the request falls through to its `default_server`, so **a visitor to the company's
+  main domain gets a full-page browser security warning naming another company.**
+
+  This is not a regression from the move. The Nginx template never defined an apex server block for
+  staging — `MARKETING_HOST` is `staging.nirogix.com`, so the `www.${MARKETING_HOST}` redirect covers
+  `www.staging.nirogix.com`, not the apex. `nirogix.com` has therefore never served the Nirogix
+  marketing site from either box.
+
+  **Delete the apex and `www` `A` records until the production node exists** (§9 already says so). A
+  domain that does not resolve is better than one presenting a stranger's certificate. Moving or
+  removing them cannot affect the other projects on the old box: an `A` record governs only the name
+  it belongs to, and `storeveu.com` has its own. `portal.nirogix.com` and `api.nirogix.com` correctly
+  have no `A` record yet, which is the state the apex should match. (The last three resolve now but **do not serve** until the patient/admin/aiportal apps are actually deployed — PM2 entries uncommented after the port audit, an Nginx server block per host, and a certbot cert — `BACKLOG.md` F-5.)
 - **Transactional email — `mail.nirogix.com` verified at MSG91** (ADR-016). SPF (`TXT mail` → `v=spf1 include:mailer91.com ~all`), DKIM (`TXT spaceship._domainkey.mail`) and the tracking `CNAME mailer91.mail` → `email.mailer91.com` all show **Verified**; the `MX mail` → `mx1.mailer91.com` (priority 10) is the last to propagate and affects only bounce/return-path, not sending. **Outbound email is deliverable.** DMARC stays the zone default (`_dmarc`, `p=quarantine`), which the `mail` subdomain inherits.
 - **Production `A` records** (`nirogix.com` apex, `portal`, `api`, `admin`, `patient`) point at the prod VM's IP and are **not created yet** — production is a separate box. The apex `@` currently resolves to the staging IP; delete or repoint it when the prod VM exists so `nirogix.com` never serves staging content.
 
 ## 9. Cutover checklist
 
-1. ~~Add the `A` records for the staging hosts~~ **Done (staging, 17/08/2026)** — all six `A` records resolve to `74.208.78.255` (§8a). Production `A` records remain to be added against the prod VM's IP.
+1. ~~Add the `A` records for the staging hosts~~ **Done (17/08/2026), but they now point at a retired host.** All six resolve to `74.208.78.255`, the decommissioned IONOS box; **repoint every one at the E2E node's IP** (§8a) before issuing certificates. Production `A` records remain to be added against the prod VM's IP.
 2. Set the environment matrix above on each host; confirm `CORS_ORIGINS` lists that environment's origins only.
 3. Put Nginx basic auth in front of the staging hosts, add the `X-Robots-Tag: noindex` header, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app also serves `Disallow: /`.
 4. Confirm `www` → apex is a 301 and that the marketing canonical URLs resolve to the apex.

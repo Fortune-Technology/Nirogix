@@ -336,6 +336,68 @@ export const HiuOnFetchBody = z
  * Deliberately permissive on shape and strict on the two fields that matter, because a parse failure
  * here would mean silently keeping data we promised to delete.
  */
+/**
+ * A consent decision reaching us as the HIP (M2 §6.3.1).
+ *
+ * One callback carries three different events — GRANTED, REVOKED, EXPIRED — told apart only by
+ * `notification.status`. Parsed permissively for the same reason `HiuConsentNotifyBody` is: it
+ * arrives from outside our control, and a schema strict enough to reject an unfamiliar field would
+ * discard the message over a formatting difference.
+ *
+ * The asymmetry is deliberate. Dropping a **grant** costs a transfer that can be retried; dropping
+ * a **revocation** leaves a live authorisation in our table for records the patient has already
+ * withdrawn. So the shape is wide here and the strictness lives downstream, where an unrecognised
+ * status is treated as "not a grant" rather than ignored.
+ */
+export const HipConsentNotifyBody = z
+  .object({
+    notification: z
+      .object({
+        status: z.string().min(1),
+        consentId: z.string().optional(),
+        grantAcknowledgement: z.boolean().optional(),
+        signature: z.string().optional(),
+        consentDetail: z
+          .object({
+            consentId: z.string().optional(),
+            createdAt: z.string().optional(),
+            patient: z.object({ id: z.string() }).passthrough().optional(),
+            hip: z.object({ id: z.string() }).passthrough().optional(),
+            hiu: z.object({ id: z.string() }).passthrough().optional(),
+            consentManager: z.object({ id: z.string() }).passthrough().optional(),
+            purpose: z
+              .object({ text: z.string().optional(), code: z.string().optional(), refUri: z.string().optional() })
+              .passthrough()
+              .optional(),
+            hiTypes: z.array(z.string()).optional(),
+            careContexts: z.array(z.object({}).passthrough()).optional(),
+            permission: z
+              .object({
+                accessMode: z.string().optional(),
+                dateRange: z
+                  .object({ from: z.string().optional(), to: z.string().optional() })
+                  .passthrough()
+                  .optional(),
+                dataEraseAt: z.string().optional(),
+                frequency: z
+                  .object({
+                    unit: z.string().optional(),
+                    value: z.coerce.number().optional(),
+                    repeats: z.coerce.number().optional(),
+                  })
+                  .passthrough()
+                  .optional(),
+              })
+              .passthrough()
+              .optional(),
+          })
+          .passthrough()
+          .optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
 export const HiuConsentNotifyBody = z
   .object({
     notification: z
@@ -391,13 +453,34 @@ export const HiuDataPushBody = z
  * registry rejects an incomplete submission with its own message, which is more accurate than
  * anything we could assert locally.
  */
+/**
+ * One HFR facility registration, as the portal's own form defines it (ADR-096, HFR test cases).
+ *
+ * Every field below traces to a numbered case in NHA's HFR workbook, and the validation is theirs
+ * rather than ours — a facility the portal would reject is one we should reject first, at the desk,
+ * instead of after a week of waiting on a human verifier.
+ *
+ * It is deliberately wide and almost entirely optional. HFR registration is filled over days, by
+ * people who do not have the CEA number to hand when they start, so **a draft must be saveable in
+ * any state**; completeness is checked at submit, not at save. Everything lands in the row's
+ * `payload` jsonb, so widening this shape needs no migration.
+ */
 export const FacilityRegistryDraftBody = z.object({
   branchId: z.string().uuid().nullish(),
-  facilityName: z.string().min(2).max(200),
+  // HFR-010: alphanumeric, must start with a letter.
+  facilityName: z
+    .string()
+    .min(2)
+    .max(200)
+    .regex(/^[A-Za-z][A-Za-z0-9 .,'&()/-]*$/, 'The facility name must start with a letter'),
   ownershipCode: z.string().max(32).optional(),
   ownershipSubTypeCode: z.string().max(32).optional(),
+  /** HFR-033 — only asked for when the owner is a central-government body. */
+  ownershipSubTypeCode2: z.string().max(32).optional(),
   facilityTypeCode: z.string().max(32).optional(),
   facilitySubType: z.string().max(64).optional(),
+  /** HFR-034 — a facility may practise more than one system of medicine. */
+  systemOfMedicineCodes: z.array(z.string().max(32)).max(12).optional(),
   systemOfMedicineCode: z.string().max(32).optional(),
   specialityTypeCode: z.string().max(32).optional(),
   typeOfServiceCode: z.string().max(32).optional(),
@@ -410,18 +493,88 @@ export const FacilityRegistryDraftBody = z.object({
     facilityRegion: z.string().max(32).optional(),
     addressLine1: z.string().max(200).optional(),
     addressLine2: z.string().max(200).optional(),
-    pincode: z.string().regex(/^\d{6}$/).optional(),
-    latitude: z.string().max(32).optional(),
-    longitude: z.string().max(32).optional(),
+    // HFR-019: exactly six digits.
+    pincode: z.string().regex(/^\d{6}$/, 'A pincode is six digits').optional(),
+    // HFR-011/012: real numbers, and within India's actual bounds rather than merely parseable.
+    latitude: z.coerce.number().min(-90).max(90).transform(String).optional(),
+    longitude: z.coerce.number().min(-180).max(180).transform(String).optional(),
   }),
   contact: z.object({
+    // HFR-025
     facilityEmailId: z.string().email().optional(),
-    facilityContactNumber: z.string().max(20).optional(),
-    facilityLandlineNumber: z.string().max(20).optional(),
+    // HFR-023/024. The workbook swaps these two descriptions — it asks for "a valid 10 digit mobile
+    // number" under Landline and "a valid landline number ranging between 6-8 digits" under Mobile.
+    // Implemented the way the fields actually mean, because validating a mobile as a landline would
+    // reject every real number typed into it.
+    facilityContactNumber: z.string().regex(/^\d{10}$/, 'A mobile number is ten digits').optional(),
+    facilityLandlineNumber: z.string().regex(/^\d{6,8}$/, 'A landline number is six to eight digits').optional(),
     facilityStdCode: z.string().max(8).optional(),
     websiteLink: z.string().url().optional(),
   }),
+  // HFR-020/021 — working days by master code, hours as a range or 24*7.
   timings: z.array(z.object({ workingDays: z.string(), openingHours: z.string() })).max(7).optional(),
+
+  /**
+   * HFR-047…049 — specialities hang off a system of medicine, not off the facility.
+   *
+   * `isSpecializationAvailable` is the registry's own gate: specialities may only be sent when it is
+   * `Y`, so the shape keeps them together rather than letting a form send one without the other.
+   */
+  medicineServices: z
+    .array(
+      z.object({
+        systemOfMedicineCode: z.string().max(32),
+        isSpecializationAvailable: z.enum(['Y', 'N']),
+        specialities: z.array(z.string().max(64)).max(60).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+
+  /**
+   * HFR-050…061 — the medical-infrastructure block.
+   *
+   * Bed counts cap at two digits and the two totals at four, which is HFR's rule rather than a
+   * judgement about hospital sizes. The totals are NOT derived here: the workbook asks the operator
+   * to state them, and silently computing a number somebody is accountable for would hide a
+   * mismatch that the registry itself will question.
+   */
+  infrastructure: z
+    .object({
+      countIPDBedsWithoutOxygen: z.coerce.number().int().min(0).max(99).optional(),
+      countIPDBedsWithOxygen: z.coerce.number().int().min(0).max(99).optional(),
+      countICUBedsWithVentilators: z.coerce.number().int().min(0).max(99).optional(),
+      countICUBedsWithoutVentilators: z.coerce.number().int().min(0).max(99).optional(),
+      countHDUBedsWithFunctionalVentilators: z.coerce.number().int().min(0).max(99).optional(),
+      countHDUBedsWithVentilators: z.coerce.number().int().min(0).max(99).optional(),
+      countHDUBedsWithoutVentilators: z.coerce.number().int().min(0).max(99).optional(),
+      countDayCareBedsWithoutOxygen: z.coerce.number().int().min(0).max(99).optional(),
+      countDayCareBedsWithOxygen: z.coerce.number().int().min(0).max(99).optional(),
+      countDentalChairs: z.coerce.number().int().min(0).max(99).optional(),
+      totalNumberOfVentilators: z.coerce.number().int().min(0).max(9999).optional(),
+      totalNumberOfBeds: z.coerce.number().int().min(0).max(9999).optional(),
+    })
+    .optional(),
+
+  /**
+   * HFR-039…046 — identifiers this facility already holds in other national programmes.
+   *
+   * All optional and all free-form. The workbook says each "should be a valid <X> Id" without
+   * publishing a single format, so validating a shape we cannot know would reject correct numbers.
+   * The registry checks them; we carry them faithfully.
+   */
+  programmeIds: z
+    .object({
+      nhrrId: z.string().max(64).optional(),
+      ninId: z.string().max(64).optional(),
+      abPmjayId: z.string().max(64).optional(),
+      rohiniId: z.string().max(64).optional(),
+      echsId: z.string().max(64).optional(),
+      cghsId: z.string().max(64).optional(),
+      ceaRegistrationNumber: z.string().max(64).optional(),
+      stateInsuranceSchemeId: z.string().max(64).optional(),
+    })
+    .optional(),
 });
 
 export const FacilitySubmitBody = z.object({ branchId: z.string().uuid().nullish() });

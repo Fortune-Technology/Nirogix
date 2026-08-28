@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import Link from "next/link";
 import { Alert, Badge, Button, Card, DateDisplay, EmptyState, Spinner, toast } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { Building2, Download, IdCard, Upload } from "lucide-react";
@@ -132,10 +133,19 @@ function Registry() {
       {/* --- Facilities ------------------------------------------------------------------- */}
       <Card
         header={
-          <span className="flex items-center gap-2">
-            <Building2 className="size-4 text-fg-muted" aria-hidden />
-            Health Facility Registry
-          </span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <Building2 className="size-4 text-fg-muted" aria-hidden />
+              Health Facility Registry
+            </span>
+            {canManage && (
+              <Link href="/hospital-setup/registry/facility">
+                <Button variant="secondary">
+                  {facilities.length === 0 ? "Register this hospital" : "Open registration form"}
+                </Button>
+              </Link>
+            )}
+          </div>
         }
       >
         {facilities.length === 0 ? (

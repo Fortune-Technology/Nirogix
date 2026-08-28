@@ -3,6 +3,7 @@ import { runWithTenant } from '../../db/tenantContext';
 import { abdmConsents, abdmFacilityConfig, auditLog, patients, type AbdmConsent } from '../../db/schema';
 import { logger } from '../../config/logger';
 import { writeAudit } from '../audit/audit.service';
+import { HIP_CONSENT_ON_NOTIFY_PATH } from './abdm.constants';
 
 /**
  * Consent artefacts, as held by a Health Information Provider (ADR-087, Milestone 2).
@@ -172,6 +173,154 @@ export async function expireConsent(hipId: string, consentId: string): Promise<b
   if (!tenantId) return false;
   return purgeConsent(tenantId, consentId, 'expired');
 }
+
+/** What a consent callback resolves to, once its status has been read. */
+export type ConsentNotificationOutcome = 'granted' | 'revoked' | 'expired' | 'ignored' | 'unknown_facility';
+
+/**
+ * The consent callback ABDM sends a HIP (ADR-101, M2 §6.3.1).
+ *
+ * **This is the only way a HIP ever learns a consent changed.** There is no polling equivalent, so
+ * without it `revokeConsent` is unreachable code and a withdrawn consent goes on authorising
+ * transfers indefinitely — the failure the M2 certification cases "revoke a granted request" and
+ * "records for revoked consent cannot be seen" exist to catch.
+ *
+ * Three events arrive on one path, separated only by `status`:
+ *
+ * - `GRANTED` — store the artefact, so transfers can be honoured against it.
+ * - `REVOKED` / `DENIED` — delete it. The patient changed their mind and an artefact we keep is an
+ *   authorisation we might act on.
+ * - `EXPIRED` — delete it too, for the same reason.
+ *
+ * **An unrecognised status deletes nothing and stores nothing.** Guessing in either direction is
+ * worse than doing nothing: inventing a grant fabricates permission, and inventing a revocation
+ * silently destroys one the patient still wants. It is logged so the gap is visible rather than
+ * absorbed.
+ *
+ * The tenant comes from `X-HIP-ID` resolved server-side, never from the body (ADR-056) — the
+ * callback is unauthenticated by NHA's own design, so nothing inside it selects a hospital.
+ */
+export async function applyHipConsentNotification(input: {
+  hipId: string;
+  status: string;
+  consentId?: string;
+  detail?: {
+    consentId?: string;
+    createdAt?: string;
+    patient?: { id?: string };
+    hiu?: { id?: string };
+    consentManager?: { id?: string };
+    purpose?: { text?: string; code?: string };
+    hiTypes?: string[];
+    careContexts?: unknown;
+    permission?: {
+      accessMode?: string;
+      dateRange?: { from?: string; to?: string };
+      dataEraseAt?: string;
+      frequency?: { unit?: string; value?: number; repeats?: number };
+    };
+  };
+  signature?: string;
+}): Promise<ConsentNotificationOutcome> {
+  const consentId = input.consentId ?? input.detail?.consentId;
+  if (!consentId) {
+    logger.warn({ hipId: input.hipId, status: input.status }, 'ABDM consent notification carried no consent id');
+    return 'ignored';
+  }
+
+  const tenantId = await tenantForHip(input.hipId);
+  if (!tenantId) {
+    // Identical handling to every other gateway callback: an unknown facility is accepted and
+    // dropped rather than answered differently, so this cannot enumerate hospitals (ADR-056).
+    logger.warn({ hipId: input.hipId }, 'Consent notification for an unknown facility');
+    return 'unknown_facility';
+  }
+
+  const status = input.status.trim().toUpperCase();
+
+  if (status === 'REVOKED' || status === 'DENIED') {
+    await purgeConsent(tenantId, consentId, 'revoked');
+    return 'revoked';
+  }
+
+  if (status === 'EXPIRED') {
+    await purgeConsent(tenantId, consentId, 'expired');
+    return 'expired';
+  }
+
+  if (status !== 'GRANTED') {
+    logger.warn({ hipId: input.hipId, consentId, status }, 'Unrecognised ABDM consent status — nothing stored or deleted');
+    return 'ignored';
+  }
+
+  const abhaAddress = input.detail?.patient?.id;
+  if (!abhaAddress) {
+    // A grant with no patient cannot be honoured later: every transfer check matches on the ABHA
+    // address. Storing it would create an artefact that silently never applies to anyone.
+    logger.warn({ hipId: input.hipId, consentId }, 'Granted consent carried no ABHA address — not stored');
+    return 'ignored';
+  }
+
+  await recordConsentGrant({
+    consentId,
+    abhaAddress,
+    hipId: input.hipId,
+    hiuId: input.detail?.hiu?.id,
+    consentManagerId: input.detail?.consentManager?.id,
+    purposeCode: input.detail?.purpose?.code,
+    purposeText: input.detail?.purpose?.text,
+    hiTypes: input.detail?.hiTypes ?? [],
+    accessMode: input.detail?.permission?.accessMode,
+    dateRangeFrom: input.detail?.permission?.dateRange?.from,
+    dateRangeTo: input.detail?.permission?.dateRange?.to,
+    dataEraseAt: input.detail?.permission?.dataEraseAt,
+    frequencyUnit: input.detail?.permission?.frequency?.unit,
+    frequencyValue: input.detail?.permission?.frequency?.value,
+    frequencyRepeats: input.detail?.permission?.frequency?.repeats,
+    careContexts: input.detail?.careContexts,
+    signature: input.signature,
+    grantedAt: input.detail?.createdAt,
+  });
+  return 'granted';
+}
+
+/**
+ * Tells the gateway we acted on a consent notification (M2 §6.3.2).
+ *
+ * Sent **after** the artefact has actually been stored or deleted, never before. ABDM treats this
+ * as our acknowledgement, and acknowledging a revocation we have not yet performed would be a lie
+ * with a paper trail. `requestId` is the inbound `REQUEST-ID` header, which is what correlates the
+ * two halves — not a value from the body.
+ *
+ * A failure here is logged, not thrown: the patient's wish has already been honoured locally, and
+ * the gateway retries. Throwing would only lose that fact.
+ */
+export async function acknowledgeHipConsentNotification(input: {
+  requestId: string;
+  consentId: string;
+  hipId: string;
+  ok: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  const { hipPost } = await import('./hipGateway');
+  // `ERRORED`, not `FAILED`. M2 documents the acknowledgement status as `OK` and pairs `OK` with
+  // `ERRORED` wherever it names both (§6.3.6, `hiStatus`); `FAILED` belongs to `sessionStatus`, a
+  // different field. The failure value for THIS field is not spelled out anywhere, so this is the
+  // best-grounded reading of NHA's own vocabulary rather than a confirmed enum — if a live sandbox
+  // rejects it, that is the line to change.
+  const body: Record<string, unknown> = {
+    acknowledgement: { status: input.ok ? 'OK' : 'ERRORED', consentId: input.consentId },
+    response: { requestId: input.requestId },
+  };
+  if (!input.ok) {
+    body.error = { code: 'ABDM-1000', message: input.errorMessage ?? 'Could not apply the consent notification' };
+  }
+
+  await hipPost(HIP_CONSENT_ON_NOTIFY_PATH, body, { hipId: input.hipId }).catch((err: unknown) => {
+    logger.error({ err, consentId: input.consentId }, 'Could not acknowledge an ABDM consent notification');
+  });
+}
+
 
 /**
  * Proactive expiry — the sweep that does not wait to be told.

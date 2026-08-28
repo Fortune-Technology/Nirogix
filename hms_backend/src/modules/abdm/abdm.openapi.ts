@@ -9,6 +9,7 @@ import {
   LinkPatientBody,
   OtpSentSchema,
   PendingShareListSchema,
+  HipConsentNotifyBody,
   HipProfileShareBody,
   BulkImportBody,
   HprCompleteBody,
@@ -308,6 +309,22 @@ registry.registerPath({
   description:
     "The path is NHA's, not ours: a participant registers one bridge URL and the gateway appends `/api/v3/hip/patient/share`, which is why this is the one route mounted outside `/api/v1` (ADR-084). The tenant is resolved server-side from `metaData.hipId` — never from anything else in the body. It creates a pending verification for a human to act on, never a clinical record, and answers 202 identically for a known, unknown or disabled facility so it cannot be used to enumerate hospitals. The token number the patient sees is returned separately, by calling the gateway's `patient-share/v3/on-share`.",
   request: { body: json(HipProfileShareBody) },
+  responses: {
+    202: { description: 'Accepted', ...json(z.object({ accepted: z.boolean() })) },
+    422: unprocessable,
+    429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v3/consent/request/hip/notify',
+  operationId: 'abdmHipConsentNotifyCallback',
+  tags: [TAG],
+  summary: 'ABDM notifies the hospital that a consent was granted, revoked or expired (unauthenticated)',
+  description:
+    "The only way a Health Information Provider ever learns a consent changed — there is no polling equivalent, so without this route a withdrawn consent goes on authorising transfers indefinitely (ADR-101, M2 §6.3.1). One path carries three events, separated only by `notification.status`: GRANTED stores the artefact, REVOKED and EXPIRED delete it outright rather than flagging it, and an unrecognised status deliberately does neither. Like every gateway callback the tenant is resolved server-side from `X-HIP-ID` and the answer is an identical 202 whatever the facility turns out to be. Acting on it is acknowledged separately, by calling the gateway's `consent/v3/request/hip/on-notify` **after** the artefact has actually been stored or purged.",
+  request: { body: json(HipConsentNotifyBody) },
   responses: {
     202: { description: 'Accepted', ...json(z.object({ accepted: z.boolean() })) },
     422: unprocessable,
