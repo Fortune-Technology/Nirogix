@@ -41,7 +41,7 @@ Requirements are derived from NHA’s published workbooks in `docs/testcasesoffi
 
 | Case | Requirement | What NHA asks | Status | Where it is demonstrated |
 |---|---|---|---|---|
-| `HIP_INIT_SHARE_CARECONTEXT` | mandatory | HIP must share health records associated with care context on request | **UNVERIFIED** | dataTransfer.service.ts + POST /api/v3/hip/health-information/request <br>_Consent re-checked at send time; encrypted through Fidelius. Fidelius itself has never executed._ |
+| `HIP_INIT_SHARE_CARECONTEXT` | mandatory | HIP must share health records associated with care context on request | **UNVERIFIED** | dataTransfer.service.ts + POST /api/v3/hip/health-information/request <br>_Consent re-checked at send time. Encryption is now PROVEN on staging (ADR-108, abdm:fidelius-check — 23k-character bundle round-tripped against Fidelius 1.2.0). What remains unverified is the transfer itself: no real HIU has received one._ |
 | `HIP_INTI_LINK_506` | mandatory | Pull Records | **UNVERIFIED** | dataTransfer.service.ts <br>_Pull works end to end in mock mode. Never exercised from a real PHR app, because that needs the bridge URL registered._ |
 | `HIP_INIT_EXPIRE_CONSENT` | conditional | HIP must delete consents for a ABHA address in their system when it is expired | **BUILT** | consent.service.ts + abdm:m2check step 9 |
 | `HIP_INIT_GRANT_CONSENT_` | conditional | HIP must save consent (s)granted for a ABHA address in their system | **BUILT** | consent.service.ts + POST /api/v3/consent/request/hip/notify <br>_Visible to an operator on the Consents card; the artefact is stored against the resolved facility._ |

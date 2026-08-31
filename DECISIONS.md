@@ -1418,3 +1418,44 @@ M4 field-level cases nobody has walked yet — and naming them is the point.
 
 **It states what can be demonstrated. It does not claim a pass**, and says so in its own header;
 that verdict is NHA's during functional testing.
+
+## ADR-108 - Fidelius, executed
+
+**Status.** Accepted (30/08/2026). Closes the open item in ADR-091, ADR-093 and ADR-107.
+
+**Context.** Since M2 was built, every encrypted transfer in this system had run in mock mode, where
+`cipher.ts` returns a clearly-marked `MOCK-NOT-ENCRYPTED:` envelope. The real invocation — argument
+order, the shape of what comes back, the `--filepath` handoff — was written from NHA's documentation
+and **had never executed once**. Successive ADRs recorded it as the highest-value verification
+outstanding, and it stayed outstanding because it needed a JRE and the jar on a host.
+
+**What was run.** On the India-resident staging node `e2e-131-182`: OpenJDK 17 (headless), Fidelius
+CLI **1.2.0** unpacked at `/opt/fidelius`, `FIDELIUS_CLI_PATH` pointing at `bin/fidelius-cli` — the
+launcher script, not a jar; the distribution is a script plus a `lib/` directory, and an earlier
+version of this code assumed otherwise.
+
+`npm run abdm:fidelius-check` then played both sides of an exchange locally, contacting nothing:
+
+- a **23,253-character** FHIR bundle encrypted to 31,188 characters and decrypted **byte for byte**
+- the checksum a HIU would verify, matching
+- `x509PublicKey` returned by `gkm` and carried in `keyMaterial`, per ADR-107
+- the parameter file — holding the plaintext and our private key — removed afterwards
+
+**Consequence.** Three things are proven that could not be proven by reading:
+
+1. **The argument order is right against the real jar.** ADR-104 verified it against NHA's worked
+   example; this verifies it against the software. Inverting the sender/requester pairing produces
+   ciphertext no HIU can read, and that pairing had never run.
+2. **`--filepath` works for a payload no command line could carry.** 23,253 characters is well past
+   the 8192-character limit NHA documents the flag for. Had this stayed as command arguments it
+   would have failed on the first real patient, having passed every test fixture (ADR-107).
+3. **The cleanup holds under load**, not only in the unit test that forces a failure.
+
+**What it does not prove**, and the report says so itself: that ABDM can reach us — which needs the
+HIP service registered — and that a real HIU accepts our key material. The encryption layer is no
+longer the unknown; connectivity is.
+
+**A note on where configuration lives.** The value was first exported in a login shell, where PM2
+never sees it, and `pm2 env 0` does not list it even when correct because the app loads `.env`
+through dotenv at boot. Neither is a bug; both cost a round trip. The check script reads the same
+config the API does, which is why it is the honest verification and a shell `echo` is not.

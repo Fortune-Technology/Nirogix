@@ -115,7 +115,7 @@ export const EVIDENCE: Record<string, Evidence> = {
   HIP_INIT_SHARE_CARECONTEXT: {
     status: 'unverified',
     where: 'dataTransfer.service.ts + POST /api/v3/hip/health-information/request',
-    note: 'Consent re-checked at send time; encrypted through Fidelius. Fidelius itself has never executed.',
+    note: 'Consent re-checked at send time. Encryption is now PROVEN on staging (ADR-108, abdm:fidelius-check — 23k-character bundle round-tripped against Fidelius 1.2.0). What remains unverified is the transfer itself: no real HIU has received one.',
   },
 
   // ── M3 · HIU ──────────────────────────────────────────────────────────────
