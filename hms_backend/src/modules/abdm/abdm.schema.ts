@@ -81,13 +81,51 @@ export const SelectAccountBody = z.object({
   abhaNumber: z.string().min(10).max(20),
 });
 
+/**
+ * The ABHA address policy, quoted from NHA's M1 workbook (`CRT_ABHA_112`).
+ *
+ * The workbook states the requirement twice over: the rules are *"to be set at the API level"* —
+ * which is here, and is the only place that decides — and they must also be *"print[ed] beside the
+ * field where ABHA Address is entered"*, which is the form's job.
+ *
+ * The form therefore carries its own copy of this sentence, because the backend and the Portal
+ * share no contract package today (`hms_backend` depends only on `@hms/permissions`). That
+ * duplication is a known cost: **this file is the authority** and the form is UX, per invariant #2.
+ * If the policy changes, `AbhaVerificationPanel.tsx` changes with it or it will describe a rule it
+ * does not enforce.
+ */
+export const ABHA_ADDRESS_POLICY =
+  'Between 8 and 18 characters. Letters and numbers, with at most one dot and one underscore, and neither at the start nor the end.';
+
+/**
+ * A suggestion may arrive already qualified (`someone@sbx`) while a typed one usually is not, and
+ * NHA's rules describe the part before the `@`. Validating the whole string would reject the
+ * registry's own suggestions, so the policy is applied to the local part.
+ */
+export function abhaAddressLocalPart(value: string): string {
+  const at = value.indexOf('@');
+  return at === -1 ? value : value.slice(0, at);
+}
+
+export const AbhaAddressValue = z
+  .string()
+  .trim()
+  .superRefine((value, ctx) => {
+    const local = abhaAddressLocalPart(value);
+    const fail = (message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+
+    if (local.length < 8) return fail('An ABHA address is at least 8 characters.');
+    if (local.length > 18) return fail('An ABHA address is at most 18 characters.');
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$/.test(local)) {
+      return fail('An ABHA address uses letters, numbers, dot and underscore, and must start and end with a letter or number.');
+    }
+    if ((local.match(/\./g) ?? []).length > 1) return fail('An ABHA address may contain at most one dot.');
+    if ((local.match(/_/g) ?? []).length > 1) return fail('An ABHA address may contain at most one underscore.');
+  });
+
 export const CreateAbhaAddressBody = z.object({
   transactionId: z.string().uuid(),
-  abhaAddress: z
-    .string()
-    .min(4)
-    .max(80)
-    .regex(/^[a-zA-Z0-9._@-]+$/, 'An ABHA address may contain letters, numbers, dot, underscore and hyphen'),
+  abhaAddress: AbhaAddressValue,
 });
 
 /**
@@ -585,6 +623,31 @@ export const FacilityVerificationBody = z.object({
   status: z.enum(['under_review', 'verified', 'rejected']),
   facilityId: z.string().max(64).optional(),
   message: z.string().max(500).optional(),
+});
+
+/**
+ * Searching HFR before registering (mirrors their `SearchFacilityRequestDTO`).
+ *
+ * Every field is optional *here* because the requirement is conditional and Zod is the wrong place
+ * to express it: HFR takes either a Facility ID alone, or ownership + state + facility name
+ * together. `searchFacilities` enforces that pair of shapes and names what is missing, which is
+ * what lets the form mark the right fields.
+ *
+ * `page` and `resultsPerPage` are coerced because they arrive from a query string, and
+ * `resultsPerPage` floors at 10 — HFR's own minimum, below which the request is rejected rather
+ * than answered with a smaller page.
+ */
+export const FacilitySearchQuery = z.object({
+  facilityName: z.string().min(2).max(200).optional(),
+  // "12-character Facility Id allotted to each facility at the time of submission."
+  facilityId: z.string().max(64).optional(),
+  ownershipCode: z.string().max(16).optional(),
+  stateLGDCode: z.string().max(16).optional(),
+  districtLGDCode: z.string().max(16).optional(),
+  subDistrictLGDCode: z.string().max(16).optional(),
+  pincode: z.string().regex(/^\d{6}$/, 'PIN code must be 6 digits').optional(),
+  page: z.coerce.number().int().min(1).max(500).optional(),
+  resultsPerPage: z.coerce.number().int().min(10).max(50).optional(),
 });
 
 /**

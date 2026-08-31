@@ -7,6 +7,7 @@ import { upsertFacilityConfig } from '../abdm.service';
 import * as svc from '../abdm.service';
 import * as consent from '../consent.service';
 import { findPatientByAbha } from '../hiuConsent.service';
+import { CreateAbhaAddressBody } from '../abdm.schema';
 
 /**
  * The gaps the official ABDM test-case audit found (ADR-100).
@@ -255,5 +256,58 @@ describe('HIU_FLOW_101 — find a patient by ABHA, and say whether it is usable'
     const result = await findPatientByAbha(other.tenantId, 'lookup.ready@sbx');
     expect(result.outcome).toBe('not_found');
     await cleanupTenant(`${CODE}X`);
+  });
+});
+
+/**
+ * CRT_ABHA_112 — the ABHA address policy, enforced where the case says to enforce it.
+ *
+ * The workbook is unusually specific: 8–18 characters, at most one dot and one underscore, neither
+ * at the start nor the end, alphanumeric otherwise, and the rules *"to be set at the API level"*.
+ * Until this existed the API accepted 4 to 80 characters of anything including `@` and `-`, so a
+ * rejected address came back from ABDM as a failure the receptionist could not act on.
+ *
+ * Pure validation — no database, no gateway — so these run everywhere.
+ */
+describe('CRT_ABHA_112 — the ABHA address policy is enforced at the API', () => {
+  const ok = (v: string) => CreateAbhaAddressBody.safeParse({ transactionId: TXN, abhaAddress: v }).success;
+  const TXN = '00000000-0000-4000-8000-000000000000';
+
+  test('accepts an address that follows the policy', () => {
+    expect(ok('kishore123')).toBe(true);
+    expect(ok('kishore.k12')).toBe(true);
+    expect(ok('kishore_k12')).toBe(true);
+    expect(ok('kishore.k_12')).toBe(true); // one dot AND one underscore is allowed
+  });
+
+  test('accepts ABDM’s own suggestion when it arrives already qualified', () => {
+    // The registry returns some suggestions as `local@sbx`; validating the whole string would
+    // reject the registry's own answer, which is the worst possible false positive here.
+    expect(ok('kishore123@sbx')).toBe(true);
+  });
+
+  test('enforces the length bounds', () => {
+    expect(ok('short12')).toBe(false); // 7
+    expect(ok('a2345678')).toBe(true); // 8, the floor
+    expect(ok('a23456789012345678')).toBe(true); // 18, the ceiling
+    expect(ok('a234567890123456789')).toBe(false); // 19
+  });
+
+  test('allows at most one dot and one underscore', () => {
+    expect(ok('kis.ho.re12')).toBe(false);
+    expect(ok('kis_ho_re12')).toBe(false);
+  });
+
+  test('refuses a separator at the start or the end', () => {
+    expect(ok('.kishore12')).toBe(false);
+    expect(ok('kishore12.')).toBe(false);
+    expect(ok('_kishore12')).toBe(false);
+    expect(ok('kishore12_')).toBe(false);
+  });
+
+  test('refuses characters the policy does not list', () => {
+    // Both were accepted by the previous rule, and neither is in NHA's list.
+    expect(ok('kishore-k12')).toBe(false);
+    expect(ok('kishore k12')).toBe(false);
   });
 });

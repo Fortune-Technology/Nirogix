@@ -268,3 +268,34 @@ the CSP `connect-src`) and `HMS_API_URL` (used server-side by `lib/branding.ts`)
 
 **Testing status:** no runtime change — env keys and their values are unchanged for local
 development. Repo-wide rule and the `README.md` environment table updated in the same change.
+
+---
+
+## 2026-08-31 — The registered entity is visible on the site (DLT prerequisite)
+
+**What:** the legal entity and its contact details now render on the page, not only inside JSON-LD.
+The footer carries an `<address>` naming `Takoriya Technology LLP` with its address, phone and email,
+and `/contact` gained a **Registered office** block with the same facts. Until now `COMPANY` was
+consumed only by `localBusinessJsonLd()` — invisible markup — and `/contact` showed a form and nothing else.
+
+This is a prerequisite for **DLT (TRAI) SMS sender-ID approval**: STPL rejected the `NIROGX` header
+with “the domain website is not working properly and entity name is not mention in the website”.
+The other half of that rejection is that nothing is deployed on the apex — `BACKLOG.md` I-7.
+
+**Changed:**
+- `lib/seo.ts` — `COMPANY` is typed (`CompanyDetails`) instead of `as const`, so a blank value stays a
+  `string` and every render site can gate on it. Added `companyAddressLines()` (drops whatever is not
+  confirmed, so the address is truthful at every stage of being filled in) and `telHref()`.
+- `components/site/SiteFooter.tsx` — entity `<address>` above the copyright strip; phone and email
+  render only when set.
+- `app/contact/page.tsx` — a **Registered office** block in the info column, same gating.
+
+**Still blank on purpose:** `streetAddress`, `postalCode`, `telephone`, `email`. They are facts about a
+real company and must match the incorporation / GST records character-for-character, so they are not
+guessed — `BACKLOG.md` U-1. With them empty the footer reads “Takoriya Technology LLP, Ahmedabad,
+Gujarat, India” and `/contact` shows the same, which is true today; filling the four constants is the
+only change needed to complete it.
+
+**Testing status:** `tsc --noEmit` clean; browser-verified on the dev server — `/contact` renders the
+Registered office block and the footer renders the entity line, with no console errors. Manual case
+**MKT-18** added to `testcases.md`. No token or colour literal was introduced.

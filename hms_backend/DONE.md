@@ -1814,3 +1814,29 @@ One workbook error worth recording: HFR-023 and HFR-024 swap their descriptions,
 10 digit mobile number" under Landline and "a valid landline number ranging between 6-8 digits"
 under Mobile. Implemented the way the fields mean rather than the way they are written, because
 validating a mobile as a landline would reject every real number typed into it.
+
+## ABDM Milestone 4 — facility search and amendment (ADR-103), 30/08/2026
+
+Two additions to `hfr.service.ts`, both in service of the same failure: one building holding two
+Facility IDs, which breaks record linking for real patients because that id is the `hipId` M1–M3
+identify us by.
+
+`searchFacilities` reads HFR's `SearchFacilityRequestDTO` from the committed V4 spec rather than
+inference. Its one opinion is that **a search with no filter is refused** — every field is optional
+to HFR, which is a trap rather than a convenience, and `page`/`resultsPerPage` explicitly do not
+count. Registry strings arrive padded, empty or absent and all three are normalised to null; a hit
+with no `facilityId` is dropped, because a result nobody can act on is not a result.
+
+`updateRegistration` is the door beside `saveDraft`'s refusal. It runs only from `verified`, quotes
+the stored `trackingId`, never touches the issued Facility ID and leaves the status alone. It refuses
+a registration that was never made, one still with its verifier, and — the one that matters — a
+verified facility with no tracking id, which is anything registered by hand on ABDM's portal. That
+last refusal is the difference between "update on the portal instead" and silently minting a second
+national identity for a building that already has one.
+
+7 new tests, every one a refusal, because the failures worth preventing here are the silent ones.
+Both routes are in OpenAPI; `npm run openapi:validate` passes. Backend suite: 583 passing.
+
+**Never executed.** HFR's published V4 contract has no update endpoint at all, so amending through
+the wizard is read off its statefulness. Run it once against a real verified facility before relying
+on it.

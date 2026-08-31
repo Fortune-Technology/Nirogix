@@ -17,6 +17,7 @@ import {
   HprOtpBody,
   HprStartBody,
   FacilityRegistryDraftBody,
+  FacilitySearchQuery,
   FacilitySubmitBody,
   FacilityVerificationBody,
   RequestHistoryBody,
@@ -563,6 +564,68 @@ registry.registerPath({
     404: { description: 'No registration', ...json(ErrorResponseSchema) },
     409: { description: 'Not a legal transition', ...json(ErrorResponseSchema) },
     422: unprocessable,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/abdm/registry/facility/update',
+  operationId: 'abdmUpdateFacilityRegistration',
+  tags: [TAG],
+  summary: "Amend a facility HFR has already verified",
+  description:
+    "A registered hospital still changes — beds, contacts, a rename. Saving refuses once a registration is verified, so that nobody re-registers a building that already holds a Facility ID and gives it a **second** national identity; this is the deliberate act that refusal leaves room for. Re-runs the same four wizard calls quoting the tracking id HFR already knows, never touches the issued Facility ID, and leaves the status `verified` — the facility *is* registered; what is in flight is a change to its details.\n\n**Unverified against the live registry.** HFR's published V4 contract has no dedicated update endpoint, so amending through the wizard is inferred from its statefulness rather than documented. Run it once against a real verified facility before relying on it.",
+  security: [{ bearerAuth: [] }],
+  request: { body: json(FacilityRegistryDraftBody) },
+  responses: {
+    202: { description: 'Amendment sent to HFR', ...json(FacilityRegistrationSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not registered with HFR yet', ...json(ErrorResponseSchema) },
+    409: { description: 'Not verified — edit the registration and submit it again instead', ...json(ErrorResponseSchema) },
+    422: { description: 'No HFR tracking id, so it cannot be amended through the API', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/registry/facility/search',
+  operationId: 'abdmSearchFacilityRegistry',
+  tags: [TAG],
+  summary: 'Search HFR for a facility that may already be listed',
+  description:
+    'Asked **before** registering, because a hospital that registers a building HFR already holds ends up with two national identities for one facility — and since the Facility ID is the `hipId` M1–M3 identify us by, the wrong half of that pair silently breaks linking and discovery for real patients. Read-only: adopting a facility found here is a separate, deliberate act.\n\nHFR accepts exactly **two shapes of search**: a Facility ID on its own, or `ownershipCode` + `stateLGDCode` + `facilityName` **all three together** (NHA: *"you must pass in all the required parameters"*). Anything less is refused with `SEARCH_FILTERS_REQUIRED`, whose `details.missing` names the fields. A Facility ID search ignores every other filter, so only the id is sent. Name matching is fuzzy; everything else is exact. `resultsPerPage` floors at HFR\'s own minimum of 10.',
+  security: [{ bearerAuth: [] }],
+  request: { query: FacilitySearchQuery },
+  responses: {
+    200: {
+      description: 'Matches, possibly none',
+      ...json(
+        z.object({
+          facilities: z.array(
+            z.object({
+              facilityId: z.string(),
+              facilityName: z.string(),
+              facilityStatus: z.string().nullable(),
+              ownership: z.string().nullable(),
+              facilityType: z.string().nullable(),
+              systemOfMedicine: z.string().nullable(),
+              address: z.string().nullable(),
+              stateName: z.string().nullable(),
+              districtName: z.string().nullable(),
+              subDistrictName: z.string().nullable(),
+              pincode: z.string().nullable(),
+            }),
+          ),
+          total: z.number().int(),
+          pages: z.number().int(),
+          page: z.number().int(),
+        }),
+      ),
+    },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'No filter given, or a filter failed validation', ...json(ErrorResponseSchema) },
   },
 });
 

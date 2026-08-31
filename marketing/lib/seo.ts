@@ -22,14 +22,32 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:30
 export const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === "staging";
 
 /**
- * Company facts used by Organization / LocalBusiness structured data and the
- * contact page.
+ * Company facts used by Organization / LocalBusiness structured data, the site
+ * footer, and the contact page.
  *
- * ⚠ `streetAddress`, `postalCode`, `telephone`, and `email` are intentionally
- * empty until confirmed. LocalBusiness markup is only emitted once a real postal
- * address AND phone number are filled in — schema.org data must be true.
+ * WARNING: `streetAddress`, `postalCode`, `telephone`, and `email` are intentionally
+ * empty until confirmed. Every surface that renders them is gated on a non-empty
+ * value, and LocalBusiness markup is only emitted once a real postal address AND
+ * phone number are filled in - schema.org data must be true.
+ *
+ * These are not cosmetic. DLT (TRAI) sender-ID verification opens the public site
+ * and looks for the registered entity name and its contact details; a header is
+ * rejected when it cannot find them. Whatever is filled in here must match the
+ * incorporation / GST records character-for-character.
  */
-export const COMPANY = {
+export interface CompanyDetails {
+  legalName: string;
+  city: string;
+  region: string;
+  country: string;
+  countryCode: string;
+  streetAddress: string;
+  postalCode: string;
+  telephone: string;
+  email: string;
+}
+
+export const COMPANY: CompanyDetails = {
   legalName: SITE.legalName,
   city: "Ahmedabad",
   region: "Gujarat",
@@ -39,7 +57,21 @@ export const COMPANY = {
   postalCode: "",
   telephone: "",
   email: "",
-} as const;
+};
+
+/**
+ * The registered office as display lines, skipping whatever is not confirmed yet,
+ * so the address renders truthfully at every stage of being filled in.
+ */
+export function companyAddressLines(): string[] {
+  const locality = [COMPANY.city, COMPANY.region, COMPANY.postalCode].filter(Boolean).join(", ");
+  return [COMPANY.streetAddress, locality, COMPANY.country].filter(Boolean);
+}
+
+/** `tel:` href for `COMPANY.telephone`, which is written for humans. */
+export function telHref(telephone: string): string {
+  return `tel:${telephone.replace(/[^+0-9]/g, "")}`;
+}
 
 export function canonicalUrl(path: string): string {
   return path === "/" ? SITE_URL : `${SITE_URL}${path}`;

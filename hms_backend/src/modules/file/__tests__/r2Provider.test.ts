@@ -9,8 +9,13 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const { presignedGetObject } = vi.hoisted(() => ({ presignedGetObject: vi.fn().mockResolvedValue('https://signed.example/obj') }));
 
+// A real class, not `vi.fn().mockImplementation(...)`: r2Provider.ts does `new MinioClient(...)`,
+// and from Vitest 4 a mock function whose implementation is an arrow function has no [[Construct]],
+// so `new` on it throws "is not a constructor". The spy that assertions read stays on the method.
 vi.mock('minio', () => ({
-  Client: vi.fn().mockImplementation(() => ({ presignedGetObject })),
+  Client: class {
+    presignedGetObject = presignedGetObject;
+  },
 }));
 
 vi.mock('../../../config/env', () => ({

@@ -167,6 +167,110 @@ export async function submitRegistration(
 }
 
 /**
+ * Amending a facility that HFR has already verified.
+ *
+ * A registered hospital still changes: it adds beds, moves a department, renames itself, corrects a
+ * contact. `saveDraft` refuses once a registration is verified precisely so that this cannot happen
+ * by accident — re-registering would mint a **second** national identity for one building, and
+ * since the Facility ID is the `hipId` M1–M3 identify us by, the wrong half of that pair breaks
+ * linking and discovery for real patients.
+ *
+ * So an update is a different act from a registration, and this is the only path to it:
+ *
+ * - **It quotes the tracking id we already hold.** HFR's wizard is stateful on their side; the
+ *   tracking id is what makes these calls an amendment to an existing record rather than a new one.
+ *   A verified registration with no tracking id cannot be amended through the API at all, and says
+ *   so rather than starting a fresh registration behind the administrator's back.
+ * - **The Facility ID is never touched.** It is the registry's to issue and ours to quote.
+ * - **The status stays `verified`.** The facility *is* registered; what is in flight is a change to
+ *   its details. Showing "awaiting verification" would tell an administrator their hospital had
+ *   fallen out of the registry, which is not what happened.
+ *
+ * **Unverified against the live registry.** HFR's published V4 contract has no dedicated update
+ * endpoint — the four wizard calls are all it offers — so amending by re-running them against a
+ * stored tracking id is inferred from that statefulness, not documented. Run it once against a real
+ * verified facility before relying on it (`BACKLOG.md` → ABDM Milestone 4).
+ */
+export async function updateRegistration(
+  tenantId: string,
+  actorUserId: string | null,
+  draft: FacilityDraft,
+): Promise<AbdmFacilityRegistry> {
+  const row = await findRegistration(tenantId, draft.branchId ?? null);
+  if (!row) {
+    throw new AppError(404, 'ABDM_FACILITY_NOT_REGISTERED', 'This facility is not registered with HFR yet');
+  }
+  if (row.status !== 'verified') {
+    throw new AppError(
+      409,
+      'ABDM_FACILITY_NOT_VERIFIED',
+      'Only a verified facility is updated. Edit the registration and submit it again instead.',
+    );
+  }
+  if (!row.trackingId) {
+    throw new AppError(
+      422,
+      'ABDM_FACILITY_NO_TRACKING_ID',
+      'This registration has no HFR tracking id, so its details cannot be amended through the API. Update it on the ABDM portal.',
+    );
+  }
+
+  const trackingId = row.trackingId;
+
+  // The same four calls, in the same order, as a first registration — quoting the tracking id HFR
+  // already knows. Deliberately not a second implementation: two descriptions of a forty-field
+  // payload is how one of them goes quietly stale.
+  await registryPost(HFR_PATHS.basicInformation, {
+    trackingId,
+    facilityInformation: {
+      facilityName: draft.facilityName,
+      facilityAddressDetails: { country: 'India', ...draft.address },
+      facilityContactInformation: draft.contact,
+      ownershipCode: draft.ownershipCode,
+      ownershipSubTypeCode: draft.ownershipSubTypeCode,
+      facilityTypeCode: draft.facilityTypeCode,
+      facilitySubType: draft.facilitySubType,
+      systemOfMedicineCode: draft.systemOfMedicineCode,
+      specialityTypeCode: draft.specialityTypeCode,
+      typeOfServiceCode: draft.typeOfServiceCode,
+      facilityOperationalStatus: draft.facilityOperationalStatus ?? 'Functional',
+      ...(draft.timings ? { timingsOfFacility: draft.timings } : {}),
+    },
+  });
+  await registryPost(HFR_PATHS.additionalInformation, { trackingId, generalInformation: {} });
+  await registryPost(HFR_PATHS.detailedInformation, { trackingId });
+  const sent = await registryPost<{ status?: string; message?: string }>(HFR_PATHS.submitFacility, {
+    trackingId,
+    sourceOfInformation: 'Nirogix HMS',
+  });
+
+  const updated = await patch(tenantId, row.id, {
+    // Everything the form can change, so the stored copy matches what HFR was just told.
+    facilityName: draft.facilityName,
+    ownershipCode: draft.ownershipCode ?? null,
+    facilityTypeCode: draft.facilityTypeCode ?? null,
+    systemOfMedicineCode: draft.systemOfMedicineCode ?? null,
+    stateLgdCode: draft.address.stateLGDCode ?? null,
+    districtLgdCode: draft.address.districtLGDCode ?? null,
+    pincode: draft.address.pincode ?? null,
+    payload: draft as never,
+    statusMessage: sent.message ?? null,
+  });
+
+  await writeAudit({
+    tenantId,
+    actorUserId,
+    action: 'abdm.hfr.updated',
+    resourceType: 'abdm_facility_registry',
+    resourceId: row.id,
+    severity: 'notice',
+    metadata: { trackingId, facilityId: row.facilityId, branchId: draft.branchId ?? null, facilityName: draft.facilityName },
+  });
+  logger.info({ tenantId, trackingId, facilityId: row.facilityId }, 'HFR facility details updated');
+  return updated;
+}
+
+/**
  * Records a verifier's decision.
  *
  * Approval is the one place M4 reaches back into M1–M3: the issued Facility ID **is** the `hipId`
@@ -316,6 +420,151 @@ export async function facilityMasterData(kind: FacilityMasterKind, query?: Recor
     body[f] = v;
   }
   return registryMasterData(path, undefined, body);
+}
+
+/** One facility as the registry describes it, trimmed to what a person deciding needs to see. */
+export interface FacilitySearchHit {
+  facilityId: string;
+  facilityName: string;
+  facilityStatus: string | null;
+  ownership: string | null;
+  facilityType: string | null;
+  systemOfMedicine: string | null;
+  address: string | null;
+  stateName: string | null;
+  districtName: string | null;
+  subDistrictName: string | null;
+  pincode: string | null;
+}
+
+export interface FacilitySearchResult {
+  facilities: FacilitySearchHit[];
+  total: number;
+  pages: number;
+  page: number;
+}
+
+/** What a caller may search by, mirroring HFR's `SearchFacilityRequestDTO` exactly. */
+export type FacilitySearchQuery = {
+  facilityName?: string;
+  facilityId?: string;
+  ownershipCode?: string;
+  stateLGDCode?: string;
+  districtLGDCode?: string;
+  subDistrictLGDCode?: string;
+  pincode?: string;
+  page?: number;
+  resultsPerPage?: number;
+};
+
+/**
+ * The three HFR requires together when there is no Facility ID, read from NHA's own documentation:
+ * *"If search is performed without facility id, then you must pass in all the required
+ * parameters(OwnershipCode, StateLGDCode,FacilityName) for a successful search."*
+ *
+ * Not "at least one of" — all three. This was inferred wrongly first time, and inference is exactly
+ * what ADR-101 and ADR-102 were both written about.
+ */
+const SEARCH_REQUIRED = ['ownershipCode', 'stateLGDCode', 'facilityName'] as const;
+
+/** Everything else HFR accepts as a narrowing filter. */
+const SEARCH_OPTIONAL = ['districtLGDCode', 'subDistrictLGDCode', 'pincode'] as const;
+
+/** HFR's own floor — `resultsPerPage` below 10 is not a smaller page, it is a rejected request. */
+const MIN_RESULTS_PER_PAGE = 10;
+
+/**
+ * Searching HFR for a facility that may already be listed.
+ *
+ * The reason this exists is duplication, not curiosity. A hospital that registers a building HFR
+ * already holds ends up with **two national identities for one facility** — and because the
+ * Facility ID is the `hipId` that M1–M3 identify us by, the wrong half of that pair silently breaks
+ * linking and discovery for real patients. Weeks later, and with no obvious cause. So the search is
+ * offered *before* registration, and the registration form links to it.
+ *
+ * Three properties are load-bearing, and all three are HFR's rules rather than ours:
+ *
+ * - **There are exactly two legal shapes of search.** A Facility ID on its own, or *all three* of
+ *   ownership, state and facility name together. NHA's documentation is explicit — "you must pass
+ *   in all the required parameters(OwnershipCode, StateLGDCode,FacilityName)" — and anything less
+ *   is rejected by the registry, not answered with fewer results.
+ * - **A Facility ID search ignores everything else**, so only the id is sent. Passing filters
+ *   alongside it would suggest a narrowing that does not happen.
+ * - **Nothing here writes.** Search reads the registry and returns what it says. Adopting a found
+ *   facility is a separate, deliberate act by an administrator, because claiming somebody else's
+ *   Facility ID is exactly the failure this screen exists to prevent.
+ */
+export async function searchFacilities(input: FacilitySearchQuery): Promise<FacilitySearchResult> {
+  const page = Math.max(1, input.page ?? 1);
+  const resultsPerPage = Math.min(50, Math.max(MIN_RESULTS_PER_PAGE, input.resultsPerPage ?? MIN_RESULTS_PER_PAGE));
+
+  const body: Record<string, string | number> = { page, resultsPerPage };
+  const facilityId = input.facilityId?.trim();
+
+  if (facilityId) {
+    // "If you search with facility Id, then other search parameters will not be considered."
+    body.facilityId = facilityId;
+  } else {
+    const missing = SEARCH_REQUIRED.filter((key) => !input[key]?.trim());
+    if (missing.length > 0) {
+      throw new AppError(
+        422,
+        'SEARCH_FILTERS_REQUIRED',
+        'HFR needs ownership, state and facility name together — or a Facility ID on its own.',
+        // Named so the form can mark the fields rather than making somebody guess which is missing.
+        { missing },
+      );
+    }
+    for (const key of [...SEARCH_REQUIRED, ...SEARCH_OPTIONAL]) {
+      const value = input[key]?.trim();
+      if (value) body[key] = value;
+    }
+  }
+
+  const raw = await registryPost<{
+    facilities?: unknown[];
+    totalFacilities?: number;
+    numberOfPages?: number;
+    message?: string;
+  }>(HFR_PATHS.searchFacility, body);
+
+  // HFR answers a no-match with 200 and an empty list, and occasionally with a `message` instead of
+  // a `facilities` key at all. Both mean "nothing found" — neither is an error to raise at a person.
+  const facilities = (Array.isArray(raw?.facilities) ? raw.facilities : [])
+    .map((item): FacilitySearchHit | null => {
+      if (!item || typeof item !== 'object') return null;
+      const o = item as Record<string, unknown>;
+      const id = str(o.facilityId);
+      if (!id) return null; // A hit we cannot identify is not a hit anyone can act on.
+      return {
+        facilityId: id,
+        facilityName: str(o.facilityName) ?? id,
+        facilityStatus: str(o.facilityStatus),
+        ownership: str(o.ownership),
+        facilityType: str(o.facilityType),
+        systemOfMedicine: str(o.systemOfMedicine),
+        address: str(o.address),
+        stateName: str(o.stateName),
+        districtName: str(o.districtName),
+        subDistrictName: str(o.subDistrictName),
+        pincode: str(o.pincode),
+      };
+    })
+    .filter((f): f is FacilitySearchHit => f !== null);
+
+  return {
+    facilities,
+    total: typeof raw?.totalFacilities === 'number' ? raw.totalFacilities : facilities.length,
+    pages: typeof raw?.numberOfPages === 'number' ? raw.numberOfPages : 1,
+    page,
+  };
+}
+
+/** Registry strings arrive padded, empty, or absent; all three mean "not stated". */
+function str(value: unknown): string | null {
+  if (typeof value !== 'string') return value == null ? null : String(value);
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }
 
 function assertTransition(from: string, to: string): void {

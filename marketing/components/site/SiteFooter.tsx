@@ -3,6 +3,7 @@ import { BrandMark } from "@hms/ui";
 import { Container } from "../ui/primitives";
 import { SITE } from "../../lib/site";
 import { PORTAL_LOGIN_URL } from "../../lib/portal";
+import { COMPANY, companyAddressLines, telHref } from "../../lib/seo";
 
 const GROUPS: { title: string; links: { label: string; href: string }[] }[] = [
   {
@@ -42,6 +43,7 @@ const GROUPS: { title: string; links: { label: string; href: string }[] }[] = [
 
 export function SiteFooter() {
   const year = 2026; // build-time constant; avoids hydration drift from new Date()
+  const addressLines = companyAddressLines();
   return (
     <footer className="border-t border-hairline bg-canvas">
       <Container className="py-14 sm:py-16">
@@ -81,11 +83,36 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-hairline pt-6 text-sm text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <span>
-            © {year} {SITE.legalName}. All rights reserved.
-          </span>
-          <span>Built and hosted in India.</span>
+        <div className="mt-12 border-t border-hairline pt-6 text-sm text-ink-faint">
+          {/* The registered entity, on every page. DLT (TRAI) sender-ID verification
+              opens the public site and looks for it; see lib/seo.ts. */}
+          <address className="not-italic leading-relaxed">
+            <span className="font-medium text-ink-subtle">{COMPANY.legalName}</span>
+            {`, ${addressLines.join(", ")}`}
+            {COMPANY.telephone ? (
+              <>
+                {" · "}
+                <a href={telHref(COMPANY.telephone)} className="transition-colors hover:text-ink">
+                  {COMPANY.telephone}
+                </a>
+              </>
+            ) : null}
+            {COMPANY.email ? (
+              <>
+                {" · "}
+                <a href={`mailto:${COMPANY.email}`} className="transition-colors hover:text-ink">
+                  {COMPANY.email}
+                </a>
+              </>
+            ) : null}
+          </address>
+
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              © {year} {SITE.legalName}. All rights reserved.
+            </span>
+            <span>Built and hosted in India.</span>
+          </div>
         </div>
       </Container>
     </footer>
