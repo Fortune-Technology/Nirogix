@@ -16,6 +16,7 @@
     "openapi:validate": "tsx src/scripts/openapi-validate.ts",
     "abdm:audit": "tsx src/scripts/abdm-audit.ts",
     "abdm:evidence": "tsx src/scripts/abdm-evidence.ts",
+    "abdm:fidelius-check": "tsx src/scripts/abdm-fidelius-check.ts",
     "abdm:check": "tsx src/scripts/abdm-check.ts",
     "abdm:bridge": "tsx src/scripts/abdm-bridge.ts",
     "abdm:m2check": "tsx src/scripts/abdm-m2check.ts",
