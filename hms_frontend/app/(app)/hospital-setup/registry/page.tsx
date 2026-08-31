@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { Alert, Badge, Button, Card, DateDisplay, EmptyState, Spinner, toast } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import { Building2, Download, IdCard, Upload } from "lucide-react";
+import { Building2, Download, IdCard, Search, Upload } from "lucide-react";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { useCan } from "../../../../lib/auth";
@@ -138,13 +138,24 @@ function Registry() {
               <Building2 className="size-4 text-fg-muted" aria-hidden />
               Health Facility Registry
             </span>
-            {canManage && (
-              <Link href="/hospital-setup/registry/facility">
-                <Button variant="secondary">
-                  {facilities.length === 0 ? "Register this hospital" : "Open registration form"}
+            <span className="flex flex-wrap gap-2">
+              {/* Search is offered to anyone who can see this screen, and before registration in
+                  reading order: one building holding two Facility IDs is the failure that costs
+                  weeks, and it is only preventable beforehand. */}
+              <Link href="/hospital-setup/registry/facility/search">
+                <Button variant="ghost">
+                  <Search className="size-4" aria-hidden />
+                  Search HFR
                 </Button>
               </Link>
-            )}
+              {canManage && (
+                <Link href="/hospital-setup/registry/facility">
+                  <Button variant="secondary">
+                    {facilities.length === 0 ? "Register this hospital" : "Open registration form"}
+                  </Button>
+                </Link>
+              )}
+            </span>
           </div>
         }
       >
@@ -191,9 +202,16 @@ function Registry() {
               <IdCard className="size-4 text-fg-muted" aria-hidden />
               Healthcare Professional Registry
             </span>
-            <Badge tone="neutral">
-              {enrolments.filter((e) => e.hprId).length} of {enrolments.length} have an HPR ID
-            </Badge>
+            <span className="flex flex-wrap items-center gap-2">
+              <Badge tone="neutral">
+                {enrolments.filter((e) => e.hprId).length} of {enrolments.length} have an HPR ID
+              </Badge>
+              {canManage && (
+                <Link href="/hospital-setup/registry/professional">
+                  <Button variant="secondary">Enrol a clinician</Button>
+                </Link>
+              )}
+            </span>
           </div>
         }
       >

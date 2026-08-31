@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, toast } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch } from "@hms/types";
-import { ArrowLeft, Save, Send } from "lucide-react";
+import { ArrowLeft, Pencil, Save, Search, Send } from "lucide-react";
 import * as api from "../../../../../lib/api";
 import { RequirePermission } from "../../../../../components/Can";
 import { useCan } from "../../../../../lib/auth";
@@ -126,9 +126,26 @@ function FacilityRegistration() {
     [registrations, branchId],
   );
   const status = STATUS[current?.status ?? "draft"]!;
+  /**
+   * Amending a facility HFR has already verified.
+   *
+   * A verified registration is read-only by default and that is the safe default: it is the record
+   * a national registry holds about this building, and the Facility ID on it is the `hipId` the
+   * rest of ABDM knows us by. But a registered hospital still changes — beds, contacts, a rename —
+   * so the form has to be reachable. It is reachable through an explicit act rather than by being
+   * editable on arrival, because the difference between "correcting my draft" and "changing the
+   * national registry" should be something the administrator chose, not something they discovered.
+   */
+  const [amending, setAmending] = useState(false);
+  const isVerified = current?.status === "verified";
+
   // A registration under review is the registry's to change, not ours — editing it locally would
-  // show an administrator a form that no longer matches what a verifier is looking at.
-  const locked = current?.status === "submitted" || current?.status === "under_review" || current?.status === "verified";
+  // show an administrator a form that no longer matches what a verifier is looking at. A verified
+  // one unlocks only while amending.
+  const locked =
+    current?.status === "submitted" ||
+    current?.status === "under_review" ||
+    (isVerified && !amending);
   const readOnly = !canManage || locked;
 
   const load = useCallback(async () => {
@@ -254,6 +271,33 @@ function FacilityRegistration() {
     }
   }
 
+  /**
+   * Sends an amendment for a facility HFR has already verified.
+   *
+   * Validated like a submission, not like a draft: what goes to the registry has to be complete
+   * whether it is the first version or the fifth. Deliberately a different call from `submit()` —
+   * saving refuses a verified registration precisely so nobody re-registers a building that already
+   * holds a Facility ID and gives it a second national identity.
+   */
+  async function sendUpdate() {
+    const e = validateForSubmit();
+    setErrors(e);
+    if (Object.keys(e).length > 0) {
+      toast.error("Some required details are missing. They are marked below.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.updateAbdmFacilityRegistration(toBody());
+      await load();
+      setAmending(false);
+      // Not "Saved." — this went to a national registry, and the Facility ID is unchanged.
+      toast.success("Sent to HFR. The Facility ID stays the same; the details are updated.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const bedsWithVentilators =
     Number(draft.infrastructure.countICUBedsWithVentilators || 0) +
     Number(draft.infrastructure.countHDUBedsWithFunctionalVentilators || 0) +
@@ -267,11 +311,20 @@ function FacilityRegistration() {
         title="Health Facility Registry"
         description="List this hospital in ABDM's national facility registry. Fields marked * are required by HFR."
         actions={
-          <Link href="/hospital-setup/registry">
-            <Button variant="ghost">
-              <ArrowLeft className="size-4" aria-hidden /> Back to registries
-            </Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {/* Offered here, not only on the previous screen: the moment somebody doubts whether
+                this hospital is already listed is while they are filling the form in. */}
+            <Link href="/hospital-setup/registry/facility/search">
+              <Button variant="secondary">
+                <Search className="size-4" aria-hidden /> Search the registry
+              </Button>
+            </Link>
+            <Link href="/hospital-setup/registry">
+              <Button variant="ghost">
+                <ArrowLeft className="size-4" aria-hidden /> Back to registries
+              </Button>
+            </Link>
+          </div>
         }
       />
 
@@ -601,7 +654,47 @@ function FacilityRegistration() {
         </div>
       </Card>
 
-      {!readOnly ? (
+      {/* A verified facility, sitting still. The only action is the deliberate one. */}
+      {isVerified && !amending && canManage ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-fg-muted">
+              This facility is registered. Its details can be corrected &mdash; beds, contacts, a rename &mdash; and the
+              Facility ID stays the same.
+            </p>
+            <Button variant="secondary" onClick={() => setAmending(true)}>
+              <Pencil className="size-4" aria-hidden /> Update details
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {/* Amending. A different pair of buttons from registration, because it is a different act. */}
+      {isVerified && amending ? (
+        <Card>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAmending(false);
+                setErrors({});
+              }}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={sendUpdate} disabled={submitting}>
+              <Send className="size-4" aria-hidden /> {submitting ? "Sending…" : "Send update to HFR"}
+            </Button>
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">
+            This changes what the national registry holds about this hospital. The Facility ID is not affected, and the
+            registration does not go back into the verification queue.
+          </p>
+        </Card>
+      ) : null}
+
+      {!readOnly && !isVerified ? (
         <Card>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={save} disabled={saving || submitting}>

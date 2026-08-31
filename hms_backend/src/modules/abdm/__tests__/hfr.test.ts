@@ -167,3 +167,129 @@ describe('adopting the facility id', () => {
     await cleanupTenant(`${CODE}4`);
   });
 });
+
+/**
+ * Searching before registering (HFR-064…072).
+ *
+ * The whole point of this endpoint is preventing one building from holding two Facility IDs — and
+ * because the Facility ID is the `hipId` M1–M3 identify us by, the wrong half of that pair breaks
+ * linking and discovery for real patients, weeks later, with no obvious cause.
+ *
+ * Only the refusals are exercised. Actually searching means a live call to a government sandbox,
+ * and the half that is ours to get wrong is the shape of the request: HFR accepts a Facility ID
+ * alone, or ownership + state + name TOGETHER, and rejects everything else outright. That was
+ * inferred wrongly the first time this was written — "at least one filter" — and NHA's own
+ * documentation says otherwise. These tests pin their rule, not our reading of it.
+ */
+describe('searching the registry', () => {
+  const full = { ownershipCode: 'P', stateLGDCode: '27', facilityName: 'Nirogix' };
+
+  test('refuses an empty search rather than walking the whole registry', async ({ skip }) => {
+    if (!ready) return skip();
+    await expect(hfr.searchFacilities({})).rejects.toMatchObject({ code: 'SEARCH_FILTERS_REQUIRED' });
+  });
+
+  test('paging alone is not a search', async ({ skip }) => {
+    if (!ready) return skip();
+    await expect(hfr.searchFacilities({ page: 3, resultsPerPage: 50 })).rejects.toMatchObject({
+      code: 'SEARCH_FILTERS_REQUIRED',
+    });
+  });
+
+  test('two of the three required filters is still a refusal', async ({ skip }) => {
+    if (!ready) return skip();
+    // The bug this pins: "at least one filter" would have sent this and let HFR reject it, which
+    // reads to an administrator as "the registry is down".
+    await expect(
+      hfr.searchFacilities({ ownershipCode: 'P', stateLGDCode: '27' }),
+    ).rejects.toMatchObject({ code: 'SEARCH_FILTERS_REQUIRED' });
+  });
+
+  test('the refusal names which fields are missing', async ({ skip }) => {
+    if (!ready) return skip();
+    // So the form can mark them rather than making somebody guess.
+    await expect(hfr.searchFacilities({ facilityName: 'Nirogix' })).rejects.toMatchObject({
+      code: 'SEARCH_FILTERS_REQUIRED',
+      details: { missing: ['ownershipCode', 'stateLGDCode'] },
+    });
+  });
+
+  test('a blank value does not satisfy a required filter', async ({ skip }) => {
+    if (!ready) return skip();
+    await expect(hfr.searchFacilities({ ...full, facilityName: '   ' })).rejects.toMatchObject({
+      code: 'SEARCH_FILTERS_REQUIRED',
+      details: { missing: ['facilityName'] },
+    });
+  });
+
+  // "A Facility ID alone is a legal search" is deliberately NOT tested here. Proving it means
+  // getting past the guard, and past the guard is a live call to a government gateway — which this
+  // suite avoids on principle, and which a first draft of this file did on every run. The guard is
+  // ours and is pinned above; the call is NHA's and belongs in `abdm:check`, not in `npm test`.
+});
+
+/**
+ * Amending a facility HFR has already verified.
+ *
+ * `saveDraft` refuses a verified registration so that nobody re-registers a building that already
+ * holds a Facility ID and gives it a second national identity. This is the deliberate path that
+ * refusal leaves room for — so what matters is that it cannot be reached by accident from any of
+ * the states where re-registering would be the wrong thing.
+ *
+ * The successful path is not exercised: it makes four live calls to a government sandbox.
+ */
+describe('updating a verified facility', () => {
+  test('a hospital that was never registered cannot be updated', async ({ skip }) => {
+    if (!ready) return skip();
+    const fresh = await makeTenant(`${CODE}5`);
+    await grantModule(fresh.tenantId, 'abdm');
+    await expect(hfr.updateRegistration(fresh.tenantId, null, draft())).rejects.toMatchObject({
+      code: 'ABDM_FACILITY_NOT_REGISTERED',
+    });
+    await cleanupTenant(`${CODE}5`);
+  });
+
+  test('a draft is edited and submitted, never "updated"', async ({ skip }) => {
+    if (!ready) return skip();
+    const fresh = await makeTenant(`${CODE}6`);
+    await grantModule(fresh.tenantId, 'abdm');
+    await hfr.saveDraft(fresh.tenantId, null, draft());
+    // Sending an amendment for something the registry has never seen would be a registration
+    // wearing the wrong name.
+    await expect(hfr.updateRegistration(fresh.tenantId, null, draft())).rejects.toMatchObject({
+      code: 'ABDM_FACILITY_NOT_VERIFIED',
+    });
+    await cleanupTenant(`${CODE}6`);
+  });
+
+  test('a submission awaiting a verifier is not amendable either', async ({ skip }) => {
+    if (!ready) return skip();
+    const fresh = await makeTenant(`${CODE}7`);
+    await grantModule(fresh.tenantId, 'abdm');
+    await hfr.saveDraft(fresh.tenantId, null, draft());
+    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1", [fresh.tenantId]);
+    // Changing it underneath a verifier would mean they approve something nobody has read.
+    await expect(hfr.updateRegistration(fresh.tenantId, null, draft())).rejects.toMatchObject({
+      code: 'ABDM_FACILITY_NOT_VERIFIED',
+    });
+    await cleanupTenant(`${CODE}7`);
+  });
+
+  test('a verified facility with no tracking id says so instead of re-registering', async ({ skip }) => {
+    if (!ready) return skip();
+    const fresh = await makeTenant(`${CODE}8`);
+    await grantModule(fresh.tenantId, 'abdm');
+    await hfr.saveDraft(fresh.tenantId, null, draft());
+    // Registered on ABDM's portal by hand, so we hold the issued id but never held a tracking id.
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'verified', facility_id = 'IN0710-PORTAL', tracking_id = NULL WHERE tenant_id = $1",
+      [fresh.tenantId],
+    );
+    // The failure that matters is the silent one: starting a fresh registration here would mint a
+    // SECOND Facility ID for a building that already has one.
+    await expect(hfr.updateRegistration(fresh.tenantId, null, draft())).rejects.toMatchObject({
+      code: 'ABDM_FACILITY_NO_TRACKING_ID',
+    });
+    await cleanupTenant(`${CODE}8`);
+  });
+});

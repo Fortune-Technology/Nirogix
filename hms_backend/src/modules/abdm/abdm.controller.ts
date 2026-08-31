@@ -606,6 +606,29 @@ export async function submitFacilityRegistration(req: Request, res: Response): P
   res.status(202).json(submitted);
 }
 
+/**
+ * Amends a facility HFR has already verified.
+ *
+ * Separate from save-and-submit on purpose: `saveDraft` refuses a verified registration so that
+ * nobody re-registers a building that already holds a Facility ID, and this is the deliberate act
+ * that route leaves room for.
+ */
+export async function updateFacilityRegistration(req: Request, res: Response): Promise<void> {
+  const updated = await hfr.updateRegistration(req.auth!.tenantId, req.auth!.userId ?? null, req.body as hfr.FacilityDraft);
+  res.status(202).json(updated);
+}
+
+/**
+ * Searches HFR for a facility that may already be listed.
+ *
+ * Read-only, and permission-gated at the *view* level rather than manage: looking up whether a
+ * hospital is already registered is a question anyone who can see this screen may ask, and the
+ * answer changes nothing.
+ */
+export async function searchFacilityRegistry(req: Request, res: Response): Promise<void> {
+  res.json(await hfr.searchFacilities(req.query as hfr.FacilitySearchQuery));
+}
+
 /** Records the verifier's decision, and adopts the issued facility id as our hipId. */
 export async function recordFacilityVerification(req: Request, res: Response): Promise<void> {
   const body = req.body as { branchId?: string | null; status: 'under_review' | 'verified' | 'rejected'; facilityId?: string; message?: string };

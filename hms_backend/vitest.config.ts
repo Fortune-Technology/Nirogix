@@ -10,6 +10,14 @@ export default defineConfig({
     testTimeout: 20000,
     hookTimeout: 40000,
     // Integration tests hit a real PostgreSQL; run serially to avoid cross-test interference.
+    //
+    // `singleFork` is load-bearing, not belt-and-braces. From Vitest 4 the default pool is `forks`,
+    // where `fileParallelism: false` no longer guarantees one worker — files still overlap across
+    // forks. Two `onboardTenant` calls then interleave on the shared pg pool, `runWithTenant` sets
+    // the RLS tenant for one on the connection the other reads from, and onboarding dies with
+    // `Cannot activate "appointment": hard dependency "patient" is not entitled` — a different pair
+    // of test files each run. One fork, one file at a time, is what the line above always meant.
     fileParallelism: false,
+    poolOptions: { forks: { singleFork: true } },
   },
 });

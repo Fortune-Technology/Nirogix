@@ -1166,3 +1166,255 @@ system it integrates with has not been tested, however green its suite.
 
 ---
 *Append new ADRs below with the next number. Never edit an accepted ADR — supersede it.*
+
+## ADR-103 - The last three M4 screens: search before you register, amend after you are verified
+
+**Status.** Accepted (30/08/2026). Extends ADR-096 (HFR), ADR-097 (HPR), ADR-102 (the registration form).
+
+**Context.** The official test-case audit (ADR-100) put M4's missing screens at **177 of the 108
+failing mandatory cases** — the single largest block on the matrix, and the only large one with no
+external blocker. Registration shipped in ADR-102. The remaining three were HFR facility search (9
+cases), HFR facility update (54) and the HPR enrolment wizard (60).
+
+The APIs for two of them already existed and had been tested for weeks. What was missing was the
+part a person uses, which is also the part NHA's workbook actually examines.
+
+**Decision.**
+
+1. **Search is offered before registration, and it is read-only.** One building must hold one
+   Facility ID: that id is the `hipId` M1–M3 identify us by, so a hospital that registers a building
+   HFR already holds breaks record linking for real patients — weeks later, with no obvious cause.
+   The screen therefore sits *before* the forty-field form in reading order, and is linked from
+   inside that form too, because the moment somebody doubts whether their hospital is listed is
+   while they are filling it in. There is deliberately **no "use this facility" action**: a result
+   is somebody's registry entry, and claiming one is a decision a human makes with evidence, not a
+   button.
+
+2. **A search with no filter is refused.** Every field is optional in HFR's
+   `SearchFacilityRequestDTO`, which is a trap rather than a convenience: an empty body pages
+   through the national registry. `page` and `resultsPerPage` explicitly do not count as filters.
+
+3. **Update is a different act from registration, with its own route.** `saveDraft` has always
+   refused a verified registration, precisely so nobody re-registers a building that already holds a
+   Facility ID. That refusal needed a door beside it, not a hole in it — so `POST
+   /abdm/registry/facility/update` exists separately from the save route's `PUT`, and the form
+   unlocks only through an explicit "Update details" action. The Facility ID is never touched and
+   the status stays `verified`: the facility *is* registered; what is in flight is a change to its
+   details, and showing "awaiting verification" would tell an administrator their hospital had
+   fallen out of the registry.
+
+4. **The HPR wizard follows the registry's order and reads its position from stored status.** An
+   HPR ID is a national identity minted from a real person's Aadhaar, so: the dedup check runs
+   first and "they already have one" is reported as a **success**; the Aadhaar is typed, sent, and
+   held nowhere — not in the database, not in component state past the call; and an interrupted
+   enrolment resumes from the clinician's stored status rather than restarting with another OTP.
+
+**Consequence.** All four M4 screens exist. Backend gains `searchFacilities` and
+`updateRegistration`, both documented in OpenAPI, with 7 new tests — every one of them a *refusal*,
+because the failures worth preventing here are silent ones. 583 backend tests pass.
+
+**What this does not claim.** Building a screen and passing a case are different things, and only
+the first is done. The audit has not been re-run. More importantly, **`updateRegistration` is
+inferred rather than specified**: HFR's published V4 contract has no update endpoint at all, so
+amending re-runs the four wizard calls against the stored `trackingId`, which is read off the
+wizard's statefulness. The refusals are tested; the success path has never executed. A verified
+facility registered by hand on ABDM's portal has no tracking id and is refused outright rather than
+re-registered — the one failure mode that would be unrecoverable.
+
+That is the same lesson ADR-102 recorded from the other direction: a screen that has never been
+pointed at the system it integrates with has not been tested, however green its suite. Two of these
+three have still never been pointed at it.
+
+## ADR-104 - The HFR search contract, and an audit that cannot be re-run
+
+**Status.** Accepted (30/08/2026). Corrects ADR-103. Qualifies ADR-100.
+
+**Context.** Two findings from one attempt to re-run the ABDM certification audit.
+
+**1. The audit is unreproducible.** `BACKLOG.md` stated that extraction and matrix generation were
+scripted and that the report regenerated from `abdm_audit.json`. None of it is in this repository:
+no data file, no extraction script, no matrix generator, and nothing of the kind has ever been
+tracked in git. The 307 case identifiers survive only as prose and as the names of tests that defend
+individual cases. The 14 committed NHA PDFs are API documentation and contain no test-case ids at
+all.
+
+So "169 mandatory, 33 pass, 108 fail, 26 blocked — NOT READY FOR SIGN-OFF" is a historical claim
+that **cannot currently be checked or updated**, and it is the number the sign-off decision rests
+on. That is recorded rather than quietly worked around, because the failure mode is specific: work
+lands, the number is assumed to have improved, and nobody discovers otherwise until an assessor
+says so.
+
+**2. Reading the PDF found a bug in the search shipped hours earlier.** HFR's V4 OpenAPI marks every
+field of `SearchFacilityRequestDTO` optional, so ADR-103 required "at least one filter" and guarded
+against an empty search paging the national registry. NHA's own HFR API document says something
+different:
+
+> "If search is performed without facility id, then you must pass in all the required
+> parameters(OwnershipCode, StateLGDCode,FacilityName) for a successful search."
+
+All three together, or a Facility ID alone — which ignores every other parameter. `resultsPerPage`
+has a floor of 10. The name is fuzzy-matched; everything else is exact.
+
+**Decision.** The service now enforces HFR's two legal shapes and names which fields are missing, so
+the form can mark them; the form offers those two shapes rather than a box of optional filters, and
+disables the name group when a Facility ID is present. Six tests pin the rule.
+
+One test was written and then deleted: proving "a Facility ID alone is legal" means getting past the
+guard, and past the guard is a live call to a government gateway. It made one on every run before it
+was removed. The guard is ours and is tested; the call is NHA's and belongs in `abdm:check`.
+
+**Consequence.** The lesson is now recorded three times — ADR-101 (the published collection beat our
+inference), ADR-102 (running it beat both), and here (**the prose document beat the machine-readable
+schema**). A generated OpenAPI file describes the shape of a request, not the conditions under which
+the server will accept it. The remaining PDFs in `docs/abdm/` have not been read this way, and
+`pdftotext` extracts them cleanly.
+
+The wider point is uncomfortable and worth keeping: two of the three screens ADR-103 shipped were
+written against inference, and the first document opened afterwards contradicted one of them. The
+audit that would have caught it is the one that no longer runs.
+
+## ADR-105 - The certification matrix is derived, never transcribed
+
+**Status.** Accepted (30/08/2026). Closes the finding in ADR-104. Supersedes ADR-100's case counts.
+
+**Context.** ADR-104 recorded that the audit behind "33 pass / 108 fail / 26 blocked" could not be
+re-run: no data file, no extractor, no matrix generator, none ever tracked. The owner then supplied
+NHA's five published workbooks.
+
+**Decision.** They are committed at `docs/testcasesofficial/`, and `hms_backend/src/scripts/abdm-audit.ts`
+derives the matrix from them on demand — `npm run abdm:audit -w hms_backend`, with `--role` and
+`--json`. It reads the `.xlsx` zip itself rather than shelling out, so it runs the same on a
+developer's Windows machine, on the VM and in CI. It touches no database and makes no network call.
+
+Three properties are deliberate:
+
+1. **Derived, never transcribed.** The only inputs are NHA's files. A republished workbook changes
+   the numbers by replacing a file, not by editing a document — which is precisely the failure mode
+   ADR-104 was written about.
+2. **The applicant type is a parameter, not an assumption.** A case's requirement is not the word in
+   its own row: NHA scopes whole *sections* by applicant type, and a section header reading
+   `Government` overrides every "Mandatory" beneath it. `CRT_ABHA_301…309` are the proof — each row
+   says Mandatory, and they sit under *"Available Only for trusted entities"*. Private: out of scope.
+   Government: mandatory. **M1 alone swings from 12 mandatory to 22.**
+3. **It counts requirements and refuses to report results.** What passes is decided by NHA during
+   functional testing. A local script that printed "108 fail" would be inventing an authority it
+   does not have, which is how the last number outlived its own evidence.
+
+**Consequence.** Today's workbooks hold **268 cases**, not 307: M1 43, M2 28, M3 8, M4-HFR 129,
+M4-HPR 60. M4 matches ADR-100 exactly; M1, M2 and M3 do not, and each has a single sheet containing
+exactly the count above, checked by hand. Either NHA revised them — M2 and M3 are both stamped
+"UPDATED 22 Aug" — or the earlier count was wrong. **ADR-100's totals are superseded; cite the
+script.**
+
+For a private integrator: 26 mandatory, 3 conditional, 39 optional, 9 out of scope, 191 unstated.
+The 191 are mostly M4's two workbooks, which are laid out differently from M1–M3 and need their own
+reading before any M4 claim is made. "Unstated" is not "passing", and the report says so in its own
+output rather than leaving it to be inferred.
+
+**A bug worth recording.** The first version of the reader took only `sheet1.xml` and reported 9 HFR
+cases instead of 129. It did not fail; it produced a smaller, plausible number. That is the same
+shape of error as the audit this ADR replaces, and the reason the script now names any workbook it
+cannot find rather than quietly totalling what it did read.
+
+## ADR-106 - M4 classified: the workbooks were not silent, the parser was looking in one place
+
+**Status.** Accepted (30/08/2026). Completes ADR-105.
+
+**Context.** ADR-105 shipped a matrix in which 191 of 268 cases were "unstated" — 129 HFR and 57
+HPR. The reading at the time was that NHA had left M4's requirement column empty and the two
+workbooks needed their own interpretation.
+
+That was wrong, and wrong in a way worth recording: **the requirements were there the whole time.**
+
+**What the workbooks actually do.** NHA authors all five with merged cells, and the merge shifts the
+columns differently in each:
+
+- **M1–M3** put the requirement in column **B**.
+- **HFR** uses column **D** for most rows, but column **B** for the entire Search API block
+  (`HFR-001…009`) — because Function and Applicable To are merged from the block's first row.
+- **HPR** uses column **A** for most rows and **D** for the first row of each merged group.
+
+The first parser read column B and reported everything else as unstated. It did not fail; it
+produced a smaller, plausible number — the same failure shape as the sheet-1-only bug in ADR-105,
+and the same shape as the audit both ADRs exist to replace.
+
+**Decision.** `resolveRequirementText()` searches columns D, B, A, C for a value that *looks like* a
+requirement, rather than trusting a position. Unstated fell from 191 to 5.
+
+**And they are not the same unit.** M1–M3 say "Mandatory"/"Optional" about a **scenario**. HFR and
+HPR say "Yes"/"No" about whether a **data field is required**. Both are things an assessor checks;
+they are not the same question, and adding them into one headline number flatters M4. `"Yes, if …"`
+and `"Yes (only if …)"` are classified **conditional**, because a field that becomes required once
+something else is chosen is a different demonstration from one that always is.
+
+**Consequence.** For a private integrator: **114 mandatory, 16 conditional, 118 optional, 9 out of
+scope, 5 unstated** across **262 distinct** cases. M4 alone carries 87 of the 114 mandatory, which
+relocates the centre of gravity of the whole programme — it was reported as 26 mandatory a few hours
+earlier, and that figure was really "26 in M1–M3, plus 186 I had not classified".
+
+**262, not 268, and not ADR-100's 307.** The HFR workbook repeats its entire Bridge-linkage block
+(`HFR-118…123`) on a second of its four sheets: 129 rows, 123 cases. ADR-100's "M4-HFR 129" counted
+rows. The script dedupes by case id and prints how many rows it collapsed, because a matrix that
+silently shrinks is the exact failure it exists to prevent.
+
+The 5 remaining unstated are deliberate. NHA states the requirement once for a **pair** of alternates
+(`CRT_ABHA_114`/`115`, `209`/`210`) and leaves the sibling blank; `HFR-013`/`HFR-067` ("to select the
+country") carry none. Guessing would invent a requirement rather than read one, and the report says
+so in its own output.
+
+**The lesson, for the third time in three ADRs.** ADR-101: the published collection beat inference.
+ADR-102: running it beat both. ADR-104: the prose document beat the machine-readable schema. Here:
+**a number that looks reasonable is not evidence that the input was read completely.** Every one of
+these was caught by going back to the primary source, and none by review of the code.
+
+## ADR-107 - Fidelius through a file, and an evidence pack that gets worse when we ignore it
+
+**Status.** Accepted (30/08/2026). Follows ADR-104 (which verified the argument order) and ADR-106.
+
+### Part one — `--filepath` is not an optimisation
+
+NHA documents Fidelius's `--filepath` flag for one reason: a terminal's *"'This command is too long'
+(>8192 characters) limitation in case of long input strings"*. Every payload we encrypt is a
+base64-encoded FHIR bundle, and one consultation's structured bundle clears 8192 characters
+comfortably. Passing it as a command argument would have failed on the first real patient.
+
+**The size-threshold version was rejected.** Sending small payloads as arguments and large ones
+through a file produces a branch that every test fixture takes and no production payload does —
+which is precisely the class of bug this integration keeps finding at the far end. So every
+payload-bearing command (`se`, `e`, `d`) goes through the file; only `gkm`, which carries neither a
+payload nor a key, is passed directly.
+
+The cost is real and is treated as such: the file holds the plaintext bundle **and** our private
+key. It is written inside a `mkdtemp` directory at mode 0700, the file itself 0600, and removed in a
+`finally` so a Fidelius failure, a timeout or a thrown parse error all still clean up. Three tests
+force the failing path with an unresolvable CLI path and assert nothing is left in the system temp
+directory — the branch a test written against a working jar would never reach.
+
+### Part two — the key material carries X.509
+
+Fidelius's documentation recommends the uncompressed `publicKey` "for all encryption and decryption
+operations", which is about the CLI's own arguments and is what we still pass there. It then carves
+out this exact field: *"certain HIUs only accept the public key in the base64-encoded X.509 format,
+specifically within the key material sent by the HIP, before decryption."* Both forms work for a HIU
+that accepts either, so `keyMaterial.dhPublicKey.keyValue` now carries `x509PublicKey`, falling back
+to `publicKey`. We were already capturing the X.509 form from `gkm` and discarding it.
+
+### Part three — the evidence pack
+
+`npm run abdm:evidence` joins the derived requirement matrix (ADR-105/106) to a curated statement of
+where each case is demonstrated. The two halves are kept apart on purpose: deriving requirements
+from a spreadsheet is safe, deriving *evidence* from code is not — a function named
+`downloadAbhaCard` proves nothing about whether an assessor can download one. So evidence is
+asserted by a person, in a file reviewed as a diff.
+
+**A case with no entry reports as NOT EVIDENCED.** That default is the design: the pack should get
+worse when NHA adds a case and nobody looks, because the alternative is a document that stays green
+while the gap grows — which is what the previous checklist did.
+
+First run, private applicant, mandatory and conditional only — **130 cases: 25 built, 2 partial, 16
+unverified, 6 not built, 81 not evidenced.** 87 cannot be demonstrated today. The 6 not-built are
+HFR's Bridge-linkage block, reachable only through the `abdm:bridge` CLI. The 81 are overwhelmingly
+M4 field-level cases nobody has walked yet — and naming them is the point.
+
+**It states what can be demonstrated. It does not claim a pass**, and says so in its own header;
+that verdict is NHA's during functional testing.

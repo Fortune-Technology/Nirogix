@@ -666,6 +666,7 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | MKT-10 | Back to top & smooth scroll | Long page | Scroll down, press Back to top | Smooth return to top; routes always open scrolled to the top | P3 | UI/UX | anonymous | Not run |
 | MKT-16 | The product is called Nirogix | — | Read the header, footer, titles, legal pages and OG cards | Nirogix everywhere the product is named; "HMS" appears only as the industry term in search-intent copy, never as our name | P1 | Functional | anonymous | Not run |
 | MKT-17 | The brand mark renders | — | Check the marketing header and footer, a browser tab, and an OG card; then the Portal's login card and app shell | The N monogram appears at each place — no stray letter from the old name, no blank tile, no default framework favicon. It follows the accent in Light and Dark, and a tenant's own logo replaces it in the Portal where one is uploaded | P2 | UI/UX | anonymous | Not run |
+| MKT-18 | The registered entity is visible | — | Read the footer on any page, then open `/contact` | The footer names `Takoriya Technology LLP` with its address, and `/contact` shows a Registered office block with the same name, address, phone and email. Whatever is unconfirmed in `COMPANY` (`marketing/lib/seo.ts`) is omitted rather than shown blank or invented. DLT (TRAI) sender-ID verification checks exactly this | P1 | Functional | anonymous | Not run |
 
 ## 16b. Environments & domains (ADR-042, `resources/domains.md`)
 
@@ -991,6 +992,73 @@ Reached from `Hospital configuration → ABDM registries → Register this hospi
 | HFR-UI-15 | A rejection shows the registry's own words | A rejected registration | Open the form | The verifier's message verbatim; the form editable again with everything still in it | P1 | UX | org_admin | Not run |
 | HFR-UI-16 | Bed totals are questioned, not corrected | — | ICU-with-ventilator 5, total ventilators 2 | A hint says the beds add to 5 and asks which is right. The value is NOT overwritten | P2 | UX | org_admin | Not run |
 | HFR-UI-17 | Each branch is its own facility | Two branches exist | Switch the Facility selector | The form reloads that branch's own registration and status | P1 | Functional | org_admin | Not run |
+
+
+## 23d. ABDM Milestone 4 — HFR search, HFR update, HPR enrolment wizard (ADR-103)
+
+Run signed in as `org_admin` with the `abdm` module entitled. **Search and enrolment call the live
+ABDM sandbox**, so `ABDM_PROVIDER=gateway` and working credentials are needed for anything that
+returns registry data; the screens themselves render and refuse correctly without them.
+
+**Do not run HPR-UI-08 or HFR-UP-07 casually.** They mint a real national identity and amend a real
+national registry entry respectively. Both need a consenting clinician / a really verified facility,
+and neither is reversible.
+
+### Searching HFR before registering — `Hospital configuration → ABDM registries → Search HFR`
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HFR-SR-01 | Search is permission-gated | Role lacks `abdm.registry.view` | Open the URL directly | Refused; no form renders | P1 | Security | receptionist | Not run |
+| HFR-SR-02 | Viewing is enough to search | `view` but not `manage` | Open the screen and search | Works — looking up whether a hospital is already listed changes nothing | P1 | Security | doctor | Not run |
+| HFR-SR-03 | **An empty search is refused** | — | Press Search with every field blank | Search is disabled; the page explains HFR needs ownership + state + name together, or a Facility ID alone. **Nothing is sent** | P1 | Functional | org_admin | Not run |
+| HFR-SR-04 | Paging alone is not a search | — | Call the API with only `page` and `resultsPerPage` | 422 `SEARCH_FILTERS_REQUIRED` | P1 | Functional | — | Not run |
+| HFR-SR-05 | **Two of the three required filters is still refused** | — | Choose ownership and state, leave the name blank | Search stays disabled. (HFR rejects a partial set outright — sending it would surface a registry error that reads as "the registry is down") | P1 | Functional | org_admin | Not run |
+| HFR-SR-05b | The refusal names the missing fields | — | Call the API with `facilityName` only | 422 with `details.missing` = `["ownershipCode","stateLGDCode"]` | P2 | Functional | — | Not run |
+| HFR-SR-05c | **A Facility ID alone is a complete search** | — | Enter a Facility ID | The name/ownership/state group disables itself and says it is not used with a Facility ID; Search enables | P1 | Functional | org_admin | Not run |
+| HFR-SR-05d | `resultsPerPage` floors at HFR's minimum | — | Call the API with `resultsPerPage=1` | Rejected by validation; the service never sends below 10, which HFR refuses | P2 | Functional | — | Not run |
+| HFR-SR-06 | PIN code is six digits | — | Enter `56003`, press Search | Refused with "A PIN code is six digits"; non-digits never enter the field | P2 | Functional | org_admin | Not run |
+| HFR-SR-07 | A dependent place clears with its parent | State and district chosen | Change the state | District and sub-district both empty — a district code from the old state would silently filter the search to nothing | P1 | Functional | org_admin | Not run |
+| HFR-SR-08 | Results carry the Facility ID | Gateway mode; ownership + state + a name that matches | Search | Each hit shows name, Facility ID, address and status. The id is selectable so it can be copied | P1 | Functional | org_admin | Not run |
+| HFR-SR-08b | Name matching is fuzzy | Gateway mode | Search a partial name | Matches return — HFR fuzzy-matches the name and exact-matches everything else | P2 | Functional | org_admin | Not run |
+| HFR-SR-09 | **No results reads as an answer, not an error** | A name matching nothing | Search | Empty state says this usually means the hospital is not registered yet, and offers Register. **No error toast** | P1 | UX | org_admin | Not run |
+| HFR-SR-10 | Paging works | A search returning more than one page | Press Next, then Previous | Page indicator and results change; Previous is disabled on page 1, Next on the last | P2 | Functional | org_admin | Not run |
+| HFR-SR-11 | **A match is never presented as ours** | Any result | Read the result list | No "use this facility" action anywhere; the closing note says a match is somebody else's registry entry and must be confirmed before the id is claimed | P1 | Security | org_admin | Not run |
+| HFR-SR-12 | Search is reachable from inside the form | — | Open the registration form | A "Search the registry" action is in the header — the moment somebody doubts is while filling the form in | P2 | UX | org_admin | Not run |
+| HFR-SR-13 | A registry failure shows its own words | Break `ABDM_CLIENT_SECRET`, reload | Search | The backend's message is surfaced; no stack trace, no invented copy | P1 | UX | org_admin | Not run |
+
+### Amending a verified facility — `Hospital configuration → ABDM registries → registration form`
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HFR-UP-01 | A verified facility is read-only on arrival | Status `verified` | Open the form | Every field disabled. One action offered: **Update details** | P1 | Security | org_admin | Not run |
+| HFR-UP-02 | Amending is an explicit act | HFR-UP-01 | Press Update details | The form unlocks; Save draft and Submit are **not** offered — a different pair of buttons, because it is a different act | P1 | UX | org_admin | Not run |
+| HFR-UP-03 | Cancel re-locks without sending | Amending, a field changed | Press Cancel | Form locks again; nothing sent; errors cleared | P1 | Functional | org_admin | Not run |
+| HFR-UP-04 | An amendment is validated like a submission | Amending | Clear the state, press Send update | Refused with fields marked — what reaches the registry must be complete whether it is the first version or the fifth | P1 | Functional | org_admin | Not run |
+| HFR-UP-05 | Update needs the manage permission | `view` only, status verified | Open the form | No Update details action | P1 | Security | doctor | Not run |
+| HFR-UP-06 | **A draft or submitted registration cannot be "updated"** | Status `draft`, then `submitted` | Call `POST /abdm/registry/facility/update` | 409 `ABDM_FACILITY_NOT_VERIFIED` both times — a draft is edited and submitted; a submission belongs to its verifier | P1 | Functional | — | Not run |
+| HFR-UP-07 | **A live amendment keeps the Facility ID** | A really verified facility with a tracking id. **Irreversible — real registry** | Amend one field, Send update | HFR accepts; the Facility ID is unchanged; status stays `verified`; the toast says the details are updated, not "Saved." | P1 | Functional | org_admin | Not run |
+| HFR-UP-08 | **A portal-registered facility is refused, not re-registered** | Status `verified`, `tracking_id` NULL | Send update | 422 `ABDM_FACILITY_NO_TRACKING_ID`, telling the administrator to update on ABDM's portal. **A second Facility ID is never minted** — this is the unrecoverable failure | P1 | Security | org_admin | Not run |
+| HFR-UP-09 | An amendment is audited | HFR-UP-07 | Read `audit_log` | One `abdm.hfr.updated` entry with actor, tracking id, Facility ID and facility name | P1 | Security | — | Not run |
+| HFR-UP-10 | Status does not regress | HFR-UP-07 | Read the badge afterwards | Still "Verified" — never "Awaiting verification", which would say the hospital had fallen out of the registry | P1 | UX | org_admin | Not run |
+
+### Enrolling a clinician in HPR — `Hospital configuration → ABDM registries → Enrol a clinician`
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HPR-UI-01 | The wizard is permission-gated | Role lacks `abdm.registry.view` | Open the URL directly | Refused | P1 | Security | receptionist | Not run |
+| HPR-UI-02 | Viewing without managing shows, never enrols | `view` only | Open the wizard | The list renders; a note says enrolling needs registry-manage; every control disabled | P1 | Security | doctor | Not run |
+| HPR-UI-03 | No clinicians is explained | A tenant with no active providers | Open the wizard | Says to add doctors under Staff first — enrolment attaches to an existing person | P2 | UX | org_admin | Not run |
+| HPR-UI-04 | Choosing a clinician prefills only what we hold | A provider with email, phone, registration number | Choose them | Name, email, phone and registration number prefilled; council blank. **Nothing invented** | P2 | UX | org_admin | Not run |
+| HPR-UI-05 | Aadhaar must be twelve digits | A clinician chosen | Type letters, then thirteen digits | Non-digits never enter; the field stops at twelve; the action stays disabled below that | P1 | Functional | org_admin | Not run |
+| HPR-UI-06 | The step rail reflects the registry's order | Mid-enrolment | Read the rail | Aadhaar → Aadhaar OTP → Mobile → Mobile OTP → Professional details, with the current step marked and completed ones ticked | P2 | UX | org_admin | Not run |
+| HPR-UI-07 | **An interrupted enrolment resumes** | A clinician at `aadhaar_verified` | Leave the page and return, choose them again | The wizard opens at **Mobile**, not at Aadhaar — no second OTP, no re-typed Aadhaar | P1 | Functional | org_admin | Not run |
+| HPR-UI-08 | **The dedup check runs first** | A clinician who already holds an HPR ID. **Real Aadhaar — do not improvise** | Enter their Aadhaar, Check and send OTP | Reported as a **success**: "They already hold an HPR ID." No new id is minted, and the flow ends | P1 | Functional | org_admin | Not run |
+| HPR-UI-09 | Aadhaar is not retained | Any enrolment | After sending the OTP, inspect the field and the stored row | The field is empty; no Aadhaar anywhere in `abdm_staff_hpr` or the audit log | P1 | Security | — | Not run |
+| HPR-UI-10 | A step can be restarted | At an OTP step | Press "Start this step again" | Returns to the previous step with the OTP cleared | P2 | UX | org_admin | Not run |
+| HPR-UI-11 | The profile step requires its four fields | At Professional details | Leave council or registration number blank | Create HPR ID stays disabled | P1 | Functional | org_admin | Not run |
+| HPR-UI-12 | A completed enrolment shows the id and whose it is | Status `registered` | Open that clinician | The HPR ID, and a note that it belongs to the clinician and follows them if they leave | P1 | UX | org_admin | Not run |
+| HPR-UI-13 | The roster reflects reality | Several clinicians at different stages | Read the list at the foot | Each shows "Has an HPR ID" or "In progress" — never a green state for an unfinished enrolment | P1 | UX | org_admin | Not run |
+| HPR-UI-14 | A registry refusal shows its own words | Wrong OTP | Verify | NHA's own message is surfaced verbatim, not "request failed" | P1 | UX | org_admin | Not run |
 
 
 ## 24. Notifications & emails (ADR-086)

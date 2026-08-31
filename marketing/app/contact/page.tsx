@@ -4,7 +4,14 @@ import { Container } from "../../components/ui/primitives";
 import { ContactForm } from "../../components/site/ContactForm";
 import { PORTAL_LOGIN_URL } from "../../lib/portal";
 import { JsonLd } from "../../components/site/JsonLd";
-import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "../../lib/seo";
+import {
+  COMPANY,
+  breadcrumbJsonLd,
+  companyAddressLines,
+  localBusinessJsonLd,
+  pageMetadata,
+  telHref,
+} from "../../lib/seo";
 
 // Location intent: hospital software buyers searching locally (Ahmedabad / Gujarat).
 export const metadata: Metadata = pageMetadata({
@@ -32,6 +39,8 @@ const STEPS = [
 ];
 
 export default function ContactPage() {
+  const addressLines = companyAddressLines();
+
   return (
     <section className="bg-canvas">
       <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Contact", path: "/contact" }])} />
@@ -68,6 +77,26 @@ export default function ContactPage() {
             </ul>
 
             <div className="mt-10 border-t border-hairline pt-6">
+              <h2 className="text-sm font-semibold text-ink">Registered office</h2>
+              <address className="mt-3 flex flex-col gap-1 text-sm not-italic leading-relaxed text-ink-subtle">
+                <span className="font-medium text-ink">{COMPANY.legalName}</span>
+                {addressLines.map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+                {COMPANY.telephone ? (
+                  <a href={telHref(COMPANY.telephone)} className="text-accent hover:text-accent-hover">
+                    {COMPANY.telephone}
+                  </a>
+                ) : null}
+                {COMPANY.email ? (
+                  <a href={`mailto:${COMPANY.email}`} className="text-accent hover:text-accent-hover">
+                    {COMPANY.email}
+                  </a>
+                ) : null}
+              </address>
+            </div>
+
+            <div className="mt-8 border-t border-hairline pt-6">
               <p className="text-sm text-ink-subtle">
                 Already a customer?{" "}
                 <a href={PORTAL_LOGIN_URL} className="font-medium text-accent hover:text-accent-hover">

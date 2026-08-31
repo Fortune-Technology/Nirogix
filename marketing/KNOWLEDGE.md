@@ -50,7 +50,7 @@ app/
   integrations/page.tsx FHIR/ICD/SNOMED/LOINC, DICOM/PACS, ABDM, SMS/WhatsApp, payments, Tally
   pricing/page.tsx      Packaging model (no numbers), FAQ, contact CTA
   about/page.tsx        Mission, principles, company (Takoriya Technology LLP)
-  contact/page.tsx      Book-a-demo form (ContactForm client component)
+  contact/page.tsx      Book-a-demo form (ContactForm client component) + Registered office
   legal/privacy|terms/  Plain-language summaries (draft, finalised with counsel before GA)
   sitemap.ts, robots.ts SEO routing
 components/
@@ -97,7 +97,9 @@ This site owns **all** product SEO; the Portal is never indexed. Reference stand
 
 **Live structured data:** `Organization` site-wide (root layout, `@id`-referenced by the rest) · `SoftwareApplication` on `/`, `/platform`, and each `/modules/[slug]` (no `offers` — no prices are published) · `BreadcrumbList` on every nested route · `FAQPage` on `/pricing`, marking up the FAQ that page actually renders · `LocalBusiness` on `/about` and `/contact`, **gated**: `localBusinessJsonLd()` returns `null` until `COMPANY.streetAddress` and `COMPANY.telephone` are filled in, so nothing false is published.
 
-> ⚠ **Verify before launch:** `COMPANY` in `lib/seo.ts` currently states Ahmedabad, Gujarat, India, and `/contact`'s title/description name that city. Street address, postal code, phone, and email are intentionally blank. Confirm all of it with the business, in that one file.
+> ⚠ **Verify before launch:** `COMPANY` in `lib/seo.ts` currently states Ahmedabad, Gujarat, India, and `/contact`'s title/description name that city. Street address, postal code, phone, and email are intentionally blank. Confirm all of it with the business, in that one file — `BACKLOG.md` U-1.
+>
+> **The entity is also rendered, not only marked up.** The footer carries an `<address>` with `COMPANY.legalName` and `companyAddressLines()`, and `/contact` has a **Registered office** block; both add the phone and email only once those are set, so nothing renders blank or invented. This is a hard requirement outside SEO: **DLT (TRAI) sender-ID verification opens the public site and looks for the registered entity name and contact details**, and rejected the `NIROGX` header when it could not find them (`BACKLOG.md` I-7). Whatever goes in `COMPANY` must match the incorporation / GST records character-for-character.
 
 **Required of every new/edited public route:** a unique title + meta description (no duplicates across routes), a canonical URL, exactly one `<h1>` with unskipped heading levels, semantic landmarks, OG/Twitter metadata, `alt` on every non-decorative image, a sitemap entry in the same change, a real internal link in (no orphans), a descriptive kebab-case URL (a rename ships a 301), and JSON-LD only for what the page actually shows — `SoftwareApplication` (product/platform/module), `LocalBusiness` (contact/about — Ahmedabad, Gujarat), `BreadcrumbList` (nested routes), `FAQPage` (only a real, visible FAQ). Never fabricated reviews/ratings.
 

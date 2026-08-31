@@ -1,5 +1,8 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
@@ -91,11 +94,16 @@ async function fidelius(args: string[], what: string): Promise<Record<string, st
       `FIDELIUS_CLI_PATH is not configured — ${what} is impossible, so nothing will be sent or read`,
     );
   }
+
+  // `gkm` takes no payload and no keys, so it goes straight through. Everything else carries a
+  // FHIR bundle and private key material, and goes through a file — see `runViaFile`.
+  const viaFile = args[0] !== 'gkm';
+
   try {
-    const { stdout } = await run(env.FIDELIUS_CLI_PATH, args, {
-      maxBuffer: 64 * 1024 * 1024,
-      timeout: 60_000,
-    });
+    const stdout = viaFile
+      ? await runViaFile(env.FIDELIUS_CLI_PATH, args)
+      : (await run(env.FIDELIUS_CLI_PATH, args, { maxBuffer: 64 * 1024 * 1024, timeout: 60_000 })).stdout;
+
     const parsed = JSON.parse(stdout) as Record<string, string>;
     if (parsed.error) throw new EncryptionUnavailableError(parsed.error);
     return parsed;
@@ -106,6 +114,52 @@ async function fidelius(args: string[], what: string): Promise<Record<string, st
     const message = err instanceof Error ? err.message : 'Fidelius failed';
     logger.error({ err, what }, 'Fidelius failed — no health data will be sent or read');
     throw new EncryptionUnavailableError(message);
+  }
+}
+
+/**
+ * Passing the command through Fidelius's own `--filepath` flag rather than as arguments.
+ *
+ * **This is not a refinement; without it real transfers fail.** NHA documents `--filepath` for one
+ * specific reason — a terminal's *"'This command is too long' (>8192 characters) limitation in case
+ * of long input strings"* — and every single thing we encrypt is a base64-encoded FHIR bundle. One
+ * consultation's structured bundle clears 8192 characters comfortably. Windows enforces roughly
+ * 32 KB per command line and Linux has its own `ARG_MAX`; both are finite, and a bundle is not.
+ *
+ * The alternative — passing arguments directly until they happen to be too long — is worse than it
+ * sounds. It works for every small fixture in the test suite and fails on the first real patient,
+ * which is precisely the class of bug that reaches production intact. So this path is taken for
+ * **every** payload-bearing command, not only the large ones: a branch that only executes in
+ * production is a branch nobody has run.
+ *
+ * ── WHAT THIS PUTS ON DISK, AND FOR HOW LONG ────────────────────────────────
+ * The file holds the plaintext bundle and our private key — the two things this module exists to
+ * protect. That is a real change in exposure and is treated as one:
+ *
+ * - written inside a private directory created with `mkdtemp` at mode 0700, the file itself 0600,
+ *   so it is unreadable by other users on a shared VM;
+ * - removed in a `finally`, so a Fidelius failure, a timeout or a thrown parse error all still
+ *   clean up — the one path that must never leak is the failing one;
+ * - never logged, and never placed inside the repository or an uploads directory.
+ */
+async function runViaFile(cliPath: string, args: string[]): Promise<string> {
+  // 0700: the directory is ours alone before anything sensitive is written into it.
+  const dir = await mkdtemp(join(tmpdir(), 'fidelius-'), { encoding: 'utf8' });
+  const paramsPath = join(dir, 'params.txt');
+  try {
+    // One argument per line, in order — the CLI's own documented format.
+    await writeFile(paramsPath, `${args.join('\n')}\n`, { encoding: 'utf8', mode: 0o600 });
+    const { stdout } = await run(cliPath, ['--filepath', paramsPath], {
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 60_000,
+    });
+    return stdout;
+  } finally {
+    // Best-effort, and deliberately not allowed to mask a Fidelius error: a failed cleanup is worth
+    // a log line, never worth replacing the reason the transfer failed.
+    await rm(dir, { recursive: true, force: true }).catch((err: unknown) => {
+      logger.error({ err, dir }, 'Could not remove the Fidelius parameter file — delete it by hand');
+    });
   }
 }
 
@@ -247,11 +301,22 @@ export async function encryptForHiu(input: {
       dhPublicKey: {
         expiry: expiryIso(),
         parameters: 'Curve25519/32byte random key',
-        // What the HIU needs to derive the same secret: our PUBLIC key, never the private one.
-        //
-        // Taken from the key pair rather than the encrypt response, because `se`/`e` return only
-        // `encryptedData` — an earlier version read a `keyToShare` field the CLI does not emit.
-        keyValue: ours.publicKey,
+        /**
+         * What the HIU needs to derive the same secret: our PUBLIC key, never the private one.
+         *
+         * Taken from the key pair rather than the encrypt response, because `se`/`e` return only
+         * `encryptedData` — an earlier version read a `keyToShare` field the CLI does not emit.
+         *
+         * **X.509 preferred, and that is NHA's instruction rather than a preference of ours.** The
+         * Fidelius documentation recommends the uncompressed `publicKey` "for all encryption and
+         * decryption operations" — that is about the CLI's own arguments, and it is what we pass
+         * there — but then carves out this exact field: *"certain HIUs only accept the public key
+         * in the base64-encoded X.509 format, specifically within the key material sent by the HIP,
+         * before decryption."* Both forms work for a HIU that accepts either, so X.509 is the form
+         * that satisfies both kinds of counterparty. The fallback covers a Fidelius build that
+         * returns no `x509PublicKey`.
+         */
+        keyValue: ours.x509PublicKey ?? ours.publicKey,
       },
       nonce: ours.nonce,
     },

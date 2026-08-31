@@ -1276,6 +1276,124 @@ export async function submitAbdmFacilityRegistration(branchId?: string | null): 
   });
 }
 
+/**
+ * Amends a facility HFR has already verified.
+ *
+ * A separate call from `saveAbdmFacilityRegistration`, which refuses once a registration is
+ * verified: re-registering a building that already holds a Facility ID would give it a second
+ * national identity, and the Facility ID is the `hipId` the rest of ABDM knows us by.
+ */
+export async function updateAbdmFacilityRegistration(
+  body: Record<string, unknown>,
+): Promise<AbdmFacilityRegistration> {
+  // The page says what happened — "Sent to HFR", not "Saved." — because the two differ here.
+  return request<AbdmFacilityRegistration>("/abdm/registry/facility/update", {
+    method: "POST",
+    body,
+    feedback: false,
+  });
+}
+
+/** One facility as HFR describes it. Every field but the id and name may be absent. */
+export interface AbdmFacilitySearchHit {
+  facilityId: string;
+  facilityName: string;
+  facilityStatus: string | null;
+  ownership: string | null;
+  facilityType: string | null;
+  systemOfMedicine: string | null;
+  address: string | null;
+  stateName: string | null;
+  districtName: string | null;
+  subDistrictName: string | null;
+  pincode: string | null;
+}
+
+export interface AbdmFacilitySearchResult {
+  facilities: AbdmFacilitySearchHit[];
+  total: number;
+  pages: number;
+  page: number;
+}
+
+export interface AbdmFacilitySearchParams {
+  facilityName?: string;
+  facilityId?: string;
+  ownershipCode?: string;
+  stateLGDCode?: string;
+  districtLGDCode?: string;
+  subDistrictLGDCode?: string;
+  pincode?: string;
+  page?: number;
+  resultsPerPage?: number;
+}
+
+/**
+ * Searches HFR for a facility that may already be listed.
+ *
+ * `feedback: false` because an empty result is the answer, not a failure — and it is the *good*
+ * answer when somebody is checking that their hospital is not already registered.
+ */
+export async function searchAbdmFacilities(
+  params: AbdmFacilitySearchParams,
+): Promise<AbdmFacilitySearchResult> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && String(v).trim() !== "") q.set(k, String(v));
+  }
+  return request<AbdmFacilitySearchResult>(`/abdm/registry/facility/search?${q}`, { feedback: false });
+}
+
+// --- HPR enrolment, one clinician at a time (ADR-097) -----------------------------------------
+//
+// Four calls in a fixed order, each one gating the next: check-and-start, Aadhaar OTP, mobile OTP,
+// then the professional profile. The order is the registry's, not ours — an HPR ID is only minted
+// once both identities are proven, which is why the wizard cannot let a step be skipped.
+
+export async function startAbdmHprEnrolment(body: {
+  providerId: string;
+  aadhaar: string;
+  category: "doctor" | "nurse" | "pharmacist";
+}): Promise<AbdmHprEnrolment> {
+  return request<AbdmHprEnrolment>("/abdm/registry/professional/start", { method: "POST", body, feedback: false });
+}
+
+export async function verifyAbdmHprAadhaarOtp(body: { providerId: string; otp: string }): Promise<AbdmHprEnrolment> {
+  return request<AbdmHprEnrolment>("/abdm/registry/professional/aadhaar-otp", {
+    method: "POST",
+    body,
+    feedback: false,
+  });
+}
+
+export async function sendAbdmHprMobileOtp(body: { providerId: string; mobile: string }): Promise<void> {
+  await request<void>("/abdm/registry/professional/mobile-otp/send", { method: "POST", body, feedback: false });
+}
+
+export async function verifyAbdmHprMobileOtp(body: { providerId: string; otp: string }): Promise<AbdmHprEnrolment> {
+  return request<AbdmHprEnrolment>("/abdm/registry/professional/mobile-otp/verify", {
+    method: "POST",
+    body,
+    feedback: false,
+  });
+}
+
+export async function completeAbdmHprEnrolment(body: {
+  providerId: string;
+  email: string;
+  firstName: string;
+  lastName?: string;
+  registrationCouncil: string;
+  registrationNumber: string;
+  systemOfMedicine?: string;
+}): Promise<AbdmHprEnrolment> {
+  return request<AbdmHprEnrolment>("/abdm/registry/professional/complete", {
+    method: "POST",
+    body,
+    feedback: false,
+  });
+}
+
 export async function listAbdmHprEnrolments(): Promise<AbdmHprEnrolment[]> {
   const data = await request<{ enrolments: AbdmHprEnrolment[] }>("/abdm/registry/professionals", { feedback: false });
   return data.enrolments;

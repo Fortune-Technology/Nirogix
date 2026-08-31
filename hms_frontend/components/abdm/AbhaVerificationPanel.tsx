@@ -11,6 +11,31 @@ import { useQrDataUrl } from "../../lib/useQrDataUrl";
 import { Can } from "../Can";
 
 /**
+ * The ABHA address policy, quoted from NHA's M1 workbook (`CRT_ABHA_112`).
+ *
+ * The case requires the rules to be enforced *"at the API level"* **and** *"print[ed] beside the
+ * field where ABHA Address is entered"*. The enforcing copy lives in the backend's
+ * `abdm.schema.ts` and is the only one that decides anything; this copy exists because the two
+ * share no contract package, and because a rule the operator cannot read is a rule they will
+ * break three times before guessing it. Keep the two in step.
+ */
+const ABHA_ADDRESS_POLICY =
+  "Between 8 and 18 characters. Letters and numbers, with at most one dot and one underscore, and neither at the start nor the end.";
+
+/** Applies the policy to the part before any `@`, so ABDM's own qualified suggestions still pass. */
+function abhaAddressError(value: string): string | undefined {
+  const local = (value.split("@")[0] ?? "").trim();
+  if (local.length < 8) return "At least 8 characters.";
+  if (local.length > 18) return "At most 18 characters.";
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$/.test(local)) {
+    return "Letters and numbers only, and it must start and end with one.";
+  }
+  if ((local.match(/\./g) ?? []).length > 1) return "At most one dot.";
+  if ((local.match(/_/g) ?? []).length > 1) return "At most one underscore.";
+  return undefined;
+}
+
+/**
  * ABHA verification at the registration desk — ABDM Milestone 1 (ADR-084).
  *
  * Three ways to the same place: a verified ABDM profile, reviewed by the operator, used to fill
@@ -559,6 +584,7 @@ function CreateWithAadhaar({
   }
 
   if (step === "address" && pending) {
+    const addressError = abhaAddressError(chosenAddress);
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
@@ -575,11 +601,24 @@ function CreateWithAadhaar({
               ))}
               {suggestions.length === 0 && <option value="">No suggestions available</option>}
             </select>
+            {/* The registry offers three or more; saying how many arrived is honest when it offers fewer. */}
+            <span className="hms-hint">
+              {suggestions.length > 0
+                ? `${suggestions.length} available from ABDM. Pick one, or type your own.`
+                : "ABDM returned no suggestions. Type an address instead."}
+            </span>
           </label>
-          <Field label="Or type one" value={chosenAddress} onChange={(e) => setChosenAddress(e.target.value)} />
+          {/* CRT_ABHA_112 requires the policy to be printed beside this field, not merely enforced. */}
+          <Field
+            label="Or type one"
+            value={chosenAddress}
+            error={chosenAddress ? addressError : undefined}
+            hint={ABHA_ADDRESS_POLICY}
+            onChange={(e) => setChosenAddress(e.target.value)}
+          />
         </div>
         <div className="flex gap-2">
-          <Button type="button" loading={busy} disabled={chosenAddress.length < 4} onClick={() => void claimAddress()}>
+          <Button type="button" loading={busy} disabled={Boolean(addressError)} onClick={() => void claimAddress()}>
             Create ABHA address
           </Button>
           <Button type="button" variant="ghost" onClick={() => onVerified(pending)}>

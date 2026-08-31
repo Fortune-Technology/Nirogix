@@ -929,3 +929,33 @@ reference lists came back empty — they are POST endpoints, not GET — and the
 because facility type turns out to require both an ownership and a system of medicine and so can
 only come third. Both are recorded in ADR-102. The chain now works end to end against ABDM's own
 sandbox: Private → Allopathy → Hospital → Civil Hospital / General Hospital / Nursing Home.
+
+## ABDM Milestone 4 — the last three registry screens (ADR-103), 30/08/2026
+
+Registration shipped in ADR-102; these are the three the certification audit still counted as
+missing — HFR facility search, HFR facility update, and the HPR enrolment wizard.
+
+**Search comes before registration, and claims nothing.** One building must hold one Facility ID,
+because that id is the `hipId` M1–M3 identify us by — register a hospital HFR already lists and
+record linking breaks for real patients, weeks later, with no obvious cause. So the screen is linked
+ahead of the forty-field form and again from inside its header, since the moment somebody doubts is
+while they are filling it in. There is deliberately no "use this facility" action: a result is
+somebody else's registry entry, and claiming one is a decision a human makes with evidence. An empty
+search is refused outright rather than paging the national registry, and no results is written as
+the answer it usually is — nobody has registered this building yet — instead of as an error.
+
+**Update is a separate act with a separate route.** Saving has always refused a verified
+registration so nobody re-registers a building that already holds a Facility ID. That refusal needed
+a door beside it, not a hole in it, so the form unlocks only through an explicit "Update details"
+and then offers a different pair of buttons. The Facility ID is untouched and the status stays
+`verified` — showing "awaiting verification" would tell an administrator their hospital had fallen
+out of the registry.
+
+**The HPR wizard follows the registry's order and reads its position from stored status.** An
+interrupted enrolment resumes at the step the clinician actually reached rather than restarting with
+another OTP. The Aadhaar field clears the instant it has been used. "They already hold an HPR ID" is
+reported as a success, because it is one.
+
+Not verified against the live registry: HFR update has never run (HFR publishes no update endpoint —
+re-running the wizard against the stored tracking id is inferred from its statefulness), and the HPR
+Aadhaar chain still mints real national identities and so is still stubbed in tests.

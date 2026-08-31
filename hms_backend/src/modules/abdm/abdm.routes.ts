@@ -16,6 +16,7 @@ import {
   HprOtpBody,
   HprStartBody,
   FacilityRegistryDraftBody,
+  FacilitySearchQuery,
   FacilitySubmitBody,
   FacilityVerificationBody,
   RequestHistoryBody,
@@ -284,6 +285,30 @@ abdmRouter.post(
   requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE),
   validate({ body: FacilityVerificationBody }),
   asyncHandler(c.recordFacilityVerification),
+);
+
+// Amending a facility HFR has already verified. Its own path, not the save route's PUT: `saveDraft`
+// refuses once a registration is verified so that nobody re-registers a building that already holds
+// a Facility ID, and sharing a path would make that refusal reachable only by accident.
+abdmRouter.post(
+  '/abdm/registry/facility/update',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE),
+  validate({ body: FacilityRegistryDraftBody }),
+  asyncHandler(c.updateFacilityRegistration),
+);
+
+// Searching HFR before registering, so one building never gets two national identities. Read-only,
+// so `view` is enough — and the service refuses a search with no filter rather than paging the
+// whole national registry.
+abdmRouter.get(
+  '/abdm/registry/facility/search',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  validate({ query: FacilitySearchQuery }),
+  asyncHandler(c.searchFacilityRegistry),
 );
 
 // Reference data for the form. Read-only, and `view` is enough to render a picker.

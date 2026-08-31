@@ -409,7 +409,7 @@ async function main(): Promise<void> {
     `\nDone. 1 platform org + ${SEED_TENANTS.length - 1} demo hospitals. Login with org code + email + password "${DEFAULT_PASSWORD}".`,
   );
   // eslint-disable-next-line no-console
-  console.log('Platform admins: PLATFORM / jaivik@thefortunetech.com  ·  nishant@thefortunetech.com');
+  console.log('Platform admins: NIROGIX / jaivik@thefortunetech.com  ·  nishant@thefortunetech.com');
   // eslint-disable-next-line no-console
   console.log('Hospital admin: CITYCARE / admin@citycare.example  ·  SUNRISE / admin@sunrise.example');
 
