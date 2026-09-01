@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@hms/ui/styles.css";
 import "./globals.css";
-import { BackToTop, SmoothScroll, Toaster } from "@hms/ui";
+import { BackToTop, Toaster } from "@hms/ui";
 import { Providers } from "./providers";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -56,15 +56,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-full">
         <Providers>
-          {/* The same document-level Lenis smooth scroll as the Portal
-              (resources/DESIGN.md §9): this app is window-scroll too — sticky
-              sidebar and topbar, one scrollbar — so it drives the shared
-              `SmoothScroll` in its root mode, identically. Not a second
-              implementation. */}
-          <SmoothScroll>
-            {children}
-            <BackToTop />
-          </SmoothScroll>
+          {/* Native scrolling, same as the Portal (ADR-111). Smooth scroll stays on
+              the marketing site only. */}
+          {children}
+          <BackToTop />
           {/* The one API-feedback surface for this app (ADR-026). */}
           <Toaster />
         </Providers>

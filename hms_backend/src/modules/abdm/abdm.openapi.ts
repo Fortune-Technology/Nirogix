@@ -940,3 +940,44 @@ registry.registerPath({
     422: unprocessable,
   },
 });
+
+// --- Consent status for the front desk (ADR-120) ----------------------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/abdm/history/{patientId}/consent-status',
+  operationId: 'getConsentStatus',
+  tags: ['ABDM'],
+  summary: 'Whether anything is outstanding for this patient — states and counts only',
+  description:
+    'Deliberately narrower than `GET /abdm/history/{patientId}`, which returns whole request rows ' +
+    'including the requesting doctor and the health-information types asked for. This returns ' +
+    'states and counts and nothing else: **no records, no source hospitals** (a source name is a ' +
+    'diagnosis by implication), **no record counts** (a proxy for how ill somebody has been), and ' +
+    '**not who asked**. Gated on `abdm.consent.status.view`, which the front desk holds and which ' +
+    'does not carry `abdm.history.view`.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ patientId: z.string().uuid() }) },
+  responses: {
+    200: {
+      description: 'The consent position',
+      content: {
+        'application/json': {
+          schema: z.object({
+            canRequest: z.boolean(),
+            awaitingPatient: z.number().int(),
+            active: z.number().int(),
+            declined: z.number().int(),
+            lapsed: z.number().int(),
+            failed: z.number().int(),
+            activeUntil: z.string().nullable(),
+            latestStatus: z.string().nullable(),
+            latestRequestedAt: z.string().nullable(),
+          }).openapi('AbdmConsentStatus'),
+        },
+      },
+    },
+    401: { description: 'Not authenticated' },
+    403: { description: 'Missing permission, module or the abdm.external_history capability' },
+  },
+});

@@ -375,6 +375,14 @@ export async function requestHistory(req: Request, res: Response): Promise<void>
 }
 
 /** What the chart panel polls: every history request for this patient, newest first. */
+/**
+ * The consent position, and nothing else (ADR-120) — states and counts, no records, no source
+ * hospitals, no requesting clinician. This is what the front desk is allowed to know.
+ */
+export async function consentStatus(req: Request, res: Response): Promise<void> {
+  res.json(await hiu.consentStatusSummary(req.auth!.tenantId, req.params.patientId!));
+}
+
 export async function listHistoryRequests(req: Request, res: Response): Promise<void> {
   const requests = await hiu.listHistoryRequests(req.auth!.tenantId, req.params.patientId!);
   res.json({ requests });

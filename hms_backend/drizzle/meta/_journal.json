@@ -302,6 +302,48 @@
       "when": 1787826650003,
       "tag": "0042_sour_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1787826710003,
+      "tag": "0043_workflow_config_and_vitals",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787826770003,
+      "tag": "0044_unified_visit_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1787826830003,
+      "tag": "0045_patient_cases",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1787826890003,
+      "tag": "0046_consultation_fee_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787826950003,
+      "tag": "0047_self_checkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1787827010003,
+      "tag": "0048_patient_documents",
+      "breakpoints": true
     }
   ]
 }

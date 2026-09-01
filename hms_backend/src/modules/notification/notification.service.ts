@@ -115,6 +115,8 @@ export async function sendSms(
     templateKey?: string;
     templateId?: string;
     data?: Record<string, string | number>;
+    /** Values the *provider's* registered template substitutes (MSG91/DLT), not the local one. */
+    variables?: Record<string, string>;
   },
 ): Promise<NotificationLog> {
   const existing = await findByIdempotency(params.tenantId, params.idempotencyKey);
@@ -132,7 +134,12 @@ export async function sendSms(
   let providerMessageId: string | null = null;
   let error: string | null = null;
   try {
-    const result = await provider.sendSms({ to: params.to, body, templateId: params.templateId });
+    const result = await provider.sendSms({
+      to: params.to,
+      body,
+      templateId: params.templateId,
+      variables: params.variables,
+    });
     providerMessageId = result.providerMessageId;
   } catch (err) {
     status = 'failed';

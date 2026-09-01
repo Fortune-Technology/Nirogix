@@ -1083,9 +1083,327 @@ sending — assert against that log locally. Emails are wired **per action**; a 
 | NOTIF-10 | No notification spam | — | Check in a visit, sign an encounter, create an invoice, sign in | None of these send an email (`notification_log` shows nothing for them) | P1 | UX | any | Not run |
 | NOTIF-11 | Idempotency / dedupe | — | Cause the same event to fire twice for one entity | Exactly one email is sent (per-entity idempotency key) | P1 | Functional | tester | Not run |
 | NOTIF-12 | Email branding | A tenant with a custom accent | Trigger a patient email, then a platform email (reset) | The patient email uses the hospital's accent + name; the platform email uses the Nirogix default; no broken logo image | P2 | Visual | tester | Not run |
+| SMS-01 | OTP SMS matches the registered DLT template | `MSG91_API_KEY`, `MSG91_SMS_SENDER_ID=NIROGX`, `MSG91_OTP_TEMPLATE_ID` set; MSG91 wallet funded | Trigger a patient sign-in OTP to a real Indian mobile | The SMS arrives from header **NIROGX** reading exactly `Your Nirogix verification code is <code>. Valid for 10 minutes. Do not share it with anyone.` — no extra text, no truncation. `verifyOtp` accepts the code. MSG91 Transaction Logs shows it delivered | P1 | Functional | patient | Not run |
+| SMS-02 | Only the variable is sent | Same as SMS-01 | Send an OTP and read the MSG91 request in Transaction Logs | The flow carries `template_id`, `sender`, and one variable holding just the six digits — never the whole message body. A wrong `MSG91_OTP_TEMPLATE_VAR` shows up here as a rejected or blank-variable send | P1 | Functional | tester | Not run |
+| SMS-03 | Numbers in any shape reach the same handset | Same as SMS-01 | Store the same mobile as `+91 98765 43210`, then `09876543210`, then ten bare digits, and send an OTP for each | All three deliver; MSG91 shows `919876543210` each time | P2 | Functional | tester | Not run |
+| SMS-04 | Unregistered SMS text is refused | Same as SMS-01 | Call the generic notification API (`POST /api/v1/notifications`) with an SMS body that is not a registered template | The operator rejects it and `notification_log` records the failure with the provider's error — it does **not** silently appear to succeed. Every distinct SMS text needs its own DLT template (BACKLOG I-1) | P1 | Functional | tester | Not run |
+| SMS-05 | Blank key stays on the log provider | `MSG91_API_KEY` blank | Trigger an OTP by SMS | Nothing is sent; `notification_log` records it against provider `log`. Confirms a half-configured box cannot quietly attempt live sends | P1 | Functional | tester | Not run |
 | NOTIF-13 | Backend message consistency | — | Onboard a hospital / add a user | The success toast shows the backend's own `message` (from `messages.ts`), identical wording in every frontend | P2 | UX | super_admin | Not run |
 | EMAIL-PREVIEW-01 | Preview lists + renders every template | operator | Platform → Email templates | All templates listed by category; selecting one renders its subject + the email in a sandboxed iframe; no email is sent and no tenant data is shown | P1 | Functional | super_admin | Not run |
 | EMAIL-PREVIEW-02 | Preview is operator-gated | A non-operator session | Open `/email-templates`; call `GET /admin/email-templates` | The nav item is absent and the API returns 403 | P1 | Security | org_admin | Not run |
+
+---
+
+## 25. Check-in workflow, the shared Select, and reception billing (ADR-110, ADR-111, ADR-112)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CHK-01 | Existing patient is found and selected | A registered patient | OPD → Check in → type part of the name, UHID or phone | Matches appear within a second; picking one replaces the search with the UHID chip, name and phone, and a Change button | P1 | Functional | receptionist | Not run |
+| CHK-02 | No match offers registration in place | A name that matches nothing | Type an unknown name and wait for the search to settle | A dashed panel says no patient matches that text and offers Register new patient; the page does not navigate away | P1 | Functional | receptionist | Not run |
+| CHK-03 | Inline registration selects the new chart | CHK-02 | Register new patient → the typed text is pre-filled as the name → add gender, date of birth, phone → Register and continue | The dialog closes, a UHID is assigned, the new patient is already selected, and the half-filled visit form below is untouched | P1 | Functional | receptionist | Not run |
+| CHK-04 | A phone number typed into search seeds the phone, not the name | — | Type a 10-digit mobile that matches nothing → Register new patient | The dialog opens with the phone filled and the name blank | P2 | Usability | receptionist | Not run |
+| CHK-05 | A duplicate is surfaced, not created | A patient with the same name and date of birth | Register that same person again from the dialog | The dialog switches to the matching charts; Use this patient is the primary action and selects the existing chart; Register anyway is available; Back to the form returns without losing what was typed | P1 | Functional | receptionist | Not run |
+| CHK-06 | Registration is hidden without the permission | A role holding OPD check-in but not patient create | Open check-in | No Register new patient control anywhere in the picker; the search still works | P1 | Security | custom role | Not run |
+| CHK-07 | Patient is locked when it came from an appointment or referral | Open check-in with ?appointmentId= or ?referralId= | Inspect the Patient card | The patient is shown with no Change button | P2 | Functional | receptionist | Not run |
+| CHK-08 | Chief complaint takes a paragraph | — | Type several sentences into Reason for visit / chief complaint | A four-row textarea that grows by dragging; the counter tracks up to 2000 characters; the whole text reaches the doctor on the visit | P1 | Functional | receptionist | Not run |
+| SEL-01 | Provider dropdown searches, and shows speciality and fee | 8 or more active providers | Open the Provider dropdown | A search box is present; each row shows the name, the speciality or qualification underneath, and the fee on the right | P1 | Functional | receptionist | Not run |
+| SEL-02 | Search matches terms in any order | A provider with a speciality | Type a surname and a speciality word in either order | The provider is matched both ways | P2 | Functional | receptionist | Not run |
+| SEL-03 | Short lists have no search box | A tenant with 7 or fewer departments | Open the Department dropdown | No search box; the options are listed directly | P2 | Usability | receptionist | Not run |
+| SEL-04 | Keyboard only | — | Focus the trigger → Enter to open → arrows to move → Enter to select → reopen → Esc | Opening lands on the current selection; arrows skip disabled options; Enter selects; Esc closes and returns focus to the trigger | P1 | Accessibility | any | Not run |
+| SEL-05 | The panel is not clipped inside a dialog | Billing → new invoice with several lines | Open the Service dropdown on the last line of a scrolled dialog | The list renders in full above the dialog and is not cut off by the dialog body | P1 | Functional | cashier | Not run |
+| SEL-06 | The panel flips up near the bottom of the window | A dropdown low on a tall page | Open it with little room below | The list opens upwards and stays on screen | P2 | Usability | any | Not run |
+| SEL-07 | Long labels do not break the control | A department or drug with a very long name | Select it | The trigger truncates with an ellipsis and carries the full text in its tooltip; in the open list the label wraps and is fully readable | P2 | Usability | any | Not run |
+| SEL-08 | Clear works where offered | A selected department | Click the clear control in the trigger | The selection clears to the placeholder without opening the list | P2 | Functional | receptionist | Not run |
+| SEL-09 | Both themes and a non-default accent | A tenant with its own brand colour | Check a dropdown in Light and Dark | The selected tick, active row and focus ring all follow the tenant accent; no hard-coded colour anywhere | P1 | Visual | org_admin | Not run |
+| SEL-10 | Phone | A 375px viewport | Open a dropdown | The panel matches the trigger width, is bounded by the visible viewport, and the rows are finger-sized | P1 | Usability | any | Not run |
+| RCP-01 | Reception can reach the bill check-in raised | Check a patient in | Follow the Bill link from the OPD queue | The invoice opens; the balance matches the fee shown on the visit | P1 | Functional | receptionist | Not run |
+| RCP-02 | Reception can collect the payment | RCP-01 | Record a payment for the full balance | The payment is accepted, the invoice reads paid, and the consultation gate opens for the doctor | P1 | Functional | receptionist | Not run |
+| RCP-03 | Reception cannot raise an invoice of its own | — | Billing → attempt to create a new invoice | The create control is not rendered, and POST /api/v1/invoices returns 403 FORBIDDEN | P1 | Security | receptionist | Not run |
+| RCP-04 | The payment is attributed | RCP-02 | Audit log | The payment is recorded against the receptionist who took it | P1 | Security | org_admin | Not run |
+| SCR-01 | Long pages scroll natively | A patient with a long history | Open the patient page and scroll to the bottom with the wheel, the scrollbar, and Page Down | All three reach the end; the movement is the browser own, with no easing | P1 | Functional | any | Not run |
+| SCR-02 | Nested scroll regions behave | A long sidebar menu, a tall table | Wheel over the sidebar, then over the page | The sidebar scrolls on its own and stops at its end without carrying the page with it | P1 | Functional | any | Not run |
+| SCR-03 | A dialog locks the page without shifting it | Any modal on a scrollable page | Open a dialog | The page behind does not scroll and does not jump sideways when the scrollbar is removed; the dialog body scrolls if it is tall | P1 | Functional | any | Not run |
+| SCR-04 | Back to top works in the portals | Scroll past 600px | Click the Back to top button | The button appears while scrolled and returns the page to the top | P2 | Functional | any | Not run |
+| SCR-05 | Marketing keeps its smooth scroll | — | Scroll the marketing site | Motion is eased, and the html element still carries the lenis class; the four portals do not | P2 | Visual | public | Not run |
+| SCR-06 | Every app is checked, not just one | All five apps | Scroll the longest page in each of portal, admin, patient, aiportal and marketing | No page fails to reach its end; no unintended inner scrollbar | P1 | Functional | any | Not run |
+
+---
+
+## 26. Demo & test data — Development and Staging (ADR-058, ADR-114)
+
+The dataset itself, and the guards that keep it away from production. Full coverage map in
+`docs/seed-data.md`.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| SEED-01 | Development seeder builds the whole dataset | Empty, migrated development database | `npm run db:seed -w hms_backend` | Finishes cleanly and prints a per-tenant tally: `NIROGIX` + `CITYCARE`, `SUNRISE`, `LOTUS`, `GREENLEAF` | P1 | Functional | ops | Not run |
+| SEED-02 | Re-running changes nothing | SEED-01 done | Run `npm run db:seed -w hms_backend` again | Users/branches/departments unchanged; **no new** appointments, visits, invoices or payments — the clinical story runs once | P1 | Functional | ops | Not run |
+| SEED-03 | Reset rebuilds from empty | SEED-01 done, records edited by hand | `npm run db:seed -w hms_backend -- --reset` | Every tenant-scoped table is emptied and rebuilt; the hand-made edits are gone; counts match SEED-01 | P1 | Functional | ops | Not run |
+| SEED-04 | Development seeder refuses staging | — | `NODE_ENV=staging npm run db:seed -w hms_backend` | Refused before any write, exit code 2, message names the right seeder | P1 | Security | ops | Not run |
+| SEED-05 | Seeder refuses a production-looking database | — | Run the development seeder with a `DATABASE_URL` that has no dev/local/test/staging in it and is not localhost | Refused before any write; message explains the naming rule | P1 | Security | ops | Not run |
+| SEED-06 | Production seeder refuses elsewhere | — | `npm run db:seed:production -w hms_backend` on a development machine | Refused: "This is the production seeder, but NODE_ENV is development" | P1 | Security | ops | Not run |
+| SEED-07 | Production seeder creates no demo data | Fresh production-shaped database, backup taken | `CONFIRM_PRODUCTION_SEED=yes npm run db:seed:production` | Permission/specialty/reference catalogues + system roles + the platform org only. **Zero** rows in `patients`, `visits`, `appointments`, `invoices`, `branches`, `departments`, `providers` | P1 | Security | ops | Not run |
+| SEED-08 | Production has no reset path | — | Grep `seed.production.ts` for `seedKit` and `--reset` | Neither appears — the demo engine is not imported and no reset exists | P1 | Security | ops | Not run |
+| SEED-09 | Staging reset needs a second confirmation | Seeded staging database | `npm run db:seed:staging -w hms_backend -- --reset` | Refused until `CONFIRM_SEED_RESET=yes` is set; the message says why | P1 | Security | ops | Not run |
+| SEED-10 | Staging data is deterministic | Seeded staging database | Reset and reseed staging; compare UHIDs, visit numbers, invoice numbers and today's queue | Identical to the previous run, in the same order | P1 | Functional | ops | Not run |
+| SEED-11 | Today's OPD queue holds every stage | Seeded development | Sign in `CITYCARE`/`reception@citycare.example` → OPD | One row each: awaiting payment, awaiting vitals, vitals recorded, in consultation, completed, sample collected, result pending verification, finished, walk-in part-paid, cancelled | P1 | Functional | receptionist | Not run |
+| SEED-12 | Every appointment status has rows | Seeded development | Appointments → filter by each status in turn | `booked`, `completed`, `cancelled` and `no_show` all return results; the date range spans past → future | P1 | Functional | receptionist | Not run |
+| SEED-13 | Every billing status has rows | Seeded development | Billing → filter by each status; then filter by amount range | `draft`, `partially_paid`, `paid`, `void` all return results; the amount range narrows | P1 | Functional | cashier | Not run |
+| SEED-14 | Every lab status has rows | Seeded development | Laboratory → filter by each status | `ordered`, `collected`, `resulted`, `verified`, `cancelled` all return results; at least one result is flagged critical | P1 | Functional | lab_technician | Not run |
+| SEED-15 | Patient filters have both sides | Seeded development | Patients → filter gender, then status, then city, then a registration date range | Each filter returns results and excludes others; `male`, `female` and `other` all present; `active` and `inactive` both present | P1 | Functional | receptionist | Not run |
+| SEED-16 | Pagination appears | Seeded development | Open Patients, Appointments, Billing and Audit at the default page size | Each shows more than one page and paginates correctly | P2 | Functional | org_admin | Not run |
+| SEED-17 | Empty states are reachable | Seeded development | Open the two newest patients in `CITYCARE`; then `LOTUS` → Patient registrations | The new charts show empty visit/billing/lab tabs; the registrations screen shows its empty state (self-registration is off there) | P2 | UI | receptionist | Not run |
+| SEED-18 | A patient chart is fully connected | Seeded development | Open a patient with history (e.g. the first few UHIDs) | Appointments, visits, encounters with vitals, prescriptions, lab results, invoices and payments all resolve to that patient and to real doctors | P1 | Functional | doctor | Not run |
+| SEED-19 | Module entitlement is visible in the data | Seeded development | Sign in as `LOTUS`/`admin@lotus.example` | No Pharmacy or Laboratory in the navigation; those routes are refused; `CITYCARE` has both | P1 | Security | org_admin | Not run |
+| SEED-20 | Suspended tenant renders | Seeded development | Admin console → Tenants → filter by status | `GREENLEAF` appears as suspended; opening it renders without error | P2 | Functional | super_admin | Not run |
+| SEED-21 | Low stock and expiry are visible | Seeded development | Pharmacy → Stock; Dashboard | Two drugs sit below their reorder level; at least one batch is near expiry; the dashboard's low-stock tile lists them | P2 | Functional | pharmacist | Not run |
+| SEED-22 | Reports have a range to report on | Seeded development | Reports → Collections and EOD over the last 30 days | Non-zero, varied figures across days and payment methods; the dashboard trend has more than one point | P1 | Functional | org_admin | Not run |
+| SEED-23 | Audit history spans a range | Seeded development | Audit → filter by severity, then by a date range inside the last 30 days | All four severities return rows; the date range narrows the list | P2 | Functional | org_admin | Not run |
+| SEED-24 | No real patient information | Any seeded environment | Read through the seeded patients, phone numbers and notes | Everything is invented; no real person, number or clinical record | P1 | Security | ops | Not run |
+
+---
+
+## 26. Workflow configuration & vitals (ADR-113)
+
+Settings → **Workflow** chooses where vitals are taken and when the fee is settled, per organization
+or per hospital. A tenant that never opens the screen runs on the platform defaults, which are the
+product's pre-existing behaviour — that is what WF-01 checks, and it is the case that must never
+break for an existing customer.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| WF-01 | Unconfigured behaves exactly as before | A tenant that has never opened the screen | Settings → Workflow | Reads as not-yet-configured: vitals in the consultation, fee before the consultation; nothing required | P1 | Functional | org_admin | Not run |
+| WF-02 | Branch inherits until it overrides | Two branches | Switch scope to a branch | It says the hospital follows the organization default and that saving creates an override for it alone | P1 | Functional | org_admin | Not run |
+| WF-03 | A branch override leaves the organization alone | WF-02 | Save a different vitals mode for one branch, then read the organization scope | The organization is unchanged; only that branch moved | P1 | Functional | org_admin | Not run |
+| WF-04 | Required and offered are mutually exclusive | — | Set the same vital to Required and Offered through the API | 422 naming the vital | P2 | Functional | org_admin | Not run |
+| WF-05 | Nothing can be required when vitals are off | — | Set mode Not at all with a required vital | 422 | P2 | Functional | org_admin | Not run |
+| WF-06 | Optimistic locking | Two tabs on the screen | Save in one, then save the other | The second is refused with a reload-and-retry message; the first save survives | P2 | Functional | org_admin | Not run |
+| WF-07 | Reception cannot change the workflow | — | As receptionist, GET and PUT /api/v1/workflow-config | Both 403; no Workflow tab in the navigation | P1 | Security | receptionist | Not run |
+| WF-08 | The change is audited both ways | Any save | Audit log → `workflow.config.updated` | The entry carries the scope, what it was, and what it became | P1 | Security | org_admin | Not run |
+| WF-09 | Cross-tenant isolation | Two tenants | Configure tenant A, inspect tenant B | B is unaffected and still on its own settings | P1 | Security | org_admin | Not run |
+| VIT-01 | No vitals section unless configured | Default configuration | Open Check in | No Vitals section at all | P1 | Functional | receptionist | Not run |
+| VIT-02 | Desk vitals appear when configured | Mode = during check-in | Open Check in | A Vitals section showing exactly the configured parameters, required ones asterisked | P1 | Functional | receptionist | Not run |
+| VIT-03 | A required vital is refused before anything is written | VIT-02 with blood pressure required | Submit with the pulse only | 422 naming Blood pressure, and **no visit and no invoice were created** | P1 | Functional | receptionist | Not run |
+| VIT-04 | Impossible readings refused, alarming ones accepted | VIT-02 | Enter 1200/80, then 200/110 | The first is refused as a typo; the second is accepted — it is a real emergency | P1 | Functional | receptionist | Not run |
+| VIT-05 | Half a blood pressure | VIT-02 | Enter only the systolic | Refused | P2 | Functional | receptionist | Not run |
+| VIT-06 | Blood sugar needs its type | Blood sugar offered | Enter a value, leave fasting/post-prandial/random blank | Refused — a sugar reading with no type cannot be interpreted | P2 | Functional | receptionist | Not run |
+| VIT-07 | The server refuses a stage the hospital does not run | Mode = in the consultation | POST /api/v1/vitals with stage `check_in` | 409 — the mode is checked as well as the permission | P1 | Security | receptionist | Not run |
+| VIT-08 | Vitals queue lists the waiting | Mode = after check-in | Check a patient in, open Vitals queue | Listed in token order, marked Waiting | P1 | Functional | receptionist | Not run |
+| VIT-09 | Recording marks done without removing | VIT-08 | Record the vitals | The row reads Recorded with the readings, who and when — and stays on the list | P1 | Functional | receptionist | Not run |
+| VIT-10 | The pending filter is the working list | VIT-09 | GET /api/v1/vitals/queue?pending=true | Only visits with no reading yet | P2 | Functional | receptionist | Not run |
+| VIT-11 | A re-take never overwrites | VIT-09 | Record a second, different set | Both readings exist; the newest is shown first | P1 | Functional | receptionist | Not run |
+| VIT-12 | Starting the consultation clears the queue entry | VIT-09 | Open the consultation | The visit leaves the vitals queue | P1 | Functional | doctor | Not run |
+| VIT-13 | The wrong mode explains itself | Mode = in the consultation | Open Vitals queue | An explanation and a link to the setting, not an empty table | P2 | Usability | receptionist | Not run |
+| VIT-14 | The consultation opens on the earlier reading | A visit with desk or vitals-room readings | Open the consultation | The Vitals card is pre-filled with the latest, with each earlier reading listed by stage, person and time | P1 | Functional | doctor | Not run |
+| VIT-15 | The clinician is not held to the required list | Required vitals configured | Amend one number in the consultation and save | Accepted; nothing else is demanded | P1 | Functional | doctor | Not run |
+| VIT-16 | Re-saving a note does not duplicate a reading | VIT-14 | Save twice without changing a reading | No duplicate entry | P2 | Functional | doctor | Not run |
+| VIT-17 | Changing a reading records a new one | VIT-16 | Change a value and save | A new entry attributed to the doctor; the earlier one survives | P1 | Functional | doctor | Not run |
+| VIT-18 | The cashier cannot record a clinical reading | — | POST /api/v1/vitals as cashier | 403 | P1 | Security | cashier | Not run |
+| VIT-19 | Units are exact through a round trip | — | Record 37.2 °C and 64.5 kg, read them back | Exactly 37.2 and 64.5 — stored in tenths and grams, reported in the unit a clinician reads | P1 | Functional | receptionist | Not run |
+| VIT-20 | Historical readings survived the migration | A tenant with pre-ADR-113 consultations | Open an old signed consultation | Its vitals are still there, listed as taken in the consultation | P1 | Functional | doctor | Not run |
+| PAY-01 | The default gate still holds | Default configuration | Open a consultation on an unpaid visit | Blocked, server-side (409 on the API, not just a hidden button) | P1 | Security | doctor | Not run |
+| PAY-02 | After-consultation lifts the gate | Payment timing = after the consultation | Open a consultation unpaid | It opens | P1 | Functional | doctor | Not run |
+| PAY-03 | Nothing is written off | PAY-02 | Inspect the invoice | Still raised, full balance outstanding, visible on the visit and in Billing | P1 | Functional | cashier | Not run |
+| PAY-04 | Restoring the gate blocks again | PAY-02 | Set it back, check in, open unpaid | Blocked | P1 | Functional | doctor | Not run |
+| PAY-05 | At-checkin is the same gate | Payment timing = at check-in | Open a consultation unpaid | Still blocked — this setting describes the hospital process, it does not weaken the rule | P1 | Security | doctor | Not run |
+| CHK-09 | The chief complaint takes 2000 characters | — | Type a long paragraph into Reason for visit | Accepted and shown in full to the doctor | P2 | Functional | receptionist | Not run |
+
+---
+
+## 27. The unified visit workflow (ADR-115)
+
+`/opd/check-in` and `/appointments/new` render **one component**. The only real variable is when
+the patient is seen. Most of these cases are about the two halves staying genuinely identical —
+the failure mode is quiet, and it is a desk losing what it typed by pressing a toggle.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| UNI-01 | The When control is offered | A role with both check-in and booking | Open /opd/check-in | A When card with Right now selected and Future appointment beside it | P1 | Functional | receptionist | Not run |
+| UNI-02 | Switching keeps every shared answer | UNI-01 | Fill patient, department, doctor and a long complaint, then press Future appointment | All four survive; only the fee and vitals go, and date/time or slot chips appear | P1 | Functional | receptionist | Not run |
+| UNI-03 | Switching back loses nothing either | UNI-02 | Press Right now again | The shared answers are still there | P1 | Functional | receptionist | Not run |
+| UNI-04 | The page follows the choice | UNI-01 | Toggle between the two | Title and submit button read Check in / Book appointment | P2 | Usability | receptionist | Not run |
+| UNI-05 | A booking is never a walk-in | UNI-01 | Switch to Future appointment and open Visit type | Walk-in is absent; First visit and Follow-up remain | P2 | Functional | receptionist | Not run |
+| UNI-06 | Both routes are the same form | — | Open /appointments/new | The same form, starting on Future appointment | P1 | Functional | receptionist | Not run |
+| UNI-07 | The toggle follows permissions | A doctor (booking only, no check-in) | Open /appointments/new | No When card; booking only. No control is offered that would 403 | P1 | Security | doctor | Not run |
+| UNI-08 | The toggle is hidden where it cannot work | — | Open check-in with ?appointmentId= then with ?referralId= | No When card either time, and the patient cannot be changed | P1 | Functional | receptionist | Not run |
+| UNI-09 | An appointment stores a department | — | Book with a department, open the appointments list | Department stored and shown (it did not exist on an appointment before ADR-115) | P1 | Functional | receptionist | Not run |
+| UNI-10 | The complaint limit is the same on both sides | — | Type ~1500 characters, book; then check in with the same text | Both accept it in full — a limit that depends on the button pressed is a trap | P1 | Functional | receptionist | Not run |
+| UNI-11 | A retired department is refused the same way by both | A deactivated department | Book into it, then check into it | 422 both times, same message | P2 | Functional | receptionist | Not run |
+| UNI-12 | Each timing produces the right thing | — | Book one, check another in | The booking has no token and raises no invoice; the check-in has both | P1 | Functional | receptionist | Not run |
+| ARR-01 | An undirected check-in is a walk-in | — | Check in with no visit type chosen | `arrivalType: walk_in` | P1 | Functional | receptionist | Not run |
+| ARR-02 | The desk can mark a follow-up | — | Check in with Visit type = Follow-up | `arrivalType: follow_up` on the visit | P1 | Functional | receptionist | Not run |
+| ARR-03 | A booked follow-up survives the wait | A follow-up booked for tomorrow | Check that patient in **without** touching visit type | Recorded as follow_up, and the booking department carried across | P1 | Functional | receptionist | Not run |
+| ARR-04 | A client cannot downgrade a booking | ARR-03 | POST check-in with `arrivalType: walk_in` against the booked follow-up | The appointment wins; still follow_up | P1 | Security | receptionist | Not run |
+| ARR-05 | A referral check-in is a follow-up | A pending referral | Check in from the referral worklist | Recorded as follow_up; the visit-type control is fixed and explains why | P1 | Functional | receptionist | Not run |
+| ARR-06 | An invented arrival type is refused | — | POST check-in with `arrivalType: emergency` | 422 at the edge | P2 | Security | receptionist | Not run |
+| ARR-07 | History was migrated honestly | A tenant with pre-ADR-115 visits | Inspect old visits | Ones created from an appointment read `appointment`/its intent; the rest read `walk_in` | P2 | Functional | org_admin | Not run |
+
+---
+
+## 28. Treatment cases (ADR-116)
+
+A case groups the visits of one course of treatment. Two behaviours are deliberate and are easy to
+mis-report as defects: **most visits have no case** (the picker defaults to none), and **a patient
+may have several open cases at once** (a long-term condition and a fresh injury are separate).
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CAS-01 | A new case gets a readable number | — | Open a case from the chart | `C-000001`-style number, status open, zero visits | P1 | Functional | receptionist | Not run |
+| CAS-02 | An untitled case is refused | — | Submit with a blank title | 422 — an untitled case is unpickable later | P2 | Functional | receptionist | Not run |
+| CAS-03 | Check-in can open a case in the same breath | — | Check in choosing Start a new case with a title | Visit created and filed under a brand-new case | P1 | Functional | receptionist | Not run |
+| CAS-04 | A failed check-in leaves no orphan case | A patient already checked in today | Check in again with a new case | 409, and **no case row was created** | P1 | Functional | receptionist | Not run |
+| CAS-05 | Existing open cases are surfaced before anything is chosen | A patient with an open case | Start a check-in and choose that patient | A panel names the open case and its number, unprompted | P1 | Usability | receptionist | Not run |
+| CAS-06 | Filing under an existing case fills in where it is run | CAS-05 | Pick the case | Department and doctor from the case are filled in | P2 | Functional | receptionist | Not run |
+| CAS-07 | Follow-up preselects the latest open case | A patient with an open case | Set Visit type to Follow-up | The most recent open case is selected, and remains changeable | P2 | Usability | receptionist | Not run |
+| CAS-08 | A second open case is allowed | A patient with one open case | Open another from the chart | Allowed, with a warning that one is already open | P1 | Functional | receptionist | Not run |
+| CAS-09 | Most visits have no case | — | Check in without touching the case picker | `caseId` is null and the visit is entirely normal | P1 | Functional | receptionist | Not run |
+| CAS-10 | Another patient's case is refused | Two patients, one case | POST check-in with the other patient's `caseId` | 422 naming a different patient | P1 | Security | receptionist | Not run |
+| CAS-11 | Both a case and a new case is refused, not guessed | — | POST check-in with `caseId` **and** `newCase` | 422 — the client has not decided | P2 | Functional | receptionist | Not run |
+| CAS-12 | A live visit blocks closing | A case with a checked-in visit | Close the case | 409 naming the visit still open | P1 | Functional | doctor | Not run |
+| CAS-13 | Closing needs a reason and keeps the visits | CAS-12 completed | Close with, then without, a reason | Without: 422. With: closed, reason shown, visit count unchanged | P1 | Functional | doctor | Not run |
+| CAS-14 | A closed case cannot take a new visit | CAS-13 | Check in under the closed case | 409 — a closed episode must not quietly resume | P1 | Functional | receptionist | Not run |
+| CAS-15 | Closing twice is refused | CAS-13 | Close again | 409 | P2 | Functional | doctor | Not run |
+| CAS-16 | Reopening keeps everything | CAS-13 | Reopen | Status open, close reason cleared, visit count unchanged | P1 | Functional | doctor | Not run |
+| CAS-17 | Optimistic locking | Two tabs on one case | Save in one, then the other | The second is refused with reload-and-retry | P2 | Functional | doctor | Not run |
+| CAS-18 | Nothing is ever deleted | — | Look for a delete control; call DELETE /api/v1/cases/:id | No control; the route does not exist (invariant #6) | P1 | Security | org_admin | Not run |
+| CAS-19 | The audit trail survives a reopen | CAS-16 | Audit log, `case.%` actions | opened / closed (with reason) / reopened (carrying the **previous** close reason, which the row no longer holds) | P1 | Security | org_admin | Not run |
+| CAS-20 | The pharmacist cannot see or open cases | — | GET and POST /api/v1/cases as pharmacist | 403 both | P1 | Security | pharmacist | Not run |
+| CAS-21 | 🔒 Cross-tenant isolation | Two hospitals | Read Hospital A's case id as Hospital B | 404, and B's own list is empty | P1 | Security | receptionist | Not run |
+| CAS-22 | The queue answers "why are they back?" | A visit under a case | Open the OPD queue | The Case column shows the title and `C-` number | P2 | Usability | receptionist | Not run |
+
+---
+
+## 29. Consultation fee schedule (ADR-117)
+
+The fee is calculated from a price list rather than typed. Two clusters of cases: the **resolution
+order** (which of several overlapping rules wins), and whether the schedule is **binding** — a
+price list the desk can silently ignore is decoration.
+
+Set-up for the FEE cases: rule A = any/any/**Follow-up**/₹200; rule B = any/**Cardiology**/any/₹600;
+rule C = **Dr X**/any/any/₹800; rule D = **Dr X**/**Cardiology**/**Follow-up**/₹300.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FEE-01 | No rules behaves as before | A tenant with an empty schedule | Preview a fee for a doctor | The doctor's own configured fee, sourced `provider_default` | P1 | Functional | receptionist | Not run |
+| FEE-02 | No rules and no doctor | — | Preview with nothing | ₹0, sourced `none` | P2 | Functional | receptionist | Not run |
+| FEE-03 | A blanket visit-type rule applies to everyone | Rule A | Preview Dr X + follow-up, with no other rule | ₹200 | P1 | Functional | receptionist | Not run |
+| FEE-04 | Department beats visit type | Rules A + B | Preview Dr X + Cardiology + follow-up | ₹600, not ₹200 | P1 | Functional | receptionist | Not run |
+| FEE-05 | Doctor beats department | Rules A + B + C | Preview Dr X + Cardiology | ₹800; another doctor in Cardiology still gets ₹600 | P1 | Functional | receptionist | Not run |
+| FEE-06 | The most specific of all wins | Rules A–D | Preview Dr X + Cardiology + follow-up | ₹300, and the broader rules still govern their own cases | P1 | Functional | receptionist | Not run |
+| FEE-07 | A duplicate combination is refused | Rule B exists | Add another any/Cardiology/any rule | 409 — the price would otherwise be a coin toss | P1 | Functional | org_admin | Not run |
+| FEE-08 | Retiring stops it applying but keeps it | Rule D | Retire D, preview the same combination | Falls back to ₹800; D is still listed under "show retired" and absent from the default list | P1 | Functional | org_admin | Not run |
+| FEE-09 | The fee is shown, not typed | Rules set | Open check-in and pick Dr X | ₹800 stated with a badge naming its source; no free-text fee field | P1 | Usability | receptionist | Not run |
+| FEE-10 | It re-prices as the form changes | FEE-09 | Change visit type / doctor / department | The amount updates without a reload | P1 | Functional | receptionist | Not run |
+| FEE-11 | Check-in bills exactly what was shown | FEE-09 | Check in | The invoice total equals the displayed fee; `calculatedFeePaise` matches | P1 | Functional | receptionist | Not run |
+| FEE-12 | Arrival type genuinely changes the price | Rules set | Check in the same patient as first visit, then as follow-up | Different invoice totals | P1 | Functional | receptionist | Not run |
+| OVR-01 | No override control without the permission | Plain receptionist | Open check-in | No "Charge a different amount" control | P1 | Security | receptionist | Not run |
+| OVR-02 | 🔒 The server refuses it too | OVR-01 | POST check-in with a different `consultationFeePaise` | 403 — the missing button is not the boundary | P1 | Security | receptionist | Not run |
+| OVR-03 | Echoing the calculated amount is not an override | — | POST check-in with the fee **equal** to the calculated one | 201, no override recorded | P1 | Functional | receptionist | Not run |
+| OVR-04 | A reason is required | A user granted `billing.fee.override` | Different amount, blank reason | 422 | P1 | Functional | supervisor | Not run |
+| OVR-05 | Both numbers are kept | OVR-04 | Different amount with a reason | Invoice = charged; visit keeps `calculatedFeePaise` + reason | P1 | Functional | supervisor | Not run |
+| OVR-06 | The override is audited as a warning | OVR-05 | Audit log, filter Warning | `billing.fee.overridden` with both amounts, the reason and the actor | P1 | Security | org_admin | Not run |
+| OVR-07 | The permission is grantable per user | — | Grant `billing.fee.override` to one receptionist | Only that receptionist gains the control; colleagues do not | P1 | Security | org_admin | Not run |
+| FEE-13 | 🔒 The desk cannot edit the price list | — | POST /api/v1/fee-rules as receptionist | 403; GET is allowed so they can quote from it | P1 | Security | receptionist | Not run |
+| FEE-14 | 🔒 The doctor is not in the pricing business | — | GET /api/v1/fee-rules as doctor | 403 | P2 | Security | doctor | Not run |
+| FEE-15 | A price change records both amounts | Any rule | Change its fee, then read the audit log | `feePaiseBefore` and `feePaiseAfter` — the row afterwards holds only the new one | P1 | Security | org_admin | Not run |
+| FEE-16 | Optimistic locking | Two tabs on one rule | Save in one, then the other | The second is refused | P2 | Functional | org_admin | Not run |
+| FEE-17 | 🔒 Cross-tenant isolation | Two hospitals | Read the price list as the other hospital | Only its own rules; A's prices never appear for B | P1 | Security | org_admin | Not run |
+
+---
+
+## 30. Patient self check-in (ADR-118)
+
+The third unauthenticated write path. **Most of these cases are about what the endpoint refuses to
+tell you** — a public form behind a printed QR is reachable by anyone walking past, so the
+interesting failures are disclosures rather than crashes. SCI-04, SCI-05 and SCI-06 are the ones
+that matter most; treat a difference between them as a security defect, not a cosmetic one.
+
+Scanning **announces an arrival**; the desk confirms. Nothing here checks a patient in by itself,
+and that is deliberate — do not report it as a bug.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| SCI-01 | Off by default | A fresh tenant | Settings → Self check-in | Off, with copy saying scanning announces an arrival and checks nobody in | P1 | Functional | org_admin | Not run |
+| SCI-02 | Turning it on mints a link | SCI-01 | Enable | A link and a scannable QR appear | P1 | Functional | org_admin | Not run |
+| SCI-03 | The kiosk page asks one thing | SCI-02 | Open the link | Hospital name and a single mobile-number field; no name, DOB or reference asked | P1 | Usability | public | Not run |
+| SCI-04 | 🔒 A match tells you nothing | A patient with an appointment today | Submit their number | A generic thank-you; **no patient name, doctor or time anywhere in the response** | P1 | Security | public | Not run |
+| SCI-05 | 🔒 A stranger gets the identical reply | SCI-04 | Submit an unknown number | **Byte-identical** screen and wording. Any difference answers "is this person a patient here, and due in today?" | P1 | Security | public | Not run |
+| SCI-06 | 🔒 Disabled is indistinguishable | — | Turn it off, submit a number that would match | Same reply again, and no arrival recorded. "Off" must not be discoverable | P1 | Security | public | Not run |
+| SCI-07 | 🔒 A bad token says nothing useful | — | Open the URL with a changed character, then a made-up token | Both give the same "not a valid link" page | P1 | Security | public | Not run |
+| SCI-08 | 🔒 Regenerating retires the poster | SCI-02 | Regenerate, open the old link | The old link 404s immediately; the new one works | P1 | Security | org_admin | Not run |
+| SCI-09 | An unmatched arrival is still on the board | SCI-05 | Open Arrivals | It is listed, marked **Needs a human**, showing only the typed number | P1 | Functional | receptionist | Not run |
+| SCI-10 | A matched arrival shows its appointment | SCI-04 | Open Arrivals | Name, UHID, doctor, time; marked Ready to check in | P1 | Functional | receptionist | Not run |
+| SCI-11 | An unmatched arrival cannot be confirmed | SCI-09 | Attempt to confirm it | Refused (422) and directed to the check-in screen, where the desk can search | P1 | Functional | receptionist | Not run |
+| SCI-12 | Confirming makes an ordinary visit | SCI-10 | Confirm | OPD queue entry with a token, an invoice priced by the fee schedule, arrivalType = appointment | P1 | Functional | receptionist | Not run |
+| SCI-13 | Confirming twice is refused | SCI-12 | Confirm again | 409 | P2 | Functional | receptionist | Not run |
+| SCI-14 | Already checked in by hand | An announcement whose appointment was checked in at the desk | Open Arrivals | Marked **Already checked in**; no second check-in offered | P1 | Functional | receptionist | Not run |
+| SCI-15 | Dismissing needs a reason and keeps the record | SCI-09 | Dismiss without, then with, a reason | Without: refused. With: dismissed and retained | P2 | Functional | receptionist | Not run |
+| SCI-16 | 🔒 No shortcut past the permission | — | Confirm an arrival as a doctor | 403 — a patient scanning a code buys a shorter queue, not authority | P1 | Security | doctor | Not run |
+| SCI-17 | 🔒 The board needs a session | — | GET /api/v1/self-check-ins with no token | 401 | P1 | Security | public | Not run |
+| SCI-18 | 🔒 Only an administrator configures it | — | PUT settings / regenerate as receptionist | 403 both | P1 | Security | receptionist | Not run |
+| SCI-19 | 🔒 A public announcement is audited with no actor | SCI-04 | Audit log | `self_checkin.announced` with a null actor; `self_checkin.confirmed` names the receptionist | P1 | Security | org_admin | Not run |
+| SCI-20 | 🔒 Cross-tenant isolation | Two hospitals | Announce at A, read B's board | B sees nothing; A's token can never write to B | P1 | Security | receptionist | Not run |
+
+---
+
+## 31. Patient history panel & documents (ADR-119)
+
+The panel renders for a **receptionist** at the desk and for a **doctor** in the consultation, and
+they must not see the same thing. HIS-04 and HIS-05 are the cases that matter; treat a difference
+as a security defect.
+
+For documents, the failure worth catching is a file landing on the **wrong chart** — DOC-06 and
+DOC-07.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| HIS-01 | The panel appears beside the form | A patient with history | Open check-in on a wide screen, choose the patient | Form left at a readable width, record right, with an Open full record link | P1 | Functional | receptionist | Not run |
+| HIS-02 | No patient, no panel | — | Open check-in without choosing anyone | No panel | P2 | Usability | receptionist | Not run |
+| HIS-03 | It stacks rather than squeezing | HIS-01 | Narrow to a phone width | The panel moves below the form | P1 | Usability | receptionist | Not run |
+| HIS-04 | 🔒 Reception sees no diagnoses | HIS-01 | Inspect the panel as a receptionist | **No Consultations block** — it carries chief complaints and ICD-10 codes and needs `emr.encounter.view` | P1 | Security | receptionist | Not run |
+| HIS-05 | 🔒 A doctor does | HIS-04 | Same patient as a doctor | The Consultations block is present | P1 | Security | doctor | Not run |
+| HIS-06 | 🔒 The server agrees | HIS-04 | GET /api/v1/patients/:id/encounters as receptionist | 403 — the missing block is not the boundary | P1 | Security | receptionist | Not run |
+| HIS-07 | Short lists, not the whole record | A patient with many visits | Inspect the panel | The newest few per block, with the full chart a click away | P2 | Usability | receptionist | Not run |
+| HIS-08 | Cases appear in the rail only | — | Compare the panel with the patient chart | The chart uses the richer CasesCard; the rail shows a summary. No duplicate blocks on either | P2 | Usability | receptionist | Not run |
+| HIS-09 | 🔒 No other hospital&#39;s records | A patient seen elsewhere | Inspect the panel | Only this hospital&#39;s records. External history is consent-gated and doctor-initiated from the chart (ADR-092) | P1 | Security | receptionist | Not run |
+| DOC-01 | Attach a document at the desk | HIS-01 | Choose a file, pick a type, attach | Listed immediately, and on the full record | P1 | Functional | receptionist | Not run |
+| DOC-02 | The title defaults to the filename | — | Attach without typing a title | Title = the filename; a list of untitled rows would be unusable | P2 | Usability | receptionist | Not run |
+| DOC-03 | Opening a document | DOC-01 | Click the title | Opens in a new tab via a short-lived signed URL | P1 | Functional | receptionist | Not run |
+| DOC-04 | Archiving needs a reason | DOC-01 | Archive without, then with, a reason | Without: refused. With: hidden from the list | P1 | Functional | receptionist | Not run |
+| DOC-05 | Archived is kept, never deleted | DOC-04 | Tick Show archived | It reappears with the badge and the reason (invariant #6) | P1 | Functional | receptionist | Not run |
+| DOC-06 | 🔒 A visit or case from another patient is refused | Two patients | POST a document for patient B naming patient A&#39;s visit or case | 422 naming a different patient | P1 | Security | receptionist | Not run |
+| DOC-07 | 🔒 A file from another hospital is refused | Two hospitals | Attach hospital B&#39;s file id to a hospital A patient | 404 — the id alone proves nothing | P1 | Security | receptionist | Not run |
+| DOC-08 | A made-up file id is refused | — | POST with a random uuid | 404 | P2 | Security | receptionist | Not run |
+| DOC-09 | 🔒 The pharmacist has no file permission | — | GET and POST documents as pharmacist | 403 both | P1 | Security | pharmacist | Not run |
+| DOC-10 | Filter to one case | A case with documents | GET ?caseId= | Only that case&#39;s documents | P2 | Functional | doctor | Not run |
+| DOC-11 | The attachment is audited | DOC-01 | Audit log | `patient.document.attached` with the patient and the document type | P1 | Security | org_admin | Not run |
+| DOC-12 | A deleted file leaves its attachment | DOC-01 then DELETE /files/:id | Reload the list | The row remains, reading `(file removed)` — that it was attached is part of the record | P2 | Functional | org_admin | Not run |
+
+---
+
+## 32. ABDM consent status at the desk (ADR-120)
+
+Three acts, three permissions: **asking** (`abdm.history.request` — puts a named clinician in
+front of the patient), **reading** (`abdm.history.view` — another hospital's records), and
+**knowing something is outstanding** (`abdm.consent.status.view` — the front desk).
+
+CST-05 and CST-06 are the cases that matter: what the endpoint refuses to say, and that the narrow
+permission has not quietly become a wide one.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CST-01 | No ABHA, nothing to request | A patient with no verified ABHA | Open check-in | The card says records cannot be requested and points at ABHA verification | P2 | Functional | receptionist | Not run |
+| CST-02 | ABHA, nothing asked yet | A patient with a verified ABHA | Open check-in | Says nothing has been requested, and that a **doctor** can ask | P1 | Functional | receptionist | Not run |
+| CST-03 | A pending request shows as waiting | A doctor has requested history | Reopen check-in as the receptionist | **Waiting for the patient** | P1 | Functional | receptionist | Not run |
+| CST-04 | A decline is a decision, not an error | A declined request | Inspect the card | Says the patient declined; not presented as a retryable failure | P2 | Usability | receptionist | Not run |
+| CST-05 | 🔒 The response says nothing it should not | CST-03 | Inspect the `/consent-status` response | **No** source hospital, **no** record count, **no** requesting doctor or registration number — only states, counts, a date | P1 | Security | receptionist | Not run |
+| CST-06 | 🔒 Status is not a way in | CST-03 | As receptionist: GET history, GET timeline, POST history/request | **403** on all three | P1 | Security | receptionist | Not run |
+| CST-07 | The doctor keeps the fuller view | CST-03 | Open the patient record as a doctor | The full external-history card, with the requesting clinician visible | P1 | Functional | doctor | Not run |
+| CST-08 | 🔒 No ABDM permission at all | — | GET consent-status as a pharmacist | 403 | P1 | Security | pharmacist | Not run |
+| CST-09 | A lapsed consent is visible as lapsed | A granted request whose consent has expired or been revoked | Inspect the card | Reads **Consent has lapsed**, prompting a doctor to ask again if still needed | P2 | Functional | receptionist | Not run |
+| CST-10 | An active consent shows its deadline | A granted, live consent | Inspect the card | Shows the date our copy must be destroyed by | P2 | Functional | receptionist | Not run |
+| CST-11 | 🔒 Capability off removes everything together | ABDM entitled, M3 capability disabled | Call status, history list and timeline | **403** on all three, and the card disappears from check-in | P1 | Security | doctor | Not run |
+| CST-12 | The card is silent, not broken, when unavailable | CST-11 | Open check-in | No card at all — it must not advertise a feature this hospital does not have | P2 | Usability | receptionist | Not run |
 
 ---
 

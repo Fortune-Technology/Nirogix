@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge, Card, Skeleton } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { EncounterSummary, InvoiceListItem, LabOrder, Visit } from "@hms/types";
+import type { EncounterSummary, InvoiceListItem, LabOrder, PatientCase, Visit } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
 import * as api from "../../lib/api";
 import { useCan } from "../../lib/auth";
+import { PatientDocumentsCard } from "./PatientDocumentsCard";
+import { ConsentStatusCard } from "./ConsentStatusCard";
 import { formatPaise } from "../../lib/money";
 
 const VISIT_TONE: Record<string, "success" | "warning" | "brand" | "neutral"> = {
@@ -33,31 +35,87 @@ function useHistory<T>(enabled: boolean, fetcher: () => Promise<T[]>): { rows: T
   return { rows };
 }
 
+export interface PatientHistoryProps {
+  patientId: string;
+  /**
+   * `grid` is the chart, two columns wide. `rail` is the check-in side panel: one column,
+   * scrollable, and short lists rather than complete ones — the desk wants context at a glance,
+   * not the whole record.
+   */
+  layout?: "grid" | "rail";
+  /** Heading, or none where the surrounding panel already provides one. */
+  heading?: string | null;
+}
+
 /**
- * The patient's story across time — visits, signed consultations, bills and lab reports —
- * so the same chart carries every future visit (multi-visit history, not a one-shot demo).
- * Every block is permission-gated AND the API re-checks; an unpermitted block simply
- * does not render (frontend visibility is never security).
+ * The patient's story across time — cases, visits, signed consultations, bills, lab reports and
+ * documents — so the same chart carries every future visit.
+ *
+ * **Every block is permission-gated, and the API re-checks.** That matters more here than almost
+ * anywhere else in the product: this component renders for a receptionist at the check-in desk and
+ * for a doctor in the consultation, and they must not see the same thing. Reception sees cases,
+ * visits, bills and documents; the **Consultations** block, which carries diagnoses and chief
+ * complaints, requires `emr.encounter.view` and simply does not render without it. An unpermitted
+ * block is absent rather than empty — and the absence is not the boundary, the API is.
+ *
+ * Only this hospital's own records. Records held by *other* hospitals are ABDM territory, need the
+ * patient's consent, and are requested by a named clinician from the chart (ADR-092) — not pulled
+ * into a desk-side panel.
  */
-export function PatientHistory({ patientId }: { patientId: string }) {
+export function PatientHistory({ patientId, layout = "grid", heading = "History" }: PatientHistoryProps) {
   const canOpd = useCan(PERMISSIONS.OPD_VIEW);
   const canEmr = useCan(PERMISSIONS.EMR_VIEW);
   const canBilling = useCan(PERMISSIONS.BILLING_VIEW);
   const canLab = useCan(PERMISSIONS.LAB_ORDER_VIEW);
+  const canCases = useCan(PERMISSIONS.CASE_VIEW);
+  const canFiles = useCan(PERMISSIONS.FILE_VIEW);
+
+  const rail = layout === "rail";
+  // The rail is a glance, not an archive: the newest few, with the chart a click away.
+  const cap = <T,>(rows: T[] | null): T[] | null => (rows && rail ? rows.slice(0, 4) : rows);
 
   const visits = useHistory<Visit>(canOpd, () => api.listVisits({ patientId }));
+  const cases = useHistory<PatientCase>(canCases, () => api.listCases({ patientId }));
   const encounters = useHistory<EncounterSummary>(canEmr, () => api.listPatientEncounters(patientId));
   const invoices = useHistory<InvoiceListItem>(canBilling, () =>
     api.listInvoices({ patientId, pageSize: 50 }).then((r) => r.data),
   );
   const labOrders = useHistory<LabOrder>(canLab, () => api.listLabOrders(undefined, patientId));
 
-  if (!canOpd && !canEmr && !canBilling && !canLab) return null;
+  if (!canOpd && !canEmr && !canBilling && !canLab && !canCases && !canFiles) return null;
 
   return (
-    <section className="mt-6 flex flex-col gap-5">
-      <h2 className="text-base font-semibold text-fg">History</h2>
-      <div className="grid gap-5 lg:grid-cols-2">
+    <section className={rail ? "flex flex-col gap-4" : "mt-6 flex flex-col gap-5"}>
+      {heading && <h2 className="text-base font-semibold text-fg">{heading}</h2>}
+      <div className={rail ? "flex flex-col gap-4" : "grid gap-5 lg:grid-cols-2"}>
+        {/* Rail only. The patient chart has `CasesCard`, which manages cases rather than just
+            listing them — two cases blocks on one page would be duplication, not richness. */}
+        {canCases && rail && (
+          <Card header={`Treatment cases${cases.rows ? ` (${cases.rows.length})` : ""}`}>
+            {!cases.rows ? (
+              <Skeleton className="h-16 w-full" />
+            ) : cases.rows.length === 0 ? (
+              <p className="text-sm text-fg-muted">No treatment cases.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-border text-sm">
+                {cap(cases.rows)!.map((c) => (
+                  <li key={c.id} className="flex items-start justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <span className="text-fg">{c.title}</span>
+                      <p className="text-xs text-fg-muted">
+                        <span className="font-mono">{c.caseNumber}</span>
+                        {c.visitCount > 0 && ` · ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}`}
+                        {c.providerName && ` · ${c.providerName}`}
+                      </p>
+                    </div>
+                    <Badge tone={c.status === "open" ? "brand" : "neutral"}>{c.status}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
         {canOpd && (
           <Card header={`Visits${visits.rows ? ` (${visits.rows.length})` : ""}`}>
             {!visits.rows ? (
@@ -66,7 +124,7 @@ export function PatientHistory({ patientId }: { patientId: string }) {
               <p className="text-sm text-fg-muted">No visits yet.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border text-sm">
-                {visits.rows.map((v) => (
+                {cap(visits.rows)!.map((v) => (
                   <li key={v.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
                       <Link href={`/opd/${v.id}`} className="font-mono font-medium text-brand hover:underline">
@@ -91,7 +149,7 @@ export function PatientHistory({ patientId }: { patientId: string }) {
               <p className="text-sm text-fg-muted">No signed consultations yet.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border text-sm">
-                {encounters.rows.map((e) => (
+                {cap(encounters.rows)!.map((e) => (
                   <li key={e.id} className="py-2">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -128,7 +186,7 @@ export function PatientHistory({ patientId }: { patientId: string }) {
               <p className="text-sm text-fg-muted">No invoices yet.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border text-sm">
-                {invoices.rows.map((inv) => (
+                {cap(invoices.rows)!.map((inv) => (
                   <li key={inv.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
                       <Link href={`/billing/${inv.id}`} className="font-mono font-medium text-brand hover:underline">
@@ -157,7 +215,7 @@ export function PatientHistory({ patientId }: { patientId: string }) {
               <p className="text-sm text-fg-muted">No lab orders yet.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border text-sm">
-                {labOrders.rows.map((o) => (
+                {cap(labOrders.rows)!.map((o) => (
                   <li key={o.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
                       <span className="font-medium text-fg">{o.testName}</span>
@@ -181,6 +239,15 @@ export function PatientHistory({ patientId }: { patientId: string }) {
             )}
           </Card>
         )}
+
+        {/* Rail only, and status only (ADR-120). The chart has `ExternalHistoryCard`, which shows
+            the records themselves to whoever may read them; this says whether anything is
+            outstanding, which is what a desk can act on. */}
+        {rail && <ConsentStatusCard patientId={patientId} />}
+
+        {/* Documents are their own component because they are the one block that WRITES — a file
+            handed over at the counter is attached here (ADR-119). */}
+        <PatientDocumentsCard patientId={patientId} dense={rail} />
       </div>
     </section>
   );

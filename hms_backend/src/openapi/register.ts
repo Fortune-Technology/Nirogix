@@ -21,6 +21,7 @@ import '../modules/ai-portal/aiPortal.openapi';
 import '../modules/setup/setup.openapi';
 import '../modules/platform-branding/platformBranding.openapi';
 import '../modules/opd/opd.openapi';
+import '../modules/workflow/workflow.openapi';
 import '../modules/billing/billing.openapi';
 import '../modules/emr/emr.openapi';
 import '../modules/pharmacy/pharmacy.openapi';

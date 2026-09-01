@@ -170,15 +170,26 @@ describe('2 — the receptionist checks the patient in against the doctor', () =
     invoiceId = res.body.invoice.id;
   });
 
-  test('the front desk sees the fee on the visit but is refused the billing ledger — that is the cashier’s counter', async ({ skip }) => {
+  test('the front desk can reach the bill check-in raised, but not open an arbitrary one', async ({ skip }) => {
     if (!ready) return skip();
     const onVisit = await authed(sessions.receptionist!).get(`/api/v1/visits/${visitId}`);
     expect(onVisit.status).toBe(200);
     expect(onVisit.body.invoice.balancePaise).toBe(FEE_PAISE);
 
+    // Check-in opens the invoice, so the desk that raised it must be able to read it.
+    // Refusing here is what left the front desk holding a bill it could neither see nor
+    // settle — a dead end rather than a boundary.
     const atBilling = await authed(sessions.receptionist!).get('/api/v1/invoices');
-    expect(atBilling.status).toBe(403);
-    expect(atBilling.body.error.code).toBe('FORBIDDEN');
+    expect(atBilling.status).toBe(200);
+    expect(atBilling.body.data.some((i: { id: string }) => i.id === invoiceId)).toBe(true);
+
+    // The boundary that does still hold: raising a bill of its own is the cashier's.
+    // Reception collects against what the workflow generated, it does not invent charges.
+    const invented = await authed(sessions.receptionist!)
+      .post('/api/v1/invoices')
+      .send({ patientId, lines: [{ description: 'Miscellaneous', unitPricePaise: 50_000, quantity: 1 }] });
+    expect(invented.status).toBe(403);
+    expect(invented.body.error.code).toBe('FORBIDDEN');
   });
 
   test('the doctor finds the patient waiting in their own queue', async ({ skip }) => {

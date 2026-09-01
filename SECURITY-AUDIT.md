@@ -2,7 +2,7 @@
 
 Target environment: **`NODE_ENV=production`**. Scope: `hms_backend`, `hms_frontend`, `marketing`, shared packages, configuration and dependencies.
 
-Reviewed 15/08/2026, updated 16/08/2026 (H-4, patient session model, and the public registration endpoints) and **20/08/2026 (every remaining open finding closed — ADR-082)** against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
+Reviewed 15/08/2026, updated 16/08/2026 (H-4, patient session model, and the public registration endpoints), 01/09/2026 (the third public write path — self check-in, ADR-118; and M-7, a missing capability gate on ABDM M3, ADR-120) and **20/08/2026 (every remaining open finding closed — ADR-082)** against the code in this repository. Findings are evidence-based: each one names where it was verified. **Development behaviour was not accepted as production behaviour** — several findings exist precisely because a setting is fine locally and wrong in production.
 
 **Status legend:** `Fixed` in this pass · `Open` needs work · `Accepted` deliberate, with the reason · `Blocked` needs infrastructure.
 
@@ -109,6 +109,38 @@ All five closed under ADR-082 on 20/08/2026.
 
 ---
 
+## Medium — found 01/09/2026
+
+### M-7 · ABDM Milestone 3 routes carried no capability gate — **Fixed**
+
+Found while surfacing consent status for the front desk (ADR-120). All five M3 routes — request
+history, list requests, refresh, fetch records, read the timeline — were gated
+`requireAuth → requireModule('abdm') → requirePermission`, with **no `requireCapability`**. The
+`abdm.external_history` capability existed in the registry but was marked `PLANNED` and was not
+enforced anywhere.
+
+**Impact.** A tenant entitled to the `abdm` module for **ABHA identity verification alone** (M1 —
+the common case, and the only ABDM feature most hospitals will want first) silently had the
+national records-retrieval surface enabled. Any user holding `abdm.history.request` could initiate
+a consent request against a real patient, and `abdm.history.view` could read whatever came back.
+The two-tier module/capability boundary (ADR-085) existed on paper for this feature and was not
+applied.
+
+**Not exploited, and not exploitable in production today** — no record has been exchanged with
+ABDM in any environment, and the gateway cannot reach an uncertified bridge. This was a boundary
+that would have been wrong on the day certification completed.
+
+**Fixed:** every M3 route now runs `requireModule('abdm')` → `requireCapability('abdm',
+'abdm.external_history')` → `requirePermission`, and the capability is `BUILT` rather than
+`PLANNED`. A test disables the capability and asserts the status, request-list and timeline routes
+all 403 together.
+
+**Worth generalising:** a capability declared in the registry and never referenced by a route is
+indistinguishable from one that is enforced, from the outside. A check that every `BUILT`
+capability is named by at least one route would have caught this, and is recorded in `BACKLOG.md`.
+
+---
+
 ## Verified as sound (no action)
 
 | Area | Evidence |
@@ -123,7 +155,7 @@ All five closed under ADR-082 on 20/08/2026.
 | **Session model** | Access token in memory only (never `localStorage`), refresh token in an `httpOnly`, `Secure`-in-production, `SameSite=Lax`, path-scoped cookie; server-side session rows support revocation, and a password change revokes all of them. Rotation is now genuine (H-4). **Patients have their own session table and their own cookie path** (`/api/v1/patient/auth`), so a staff cookie is never sent to a patient route or the reverse, and a staff refresh token is refused on the patient refresh endpoint (ADR-052). |
 | **PHI in logs/analytics** | No analytics is installed in either app; the audit middleware records method/path/actor, not bodies. |
 | **Payload limits** | JSON capped at 1 MB; uploads capped by size and count. |
-| **The one unauthenticated write path** | `GET|POST /public/registration/:token` (ADR-056) is the only route that writes without a session. Reviewed against each way it could be abused: the tenant is resolved **server-side from the token in the path**, so a caller cannot name a hospital; unknown / regenerated / disabled all return an identical 404, so it cannot enumerate tenants; both routes carry `authLimiter`; it writes to `registration_requests` and never to `patients`, so it cannot create a chart or portal access; the list response is projected field by field, so `tenant_id`, the submitted IP and the reviewer id never leave the server; and submissions are audited against the tenant with no actor. Verified live across two tenants. |
+| **The unauthenticated write paths** | Three routes write without a session, all built to the same ADR-056 pattern: `/public/registration/:token` (ADR-056), `/public/booking/:token` (ADR-069) and `/public/check-in/:token` (ADR-118). Reviewed against each way they could be abused: the tenant is resolved **server-side from the token in the path**, so a caller cannot name a hospital; unknown / regenerated / disabled all return an identical 404, so they cannot enumerate tenants; every route carries `authLimiter`; each writes only to its own request table (`registration_requests`, `appointment_requests`, `self_checkin_requests`) and never to `patients`, `appointments` or `visits`, so none can create a chart, a booking or a visit; list responses are projected field by field, so `tenant_id`, the submitted IP and the reviewer id never leave the server; and submissions are audited against the tenant with no actor. **Self check-in additionally holds a non-disclosure property the other two do not need:** its reply is byte-identical whether the mobile number matched an appointment, matched nothing, or the hospital has the feature switched off — otherwise a QR code on a wall would answer *"is this number a patient here, and are they due in today?"* about a named person. For the same reason an unmatched announcement is still written: an endpoint that only created a row on a match would leak the same fact through its side effects. Verified live across two tenants, and covered by 20 API tests that assert what is *not* returned. |
 | **Browser credential saving** | Login uses `autocomplete="username"` / `"current-password"` and the profile uses `"new-password"`; no `autocomplete="off"` anywhere, so password managers work normally. |
 | **Browser policy** | Every frontend sends a Content-Security-Policy — nonce + `strict-dynamic` on the four authenticated apps, strict-but-inline-permissive on the statically rendered marketing site — plus `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a `Permissions-Policy` that leaves only the microphone (ADR-082). Verified live on all five apps with no violations. |
 | **Upload content** | Magic-byte validation in the one upload choke point; the declared MIME type must agree with the bytes, and `text/plain` must genuinely be UTF-8 text (ADR-082). |
@@ -152,6 +184,7 @@ Before the first production deploy, confirm each of these. Items marked **Blocke
 - [ ] Lockout thresholds reviewed with the pilot hospital (**H-3**): 5 failures → 60s, doubling to 15 minutes. A ward with a shared account will hit it; that is a reason to fix the shared account, not to widen the window.
 - [ ] Idle timeout confirmed with the pilot (**L-5**): 15 minutes, and reception staff know a locked screen means signing in again, not a fault.
 - [ ] **Patient self-registration reviewed per tenant before go-live** (ADR-056): it is off by default and each hospital opts in deliberately. Confirm the pilot hospital knows that a submission is a *request*, that someone works the queue daily, and that regenerating the token invalidates every poster already printed.
+- [ ] **Patient self check-in reviewed per tenant before go-live** (ADR-118): off by default, same opt-in. Confirm the hospital understands that scanning **announces an arrival and checks nobody in** — somebody must work the Arrivals board continuously while the poster is up, or patients will sit in the waiting room believing they are in the queue. That is the operational risk of this feature, and it is a staffing question rather than a technical one. Also confirm they know an arrival the system could not match still appears on the board, marked *Needs a human*, and that regenerating the token invalidates every poster already printed.
 
 ---
 

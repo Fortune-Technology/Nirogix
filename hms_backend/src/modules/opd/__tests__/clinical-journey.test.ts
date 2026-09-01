@@ -322,7 +322,16 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
 describe('patient 2 — an independent journey; nothing mixes', () => {
   test('patient 2 completes their own visit with different clinical content', async ({ skip }) => {
     if (!ready) return skip();
-    const v = await checkIn(tenantId, { patientId: p2, providerId, consultationFeePaise: 30000 }); // explicit override
+    // An explicit amount that differs from the fee schedule is an override (ADR-117). This is a
+    // service-level call, where authorization does not exist, so it states the authority it stands
+    // in for — the HTTP layer resolves billing.fee.override from the session instead.
+    const v = await checkIn(tenantId, {
+      patientId: p2,
+      providerId,
+      consultationFeePaise: 30000,
+      canOverrideFee: true,
+      feeOverrideReason: "Agreed rate for this patient",
+    });
     visit2 = v.id;
     expect(v.tokenNumber).toBe(2);
     invoice2 = v.invoice!.id;

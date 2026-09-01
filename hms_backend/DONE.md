@@ -1840,3 +1840,392 @@ Both routes are in OpenAPI; `npm run openapi:validate` passes. Backend suite: 58
 **Never executed.** HFR's published V4 contract has no update endpoint at all, so amending through
 the wizard is read off its statefulness. Run it once against a real verified facility before relying
 on it.
+
+---
+
+## 2026-09-01 — OTP SMS wired to the DLT template (header `NIROGX` approved)
+
+The `NIROGX` header went **Active on DLT** (registered 01/09/2026, valid to 31/12/2026) and the
+OTP content template was submitted against it. Three things had to change before an approved
+template could actually deliver — all of them the go-live note that `sendOtp` has carried since
+ADR-059 was written.
+
+**The wording is now the registered wording.** `sendOtp` built `Your Nirogix ${what} is ${code}.
+It expires in 10 minutes.`, where `what` varied with the caller's `purpose`. An Indian operator
+matches the message against its registered template, so a text that changes per call cannot be
+registered at all. The SMS branch now sends exactly the text filed on DLT, and `purpose` survives
+only on the email branch, which no regulator governs.
+
+**Only the variable travels.** `Msg91SmsProvider` sent `recipients: [{ mobiles, body }]` — the whole
+message as a variable named `body`, which no single-variable flow declares. `SmsMessage` gained
+`variables`, `sendSms` passes it through, and the OTP send keys the code by
+`MSG91_OTP_TEMPLATE_VAR` (blank falls back to `var1`, MSG91's default). It is configuration rather
+than a constant because MSG91 assigns the name when the DLT template is added to the panel. Where
+no `templateId` is set, the old `body` behaviour is kept, so the dev log provider is unchanged.
+
+**Numbers are normalised.** `toMsg91Mobile` turns `+91 98765 43210`, `09876543210` and ten bare
+digits into `919876543210`. Anything it does not recognise is passed through for MSG91 to reject by
+name, which beats a local guess that could send someone else's code to someone else. 5 tests.
+
+**Not yet live.** `MSG91_OTP_TEMPLATE_ID` stays blank until the DLT template is approved and added
+to the MSG91 panel, which is what mints the flow id. Until then SMS stays on the log provider.
+`BACKLOG.md` I-1.
+
+Also corrected in the local `.env`: `MSG91_API_KEY` held `74.208.78.255` — the staging VM's IP
+pasted into the wrong variable. A non-empty key selects the MSG91 provider, so local dev was
+choosing the real provider and handing it a garbage authkey instead of staying on the log provider.
+Blanked, and the sender id moved from `TAKORI` to the header the OTP template is registered
+against, `NIROGX`.
+
+**Testing status:** `tsc --noEmit` clean; notification suite 24 passing across 3 files.
+Manual case **SMS-01** added to `testcases.md`.
+
+## 2026-09-01 — Reception can collect the bill check-in raised (ADR-110)
+
+**What:** The seeded `receptionist` role gained `billing.invoice.view` and `billing.payment.collect`.
+It deliberately did **not** gain `billing.invoice.create`.
+
+`checkIn()` opens a draft consultation-fee invoice through the billing service, which is correct, but
+the role held no billing permission at all — so the front desk raised a bill on every check-in and was
+then refused both the ledger that listed it and the payment that would clear it, while the OPD queue
+linked to it from its own Bill column. The consultation gate waits on that payment, so the workflow
+terminated at the desk. Raising an invoice of its own stays with the cashier: reception collects
+against charges the system generated, it does not invent them.
+
+No endpoint changed. `reconcileSystemRoles()` already runs in `db/migrate.ts`, so existing tenants
+pick the grant up on the next migration.
+
+**Testing status:** 617 backend tests pass. The OPD critical-path test that asserted the 403 as though
+it were the design now asserts the intended workflow instead — reception lists the invoice check-in
+created, and is still refused `POST /api/v1/invoices`.
+
+---
+
+## 2026-09-01 — A demo database with a past (ADR-114)
+
+**What:** The Development and Staging databases now contain a hospital that has been open for a
+while, instead of five patients and one appointment on a single day. Still exactly **three seeders,
+one per environment**.
+
+**Renamed / added:**
+- `src/scripts/seed.ts` → **`src/scripts/seed.development.ts`**, so the three seeders read as a set.
+  `db:seed` still points at it; `db:seed:development` was added as the explicit alias.
+- **`src/scripts/seedKit.ts`** — the shared engine the three seeders drive: idempotent upserts,
+  catalogue loaders, the interconnected clinical-story generator, the backdater and the reset. Not a
+  seeder, cannot be run. `seedGuard.ts` is unchanged and remains the environment check.
+- `src/scripts/seed.staging.ts` rewritten onto the engine, keeping the deterministic QA contract the
+  E2E suite asserts against (`QAHOSP`, the `qa.*@qahospital.example` accounts, `QA Patient One`/`Two`
+  first, the committed staging password).
+- `src/scripts/seed.production.ts` — documentation only. It deliberately does **not** import
+  `seedKit.ts` and has no `--reset`; both are now stated in the file.
+- `docs/seed-data.md` — what is seeded, which workflow states and filters are covered, how to reset,
+  why production cannot receive demo data, and what still needs creating by hand.
+
+**The dataset.** Development: the `NIROGIX` platform org plus four hospitals — `CITYCARE` (Pune,
+every module on, ~6 weeks of traffic), `SUNRISE` (Ahmedabad, second tenant for isolation), `LOTUS`
+(Bengaluru, pharmacy + laboratory switched off), `GREENLEAF` (suspended). Roughly 5–7 varied records
+in every list and both sides of every filter: a live OPD queue with a patient in each stage
+(awaiting payment, awaiting vitals, vitals done, in consultation, completed, sample collected,
+result pending verification, finished and settled, walk-in part-paid, cancelled, referred and
+re-opened); appointments `booked`/`completed`/`cancelled`/`no_show` across past, today and future;
+invoices `draft`/`partially_paid`/`paid`/`void` with all four payment methods and one refund; lab
+orders at every status with `normal`/`low`/`high`/`critical` results; prescriptions ordered and
+dispensed; batches near expiry and two drugs below reorder level; referrals pending/completed/
+cancelled; registration and booking requests pending/approved/rejected; 30 backdated days of audit
+across all four severities; an inactive branch, department, provider, staff account and patient; and
+two patients per hospital with no history at all, because an empty detail page is a state too.
+
+**How it is built.** Through the real services, never by writing rows — numbering, invoicing, stock
+deduction, referral consumption, the visit state machine and the audit trail behave exactly as they
+do in the product. Timestamps are then moved back to the day the story says the visit happened,
+because a database with one day of history cannot exercise a date range, a revenue trend, a
+collections report or an EOD summary. Every choice runs through a PRNG seeded from the tenant code,
+so a seed against an empty database is reproducible. Five states are written directly because no
+product action produces them yet (`no_show`, invoice `void`, payment `refunded`, lab order
+`cancelled`, result flag `critical`); each is named at its call site and tracked in `BACKLOG.md`.
+
+**Idempotency and reset.** Configuration, people and catalogues are topped up on a re-run; the
+clinical story runs **once** (replaying it would double the traffic and collide with its own live
+queue). `-- --reset` empties every tenant-scoped table — discovered by `tenant_id` column, the same
+rule that decides where RLS applies — and rebuilds. Staging additionally requires
+`CONFIRM_SEED_RESET=yes`, because it is shared.
+
+**Production.** Unreachable four ways: the production seeder does not import the demo engine at all;
+`requireEnvironment()` refuses a seeder outside its own environment; `DATABASE_URL` is inspected
+separately; and `CONFIRM_PRODUCTION_SEED=yes` is still required. There is no reset path in
+production — `resetSeedData()` lives in the engine production does not import.
+
+**Testing status:** typecheck clean. Verified against throwaway databases: development seeds four
+tenants end to end; a re-run without `--reset` adds nothing; `--reset` rebuilds; staging produces a
+byte-identical dataset across reset-and-reseed (same fingerprint over visits, invoices and UHIDs).
+All four refusals were exercised and observed — development seeder under `NODE_ENV=staging`,
+production seeder under `NODE_ENV=development`, development seeder against a production-looking
+`DATABASE_URL`, and staging `--reset` without `CONFIRM_SEED_RESET`. The production seeder could not
+be smoke-run locally because `NODE_ENV=production` correctly refuses a non-production ABDM
+configuration; its guards were verified instead.
+
+## 2026-09-01 — Per-hospital workflow configuration, and vitals moved onto the visit (ADR-113)
+
+**What:** Two requests that turned out to be one problem. Hospitals wanted vitals taken in different
+places, and wanted the consultation fee collected at different points. Neither was buildable, for the
+same structural reason: vitals were eight `vital_*` columns on `encounters`, an encounter is created
+when the doctor opens the consultation, and that creation is refused while the fee is outstanding — so
+a reading taken at the front desk had nowhere to go.
+
+- **`patient_vitals`** — one row per observation: a set of readings taken at one moment, by one
+  person, at one stage (`check_in` / `pre_consultation` / `consultation`), against a **visit**.
+  Readings accumulate; nothing is edited in place, because two disagreeing blood pressures is a real
+  clinical situation and the earlier number is evidence. The eight columns are gone from `encounters`
+  and migration `0043` copies every existing reading across **before** dropping them.
+- **`hospital_workflow_config`** — `vitals_mode`, the required/offered parameter lists, and
+  `payment_timing`. Resolves branch → organization → platform defaults, and the defaults are exactly
+  today's behaviour, so an existing hospital sees nothing change until it chooses to.
+- **The mode is enforced, not just rendered.** A client sending `stage: check_in` to a hospital that
+  does not collect vitals at the desk is refused. The permission says who may record; the mode says
+  where in the workflow recording happens.
+- **Required vitals are checked before the visit exists.** A failure after the visit and its invoice
+  had been created would leave the desk holding a half-made check-in. A reading that fails to save
+  *after* a successful check-in is logged rather than raised — the patient is in the queue, and a
+  lost blood pressure is re-taken in seconds.
+- **`payment_timing` moves the gate, it does not move enforcement.** `at_checkin` is the same gate;
+  only `after_consultation` lifts it, and the invoice is still raised and still owed.
+- **The FHIR bundle now dates a reading to when it was taken**, not to when the encounter was signed.
+  That was already wrong; it becomes obviously wrong once a reading can precede the note by an hour.
+- `visits.reason` widened 500 → 2000 characters. A chief complaint is a paragraph.
+- New permissions `emr.vitals.view` / `emr.vitals.record`, attached to the existing `emr.vitals`
+  capability and granted to receptionist and doctor. `platform.workflow.view` / `.manage` to
+  org_admin.
+
+**Testing status:** **642 backend tests pass** (was 622). 20 new API tests cover the unconfigured
+default, desk vitals with a required parameter refused *before* anything is written, physiological
+bounds that reject a typo but accept a hypertensive emergency, the derived queue, a re-take keeping
+the earlier reading, stage-versus-mode enforcement, the cashier refused, both payment-timing
+directions, optimistic locking, branch override isolation, and the audit record. OpenAPI validates
+with every new route documented.
+
+## 2026-09-01 — Vitest 4 config migration; the "flaky ABDM suite" was never the harness
+
+**What:** `vitest.config.ts` → **`vitest.config.mts`**, and `poolOptions: { forks: { singleFork: true } }`
+deleted. Both changes remove a warning that every full run printed.
+
+`test.poolOptions` was **removed** in Vitest 4, so the option had been discarded since the day it was
+added — the run said so on every invocation (`DEPRECATED  test.poolOptions was removed in Vitest 4`)
+and nobody read it. Its documented v4 equivalent is `maxWorkers: 1`, which `fileParallelism: false`
+already forces, so the correct migration is a **deletion, not a rename**: one line now carries the
+whole intent. `.mts` is the other half — the package is CommonJS, so Node ≥22 loaded the `.ts` config
+through its own type stripping *as CJS* and warned `ESM syntax in a file loaded as CommonJS`.
+
+**What that means for the known failure.** Since `poolOptions` was inert it never changed how a run
+was scheduled, and `fileParallelism: false` was serialising files the whole time: in 4.1.11 the
+resolver forces `maxWorkers = 1`, and `maxWorkers: 1` with the default `isolate: true` gives every
+file its own forked process. So the intermittent `Cannot activate "appointment": hard dependency
+"patient" is not entitled` was never a concurrency race — it was the Node-vs-Postgres clock
+comparison fixed in `c041785`. `BACKLOG.md` is rewritten to say so.
+
+**Testing status:** twelve full runs. Six clean — **62 files / 622 passed**, then **63 files / 642
+passed** after the vitals work landed — 0 failed, 0 skipped, and no deprecation or ESM warning. The
+`hard dependency` error appeared in **none of the twelve**. The six red runs were all concurrent
+activity on the same tree and database from another working session, not the suite: four caught the
+vitals/workflow-config feature between its code (10:45–10:47) and its migration (10:52:33), failing
+with `relation "patient_vitals" does not exist`; one had a `db:seed` run inside it (whose
+`resetSeedData()` truncates every tenant-scoped table); the last is inferred rather than proven — two
+files lost tenant codes they had just deleted, which a strictly sequential suite cannot do to itself. Details and the caution are in `BACKLOG.md`.
+
+**Not done here:** `packages/ui/vitest.config.ts` still emits the same ESM-as-CJS warning and wants
+the same rename.
+
+## 2026-09-01 — One visit workflow: the fields that made two forms possible to merge (ADR-115)
+
+**What:** The frontend merge (see `hms_frontend/DONE.md`) was blocked by two missing columns, and
+finding that out was most of the work.
+
+- **`appointments.department_id`** — a visit had one, an appointment had nothing. A desk choosing
+  Cardiology and then switching to "next Tuesday" lost the answer, because the endpoint had nowhere
+  to put it. Validated exactly as check-in validates it: this hospital's own, and still active.
+- **`arrival_type` on both `appointments` and `visits`** — `walk_in` / `appointment` / `follow_up`.
+  Deliberately **not** folded into `visits.visit_type`, which answers where the patient is treated
+  (`opd` today, inpatient later); an OPD follow-up is both, and one column holds one value.
+- **The intent travels on the appointment.** A patient who booked a follow-up is still one when they
+  walk in a week later, and the desk checking them in never saw the booking — so check-in takes the
+  value from the appointment rather than the request, and a client claiming `walk_in` against a
+  booked follow-up is ignored. A referral check-in is a follow-up for the same reason.
+- **`appointments.reason` widened 300 → 2000** to match `visits.reason`. One field in one form with
+  two limits depending on which button was pressed is a trap.
+- Migration `0044` backfills honestly rather than defaulting: a visit already linked to an
+  appointment is corrected to that appointment's intent.
+
+**The two endpoints stay two endpoints.** A future booking has no token, no invoice and no queue
+entry; one endpoint producing both would be a worse abstraction than two honest ones. What is now
+shared is the validation, and the tests assert that symmetry — because the failure mode is quiet.
+
+**Testing status:** **652 backend tests pass** (was 642). 10 new API tests: a booking keeping its
+department, the same complaint length accepted by both, a retired department refused identically by
+both, a booked follow-up surviving the wait, a client unable to downgrade it, a referral recorded as
+a follow-up, an invented arrival type refused at the edge, and what each timing actually produces.
+`referrals` was added to the test-harness teardown order (it references visits ON DELETE RESTRICT —
+a pre-existing gap this suite was the first to hit). OpenAPI validates.
+
+## 2026-09-01 — Treatment cases: what a follow-up follows (ADR-116)
+
+**What:** `patient_cases` — a treatment episode with a number (`C-000001`), a free-text title,
+where it is being run, and open/closed — plus a nullable `visits.case_id`. Six routes under
+`/api/v1/cases`, gated `requireModule('opd')` → `requireCapability('opd.case')` → permission.
+
+The decisions that could have gone the other way, and why they did not:
+
+- **Several open cases per patient are allowed.** A diabetic being managed long-term who breaks an
+  ankle has two. Duplicates come from not *knowing* a case exists, so the open ones are surfaced at
+  the moment a new one would be opened rather than the second being refused.
+- **`case_id` stays nullable and most visits have none.** Forcing a case on every walk-in fills the
+  chart with one-visit episodes nobody closes — worse than no cases at all.
+- **The title is not a diagnosis.** A case is opened at the desk before anyone has examined the
+  patient. The coded diagnosis stays on the encounter, where a clinician makes it.
+- **Check-in opens a case in the visit's own transaction** (`openCaseTx`). A case left behind by a
+  check-in that then failed is exactly the orphan this feature exists to prevent, and a test
+  asserts a refused check-in creates none.
+- **Two permissions, not three.** Opening a case *is* part of checking a patient in, so the front
+  desk holds `opd.case.manage`. Closing is guarded by a business rule and an audit record instead of
+  a third key nobody would know to grant.
+- **Closing is refused while a visit under the case is live**, and needs a reason. Reopening exists
+  because treatment resumes and people mis-click; it erases the close reason from the row, so the
+  audit entry records it — that entry becomes the only place it survives.
+- **Nothing is backfilled.** Inventing an episode for every existing visit would be writing a guess
+  into a clinical record.
+
+**Testing status:** **671 backend tests pass** (was 652). 19 new API tests, including the orphan
+guard, another patient's case refused, a closed case unable to take a new visit, the audit trail
+surviving a reopen, and that there is no delete route at all. `patient_cases` was added to the
+test-harness teardown between `visits` and `patients` — it is RESTRICT in both directions. OpenAPI
+validates.
+
+**One thing found while wiring it:** `CheckInBody` strips unknown keys, so `caseId` and `newCase`
+reached the service as `undefined` until they were added to the Zod body as well as the TypeScript
+input type. The tests caught it; a typecheck never would have.
+
+## 2026-09-01 — The consultation fee becomes a schedule (ADR-117)
+
+**What:** `consultation_fee_rules` — a rule matches on any combination of doctor, department and
+arrival type, with NULL meaning "any". The most specific wins, and specificity is a number: doctor
+4, department 2, arrival type 1. Powers of two, so the ordering is **total** — no two distinct
+combinations score the same and there is never a tie broken by luck. A unique index with
+`NULLS NOT DISTINCT` stops the same combination existing twice; without that clause Postgres treats
+every NULL as unique and the constraint would never fire on the broad rules most likely to be
+duplicated.
+
+Nothing matching falls back to the doctor's own fee and then to zero — exactly what check-in did
+before — so a hospital that writes no rules sees no change.
+
+**The schedule is binding.** A price list the desk can silently ignore is decoration, so:
+
+- a different amount needs `billing.fee.override`, which the receptionist role does **not** hold —
+  a hospital grants it per user (ADR-010) to whoever it trusts;
+- the permission is resolved from the session in the controller, never read from the body;
+- sending back the **same** amount is not an override, because a form round-tripping its own state
+  has overridden nothing;
+- a reason is required, and **both** numbers are kept — `visits.calculated_fee_paise` beside the
+  invoice total. The gap between them is the override, and losing either half makes it unauditable;
+- the audit entry carries both amounts and the reason at `warning` severity.
+
+A rule is retired, never deleted, and its match conditions cannot be edited — editing them would
+silently rewrite the explanation for invoices already raised.
+
+**Testing status:** **690 backend tests pass** (was 671). 19 new API tests, most of them driving
+deliberately overlapping rules and asserting which one wins. `consultation_fee_rules` was added to
+the harness teardown before providers/departments (RESTRICT). OpenAPI validates.
+
+**Worth recording:** three existing service-level suites called `checkIn()` with an explicit fee and
+no authorization — correct before, an override now. They were not fixed by loosening the rule; each
+now states the authority it stands in for (`canOverrideFee: true` plus a reason), which is what a
+service-level test standing in for a permitted user should say out loud.
+
+## 2026-09-01 — Patient self check-in, as an announcement (ADR-118)
+
+**What:** `self_checkin_requests` plus seven routes, two of them public. A patient scans a QR in the
+entrance, enters the mobile number the hospital holds, and the front desk sees them on an Arrivals
+board where one click checks them in.
+
+**The visit is still created by the desk**, and that is the design rather than a limitation. ADR-056
+is explicit that a public submission creates a record for a human to review and never writes a
+clinical table; a visit carries a queue token, opens an invoice and is what a consultation hangs
+off. The patient still does the queueing, the desk's work drops from a form to a click, and the
+desk confirming is a stronger identity check than anything a kiosk could collect.
+
+Confirming runs the ordinary `checkIn` — same fee schedule, same case rules, same invoice, same
+audit. No second check-in implementation, because that is how two would diverge.
+
+**The non-disclosure work, which is most of it:**
+
+- The reply is identical for a match, a stranger, and a hospital with the feature off. Otherwise a
+  QR code on a wall answers "is this number a patient here, and are they due in today?" about a
+  named person, to a caller who proved nothing.
+- **An unmatched announcement is still written.** An endpoint that only created a row on a match
+  would leak the same fact through its side effects. It also turns out to be what the desk wants:
+  that is a person in the lobby, and the board says *Needs a human*.
+- Disabled writes nothing and answers the same, so "does this hospital use self check-in?" is not
+  answerable either.
+- Tenant from the opaque token in the path; uniform 404 for typo / retired / suspended;
+  `authLimiter`; audited against the tenant **with no actor**, because there is none.
+
+**Testing status:** **710 backend tests pass** (was 690). 20 new API tests, most asserting what is
+*not* returned. Two pre-existing harness gaps surfaced and were fixed: `self_checkin_requests` and
+`organization_profile` were missing from the teardown order — no harness tenant had ever had a
+profile row until a public surface could be switched on. OpenAPI validates; `SECURITY-AUDIT.md`
+updated, since this is the third unauthenticated write path.
+
+## 2026-09-01 — Files that know who they are about (ADR-119)
+
+**What:** `patient_documents` — the link between a file and the patient, visit or case it concerns.
+
+`file_metadata` had **no patient link**. It stores branding assets, letterheads and lab-report scans
+with equal indifference and knows nothing about who a file is about; the only references to files
+were single columns on other tables. That is the right shape for a file store, and it is exactly why
+"show me this patient's documents" could not be asked. A link table adds the clinical concept
+without teaching the file store about patients.
+
+- `file_id` is a plain uuid with **no FK**, matching the convention `tenant_branding.logo_file_id`
+  already uses: files soft-delete and are retained for audit, so a hard FK would either block that
+  or cascade the attachment away. A deleted file leaves its attachment reading `(file removed)`.
+- **Three ids, all checked server-side.** The file must belong to this tenant — the file store is
+  shared infrastructure, and RLS protects the row only if the service goes and looks for it. A named
+  visit or case must belong to *this* patient. A document on the wrong chart is a privacy breach and
+  a clinical hazard, and nothing downstream would catch it.
+- **No new permissions.** `file.document.view` / `file.document.upload` already answer the question,
+  and reception holds both — taking a referral letter at the counter is front-desk work.
+- Archived with a reason, never deleted (invariant #6). The upload still goes through the ordinary
+  `POST /files`: one store, one set of type and size checks, one optimizer.
+
+**Testing status:** **723 backend tests pass** (was 710). 13 new API tests, most of them about the
+three ids. `patient_documents` and `file_metadata` were added to the harness teardown — the fourth
+feature in a row to expose a gap there, because the harness only knows about tables features have
+actually used. OpenAPI validates.
+
+## 2026-09-01 — Consent status for the front desk, and a capability gate M3 never had (ADR-120)
+
+**What:** `abdm.consent.status.view` and `GET /abdm/history/:patientId/consent-status`.
+
+`abdm.history.view` gated two different things at once — seeing that a request is pending, and
+reading another hospital's clinical records. The desk needs the first and must not have the second,
+so granting it that permission to answer "did my old hospital send anything?" would have handed over
+borrowed medical records to answer a scheduling question.
+
+**What the endpoint omits is the design:** no source hospitals (a name like "oncology centre" is a
+diagnosis by implication), no record counts (a proxy for how ill somebody has been), and not the
+requesting clinician — whose name is on the request for the patient's benefit, not the desk's. A
+test asserts the response shape is **closed**, so a future field cannot leak in unnoticed.
+
+**Asking stays a doctor's act.** ADR-092 is unchanged: the request carries a named clinician's
+registration number to the patient and commits the hospital to destroying what comes back.
+
+**A real gap found while looking.** `abdm.external_history` was marked `PLANNED` in the registry
+while M3 was built and running — and **not one M3 route carried a capability gate**. A hospital
+entitled to ABDM for ABHA verification alone silently had a national records pull. All five routes
+are now `requireModule` → `requireCapability` → `requirePermission`, and the capability is `BUILT`.
+Switching it off takes status, requests and timeline away together, which is what "configurable per
+hospital" has to mean.
+
+**Testing status:** **736 backend tests pass** (was 723). 13 new API tests, over half asserting
+absences. OpenAPI validates. No migration.
+
+**Unchanged:** no health record has been exchanged with ABDM in any environment; production access
+still needs NHA functional testing, a WASA certificate and HTC approval. This made an existing,
+uncertified feature correctly gated and correctly narrow — it did not make it live.

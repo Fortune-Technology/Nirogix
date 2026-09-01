@@ -20,7 +20,7 @@
 | Channel | Status | Blocker |
 |---|---|---|
 | **Email** (OTP + notifications) | ✅ **Ready** — sends the moment `MSG91_API_KEY` + `MSG91_EMAIL_*` are set | None. `mail.nirogix.com` verified at MSG91 (SPF/DKIM/CNAME), 17/08/2026 |
-| **SMS** (OTP + transactional) | ⚠ **Blocked on DLT** | Needs `MSG91_SMS_SENDER_ID` + `MSG91_OTP_TEMPLATE_ID`, obtained only after DLT registration below |
+| **SMS** (OTP + transactional) | ⚠ **DLT done — MSG91 side remains** | Header `NIROGX` and the `Nirogix OTP` template are both **Active** on DLT (01/09/2026). Still needs `MSG91_OTP_TEMPLATE_ID` — the MSG91 flow id, minted only when the DLT template is added in the MSG91 panel — plus `MSG91_API_KEY` and a funded wallet |
 
 - The **MSG91 account** is under the company **takoriya**.
 - The **authkey** (`Nirogix`, rule `Nirogix Backend`) is created and active. Copy it into `MSG91_API_KEY`.
@@ -83,18 +83,30 @@ Register on **one** operator's portal; it syncs to the national registry.
 
 > MSG91 has a DLT onboarding/support team — raise a ticket from the panel; they advise operator choice and can speed approvals.
 
-### Phase B — Register the Header (Sender ID) → becomes `MSG91_SMS_SENDER_ID`
-4. [ ] In the DLT portal: **Headers → Add Header**
-5. [ ] Enter the approved **6-char** ID (§1C), type **Transactional / Service** (for OTP — **not** Promotional)
-6. [ ] Submit → approval usually **1–2 days**
-7. [ ] Record the approved header: `______` → this is **`MSG91_SMS_SENDER_ID`**
+### Phase B — Register the Header (Sender ID) → becomes `MSG91_SMS_SENDER_ID` — **DONE 01/09/2026**
+4. [x] In the DLT portal: **Headers → Add Header**
+5. [x] Enter the approved **6-char** ID (§1C), type **Transactional / Service** (for OTP — **not** Promotional)
+6. [x] Submit → approval usually **1–2 days**
+7. [x] Record the approved header: **`NIROGX`** → this is **`MSG91_SMS_SENDER_ID`** (Permanent, Active, valid to 31/12/2026; `TAKORI` is also active)
 
-### Phase C — Register the OTP content template on DLT
-8. [ ] In the DLT portal: **Content Templates → Add Template**
-9. [ ] Type = **Service Implicit** (typical for OTP); link to the Phase B header
-10. [ ] Paste the approved wording (§4), keeping the variable slot `{#var#}`
-11. [ ] Submit → on approval record the **19-digit DLT Template ID**: `____________________`
+> **It took four attempts.** Three were rejected with *“The domain website is not working properly and
+> entity name is not mention in the website”* — one root cause: `nirogix.com` served the default nginx
+> page with no valid certificate, so the verifier found no site and therefore no entity name. A DLT
+> verifier opens the public website; **do not submit a header while the site is down** (`BACKLOG.md` I-7).
+
+### Phase C — Register the OTP content template on DLT — **APPROVED 01/09/2026, 10:28**
+8. [x] In the DLT portal: **Content Templates → Add Template**
+9. [x] Type = **Service Implicit** (typical for OTP); link to the Phase B header — **NIROGX** (one header per template)
+10. [x] Paste the approved wording (§4), keeping the variable slot `{#var#}`. Filed as: Template Name `Nirogix OTP`, Communication Type SMS, Category **Health**, Content Type Text, one **NUMBER (OTP, Amount, Serial Number, Reference IDs)** variable with sample `483920`, 92 characters
+11. [x] Submitted 10:11, **Active** at 10:28 (STPL: Active). Record the **19-digit DLT Template ID** here: `____________________` — read it from the panel's **Tagging** / template-details view, or **Download Report**. MSG91 asks for it in Phase D.
 12. [ ] Repeat 8–11 for each transactional template you need (§4)
+
+> **One template per distinct message text.** DLT matches the delivered SMS against a registered
+> template, so an approved OTP template covers the OTP and nothing else. Any new SMS wording —
+> appointment confirmation, reminder, anything — is its own Phase C + Phase D pass before it can send.
+> Today the OTP is the only SMS the product actually sends; the generic `sendSms` paths
+> (`notification.controller.ts`, the `notification.send` job) carry no registered template and will be
+> refused by the operator until one exists for whatever text they carry.
 
 ### Phase D — Create the Flow in MSG91 → becomes `MSG91_OTP_TEMPLATE_ID`
 13. [ ] MSG91 panel: **SMS → Templates / Flows**
@@ -107,8 +119,9 @@ Register on **one** operator's portal; it syncs to the national registry.
 17. [ ] Set the values on the box that runs the backend (never commit; `.env` is gitignored):
     ```bash
     MSG91_API_KEY=<the Nirogix authkey>
-    MSG91_SMS_SENDER_ID=<approved 6-char header>      # Phase B
+    MSG91_SMS_SENDER_ID=NIROGX                        # Phase B (approved 01/09/2026)
     MSG91_OTP_TEMPLATE_ID=<msg91 flow id>             # Phase D step 15
+    MSG91_OTP_TEMPLATE_VAR=<the flow's variable name>  # Phase D — blank falls back to var1
     # (email, already working:)
     MSG91_EMAIL_FROM=noreply@mail.nirogix.com
     MSG91_EMAIL_DOMAIN=mail.nirogix.com
@@ -126,6 +139,7 @@ Register on **one** operator's portal; it syncs to the national registry.
 | `MSG91_EMAIL_DOMAIN` | Verified sending domain | `mail.nirogix.com` | Email |
 | `MSG91_SMS_SENDER_ID` | DLT-approved 6-char header | DLT Phase B | SMS |
 | `MSG91_OTP_TEMPLATE_ID` | MSG91 Flow id (references the DLT template) | MSG91 Phase D | SMS OTP + transactional |
+| `MSG91_OTP_TEMPLATE_VAR` | The variable name inside that flow, which MSG91 assigns. Blank = `var1` | MSG91 Phase D | SMS OTP |
 
 Any of these unset → that channel stays on the **log provider** (messages logged, not sent). Email and SMS are independent: email can be live while SMS is still on the log provider.
 
@@ -159,7 +173,8 @@ Reminder: your appointment at {#var#} is on {#var#}. - Nirogix
 ## 5. Verification (after Phase E)
 
 - [ ] Backend log shows the MSG91 (not `log`) provider is active for SMS
-- [ ] Trigger an OTP send to a real Indian number → SMS arrives with the approved sender header
+- [ ] Trigger an OTP send to a real Indian number → SMS arrives from **NIROGX**, reading **exactly** the registered text: `Your Nirogix verification code is <code>. Valid for 10 minutes. Do not share it with anyone.`
+- [ ] MSG91 Transaction Logs shows the flow carrying **one variable holding just the code** — not the whole message. A wrong `MSG91_OTP_TEMPLATE_VAR` surfaces here as a blank or rejected variable
 - [ ] `verifyOtp` accepts the received code
 - [ ] MSG91 → **Transaction Logs** shows the delivered message and cost
 - [ ] No `MSG91 sms failed:` errors in the backend logs ([msg91Provider.ts:44](../hms_backend/src/modules/notification/providers/msg91Provider.ts#L44))

@@ -12,7 +12,7 @@ Built: root layout with the no-flash theme script and the shared `Toaster`, a Li
 
 **Two gates on every authenticated route.** A session is not enough: a hospital's org_admin has a valid one, because there is a single backend. `(app)/layout.tsx` also requires `platform.tenants.manage`, which only a super_admin in the PLATFORM org resolves. The client gate is UX — the API refuses the same caller independently.
 
-**No credentials in source.** The seeded operator account stays in `seed.ts` and `testcases.md`. The login screen hints at nothing and ships nothing.
+**No credentials in source.** The seeded operator account stays in `seed.development.ts` and `testcases.md`. The login screen hints at nothing and ships nothing.
 
 **Dashboard is honest.** Hospitals, platform users, doctors, branches, module adoption and a link into the audit trail — all real queries against `GET /admin/stats`, which is aggregate-only by design (ADR-023). Revenue, MRR, subscriptions, storage, uptime and support tickets are absent, and the screen says so in as many words, because no data source for them exists (ADR-020, ADR-043).
 

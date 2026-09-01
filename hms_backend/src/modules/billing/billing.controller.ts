@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { paginate } from '../../http/respond';
+import * as feeSvc from './feeRules.service';
+import { ListFeeRulesQuery, PreviewFeeQuery } from './feeRules.schema';
 import { ListInvoicesQuery } from './billing.schema';
 import * as svc from './billing.service';
 
@@ -38,4 +40,25 @@ export async function createService(req: Request, res: Response): Promise<void> 
 
 export async function updateService(req: Request, res: Response): Promise<void> {
   res.json(await svc.updateService(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+}
+
+// ---- Consultation fee schedule (ADR-117) -----------------------------------
+
+export async function listFeeRules(req: Request, res: Response): Promise<void> {
+  const q = ListFeeRulesQuery.parse(req.query);
+  res.json(await feeSvc.listFeeRules(req.auth!.tenantId, { includeInactive: q.includeInactive }));
+}
+
+export async function createFeeRule(req: Request, res: Response): Promise<void> {
+  res.status(201).json(await feeSvc.createFeeRule(req.auth!.tenantId, req.body, req.auth!.userId));
+}
+
+export async function updateFeeRule(req: Request, res: Response): Promise<void> {
+  res.json(await feeSvc.updateFeeRule(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+}
+
+/** What check-in is about to charge, so the desk can quote it as it picks the doctor. */
+export async function previewFee(req: Request, res: Response): Promise<void> {
+  const q = PreviewFeeQuery.parse(req.query);
+  res.json(await feeSvc.previewFee(req.auth!.tenantId, q));
 }

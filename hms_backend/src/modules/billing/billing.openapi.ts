@@ -1,6 +1,13 @@
 import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
 import {
+  CreateFeeRuleBody,
+  UpdateFeeRuleBody,
+  FeeRuleSchema,
+  FeeRuleListSchema,
+  ResolvedFeeSchema,
+} from './feeRules.schema';
+import {
   CreateInvoiceBody,
   RecordPaymentBody,
   AddInvoiceLineBody,
@@ -151,5 +158,85 @@ registry.registerPath({
     404: { description: 'Invoice not found', ...json(ErrorResponseSchema) },
     409: { description: 'Cannot collect against a void invoice', ...json(ErrorResponseSchema) },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+// ---- Consultation fee schedule (ADR-117) -----------------------------------
+
+const feeTags = ['Consultation fee schedule'];
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/fee-rules',
+  operationId: 'listFeeRules',
+  tags: feeTags,
+  summary: 'The consultation price list, most specific rule first',
+  description:
+    'A rule matches on any combination of doctor, department and how the patient arrived; a NULL ' +
+    'dimension means "any". The most specific match wins — doctor beats department beats arrival ' +
+    'type — and `specificity` on each row is that ordering made visible.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ includeInactive: z.enum(['true', 'false']).optional() }) },
+  responses: { 200: { description: 'Rules', ...json(FeeRuleListSchema) }, 401: notAuthed, 403: forbidden },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/fee-rules/preview',
+  operationId: 'previewConsultationFee',
+  tags: feeTags,
+  summary: 'What a check-in with these details would be charged',
+  description:
+    'Lets the front desk quote the fee as it picks the doctor, and say where the number came from. ' +
+    'Falls back to the doctor\'s own configured fee, then to zero — exactly what check-in did ' +
+    'before a schedule existed.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      providerId: z.string().uuid().optional(),
+      departmentId: z.string().uuid().optional(),
+      arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).optional(),
+      branchId: z.string().uuid().optional(),
+    }),
+  },
+  responses: { 200: { description: 'The resolved fee', ...json(ResolvedFeeSchema) }, 401: notAuthed, 403: forbidden },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/fee-rules',
+  operationId: 'createFeeRule',
+  tags: feeTags,
+  summary: 'Add a rule to the price list',
+  description: 'Two rules matching on exactly the same combination are a contradiction, and the second is refused.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(CreateFeeRuleBody) },
+  responses: {
+    201: { description: 'Created', ...json(FeeRuleSchema) },
+    401: notAuthed,
+    403: forbidden,
+    409: { description: 'A rule already covers this combination', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation failed', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/fee-rules/{id}',
+  operationId: 'updateFeeRule',
+  tags: feeTags,
+  summary: 'Change a price, or retire a rule',
+  description:
+    'A rule is retired (`isActive: false`), never deleted: it is part of the explanation for every ' +
+    'invoice it priced. Both the old and the new amount are written to the audit log, because the ' +
+    'row afterwards holds only the new one.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(UpdateFeeRuleBody) },
+  responses: {
+    200: { description: 'Updated', ...json(FeeRuleSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Changed by someone else', ...json(ErrorResponseSchema) },
   },
 });

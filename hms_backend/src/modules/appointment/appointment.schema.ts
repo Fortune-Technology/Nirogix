@@ -6,7 +6,14 @@ export const BookAppointmentBody = z
     providerId: z.string().uuid(),
     scheduledAt: z.string().datetime({ message: 'Use an ISO datetime' }),
     durationMinutes: z.coerce.number().int().min(5).max(240).optional(),
-    reason: z.string().max(300).nullable().optional(),
+    reason: z.string().max(2000).nullable().optional(),
+    /** Same field, same validation as check-in — one form must not mean two rules (ADR-115). */
+    departmentId: z.string().uuid().nullable().optional(),
+    /**
+     * How the patient arrived (ADR-115). One workflow books and checks in; this is the variable
+     * that distinguishes what it produced.
+     */
+    arrivalType: z.enum(['appointment', 'follow_up']).nullable().optional(),
     branchId: z.string().uuid().nullable().optional(),
   })
   .openapi('BookAppointmentBody');
@@ -57,6 +64,9 @@ export const AppointmentViewSchema = z
     patientUhid: z.string(),
     providerId: z.string().uuid(),
     providerName: z.string(),
+    departmentId: z.string().uuid().nullable(),
+    departmentName: z.string().nullable(),
+    arrivalType: z.string(),
   })
   .openapi('Appointment');
 

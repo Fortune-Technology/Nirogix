@@ -1,4 +1,11 @@
 import { Router } from 'express';
+import * as chk from './selfCheckin.controller';
+import {
+  AnnounceArrivalBody,
+  ConfirmArrivalBody,
+  DismissArrivalBody,
+  SetSelfCheckinBody,
+} from './selfCheckin.schema';
 import { PERMISSIONS } from '@hms/permissions';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
@@ -179,4 +186,64 @@ organizationRouter.post(
   requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
   sensitiveLimiter,
   asyncHandler(bkg.regenerate),
+);
+
+/**
+ * Patient self check-in (ADR-118) — the third and, deliberately, last public surface, held to
+ * exactly the ADR-056 rules: tenant from the opaque token in the path, an **announcement** rather
+ * than a visit, sign-in-tier rate limit, and a reply that is identical whether the number matched
+ * an appointment, matched nothing, or belongs to a hospital that has this switched off.
+ */
+organizationRouter.get('/public/check-in/:token', authLimiter, asyncHandler(chk.publicContext));
+organizationRouter.post(
+  '/public/check-in/:token',
+  authLimiter,
+  validate({ body: AnnounceArrivalBody }),
+  asyncHandler(chk.publicAnnounce),
+);
+
+// The desk's arrivals board. Reading rides OPD_VIEW; confirming creates a real visit through the
+// ordinary check-in, so it needs OPD_CHECKIN — the public path buys the patient a shorter queue,
+// not a way around the permission that governs check-in.
+organizationRouter.get(
+  '/self-check-ins',
+  requireAuth,
+  requirePermission(PERMISSIONS.OPD_VIEW),
+  asyncHandler(chk.listArrivals),
+);
+organizationRouter.post(
+  '/self-check-ins/:id/confirm',
+  requireAuth,
+  requirePermission(PERMISSIONS.OPD_CHECKIN),
+  validate({ body: ConfirmArrivalBody }),
+  asyncHandler(chk.confirmArrival),
+);
+organizationRouter.post(
+  '/self-check-ins/:id/dismiss',
+  requireAuth,
+  requirePermission(PERMISSIONS.OPD_CHECKIN),
+  validate({ body: DismissArrivalBody }),
+  asyncHandler(chk.dismissArrival),
+);
+
+// Hospital configuration: the toggle and the token behind the poster.
+organizationRouter.get(
+  '/self-check-in-settings',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  asyncHandler(chk.getSettings),
+);
+organizationRouter.put(
+  '/self-check-in-settings',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  validate({ body: SetSelfCheckinBody }),
+  asyncHandler(chk.setEnabled),
+);
+organizationRouter.post(
+  '/self-check-in-settings/regenerate',
+  requireAuth,
+  requirePermission(PERMISSIONS.ORG_PROFILE_MANAGE),
+  sensitiveLimiter,
+  asyncHandler(chk.regenerate),
 );

@@ -341,3 +341,31 @@ Now it runs in a **pre-paint** isomorphic layout effect and branches on the URL 
 **What:** One scrollbar treatment in `styles.css` for every scroll container in every consuming app: `scrollbar-width: thin` + `scrollbar-color` (Firefox) and `::-webkit-scrollbar*` pseudo-elements (Chromium/WebKit) — token-coloured thumb (`--hms-border`, hover `--hms-fg-subtle`), transparent track/corner, padding-box gutter. Colours come only from tokens, so Light/Dark follow `data-theme` and marketing's `--hms-* → --mk-*` bridge re-colours the marketing site with zero extra CSS.
 
 **Testing status:** typecheck green; computed-style verified in the Portal — light thumb `#dbe6e7`, dark thumb `#22353c`, transparent track, `thin` — switching with the theme toggle.
+
+## 2026-09-01 — `Select`, and the portals off Lenis (ADR-111, ADR-112)
+
+**What:** The kit gained the primitive it was most obviously missing. `Select` is the one dropdown:
+label, optional second line, optional right-aligned detail, grouping, extra search keywords, clear,
+loading and empty states, and full combobox keyboard + ARIA behaviour. Search appears automatically
+past seven options. **The panel is portalled to `document.body` and positioned in viewport
+coordinates** — recomputed on capture-phase scroll and on resize, flipping above the trigger when the
+space below is short and bounded by the room actually available — so a dialog body, a scrolling table
+container or any other ancestor `overflow` cannot clip it. `--hms-text-xs` was added to the token
+scale rather than hard-coding the smallest size inside one component.
+
+Lenis was removed from the Portal and the Admin app (ADR-111), which meant two shared pieces had to
+stop assuming it: `useScrollLock` now pins the document natively and compensates for the scrollbar
+width so an opening dialog does not shift the page sideways, still stopping Lenis where an instance
+exists; `BackToTop` takes visibility from the native scroll position, which is what makes it work at
+all in the portals — its `useLenis` callback never fired there, so the button was dead.
+
+**Testing status:** `@hms/ui` typecheck clean. **14 new `Select` tests** cover the search (including
+multi-term matching in any order), the automatic search threshold, keyboard opening on the current
+selection, disabled-option skipping, Escape and focus return, clearing, grouping, the loading and
+empty states, the error/hint wiring, and — the one that guards the design decision — that the panel
+renders **outside** an ancestor with `overflow`. The package now runs **107 tests, all passing** (was
+93). `setup.ts` gained a `scrollIntoView` stub, which jsdom does not implement.
+
+Browser-checked: no Lenis instance on the Portal or Admin after hydration, and the `lenis` class still
+present on marketing. Visual verification of `Select` in Light + Dark under a non-default accent is
+manual — cases SEL-01…SEL-10 in `testcases.md`.

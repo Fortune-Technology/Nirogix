@@ -11,6 +11,7 @@ import {
   DateField,
   Dialog,
   Field,
+  Select,
   Skeleton,
   TableAction,
   TableActions,
@@ -335,21 +336,15 @@ function RequestsQueue() {
         title="Booking requests"
         description={loading ? "Loading…" : `${rows.length} ${status}`}
       />
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-fg-muted">Status:</span>
-        <select
-          className="hms-input max-w-[14rem]"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as Status)}
-          aria-label="Show requests by status"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s[0]!.toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Select
+        label="Status"
+        value={status}
+        onChange={(v) => setStatus(v as Status)}
+        options={STATUSES.map((s) => ({ value: s, label: s[0]!.toUpperCase() + s.slice(1) }))}
+        searchable={false}
+        aria-label="Show requests by status"
+        className="w-56"
+      />
 
       <Alert>
         These people scanned your hospital&apos;s booking QR code or link and asked for an appointment. They are{" "}
@@ -404,22 +399,20 @@ function RequestsQueue() {
             </p>
           ) : null}
 
-          <label className="hms-field">
-            <span className="hms-label">Doctor</span>
-            <select
-              className="hms-input"
-              value={providerId}
-              onChange={(e) => setProviderId(e.target.value)}
-              required
-            >
-              <option value="">Select a doctor…</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Doctor"
+            value={providerId}
+            onChange={setProviderId}
+            options={providers.map((p) => ({
+              value: p.id,
+              label: p.fullName,
+              description: p.specialties.length > 0 ? p.specialties.join(", ") : (p.qualification ?? undefined),
+              keywords: p.specialties.join(" "),
+            }))}
+            placeholder="Select a doctor…"
+            required
+            emptyMessage="No doctors found."
+          />
 
           <DateField label="Date" value={date || null} min={todayApiDate()} onChange={(v) => setDate(v ?? "")} required />
 

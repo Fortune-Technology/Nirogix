@@ -1,4 +1,14 @@
 import { registry } from '../../openapi/registry';
+import {
+  AnnounceArrivalBody,
+  ConfirmArrivalBody,
+  DismissArrivalBody,
+  SetSelfCheckinBody,
+  PublicCheckinContextSchema,
+  SelfCheckinRequestSchema,
+  SelfCheckinRequestListSchema,
+  SelfCheckinSettingsSchema,
+} from './selfCheckin.schema';
 import { ErrorResponseSchema } from '../../openapi/schemas';
 import { z } from '../../openapi/registry';
 import { UpdateOrganizationProfileBody, OrganizationProfileSchema } from './organization.schema';
@@ -350,5 +360,154 @@ registry.registerPath({
     200: { description: 'Settings with the new token', ...json(BookingSettingsSchema) },
     401: notAuthed,
     403: { description: 'Missing platform.organization.manage', ...json(ErrorResponseSchema) },
+  },
+});
+
+// ---- Patient self check-in (ADR-118) ---------------------------------------
+
+const checkinTags = ['Self check-in'];
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/public/check-in/{token}',
+  operationId: 'publicCheckinContext',
+  tags: checkinTags,
+  summary: 'The hospital behind a self check-in QR code',
+  description:
+    'Unauthenticated. The tenant is resolved from the opaque token in the path — never from a body, ' +
+    'header, query parameter or subdomain (ADR-056). A typo, a retired token and a suspended ' +
+    'hospital are indistinguishable: all three answer 404 with the same message.',
+  request: { params: z.object({ token: z.string() }) },
+  responses: {
+    200: { description: 'Hospital name and whether self check-in is on', ...json(PublicCheckinContextSchema) },
+    404: { description: 'Not a valid link', ...json(ErrorResponseSchema) },
+    429: { description: 'Rate limited at the sign-in tier', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/public/check-in/{token}',
+  operationId: 'publicAnnounceArrival',
+  tags: checkinTags,
+  summary: 'A patient says they have arrived',
+  description:
+    '**Creates an announcement, never a visit.** A visit carries a queue token, opens an invoice ' +
+    'and is what a consultation hangs off; ADR-056 forbids any public path from writing a clinical ' +
+    'record, so the front desk confirms — which is also the identity check, because they are ' +
+    'looking at the person. **The reply is identical in every case** — matched, unmatched, or a ' +
+    'hospital with self check-in switched off. A response that varied would answer "is this mobile ' +
+    'number a patient here, and are they due in today?" for anyone holding the QR code. For the ' +
+    'same reason an announcement that matched nothing is still recorded: an endpoint that only ' +
+    'wrote rows on a match would leak the same fact through its side effects.',
+  request: { params: z.object({ token: z.string() }), body: json(AnnounceArrivalBody) },
+  responses: {
+    202: { description: 'Always this, whatever happened' },
+    404: { description: 'Not a valid link', ...json(ErrorResponseSchema) },
+    429: { description: 'Rate limited at the sign-in tier', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/self-check-ins',
+  operationId: 'listSelfCheckins',
+  tags: checkinTags,
+  summary: "Today's arrivals board",
+  description:
+    'Everything on a row except the hospital is a claim until the desk confirms it. ' +
+    '`alreadyCheckedIn` flags an appointment a colleague checked in by hand while the patient was ' +
+    'queuing at the kiosk.',
+  security: [{ bearerAuth: [] }],
+  request: { query: z.object({ status: z.enum(['pending', 'confirmed', 'dismissed']).optional() }) },
+  responses: {
+    200: { description: 'Arrivals', ...json(SelfCheckinRequestListSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/self-check-ins/{id}/confirm',
+  operationId: 'confirmSelfCheckin',
+  tags: checkinTags,
+  summary: 'Confirm an arrival, which checks the patient in',
+  description:
+    'Runs the ordinary check-in — same fee schedule, same case rules, same invoice, same audit. ' +
+    'There is deliberately no second check-in implementation for this path.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(ConfirmArrivalBody) },
+  responses: {
+    200: { description: 'Confirmed', ...json(SelfCheckinRequestSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+    409: { description: 'Already dealt with, or changed elsewhere', ...json(ErrorResponseSchema) },
+    422: { description: 'Not matched to an appointment', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/self-check-ins/{id}/dismiss',
+  operationId: 'dismissSelfCheckin',
+  tags: checkinTags,
+  summary: 'Clear an arrival nobody could match, with a reason',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(DismissArrivalBody) },
+  responses: {
+    200: { description: 'Dismissed', ...json(SelfCheckinRequestSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+    409: { description: 'Already dealt with', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/self-check-in-settings',
+  operationId: 'getSelfCheckinSettings',
+  tags: checkinTags,
+  summary: 'Whether self check-in is on, and the token behind the poster',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Settings', ...json(SelfCheckinSettingsSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/self-check-in-settings',
+  operationId: 'setSelfCheckinEnabled',
+  tags: checkinTags,
+  summary: 'Turn self check-in on or off',
+  description:
+    'Turning it on mints a token if there is none — a switch with no link behind it does nothing.',
+  security: [{ bearerAuth: [] }],
+  request: { body: json(SetSelfCheckinBody) },
+  responses: {
+    200: { description: 'Settings', ...json(SelfCheckinSettingsSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/self-check-in-settings/regenerate',
+  operationId: 'regenerateSelfCheckinToken',
+  tags: checkinTags,
+  summary: 'Retire the current link and mint a new one',
+  description:
+    'The only way to retire a poster that has been photographed, altered, or put up somewhere it ' +
+    'should not be. The old link stops working immediately.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: 'Settings with the new token', ...json(SelfCheckinSettingsSchema) },
+    401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
+    403: { description: 'Missing permission', ...json(ErrorResponseSchema) },
+    429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
   },
 });

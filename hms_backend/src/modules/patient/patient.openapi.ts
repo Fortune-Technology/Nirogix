@@ -1,4 +1,10 @@
 import { registry, z } from '../../openapi/registry';
+import {
+  ArchiveDocumentBody,
+  AttachDocumentBody,
+  PatientDocumentSchema,
+  PatientDocumentListSchema,
+} from './document.schema';
 import { ErrorResponseSchema } from '../../openapi/schemas';
 import { CreatePatientBody, UpdatePatientBody, PatientSchema, PatientsPageSchema } from './patient.schema';
 
@@ -83,5 +89,80 @@ registry.registerPath({
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
     422: invalid,
+  },
+});
+
+// ---- Documents attached to a patient (ADR-119) -----------------------------
+
+const docTags = ['Patient documents'];
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/patients/{id}/documents',
+  operationId: 'listPatientDocuments',
+  tags: docTags,
+  summary: "A patient's attached documents",
+  description:
+    'Referral letters, prior reports, insurance and identity documents. `file_metadata` is a ' +
+    'generic store that knows nothing about who a file is about; this is the link that gives it ' +
+    'a subject. Filter by `caseId` for one episode. Archived attachments are hidden unless asked ' +
+    'for — they are kept, never deleted.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    query: z.object({
+      caseId: z.string().uuid().optional(),
+      includeArchived: z.enum(['true', 'false']).optional(),
+    }),
+  },
+  responses: {
+    200: { description: 'Documents', ...json(PatientDocumentListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/patients/{id}/documents',
+  operationId: 'attachPatientDocument',
+  tags: docTags,
+  summary: 'Attach an already-uploaded file to a patient',
+  description:
+    'Upload the file through `POST /files` first and send its id here — one file store, one set ' +
+    'of type and size checks. The file must belong to this tenant, and a visit or case named ' +
+    'here must belong to this patient; both are checked server-side, because taking either on ' +
+    'trust would file a document against the wrong chart.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(AttachDocumentBody) },
+  responses: {
+    201: { description: 'Attached', ...json(PatientDocumentSchema) },
+    401: notAuthed,
+    403: notEntitled,
+    404: { description: 'Patient, file, visit or case not found', ...json(ErrorResponseSchema) },
+    422: { description: 'The visit or case belongs to a different patient', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/patients/{id}/documents/{docId}/archive',
+  operationId: 'archivePatientDocument',
+  tags: docTags,
+  summary: 'Archive an attachment, with a reason',
+  description:
+    'A document attached to the wrong chart is corrected by archiving it — the fact that it was ' +
+    'once attached, and who attached it, is part of the record. The underlying file is untouched; ' +
+    'removing that is `DELETE /files/{id}`, a separate permission.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid(), docId: z.string().uuid() }),
+    body: json(ArchiveDocumentBody),
+  },
+  responses: {
+    200: { description: 'Archived', ...json(PatientDocumentSchema) },
+    401: notAuthed,
+    403: notEntitled,
+    409: { description: 'Already archived, or changed elsewhere', ...json(ErrorResponseSchema) },
   },
 });

@@ -62,13 +62,21 @@ beforeAll(async () => {
 
   const enc = await pool.query(
     `INSERT INTO encounters (tenant_id, visit_id, patient_id, chief_complaint, subjective, assessment, plan,
-       vital_systolic, vital_diastolic, vital_pulse, vital_resp_rate, vital_temp_c_tenths, vital_weight_g, vital_height_cm,
        status, signed_at)
      VALUES ($1,$2,$3,'Fever for three days','Reports fever','Viral fever','Rest and fluids',
-       128, 82, 88, 18, 375, 64500, 162, 'signed', now()) RETURNING id`,
+       'signed', now()) RETURNING id`,
     [tenantId, visitId, patientId],
   );
   encounterId = enc.rows[0].id;
+
+  // Vitals hang off the VISIT, not the encounter (ADR-113) — a desk reading exists before any
+  // consultation does, so the bundle has to source them from there.
+  await pool.query(
+    `INSERT INTO patient_vitals (tenant_id, visit_id, patient_id, stage,
+       systolic, diastolic, pulse, resp_rate, temp_c_tenths, weight_g, height_cm)
+     VALUES ($1,$2,$3,'consultation',128,82,88,18,375,64500,162)`,
+    [tenantId, visitId, patientId],
+  );
 
   await pool.query(
     `INSERT INTO diagnoses (tenant_id, encounter_id, icd10_code, icd10_term, is_primary)

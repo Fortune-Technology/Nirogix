@@ -189,8 +189,12 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
    frontends' `NEXT_PUBLIC_*` origins use the staging hosts from `resources/domains.md`, never ports.
 5. `npm ci && npm run build`.
 6. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
-7. `npm run db:seed:staging -w hms_backend` (staging only — deterministic QA dataset; the
-   development and production seeders refuse to run here by design, ADR-058).
+7. `npm run db:seed:staging -w hms_backend` (staging only — the deterministic QA dataset; the
+   development and production seeders refuse to run here by design, ADR-058). Re-running it is
+   safe: it creates what is missing and never replays the clinical history. To rebuild staging from
+   empty — which destroys whatever QA is part-way through, so tell them first —
+   `CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset` (ADR-114). What the
+   dataset covers is in `docs/seed-data.md`.
 8. `pm2 start deploy/ecosystem.config.cjs --env staging && pm2 save && pm2 startup` **as the
    Nirogix service user** (so `pm2 save` snapshots only our apps), then
    `ss -tulpn | grep -E "<the six ports>"` to confirm each app bound where expected.

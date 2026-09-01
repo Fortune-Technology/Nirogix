@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PERMISSIONS } from '@hms/permissions';
 import { requireAuth } from '../../http/requireAuth';
 import { requireModule } from '../../http/requireModule';
+import { requireCapability } from '../../http/requireCapability';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
@@ -197,16 +198,31 @@ abdmRouter.put(
   asyncHandler(c.putFacility),
 );
 
-// --- Milestone 3: a patient's history from other hospitals (ADR-092) --------------------------
+// --- Milestone 3: a patient's history from other hospitals (ADR-092, ADR-120) -----------------
 //
-// Two permissions, not one. Requesting puts this doctor's name and registration number in front of
-// the patient and creates an obligation to destroy what comes back; reading is another hospital's
-// clinical record. A role that may open a chart is not thereby entitled to pull a national history
-// onto it.
+// Three permissions now, not two. Requesting puts this doctor's name and registration number in
+// front of the patient and creates an obligation to destroy what comes back; reading is another
+// hospital's clinical record; **seeing the consent STATE is neither**, and the front desk needs
+// only that. A role that may open a chart is not thereby entitled to pull a national history onto
+// it, and a role that may see a request is pending is not thereby entitled to read what it returns.
+//
+// Every route below is additionally gated on the `abdm.external_history` capability, so a hospital
+// entitled to ABDM for ABHA verification alone does not silently gain a national records pull.
+const historyCap = requireCapability('abdm', 'abdm.external_history');
+
+abdmRouter.get(
+  '/abdm/history/:patientId/consent-status',
+  requireAuth,
+  mod,
+  historyCap,
+  requirePermission(PERMISSIONS.ABDM_CONSENT_STATUS_VIEW),
+  asyncHandler(c.consentStatus),
+);
 abdmRouter.post(
   '/abdm/history/request',
   requireAuth,
   mod,
+  historyCap,
   requirePermission(PERMISSIONS.ABDM_HISTORY_REQUEST),
   validate({ body: RequestHistoryBody }),
   asyncHandler(c.requestHistory),
@@ -216,6 +232,7 @@ abdmRouter.get(
   '/abdm/history/:patientId',
   requireAuth,
   mod,
+  historyCap,
   requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
   asyncHandler(c.listHistoryRequests),
 );
@@ -224,6 +241,7 @@ abdmRouter.post(
   '/abdm/history/:requestId/refresh',
   requireAuth,
   mod,
+  historyCap,
   requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
   asyncHandler(c.refreshHistoryRequest),
 );
@@ -234,6 +252,7 @@ abdmRouter.post(
   '/abdm/history/:patientId/fetch',
   requireAuth,
   mod,
+  historyCap,
   requirePermission(PERMISSIONS.ABDM_HISTORY_REQUEST),
   asyncHandler(c.fetchExternalRecords),
 );
@@ -244,6 +263,7 @@ abdmRouter.get(
   '/abdm/history/:patientId/timeline',
   requireAuth,
   mod,
+  historyCap,
   requirePermission(PERMISSIONS.ABDM_HISTORY_VIEW),
   asyncHandler(c.externalHistoryTimeline),
 );

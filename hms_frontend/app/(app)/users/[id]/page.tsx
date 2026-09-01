@@ -210,7 +210,7 @@ function Detail({ id }: { id: string }) {
         {user.wildcard ? (
           <Badge tone="brand">All permissions (wildcard)</Badge>
         ) : (
-          <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto" data-lenis-prevent>
+          <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
             {user.permissions.map((p) => (
               <span key={p} className="rounded-token bg-surface-2 px-2 py-1 font-mono text-xs text-fg-muted">{p}</span>
             ))}

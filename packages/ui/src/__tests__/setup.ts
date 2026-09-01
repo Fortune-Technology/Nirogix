@@ -13,3 +13,9 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
+
+// jsdom has no layout, so it implements neither of these. Select keeps its active option
+// in view with scrollIntoView, and positions its portalled panel from the trigger rect.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

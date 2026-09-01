@@ -2,7 +2,7 @@
  * The accounts the E2E suite signs in as.
  *
  * These are **seeded** accounts, never hand-made staging data (test-data strategy): the
- * development set comes from `hms_backend/src/scripts/seed.ts` and the staging set from
+ * development set comes from `hms_backend/src/scripts/seed.development.ts` and the staging set from
  * `seed.staging.ts`, which is written as a deterministic contract precisely so E2E can rely
  * on it. Passwords are the seeders' non-secret defaults and are overridable by environment —
  * no real credential is ever committed here.

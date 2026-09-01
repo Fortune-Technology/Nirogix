@@ -31,15 +31,9 @@ export const encounters = pgTable(
     objective: text('objective'),
     assessment: text('assessment'),
     plan: text('plan'),
-    // Vitals (typed; NULL = not recorded)
-    vitalSystolic: integer('vital_systolic'),
-    vitalDiastolic: integer('vital_diastolic'),
-    vitalPulse: integer('vital_pulse'),
-    vitalSpo2: integer('vital_spo2'),
-    vitalRespRate: integer('vital_resp_rate'),
-    vitalTempCTenths: integer('vital_temp_c_tenths'), // 375 = 37.5 °C
-    vitalWeightG: integer('vital_weight_g'), // grams
-    vitalHeightCm: integer('vital_height_cm'),
+    // Vitals live in `patient_vitals`, not here (ADR-113). They have to be recordable before a
+    // consultation exists — at the desk, or in a nurse's queue — and a consultation cannot exist
+    // until the payment gate is satisfied, so columns on this row could never hold them.
     status: varchar('status', { length: 20 }).notNull().default('draft'), // draft | signed
     authoredBy: uuid('authored_by'),
     version: integer('version').notNull().default(1),

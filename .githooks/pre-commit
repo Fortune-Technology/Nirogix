@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Repository pre-commit hook.
+#
+# Enabled by `git config core.hooksPath .githooks`, which the root `prepare` script runs on every
+# `npm install` — so a fresh clone gets it without anyone remembering. Checked into the repository
+# on purpose: a hook that lives only in `.git/hooks` protects one machine.
+#
+# Keep it fast. A hook that takes seconds gets bypassed, and a bypassed hook enforces nothing.
+
+# `.env.example` and `.env` must hold the same keys in the same order (CLAUDE.md → Environment
+# files). A local `.env` that has not been created yet is skipped, not failed.
+node scripts/env-check.mjs || exit 1

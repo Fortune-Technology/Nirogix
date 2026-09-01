@@ -55,17 +55,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh">
       {/*
        * The sidebar owns its own scroll: it sticks to the top for the full viewport
-       * height, and a long menu scrolls INSIDE it rather than with the page.
-       * `data-lenis-prevent` keeps the shared smooth-scroll off it, so a wheel over
-       * the menu moves the menu (DESIGN.md §9.3).
+       * height, and a long menu scrolls INSIDE it rather than with the page. `dvh`
+       * rather than `vh` so a phone's collapsing browser chrome does not leave it
+       * taller than what is actually visible.
        */}
-      <aside
-        data-lenis-prevent
-        className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface md:flex"
-      >
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface md:flex">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-5">
           {logoUrl ? (
             // Tenant-uploaded asset: the origin is per-deployment object storage, so it

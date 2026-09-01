@@ -12,6 +12,7 @@ import {
   Dialog,
   Field,
   NumberRangeFilter,
+  Select,
   TableActions,
   ViewAction,
   actionsColumn,
@@ -418,23 +419,21 @@ function InvoicesTable() {
                 </div>
                 {l.kind === "service" ? (
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_6rem]">
-                    <label className="hms-field">
-                      <span className="hms-label">Service</span>
-                      <select
-                        className="hms-input"
-                        value={l.serviceId}
-                        onChange={(e) => patchLine(l.key, { serviceId: e.target.value })}
-                      >
-                        <option value="">
-                          {services === null ? "Loading catalogue…" : services.length ? "Choose a service…" : "No active services"}
-                        </option>
-                        {(services ?? []).map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({s.code}): {formatPaise(s.pricePaise)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <Select
+                      label="Service"
+                      value={l.serviceId}
+                      onChange={(v) => patchLine(l.key, { serviceId: v })}
+                      loading={services === null}
+                      placeholder={services?.length ? "Choose a service…" : "No active services"}
+                      emptyMessage="No service matches that search."
+                      options={(services ?? []).map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                        description: s.code,
+                        meta: formatPaise(s.pricePaise),
+                        keywords: s.code,
+                      }))}
+                    />
                     <Field
                       label="Qty"
                       type="number"

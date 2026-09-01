@@ -10,6 +10,7 @@
 import type {
   Appointment,
   PublicRegistrationContext,
+  PublicCheckinContext,
   InvoiceListItem,
   Paginated,
   PatientHospital,
@@ -174,6 +175,25 @@ export async function submitBookingRequest(token: string, body: BookingSubmissio
   await request<void>(`/public/booking/${encodeURIComponent(token)}`, {
     method: "POST",
     body,
+    feedback: false,
+  });
+}
+
+// ---- Self check-in (ADR-118) ------------------------------------------------
+//
+// The third public surface, and the same contract as the other two: the hospital is
+// resolved from an opaque token in the path, and the reply is identical whatever
+// happened — matched, unmatched, or a hospital that has this switched off. Neither call
+// checks anybody in; the front desk confirms, which is also the identity check.
+
+export async function checkinContext(token: string): Promise<PublicCheckinContext> {
+  return request<PublicCheckinContext>(`/public/check-in/${encodeURIComponent(token)}`, { feedback: false });
+}
+
+export async function announceArrival(token: string, phone: string): Promise<void> {
+  await request<void>(`/public/check-in/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body: { phone },
     feedback: false,
   });
 }

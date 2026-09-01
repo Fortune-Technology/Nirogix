@@ -625,3 +625,86 @@ export async function findPatientByAbha(
   }
   return { outcome: 'verified', patient: summary, nextStep: 'Ready — a history can be requested for this patient.' };
 }
+
+/**
+ * A patient's consent position, and nothing else (ADR-120).
+ *
+ * This exists so the **front desk** can answer "is anything outstanding for this patient?"
+ * without being handed another hospital's clinical records. `listHistoryRequests` returns whole
+ * request rows — the requesting doctor's name and registration number, the health-information
+ * types asked for, the date range — and that is correct for a clinician reviewing what they
+ * asked for. It is more than a receptionist needs, and more than they should have.
+ *
+ * So this returns **states and counts**. Deliberately absent:
+ *
+ * - **which hospitals hold records.** A source name is itself a disclosure — "your patient has
+ *   records at an oncology centre" is a diagnosis by implication, to someone with no clinical
+ *   permission.
+ * - **anything about the records themselves**, including how many. A count of documents is a
+ *   proxy for how ill somebody has been.
+ * - **who asked.** The requesting clinician is on the request row for the patient's benefit
+   (ADR-092), not the desk's.
+ *
+ * What is left is exactly what a desk can act on: something is waiting on the patient, or the
+ * patient said no, or consent has lapsed and a doctor may want to ask again.
+ */
+export interface ConsentStatusSummary {
+  /** True when this patient has a verified ABHA, so a request could be made at all. */
+  canRequest: boolean;
+  /** Requests still waiting on the patient, in their own app. */
+  awaitingPatient: number;
+  /** Consents granted and still inside their validity window. */
+  active: number;
+  /** The patient declined. Worth seeing: it is a decision, not a failure. */
+  declined: number;
+  /** Granted once, now lapsed or revoked. A doctor may want to ask again.  */
+  lapsed: number;
+  /** Requests that never reached ABDM — a technical problem, not a patient decision. */
+  failed: number;
+  /** When the earliest active consent stops being valid, so the desk can say "until Friday". */
+  activeUntil: string | null;
+  /** The most recent request, in the vocabulary the card already uses. */
+  latestStatus: string | null;
+  latestRequestedAt: string | null;
+}
+
+export async function consentStatusSummary(
+  tenantId: string,
+  patientId: string,
+  now = new Date(),
+): Promise<ConsentStatusSummary> {
+  const [requests, consents, patient] = await Promise.all([
+    listHistoryRequests(tenantId, patientId),
+    usableConsents(tenantId, patientId, now),
+    runWithTenant(tenantId, async (tx) =>
+      (
+        await tx
+          .select({ abhaNumber: patients.abhaNumber })
+          .from(patients)
+          .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
+          .limit(1)
+      )[0],
+    ),
+  ]);
+
+  const latest = requests[0] ?? null;
+  // `dataEraseAt` is the deadline the sweep enforces, so it is the honest answer to "until when?"
+  // — the date our copy must be gone, not merely when the artefact stops being renewable.
+  const activeUntil = consents
+    .map((c) => c.dataEraseAt)
+    .filter((d): d is Date => d instanceof Date)
+    .sort((a, b) => a.getTime() - b.getTime())[0];
+
+  return {
+    canRequest: Boolean(patient?.abhaNumber),
+    awaitingPatient: requests.filter((r) => r.status === 'requested' || r.status === 'pending').length,
+    active: consents.length,
+    declined: requests.filter((r) => r.status === 'denied').length,
+    // Granted at some point, but nothing usable is left — expired, revoked, or swept.
+    lapsed: requests.filter((r) => r.status === 'granted').length > 0 && consents.length === 0 ? 1 : 0,
+    failed: requests.filter((r) => r.status === 'failed').length,
+    activeUntil: activeUntil ? activeUntil.toISOString() : null,
+    latestStatus: latest?.status ?? null,
+    latestRequestedAt: latest?.createdAt ? latest.createdAt.toISOString() : null,
+  };
+}

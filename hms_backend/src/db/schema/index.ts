@@ -47,3 +47,13 @@ export * from './abdm';
 export * from './abdmM2';
 export * from './abdmM3';
 export * from './abdmM4';
+// Per-hospital workflow configuration + the vitals observations it governs — ADR-113.
+export * from './workflow';
+// Treatment cases — the episode a run of visits belongs to (ADR-116).
+export * from './cases';
+// The consultation fee schedule — ADR-117.
+export * from './feeRules';
+// Patient self check-in announcements — ADR-118.
+export * from './selfCheckin';
+// Documents attached to a patient, visit or case — ADR-119.
+export * from './patientDocuments';

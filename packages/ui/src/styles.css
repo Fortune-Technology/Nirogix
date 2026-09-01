@@ -55,6 +55,7 @@
 
   /* Typography */
   --hms-font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif);
+  --hms-text-xs: 0.75rem;
   --hms-text-sm: 0.8125rem;
   --hms-text-base: 0.9375rem;
   --hms-text-lg: 1.125rem;
@@ -289,6 +290,206 @@
 .hms-field__hint {
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
+}
+
+/* --------------------------------------------------------------------------
+ * Select (ADR-029) — the one dropdown. Replaces every native `<select>`, which
+ * renders in the browser's chrome rather than these tokens and, on a phone, hands
+ * the user an OS wheel that ignores them entirely.
+ * ------------------------------------------------------------------------ */
+.hms-select {
+  position: relative;
+  width: 100%;
+}
+.hms-select__required {
+  color: var(--hms-danger);
+}
+.hms-select__trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  text-align: left;
+  color: var(--hms-fg);
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  padding: 0.5625rem 0.75rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.hms-select__trigger:hover:not(:disabled) {
+  border-color: var(--hms-ring);
+}
+.hms-select__trigger:focus-visible {
+  outline: none;
+  border-color: var(--hms-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
+}
+.hms-select__trigger--error {
+  border-color: var(--hms-danger);
+}
+.hms-select__trigger--empty .hms-select__value {
+  color: var(--hms-fg-subtle);
+}
+.hms-select__trigger:disabled {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg-muted);
+  cursor: not-allowed;
+}
+/* The value takes the slack and truncates; the chevron and meta never get pushed out
+   of the control by a long doctor's name or a five-word department. */
+.hms-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hms-select__meta {
+  flex-shrink: 0;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+  white-space: nowrap;
+}
+.hms-select__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: var(--hms-fg-muted);
+}
+.hms-select__chevron {
+  flex-shrink: 0;
+  color: var(--hms-fg-muted);
+}
+.hms-select__clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--hms-radius-sm);
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+}
+.hms-select__clear:hover {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+/* Portalled to the body and positioned in viewport coordinates: an ancestor with
+   `overflow` — a dialog's scrolling body, a sticky table header — would otherwise clip
+   the list, which is what makes an in-flow dropdown feel half-usable. Above the dialog
+   overlay (1100), below the toast viewport. Left/width/top/bottom and the list height
+   are set inline by the component, which is the only place the trigger rect is known. */
+.hms-select__panel {
+  position: fixed;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  box-shadow: var(--hms-shadow-md);
+  overflow: hidden;
+}
+.hms-select__search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--hms-border);
+  color: var(--hms-fg-muted);
+}
+.hms-select__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg);
+}
+.hms-select__search-input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+.hms-select__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem;
+  outline: none;
+}
+.hms-select__group {
+  padding: 0.375rem 0.5rem 0.25rem;
+  font-size: var(--hms-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hms-fg-subtle);
+}
+.hms-select__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--hms-radius-sm);
+  cursor: pointer;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg);
+}
+.hms-select__option--active {
+  background: var(--hms-surface-2);
+}
+.hms-select__option--selected {
+  color: var(--hms-brand);
+  font-weight: 500;
+}
+.hms-select__option--disabled {
+  color: var(--hms-fg-subtle);
+  cursor: not-allowed;
+}
+.hms-select__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1.25rem;
+  color: var(--hms-brand);
+}
+/* Long option labels wrap rather than truncate: in the open list there is room, and a
+   half-shown drug or department name is what makes the wrong one get picked. */
+.hms-select__option-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.hms-select__option-label {
+  overflow-wrap: anywhere;
+}
+.hms-select__option-desc {
+  font-size: var(--hms-text-xs);
+  color: var(--hms-fg-muted);
+  font-weight: 400;
+}
+.hms-select__empty {
+  padding: 1rem 0.75rem;
+  text-align: center;
+  font-size: var(--hms-text-sm);
+  color: var(--hms-fg-muted);
+}
+/* Touch targets on a phone: the same control, with room for a finger. */
+@media (max-width: 640px) {
+  .hms-select__option {
+    padding: 0.625rem 0.5rem;
+  }
 }
 
 /* --------------------------------------------------------------------------

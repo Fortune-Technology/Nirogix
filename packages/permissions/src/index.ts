@@ -18,6 +18,10 @@ export const PERMISSIONS = {
   // BRANDING_MANAGE on purpose: a GSTIN is not a colour, and a tenant may want the person who
   // sets its legal details to be someone other than the person who picks its logo.
   ORG_PROFILE_MANAGE: 'platform.organization.manage',
+  // Choosing how this hospital runs its workflow — where vitals are taken, when the fee is
+  // settled (ADR-113). Configuration, so it sits with the other hospital-configuration keys.
+  WORKFLOW_CONFIG_VIEW: 'platform.workflow.view',
+  WORKFLOW_CONFIG_MANAGE: 'platform.workflow.manage',
   // Departments — the hospital's clinical organisation (ADR-050). Viewing is wide (the front
   // desk books into a department, the doctor works one); maintaining the list is org_admin.
   DEPARTMENT_VIEW: 'platform.departments.view',
@@ -45,9 +49,20 @@ export const PERMISSIONS = {
   OPD_VIEW: 'opd.visit.view',
   OPD_CHECKIN: 'opd.visit.checkin',
   OPD_UPDATE: 'opd.visit.update',
+  // Treatment cases (ADR-116). Two keys, not three: opening a case is part of checking a patient
+  // in, so the desk that checks in must be able to open one. Closing is guarded by a business
+  // rule and an audit record rather than a third permission nobody would know to grant.
+  CASE_VIEW: 'opd.case.view',
+  CASE_MANAGE: 'opd.case.manage',
   // EMR
   EMR_VIEW: 'emr.encounter.view',
   EMR_WRITE: 'emr.encounter.write',
+  // Vitals are their own pair (ADR-113): they are recorded before a consultation exists, by
+  // staff who must never be able to read or write a clinical note. Folding them into
+  // `emr.encounter.*` would mean a hospital could not let its nurses take a blood pressure
+  // without also handing them the chart.
+  VITALS_VIEW: 'emr.vitals.view',
+  VITALS_RECORD: 'emr.vitals.record',
   // Pharmacy
   PHARMACY_DISPENSE: 'pharmacy.dispense.create',
   PHARMACY_STOCK_VIEW: 'pharmacy.stock.view',
@@ -64,6 +79,12 @@ export const PERMISSIONS = {
   // Services & packages catalogue (E-3) — priced non-drug, non-lab items Billing consumes
   BILLING_SERVICES_VIEW: 'billing.services.view',
   BILLING_SERVICES_MANAGE: 'billing.services.manage',
+  // The consultation fee schedule (ADR-117). Setting what a hospital charges is configuration and
+  // sits with the administrator; charging something ELSE is a financial decision at the desk, and
+  // is its own key so a hospital can hand it to a supervisor without handing over the price list.
+  BILLING_FEE_RULES_VIEW: 'billing.fee_rules.view',
+  BILLING_FEE_RULES_MANAGE: 'billing.fee_rules.manage',
+  BILLING_FEE_OVERRIDE: 'billing.fee.override',
   // Referrals (in-hospital, visit → department)
   REFERRAL_VIEW: 'opd.referral.view',
   REFERRAL_CREATE: 'opd.referral.create',
@@ -130,6 +151,13 @@ export const PERMISSIONS = {
   ABDM_REGISTRY_MANAGE: 'abdm.registry.manage',
   ABDM_HISTORY_REQUEST: 'abdm.history.request',
   ABDM_HISTORY_VIEW: 'abdm.history.view',
+  /**
+   * See WHETHER a consent exists and what state it is in — never the records, never which
+   * hospitals hold them, never who asked (ADR-120). The front desk needs to answer "is anything
+   * outstanding for this patient?"; it does not need another hospital's clinical data to do it,
+   * and `abdm.history.view` would hand over exactly that.
+   */
+  ABDM_CONSENT_STATUS_VIEW: 'abdm.consent.status.view',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -174,13 +202,19 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
       P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.ORG_PROFILE_MANAGE,
+      // How this hospital runs its own workflow (ADR-113) — hospital configuration, like
+      // branding and the services catalogue.
+      P.WORKFLOW_CONFIG_VIEW, P.WORKFLOW_CONFIG_MANAGE, P.VITALS_VIEW,
       P.DEPARTMENT_VIEW, P.DEPARTMENT_MANAGE,
       P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.IMMUNIZATION_VIEW,
       // Configure which master-data items each of the org's hospitals offers (ADR-073).
       P.CATALOG_AVAILABILITY_MANAGE,
-      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.CASE_VIEW,
       // The services & packages catalogue is hospital configuration (E-3) — the admin owns it.
       P.BILLING_SERVICES_VIEW, P.BILLING_SERVICES_MANAGE,
+      // What this hospital charges for a consultation, by doctor, department and follow-up
+      // (ADR-117) — the same kind of configuration as the services catalogue.
+      P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_RULES_MANAGE, P.BILLING_FEE_OVERRIDE,
       P.REFERRAL_VIEW,
       P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
       P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
@@ -189,7 +223,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE, P.ABDM_VERIFY, P.ABDM_LINK, P.ABDM_PROFILE_UPDATE,
       // View a pulled external history for support and audit, but NOT request one: a consent
       // request must name a clinician the patient can recognise, not an administrator.
-      P.ABDM_HISTORY_VIEW,
+      P.ABDM_HISTORY_VIEW, P.ABDM_CONSENT_STATUS_VIEW,
       // Listing the hospital itself in the national registry (M4) — organisation-level, org_admin only.
       P.ABDM_REGISTRY_VIEW, P.ABDM_REGISTRY_MANAGE,
       P.AI_PORTAL_ACCESS,
@@ -201,7 +235,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Administers a branch',
     permissions: [
       P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
-      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.IMMUNIZATION_VIEW,
+      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.IMMUNIZATION_VIEW, P.CASE_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -212,7 +246,12 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE,
       P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
+      // A course of treatment is the clinician's to open, describe and declare finished.
+      P.CASE_VIEW, P.CASE_MANAGE,
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
+      // Vitals recorded earlier in the workflow are part of the picture the doctor consults on,
+      // and a clinician must always be able to re-take a reading they doubt.
+      P.VITALS_VIEW, P.VITALS_RECORD,
       P.DEPARTMENT_VIEW,
       // Record and review a patient's immunisations from the chart.
       P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE,
@@ -225,7 +264,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // Doctor-only among clinical staff: the consent request carries THIS doctor's name and
       // registration number to the patient, and it commits the hospital to destroying the records
       // on revocation — not a decision that belongs at the front desk.
-      P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW,
+      P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW, P.ABDM_CONSENT_STATUS_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -236,13 +275,34 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
       P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
+      // "Is this a new problem, or are they coming back about the fracture?" is a front-desk
+      // question, asked at check-in, so the desk both reads and opens cases (ADR-116).
+      P.CASE_VIEW, P.CASE_MANAGE,
+      // Reads the price list to quote from it. Deliberately WITHOUT `billing.fee.override`: the
+      // desk charges what the hospital decided, and a hospital that wants otherwise grants the
+      // override key to whoever it trusts with it (ADR-117).
+      P.BILLING_FEE_RULES_VIEW,
+      // Vitals at the desk, or in the vitals queue, where the hospital has configured either
+      // (ADR-113). Holding this is not the same as being offered it: the mode decides whether
+      // the fields appear at all, and the server checks the mode as well as the permission.
+      P.VITALS_VIEW, P.VITALS_RECORD,
       P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE, // front desk records routine vaccinations
       P.REFERRAL_VIEW, // routes a referred patient to the right department at the desk
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into
       P.FILE_VIEW, P.FILE_UPLOAD,
+      // Check-in opens the consultation-fee invoice, so the desk must be able to see that
+      // invoice and take the money for it. Without these the front desk raises a bill it
+      // cannot then read or settle, which is a dead end rather than a boundary. Creating an
+      // arbitrary invoice stays with the cashier: reception collects against what check-in
+      // raised, and every payment is still recorded against the acting user.
+      P.BILLING_VIEW, P.BILLING_PAYMENT,
       // The front desk is where an ABHA is verified and attached to a chart (ADR-084).
       P.ABDM_VERIFY, P.ABDM_LINK,
+      // Whether a consent is outstanding, granted or lapsed — states and counts only, no records,
+      // no source hospitals, no requesting clinician (ADR-120). The desk can then tell a waiting
+      // patient what is happening without reading anybody's medical history.
+      P.ABDM_CONSENT_STATUS_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -267,7 +327,10 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: 'Cashier',
     description: 'Billing counter',
     permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.BILLING_SERVICES_VIEW,
-      P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW,
+      P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW, P.CASE_VIEW,
+      // The billing counter reads the price list, and can charge differently — it is the counter
+      // a supervisor already stands at when a concession is agreed.
+      P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_OVERRIDE,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -447,7 +510,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
     permissions: [P.EMR_VIEW, P.EMR_WRITE],
     capabilities: [
       cap('emr', 'consultation', 'Consultation', 'BUILT', { permissions: [P.EMR_WRITE] }),
-      cap('emr', 'vitals', 'Vitals', 'BUILT'),
+      cap('emr', 'vitals', 'Vitals', 'BUILT', { permissions: [P.VITALS_VIEW, P.VITALS_RECORD] }),
       cap('emr', 'diagnosis', 'Diagnosis (ICD-10)', 'BUILT'),
       cap('emr', 'clinical_notes', 'Clinical Notes', 'BUILT'),
       cap('emr', 'prescription', 'Prescription', 'BUILT'),
@@ -469,6 +532,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
         permissions: [P.REFERRAL_VIEW, P.REFERRAL_CREATE, P.REFERRAL_UPDATE],
       }),
       cap('opd', 'self_registration', 'Patient Self-registration (QR)', 'BUILT'),
+      cap('opd', 'case', 'Treatment Cases', 'BUILT', { permissions: [P.CASE_VIEW, P.CASE_MANAGE] }),
     ],
   }),
   mod('abdm', 'ABDM / ABHA (Milestone 1)', 'CLINIC', 'BUILT', {
@@ -495,8 +559,8 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       cap('abdm', 'facility_registry', 'Health Facility Registry (M4, HFR)', 'PLANNED', {
         permissions: [P.ABDM_REGISTRY_VIEW, P.ABDM_REGISTRY_MANAGE],
       }),
-      cap('abdm', 'external_history', 'External Health History (M3, HIU)', 'PLANNED', {
-        permissions: [P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW],
+      cap('abdm', 'external_history', 'External Health History (M3, HIU)', 'BUILT', {
+        permissions: [P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW, P.ABDM_CONSENT_STATUS_VIEW],
       }),
     ],
   }),
@@ -590,6 +654,9 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
     capabilities: [
       cap('billing', 'invoice', 'Invoicing', 'BUILT', { permissions: [P.BILLING_CREATE] }),
       cap('billing', 'payments', 'Payments', 'BUILT', { permissions: [P.BILLING_PAYMENT] }),
+      cap('billing', 'fee_schedule', 'Consultation Fee Schedule', 'BUILT', {
+        permissions: [P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_RULES_MANAGE, P.BILLING_FEE_OVERRIDE],
+      }),
       cap('billing', 'services', 'Services & Packages Catalogue', 'BUILT', {
         permissions: [P.BILLING_SERVICES_VIEW, P.BILLING_SERVICES_MANAGE],
       }),

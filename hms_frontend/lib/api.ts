@@ -38,6 +38,26 @@ import type {
   Visit,
   CheckInRequest,
   UpdateVisitStatusRequest,
+  ArrivalType,
+  VisitTiming,
+  PatientCase,
+  OpenCaseRequest,
+  UpdateCaseRequest,
+  CloseCaseRequest,
+  ConsultationFeeRule,
+  PatientDocument,
+  AbdmConsentStatus,
+  AttachDocumentRequest,
+  SelfCheckinRequest,
+  SelfCheckinSettings,
+  CreateFeeRuleRequest,
+  UpdateFeeRuleRequest,
+  ResolvedConsultationFee,
+  HospitalWorkflowConfig,
+  UpdateHospitalWorkflowConfigRequest,
+  VitalsRecord,
+  RecordVitalsRequest,
+  VitalsQueueEntry,
   Invoice,
   InvoiceListItem,
   RecordPaymentRequest,
@@ -387,6 +407,217 @@ export async function checkIn(body: CheckInRequest): Promise<Visit> {
 
 export async function updateVisitStatus(id: string, body: UpdateVisitStatusRequest): Promise<Visit> {
   return request<Visit>(`/visits/${id}/status`, { method: "PATCH", body, feedback: { success: "Visit updated." } });
+}
+
+// ---- Self check-in arrivals (hms_backend/src/modules/organization) ---------
+
+export async function listArrivals(status?: string): Promise<SelfCheckinRequest[]> {
+  const q = status ? `?status=${status}` : "";
+  return request<SelfCheckinRequest[]>(`/self-check-ins${q}`);
+}
+
+export async function confirmArrival(id: string, version: number): Promise<SelfCheckinRequest> {
+  return request<SelfCheckinRequest>(`/self-check-ins/${id}/confirm`, {
+    method: "POST",
+    body: { version },
+    feedback: { success: "Patient checked in." },
+  });
+}
+
+export async function dismissArrival(id: string, version: number, reason: string): Promise<SelfCheckinRequest> {
+  return request<SelfCheckinRequest>(`/self-check-ins/${id}/dismiss`, {
+    method: "POST",
+    body: { version, reason },
+    feedback: { success: "Arrival cleared." },
+  });
+}
+
+export async function getSelfCheckinSettings(): Promise<SelfCheckinSettings> {
+  return request<SelfCheckinSettings>("/self-check-in-settings");
+}
+
+export async function setSelfCheckinEnabled(enabled: boolean): Promise<SelfCheckinSettings> {
+  return request<SelfCheckinSettings>("/self-check-in-settings", {
+    method: "PUT",
+    body: { enabled },
+    feedback: { success: enabled ? "Self check-in is on." : "Self check-in is off." },
+  });
+}
+
+export async function regenerateSelfCheckinToken(): Promise<SelfCheckinSettings> {
+  return request<SelfCheckinSettings>("/self-check-in-settings/regenerate", {
+    method: "POST",
+    feedback: { success: "A new check-in link has been created. The old one no longer works." },
+  });
+}
+
+// ---- Consultation fee schedule (hms_backend/src/modules/billing) -----------
+
+export async function listFeeRules(includeInactive = false): Promise<ConsultationFeeRule[]> {
+  const q = includeInactive ? "?includeInactive=true" : "";
+  return request<ConsultationFeeRule[]>(`/fee-rules${q}`);
+}
+
+/**
+ * What check-in would charge for this combination. Called as the desk picks the doctor, so the
+ * fee is quoted from the price list rather than remembered.
+ */
+export async function previewConsultationFee(opts: {
+  providerId?: string;
+  departmentId?: string;
+  arrivalType?: string;
+  branchId?: string;
+}): Promise<ResolvedConsultationFee> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(opts)) if (v) q.set(k, v);
+  const qs = q.toString();
+  // A preview is a read the desk triggers on every keystroke-ish change; a toast on failure would
+  // be noise, and the form falls back to showing no calculated fee.
+  return request<ResolvedConsultationFee>(`/fee-rules/preview${qs ? `?${qs}` : ""}`, { feedback: false });
+}
+
+export async function createFeeRule(body: CreateFeeRuleRequest): Promise<ConsultationFeeRule> {
+  return request<ConsultationFeeRule>("/fee-rules", { method: "POST", body, feedback: { success: "Fee rule added." } });
+}
+
+export async function updateFeeRule(id: string, body: UpdateFeeRuleRequest): Promise<ConsultationFeeRule> {
+  return request<ConsultationFeeRule>(`/fee-rules/${id}`, {
+    method: "PATCH",
+    body,
+    feedback: { success: "Fee rule updated." },
+  });
+}
+
+// ---- ABDM consent status (hms_backend/src/modules/abdm) --------------------
+
+/**
+ * States and counts only. A 403 here means this hospital is not entitled to external history,
+ * which the caller treats as "nothing to show" rather than an error worth a toast.
+ */
+export async function getConsentStatus(patientId: string): Promise<AbdmConsentStatus> {
+  return request<AbdmConsentStatus>(`/abdm/history/${patientId}/consent-status`, { feedback: false });
+}
+
+// ---- Patient documents (hms_backend/src/modules/patient) -------------------
+
+/**
+ * A short-lived signed URL for a stored file. The URL expires, which is why it is fetched at the
+ * moment of opening rather than rendered into every row.
+ */
+export async function getFileDownloadUrl(fileId: string): Promise<string> {
+  const res = await request<{ downloadUrl: string }>(`/files/${fileId}`, { feedback: false });
+  return res.downloadUrl;
+}
+
+export async function listPatientDocuments(
+  patientId: string,
+  opts: { caseId?: string; includeArchived?: boolean } = {},
+): Promise<PatientDocument[]> {
+  const q = new URLSearchParams();
+  if (opts.caseId) q.set("caseId", opts.caseId);
+  if (opts.includeArchived) q.set("includeArchived", "true");
+  const qs = q.toString();
+  return request<PatientDocument[]>(`/patients/${patientId}/documents${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * Two steps on purpose: the bytes go through the ordinary file store (one set of type and size
+ * checks, one optimizer), and the second call records what the file is about.
+ */
+export async function attachPatientDocument(
+  patientId: string,
+  file: File,
+  meta: Omit<AttachDocumentRequest, "fileId">,
+): Promise<PatientDocument> {
+  const uploaded = await uploadFile(file, "documents");
+  return request<PatientDocument>(`/patients/${patientId}/documents`, {
+    method: "POST",
+    body: { ...meta, fileId: uploaded.id },
+    feedback: { success: "Document attached." },
+  });
+}
+
+export async function archivePatientDocument(
+  patientId: string,
+  documentId: string,
+  version: number,
+  reason: string,
+): Promise<PatientDocument> {
+  return request<PatientDocument>(`/patients/${patientId}/documents/${documentId}/archive`, {
+    method: "POST",
+    body: { version, reason },
+    feedback: { success: "Document archived." },
+  });
+}
+
+// ---- Treatment cases (hms_backend/src/modules/opd/case.service) ------------
+
+export async function listCases(opts: { patientId?: string; status?: "open" | "closed" } = {}): Promise<PatientCase[]> {
+  const q = new URLSearchParams();
+  if (opts.patientId) q.set("patientId", opts.patientId);
+  if (opts.status) q.set("status", opts.status);
+  const qs = q.toString();
+  return request<PatientCase[]>(`/cases${qs ? `?${qs}` : ""}`);
+}
+
+export async function getCase(id: string): Promise<PatientCase> {
+  return request<PatientCase>(`/cases/${id}`);
+}
+
+export async function openCase(body: OpenCaseRequest): Promise<PatientCase> {
+  return request<PatientCase>("/cases", { method: "POST", body, feedback: { success: "Case opened." } });
+}
+
+export async function updateCase(id: string, body: UpdateCaseRequest): Promise<PatientCase> {
+  return request<PatientCase>(`/cases/${id}`, { method: "PATCH", body, feedback: { success: "Case updated." } });
+}
+
+export async function closeCase(id: string, body: CloseCaseRequest): Promise<PatientCase> {
+  return request<PatientCase>(`/cases/${id}/close`, { method: "POST", body, feedback: { success: "Case closed." } });
+}
+
+export async function reopenCase(id: string, version: number): Promise<PatientCase> {
+  return request<PatientCase>(`/cases/${id}/reopen`, {
+    method: "POST",
+    body: { version },
+    feedback: { success: "Case reopened." },
+  });
+}
+
+// ---- Workflow configuration & vitals (hms_backend/src/modules/workflow) ----
+
+/** Omit `branchId` for the organization-wide scope, which is a real scope rather than a default. */
+export async function getWorkflowConfig(branchId?: string | null): Promise<HospitalWorkflowConfig> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<HospitalWorkflowConfig>(`/workflow-config${q}`);
+}
+
+export async function updateWorkflowConfig(
+  branchId: string | null,
+  body: UpdateHospitalWorkflowConfigRequest,
+): Promise<HospitalWorkflowConfig> {
+  const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<HospitalWorkflowConfig>(`/workflow-config${q}`, {
+    method: "PUT",
+    body,
+    feedback: { success: "Workflow settings saved." },
+  });
+}
+
+export async function recordVitals(body: RecordVitalsRequest): Promise<VitalsRecord> {
+  return request<VitalsRecord>("/vitals", { method: "POST", body, feedback: { success: "Vitals recorded." } });
+}
+
+export async function listVisitVitals(visitId: string): Promise<VitalsRecord[]> {
+  return request<VitalsRecord[]>(`/visits/${visitId}/vitals`);
+}
+
+export async function listVitalsQueue(opts: { branchId?: string; pending?: boolean } = {}): Promise<VitalsQueueEntry[]> {
+  const q = new URLSearchParams();
+  if (opts.branchId) q.set("branchId", opts.branchId);
+  if (opts.pending) q.set("pending", "true");
+  const qs = q.toString();
+  return request<VitalsQueueEntry[]>(`/vitals/queue${qs ? `?${qs}` : ""}`);
 }
 
 // ---- Billing (hms_backend/src/modules/billing) -----------------------------

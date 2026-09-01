@@ -7,6 +7,7 @@ import {
   Badge,
   Button,
   DataTable,
+  Select,
   TableAction,
   TableActions,
   ViewAction,
@@ -43,6 +44,12 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
 };
+
+// The filter offers the same four states the Status column shows, plus "everything".
+const STATUS_OPTIONS = [
+  { value: "", label: "All" },
+  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+];
 
 function OpdQueue() {
   const [rows, setRows] = useState<Visit[]>([]);
@@ -107,6 +114,21 @@ function OpdQueue() {
           {v.patientName} <span className="font-mono text-xs text-fg-muted">{v.patientUhid}</span>
         </Link>
       ),
+    },
+    {
+      key: "case",
+      header: "Case",
+      filterable: true,
+      accessor: (v) => v.caseTitle ?? "—",
+      cell: (v) =>
+        v.caseNumber ? (
+          <span className="flex flex-col">
+            <span className="text-fg">{v.caseTitle}</span>
+            <span className="font-mono text-xs text-fg-muted">{v.caseNumber}</span>
+          </span>
+        ) : (
+          <span className="text-fg-subtle">—</span>
+        ),
     },
     {
       key: "provider",
@@ -184,21 +206,16 @@ function OpdQueue() {
           </Can>
         }
       />
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-fg-muted">Status:</span>
-          <select
-            className="hms-input max-w-[14rem]"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="checked_in">Checked in</option>
-            <option value="in_consultation">In consultation</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
+      <div className="flex flex-wrap items-end gap-4">
+        <Select
+          label="Status"
+          value={status}
+          onChange={setStatus}
+          options={STATUS_OPTIONS}
+          placeholder="All"
+          searchable={false}
+          className="w-56"
+        />
         <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
           My patients only
