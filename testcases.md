@@ -1407,6 +1407,33 @@ permission has not quietly become a wide one.
 
 ---
 
+## 33. Consultation type and case type in the fee schedule (ADR-121)
+
+Two dimensions in the hospital's own words. The order that matters: doctor beats department beats
+**case type** beats **consultation type** beats arrival type.
+
+FRT-08 and FRT-09 are the cases that matter: the price comes from the case row, and a word the
+hospital never configured cannot reach a visit.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FRT-01 | Nothing configured, nothing asked | A fresh hospital | Open Workflow settings, then Check in | Both vocabularies empty; no type field anywhere | P1 | Functional | org_admin | Not run |
+| FRT-02 | A rule cannot invent a type | FRT-01 | POST a fee rule with `consultationType` | 422, saying the hospital has not set up consultation types | P1 | Negative | org_admin | Not run |
+| FRT-03 | The vocabulary is tidied on save | — | Save `["Teleconsultation"," Procedure ","Review","review",""]` | Stored as three values, trimmed, no duplicate, no blank | P2 | Functional | org_admin | Not run |
+| FRT-04 | Case-insensitive, stored in the configured spelling | FRT-03 | Add a rule with `caseType: "corporate"` | Stored as `Corporate` | P2 | Functional | org_admin | Not run |
+| FRT-05 | A word outside the list is refused | FRT-03 | Add a rule with `caseType: "Charity"` | 422, listing the configured case types | P1 | Negative | org_admin | Not run |
+| FRT-06 | Case type outranks consultation type | Rules for Teleconsultation ₹300 and Corporate ₹0 | Preview a corporate teleconsultation | ₹0 — the contract holds whatever happens inside it | P1 | Functional | receptionist | Not run |
+| FRT-07 | A named doctor outranks both | FRT-06 plus a doctor rule ₹900 | Preview the same | ₹900 | P1 | Functional | receptionist | Not run |
+| FRT-08 | 🔒 The case decides the case type, not the caller | Doctor+Corporate rule ₹450 | Check in with `caseType: "Corporate"` in the body and no case | Charged the ordinary price; the visit has no case type | P1 | Security | receptionist | Not run |
+| FRT-09 | 🔒 An unconfigured type creates nothing | FRT-03 | Check in with `consultationType: "Home visit"` | 422, and no visit, case or invoice created | P1 | Security | receptionist | Not run |
+| FRT-10 | The consultation type reaches the visit | A rule pricing it | Check in with that type | Visit carries the type; invoice matches the rule | P1 | Functional | receptionist | Not run |
+| FRT-11 | A new case carries its type and prices the visit | FRT-07 | Check in opening a Corporate case | ₹450, and the case shows as Corporate | P1 | Functional | receptionist | Not run |
+| FRT-12 | A later visit under the case is priced the same | FRT-11 | Check in again under that case | ₹450, without being asked again | P1 | Functional | receptionist | Not run |
+| FRT-13 | Removing a priced word is refused | An active rule names Teleconsultation | Save the vocabulary without it | 422, naming Teleconsultation | P1 | Negative | org_admin | Not run |
+| FRT-14 | And allowed once the rule is retired | FRT-13 | Retire the rule, save again | Saved; visits already recorded under that type keep it | P2 | Functional | org_admin | Not run |
+
+---
+
 ## Coverage gaps (deliberate, tracked)
 
 These are known and recorded in `BACKLOG.md` rather than silently missing:

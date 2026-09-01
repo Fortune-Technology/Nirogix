@@ -344,6 +344,13 @@
       "when": 1787827010003,
       "tag": "0048_patient_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1787827070003,
+      "tag": "0049_fee_rule_consultation_case_type",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import {
 } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
+import { assertCaseType, assertConsultationType } from '../workflow/workflowConfig.service';
 
 /**
  * The consultation fee schedule (ADR-117).
@@ -23,19 +24,46 @@ export type ArrivalType = 'walk_in' | 'appointment' | 'follow_up';
 /**
  * How specific a rule is, as a number.
  *
- * Doctor beats department beats arrival type, and the weights (4 / 2 / 1) make the ordering total:
- * every distinct combination of the three scores differently, so there is never a tie to break
- * arbitrarily. This is the ordering a hospital means when it says "Dr Sharma charges ₹800" and also
- * "cardiology is ₹600" — the named consultant wins.
+ * Doctor (16) beats department (8) beats case type (4) beats consultation type (2) beats arrival
+ * type (1). The weights are powers of two, so every distinct combination of the five scores
+ * differently and there is never a tie to break arbitrarily.
+ *
+ * The two judgements worth defending. **Doctor over department** is the ordering a hospital means
+ * when it says both "Dr Sharma charges ₹800" and "cardiology is ₹600" — the named consultant wins.
+ * **Case type over consultation type** because a case type describes the arrangement the hospital
+ * is treating under: a corporate contract or a camp rate is agreed in advance and is meant to hold
+ * whatever kind of consultation happens inside it, whereas a consultation type describes one
+ * encounter. A hospital that disagrees writes the more specific rule naming both, which outranks
+ * either — that is what the additive scoring is for.
  */
-function specificity(rule: { providerId: string | null; departmentId: string | null; arrivalType: string | null }): number {
-  return (rule.providerId ? 4 : 0) + (rule.departmentId ? 2 : 0) + (rule.arrivalType ? 1 : 0);
+function specificity(rule: {
+  providerId: string | null;
+  departmentId: string | null;
+  caseType: string | null;
+  consultationType: string | null;
+  arrivalType: string | null;
+}): number {
+  return (
+    (rule.providerId ? 16 : 0) +
+    (rule.departmentId ? 8 : 0) +
+    (rule.caseType ? 4 : 0) +
+    (rule.consultationType ? 2 : 0) +
+    (rule.arrivalType ? 1 : 0)
+  );
 }
 
 export interface FeeContext {
   providerId?: string | null;
   departmentId?: string | null;
   arrivalType?: ArrivalType | null;
+  /** What kind of consultation this is, in the hospital's own vocabulary (ADR-121). */
+  consultationType?: string | null;
+  /**
+   * What kind of episode it belongs to (ADR-121). Read from the **case**, never sent by the form:
+   * a corporate case prices its own follow-ups, and letting a desk state the case type per visit
+   * would let the third visit be priced as something the first two were not.
+   */
+  caseType?: string | null;
   branchId?: string | null;
 }
 
@@ -94,6 +122,15 @@ export async function resolveConsultationFeeTx(
           ctx.arrivalType
             ? or(isNull(consultationFeeRules.arrivalType), eq(consultationFeeRules.arrivalType, ctx.arrivalType))
             : isNull(consultationFeeRules.arrivalType),
+          ctx.consultationType
+            ? or(
+                isNull(consultationFeeRules.consultationType),
+                eq(consultationFeeRules.consultationType, ctx.consultationType),
+              )
+            : isNull(consultationFeeRules.consultationType),
+          ctx.caseType
+            ? or(isNull(consultationFeeRules.caseType), eq(consultationFeeRules.caseType, ctx.caseType))
+            : isNull(consultationFeeRules.caseType),
         ),
       );
 
@@ -134,6 +171,8 @@ export interface FeeRuleDto {
   departmentId: string | null;
   departmentName: string | null;
   arrivalType: string | null;
+  consultationType: string | null;
+  caseType: string | null;
   feePaise: number;
   isActive: boolean;
   label: string | null;
@@ -161,6 +200,8 @@ function toDto(row: RuleRowFlat): FeeRuleDto {
     departmentId: r.departmentId,
     departmentName: row.departmentName,
     arrivalType: r.arrivalType,
+    consultationType: r.consultationType,
+    caseType: r.caseType,
     feePaise: r.feePaise,
     isActive: r.isActive,
     label: r.label,
@@ -198,6 +239,10 @@ export interface CreateFeeRuleInput {
   providerId?: string | null;
   departmentId?: string | null;
   arrivalType?: ArrivalType | null;
+  /** Must be one of this hospital's configured consultation types (ADR-121). */
+  consultationType?: string | null;
+  /** Must be one of this hospital's configured case types (ADR-121). */
+  caseType?: string | null;
   feePaise: number;
   label?: string | null;
 }
@@ -225,6 +270,8 @@ async function assertNoDuplicate(
         input.arrivalType
           ? eq(consultationFeeRules.arrivalType, input.arrivalType)
           : isNull(consultationFeeRules.arrivalType),
+        nullable(consultationFeeRules.consultationType, input.consultationType),
+        nullable(consultationFeeRules.caseType, input.caseType),
       ),
     );
   const clash = rows.find((r) => r.id !== excludeId);
@@ -238,8 +285,17 @@ export async function createFeeRule(
   input: CreateFeeRuleInput,
   actorUserId?: string,
 ): Promise<FeeRuleDto> {
+  // Validated before the transaction opens, because resolving the hospital's vocabulary is itself a
+  // tenant-scoped read and nesting one inside another would open a second connection to answer a
+  // question that has nothing to do with writing the row.
+  const consultationType = input.consultationType
+    ? await assertConsultationType(tenantId, input.branchId, input.consultationType)
+    : null;
+  const caseType = input.caseType ? await assertCaseType(tenantId, input.branchId, input.caseType) : null;
+  const normalised: CreateFeeRuleInput = { ...input, consultationType, caseType };
+
   const created = await runWithTenant(tenantId, async (tx) => {
-    await assertNoDuplicate(tx, tenantId, input);
+    await assertNoDuplicate(tx, tenantId, normalised);
     const rows = await tx
       .insert(consultationFeeRules)
       .values({
@@ -248,6 +304,8 @@ export async function createFeeRule(
         providerId: input.providerId ?? null,
         departmentId: input.departmentId ?? null,
         arrivalType: input.arrivalType ?? null,
+        consultationType,
+        caseType,
         feePaise: input.feePaise,
         label: input.label ?? null,
         createdBy: actorUserId ?? null,
@@ -267,6 +325,8 @@ export async function createFeeRule(
       providerId: created.providerId,
       departmentId: created.departmentId,
       arrivalType: created.arrivalType,
+      consultationType: created.consultationType,
+      caseType: created.caseType,
     },
   });
   const all = await listFeeRules(tenantId, { includeInactive: true });

@@ -58,6 +58,19 @@ export const visits = pgTable(
      * booked appointment sets `appointment` server-side rather than trusting the caller.
      */
     arrivalType: varchar('arrival_type', { length: 20 }).notNull().default('walk_in'),
+    /**
+     * What kind of consultation this is (ADR-121), in the hospital's own vocabulary from
+     * `hospital_workflow_config.consultation_types`.
+     *
+     * A third question, distinct from the two above: `visit_type` is where the patient is being
+     * treated, `arrival_type` is how they got here, and this is what is about to happen to them.
+     * A teleconsultation and a dressing change are both OPD walk-ins and are not the same
+     * consultation, and a hospital charging differently for them needs somewhere to say so.
+     *
+     * Nullable, and stays nullable — a hospital that has configured no vocabulary has nothing to
+     * pick from, and every visit before ADR-121 legitimately has no answer.
+     */
+    consultationType: varchar('consultation_type', { length: 40 }),
     // `department` is the original free-text field and stays for the visits that already carry
     // one — dropping it would rewrite history. New check-ins set `departmentId` instead, and the
     // service writes the department's name into `department` too so existing reads keep working

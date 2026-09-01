@@ -10,6 +10,7 @@ import {
 } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
+import { assertCaseType } from '../workflow/workflowConfig.service';
 
 /**
  * Treatment cases (ADR-116) — the episode a run of visits belongs to.
@@ -27,6 +28,8 @@ export interface CaseDto {
   patientName: string;
   patientUhid: string;
   title: string;
+  /** What kind of episode this is, in the hospital's own vocabulary (ADR-121). */
+  caseType: string | null;
   status: string;
   departmentId: string | null;
   departmentName: string | null;
@@ -60,6 +63,7 @@ function toDto(row: CaseRowFlat, visitCount: number, lastVisitDate: string | nul
     patientName: `${row.patientFirst} ${row.patientLast ?? ''}`.trim(),
     patientUhid: row.patientUhid,
     title: c.title,
+    caseType: c.caseType,
     status: c.status,
     departmentId: c.departmentId,
     departmentName: row.departmentName,
@@ -163,6 +167,13 @@ export interface OpenCaseInput {
   providerId?: string | null;
   branchId?: string | null;
   notes?: string | null;
+  /**
+   * The hospital's own case type (ADR-121), already checked against its configured vocabulary.
+   * `openCaseTx` runs inside a caller's transaction and deliberately does not validate it here —
+   * resolving the vocabulary is a separate tenant-scoped read, and check-in does it before opening
+   * its transaction so a bad value fails before anything is written.
+   */
+  caseType?: string | null;
 }
 
 /**
@@ -227,6 +238,7 @@ export async function openCaseTx(
         departmentId: input.departmentId ?? null,
         providerId: input.providerId ?? null,
         notes: input.notes ?? null,
+        caseType: input.caseType ?? null,
         openedBy: actorUserId ?? null,
       })
       .onConflictDoNothing()
@@ -237,10 +249,11 @@ export async function openCaseTx(
 }
 
 export async function openCase(tenantId: string, input: OpenCaseInput, actorUserId?: string): Promise<CaseDto> {
+  const caseType = input.caseType ? await assertCaseType(tenantId, input.branchId, input.caseType) : null;
   const row = await runWithTenant(tenantId, async (tx) => {
     // The same advisory lock check-in uses, for the same read-then-write on the number.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:case_number`}))`);
-    return openCaseTx(tx, tenantId, input, actorUserId);
+    return openCaseTx(tx, tenantId, { ...input, caseType }, actorUserId);
   });
 
   await writeAudit({
@@ -249,7 +262,12 @@ export async function openCase(tenantId: string, input: OpenCaseInput, actorUser
     action: 'case.opened',
     resourceType: 'patient_case',
     resourceId: row.id,
-    metadata: { patientId: row.patientId, caseNumber: row.caseNumber, title: row.title },
+    metadata: {
+      patientId: row.patientId,
+      caseNumber: row.caseNumber,
+      title: row.title,
+      caseType: row.caseType,
+    },
   });
   return getCase(tenantId, row.id);
 }
@@ -260,6 +278,15 @@ export interface UpdateCaseInput {
   departmentId?: string | null;
   providerId?: string | null;
   notes?: string | null;
+  /**
+   * Correctable, on purpose (ADR-060). A case opened as general treatment that turns out to be an
+   * insurance claim is the ordinary case, not the exceptional one, and a type that can only be set
+   * once would be worked around by opening a second case — the duplicate ADR-116 exists to prevent.
+   *
+   * It changes what **future** visits under this case are charged. Visits already priced keep their
+   * invoices: re-pricing a consultation that has been paid for is a credit note, not an edit.
+   */
+  caseType?: string | null;
 }
 
 export async function updateCase(
@@ -269,6 +296,12 @@ export async function updateCase(
   actorUserId?: string,
 ): Promise<CaseDto> {
   const before = await getCase(tenantId, caseId);
+  const caseType =
+    input.caseType === undefined
+      ? before.caseType
+      : input.caseType
+        ? await assertCaseType(tenantId, null, input.caseType)
+        : null;
 
   await runWithTenant(tenantId, async (tx) => {
     if (input.departmentId) {
@@ -291,6 +324,7 @@ export async function updateCase(
         departmentId: input.departmentId === undefined ? before.departmentId : input.departmentId,
         providerId: input.providerId === undefined ? before.providerId : input.providerId,
         notes: input.notes === undefined ? before.notes : input.notes,
+        caseType,
         version: before.version + 1,
         updatedAt: new Date(),
       })
@@ -311,7 +345,14 @@ export async function updateCase(
     action: 'case.updated',
     resourceType: 'patient_case',
     resourceId: caseId,
-    metadata: { caseNumber: before.caseNumber, titleBefore: before.title, titleAfter: input.title ?? before.title },
+    metadata: {
+      caseNumber: before.caseNumber,
+      titleBefore: before.title,
+      titleAfter: input.title ?? before.title,
+      // Both, because it decides what every later visit under this case is charged.
+      caseTypeBefore: before.caseType,
+      caseTypeAfter: caseType,
+    },
   });
   return getCase(tenantId, caseId);
 }

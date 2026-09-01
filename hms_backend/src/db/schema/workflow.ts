@@ -58,6 +58,24 @@ export const hospitalWorkflowConfig = pgTable(
     vitalsOptionalParams: text('vitals_optional_params').array().notNull().default(sql`'{}'::text[]`),
 
     /**
+     * The hospital's own words for what kind of consultation this is (ADR-121) — "First OPD",
+     * "Review", "Teleconsultation", "Procedure room". Used as a pricing dimension in the fee
+     * schedule and offered as a field at check-in.
+     *
+     * A vocabulary rather than an enum because there is no common one: a teaching hospital and a
+     * corporate clinic mean entirely different things by "consultation type", and a fixed list
+     * would be wrong for both. **Empty by default**, which means the field is not shown and the
+     * dimension is inert — a hospital that never opens the screen sees no change.
+     */
+    consultationTypes: text('consultation_types').array().notNull().default(sql`'{}'::text[]`),
+    /**
+     * The same, for what kind of *episode* a treatment case is — "General", "Corporate",
+     * "Insurance", "Camp", "Medico-legal". Set once when the case is opened, and it prices every
+     * visit under that case: a corporate case does not stop being corporate on its third visit.
+     */
+    caseTypes: text('case_types').array().notNull().default(sql`'{}'::text[]`),
+
+    /**
      * When the consultation fee has to be settled.
      *
      * - `before_consultation` — the doctor cannot open the consultation until the invoice is paid.

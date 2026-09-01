@@ -2229,3 +2229,37 @@ absences. OpenAPI validates. No migration.
 **Unchanged:** no health record has been exchanged with ABDM in any environment; production access
 still needs NHA functional testing, a WASA certificate and HTC approval. This made an existing,
 uncertified feature correctly gated and correctly narrow — it did not make it live.
+
+## 2026-09-01 — Consultation type and case type as pricing dimensions (ADR-121)
+
+**What:** two more dimensions on `consultation_fee_rules`, `visits.consultation_type`,
+`patient_cases.case_type`, and two hospital-defined vocabularies in `hospital_workflow_config`.
+Migration `0049`, entirely additive.
+
+ADR-117 priced on doctor, department and arrival type — a grid of doctors. It could not say
+"teleconsultation ₹300" or "corporate patients are billed to the employer", which are the two
+things an OPD tariff usually turns on. A hospital needing either had one option: type the number
+by hand at every check-in, which is the practice the fee schedule exists to end.
+
+**The vocabularies belong to the hospital**, not to us — a teaching hospital and a corporate
+clinic mean different things by "consultation type", so an enum would be wrong for both. What
+makes a free string safe is that the vocabulary is closed: `assertConsultationType` /
+`assertCaseType` gate every writer, and an **empty vocabulary rejects every value** rather than
+accepting anything.
+
+**The case type is on the case, not the visit,** and is not a field on the check-in body at all.
+A corporate arrangement is a property of the episode; asking per visit is how the third follow-up
+gets priced as something the first two were not, and accepting it from the caller would be a
+client-chosen price. A test sends `caseType` on a check-in and asserts it changes nothing.
+
+**Ordering:** doctor (16) > department (8) > case type (4) > consultation type (2) > arrival type
+(1). Case type above consultation type because a corporate or camp rate is agreed in a contract
+and is meant to hold whatever kind of consultation happens inside it.
+
+**Removing a word is refused while an active rule prices it** — otherwise the price list would go
+on showing a rate that could never match again. Retired rules are ignored; they price history.
+
+**Everything starts empty, and empty means the question is not asked.** No field appears, no
+dimension appears, every existing rule keeps NULL in both columns and matches what it always did.
+
+**Testing status:** **754 backend tests pass** (was 736). 18 new API tests. OpenAPI validates.

@@ -366,12 +366,18 @@ complaint, reception's billing access (ADR-110), and native scrolling across the
   total ordering, falling back to the doctor's own fee then zero. A Fee schedule tab, a live
   preview at check-in, and `billing.fee.override` — which the receptionist role does **not** hold —
   gating any different amount, with a required reason and both numbers kept on the visit and in a
-  `warning`-severity audit entry. **Still open:** (a) no effective dating, so a price change applies
-  from that moment and the old value survives only in the audit log and the invoices it priced;
-  (b) rules cover the consultation fee only — pharmacy, lab and the services catalogue keep their
-  own pricing; (c) a case (ADR-116) is not a pricing dimension, so "the third visit of an episode is
-  free" cannot be expressed; (d) a rule's match conditions cannot be edited by design — retire and
-  re-add — which is correct but means bulk re-pricing is repetitive.
+  `warning`-severity audit entry. **Extended 01/09/2026 (ADR-121)** with two more dimensions —
+  **consultation type** and **case type**, both in the hospital's own configured words, ranked
+  doctor > department > case type > consultation type > arrival type. **Still open:** (a) no
+  effective dating, so a price change applies from that moment and the old value survives only in
+  the audit log and the invoices it priced; (b) rules cover the consultation fee only — pharmacy,
+  lab and the services catalogue keep their own pricing, so this is not a payer-wise tariff;
+  (c) a case is a pricing dimension only through its **type** — "the third visit of an episode is
+  free" still cannot be expressed, because nothing keys on a case's history; (d) a rule's match
+  conditions cannot be edited by design — retire and re-add — which is correct but means bulk
+  re-pricing is repetitive; (e) a case type can be corrected afterwards and changes only what
+  **future** visits are charged: re-pricing a paid consultation would be a credit note, which is
+  not built.
 - ~~**Vitals have no workflow and no configuration.**~~ **Shipped 01/09/2026 (ADR-113).**
   `hospital_workflow_config` (branch-then-organization, platform defaults = the old behaviour) and
   `patient_vitals` (one row per observation, on the **visit** rather than the encounter). Vitals can

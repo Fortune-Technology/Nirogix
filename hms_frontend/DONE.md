@@ -1163,3 +1163,43 @@ records themselves to whoever may read them.
 **Testing status:** monorepo typecheck 13/13; **926 tests pass**. The card needs a signed-in session
 and was not visually verified here. Cases CST-01…CST-12 in `testcases.md`, and §5.2h1b in
 `docs/manual-testing-guide.md`, cover it.
+
+## 2026-09-01 — Two more ways to price a consultation, shown only where they exist (ADR-121)
+
+**What:** consultation type and case type in the check-in form, `CasePicker`, `CasesCard` and the
+fee-schedule screen, plus a vocabulary editor in `hospital-setup/workflow`.
+
+The rule the whole change follows: **a field nobody has defined is not shown**. A hospital that
+has not written its own consultation types sees no dropdown at check-in, no extra dimension in the
+price list, and a line on the fee screen telling it where to define them if it wants them. Two
+permanently empty dropdowns would be two more things to not understand.
+
+The vocabulary editor is a **chip list, not a comma-separated text field**, because these values
+are stored on every visit and case that uses them and are matched by the fee schedule — so
+"Corporate," with a trailing comma has to be impossible to create rather than merely discouraged.
+
+`CasePicker` asks for the case type **once, when the case is opened**, and then shows it on the
+chosen case: *"This is a Corporate case, and that is what prices this visit."* The desk sees why
+the number is what it is instead of wondering.
+
+**Testing status:** monorepo typecheck 13/13; **944 tests pass**. Not visually verified — the
+screens need a signed-in session. Cases FRT-01…FRT-14 in `testcases.md` and §5.2f2 in
+`docs/manual-testing-guide.md` cover them.
+
+## 2026-09-01 — The SOAP note now says what each box is for
+
+**What:** placeholder hints on Chief complaint, Subjective, Objective, Assessment and Plan in the
+consultation screen. `SOAP_HINT` in `app/(app)/opd/[id]/page.tsx`.
+
+SOAP is the standard clinical note, but only to someone who was taught it. The four one-word labels
+told a receptionist, a new junior, or the non-clinical staff who read these notes back precisely
+nothing, and the boxes sat empty with no guidance in them at all — the prescription and lab rows on
+the same screen had placeholders, these did not. The hints carry the one distinction people actually
+get wrong: **Subjective is what the patient claims, Objective is what the room measured**, Assessment
+is the conclusion, Plan is the action.
+
+Hint text, not a template: it disappears the moment the clinician types, so it teaches the reader who
+needs it and costs nothing to the doctor who does not.
+
+**Testing status:** monorepo typecheck clean; frontend suite 13/13. Not visually verified — the
+consultation screen needs a signed-in session with a live visit.

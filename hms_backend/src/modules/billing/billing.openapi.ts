@@ -188,6 +188,8 @@ registry.registerPath({
   summary: 'What a check-in with these details would be charged',
   description:
     'Lets the front desk quote the fee as it picks the doctor, and say where the number came from. ' +
+    'Pass the case type of the case the visit will belong to: the schedule ranks it above the ' +
+    'consultation type, so a quote without it can differ from what check-in actually charges. ' +
     'Falls back to the doctor\'s own configured fee, then to zero — exactly what check-in did ' +
     'before a schedule existed.',
   security: [{ bearerAuth: [] }],
@@ -196,6 +198,8 @@ registry.registerPath({
       providerId: z.string().uuid().optional(),
       departmentId: z.string().uuid().optional(),
       arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).optional(),
+      consultationType: z.string().max(40).optional(),
+      caseType: z.string().max(40).optional(),
       branchId: z.string().uuid().optional(),
     }),
   },

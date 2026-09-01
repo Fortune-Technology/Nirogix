@@ -466,6 +466,9 @@ export async function previewConsultationFee(opts: {
   providerId?: string;
   departmentId?: string;
   arrivalType?: string;
+  consultationType?: string;
+  /** From the selected case, not typed by the desk — the server prices from the case either way. */
+  caseType?: string;
   branchId?: string;
 }): Promise<ResolvedConsultationFee> {
   const q = new URLSearchParams();

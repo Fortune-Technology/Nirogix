@@ -2209,3 +2209,82 @@ backend tests pass.
 been exchanged with ABDM in any environment. Production access still needs NHA functional testing, a
 WASA certificate and Health Tech Committee approval. This ADR makes an existing, uncertified feature
 correctly gated and correctly narrow; it does not make it live.
+
+---
+
+## ADR-121 - The two dimensions a real tariff turns on, in the hospital's own words
+
+**Status:** Accepted · **Date:** 01/09/2026 · **Extends:** ADR-117 (the fee schedule), ADR-116 (cases), ADR-113 (workflow configuration)
+
+### Context
+
+The fee schedule shipped in ADR-117 prices on doctor, department and how the patient arrived. That
+covers a hospital whose price list is a grid of doctors. It cannot express either of the two things
+an Indian OPD tariff usually turns on:
+
+- **"Teleconsultation ₹300, procedure room ₹150, review free."** What kind of consultation this is.
+- **"Corporate patients are billed to the employer at the contract rate; camp patients pay ₹50."**
+  What kind of arrangement the episode is being treated under.
+
+Both were named in the request that produced ADR-115 through ADR-120, and both were left out at the
+time. A hospital that needs them today has one option: type the number by hand at every check-in,
+which is the practice ADR-117 exists to end.
+
+### Decision
+
+**Two more dimensions on a rule, and both vocabularies belong to the hospital.**
+
+`consultation_type` on the visit, `case_type` on the case, and both on `consultation_fee_rules`
+where NULL goes on meaning "any". The permitted values live in `hospital_workflow_config` as two
+`text[]` columns, resolved branch-then-organization like every other workflow setting.
+
+**Not an enum.** A teaching hospital's consultation types ("First OPD", "Review", "Procedure room")
+and a corporate clinic's ("Employee", "Pre-employment medical") have nothing in common, and a fixed
+list would be wrong for both. The alternative — a `consultation_types` table with ids and three more
+joins — buys referential integrity for a word that a human reads off a screen next to a price.
+Storing the hospital's own string is the honest shape, and the vocabulary check is what makes it
+safe: **every writer goes through `assertConsultationType` / `assertCaseType`**, so a value that is
+not in this hospital's list cannot reach a rule, a case or a visit. An empty vocabulary rejects
+every value rather than accepting anything, because a hospital that has configured no consultation
+types is one where a consultation type is meaningless.
+
+**The case type lives on the case, not the visit.** A corporate arrangement, an insurance claim or a
+medico-legal case is a property of the episode. Putting it on each visit would invite the third
+follow-up to be recorded — and priced — as something the first two were not. It is read from the
+case row at check-in and is **not a field on the check-in body at all**: a client-stated case type
+would be a client-chosen price. A test sends one and asserts it changes nothing.
+
+**Ordering: doctor (16) > department (8) > case type (4) > consultation type (2) > arrival type (1).**
+Powers of two, so the ordering is total and no two combinations tie. The one judgement worth
+defending is case type above consultation type: a corporate or camp rate is agreed in a contract and
+is meant to hold whatever kind of consultation happens inside it. A hospital that disagrees writes
+the rule naming both, which outranks either — that is what additive scoring is for.
+
+**Removing a word is refused while an active rule prices it.** A rule naming a type that no longer
+exists can never match again, so the hospital would go on seeing "Teleconsultation ₹300" in its
+price list while every teleconsultation quietly fell through to something else. The error names the
+types. Retired rules are ignored — they price history and match nothing.
+
+**Everything starts empty, and empty means the question is not asked.** No field appears on the
+check-in form, no dimension appears on the fee screen, every existing rule keeps NULL in both new
+columns and goes on matching exactly what it matched before. A hospital that never opens the
+workflow screen sees no change of any kind. That is the whole compatibility story, and it is the
+same one ADR-113 told about vitals.
+
+### Consequences
+
+- One migration, `0049`, entirely additive. The duplicate-guard unique index is dropped and
+  recreated over seven columns, because a unique index's column list is not alterable in place.
+- The fee preview endpoint takes both new dimensions. It accepts a case type from the query, which
+  is fine — a preview is a quote, and the charge is resolved from the case row regardless of what
+  the form said.
+- The case type is correctable (ADR-060): a case opened as general treatment that turns out to be an
+  insurance claim is the ordinary case, and a type that could only be set once would be worked
+  around by opening a second case — the duplicate ADR-116 exists to prevent. It changes what future
+  visits are charged; invoices already raised are untouched, because re-pricing a paid consultation
+  is a credit note, not an edit.
+- Configuration changed, history did not. A visit recorded as a procedure stays a procedure after
+  "Procedure" is removed from the vocabulary, and a test asserts it.
+- 18 new API tests; **754 backend tests pass** (was 736). No new permission — the two vocabularies
+  are workflow configuration (`workflow.config.manage`) and the price list is still
+  `billing.fee_rules.manage`.
