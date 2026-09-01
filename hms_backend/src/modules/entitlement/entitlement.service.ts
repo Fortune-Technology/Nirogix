@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import { tenantEntitlements, type TenantEntitlement } from '../../db/schema';
 import { MODULE_CATALOG, moduleDef } from './moduleCatalog';
@@ -14,11 +14,50 @@ export type ModuleStatus =
   | 'CANCELLED'
   | 'DEACTIVATED';
 
-// Evaluation ALWAYS combines status + effective dates, never status alone (architecture.md).
+/**
+ * The effectiveness window, evaluated **by the database**.
+ *
+ * Evaluation always combines status + effective dates, never status alone (architecture.md) — but
+ * *whose* clock decides is the part that mattered.
+ *
+ * `effective_from` defaults to Postgres's `now()`. The original check compared it against the Node
+ * process's `Date.now()`, and those are two different clocks: on the same machine they still differ
+ * by a millisecond or two, and Postgres's timestamp routinely lands *ahead*. A module granted and
+ * then immediately checked — which is exactly what `onboardTenant` does, granting `patient` and
+ * then asking whether `patient` is entitled before granting `appointment` — could therefore read as
+ * "not yet effective" and fail onboarding outright:
+ *
+ *     effective_from  2026-08-31T13:48:20.863Z   (Postgres)
+ *     Date.now()      2026-08-31T13:48:20.862Z   (Node)      -> 1ms in the future -> not effective
+ *
+ * It surfaced as an intermittent test failure and was diagnosed as a concurrency race for a week.
+ * It was never concurrency. It is a **real onboarding bug** that would fail a live tenant whenever
+ * the two clocks landed the wrong way round, and grow more likely on faster hardware.
+ *
+ * So the comparison moved into SQL, where the same clock that wrote the row reads it. This predicate
+ * is the single definition of "entitled right now"; keep it here rather than restating it per query.
+ */
+const effectiveNow = () =>
+  and(
+    inArray(tenantEntitlements.status, [...ACTIVE_STATUSES]),
+    or(isNull(tenantEntitlements.effectiveFrom), lte(tenantEntitlements.effectiveFrom, sql`now()`)),
+    or(isNull(tenantEntitlements.effectiveUntil), gt(tenantEntitlements.effectiveUntil, sql`now()`)),
+  );
+
+/**
+ * The same rule for a row already in hand.
+ *
+ * Kept for callers holding a `TenantEntitlement` rather than issuing a query, and deliberately
+ * given a small tolerance: it compares against two clocks and cannot do otherwise, so treating a
+ * start time a few milliseconds in the future as "started" is the honest reading of a row whose
+ * timestamp was written by a different machine's `now()`. Prefer `effectiveNow()` in a query.
+ */
+const CLOCK_SKEW_TOLERANCE_MS = 5_000;
+
 function isEffective(row: TenantEntitlement): boolean {
   if (!ACTIVE_STATUSES.has(row.status)) return false;
   const now = Date.now();
-  if (row.effectiveFrom && row.effectiveFrom.getTime() > now) return false;
+  if (row.effectiveFrom && row.effectiveFrom.getTime() - CLOCK_SKEW_TOLERANCE_MS > now) return false;
   if (row.effectiveUntil && row.effectiveUntil.getTime() <= now) return false;
   return true;
 }
@@ -27,29 +66,35 @@ function isEffective(row: TenantEntitlement): boolean {
 export async function listEntitledModules(tenantId: string): Promise<Set<string>> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
-      .select()
+      .select({ module: tenantEntitlements.module })
       .from(tenantEntitlements)
-      .where(and(eq(tenantEntitlements.tenantId, tenantId), isNull(tenantEntitlements.branchId))),
+      .where(
+        and(
+          eq(tenantEntitlements.tenantId, tenantId),
+          isNull(tenantEntitlements.branchId),
+          effectiveNow(),
+        ),
+      ),
   );
-  const entitled = new Set<string>();
-  for (const r of rows) if (isEffective(r)) entitled.add(r.module);
-  return entitled;
+  return new Set(rows.map((r) => r.module));
 }
 
 export async function isModuleEntitled(tenantId: string, moduleKey: string): Promise<boolean> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
-      .select()
+      .select({ module: tenantEntitlements.module })
       .from(tenantEntitlements)
       .where(
         and(
           eq(tenantEntitlements.tenantId, tenantId),
           eq(tenantEntitlements.module, moduleKey),
           isNull(tenantEntitlements.branchId),
+          effectiveNow(),
         ),
-      ),
+      )
+      .limit(1),
   );
-  return rows.some(isEffective);
+  return rows.length > 0;
 }
 
 // Grants (or reactivates) a module for a tenant. Enforces hard dependencies at grant time:

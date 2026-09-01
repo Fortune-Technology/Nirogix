@@ -25,6 +25,7 @@ import {
   OnLinkCareContextBody,
 } from './abdm.schema';
 import * as c from './abdm.controller';
+import { requireAbdmGateway } from './gatewayAuth';
 
 /**
  * The routes ABDM itself calls — mounted at the root, outside `/api/v1` (ADR-084).
@@ -41,12 +42,21 @@ import * as c from './abdm.controller';
  * Held to the public-endpoint rules (ADR-056): the tenant is resolved server-side from
  * `metaData.hipId`, it writes no clinical row, it answers identically whatever the facility turns
  * out to be, it is rate-limited at the sign-in tier, and it is audited with no actor.
+ *
+ * **And, since 31/08/2026, authenticated.** Every route below carries `requireAbdmGateway`, which
+ * verifies the caller's bearer JWT against NHA's published JWKS. ADR-056's protections are about
+ * *enumeration*; they say nothing about *forgery*, and an audit against NHA's own collections found
+ * that gap was a complete path to patient data: a facility id is public, so anyone could plant a
+ * GRANTED consent here and then request the records against it, nominating their own push URL and
+ * their own encryption key. The guard is the thing that makes "the caller is ABDM" true rather than
+ * assumed. See `gatewayAuth.ts`.
  */
 export const abdmGatewayRouter = Router();
 
 abdmGatewayRouter.post(
   HIP_PROFILE_SHARE_PATH,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HipProfileShareBody }),
   asyncHandler(c.profileShareCallback),
 );
@@ -57,6 +67,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_CALLBACK_PATHS.onGenerateToken,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: OnGenerateTokenBody }),
   asyncHandler(c.onGenerateToken),
 );
@@ -64,6 +75,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_CALLBACK_PATHS.onLinkCareContext,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: OnLinkCareContextBody }),
   asyncHandler(c.onLinkCareContext),
 );
@@ -76,6 +88,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_DISCOVERY_CALLBACK_PATHS.discover,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: DiscoverBody }),
   asyncHandler(c.discoverCareContexts),
 );
@@ -83,6 +96,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_DISCOVERY_CALLBACK_PATHS.linkInit,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: LinkInitBody }),
   asyncHandler(c.initCareContextLink),
 );
@@ -90,6 +104,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_DISCOVERY_CALLBACK_PATHS.linkConfirm,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: LinkConfirmBody }),
   asyncHandler(c.confirmCareContextLink),
 );
@@ -100,6 +115,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_CONSENT_NOTIFY_PATH,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HipConsentNotifyBody }),
   asyncHandler(c.hipConsentNotify),
 );
@@ -109,6 +125,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIP_DATA_REQUEST_PATH,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HealthInformationRequestBody }),
   asyncHandler(c.requestHealthInformation),
 );
@@ -120,6 +137,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIU_CALLBACK_PATHS.onInit,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HiuOnInitBody }),
   asyncHandler(c.hiuOnInit),
 );
@@ -127,6 +145,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIU_CALLBACK_PATHS.onFetch,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HiuOnFetchBody }),
   asyncHandler(c.hiuOnFetch),
 );
@@ -136,6 +155,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIU_CALLBACK_PATHS.onNotify,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HiuConsentNotifyBody }),
   asyncHandler(c.hiuConsentNotify),
 );
@@ -145,6 +165,7 @@ abdmGatewayRouter.post(
 abdmGatewayRouter.post(
   HIU_CALLBACK_PATHS.dataPush,
   authLimiter,
+  requireAbdmGateway,
   validate({ body: HiuDataPushBody }),
   asyncHandler(c.hiuDataPush),
 );

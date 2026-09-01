@@ -90,6 +90,18 @@ export type StaffRole = (typeof STAFF_ROLES)[number];
  * Emails are derived from the tenant code so two tenants in the same test never collide.
  */
 export async function makeTenant(code: string, name = `${code} Test Hospital`): Promise<TestTenant> {
+  // Idempotent by design: remove any tenant already holding this code before creating it.
+  //
+  // Eleven tests create a scratch tenant mid-test and clean it up on the line after their last
+  // assertion — so a single failing assertion skips the cleanup and leaves the tenant behind, and
+  // every run afterwards dies at `A tenant with code "X" already exists`. One bad run poisoned the
+  // database permanently, which turned a one-off failure into a standing one and made a real bug
+  // (the entitlement clock skew) far harder to see underneath it.
+  //
+  // Fixing it here rather than in eleven places, because the property wanted is of the helper:
+  // `makeTenant` should produce a fresh tenant with this code, whatever was there before. The
+  // `beforeAll` blocks that already call `cleanupTenant` first are now simply redundant, not wrong.
+  await cleanupTenant(code);
   await seedPermissionCatalog();
   const domain = `${code.toLowerCase()}.test`;
   const adminEmail = `admin@${domain}`;

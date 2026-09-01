@@ -43,9 +43,29 @@ export interface DevUser {
 const IS_DEVELOPMENT = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
 const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
-/** True only when the build was made for a non-production environment. */
+/**
+ * An explicit off switch, for when a non-production environment is being looked at by someone
+ * outside the team.
+ *
+ * The environment gate above is the right default and stays: staging is a QA surface, and typing
+ * one of six seeded accounts by hand fifty times a day helps nobody. But staging is also
+ * internet-facing, and it is what an external security auditor is pointed at — where a button
+ * offering one-click sign-in with committed credentials is a finding, however synthetic those
+ * credentials are and however loudly the dialog says so.
+ *
+ * So this is set to `off` for the duration of an audit, and unset afterwards. It is deliberately a
+ * separate flag rather than lying about `NEXT_PUBLIC_ENVIRONMENT`: pretending staging is production
+ * would also switch the seeded account LIST, the reseed hint and the labelling — hiding the button
+ * by making four other things wrong.
+ *
+ * Inline literal, like the two above, so the comparison folds at build time and the account arrays
+ * are dropped from the bundle entirely rather than merely going unrendered.
+ */
+const QUICK_LOGIN_OFF = process.env.NEXT_PUBLIC_QUICK_LOGIN === 'off';
+
+/** True only for a non-production build that has not explicitly switched the helper off. */
 export function isQuickLoginEnabled(): boolean {
-  return IS_DEVELOPMENT || IS_STAGING;
+  return !QUICK_LOGIN_OFF && (IS_DEVELOPMENT || IS_STAGING);
 }
 
 /** Which environment's account list this build carries — drives the dialog's labelling. */

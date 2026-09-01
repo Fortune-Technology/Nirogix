@@ -25,6 +25,14 @@
 export const GATEWAY_PATHS = {
   /** POST — client credentials in, bearer access token out. Cached; never called per request. */
   sessions: '/api/hiecm/gateway/v3/sessions',
+  /**
+   * GET — NHA's public signing keys (JWKS, RS256, `use: "sig"`).
+   *
+   * This is how an inbound callback is proved to have come from ABDM rather than from anyone who
+   * knows the URL. Unauthenticated by design — it is a discovery endpoint — and it is the reason
+   * `gatewayAuth.ts` can fail closed instead of trusting the caller (audit, 31/08/2026).
+   */
+  certs: '/api/hiecm/gateway/v3/certs',
 } as const;
 
 /** ABHA host — enrolment (create) and profile (verify) APIs. */

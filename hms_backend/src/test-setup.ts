@@ -38,6 +38,23 @@ process.env.MSG91_API_KEY = '';
 process.env.ABDM_PROVIDER = 'mock';
 process.env.ABDM_CLIENT_ID = '';
 process.env.ABDM_CLIENT_SECRET = '';
+
+/**
+ * Inbound callback verification is OFF for the suite, and that is a deliberate split rather than a
+ * convenience.
+ *
+ * The gateway guard (`modules/abdm/gatewayAuth.ts`) verifies a bearer JWT against NHA's published
+ * JWKS. A suite cannot mint one — that would need NHA's private key — so leaving it on would mean
+ * every API test of a *handler* became a test of a token we cannot produce, and the handlers would
+ * go uncovered.
+ *
+ * The guard itself is covered exhaustively in `modules/abdm/__tests__/gatewayAuth.test.ts` against
+ * a local key pair: forged signatures, `alg: none`, expiry, unknown `kid`, and a mistyped mode
+ * falling back to enforce. And `abdm.api.test.ts` flips this to `enforce` for one case, so that the
+ * guard being *wired to the routes* is proven too — a perfect guard that nobody applied is exactly
+ * the failure this whole change exists to prevent.
+ */
+process.env.ABDM_CALLBACK_AUTH = 'off';
 if (!process.env.ENCRYPTION_KEY) {
   process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 }

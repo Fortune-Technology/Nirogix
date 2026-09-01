@@ -1459,3 +1459,64 @@ longer the unknown; connectivity is.
 never sees it, and `pm2 env 0` does not list it even when correct because the app loads `.env`
 through dotenv at boot. Neither is a bug; both cost a round trip. The check script reads the same
 config the API does, which is why it is the honest verification and a shell `echo` is not.
+
+## ADR-109 - The callers of our ABDM callbacks are now proved, not assumed
+
+**Status.** Accepted (31/08/2026). Closes the critical finding of the M1–M4 compliance audit.
+Amends ADR-056 (public endpoints), ADR-084, ADR-087, ADR-101.
+
+**Context.** Every route ABDM calls was served with a rate limiter and a Zod body check and nothing
+else. The reasoning was ADR-056's public-endpoint posture — tenant resolved server-side, no clinical
+write, identical answers for every facility, rate-limited, audited — and that reasoning is correct
+as far as it goes. **It defends against enumeration. It says nothing about forgery**, because it
+assumed the caller was ABDM.
+
+Auditing against NHA's own Postman collections found the assumption was load-bearing and unfounded.
+A complete chain existed, entirely unauthenticated:
+
+1. Obtain a facility id — HFR facility search is public, and is a screen we ship.
+2. `POST /api/v3/consent/request/hip/notify` with that `X-HIP-ID`, `status: GRANTED`, and any ABHA
+   address. `recordConsentGrant()` **creates** the artefact from caller-supplied data; the
+   `signature` field is stored and never verified.
+3. `POST /api/v3/hip/health-information/request` quoting that consent, with the caller's own
+   `dataPushUrl` and their own `keyMaterial`.
+4. The patient's records are built, encrypted **to the attacker's key**, and pushed to **their URL**.
+
+`dataPushUrl` is `z.string().url()` — the schema comment reads *"accepted as any HTTPS URL by
+design"*, which was true of the design and is the point. Every step passed validation.
+
+**Decision.** `gatewayAuth.ts` verifies the inbound bearer JWT against NHA's published JWKS
+(`/api/hiecm/gateway/v3/certs` — RS256, `use: "sig"`), and `requireAbdmGateway` guards all twelve
+gateway routes. Notes on the shape:
+
+- **`algorithms: ['RS256']` is pinned.** Without it a token nominates its own algorithm, which is
+  the classic confusion attack; a test asserts `alg: none` is refused.
+- **An unknown `kid` triggers exactly one forced refetch.** That is what rotation looks like.
+  Refetching per failed token would let anyone with an invented `kid` drive traffic at NHA on our
+  behalf.
+- **`iss` and `aud` are logged, not enforced.** No genuine callback has ever been observed, and
+  rejecting on a claim whose value we have never seen would be inventing a requirement — the exact
+  mistake ADR-101, ADR-102 and ADR-104 each record.
+- **401, not the uniform 202.** Hiding *which hospitals exist* is worth doing; hiding *that this
+  endpoint needs a token* protects nobody and would make a genuine ABDM misconfiguration look like
+  success.
+- **`ABDM_CALLBACK_AUTH` defaults to `enforce`,** and a mistyped value falls back to `enforce`
+  rather than open. `log` exists to observe one real callback before enforcing; `off` must never
+  ship.
+
+**Why this could be turned on immediately.** The bridge has `services: []` — ABDM has never called
+these routes, so there was no legitimate traffic to break. Enforcing today costs nothing and closes
+the hole. If NHA's callbacks carry a shape we reject, that fails closed, visibly, in the log.
+
+**Consequence.** 18 unit tests against a local key pair (forged signature, `alg: none`, expiry,
+unknown `kid`, missing `kid`, unreachable JWKS, empty JWKS, each mode) plus one API-level test that
+flips enforcement on to prove the guard is **mounted**, not merely written — a correct guard nobody
+applied is indistinguishable from no guard, and is the shape of the hole this closed. 609 backend
+tests pass.
+
+The suite otherwise runs with `ABDM_CALLBACK_AUTH=off`, because minting a valid token needs NHA's
+private key; that split is documented in `test-setup.ts`.
+
+**Still open.** The consent artefact's own `signature` is stored and not verified against the
+consent manager's key. The transport is now authenticated, which removes the remote path; verifying
+the artefact remains worth doing before real records move.

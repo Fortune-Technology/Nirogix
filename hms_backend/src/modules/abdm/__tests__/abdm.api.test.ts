@@ -1,13 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { api, authed, cleanupTenant, dbReady, login, makeTenant, type Session } from '../../../test-api';
 import { grantModule } from '../../entitlement/entitlement.service';
+import { env } from '../../../config/env';
 
 /**
  * ABDM Milestone 1 at the HTTP boundary (ADR-084).
  *
  * The service suite proves the rules; this one proves the boundary that protects them — the
- * Bearer check, `requireModule('abdm')`, `requirePermission`, Zod validation, and the one
- * unauthenticated route ABDM adds. A frontend guard is UX; this is where the boundary is.
+ * Bearer check, `requireModule('abdm')`, `requirePermission`, Zod validation, and the routes ABDM
+ * itself calls. A frontend guard is UX; this is where the boundary is.
+ *
+ * Those gateway routes were reachable by anyone until 31/08/2026. They now carry
+ * `requireAbdmGateway`, and the suite runs with enforcement off so the handlers stay testable —
+ * with one case that turns it on, to prove the guard is mounted rather than merely written.
  */
 
 const CODE = 'ABDMAPI';
@@ -225,7 +230,7 @@ describe('the Scan-and-Share callback', () => {
     },
   });
 
-  test('accepts an unauthenticated push for a registered facility', async ({ skip }) => {
+  test('accepts a push for a registered facility and routes it to that desk', async ({ skip }) => {
     if (!ready) return skip();
     const res = await api().post(path).send(share('HFR-ABDMAPI-001', 'Priya Sharma'));
     expect(res.status).toBe(202);
@@ -276,6 +281,27 @@ describe('the Scan-and-Share callback', () => {
     if (!ready) return skip();
     const res = await api().post(path).send({ nothing: true });
     expect(res.status).toBe(422);
+  });
+
+  /**
+   * The guard is wired to the route, not merely written.
+   *
+   * The rest of this suite runs with `ABDM_CALLBACK_AUTH=off` so it can test handlers without
+   * minting a token only NHA can sign (see `test-setup.ts`). This one case flips it to `enforce`
+   * to prove the middleware is actually mounted — because a correct guard nobody applied looks
+   * identical to no guard at all, and that is the exact shape of the hole this closed.
+   */
+  test('with enforcement on, the same push is refused without a token', async ({ skip }) => {
+    if (!ready) return skip();
+    const previous = env.ABDM_CALLBACK_AUTH;
+    env.ABDM_CALLBACK_AUTH = 'enforce';
+    try {
+      const res = await api().post(path).send(share('HFR-ABDMAPI-001', 'Priya Sharma'));
+      expect(res.status).toBe(401);
+      expect(res.body?.error?.code).toBe('ABDM_CALLBACK_UNAUTHENTICATED');
+    } finally {
+      env.ABDM_CALLBACK_AUTH = previous;
+    }
   });
 
   test('another hospital never sees the shared profile', async ({ skip }) => {

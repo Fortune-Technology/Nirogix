@@ -80,3 +80,68 @@ describe('module entitlements', () => {
     expect(entitled.has('patient')).toBe(true);
   });
 });
+
+/**
+ * A module is entitled the instant it is granted — the clock-skew bug (31/08/2026).
+ *
+ * `effective_from` defaults to Postgres's `now()`; the check used to compare it against the Node
+ * process's `Date.now()`. Two clocks, and Postgres's routinely lands a millisecond or two ahead, so
+ * a module granted and immediately checked could read as "not yet effective". `onboardTenant` does
+ * exactly that — grants `patient`, then asks whether `patient` is entitled before granting
+ * `appointment` — so a live tenant onboarding could fail outright, and did so intermittently in
+ * this suite for a week while being misdiagnosed as a concurrency race.
+ *
+ * The loop is the test: a single grant-then-check can pass by luck, because the bug only bites when
+ * both land inside the skew window. Doing it repeatedly is what makes the window reachable.
+ */
+describe('a grant is effective immediately (clock skew)', () => {
+  test('grant then check, back to back, many times', async ({ skip }) => {
+    if (!ready) return skip();
+
+    for (let i = 0; i < 25; i += 1) {
+      await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'emr']);
+      await grantModule(tenantId, 'emr');
+      // No await of a timer, no re-read delay: the next line is the one that used to fail.
+      expect(await isModuleEntitled(tenantId, 'emr')).toBe(true);
+      expect((await listEntitledModules(tenantId)).has('emr')).toBe(true);
+    }
+  });
+
+  test('onboarding’s own pattern — grant a dependency, then depend on it', async ({ skip }) => {
+    if (!ready) return skip();
+    // `appointment` hard-depends on `patient`. This is the exact sequence onboardTenant runs, and
+    // the exact one that failed: the dependency check must see a grant made microseconds earlier.
+    for (let i = 0; i < 15; i += 1) {
+      await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = ANY($2)', [
+        tenantId,
+        ['patient', 'appointment'],
+      ]);
+      await grantModule(tenantId, 'patient');
+      await expect(grantModule(tenantId, 'appointment')).resolves.not.toThrow();
+    }
+  });
+
+  test('a genuinely future start date is still not effective', async ({ skip }) => {
+    if (!ready) return skip();
+    // The fix must not turn the window off. A start date an hour out is not "now".
+    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'billing']);
+    await grantModule(tenantId, 'billing');
+    await pool.query(
+      "UPDATE tenant_entitlements SET effective_from = now() + interval '1 hour' WHERE tenant_id = $1 AND module = $2",
+      [tenantId, 'billing'],
+    );
+    expect(await isModuleEntitled(tenantId, 'billing')).toBe(false);
+    expect((await listEntitledModules(tenantId)).has('billing')).toBe(false);
+  });
+
+  test('an expiry in the past is not effective', async ({ skip }) => {
+    if (!ready) return skip();
+    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'pharmacy']);
+    await grantModule(tenantId, 'pharmacy');
+    await pool.query(
+      "UPDATE tenant_entitlements SET effective_until = now() - interval '1 minute' WHERE tenant_id = $1 AND module = $2",
+      [tenantId, 'pharmacy'],
+    );
+    expect(await isModuleEntitled(tenantId, 'pharmacy')).toBe(false);
+  });
+});

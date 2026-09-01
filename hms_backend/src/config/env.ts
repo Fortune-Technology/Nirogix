@@ -116,6 +116,12 @@ const EnvSchema = z.object({
   ABDM_ABHA_BASE_URL: z.string().url().default('https://abhasbx.abdm.gov.in/abha/api'),
   // Consent Manager id — 'sbx' in sandbox, 'abdm' (or as issued) in production.
   ABDM_CM_ID: z.string().default('sbx'),
+  // How inbound ABDM callbacks are authenticated (audit 31/08/2026). `enforce` verifies the bearer
+  // JWT against NHA's published JWKS and refuses anything else; `log` allows the request through
+  // and records what arrived, for observing ONE real callback before enforcing; `off` disables the
+  // check entirely. Defaults to `enforce` — without it these routes accept forged consent
+  // notifications from anyone who knows a facility id, which is public.
+  ABDM_CALLBACK_AUTH: z.enum(['enforce', 'log', 'off']).default('enforce'),
   // Version stamp written onto every stored consent record, so a later change to the consent
   // wording is distinguishable from consent taken under the old wording.
   ABDM_CONSENT_VERSION: z.string().default('m1-v1'),
