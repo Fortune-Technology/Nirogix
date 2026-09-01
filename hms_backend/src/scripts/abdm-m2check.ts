@@ -188,9 +188,14 @@ async function run(tenantId: string): Promise<void> {
   const visitId = visit.rows[0].id as string;
   const encounter = await pool.query(
     `INSERT INTO encounters (tenant_id, visit_id, patient_id, chief_complaint, subjective, assessment, plan,
-       vital_systolic, vital_diastolic, vital_pulse, status, signed_at)
+       status, signed_at)
      VALUES ($1,$2,$3,'Fever and cough','Three days of fever','Acute bronchitis','Rest, fluids, review in 5 days',
-       124, 80, 84, 'signed', now()) RETURNING id`,
+       'signed', now()) RETURNING id`,
+    [tenantId, visitId, patient.id],
+  );
+  await pool.query(
+    `INSERT INTO patient_vitals (tenant_id, visit_id, patient_id, stage, systolic, diastolic, pulse)
+     VALUES ($1,$2,$3,'consultation',124,80,84)`,
     [tenantId, visitId, patient.id],
   );
   await pool.query(

@@ -7,6 +7,7 @@ import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { CreateInvoiceBody, RecordPaymentBody, AddInvoiceLineBody, CreateServiceBody, UpdateServiceBody } from './billing.schema';
+import { CreateFeeRuleBody, UpdateFeeRuleBody } from './feeRules.schema';
 import * as c from './billing.controller';
 
 // Financial Transaction Infrastructure routes — gated by the `billing` module entitlement,
@@ -65,4 +66,44 @@ billingRouter.patch(
   requirePermission(PERMISSIONS.BILLING_SERVICES_MANAGE),
   validate({ body: UpdateServiceBody }),
   asyncHandler(c.updateService),
+);
+
+// Consultation fee schedule (ADR-117). Gated by the `billing` module, then the
+// `billing.fee_schedule` capability, then permission — a hospital can switch the schedule off and
+// fall back to the doctor's own fee without losing billing.
+const feeCap = requireCapability('billing', 'billing.fee_schedule');
+
+billingRouter.get(
+  '/fee-rules',
+  requireAuth,
+  mod,
+  feeCap,
+  requirePermission(PERMISSIONS.BILLING_FEE_RULES_VIEW),
+  asyncHandler(c.listFeeRules),
+);
+billingRouter.get(
+  '/fee-rules/preview',
+  requireAuth,
+  mod,
+  feeCap,
+  requirePermission(PERMISSIONS.BILLING_FEE_RULES_VIEW),
+  asyncHandler(c.previewFee),
+);
+billingRouter.post(
+  '/fee-rules',
+  requireAuth,
+  mod,
+  feeCap,
+  requirePermission(PERMISSIONS.BILLING_FEE_RULES_MANAGE),
+  validate({ body: CreateFeeRuleBody }),
+  asyncHandler(c.createFeeRule),
+);
+billingRouter.patch(
+  '/fee-rules/:id',
+  requireAuth,
+  mod,
+  feeCap,
+  requirePermission(PERMISSIONS.BILLING_FEE_RULES_MANAGE),
+  validate({ body: UpdateFeeRuleBody }),
+  asyncHandler(c.updateFeeRule),
 );

@@ -4,7 +4,7 @@
 // seeder that actually populated the environment's database (ADR-058 — one seeder per
 // environment), so the cards on screen are accounts that really exist there:
 //
-//   development → `hms_backend/src/scripts/seed.ts`         (CITYCARE demo hospital + the two
+//   development → `hms_backend/src/scripts/seed.development.ts`         (CITYCARE demo hospital + the two
 //                 Platform Admins, published dev default password)
 //   staging     → `hms_backend/src/scripts/seed.staging.ts` (QA General Hospital / QAHOSP,
 //                 deterministic QA password committed in that seeder)

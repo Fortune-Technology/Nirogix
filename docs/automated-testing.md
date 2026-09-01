@@ -71,7 +71,7 @@ Automated tests never depend on hand-made staging data.
   non-secret password. Unique tenant codes per suite (`APIAUTH`, `ISOAAA`, `ISOBBB`, `APIRBAC`,
   `CRITPATH`) mean suites never collide, and `cleanupTenant()` runs in **both** `beforeAll` and
   `afterAll` so a crashed run cannot poison the next one. Tests are safe to re-run.
-- **E2E:** uses the **seeders** — `db:seed` (development) and `db:seed:staging` (deterministic,
+- **E2E:** uses the **seeders** — `db:seed` (development, `seed.development.ts`) and `db:seed:staging` (deterministic,
   written as an E2E contract). Accounts resolve through `e2e/helpers/accounts.ts`; passwords are
   the seeders' non-secret defaults, overridable by `E2E_PASSWORD`. No real credential is committed.
 - **Skip-without-database:** every DB suite checks `dbReady()` and skips cleanly, so the suite

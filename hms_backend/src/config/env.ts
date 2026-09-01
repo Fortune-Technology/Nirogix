@@ -69,6 +69,10 @@ const EnvSchema = z.object({
   // channel; Indian SMS is rejected without a registered template id. Unset = OTP-by-SMS still
   // just logs (dev) / fails cleanly (prod) until DLT registration provides one.
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  // The variable name inside that MSG91 flow -- MSG91 assigns it when the DLT template is added
+  // to the panel, so it is configuration, not a constant. Blank falls back to `var1`, which is
+  // what MSG91 names a single-variable flow by default.
+  MSG91_OTP_TEMPLATE_VAR: z.string().optional(),
 
   // File storage — 'local' (disk, dev default) or 'r2' (Cloudflare R2, S3-compatible object
   // storage). PHI-bearing files use default-private buckets + short-lived signed URLs. For PHI,

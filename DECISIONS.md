@@ -1520,3 +1520,692 @@ private key; that split is documented in `test-setup.ts`.
 **Still open.** The consent artefact's own `signature` is stored and not verified against the
 consent manager's key. The transport is now authenticated, which removes the remote path; verifying
 the artefact remains worth doing before real records move.
+
+## ADR-110 - Reception collects the bill that check-in raised
+
+**Context.** `checkIn()` asks the billing service to open a draft consultation-fee invoice, and
+that is correct — OPD must never touch invoice tables itself (invariant #8). But the seeded
+`receptionist` role held no billing permission at all: not `billing.invoice.view`, not
+`billing.payment.collect`. The front desk therefore produced a bill on every check-in and could
+then neither read it nor settle it, and the OPD queue's own Bill column linked somewhere the
+receptionist was refused. A critical-path test asserted that 403 as if it were the design.
+
+**Decision.** The receptionist role gains `BILLING_VIEW` and `BILLING_PAYMENT`. It does **not**
+gain `BILLING_CREATE`.
+
+The distinction is the workflow, not a compromise:
+
+- **Reading and settling what the workflow raised** is front-desk work. The patient is standing
+  there, the fee is the one the desk quoted when it picked the doctor, and the payment gate is what
+  the consultation waits on.
+- **Raising a bill of its own** stays with the cashier. Reception collects against charges the
+  system generated; it does not invent them.
+
+**Consequence.** The dead end is gone: check in, take the money, the doctor's gate opens. Every
+payment is still recorded against the acting user and audited, and the invoice endpoints re-check
+independently — the permission moved, the boundary did not. `reconcileSystemRoles()` runs in
+`db/migrate.ts`, so existing tenants pick this up on the next migration without a data change.
+
+The test that asserted the refusal now asserts the intended workflow: reception can list the
+invoice check-in created, and is still refused `POST /api/v1/invoices`.
+
+## ADR-111 - The application portals scroll natively; Lenis is the marketing site's alone
+
+**Context.** `SmoothScroll` (Lenis) wrapped the Portal and the Admin app at the root, matching the
+marketing site. On a working screen this is the wrong trade. Lenis takes over the document's scroll
+and drives it from its own loop, so every region that has to scroll on its own — a long patient
+page, a table with its own overflow, a dialog body, a sticky sidebar — has to be told about it with
+`data-lenis-prevent`, and anything that is not told simply does not scroll. That failure mode is
+not cosmetic: it is a page a user cannot reach the bottom of. The Admin shell already carried a
+comment recording that `h-screen` had mysteriously stopped giving the sidebar a height, which is
+the same root cause showing up as a layout bug.
+
+Smooth scrolling earns its cost on a marketing page, where scrolling *is* the experience. It earns
+nothing on a screen someone works in for eight hours.
+
+**Decision.** Lenis runs on `marketing/` only. `hms_frontend`, `admin`, `patient` and `aiportal`
+scroll natively. `SmoothScroll` stays in `@hms/ui` because the marketing site still uses it.
+
+Two shared pieces had assumed Lenis was always present and were made to work either way:
+
+- **`useScrollLock`** now pins the document itself and compensates for the scrollbar width, so an
+  opening dialog no longer shifts the page sideways. It still stops and restarts Lenis when an
+  instance exists, because a running smooth-scroll would keep animating the page behind an overlay.
+- **`BackToTop`** takes its visibility from the native scroll position rather than from a Lenis
+  callback, which never fired without a provider — the button was dead in both portals. It still
+  returns through Lenis where Lenis is running.
+
+`data-lenis-prevent` was removed from the Portal-only scroll regions it no longer means anything
+on, and kept inside `@hms/ui`, whose components must keep working on the one app that still
+smooth-scrolls. `lenis` was dropped from `hms_frontend`'s dependencies; nothing there imports it.
+
+**Consequence.** The portals get the browser's own scrolling: correct nested containers, correct
+`position: sticky`, correct anchor and focus scrolling, no library between the wheel and the page.
+The Portal shell also moved from `min-h-screen`/`h-screen` to the `dvh` units the Admin shell
+already used, so a phone's collapsing browser chrome does not leave the sidebar taller than the
+viewport.
+
+## ADR-112 - One Select, portalled
+
+**Context.** `@hms/ui` had every form primitive except the most common one. Every dropdown in the
+product was a raw `<select className="hms-input">` — around fifty of them. A native `<select>`
+cannot show a second line, cannot be searched, cannot show a fee beside a doctor's name, renders
+its list in the browser's chrome rather than the design tokens, ignores the tenant's accent, and on
+a phone hands the user an OS wheel that ignores all of it. Picking one doctor out of forty meant
+scrolling a native list with no search.
+
+**Decision.** `Select` joins the kit as the one dropdown (ADR-029). It carries a label, an optional
+second line, an optional right-aligned detail, grouping, extra search keywords, a clear affordance,
+loading and empty states, and full combobox keyboard and ARIA behaviour. The search box appears
+automatically past seven options, which is where reading stops being faster than typing.
+
+**The panel is rendered into a portal and positioned in viewport coordinates.** An in-flow panel is
+clipped by any ancestor with `overflow` — a dialog body, a scrolling table container, a card — and
+that clipping is exactly what makes a dropdown feel cramped and half-usable. Positioning is
+recomputed on scroll (capture phase, so ancestor scrolling counts) and on resize; the panel flips
+above the trigger when the space below is too small, and its height is bounded by the room actually
+available.
+
+`--hms-text-xs` was added to the token scale rather than hard-coding the smallest text size inside
+one component's rules.
+
+**Consequence.** Converted first along the patient journey the dropdowns are worst in — check-in,
+appointment booking, the appointment-request queue, the OPD queue filter, the billing service
+picker. The remaining native selects elsewhere in the product are a mechanical sweep tracked in
+`BACKLOG.md`; they are not blocking, and the component is now the only thing new screens should
+reach for.
+
+## ADR-114 - A demo database with a past, and still exactly three seeders
+
+**Context.** The three environment seeders from ADR-058 worked, and what they produced could not
+test the product. Development had two hospitals, five patients, one appointment and one visit; the
+whole dataset lived on a single day. That is enough to prove login and RBAC, and nothing else. A
+status filter with one value in it looks identical to a broken one. A date range that excludes
+nothing is untested. Pagination never appears. A revenue chart has one point. A detail page with no
+related records looks finished. Every manual test therefore began by creating records by hand, which
+is slow, inconsistent between testers, and quietly biased towards the happy path — nobody hand-makes
+a partially-paid invoice for a cancelled visit with an unverified critical lab result.
+
+**Decision.** Still exactly **three seeders, one per environment**, and they remain the only files
+anyone runs or edits — `seed.development.ts`, `seed.staging.ts`, `seed.production.ts`. Development's
+seeder was renamed from the ambiguous `seed.ts` so the three read as a set. Each file declares
+**what** its dataset is; a shared engine, `seedKit.ts`, builds it. `seedKit.ts` is not a seeder,
+cannot be run, and exists so the same clinical story is not written twice and then allowed to drift.
+
+The development and staging datasets now describe a hospital that has been open for a while: about
+six weeks of completed traffic behind today, a live OPD queue this morning with a patient sitting in
+every stage of the workflow, appointments ahead, invoices in every state, lab orders at every step,
+stock that needs attention, and public form submissions waiting to be reviewed. Roughly 5-7 varied
+records in every list, and both sides of every filter.
+
+**Records are created through the real services, not by writing rows.** Numbering, invoicing, stock
+deduction, referral consumption, the visit state machine and the audit trail therefore behave
+exactly as they do in the product, and a seeded database cannot contain a combination the
+application would refuse. The exceptions are named at their call sites and listed in `BACKLOG.md`:
+appointment `no_show`, invoice `void`, payment `refunded`, lab order `cancelled` and result flag
+`critical` are set directly, because the product has no action that produces them yet and the
+filters that offer them need rows to find.
+
+**Timestamps are then moved back** to the day the story says the visit happened. The services stamp
+"now", which is correct for them and useless for a demo: a database with one day of history cannot
+exercise a date range, a revenue trend, a collections report or an EOD summary. Backdating is a
+fixture concern and touches only *when* - never a status, an amount or a relationship. The audit log
+is append-only at the database level, so its history is inserted with its own timestamps rather than
+backdated.
+
+**Every choice runs through a PRNG seeded from the tenant code**, so a seeder against an empty
+database always produces the same organisation, the same accounts, the same UHIDs in the same order
+and the same queue. Staging's dataset stays the contract the E2E suite asserts against; development
+gains reproducibility it did not have.
+
+**Idempotency is split, deliberately.** Configuration, people and catalogues are topped up - created
+when absent, never overwritten, so a re-run cannot undo what a tester has edited. The **clinical
+story runs once**: replaying it would double every day's traffic, and the second pass would collide
+with its own live queue, because a patient can only be in the OPD once at a time. Regenerating the
+story is what `--reset` is for. That is the honest reading of "idempotent" - the script can be run
+again safely, not that it invents a second past.
+
+**`--reset` empties every tenant-scoped table and reseeds.** The table list is discovered rather than
+maintained: a tenant-scoped table is one with a `tenant_id` column, which is the same rule that
+decides where RLS is applied, so a table added next month is reset without anyone remembering. On
+development the flag is enough; **staging additionally requires `CONFIRM_SEED_RESET=yes`**, because
+staging is shared and a reset destroys whatever QA is part-way through.
+
+**Production is unreachable from any of it, four times over.** `seed.production.ts` does not import
+`seedKit.ts` at all - the import is absent, not merely unused, so there is no flag or code path in
+it that reaches demo data. `requireEnvironment()` refuses a seeder outside its own environment.
+`DATABASE_URL` is inspected separately, because the connection string is what actually decides which
+database gets written. And the production seeder still requires `CONFIRM_PRODUCTION_SEED=yes`.
+**There is no reset in production**: `resetSeedData()` lives in the engine production does not
+import, so nothing in this repository can truncate a production table.
+
+**Consequence.** `npm run db:seed -w hms_backend` is now the first step of manual testing rather than
+a prelude to an hour of data entry, and `-- --reset` returns a poked-at database to a known state.
+The dataset is documented in `docs/seed-data.md`, which also lists what still needs creating by hand
+and why - uploaded files, ABDM exchanges, support sessions, single-use tokens, and any module that
+is not `BUILT` (ADR-038). The cost is a bigger, opinionated fixture that has to be maintained
+alongside the product: a new module means a new entry in the dataset and a new row in that document,
+in the same change.
+
+## ADR-113 - How a hospital runs its workflow is configuration, and vitals belong to the visit
+
+**Context.** Two requests arrived together and turned out to be one problem.
+
+The first: hospitals want vitals taken in different places — at the front desk while the patient
+registers, in a nurse's room between check-in and the consultation, or by the doctor during it. The
+second: the consultation fee is not always collected before the patient is seen, because a hospital
+billing an employer or an insurer cannot work that way.
+
+Neither could be built, for the same structural reason. Vitals were eight `vital_*` columns on
+`encounters`. An encounter is created when the doctor opens the consultation, and
+`getEncounterByVisit` refuses to create one while the fee is outstanding. **So a reading taken
+before the consultation had nowhere to go, and a hospital that collected vitals at the desk was
+asking for a row that could not exist.** The payment gate and the vitals problem were the same
+column layout, seen from two directions.
+
+### Vitals belong to the visit
+
+`patient_vitals` is one row per **observation**: a set of readings taken at one moment, by one
+person, at one point in the workflow (`check_in`, `pre_consultation`, `consultation`). The eight
+columns are gone from `encounters`, and the migration copies every existing reading across before
+dropping them.
+
+Three consequences worth stating, because each was a decision rather than a side effect:
+
+- **Readings accumulate; they are never edited in place.** A doctor who re-takes a blood pressure
+  writes a second row. Two disagreeing numbers is a real clinical situation, and the earlier one is
+  evidence. The consultation shows the latest and lists the trail beneath it with who took each.
+- **The stage is kept** because it changes how a reading is interpreted. A pulse taken at a desk by
+  a patient who has just climbed stairs is not the same observation as one taken in a quiet room.
+- **The FHIR bundle's effective time is now when the reading was taken**, not when the encounter was
+  signed. Dating a desk reading to the moment a doctor finished writing was wrong before; it is
+  simply more obviously wrong once a reading can precede the note by an hour.
+
+Which vitals a hospital collects is data (`vitals_required_params`, `vitals_optional_params` — text
+arrays, so adding one is not a migration). What a reading *is* stays typed columns in exact integer
+units. Invariant #5 is about the second thing, not the first.
+
+`emr.vitals.view` / `emr.vitals.record` are their own permission pair rather than part of
+`emr.encounter.*`. A hospital must be able to let an assistant take a blood pressure without also
+handing them the clinical note.
+
+### The workflow is configured, not coded
+
+`hospital_workflow_config` resolves **branch, then organization, then platform defaults**. A branch
+row is an override; saving one never edits the organization's. A tenant with no row at all gets
+`vitals_mode: consultation_only` and `payment_timing: before_consultation` — *exactly* today's
+behaviour, so shipping this changes nothing for anybody until they choose to change it. That is the
+point of having defaults at all rather than backfilling rows.
+
+Both settings are enforced server-side. `payment_timing` **moves** the gate; it does not move
+enforcement into the client. `at_checkin` is the same gate as `before_consultation` — a hospital
+choosing it is describing its own process, not weakening a rule. Only `after_consultation` lifts it,
+and the invoice is still raised and still owed.
+
+The vitals mode is checked as well as the permission. A client that sends `stage: check_in` to a
+hospital which does not collect vitals at the desk is refused: the permission says *who* may record,
+the mode says *where in the workflow* recording happens, and a front end cannot opt itself into
+either.
+
+**Required vitals are checked before the visit is created.** A required-field failure discovered
+after the visit and its invoice existed would leave the desk holding a half-made check-in. Conversely
+a reading that fails to save *after* a successful check-in is logged, not raised — the patient is in
+the queue, and a lost blood pressure is re-taken in seconds, which is a far better outcome than
+unwinding the visit.
+
+The required list binds the desk, not the clinician. A doctor amending one number must not be forced
+to re-enter the other five.
+
+**This table is the home for workflow settings generally** — self check-in, payment-before-check-in,
+walk-in policy — but a setting is added when the workflow it configures is built. A toggle nothing
+reads is a promise the product does not keep.
+
+**Consequence.** Two new tables (RLS applied automatically — `applyRls()` finds every table with a
+`tenant_id`), a `/workflow-config` pair and three vitals routes, a Workflow tab in Hospital
+configuration, a vitals section on check-in that appears only in `during_checkin`, a derived Vitals
+queue screen for `after_checkin`, and one `VitalsFields` component shared by all three places a
+reading is taken. `visits.reason` widened 500 → 2000 characters, because a chief complaint is a
+paragraph. 20 new API tests; 642 backend tests pass.
+
+**The queue is derived, never stored.** A visit is on it while it is checked in and no encounter
+exists. Nothing has to be kept in step with the visit's own status, so it cannot drift out of
+agreement with the OPD board.
+
+## ADR-115 - One workflow brings a patient into the hospital; timing is a control, not a page
+
+**Context.** Booking an appointment and checking a walk-in in were two screens asking almost exactly
+the same questions — which patient, which doctor, which department, what for, how much — and
+differing in one: **when**. Two forms meant two patient searches, two provider pickers, two ideas of
+how long a chief complaint may be, and, as it turned out, two different sets of fields.
+
+The duplication was not only cosmetic. Two things were genuinely missing before the forms *could*
+be the same form:
+
+- **An appointment had no department.** `visits.department_id` existed; `appointments` had nothing.
+  A desk that chose Cardiology and then switched to "next Tuesday" lost the answer, because the
+  endpoint had nowhere to put it.
+- **Nothing recorded how the patient arrived.** `visits.visit_type` exists but answers a different
+  question — *where* the patient is treated (`opd` today, inpatient later). There was no walk-in /
+  appointment / follow-up anywhere, so the distinction the front desk makes constantly was not in
+  the data at all.
+
+**Decision.** One component, `VisitWorkflow`, with `timing: now | future` as a control inside it.
+`now` checks the patient in and puts them in today's queue; `future` books a slot. Everything above
+that line is written once and therefore cannot drift.
+
+**The two routes stay.** `/opd/check-in` and `/appointments/new` are what the navigation, the OPD
+queue, the patient chart, the referral worklist and everyone's bookmarks link to, and their
+permissions genuinely differ (`opd.visit.checkin` versus `appointment.create`). They are now three
+lines each: the same component, a different starting timing. That is the ADR-029 rule applied —
+one implementation, configured, not two implementations kept in sync by hand.
+
+The timing toggle is **only offered to someone holding both permissions**, and is hidden entirely
+when the patient arrived from a booked appointment or a pending referral, neither of which can
+become a future booking. Switching keeps every shared answer and resets only the half that no
+longer applies.
+
+### `arrival_type`, and why it is not `visit_type`
+
+A new column on both `appointments` and `visits`: `walk_in`, `appointment`, `follow_up`.
+
+It is deliberately **not** folded into `visit_type`. That column answers where the patient is being
+treated; this one answers how they got here. An OPD follow-up is both, and one column can hold only
+one value — conflating them would make both unusable.
+
+**The intent travels on the appointment.** A patient who books a follow-up is still a follow-up when
+they walk in a week later, and the desk checking them in never saw the booking. So check-in takes
+the value from the appointment rather than the request, and a client claiming `walk_in` against a
+booked follow-up is ignored rather than obeyed. A referral check-in is recorded as a follow-up for
+the same reason: a patient sent on from another department did not arrive off the street.
+
+Existing rows are backfilled honestly rather than defaulted: every appointment on the books was
+booked as one, every visit predating the column was a walk-in because the desk had no other option,
+and a visit already linked to an appointment is corrected to that appointment's intent.
+
+`appointments.reason` widened 300 → 2000 to match `visits.reason` (ADR-113). One field in one form
+with two limits depending on which button was pressed is a trap: the desk types a paragraph and
+loses it by choosing "future".
+
+**Deliberately not built.** `caseType: NEW | EXISTING` was part of the same request and is absent,
+because **cases do not exist in the data model** — there is no `patient_cases` table for a control
+to select from. A dropdown offering a choice nothing can store is worse than its absence. It stays
+in `BACKLOG.md` with the rest of the case work.
+
+Backend business logic is **not** merged: a future appointment has no token, no invoice and no
+queue entry, and pretending one endpoint could produce both would be a worse abstraction than two
+honest ones. What is now shared is the validation — both accept and check a department identically —
+and the tests assert that symmetry, because the failure mode is quiet.
+
+**Consequence.** Migration `0044`. 10 new API tests covering the shared answers, the arrival intent
+surviving the wait, an invented arrival type refused at the edge, and what each timing actually
+produces (a token and a bill, or neither). 652 backend tests pass. Every dropdown in the merged form
+is the shared `Select` (ADR-112), the patient step the shared `PatientPicker`, and the vitals
+section the shared `VitalsFields` (ADR-113) — the workflow is an assembly of pieces that already
+existed rather than a fourth place they are re-implemented.
+
+## ADR-116 - A case is what a follow-up follows
+
+**Context.** The largest clinical unit the product had was the visit. A patient treated for a
+fracture over six weeks was six unrelated rows, and nothing tied them together: ADR-115 added
+`arrival_type: follow_up`, which records *that* a visit is a return but cannot record *what it
+returns to*. The front desk's most ordinary question — "is this a new problem, or are they coming
+back about the ankle?" — had no answer in the data.
+
+**Decision.** `patient_cases`: a treatment episode with a number (`C-000001`), a title, where it is
+being run, and whether it is still open. `visits.case_id` points at it, nullable.
+
+### The decisions inside that, each of which could have gone the other way
+
+**A patient may have several open cases, and a second one is never refused.** A diabetic being
+managed long-term who breaks an ankle has two, treated by different doctors on different schedules.
+Enforcing one-open-case-per-patient would be wrong about real medicine. Accidental duplicates come
+from *not knowing* a case already exists, so the remedy is to make the open ones impossible to miss
+at the moment a new one would be opened — the check-in picker loads them the instant a patient is
+chosen, and the "new case" dialog says how many are already open — rather than to refuse the second.
+
+**`case_id` stays nullable, and most visits will have none.** Forcing a case on every walk-in would
+fill every chart with one-visit episodes nobody ever closes, which is worse than no cases at all: a
+list of forty open "cases" is unreadable, and the feature stops being used.
+
+**The title is free text and is not a diagnosis.** A case is opened at the front desk before anyone
+has examined the patient. Requiring an ICD-10 code there would either block check-in or fill the
+chart with receptionists' guesses. The coded diagnosis stays on the encounter, where a clinician
+makes it.
+
+**Check-in opens a case in the same transaction as the visit.** A case created by a check-in that
+then failed is precisely the orphan record this feature exists to prevent — nobody would ever close
+it, because nobody knows it is there. `openCaseTx` is exported in transaction-taking shape for that
+one reason, and a test asserts a refused check-in leaves no case behind.
+
+**Two permissions, not three.** `opd.case.view` and `opd.case.manage`. Opening a case *is* part of
+checking a patient in, so the front desk holds manage rather than only view. Closing is guarded by a
+business rule and an audit record instead of a third key nobody would know to grant.
+
+**Closing is refused while a visit under the case is live.** Declaring an episode finished with the
+patient in the waiting room is a mis-click or a race, and the alternative is a doctor opening a
+consultation on a case already closed. Closing requires a reason, because "closed" with no reason is
+unreadable to whoever opens the chart next.
+
+**Reopening exists.** Treatment resumes and people mis-click, and the alternative — opening a second
+case for the same episode — splits a patient's history in two with no way to put it back together.
+Reopening erases the close reason from the row, so the audit entry is the only place it survives;
+that entry therefore records it.
+
+**Nothing is backfilled.** Every visit that already exists was recorded with no episode. Inventing
+one per patient, or one per visit, would be guessing at clinical history and writing the guess into
+the chart. A case is opened by someone who knows what it is for.
+
+**Consequence.** Migration `0045`; RLS applied automatically. Six routes under `/api/v1/cases`, all
+gated `requireModule('opd')` → `requireCapability('opd.case')` → `requirePermission`. A `CasePicker`
+in the unified visit workflow (ADR-115) offering *no case* / *an existing open case* / *a new case*,
+preselecting the latest open case when the desk has said "follow-up"; a `CasesCard` on the patient
+chart; the case shown on the OPD queue, which is the answer to "why are they back?". 19 new API
+tests — including that another patient's case is refused, that a closed case cannot silently take a
+new visit, and that there is no delete route at all. 671 backend tests pass.
+
+**Still open.** `visits.case_id` is set at check-in and never afterwards: a visit that should have
+been filed under a case cannot be moved into one, which is the ADR-060 correction path and is not
+built. Cases are also not yet what pricing reads — a follow-up consultation rate is still the same
+`providers.consultation_fee_paise` as a first visit.
+
+## ADR-117 - The consultation fee is a schedule, and charging otherwise is a decision with a name on it
+
+**Context.** The consultation fee was one column: `providers.consultation_fee_paise`. A hospital
+charging differently for a follow-up, or for cardiology, or for a senior consultant working the same
+department as a junior, had exactly one way to express that — type the number by hand at every
+check-in.
+
+That is not a pricing policy. It is a policy held in a receptionist's head, applied inconsistently
+across shifts, invisible to anyone auditing what the hospital actually charges, and impossible to
+change centrally. The form even encouraged it: a blank "Consultation fee (₹)" field with the
+doctor's default as a placeholder, which reads as an invitation to type something else.
+
+**Decision.** `consultation_fee_rules`. A rule matches on any combination of **doctor**,
+**department** and **how the patient arrived** (ADR-115's `arrival_type`). A NULL means *any*, which
+is what lets one table hold both "every follow-up is ₹200" and "Dr Sharma's first visit is ₹800"
+without either being a special case.
+
+### The most specific rule wins, and specificity is a number
+
+Doctor is worth 4, department 2, arrival type 1. Higher total wins.
+
+The weights are not arbitrary and not merely a tiebreak: they encode the ordering a hospital means.
+A named consultant's own fee overrides their department's, which overrides a blanket follow-up rate.
+And because they are powers of two, the ordering is **total** — no two distinct combinations can
+score the same, so there is never a tie to break by creation date or by luck. A unique index
+(`NULLS NOT DISTINCT`, which is the point — without it Postgres treats every NULL as unique and the
+constraint would never fire on the broad rules most likely to be duplicated) stops the same
+combination existing twice.
+
+A branch's own rule beats the organization's at equal specificity: it is a deliberate override for
+that hospital, and therefore the more specific statement of the two.
+
+**Nothing matching falls back to the doctor's own fee, then to zero** — exactly what check-in did
+before this table existed. A hospital that never writes a rule sees no change, which is why there is
+a fallback chain rather than a seeded default rule set.
+
+### The schedule is binding, and an override is a named decision
+
+A price list the front desk can silently ignore is decoration. So:
+
+- **A different amount needs `billing.fee.override`**, which the receptionist role does **not** hold.
+  A hospital grants it to whoever it trusts — per user, through the existing override mechanism
+  (ADR-010) — so the supervisor at the desk can, and the desk cannot.
+- **The permission is resolved from the session in the controller**, never taken from the body. A
+  client asserting its own permission is not a permission.
+- **Sending back the same amount is not an override.** A form that round-trips the number it was
+  shown has not overridden anything, and refusing it would break every such form.
+- **A reason is required**, because "₹200 instead of ₹800" with no explanation is indistinguishable
+  from a mistake.
+- **Both numbers are kept.** `visits.calculated_fee_paise` holds what the schedule said; the invoice
+  holds what was billed. The gap between them *is* the override, and losing either half makes it
+  unauditable. The audit entry carries both plus the reason, at `warning` severity — this is the
+  kind of thing someone scanning a log should stop on.
+
+### A rule is retired, never deleted
+
+It is part of the explanation for every invoice it priced. What a rule *matches on* cannot be edited
+either — change the price or retire it and write another — because editing the match conditions
+would silently rewrite the explanation for past invoices without changing the invoices.
+
+**Consequence.** Migration `0046`; RLS automatic. Four routes, gated `requireModule('billing')` →
+`requireCapability('billing.fee_schedule')` → permission, including a `preview` the front desk calls
+as it picks the doctor, so the fee is **quoted from the price list rather than remembered** — and
+the form says where the number came from, which is what turns a price into an answer for a patient
+who asks. A Fee schedule tab in Hospital configuration that lists rules most-specific-first, in the
+order the server applies them, because a hospital writing overlapping rules has to be able to
+predict the winner without reading documentation.
+
+19 new API tests, most of them about the resolution order under deliberately overlapping rules. 690
+backend tests pass.
+
+**One thing the tests forced into the open.** Three existing service-level suites called `checkIn()`
+with an explicit fee and no authorization — correct before, an override now. They were not "fixed"
+by loosening the rule: each now states the authority it stands in for (`canOverrideFee: true` and a
+reason), which is what a service-level test standing in for a permitted user should say out loud.
+
+**Still open.** No effective dating: changing a price changes it from now, and the old value survives
+only in the audit log and in the invoices it priced. Rules cover the **consultation fee** alone —
+pharmacy, lab and services keep their own pricing. And a case (ADR-116) is not yet a pricing
+dimension, so "the third visit of an episode is free" cannot be expressed.
+
+## ADR-118 - Self check-in announces an arrival; the desk still creates the visit
+
+**Context.** The request was for patients to check themselves in: identify at a kiosk, confirm, join
+the queue. Everything needed for it now exists — the workflow-configuration table (ADR-113) for the
+settings, cases (ADR-116) for what a visit belongs to, the fee schedule (ADR-117) so a price is
+known without anyone typing it.
+
+What does not exist, and deliberately, is permission for a public page to write a clinical record.
+ADR-056 is explicit: a public submission **creates a record for a human to review**, and **never
+writes to a clinical table**. A visit is a clinical record — it carries a queue token, opens an
+invoice, and is what a consultation hangs off.
+
+**Decision.** A patient **announces** their arrival; the front desk confirms, and confirming is what
+creates the visit. `self_checkin_requests` is a request table, exactly like `registration_requests`
+and `appointment_requests` before it.
+
+This is not a watered-down version of the ask, and it is worth being precise about why. The patient
+still does the queueing, at a kiosk or on their own phone. The desk's work drops from a full
+check-in form to **one click**, because the appointment the hospital already booked says who the
+patient is, which doctor, and which department. And the desk confirming *is* the identity check —
+they are looking at the person, which is stronger than any credential a kiosk could collect.
+
+Confirming runs the ordinary `checkIn`: same fee schedule, same case rules, same invoice, same
+audit. There is deliberately no second check-in implementation on this path, because that is how the
+two would quietly diverge.
+
+### What the endpoint refuses to tell you
+
+The security work here is almost entirely about non-disclosure, and two of the three decisions cost
+something real.
+
+**The reply never varies.** Matched, unmatched, or a hospital with self check-in switched off — the
+caller gets the same 202 and the same sentence. A response that differed would turn a QR code on a
+wall into an oracle answering *"is this mobile number a patient here, and are they due in today?"*
+about a named person, to a caller who proved nothing.
+
+**An announcement that matched nothing is still written.** This is the expensive one, and it is not
+an oversight. An endpoint that only created a row on a match would leak the same fact through its
+own side effects — anyone able to observe the board, or the row count, learns what the response
+refused to say. It also turns out to be what the desk wants: "somebody tried to check in and we
+could not find them" is a person standing in the lobby, and the board says **Needs a human** rather
+than silently dropping them.
+
+**Disabled behaves exactly like unmatched.** Nothing is written and the same sentence comes back, so
+"does this hospital use self check-in?" is not answerable either.
+
+The rest is the ADR-056 checklist, unchanged: tenant resolved from an opaque token **in the path**;
+uniform 404 for a typo, a retired token and a suspended hospital; sign-in-tier rate limiting;
+audited against the tenant **with no actor**, because there is no actor and inventing one would put
+a fabricated name against a public action. The token is regenerable — the only way to retire a
+poster that has been photographed or altered.
+
+**The public path is not a way around a permission.** The board needs a session; confirming needs
+`opd.visit.checkin`; turning the feature on needs `platform.organization.manage`. A patient scanning
+a code buys a shorter queue, not authority.
+
+**One field.** Everything else is on the appointment already. Asking a patient at a kiosk to retype
+their name adds typing, adds error, and adds nothing — none of it would be trusted.
+
+**Consequence.** Migration `0047`; RLS automatic. Seven routes, two of them public. A kiosk page in
+the patient app, an Arrivals board in the Portal, a printable poster, and a Self check-in tab —
+built as configurations of the same `PublicAccessPanel`, `PublicQrPoster` and `usePublicQr` the
+other two surfaces already use, so this is a third instance of one pattern rather than a third
+implementation. 20 new API tests, most of them asserting what is *not* disclosed. 710 backend tests
+pass.
+
+**Deliberately not built: automatic check-in with no desk step.** A hospital may well want it. It
+would mean a public endpoint writing a visit, which contradicts ADR-056 — so it needs that ADR
+amended, not worked around, and the amendment would have to say how identity is established without
+a human looking at the patient. Recorded in `BACKLOG.md` as a decision for the owner.
+
+**Also not built.** No OTP: SMS is still blocked on DLT registration, and an OTP would be security
+theatre on a path whose output a human verifies face to face anyway. No identification by patient
+ID, QR or appointment reference — the mobile number is what a patient has to hand and what the
+hospital already holds. A walk-in with no appointment is told to go to the desk, because there is
+nothing for the announcement to match.
+
+## ADR-119 - The patient's record beside the check-in form, and files that know who they are about
+
+**Context.** The front desk's second question, after "have we seen you before?", is "what for?" —
+and answering it meant leaving a half-filled check-in, opening the chart, reading, and coming back.
+The request was for the patient's history beside the form: previous visits, previous cases, previous
+consultations *where permitted*, existing documents, and somewhere to attach the referral letter the
+patient just handed over.
+
+Four of those already existed. `PatientHistory` on the chart already showed visits, signed
+consultations, invoices and lab orders, each permission-gated. So most of this was **extending one
+component rather than writing a second**, which is the ADR-029 rule and also the only way the two
+surfaces stay in agreement.
+
+The fifth did not exist at all. **`file_metadata` has no patient link** — it stores branding assets,
+letterheads and lab-report scans with equal indifference and knows nothing about who a file is
+about. That is the right shape for a file store, and it is precisely why "show me this patient's
+documents" could not be asked: the only references to files were single columns on other tables
+(`tenant_branding.logo_file_id`, `lab_results.file_id`).
+
+### `patient_documents`
+
+A link table, not a column on `file_metadata`. The file store stays generic; the clinical attachment
+concept lives beside the clinical records. `file_id` is a plain uuid with **no foreign key**,
+matching the convention the existing references already use — files soft-delete and are retained for
+audit, so a hard FK would either block that or cascade the attachment away with it. A deleted file
+leaves its attachment behind reading `(file removed)`, because *that it was once attached* is part
+of the record.
+
+Visit and case are both optional and both useful: a referral letter handed over at the desk belongs
+to the visit it arrived with, an MRI report to the episode, an insurance card to neither.
+
+**Three ids, three ways to be wrong, all checked server-side.** The file must belong to this tenant
+— the file store is shared infrastructure, and RLS protects the row only if the service actually
+goes and looks for it. A named visit or case must belong to *this* patient. A document filed against
+the wrong person is both a privacy breach and a clinical hazard, and nothing downstream would catch
+it.
+
+No new permissions: `file.document.view` and `file.document.upload` already answer "may this person
+see and add documents?", and the front desk already holds both, because taking a referral letter at
+the counter is front-desk work. Archived, never deleted, with a reason — the correction path from
+ADR-060.
+
+### The panel, and what it does not show
+
+`PatientHistory` gained a `rail` layout (one column, newest four per block) and a Cases block, and
+now renders in the check-in workflow beside the form.
+
+**The permission gating is the interesting part, because the same component now renders for two very
+different people.** A receptionist sees cases, visits, bills and documents. The **Consultations**
+block — which carries chief complaints and ICD-10 diagnoses — requires `emr.encounter.view`, which
+reception does not hold, so it is simply absent. A doctor opening the same panel sees everything.
+The absence is not the boundary; the API is, and it re-checks every block.
+
+**Only this hospital's own records.** Records held by *other* hospitals are ADBM territory: they
+need the patient's consent and are requested by a **named clinician** from the chart (ADR-092).
+Pulling them into a desk-side panel because a patient walked up would defeat the point of that
+consent, so the panel does not, and says so.
+
+The Cases block renders in the rail only. The chart already has `CasesCard`, which manages cases
+rather than listing them; two cases blocks on one page would be duplication rather than richness.
+
+**Consequence.** Migration `0048`; RLS automatic. Three routes on the patient module. A documents
+card that both surfaces share, a two-column check-in on wide screens that stacks on anything
+narrower — the form keeps its readable width rather than stretching, because a check-in form as wide
+as a 27-inch monitor is harder to fill in, not easier. 13 new API tests, most of them about the
+three ids. 723 backend tests pass.
+
+**A pattern worth noting across the last few changes:** this is the fourth feature in a row whose
+tests exposed a gap in the test harness's teardown ordering — `file_metadata` had never been cleaned
+up because no harness tenant had ever uploaded a file. The harness only knows about tables features
+have actually used.
+
+**Still open.** Attaching happens against the *patient*, so at check-in the document is not yet
+linked to the visit being created — the visit does not exist while the form is open. Linking it
+afterwards, or holding the upload until submit, is a refinement nobody has asked for yet. There is
+also no preview: opening a document is a new browser tab through a short-lived signed URL.
+
+## ADR-120 - Consent status is a third thing, between asking and reading
+
+**Context.** The request was to surface ABDM consent in the check-in workflow: say when consent is
+required, let an authorised user initiate a request, show the current status, handle pending /
+approved / rejected / expired, show protected history only when consent is valid, and make the whole
+thing switchable per hospital.
+
+Most of that already existed. `ExternalHistoryCard` (ADR-092…ADR-094) initiates requests, shows all
+five states in the patient's own language, and the backend stops returning records the moment a
+consent lapses. Three things did not.
+
+### 1. The desk could not see the state, and the obvious fix was wrong
+
+`abdm.history.view` gates two different things at once: seeing that a request is pending, and
+reading another hospital's clinical records. The front desk needs the first — a patient at the
+counter asks "did my old hospital send anything?" and somebody has to answer — and must not have the
+second.
+
+Granting reception `abdm.history.view` would have handed over borrowed medical records to answer a
+scheduling question. So the permission is split: **`abdm.consent.status.view`** says *whether* a
+consent exists and what state it is in. Three permissions now, for three genuinely different acts —
+asking (which puts a named clinician in front of the patient and starts a destruction clock),
+reading (another hospital's clinical data), and knowing that something is outstanding.
+
+The endpoint is built to match, and what it **omits** is the design:
+
+- **No source hospitals.** A name like "oncology centre" is a diagnosis by implication, delivered to
+  someone with no clinical permission.
+- **No record counts.** How many documents came back is a proxy for how ill somebody has been.
+- **No requesting clinician.** The doctor's name and registration number are on the request for the
+  *patient's* benefit (ADR-092), not the desk's.
+
+What is left — states, counts, and when an active consent obliges us to have destroyed our copy — is
+exactly what a desk can act on. A test asserts the response shape is closed, so a future field cannot
+leak in unnoticed, and that the desk is still refused the requests, the records, and the ability to
+ask.
+
+### 2. Asking stays a doctor's job
+
+This was raised as a concern before the work started and is recorded here as a decision rather than
+an omission. The consent request carries a named clinician's registration number to the patient,
+which is what they read when deciding, and it commits the hospital to destroying what comes back.
+That is not a front-desk act, and ADR-092 stands. The desk can see that nothing has been asked, and
+the card says who can ask.
+
+### 3. "Configurable per hospital" was not actually true
+
+`abdm.external_history` was marked **`PLANNED`** in the capability registry while M3 was built and
+running, and — more to the point — **not one M3 route carried a capability gate.** A hospital
+entitled to ABDM for ABHA verification alone silently had a national records pull.
+
+The capability is now `BUILT` (the registry describes what the software does; whether it may be
+*sold* is a separate question, and the marketing status stays IN DEVELOPMENT pending NHA
+certification), and every M3 route is gated `requireModule('abdm')` → `requireCapability('abdm',
+'abdm.external_history')` → `requirePermission`. Switching the capability off takes the status, the
+requests and the timeline away together — which is what "enable or disable depending on the hospital
+and integration requirements" has to mean.
+
+**Consequence.** One permission, one endpoint, one card in the check-in rail, and a capability gate
+on five existing routes. No migration. 13 new API tests, over half of them asserting absences. 736
+backend tests pass.
+
+**Unchanged, and worth stating because a reader of this ADR may assume otherwise.** No record has
+been exchanged with ABDM in any environment. Production access still needs NHA functional testing, a
+WASA certificate and Health Tech Committee approval. This ADR makes an existing, uncertified feature
+correctly gated and correctly narrow; it does not make it live.

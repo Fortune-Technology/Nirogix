@@ -12,26 +12,28 @@ import {
   invoices,
   drugs,
   labTests,
+  patientVitals,
+  users,
 } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
+import {
+  latestForVisit as latestVitalsForVisit,
+  recordVitals,
+  vitalsRowToDto,
+  type VitalsInput,
+} from '../workflow/vitals.service';
+import { resolveConfig } from '../workflow/workflowConfig.service';
 
 export { searchIcd10 } from './icd10.data';
 
 // Clinical Workflow / EMR (development-plan §12). One encounter per visit, saved whole while
 // draft, then signed to lock. Vitals are stored as integer units and converted at the edge.
 
-export interface VitalsInput {
-  systolic?: number | null;
-  diastolic?: number | null;
-  pulse?: number | null;
-  spo2?: number | null;
-  respRate?: number | null;
-  tempC?: number | null;
-  weightKg?: number | null;
-  heightCm?: number | null;
-}
+// One definition of a set of readings, owned by the module that stores them (ADR-113). A second
+// copy here is how the two would quietly diverge.
+export type { VitalsInput } from '../workflow/vitals.service';
 
 export interface SaveEncounterInput {
   version: number;
@@ -65,21 +67,19 @@ export interface SaveEncounterInput {
   }>;
 }
 
-const round = (n: number | null | undefined): number | null =>
-  n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n);
-
-function vitalsToStore(v: VitalsInput | undefined) {
-  return {
-    vitalSystolic: round(v?.systolic),
-    vitalDiastolic: round(v?.diastolic),
-    vitalPulse: round(v?.pulse),
-    vitalSpo2: round(v?.spo2),
-    vitalRespRate: round(v?.respRate),
-    vitalTempCTenths: v?.tempC === null || v?.tempC === undefined ? null : Math.round(v.tempC * 10),
-    vitalWeightG: v?.weightKg === null || v?.weightKg === undefined ? null : Math.round(v.weightKg * 1000),
-    vitalHeightCm: round(v?.heightCm),
-  };
-}
+/** An empty set of readings — what the DTO reports when nothing has been taken on this visit. */
+const NO_VITALS = {
+  systolic: null,
+  diastolic: null,
+  pulse: null,
+  spo2: null,
+  respRate: null,
+  tempC: null,
+  weightKg: null,
+  heightCm: null,
+  bloodSugarMgDl: null,
+  bloodSugarType: null,
+} as const;
 
 async function buildDto(tenantId: string, encounterId: string) {
   return runWithTenant(tenantId, async (tx) => {
@@ -106,6 +106,17 @@ async function buildDto(tenantId: string, encounterId: string) {
       tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId)).orderBy(labOrders.createdAt),
     ]);
 
+    // Readings belong to the VISIT, so they are fetched by visit and converted by the vitals
+    // module — the unit arithmetic must never live in a second place.
+    const vitalRows = await tx
+      .select({ v: patientVitals, recorderName: users.fullName })
+      .from(patientVitals)
+      .leftJoin(users, eq(users.id, patientVitals.recordedBy))
+      .where(and(eq(patientVitals.tenantId, tenantId), eq(patientVitals.visitId, e.visitId)))
+      .orderBy(desc(patientVitals.recordedAt));
+    const allVitals = vitalRows.map((r) => vitalsRowToDto(r.v, r.recorderName ?? null));
+    const latestVitals = allVitals[0] ?? null;
+
     return {
       id: e.id,
       visitId: e.visitId,
@@ -122,16 +133,24 @@ async function buildDto(tenantId: string, encounterId: string) {
       objective: e.objective,
       assessment: e.assessment,
       plan: e.plan,
-      vitals: {
-        systolic: e.vitalSystolic,
-        diastolic: e.vitalDiastolic,
-        pulse: e.vitalPulse,
-        spo2: e.vitalSpo2,
-        respRate: e.vitalRespRate,
-        tempC: e.vitalTempCTenths === null ? null : e.vitalTempCTenths / 10,
-        weightKg: e.vitalWeightG === null ? null : e.vitalWeightG / 1000,
-        heightCm: e.vitalHeightCm,
-      },
+      // The latest reading on the VISIT, not on this row — so the doctor opens the consultation
+      // already seeing what the desk or the vitals room took, which is the point of ADR-113.
+      vitals: latestVitals
+        ? {
+            systolic: latestVitals.systolic,
+            diastolic: latestVitals.diastolic,
+            pulse: latestVitals.pulse,
+            spo2: latestVitals.spo2,
+            respRate: latestVitals.respRate,
+            tempC: latestVitals.tempC,
+            weightKg: latestVitals.weightKg,
+            heightCm: latestVitals.heightCm,
+            bloodSugarMgDl: latestVitals.bloodSugarMgDl,
+            bloodSugarType: latestVitals.bloodSugarType,
+          }
+        : { ...NO_VITALS },
+      /** Every reading on this visit, newest first — the doctor sees who took what, and when. */
+      vitalsHistory: allVitals,
       diagnoses: dx.map((d) => ({ id: d.id, icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary, notes: d.notes })),
       prescriptions: rx.map((p) => ({
         id: p.id,
@@ -176,7 +195,13 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
     if (visit.status === 'cancelled' || visit.status === 'completed') {
       throw Errors.conflict(`Cannot start a consultation on a ${visit.status} visit`);
     }
-    if (visit.invoiceId) {
+    // Whether the fee gates the consultation is the hospital's decision (ADR-113), because a
+    // hospital billing an employer or an insurer cannot collect before the patient is seen.
+    // The gate is still enforced *here*, server-side — the setting moves it, it does not move
+    // enforcement into the client. `at_checkin` is the same gate: the hospital has told its desk
+    // to collect immediately, which is a description of its process, not a weaker rule.
+    const workflow = await resolveConfig(tenantId, visit.branchId);
+    if (visit.invoiceId && workflow.paymentTiming !== 'after_consultation') {
       const inv = (
         await tx
           .select({ totalPaise: invoices.totalPaise, amountPaidPaise: invoices.amountPaidPaise })
@@ -234,7 +259,6 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
         objective: input.objective ?? null,
         assessment: input.assessment ?? null,
         plan: input.plan ?? null,
-        ...vitalsToStore(input.vitals),
         version: e.version + 1,
         updatedAt: new Date(),
       })
@@ -348,6 +372,10 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
     if (ordersToDelete.length > 0) await tx.delete(labOrders).where(inArray(labOrders.id, ordersToDelete));
   });
 
+  if (input.vitals) {
+    await recordConsultationVitals(tenantId, encounterId, input.vitals, actorUserId);
+  }
+
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
@@ -357,6 +385,51 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
     metadata: { diagnoses: input.diagnoses.length, prescriptions: input.prescriptions.length, labOrders: input.labOrders.length },
   });
   return buildDto(tenantId, encounterId);
+}
+
+/** The readings a clinician typed into the consultation form, written as a visit observation. */
+const VITAL_FIELDS = [
+  'systolic',
+  'diastolic',
+  'pulse',
+  'spo2',
+  'respRate',
+  'tempC',
+  'weightKg',
+  'heightCm',
+  'bloodSugarMgDl',
+] as const;
+
+async function recordConsultationVitals(
+  tenantId: string,
+  encounterId: string,
+  vitals: VitalsInput,
+  actorUserId?: string,
+): Promise<void> {
+  const context = await runWithTenant(tenantId, async (tx) => {
+    const rows = await tx
+      .select({ visitId: encounters.visitId })
+      .from(encounters)
+      .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId)))
+      .limit(1);
+    return rows[0] ?? null;
+  });
+  if (!context) return;
+
+  const provided = VITAL_FIELDS.filter((f) => vitals[f] != null);
+  if (provided.length === 0) return;
+
+  // Saving a note three times must not put three identical readings in the chart. A reading that
+  // differs in any field is a new observation and IS written — that is the doctor correcting or
+  // re-taking one, which the chart has to keep.
+  const previous = await latestVitalsForVisit(tenantId, context.visitId);
+  if (previous && provided.every((f) => previous[f] === vitals[f])) return;
+
+  await recordVitals(
+    tenantId,
+    { visitId: context.visitId, stage: 'consultation', ...vitals },
+    actorUserId,
+  );
 }
 
 export async function signEncounter(tenantId: string, encounterId: string, actorUserId?: string) {

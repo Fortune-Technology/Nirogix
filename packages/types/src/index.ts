@@ -677,6 +677,10 @@ export interface Appointment {
   patientUhid: string;
   providerId: string;
   providerName: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  /** `appointment` (first visit with this doctor) or `follow_up` (a return) — ADR-115. */
+  arrivalType: string;
 }
 
 export interface BookAppointmentRequest {
@@ -686,6 +690,234 @@ export interface BookAppointmentRequest {
   durationMinutes?: number;
   reason?: string | null;
   branchId?: string | null;
+  departmentId?: string | null;
+  arrivalType?: 'appointment' | 'follow_up' | null;
+}
+
+// ---- The unified visit workflow (ADR-115) ---------------------------------
+
+/**
+ * When the patient is being seen. The only thing that really separates "check this walk-in in"
+ * from "book an appointment" — everything else about the two is the same set of questions.
+ */
+export type VisitTiming = 'now' | 'future';
+
+/** How the patient arrived. Recorded on both the appointment and the visit it becomes. */
+export type ArrivalType = 'walk_in' | 'appointment' | 'follow_up';
+
+// ---- Patient self check-in (ADR-118) --------------------------------------
+
+/** What a self check-in QR code says about the hospital behind it. Nothing about its patients. */
+export interface PublicCheckinContext {
+  hospitalName: string;
+  city: string | null;
+  enabled: boolean;
+}
+
+/**
+ * A patient announcing arrival. Everything except the hospital is a claim until the front desk
+ * confirms it — which is also the identity check, because the desk is looking at the person.
+ */
+export interface SelfCheckinRequest {
+  id: string;
+  status: string;
+  claimedPhone: string;
+  announcedAt: string;
+  patientId: string | null;
+  patientName: string | null;
+  patientUhid: string | null;
+  appointmentId: string | null;
+  scheduledAt: string | null;
+  providerName: string | null;
+  departmentName: string | null;
+  resultingVisitId: string | null;
+  confirmedAt: string | null;
+  dismissReason: string | null;
+  version: number;
+  /** A colleague checked this appointment in by hand while the patient queued at the kiosk. */
+  alreadyCheckedIn: boolean;
+}
+
+export interface SelfCheckinSettings {
+  enabled: boolean;
+  token: string | null;
+  /** How many arrivals are waiting on the board right now. */
+  pendingCount: number;
+}
+
+// ---- Consultation fee schedule (ADR-117) ----------------------------------
+
+/**
+ * One line of the price list. Any of doctor / department / arrival type may be null, meaning
+ * "any" — which is what lets one table express both "every follow-up is ₹200" and "Dr Sharma's
+ * first visit is ₹800". The most specific match wins.
+ */
+export interface ConsultationFeeRule {
+  id: string;
+  branchId: string | null;
+  branchName: string | null;
+  providerId: string | null;
+  providerName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  arrivalType: string | null;
+  feePaise: number;
+  isActive: boolean;
+  label: string | null;
+  /** Doctor (4) + department (2) + arrival type (1). Higher wins; the ordering is total. */
+  specificity: number;
+  version: number;
+  createdAt: string;
+}
+
+export interface CreateFeeRuleRequest {
+  branchId?: string | null;
+  providerId?: string | null;
+  departmentId?: string | null;
+  arrivalType?: ArrivalType | null;
+  feePaise: number;
+  label?: string | null;
+}
+
+export interface UpdateFeeRuleRequest {
+  version: number;
+  feePaise?: number;
+  label?: string | null;
+  /** Retire rather than delete — a rule explains the invoices it priced. */
+  isActive?: boolean;
+}
+
+/** What a check-in with these details would be charged, and where the number came from. */
+export interface ResolvedConsultationFee {
+  feePaise: number;
+  ruleId: string | null;
+  ruleLabel: string | null;
+  source: 'rule' | 'provider_default' | 'none';
+}
+
+// ---- ABDM consent status (ADR-120) ----------------------------------------
+
+/**
+ * A patient's consent position — states and counts, deliberately nothing more.
+ *
+ * No source hospitals (a name is a diagnosis by implication), no record counts (a proxy for how
+ * ill somebody has been), and not who asked. This is what a front desk may know.
+ */
+export interface AbdmConsentStatus {
+  /** False when the patient has no verified ABHA — nothing can be requested at all. */
+  canRequest: boolean;
+  awaitingPatient: number;
+  active: number;
+  declined: number;
+  lapsed: number;
+  failed: number;
+  /** When the earliest active consent obliges us to have destroyed our copy. */
+  activeUntil: string | null;
+  latestStatus: string | null;
+  latestRequestedAt: string | null;
+}
+
+// ---- Patient documents (ADR-119) ------------------------------------------
+
+/** What a document is. Fixed, because the point of a type is filtering and free text does not. */
+export const DOCUMENT_TYPES = [
+  'referral_letter',
+  'prior_report',
+  'insurance',
+  'id_proof',
+  'consent_form',
+  'other',
+] as const;
+
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/**
+ * A file attached to a patient, and optionally to the visit it arrived with or the case it
+ * belongs to. `file_metadata` stores the bytes and knows nothing about who they are about; this
+ * is what gives a file a subject.
+ */
+export interface PatientDocument {
+  id: string;
+  patientId: string;
+  visitId: string | null;
+  caseId: string | null;
+  caseNumber: string | null;
+  fileId: string;
+  /** `(file removed)` where the underlying file has since been deleted — the link is kept. */
+  filename: string;
+  contentType: string;
+  size: number;
+  documentType: string;
+  title: string;
+  note: string | null;
+  /** `active` | `archived`. Archived, never deleted. */
+  status: string;
+  archiveReason: string | null;
+  uploadedByName: string | null;
+  createdAt: string;
+  version: number;
+}
+
+export interface AttachDocumentRequest {
+  /** From `POST /files` — the upload goes through the ordinary file store first. */
+  fileId: string;
+  title?: string | null;
+  documentType?: DocumentType;
+  note?: string | null;
+  visitId?: string | null;
+  caseId?: string | null;
+}
+
+// ---- Treatment cases (ADR-116) --------------------------------------------
+
+/**
+ * The episode a run of visits belongs to. A patient may have several open at once — a long-term
+ * condition and a fresh injury are genuinely separate — so this is a list, never a single value.
+ */
+export interface PatientCase {
+  id: string;
+  caseNumber: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  /** Free text, not a diagnosis — a case is opened before anyone has examined the patient. */
+  title: string;
+  /** `open` | `closed`. */
+  status: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  providerId: string | null;
+  providerName: string | null;
+  notes: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  closeReason: string | null;
+  version: number;
+  visitCount: number;
+  lastVisitDate: string | null;
+}
+
+export interface OpenCaseRequest {
+  patientId: string;
+  title: string;
+  departmentId?: string | null;
+  providerId?: string | null;
+  branchId?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateCaseRequest {
+  version: number;
+  title?: string;
+  departmentId?: string | null;
+  providerId?: string | null;
+  notes?: string | null;
+}
+
+export interface CloseCaseRequest {
+  version: number;
+  /** Required — "closed" with no reason is unreadable to whoever opens the chart next. */
+  closeReason: string;
 }
 
 // ---- OPD / Visits (hms_backend/src/modules/opd) ----------------------------
@@ -705,6 +937,16 @@ export interface Visit {
   tokenNumber: number;
   visitDate: string;
   visitType: string;
+  /** `walk_in` | `appointment` | `follow_up` (ADR-115). */
+  arrivalType: string;
+  /** The treatment case this visit belongs to, when it belongs to one (ADR-116). */
+  caseId: string | null;
+  /** What the fee schedule said this consultation costs (ADR-117). */
+  calculatedFeePaise: number | null;
+  /** Why the desk charged something else, when it did. */
+  feeOverrideReason: string | null;
+  caseNumber: string | null;
+  caseTitle: string | null;
   status: string; // checked_in | in_consultation | completed | cancelled
   /** Optimistic-lock version — send it back with a status change. */
   version: number;
@@ -736,6 +978,20 @@ export interface CheckInRequest {
   consultationFeePaise?: number | null;
   /** Check in against a pending referral — patient/department/provider default from it. */
   referralId?: string | null;
+  /** How the patient arrived (ADR-115). An appointment check-in overrides this server-side. */
+  arrivalType?: ArrivalType | null;
+  /** Check in under an existing open case (ADR-116). Mutually exclusive with `newCase`. */
+  caseId?: string | null;
+  /** Required whenever the amount differs from the calculated fee (ADR-117). */
+  feeOverrideReason?: string | null;
+  /** Open a new case in the same transaction as the visit. Mutually exclusive with `caseId`. */
+  newCase?: { title: string; notes?: string | null } | null;
+  /**
+   * Readings taken at the desk, when the hospital collects vitals during check-in
+   * (`vitalsMode: during_checkin`, ADR-113). Ignored in any other mode — the server decides
+   * whether the desk is allowed to record them, not the form.
+   */
+  vitals?: Partial<Vitals> | null;
 }
 
 export interface UpdateVisitStatusRequest {
@@ -1005,6 +1261,104 @@ export interface Vitals {
   tempC: number | null;
   weightKg: number | null;
   heightCm: number | null;
+  bloodSugarMgDl: number | null;
+  /** Which reading the blood sugar is — a number without this is not interpretable. */
+  bloodSugarType: 'fasting' | 'post_prandial' | 'random' | null;
+}
+
+// ---- Workflow configuration & vitals (ADR-113) -----------------------------
+
+/**
+ * The vitals a hospital can choose to collect. The keys are the contract between the
+ * configuration screen, the forms that render the fields, and the columns the readings are
+ * stored in — one list, so a parameter cannot be offered somewhere it cannot be saved.
+ *
+ * `systolic` and `diastolic` are one parameter (`bloodPressure`) as far as configuration is
+ * concerned: nobody asks for one half of a blood pressure.
+ */
+export const VITAL_PARAMETERS = [
+  'bloodPressure',
+  'pulse',
+  'spo2',
+  'respRate',
+  'tempC',
+  'weightKg',
+  'heightCm',
+  'bloodSugar',
+] as const;
+
+export type VitalParameter = (typeof VITAL_PARAMETERS)[number];
+
+/** Where in the workflow a hospital takes vitals. `consultation_only` is the platform default. */
+export type VitalsMode = 'disabled' | 'consultation_only' | 'during_checkin' | 'after_checkin';
+
+/** When the consultation fee must be settled. `before_consultation` is the platform default. */
+export type PaymentTiming = 'before_consultation' | 'at_checkin' | 'after_consultation';
+
+/** Where a reading was taken. Kept because it changes how a clinician reads the number. */
+export type VitalsStage = 'check_in' | 'pre_consultation' | 'consultation';
+
+export interface HospitalWorkflowConfig {
+  /** NULL for the organization-wide default. */
+  branchId: string | null;
+  branchName: string | null;
+  vitalsMode: VitalsMode;
+  vitalsRequiredParams: VitalParameter[];
+  vitalsOptionalParams: VitalParameter[];
+  paymentTiming: PaymentTiming;
+  version: number;
+  /**
+   * True when no row exists for this scope and the platform defaults are being reported. Saving
+   * creates the row; until then the hospital is running on defaults, which is worth showing.
+   */
+  isDefault: boolean;
+  /** True when this branch has no row of its own and is inheriting the organization default. */
+  inheritedFromOrganization: boolean;
+}
+
+export interface UpdateHospitalWorkflowConfigRequest {
+  version: number;
+  vitalsMode?: VitalsMode;
+  vitalsRequiredParams?: VitalParameter[];
+  vitalsOptionalParams?: VitalParameter[];
+  paymentTiming?: PaymentTiming;
+}
+
+export interface VitalsRecord extends Vitals {
+  id: string;
+  visitId: string;
+  patientId: string;
+  stage: VitalsStage;
+  notes: string | null;
+  recordedBy: string | null;
+  recordedByName: string | null;
+  recordedAt: string;
+  version: number;
+}
+
+export interface RecordVitalsRequest extends Partial<Vitals> {
+  visitId: string;
+  stage: VitalsStage;
+  notes?: string | null;
+}
+
+/**
+ * A visit waiting for its vitals (`vitalsMode: after_checkin`). The queue is derived, not a
+ * table: a visit is on it while it is checked in, has no vitals recorded, and no consultation has
+ * started — so nothing has to be kept in step with the visit's own status.
+ */
+export interface VitalsQueueEntry {
+  visitId: string;
+  tokenNumber: number;
+  visitNumber: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  providerName: string | null;
+  department: string | null;
+  checkedInAt: string;
+  /** The most recent reading for this visit, when one has already been taken. */
+  latestVitals: VitalsRecord | null;
 }
 
 export interface Diagnosis {
@@ -1053,7 +1407,10 @@ export interface Encounter {
   objective: string | null;
   assessment: string | null;
   plan: string | null;
+  /** The most recent reading on the VISIT — which may be one the desk or the vitals room took. */
   vitals: Vitals;
+  /** Every reading on this visit, newest first, with who took each and when (ADR-113). */
+  vitalsHistory: VitalsRecord[];
   diagnoses: Diagnosis[];
   prescriptions: Prescription[];
   labOrders: LabOrder[];

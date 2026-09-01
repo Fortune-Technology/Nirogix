@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarPlus, FileText, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Building2, CalendarPlus, DoorOpen, FileText, IndianRupee, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, Workflow, type LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@hms/permissions";
 import { useCan } from "../../lib/auth";
 
@@ -27,7 +27,10 @@ const TABS: Tab[] = [
   { href: "/hospital-setup/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
   { href: "/hospital-setup/patient-registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/hospital-setup/online-booking", label: "Online booking", icon: CalendarPlus, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  { href: "/hospital-setup/self-check-in", label: "Self check-in", icon: DoorOpen, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/hospital-setup/hospital-availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
+  { href: "/hospital-setup/workflow", label: "Workflow", icon: Workflow, perm: PERMISSIONS.WORKFLOW_CONFIG_VIEW },
+  { href: "/hospital-setup/fee-schedule", label: "Fee schedule", icon: IndianRupee, perm: PERMISSIONS.BILLING_FEE_RULES_VIEW },
   { href: "/hospital-setup/abdm", label: "ABDM / ABHA", icon: ShieldCheck, perm: PERMISSIONS.ABDM_FACILITY_VIEW },
   { href: "/hospital-setup/enabled-modules", label: "Enabled modules", icon: Layers, perm: null },
 ];

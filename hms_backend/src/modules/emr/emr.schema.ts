@@ -6,6 +6,11 @@ const nnum = z.number().nullable().optional();
 
 export const OpenEncounterBody = z.object({ visitId: z.string().uuid() }).openapi('OpenEncounterBody');
 
+// Vitals are the workflow module's record; the encounter reports them rather than defining them.
+import { VitalsRecordListSchema } from '../workflow/workflow.schema';
+
+export { VitalsRecordSchema, VitalsRecordListSchema } from '../workflow/workflow.schema';
+
 export const VitalsSchema = z
   .object({
     systolic: nnum,
@@ -16,6 +21,8 @@ export const VitalsSchema = z
     tempC: nnum,
     weightKg: nnum,
     heightCm: nnum,
+    bloodSugarMgDl: nnum,
+    bloodSugarType: z.enum(['fasting', 'post_prandial', 'random']).nullable().optional(),
   })
   .openapi('Vitals');
 
@@ -131,7 +138,10 @@ export const EncounterSchema = z
       tempC: z.number().nullable(),
       weightKg: z.number().nullable(),
       heightCm: z.number().nullable(),
+      bloodSugarMgDl: z.number().nullable(),
+      bloodSugarType: z.enum(['fasting', 'post_prandial', 'random']).nullable(),
     }),
+    vitalsHistory: VitalsRecordListSchema,
     diagnoses: z.array(DiagnosisSchema),
     prescriptions: z.array(PrescriptionSchema),
     labOrders: z.array(LabOrderSchema),

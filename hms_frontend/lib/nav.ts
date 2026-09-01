@@ -8,6 +8,8 @@ import {
   UserPlus,
   CalendarDays,
   ClipboardList,
+  Activity,
+  DoorOpen,
   ListChecks,
   Pill,
   FlaskConical,
@@ -81,6 +83,14 @@ export const TENANT_NAV_GROUPS: NavGroup[] = [
       // longest-match rule highlights it on its own route.
       { label: "Booking requests", href: "/appointments/requests", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarCheck, module: "appointment", capability: "appointment.online_booking" },
       { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList, module: "opd", capability: "opd.queue" },
+      // The vitals step between check-in and consultation (ADR-113). Shown wherever the
+      // capability is entitled and the user may record; the screen itself explains when this
+      // hospital has chosen a different placement, because the mode is per-branch and the nav
+      // is not branch-aware.
+      { label: "Vitals queue", href: "/opd/vitals", perm: PERMISSIONS.VITALS_VIEW, icon: Activity, module: "emr", capability: "emr.vitals" },
+      // Patients who told us they are here (ADR-118). Shown wherever check-in is; the board
+      // itself explains when the hospital has self check-in switched off.
+      { label: "Arrivals", href: "/opd/arrivals", perm: PERMISSIONS.OPD_VIEW, icon: DoorOpen, module: "opd", capability: "opd.self_registration" },
       // The receiving side of in-hospital referrals (ADR-068).
       { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send, module: "opd", capability: "opd.referral" },
       // Gated by the LANDING page's permission (the dispense queue), not the broader

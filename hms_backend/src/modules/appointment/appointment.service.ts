@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { appointments, patients, providers, providerSchedules, type Appointment } from '../../db/schema';
+import { appointments, departments, patients, providers, providerSchedules, type Appointment } from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
@@ -20,6 +20,14 @@ export type BookInput = {
   durationMinutes?: number;
   reason?: string | null;
   branchId?: string | null;
+  /** Validated against this tenant and refused when retired, exactly as a visit does (ADR-050). */
+  departmentId?: string | null;
+  /**
+   * Why the patient is coming (ADR-115) — `appointment` for a first visit with this doctor,
+   * `follow_up` for a return. Carried onto the visit when the appointment is checked in, so the
+   * distinction survives the wait rather than having to be remembered at the desk.
+   */
+  arrivalType?: 'appointment' | 'follow_up' | null;
 };
 
 export type AppointmentView = {
@@ -33,6 +41,9 @@ export type AppointmentView = {
   patientUhid: string;
   providerId: string;
   providerName: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  arrivalType: string;
 };
 
 function endOf(startIso: string, durationMinutes: number): number {
@@ -60,6 +71,20 @@ export async function bookAppointment(
       await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, input.providerId))).limit(1)
     )[0];
     if (!provider) throw Errors.notFound('Provider not found');
+
+    // The department must be this hospital's own and still active — the same rule check-in
+    // applies (ADR-050). One form asking one question must not mean two different answers.
+    if (input.departmentId) {
+      const dept = (
+        await tx
+          .select({ isActive: departments.isActive })
+          .from(departments)
+          .where(and(eq(departments.tenantId, tenantId), eq(departments.id, input.departmentId)))
+          .limit(1)
+      )[0];
+      if (!dept) throw Errors.notFound('Department not found');
+      if (!dept.isActive) throw Errors.validation(undefined, 'That department is no longer active');
+    }
 
     // Roster rule (ADR-069): WHEN the provider has an active weekly roster, the booking
     // must start inside one of that weekday's windows. A provider with no roster keeps
@@ -115,6 +140,8 @@ export async function bookAppointment(
         durationMinutes: duration,
         reason: input.reason ?? null,
         branchId: input.branchId ?? null,
+        departmentId: input.departmentId ?? null,
+        arrivalType: input.arrivalType ?? 'appointment',
         createdBy: actorUserId ?? null,
       })
       .returning();
@@ -167,10 +194,14 @@ export async function listAppointments(
         patientUhid: patients.uhid,
         providerId: appointments.providerId,
         providerName: providers.fullName,
+        departmentId: appointments.departmentId,
+        departmentName: departments.name,
+        arrivalType: appointments.arrivalType,
       })
       .from(appointments)
       .innerJoin(patients, eq(patients.id, appointments.patientId))
       .innerJoin(providers, eq(providers.id, appointments.providerId))
+      .leftJoin(departments, eq(departments.id, appointments.departmentId))
       .where(where)
       .orderBy(desc(appointments.scheduledAt))
       .limit(opts.pageSize)
@@ -190,6 +221,9 @@ export async function listAppointments(
         patientUhid: r.patientUhid,
         providerId: r.providerId,
         providerName: r.providerName,
+        departmentId: r.departmentId,
+        departmentName: r.departmentName,
+        arrivalType: r.arrivalType,
       })),
       total,
     };

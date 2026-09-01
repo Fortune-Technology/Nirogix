@@ -179,8 +179,28 @@ export async function cleanupTenant(code: string): Promise<void> {
     'abdm_data_transfers', 'abdm_link_requests', 'abdm_care_contexts', 'abdm_consents', 'abdm_link_tokens', 'abdm_transactions', 'abdm_facility_config',
     'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
     'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses', 'encounters',
-    'visits', 'invoices', 'appointments', 'patients',
+    // Vitals reference the visit ON DELETE RESTRICT (ADR-113), so they go before it.
+    'patient_vitals',
+    // Referrals point at both the visit they came from and the one they were consumed by
+    // (ADR-068), also RESTRICT.
+    'referrals',
+    // Self check-in announcements reference the visit they produced and the patient they matched
+    // (ADR-118), so they clear before both.
+    'self_checkin_requests',
+    // Document attachments reference the patient, visit and case (ADR-119); the files themselves
+    // follow, now that a harness tenant can upload one.
+    'patient_documents', 'file_metadata',
+    // Cases are referenced BY visits and reference patients, so they sit between the two
+    // (ADR-116) — both directions are ON DELETE RESTRICT.
+    'visits', 'patient_cases', 'invoices', 'appointments', 'patients',
+    // Fee rules reference providers, departments and branches, all RESTRICT (ADR-117).
+    'consultation_fee_rules',
     'practitioner_roles', 'providers', 'departments',
+    // Workflow configuration references branches, so it goes before them.
+    'hospital_workflow_config',
+    // A profile row now appears whenever a public surface is switched on (ADR-118), which no
+    // harness tenant used to have.
+    'organization_profile',
     'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users',
   ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);

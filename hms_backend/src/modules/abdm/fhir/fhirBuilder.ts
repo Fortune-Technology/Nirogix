@@ -11,6 +11,7 @@ import {
   labTests,
   organizationProfile,
   patientImmunizations,
+  patientVitals,
   patients,
   prescriptions,
   providers,
@@ -164,6 +165,17 @@ async function loadContext(tenantId: string, visitId: string) {
       .from(patientImmunizations)
       .where(and(eq(patientImmunizations.tenantId, tenantId), eq(patientImmunizations.patientId, visitRow.patientId)));
 
+    // Vitals belong to the visit, not to the encounter (ADR-113): a reading taken at the desk or
+    // in the vitals room is part of this episode and travels with it. Newest first, and the newest
+    // is what the document carries — a bundle showing two contradictory blood pressures with no
+    // way to order them is worse than one showing the latest.
+    const [vitalsRow] = await tx
+      .select()
+      .from(patientVitals)
+      .where(and(eq(patientVitals.tenantId, tenantId), eq(patientVitals.visitId, visitId)))
+      .orderBy(desc(patientVitals.recordedAt))
+      .limit(1);
+
     return {
       visit: visitRow,
       patient: patientRow!,
@@ -179,6 +191,7 @@ async function loadContext(tenantId: string, visitId: string) {
       invoice: invoiceRow,
       invoiceLines: lineRows,
       immunizations: immunizationRows,
+      vitals: vitalsRow,
     };
   });
 }
@@ -442,19 +455,21 @@ function medicationResources(ctx: ClinicalContext, refs: { patient: Reference; e
 }
 
 function vitalsFor(ctx: ClinicalContext, refs: { patient: Reference; encounter: Reference }) {
-  if (!ctx.encounter) return [];
+  if (!ctx.vitals) return [];
   return vitalsObservations({
     subject: refs.patient,
     encounter: refs.encounter,
-    effective: (ctx.encounter.signedAt ?? ctx.encounter.createdAt)?.toISOString(),
+    // The time the reading was TAKEN, which is the only honest effective time for an observation.
+    // The encounter signature time would date a desk reading to when the doctor finished writing.
+    effective: ctx.vitals.recordedAt.toISOString(),
     vitals: {
-      systolic: ctx.encounter.vitalSystolic,
-      diastolic: ctx.encounter.vitalDiastolic,
-      pulse: ctx.encounter.vitalPulse,
-      respRate: ctx.encounter.vitalRespRate,
-      tempCTenths: ctx.encounter.vitalTempCTenths,
-      weightG: ctx.encounter.vitalWeightG,
-      heightCm: ctx.encounter.vitalHeightCm,
+      systolic: ctx.vitals.systolic,
+      diastolic: ctx.vitals.diastolic,
+      pulse: ctx.vitals.pulse,
+      respRate: ctx.vitals.respRate,
+      tempCTenths: ctx.vitals.tempCTenths,
+      weightG: ctx.vitals.weightG,
+      heightCm: ctx.vitals.heightCm,
     },
   });
 }

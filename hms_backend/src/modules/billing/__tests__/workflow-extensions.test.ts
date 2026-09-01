@@ -160,8 +160,17 @@ describe('referrals (ADR-068)', () => {
     await saveEncounter(tenantId, e.id, { version: e.version, diagnoses: [], prescriptions: [], labOrders: [] });
     await signEncounter(tenantId, e.id);
 
-    // Check-in against the referral: patient + department come from it.
-    const v2 = await checkIn(tenantId, { patientId: p1, providerId, referralId: ref.id, consultationFeePaise: 0 });
+    // Check-in against the referral: patient + department come from it. Charging ₹0 rather than the
+    // doctor's fee is an override (ADR-117), so this service-level call has to say it stands in for
+    // someone holding the billing.fee.override key — the HTTP layer resolves that from the session.
+    const v2 = await checkIn(tenantId, {
+      patientId: p1,
+      providerId,
+      referralId: ref.id,
+      consultationFeePaise: 0,
+      canOverrideFee: true,
+      feeOverrideReason: 'Referred internally, no second consultation fee',
+    });
     expect(v2.departmentId).toBe(deptId);
     const done = (await listReferrals(tenantId, {})).find((r) => r.id === ref.id)!;
     expect(done.status).toBe('completed');
@@ -267,7 +276,13 @@ describe('lab verification + stock corrections (ADR-070)', () => {
     if (!ready) return skip();
     // Lab: order via an encounter on a fresh patient.
     const p2 = (await createPatient(tenantId, { firstName: 'Ext', lastName: 'Two', phone: '9700000002' })).id;
-    const v = await checkIn(tenantId, { patientId: p2, providerId, consultationFeePaise: 0 });
+    const v = await checkIn(tenantId, {
+      patientId: p2,
+      providerId,
+      consultationFeePaise: 0,
+      canOverrideFee: true,
+      feeOverrideReason: 'Fixture: no consultation fee needed for this path',
+    });
     const hb = await createLabTest(tenantId, { name: 'HB Ext', pricePaise: 0 });
     const e = await getEncounterByVisit(tenantId, v.id);
     const saved = await saveEncounter(tenantId, e.id, {

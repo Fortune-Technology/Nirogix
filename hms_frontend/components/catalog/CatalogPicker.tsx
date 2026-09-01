@@ -62,7 +62,7 @@ export function CatalogPicker({
         />
       </div>
 
-      <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto" data-lenis-prevent>
+      <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
         {loading && <li className="px-3 py-6 text-center text-sm text-fg-subtle">Loading…</li>}
         {!loading && items.length === 0 && (
           <li className="px-3 py-6 text-center text-sm text-fg-subtle">No matches in the catalogue.</li>

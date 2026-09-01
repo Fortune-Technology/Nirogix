@@ -91,7 +91,7 @@ This document states rules only. For the architecture each rule is derived from,
 - **No application calls an API outside its audience.** The admin console holds no clinical call; the Portal holds no platform-administration call. An operator works inside a hospital through an audited support session on the *Portal's* origin, never by rendering clinical screens on the platform origin.
 - **No cross-application session.** The refresh cookie is host-only on the API; each origin is listed individually in `CORS_ORIGINS` per environment; nothing sets `Domain=.nirogix.com`.
 - **A token never travels in a URL.** The support-session handoff uses `postMessage` with both sides naming the other's origin from configuration.
-- **No development credential appears in any frontend source or bundle.** Seed accounts live in `hms_backend/src/scripts/seed.ts` and `testcases.md`.
+- **No development credential appears in any frontend source or bundle.** Seed accounts live in `hms_backend/src/scripts/seed.development.ts` and `testcases.md`.
 - **The design system is the only thing shared by copy or import.** `@hms/ui`, `@hms/types` and `@hms/permissions` are shared; business logic is not.
 
 **Public (unauthenticated) endpoints (binding — ADR-056).** There is one unauthenticated write path in the product and there must not casually be a second. Any endpoint that accepts a request without a session obeys all of:

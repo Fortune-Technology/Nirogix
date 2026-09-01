@@ -88,6 +88,15 @@ export const organizationProfile = pgTable(
      */
     onlineBookingEnabled: boolean('online_booking_enabled').notNull().default(false),
     onlineBookingToken: varchar('online_booking_token', { length: 64 }),
+    /**
+     * Patient self check-in (ADR-118) — the third and, deliberately, last surface built to the
+     * ADR-056 pattern. Its own token and toggle, so retiring the poster at the entrance does not
+     * disturb the registration or booking QR codes.
+     *
+     * Off by default. A hospital opts in.
+     */
+    selfCheckinEnabled: boolean('self_checkin_enabled').notNull().default(false),
+    selfCheckinToken: varchar('self_checkin_token', { length: 64 }),
     // Optimistic locking, same shape as tenant_branding.
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -101,6 +110,8 @@ export const organizationProfile = pgTable(
     regTokenUnique: unique('organization_profile_reg_token_unique').on(t.selfRegistrationToken),
     // Same rule for the public booking token.
     bookingTokenUnique: unique('organization_profile_booking_token_unique').on(t.onlineBookingToken),
+    // Same rule again: the public check-in endpoint resolves a tenant FROM this token.
+    checkinTokenUnique: unique('organization_profile_checkin_token_unique').on(t.selfCheckinToken),
   }),
 );
 

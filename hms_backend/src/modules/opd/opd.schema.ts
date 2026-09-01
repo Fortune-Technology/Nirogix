@@ -1,4 +1,5 @@
 import { z } from '../../openapi/registry';
+import { VitalsBody } from '../workflow/workflow.schema';
 
 // ---- Requests --------------------------------------------------------------
 
@@ -11,11 +12,33 @@ export const CheckInBody = z
     /** Deprecated free-text department — send `departmentId` instead (ADR-050). */
     department: z.string().max(80).nullable().optional(),
     departmentId: z.string().uuid().nullable().optional(),
-    reason: z.string().max(500).nullable().optional(),
+    reason: z.string().max(2000).nullable().optional(),
     /** Optional override — omitted, the provider's configured default fee applies. */
     consultationFeePaise: z.number().int().min(0).nullable().optional(),
+    /** Required whenever the amount differs from what the fee schedule calculated (ADR-117). */
+    feeOverrideReason: z.string().max(300).nullable().optional(),
     /** Check in against a pending referral — patient/department/provider default from it. */
     referralId: z.string().uuid().nullable().optional(),
+    /**
+     * Readings taken at the desk. Accepted only when this hospital collects vitals during
+     * check-in (ADR-113); the server checks the mode, so a client cannot opt itself in.
+     */
+    vitals: VitalsBody.nullable().optional(),
+    /**
+     * How the patient arrived (ADR-115). One workflow books and checks in; this is the variable
+     * that distinguishes what it produced.
+     */
+    arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).nullable().optional(),
+    /**
+     * Check in under an existing open treatment case, or open a new one (ADR-116). Mutually
+     * exclusive — sending both is a client that has not decided, and the service refuses rather
+     * than guessing which was meant.
+     */
+    caseId: z.string().uuid().nullable().optional(),
+    newCase: z
+      .object({ title: z.string().min(2).max(200), notes: z.string().max(2000).nullable().optional() })
+      .nullable()
+      .optional(),
   })
   .openapi('CheckInBody');
 
@@ -58,6 +81,12 @@ export const VisitSchema = z
     tokenNumber: z.number(),
     visitDate: z.string(),
     visitType: z.string(),
+    arrivalType: z.string(),
+    caseId: z.string().uuid().nullable(),
+    calculatedFeePaise: z.number().int().nullable(),
+    feeOverrideReason: z.string().nullable(),
+    caseNumber: z.string().nullable(),
+    caseTitle: z.string().nullable(),
     status: z.string(),
     version: z.number(),
     department: z.string().nullable(),

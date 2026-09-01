@@ -23,6 +23,7 @@ import { RequirePermission, Can } from "../../../../components/Can";
 import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
 import { PatientHistory } from "../../../../components/patients/PatientHistory";
 import { ImmunizationsCard } from "../../../../components/patients/ImmunizationsCard";
+import { CasesCard } from "../../../../components/patients/CasesCard";
 import { ExternalHistoryCard } from "../../../../components/patients/ExternalHistoryCard";
 import { PageHeader } from "../../../../components/PageHeader";
 
@@ -221,6 +222,7 @@ function Profile({ id }: { id: string }) {
       {!editing && (
         <Can perm={PERMISSIONS.IMMUNIZATION_VIEW}>
           <ImmunizationsCard patientId={p.id} />
+          <CasesCard patientId={p.id} />
         </Can>
       )}
       {/* Records from OTHER hospitals, held on loan under the patient's consent (ADR-092…094).

@@ -16,7 +16,8 @@ import { seedReferenceCatalog } from '../modules/catalog/catalog.service';
 import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
 
 /**
- * The production seeder (ADR-058).
+ * **The production seeder** (ADR-058, ADR-114). One file, one environment — the third and
+ * last of the three seeders, and the only one production will ever run.
  *
  * **Bootstrap configuration only.** The permission catalogue, the specialty catalogue,
  * the system roles, and — only when explicitly asked for — the vendor's own PLATFORM
@@ -27,6 +28,16 @@ import { requireEnvironment, describeTarget, SeedRefused } from './seedGuard';
  * invoice, or any other record describing a person or a place. Those are created by
  * real people through the product, and a seeded one is indistinguishable from a real
  * one a week later.
+ *
+ * Two things this file deliberately does NOT have, and must not grow:
+ *
+ * - **It does not import the demo-data engine.** `seedKit.ts` builds hospitals, patients and
+ *   clinical histories; production has no use for any of it, so the import is absent rather
+ *   than merely unused. There is no flag, no environment variable and no code path here that
+ *   reaches demo data.
+ * - **It has no `--reset`.** The development and staging seeders can empty their database and
+ *   start again. Production data is the hospital's clinical record; nothing in this repository
+ *   is allowed to truncate it.
  *
  * Run it as:
  *

@@ -17,6 +17,8 @@ export { Field } from './components/Input';
 export type { FieldProps } from './components/Input';
 export { Textarea } from './components/Textarea';
 export type { TextareaFieldProps } from './components/Textarea';
+export { Select } from './components/Select';
+export type { SelectOption, SelectProps } from './components/Select';
 export { PasswordField } from './components/PasswordField';
 export type { PasswordFieldProps } from './components/PasswordField';
 export { Card } from './components/Card';

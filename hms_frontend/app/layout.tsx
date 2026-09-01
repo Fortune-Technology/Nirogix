@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@hms/ui/styles.css";
 import "./globals.css";
-import { BackToTop, LottiePreloader, SmoothScroll, Toaster } from "@hms/ui";
+import { BackToTop, LottiePreloader, Toaster } from "@hms/ui";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -58,10 +58,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full">
         <Providers>
           <LottiePreloader src="/animations/ambulance.json" tintCssVar="--hms-brand" />
-          <SmoothScroll>
-            {children}
-            <BackToTop />
-          </SmoothScroll>
+          {/* Native scrolling (ADR-111). Lenis is the marketing site's alone: on a
+              working screen a hijacked scroll fights the browser over long tables,
+              tall forms and anything with its own overflow, and the failures it
+              causes are the kind where a page simply will not scroll. */}
+          {children}
+          <BackToTop />
           {/* The one API-feedback surface for the Portal (ADR-026). */}
           <Toaster />
         </Providers>

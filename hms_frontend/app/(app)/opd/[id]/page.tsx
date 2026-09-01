@@ -6,13 +6,33 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Mic, MicOff, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { Department, Drug, Encounter, EncounterSummary, Icd10Code, LabTest, Provider, Referral, SaveEncounterRequest, Visit } from "@hms/types";
-import { formatDate, formatDateTime } from "@hms/utils";
+import type {
+  Department,
+  Drug,
+  Encounter,
+  EncounterSummary,
+  HospitalWorkflowConfig,
+  Icd10Code,
+  LabTest,
+  Provider,
+  Referral,
+  SaveEncounterRequest,
+  Visit,
+} from "@hms/types";
+import { formatDate, formatDateTime, formatTime } from "@hms/utils";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
 import { useCan } from "../../../../lib/auth";
 import { formatPaise } from "../../../../lib/money";
+import {
+  EMPTY_VITALS,
+  VITALS_STAGE_LABEL,
+  VitalsFields,
+  summariseVitals,
+  toVitalsPayload,
+  type VitalsDraft,
+} from "../../../../components/vitals/VitalsFields";
 
 /**
  * Voice dictation (ADR-070): the browser's own speech recognition appends into a text
@@ -80,16 +100,6 @@ type RxRow = {
 };
 type LabRow = { id: string | null; testId: string | null; testName: string; testCode: string; priority: string; status: string };
 
-const VITAL_FIELDS: Array<{ key: string; label: string; step?: string }> = [
-  { key: "systolic", label: "BP systolic" },
-  { key: "diastolic", label: "BP diastolic" },
-  { key: "pulse", label: "Pulse (bpm)" },
-  { key: "spo2", label: "SpO₂ (%)" },
-  { key: "respRate", label: "Resp. rate" },
-  { key: "tempC", label: "Temp (°C)", step: "0.1" },
-  { key: "weightKg", label: "Weight (kg)", step: "0.1" },
-  { key: "heightCm", label: "Height (cm)" },
-];
 
 function numOrNull(s: string): number | null {
   const n = Number(s);
@@ -105,7 +115,10 @@ function Consultation({ visitId }: { visitId: string }) {
 
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [soap, setSoap] = useState({ subjective: "", objective: "", assessment: "", plan: "" });
-  const [vitals, setVitals] = useState<Record<string, string>>({});
+  const [vitals, setVitals] = useState<VitalsDraft>(EMPTY_VITALS);
+  // Which vitals this hospital collects, and which it insists on. A doctor amending one reading
+  // is never held to the full required list — that is the desk's obligation, not a clinician's.
+  const [workflow, setWorkflow] = useState<HospitalWorkflowConfig | null>(null);
   const [dx, setDx] = useState<DxRow[]>([]);
   const [rx, setRx] = useState<RxRow[]>([]);
   const [lab, setLab] = useState<LabRow[]>([]);
@@ -140,6 +153,8 @@ function Consultation({ visitId }: { visitId: string }) {
     setEnc(e);
     setChiefComplaint(e.chiefComplaint ?? "");
     setSoap({ subjective: e.subjective ?? "", objective: e.objective ?? "", assessment: e.assessment ?? "", plan: e.plan ?? "" });
+    // Seeded from the latest reading on the VISIT — which may be one the front desk or the vitals
+    // room took, not one this encounter recorded. Saving an unchanged set writes nothing new.
     const v = e.vitals;
     setVitals({
       systolic: v.systolic?.toString() ?? "",
@@ -150,6 +165,8 @@ function Consultation({ visitId }: { visitId: string }) {
       tempC: v.tempC?.toString() ?? "",
       weightKg: v.weightKg?.toString() ?? "",
       heightCm: v.heightCm?.toString() ?? "",
+      bloodSugarMgDl: v.bloodSugarMgDl?.toString() ?? "",
+      bloodSugarType: v.bloodSugarType ?? "",
     });
     setDx(e.diagnoses.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary })));
     setRx(
@@ -235,8 +252,8 @@ function Consultation({ visitId }: { visitId: string }) {
     setAiNote(null);
     try {
       const vitalsSummary = Object.entries(vitals)
-        .filter(([, v]) => v.trim() !== "")
-        .map(([k, v]) => `${k}: ${v}`)
+        .filter(([, v]) => String(v).trim() !== "")
+        .map(([k, v]) => `${k}: ${String(v)}`)
         .join(", ");
       const res = await api.aiPrescriptionDraft({
         chiefComplaint: chiefComplaint || null,
@@ -289,14 +306,7 @@ function Consultation({ visitId }: { visitId: string }) {
       assessment: soap.assessment || null,
       plan: soap.plan || null,
       vitals: {
-        systolic: numOrNull(vitals.systolic ?? ""),
-        diastolic: numOrNull(vitals.diastolic ?? ""),
-        pulse: numOrNull(vitals.pulse ?? ""),
-        spo2: numOrNull(vitals.spo2 ?? ""),
-        respRate: numOrNull(vitals.respRate ?? ""),
-        tempC: numOrNull(vitals.tempC ?? ""),
-        weightKg: numOrNull(vitals.weightKg ?? ""),
-        heightCm: numOrNull(vitals.heightCm ?? ""),
+        ...toVitalsPayload(vitals),
       },
       diagnoses: dx.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary })),
       // Existing rows keep their id so the server updates in place; rows the pharmacy or lab
@@ -422,21 +432,36 @@ function Consultation({ visitId }: { visitId: string }) {
 
       {error && <Alert tone="danger">{error}</Alert>}
 
-      <Card header="Vitals">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {VITAL_FIELDS.map((f) => (
-            <Field
-              key={f.key}
-              label={f.label}
-              type="number"
-              step={f.step}
-              value={vitals[f.key] ?? ""}
-              disabled={disabled}
-              onChange={(e) => setVitals((v) => ({ ...v, [f.key]: e.target.value }))}
-            />
-          ))}
-        </div>
-      </Card>
+      {workflow?.vitalsMode !== "disabled" && (
+        <Card header="Vitals">
+          {/* Readings taken earlier in the workflow, with who took each and when — a reading is
+              read differently depending on where in the visit it was measured. */}
+          {enc && enc.vitalsHistory.length > 0 && (
+            <ul className="mb-4 flex flex-col gap-1 rounded-token border border-border bg-surface-2 p-3">
+              {enc.vitalsHistory.slice(0, 4).map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+                  <Badge tone={r.stage === "consultation" ? "brand" : "neutral"}>{VITALS_STAGE_LABEL[r.stage]}</Badge>
+                  <span className="text-fg">{summariseVitals(r)}</span>
+                  <span className="ml-auto">
+                    {r.recordedByName ? `${r.recordedByName} · ` : ""}
+                    {formatTime(r.recordedAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <VitalsFields
+            value={vitals}
+            onChange={setVitals}
+            // A clinician is offered every parameter the hospital collects, none of them forced:
+            // the required list exists so the DESK cannot skip a reading, and holding a doctor to
+            // it would block them correcting one number.
+            required={[]}
+            optional={[...(workflow?.vitalsRequiredParams ?? []), ...(workflow?.vitalsOptionalParams ?? [])]}
+            disabled={disabled}
+          />
+        </Card>
+      )}
 
       <Card header="Notes (SOAP)">
         <div className="flex flex-col gap-4">

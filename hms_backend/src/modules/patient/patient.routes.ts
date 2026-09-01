@@ -6,6 +6,7 @@ import { requireAuth } from '../../http/requireAuth';
 import { requireModule } from '../../http/requireModule';
 import { requirePermission } from '../../http/requirePermission';
 import { CreatePatientBody, UpdatePatientBody } from './patient.schema';
+import { ArchiveDocumentBody, AttachDocumentBody } from './document.schema';
 import * as c from './patient.controller';
 
 // Patient Management (MVP 0). The first real business module through the full authz chain:
@@ -44,4 +45,38 @@ patientRouter.patch(
   requirePermission(PERMISSIONS.PATIENT_UPDATE),
   validate({ body: UpdatePatientBody }),
   asyncHandler(c.updatePatient),
+);
+
+/**
+ * Documents attached to a patient (ADR-119). Gated on the FILE permissions rather than a new pair:
+ * the question "may this person see and add documents?" is the one `file.document.view` and
+ * `file.document.upload` already answer, and the front desk holds both because handing over a
+ * referral letter at the counter is front-desk work.
+ *
+ * The upload itself is still `POST /files` — this records what the file is about.
+ */
+patientRouter.get(
+  '/patients/:id/documents',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.FILE_VIEW),
+  asyncHandler(c.listDocuments),
+);
+patientRouter.post(
+  '/patients/:id/documents',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.FILE_UPLOAD),
+  validate({ body: AttachDocumentBody }),
+  asyncHandler(c.attachDocument),
+);
+// Archiving an attachment is a correction, not a deletion — the file itself is untouched, which
+// is why this is not gated on FILE_DELETE.
+patientRouter.post(
+  '/patients/:id/documents/:docId/archive',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.FILE_UPLOAD),
+  validate({ body: ArchiveDocumentBody }),
+  asyncHandler(c.archiveDocument),
 );

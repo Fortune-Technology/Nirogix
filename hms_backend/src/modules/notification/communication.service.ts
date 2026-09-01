@@ -86,16 +86,25 @@ export async function sendOtp(input: SendOtpInput): Promise<void> {
   });
 
   const what = purpose ? `${purpose} code` : 'verification code';
-  const body = `Your Nirogix ${what} is ${code}. It expires in 10 minutes.`;
 
   if (channel === 'sms') {
-    // The SMS carries the DLT-registered template id from configuration (ADR-016). The
-    // log provider ignores it (dev); the MSG91 provider needs it, and Indian SMS is
-    // rejected without a registered template. NOTE for go-live: MSG91's flow API maps the
-    // code into the template's variable — verify the exact variable name against the
-    // approved DLT template and adjust `Msg91SmsProvider.sendSms` if it differs from `body`.
-    await sendSms({ tenantId, to: destination, body, templateId: env.MSG91_OTP_TEMPLATE_ID });
+    // This wording is the text registered on DLT against the NIROGX header
+    // (docs/dlt-sms-onboarding.md §4) and must not drift from it: an Indian operator rejects a
+    // message that does not match its registered template. That is also why `purpose` is not used
+    // here — it would vary the text, and one registered template cannot cover a message that
+    // changes per call. Only the code travels, as the flow's single variable; the template id and
+    // that variable's name both come from configuration (ADR-016), because MSG91 assigns them.
+    const body = `Your Nirogix verification code is ${code}. Valid for 10 minutes. Do not share it with anyone.`;
+    await sendSms({
+      tenantId,
+      to: destination,
+      body,
+      templateId: env.MSG91_OTP_TEMPLATE_ID,
+      variables: { [env.MSG91_OTP_TEMPLATE_VAR ?? 'var1']: code },
+    });
   } else {
+    // Email is not DLT-governed, so it keeps the friendlier, purpose-aware wording.
+    const body = `Your Nirogix ${what} is ${code}. It expires in 10 minutes.`;
     await sendEmail({ tenantId, to: destination, subject: `Your Nirogix ${what}`, body });
   }
 }

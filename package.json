@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "install:all": "npm install",
+    "prepare": "node scripts/setup-hooks.mjs",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -34,7 +35,8 @@
     "openapi:generate": "turbo run openapi:generate",
     "openapi:validate": "turbo run openapi:validate",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore"
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "env:check": "node scripts/env-check.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

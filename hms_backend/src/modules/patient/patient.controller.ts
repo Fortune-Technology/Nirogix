@@ -3,6 +3,8 @@ import { Errors } from '../../http/error';
 import { paginate } from '../../http/respond';
 import { ListPatientsQuery } from './patient.schema';
 import * as svc from './patient.service';
+import * as docSvc from './document.service';
+import { ListDocumentsQuery } from './document.schema';
 import { toPatientDto } from './patient.dto';
 import type { Patient } from '../../db/schema';
 
@@ -39,4 +41,33 @@ export async function getPatient(req: Request, res: Response): Promise<void> {
 export async function updatePatient(req: Request, res: Response): Promise<void> {
   const p = await svc.updatePatient(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId);
   res.json(toPatient(p));
+}
+
+// ---- Documents attached to a patient (ADR-119) -----------------------------
+
+export async function listDocuments(req: Request, res: Response): Promise<void> {
+  const q = ListDocumentsQuery.parse(req.query);
+  res.json(
+    await docSvc.listDocuments(req.auth!.tenantId, {
+      patientId: req.params.id!,
+      caseId: q.caseId,
+      includeArchived: q.includeArchived,
+    }),
+  );
+}
+
+export async function attachDocument(req: Request, res: Response): Promise<void> {
+  res
+    .status(201)
+    .json(
+      await docSvc.attachDocument(
+        req.auth!.tenantId,
+        { patientId: req.params.id!, ...req.body },
+        req.auth!.userId,
+      ),
+    );
+}
+
+export async function archiveDocument(req: Request, res: Response): Promise<void> {
+  res.json(await docSvc.archiveDocument(req.auth!.tenantId, req.params.docId!, req.body, req.auth!.userId));
 }

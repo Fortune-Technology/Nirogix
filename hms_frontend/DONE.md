@@ -959,3 +959,207 @@ reported as a success, because it is one.
 Not verified against the live registry: HFR update has never run (HFR publishes no update endpoint —
 re-running the wizard against the stored tracking id is inferred from its statefulness), and the HPR
 Aadhaar chain still mints real national identities and so is still stubbed in tests.
+
+## 2026-09-01 — Check-in: register a patient without leaving the page; real dropdowns; native scroll
+
+**What:**
+
+- **`components/patients/PatientPicker.tsx`** — search a patient or register one in a dialog, without
+  leaving the workflow. The typed search text seeds the new record (a number becomes the phone, text
+  becomes the name), the new chart is selected the instant it exists, and the half-filled visit form
+  underneath survives. A `DUPLICATE_PATIENT` 409 switches the dialog to the matching charts with
+  **Use this patient** as the primary action; registering anyway stays available. Hidden entirely
+  without `patient.create`. Used by both check-in and appointment booking, which removes the
+  duplicated patient-search block that existed in each.
+- **Check-in** now uses the shared `Select` for department and provider — the provider option carries
+  the speciality underneath and the fee on the right, so the desk quotes the fee as it picks the
+  doctor — and a real `Textarea` for the chief complaint (four rows, 2000 characters, counter). The
+  patient is locked when it arrived from an appointment or a referral, because the server takes it
+  from that record regardless.
+- **Dropdowns converted** along the patient journey: check-in, appointment booking (provider,
+  duration, and the reason field promoted to a textarea), the appointment-request queue (status,
+  doctor), the OPD queue status filter, and the billing service picker.
+- **Native scrolling (ADR-111).** `SmoothScroll` removed from the root layout, `lenis` dropped from
+  the app dependencies, the now-meaningless `data-lenis-prevent` markers removed from the two
+  Portal-only scroll regions, and the shell moved to `dvh` units so a phone with collapsing browser
+  chrome does not get a sidebar taller than the viewport.
+
+**Testing status:** monorepo typecheck green (13/13 tasks). Backend suite 617 tests, all passing —
+including the rewritten OPD critical-path case (see `hms_backend/DONE.md`). Browser-verified: no
+Lenis on the Portal after hydration, `--hms-text-xs` live. The check-in screen itself needs a signed-in
+session and was not visually verified in this session; cases CHK-01…CHK-08 and SEL-01…SEL-10 in
+`testcases.md` cover it.
+
+## 2026-09-01 — Workflow configuration screen, desk vitals, and the vitals queue (ADR-113)
+
+**What:**
+
+- **Hospital configuration → Workflow** — where vitals are recorded, which parameters are required or
+  merely offered, and when the consultation fee must be settled. Scoped to the whole organization or
+  to one hospital, and it says plainly which of those the numbers on screen came from: a branch
+  following the organization default is told so, and told that saving creates an override.
+- **`components/vitals/VitalsFields.tsx`** — one component for all three places a reading is taken.
+  Blood pressure is one control with two numbers, because nobody records half of one. Which fields
+  appear comes from the configuration; the units, bounds and labels do not vary by where the staff
+  member is standing.
+- **Check-in** grows a Vitals section, but only under `during_checkin`. Until the configuration
+  loads nothing is shown — guessing and then removing fields under the user is worse than a moment
+  without them.
+- **`/opd/vitals`** — the vitals queue. Derived from the visits, so it cannot drift from the OPD
+  board. A recorded entry stays on the list marked done, because the nurse needs to see what they
+  finished and be able to re-take a reading they doubt. The dialog opens **blank** even when a
+  reading exists: pre-filling it invites saving numbers nobody took.
+- **The consultation** shows the trail — each earlier reading with where it was taken, by whom and
+  when — above a pre-filled latest. No vital is marked required there: the required list exists so
+  the desk cannot skip a reading, and holding a clinician to it would block them correcting one
+  number.
+- A hospital on a different workflow gets an explanation and a link to the setting, never an empty
+  table it has to interpret.
+
+**Testing status:** monorepo typecheck green (13/13). 832 tests pass across the workspaces. The
+screens themselves need a signed-in session and were not visually verified in this session; cases
+WF-01…WF-09, VIT-01…VIT-20 and PAY-01…PAY-05 in `testcases.md`, and §3.9a–c / §5.2a / §5.2b / §6b /
+§7.3a in `docs/manual-testing-guide.md`, cover them.
+
+## 2026-09-01 — Check-in and booking are one form (ADR-115)
+
+**What:** `components/visit/VisitWorkflow.tsx` replaces both forms. `/opd/check-in` and
+`/appointments/new` are now three lines each: the same component, a different starting timing.
+
+They were two screens asking almost exactly the same questions and differing in one — **when** — so
+timing became a control inside the form rather than a choice of page. Switching keeps every shared
+answer and resets only the half that no longer applies; a desk that has typed a patient, a doctor
+and a paragraph of chief complaint does not lose it by deciding the patient should come back
+Tuesday.
+
+The routes stay because the navigation, the OPD queue, the patient chart, the referral worklist and
+everyone's bookmarks link to them, and because their permissions differ. The **When** control is
+offered only to someone holding both, and is hidden entirely when the patient arrived from a booked
+appointment or a pending referral — neither can become a future booking, so a toggle there would be
+a control that cannot work.
+
+The merged form is an assembly of pieces that already existed rather than a fourth place they are
+re-implemented: `PatientPicker` for the patient step, `Select` for every dropdown (ADR-112),
+`VitalsFields` for the desk vitals (ADR-113), `Textarea` for the complaint.
+
+**Not built, deliberately:** the requested `caseType: NEW | EXISTING` control. Cases do not exist in
+the data model, and a dropdown offering a choice nothing can store is worse than its absence.
+
+**Testing status:** monorepo typecheck 13/13; **842 tests pass**. The merged form needs a signed-in
+session and was not visually verified here; both routes were confirmed to compile and auth-guard.
+Cases UNI-01…UNI-12 and ARR-01…ARR-07 in `testcases.md`, and §5.2c / §5.2d in
+`docs/manual-testing-guide.md`, cover it.
+
+## 2026-09-01 — Choosing a treatment case at check-in, and managing one from the chart (ADR-116)
+
+**What:**
+
+- **`components/visit/CasePicker.tsx`**, inside the unified visit workflow. Three answers: no case
+  (the default, because most visits are one-offs), an existing open case, or a new one. **The
+  patient's open cases load the instant a patient is chosen** and are named in a panel above the
+  control — accidental duplicates come from not knowing a case is already open, so the fix is to
+  make it impossible to miss rather than to refuse the second one. Setting **Visit type =
+  Follow-up** preselects the most recent open case, which is what a follow-up almost always is.
+  Changing the patient clears the choice; the server would refuse it anyway.
+- **`components/patients/CasesCard.tsx`** on the chart: open cases first, closed ones kept below
+  **with the reason they closed** — "why did this stop?" is a question people ask months later.
+  Opening a case warns when one is already open; closing demands a reason; reopening confirms
+  through the shared `ConfirmDialog` and explains why reopening beats starting a second case.
+- **The OPD queue gained a Case column** — the title and the `C-` number. That is the answer to
+  "why is this patient back?", which the board could not previously give.
+
+**Testing status:** monorepo typecheck 13/13; **861 tests pass**. The screens need a signed-in
+session and were not visually verified here. Cases CAS-01…CAS-22 in `testcases.md`, and §5.2e /
+§5.2f in `docs/manual-testing-guide.md`, cover them.
+
+## 2026-09-01 — The fee is quoted from the price list, not typed (ADR-117)
+
+**What:**
+
+- **Hospital configuration → Fee schedule.** Rules listed **most specific first**, in the order the
+  server applies them, each row saying what it matches on — a hospital writing "cardiology is ₹600"
+  and also "Dr Sharma is ₹800" has to be able to predict the winner without reading documentation.
+  An empty list is explained, not treated as an error: it means every consultation is charged the
+  doctor's own fee, which is what the product did before. Retiring is offered; deleting is not.
+- **Check-in shows the fee as a stated amount**, re-priced live as the doctor, department or visit
+  type changes, with a badge naming where the number came from. The free-text fee box is gone —
+  a blank field with a placeholder reads as an invitation to type something else, which is how the
+  policy ended up in a receptionist's head in the first place.
+- **"Charge a different amount"** appears only for someone holding `billing.fee.override`, and
+  demands a reason before it will submit. The server checks both again.
+
+**Testing status:** monorepo typecheck 13/13; **880 tests pass**. The screens need a signed-in
+session and were not visually verified here. Cases FEE-01…FEE-17 and OVR-01…OVR-07 in
+`testcases.md`, and §3.9a1–5 / §5.2g / §5.2h in `docs/manual-testing-guide.md`, cover them.
+
+## 2026-09-01 — The Arrivals board, and the self check-in poster (ADR-118)
+
+**What:**
+
+- **`/opd/arrivals`** — patients who have said they are here. A matched arrival shows the
+  appointment it belongs to and checks in with one click; an **unmatched** one stays on the board
+  marked *Needs a human*, with no check-in action and a pointer to the search screen. Dropping it
+  would be hiding a person standing in the lobby because a lookup failed.
+  *Already checked in* appears where a colleague beat the kiosk to it, turning a confusing double
+  entry into an obvious dismissal.
+- **Hospital configuration → Self check-in**, and a printable poster, both built as configurations
+  of the same `PublicAccessPanel` / `PublicQrPoster` / `usePublicQr` the registration and booking
+  surfaces already use. Third instance of one pattern, not a third implementation.
+- **The patient app kiosk page** (`patient/app/(public)/check-in/[token]`): one field, and copy that
+  is honest twice over — it says the desk will confirm, and it never claims to have found you,
+  because the endpoint deliberately cannot tell it whether it did.
+
+**Testing status:** monorepo typecheck 13/13; **900 tests pass**. The screens need a signed-in
+session (or a live token) and were not visually verified here. Cases SCI-01…SCI-20 in
+`testcases.md`, and §3.9a0 / §5.2i / §5.2j in `docs/manual-testing-guide.md`, cover them.
+
+## 2026-09-01 — The patient's record beside the check-in form (ADR-119)
+
+**What:** the existing `PatientHistory` **extended**, not duplicated — it already showed visits,
+signed consultations, invoices and lab orders on the chart, each permission-gated. It gained a
+`rail` layout (one column, newest four per block), a Cases block, a Documents block, and now renders
+beside the check-in form.
+
+**The gating is the substance.** The same component now renders for a receptionist at the desk and a
+doctor in the consultation, and they must not see the same thing. Reception sees cases, visits,
+bills and documents; the **Consultations** block carries chief complaints and ICD-10 diagnoses,
+requires `emr.encounter.view`, and is simply absent without it. The absence is not the boundary —
+the API refuses reception either way.
+
+**Only this hospital's records.** External history is ABDM territory: consent-gated and requested by
+a named clinician from the chart (ADR-092). Pulling it into a desk-side panel because someone walked
+up would defeat that consent, so the panel does not, and the code says why.
+
+- `PatientDocumentsCard` is shared by the chart and the rail. Attaching is two steps underneath and
+  one to the user; the title defaults to the filename, because a list of untitled rows is unusable.
+  Archiving demands a reason and keeps the row.
+- Two columns on a wide screen, stacked below the form on anything narrower. **The form keeps its
+  own readable width rather than stretching** — a check-in form as wide as a 27-inch monitor is
+  harder to fill in, not easier.
+- The Cases block is rail-only: the chart already has `CasesCard`, which manages cases rather than
+  listing them, and two cases blocks on one page is duplication rather than richness.
+
+**Testing status:** monorepo typecheck 13/13; **913 tests pass**. The panel needs a signed-in session
+and was not visually verified here. Cases HIS-01…HIS-09 and DOC-01…DOC-12 in `testcases.md`, and
+§5.2h1 / §5.2h2 in `docs/manual-testing-guide.md`, cover it.
+
+## 2026-09-01 — Consent status in the check-in rail (ADR-120)
+
+**What:** `components/patients/ConsentStatusCard.tsx`, in the check-in side panel.
+
+It shows **a state, never a record**: waiting on the patient, granted (and until when), declined,
+lapsed, or a technical failure — with no source hospital, no record count and no requesting
+clinician, because the desk needs none of those to tell a waiting patient what is happening.
+
+It also states the thing people get wrong about ABDM, in the place the misunderstanding would
+matter: **asking is a doctor's job**, because the request carries their registration number to the
+patient. The desk can see that nothing has been asked; it cannot ask.
+
+Where the hospital is not entitled to external history the API 403s and the card renders **nothing**
+— silence rather than an error toast, because advertising a feature a hospital has not bought is
+worse than saying nothing at all. Rail-only: the chart has `ExternalHistoryCard`, which shows the
+records themselves to whoever may read them.
+
+**Testing status:** monorepo typecheck 13/13; **926 tests pass**. The card needs a signed-in session
+and was not visually verified here. Cases CST-01…CST-12 in `testcases.md`, and §5.2h1b in
+`docs/manual-testing-guide.md`, cover it.
