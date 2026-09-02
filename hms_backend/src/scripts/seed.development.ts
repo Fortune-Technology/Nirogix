@@ -265,6 +265,19 @@ export const DEVELOPMENT_DATASET: SeedDataset = {
         { firstName: 'Unknown', lastName: 'Caller', phone: '9148330066', decision: 'rejected', rejectionReason: 'Could not be reached to confirm' },
         { firstName: 'Manisha', lastName: 'Yadav', phone: '9148550077', decision: 'rejected', rejectionReason: 'Requested department is not available at this branch' },
       ],
+      // The Arrivals board has no other way to get a row — an arrival comes from a patient
+      // scanning a QR, which no seeder can do and no history leaves behind (ADR-133).
+      selfCheckin: true,
+      // A separate vitals step: the Vitals queue only has rows in this mode (ADR-133), and the
+      // hospital's own consultation and case words give the fee schedule and the check-in form
+      // something to offer.
+      workflow: {
+        vitalsMode: 'after_checkin',
+        vitalsRequiredParams: ['bloodPressure'],
+        vitalsOptionalParams: ['pulse', 'tempC', 'weightKg', 'spo2'],
+        consultationTypes: ['First OPD', 'Review', 'Teleconsultation', 'Procedure'],
+        caseTypes: ['Corporate', 'Insurance', 'Camp', 'Medico-legal'],
+      },
       story: { historyDays: 42, visitsPerDay: 3, futureDays: 14, futureAppointments: 12 },
     },
 

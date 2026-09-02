@@ -1453,3 +1453,42 @@ condition rather than a flag the mock always set. **307 ABDM tests pass, 48 in M
 
 **Not verified live.** These came from captured sandbox traces and are proved against the mock; the
 local backend is `ABDM_PROVIDER=gateway` and a real run needs a real Aadhaar and a live OTP.
+
+## 2026-09-02 — The OPD board stopped being seeded for one particular Tuesday (ADR-133)
+
+Reported as "staging has no data". It was not volume. Three screens were empty, each for its own
+reason, and the same three were empty on a developer machine seeded last week — the reporter's own
+dashboard showed *In the queue now 0 · Seen today 0* above six weeks of history.
+
+**The OPD queue, "in the queue now" and "seen today" are relative to the day the seeder ran.**
+`seedTodayQueue` builds its ten live visits at `dayOffset(0, …)`, and the clinical story runs once
+per tenant (ADR-122), so it never rebuilt. Staging is seeded on deployment and then left: from the
+next morning the board was blank until somebody reset the environment.
+
+It is now **extracted from the story and run on every seed**, guarded on the only question that
+matters — *does this hospital already have a visit dated today?* Nothing else. Re-running is free,
+a queue somebody is working through is untouched, and a QA environment has a live board every
+morning rather than on the morning it was deployed. The story writes a past and a past is written
+once; the board is the present, and the present moves.
+
+**The Vitals queue was empty in every environment, always** — it only has rows under
+`vitalsMode: 'after_checkin'`, and no dataset ever set a workflow configuration. Datasets can now
+declare `workflow` (typed as the service's own input minus the version, rather than a hand-copied
+union), and both busy hospitals run a separate vitals step and carry consultation and case
+vocabularies.
+
+**The Arrivals board was empty in every environment and could not be otherwise** — an arrival comes
+from a patient scanning a QR, which no seeder performs and no history leaves behind. Two are now
+seeded with the queue and refreshed the same way.
+
+**A collision degrades rather than aborts.** The first version of this died on
+`The provider already has an appointment in this time slot`, because a scattered future appointment
+had landed on today. A taken slot now makes that patient a walk-in, a patient already in the OPD is
+skipped, and an arrival whose booking fails is announced without one — each counted in the report.
+
+**Verified on a database seeded days earlier:** OPD queue 0 → **10 rows across every workflow
+state**, Vitals queue → **3 waiting**, Arrivals → **2 ready to check in**; a second run the same day
+reported `todayQueueAlreadyPresent` for all three hospitals and created nothing.
+
+**This one needs no reset.** The daily refresh carries no marker, so the next staging deploy gives
+`QAHOSP` a live board — and so does every deploy after it.

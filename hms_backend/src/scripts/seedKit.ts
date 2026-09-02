@@ -45,6 +45,7 @@ import {
   providers,
   registrationRequests,
   seedMarkers,
+  selfCheckinRequests,
   services as servicesTable,
   visits,
   tenants,
@@ -88,6 +89,11 @@ import { updateBranding } from '../modules/branding/branding.service';
 import { setSelfRegistration } from '../modules/organization/registration.service';
 import { setOnlineBooking } from '../modules/organization/booking.service';
 import { setEnabled as setSelfCheckinEnabled } from '../modules/organization/selfCheckin.service';
+import {
+  getConfig as getWorkflowConfig,
+  updateConfig as updateWorkflowConfig,
+  type UpdateWorkflowConfigInput,
+} from '../modules/workflow/workflowConfig.service';
 import { findTenantScopedTables } from '../db/rls';
 import type { SeedEnvironment } from './seedGuard';
 
@@ -240,6 +246,14 @@ export type SeedTenantSpec = {
   onlineBooking?: boolean;
   /** Patient self check-in (ADR-118) — the third public surface, off unless a dataset says otherwise. */
   selfCheckin?: boolean;
+  /**
+   * How this hospital runs (ADR-113). Worth declaring in a dataset for one blunt reason: the
+   * **Vitals queue is empty in every mode but `after_checkin`**, so a QA environment that never
+   * set one had a permanently blank screen and no way to tell that from a broken one (ADR-133).
+   */
+  // The service's own input type minus `version`, which the seeder reads rather than declares —
+  // copying the vitals-parameter union here would be a second list to keep in step.
+  workflow?: Omit<UpdateWorkflowConfigInput, 'version'>;
   /** Public-form submissions awaiting (or already given) a decision at the front desk. */
   registrationRequests?: SeedRequest[];
   bookingRequests?: SeedRequest[];
@@ -548,6 +562,8 @@ type Ctx = {
   drugIds: string[];
   serviceIds: string[];
   users: Map<string, string>;
+  /** Visits created for TODAY by `seedTodayQueue` — the rest of the story hangs referrals off them. */
+  todayVisitIds: string[];
   counts: SeedCounts;
 };
 
@@ -1169,6 +1185,185 @@ const TODAY_QUEUE: readonly TodayScenario[] = [
   { stage: 'none', pay: 'none', lab: 'none', cancel: true }, // cancelled at the desk
 ];
 
+/**
+ * **Today's live queue — rebuilt on every run, for whatever day "today" is** (ADR-133).
+ *
+ * The rest of the clinical story is a past, and a past is written once. This is not: it is the OPD
+ * board, the vitals queue, "in the queue now" and "seen today", and all of them are relative to
+ * the day the seeder happened to run. Staging is seeded on deployment and then left, so by the
+ * following morning every one of those screens was empty and stayed empty until somebody
+ * remembered to reset the environment.
+ *
+ * So this runs unguarded by any marker, and guards itself on the only question that matters:
+ * **does this hospital already have a visit dated today?** If it does, there is a queue and
+ * nothing is done. If it does not, today gets one. Re-running is therefore free, and a QA
+ * environment has a live queue every morning rather than on the morning it was deployed.
+ *
+ * It never touches history, and it never touches a visit somebody is part-way through.
+ */
+async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
+  ctx.todayVisitIds = [];
+  if (ctx.providerIds.length === 0 || ctx.patientIds.length === 0) return;
+
+  const today = isoDate(dayOffset(0));
+  const already = await runWithTenant(ctx.tenantId, (tx) =>
+    tx.execute<{ id: string }>(sql`select id from visits where tenant_id = ${ctx.tenantId} and visit_date = ${today}::date limit 1`),
+  );
+  if (already.rows.length > 0) {
+    bump(ctx.counts, 'todayQueueAlreadyPresent');
+    return;
+  }
+
+  const branchA = ctx.branchIds[0] ?? null;
+  const branchB = ctx.branchIds[1] ?? branchA;
+  const depts = ctx.departmentIds;
+  // The last two charts stay activity-free, exactly as the history leaves them.
+  const pool = ctx.patientIds.slice(0, Math.max(1, ctx.patientIds.length - 2));
+  let cursor = 0;
+  const nextPatient = (): string => pool[cursor++ % pool.length]!;
+
+  // Every row here is a *live* visit, and a patient can only be in the OPD once at a time, so
+  // the queue is capped at the number of charts available. A small clinic gets a shorter queue
+  // rather than a failed seed.
+  const queue = TODAY_QUEUE.slice(0, Math.min(TODAY_QUEUE.length, pool.length));
+  for (let i = 0; i < queue.length; i++) {
+    const s = queue[i]!;
+    const patientId = nextPatient();
+    const providerId = ctx.providerIds[i % ctx.providerIds.length]!;
+    const departmentId = depts.length ? depts[i % depts.length]! : null;
+    const branchId = i % 2 === 0 ? branchA : branchB;
+    const presentation = PRESENTATIONS[i % PRESENTATIONS.length]!;
+    // Inside a rostered doctor's morning window, and never two starts on the same minute.
+    const at = dayOffset(0, 9 + Math.floor(i / 3), (i % 3) * 20);
+
+    let appointmentId: string | null = null;
+    if (!s.walkIn) {
+      // The slot may already be taken — a future appointment the story scattered has landed on
+      // today, or yesterday's refresh booked one. A patient who arrives without a booking is a
+      // walk-in, which is a state this queue is meant to contain anyway; refusing to seed at all
+      // because a doctor is busy at 09:20 would be the wrong trade (ADR-133).
+      try {
+        const appt = await bookAppointment(
+          ctx.tenantId,
+          { patientId, providerId, scheduledAt: at.toISOString(), durationMinutes: 15, reason: presentation.complaint, branchId },
+          act.reception,
+        );
+        appointmentId = appt.id;
+        bump(ctx.counts, 'appointments');
+      } catch {
+        bump(ctx.counts, 'todayWalkInInsteadOfBooking');
+      }
+    }
+
+    // A patient can be in the OPD once at a time, and one may already be there from an earlier
+    // refresh or a tester's own check-in. Skip them rather than fail the run.
+    let visit: Awaited<ReturnType<typeof checkIn>>;
+    try {
+      visit = await checkIn(
+        ctx.tenantId,
+        { patientId, appointmentId, providerId, branchId, departmentId, reason: presentation.complaint },
+        act.reception,
+      );
+    } catch {
+      bump(ctx.counts, 'todayQueueSkipped');
+      continue;
+    }
+    bump(ctx.counts, 'todayVisits');
+    ctx.todayVisitIds.push(visit.id);
+
+    if (visit.invoice) {
+      bump(ctx.counts, 'invoices');
+      const total = visit.invoice.totalPaise;
+      if (s.pay === 'full') await payInvoice(ctx, visit.invoice.id, total, PAYMENT_METHODS[i % 4]!, act.cashier, `t${today}-${i}`);
+      if (s.pay === 'partial') await payInvoice(ctx, visit.invoice.id, Math.max(1, Math.round(total / 3)), 'upi', act.cashier, `t${today}-${i}p`);
+    }
+
+    if (s.cancel) {
+      await updateStatus(ctx.tenantId, visit.id, 'cancelled', undefined, act.reception);
+      bump(ctx.counts, 'visitsCancelled');
+      continue;
+    }
+
+    await runConsultation(ctx, act, visit.id, {
+      presentation,
+      stage: s.stage,
+      labStage: s.lab,
+      abnormalLab: s.abnormal,
+      criticalLab: s.critical,
+      dispense: s.dispense,
+    });
+    if (s.settle) await settleVisitBalance(ctx, visit.id, 'upi', act.cashier, `t${today}-${i}-settle`);
+  }
+}
+
+/**
+ * Two people standing in the lobby who have announced themselves and not yet been checked in
+ * (ADR-118), for **today** — refreshed with the queue, and for the same reason (ADR-133).
+ *
+ * The Arrivals board is the one screen with no other way to get a row: an arrival comes from a
+ * patient scanning a QR, which no seeder can do and no history leaves behind. Without this the
+ * board was blank on every environment, forever, and blank-because-nothing-happened is
+ * indistinguishable from blank-because-broken.
+ *
+ * They are written directly rather than through `announceArrival`, for the same reason the public
+ * registration queue is: that path deliberately requires the hospital's public token and an HTTP
+ * request. Confirming one is a desk action with its own screen — which is the point of seeding a
+ * board that has something on it.
+ */
+async function seedTodayArrivals(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<void> {
+  if (spec.selfCheckin !== true || ctx.providerIds.length === 0) return;
+
+  const today = isoDate(dayOffset(0));
+  const already = await runWithTenant(ctx.tenantId, (tx) =>
+    tx.execute<{ id: string }>(
+      sql`select id from self_checkin_requests where tenant_id = ${ctx.tenantId} and announced_at >= ${today}::date limit 1`,
+    ),
+  );
+  if (already.rows.length > 0) {
+    bump(ctx.counts, 'arrivalsAlreadyPresent');
+    return;
+  }
+
+  // From the END of the chart list: today's queue takes from the front, and an arrival for
+  // somebody already checked in is not a state the board can show.
+  const candidates = ctx.patientIds.slice(-4, -2);
+  for (let i = 0; i < candidates.length; i++) {
+    const patientId = candidates[i]!;
+    const providerId = ctx.providerIds[i % ctx.providerIds.length]!;
+    const at = dayOffset(0, 11 + i, 15);
+    // An arrival that matched no appointment is a real state the board must show — "somebody
+    // tried to check in and we could not find them" is a person standing in the lobby (ADR-118) —
+    // so a taken slot degrades to exactly that rather than failing the seed.
+    let appointmentId: string | null = null;
+    try {
+      const appointment = await bookAppointment(
+        ctx.tenantId,
+        { patientId, providerId, scheduledAt: at.toISOString(), durationMinutes: 15, reason: 'Announced at the entrance', branchId: ctx.branchIds[0] ?? null },
+        act.reception,
+      );
+      appointmentId = appointment.id;
+      bump(ctx.counts, 'appointments');
+    } catch {
+      bump(ctx.counts, 'arrivalsWithoutAppointment');
+    }
+
+    const phone = await firstId(ctx.tenantId, sql`select phone as id from patients where id = ${patientId}`);
+    await runWithTenant(ctx.tenantId, (tx) =>
+      tx.insert(selfCheckinRequests).values({
+        tenantId: ctx.tenantId,
+        appointmentId,
+        patientId,
+        // As typed by the patient at the kiosk — evidence about the announcement, never a
+        // correction to the chart (ADR-118).
+        claimedPhone: phone ?? '+910000000000',
+        status: 'pending',
+        announcedAt: dayOffset(0, 11 + i, 5),
+      }),
+    );
+    bump(ctx.counts, 'arrivals');
+  }
+}
+
 async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan, act: Act): Promise<void> {
   if (ctx.providerIds.length === 0 || ctx.patientIds.length === 0) return;
 
@@ -1273,63 +1468,8 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
   }
 
   // ---- Today: the live queue --------------------------------------------
-  // Every row here is a *live* visit, and a patient can only be in the OPD once at a time, so
-  // the queue is capped at the number of charts available. A small clinic gets a shorter queue
-  // rather than a failed seed.
-  const queue = TODAY_QUEUE.slice(0, Math.min(TODAY_QUEUE.length, pool.length));
-  const todayVisitIds: string[] = [];
-  for (let i = 0; i < queue.length; i++) {
-    const s = queue[i]!;
-    const patientId = nextPatient();
-    const providerId = ctx.providerIds[i % ctx.providerIds.length]!;
-    const departmentId = depts.length ? depts[i % depts.length]! : null;
-    const branchId = i % 2 === 0 ? branchA : branchB;
-    const presentation = PRESENTATIONS[i % PRESENTATIONS.length]!;
-    // Inside a rostered doctor's morning window, and never two starts on the same minute.
-    const at = dayOffset(0, 9 + Math.floor(i / 3), (i % 3) * 20);
-
-    let appointmentId: string | null = null;
-    if (!s.walkIn) {
-      const appt = await bookAppointment(
-        ctx.tenantId,
-        { patientId, providerId, scheduledAt: at.toISOString(), durationMinutes: 15, reason: presentation.complaint, branchId },
-        act.reception,
-      );
-      appointmentId = appt.id;
-      bump(ctx.counts, 'appointments');
-    }
-
-    const visit = await checkIn(
-      ctx.tenantId,
-      { patientId, appointmentId, providerId, branchId, departmentId, reason: presentation.complaint },
-      act.reception,
-    );
-    bump(ctx.counts, 'visits');
-    todayVisitIds.push(visit.id);
-
-    if (visit.invoice) {
-      bump(ctx.counts, 'invoices');
-      const total = visit.invoice.totalPaise;
-      if (s.pay === 'full') await payInvoice(ctx, visit.invoice.id, total, PAYMENT_METHODS[i % 4]!, act.cashier, `t${i}`);
-      if (s.pay === 'partial') await payInvoice(ctx, visit.invoice.id, Math.max(1, Math.round(total / 3)), 'upi', act.cashier, `t${i}p`);
-    }
-
-    if (s.cancel) {
-      await updateStatus(ctx.tenantId, visit.id, 'cancelled', undefined, act.reception);
-      bump(ctx.counts, 'visitsCancelled');
-      continue;
-    }
-
-    await runConsultation(ctx, act, visit.id, {
-      presentation,
-      stage: s.stage,
-      labStage: s.lab,
-      abnormalLab: s.abnormal,
-      criticalLab: s.critical,
-      dispense: s.dispense,
-    });
-    if (s.settle) await settleVisitBalance(ctx, visit.id, 'upi', act.cashier, `t${i}-settle`);
-  }
+  await seedTodayQueue(ctx, act);
+  const todayVisitIds = ctx.todayVisitIds;
 
   // ---- Appointments that never became a visit ---------------------------
   // A cancellation and a no-show are ordinary parts of a clinic's day, and both are
@@ -1920,6 +2060,7 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
     drugIds: [],
     serviceIds: [],
     users: new Map(),
+    todayVisitIds: [],
     counts: {},
   };
 
@@ -2000,6 +2141,15 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
     });
     if (applied) bump(ctx.counts, 'selfCheckin');
   }
+  if (spec.workflow && adminId) {
+    const applied = await once('config.workflow', spec.code, async () => {
+      // Optimistic locking: read the current version rather than assuming 1, so seeding a hospital
+      // whose workflow somebody has already edited does not fail on a stale-version conflict.
+      const current = await getWorkflowConfig(tenantId, null);
+      await updateWorkflowConfig(tenantId, null, { ...spec.workflow!, version: current.version }, adminId);
+    });
+    if (applied) bump(ctx.counts, 'workflowConfig');
+  }
 
   await seedProviders(ctx, spec, act);
   await seedCatalogues(ctx, spec, act);
@@ -2007,6 +2157,14 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   const plan = spec.story === false || spec.story === undefined ? null : spec.story;
   await seedPatients(ctx, spec, act, plan?.historyDays ?? 30);
   if (plan) await seedClinicalStory(ctx, spec, plan, act);
+
+  // Today's board, on EVERY run (ADR-133). The story above writes a past and is written once; this
+  // is the present, and the present moves. A QA environment seeded on Monday had an empty OPD
+  // queue, vitals queue and "seen today" from Tuesday morning onwards, which is most of the days
+  // anybody looked at it. Guarded on whether today already has a visit, so re-running is free and
+  // a queue somebody is working through is never disturbed.
+  if (plan) await seedTodayQueue(ctx, act);
+  if (plan) await seedTodayArrivals(ctx, spec, act);
 
   await applyBackfills(ctx, spec);
 

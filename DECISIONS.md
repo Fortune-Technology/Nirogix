@@ -3039,3 +3039,82 @@ would have cheerfully started seeding, because its environment check passes loca
 - The suspended `QACLOSED` deliberately has no clinical history. A suspended hospital that had
   been running would be a more interesting fixture; it is also a different scenario, and one
   suspended-tenant shape is enough to render the filter.
+
+## ADR-133 - Today's board is seeded every run, because today moves
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Extends:** ADR-114 (the QA dataset), ADR-122 (seeding on deploy), ADR-132 (staging shaped like development)
+
+### Context
+
+The report was "staging has no data" and the obvious reading was volume. It was not. Three screens
+were empty, and each for its own reason.
+
+**The OPD queue, "in the queue now" and "seen today" were empty because they are relative to the
+day the seeder ran.** `seedTodayQueue` builds its ten live visits at `dayOffset(0, …)` — literally
+the seed day — and the clinical story runs once per tenant (ADR-122), so it never rebuilds. Staging
+is seeded on deployment and then left alone; from the following morning the board was blank, and
+stayed blank until somebody remembered to reset the environment. The same is true of a developer's
+machine seeded last week — which is exactly what the reporter's own dashboard showed: *In the queue
+now 0 · Seen today 0*, above six weeks of history.
+
+**The Vitals queue was empty in every environment, always.** It only has rows under
+`vitalsMode: 'after_checkin'`, and no dataset ever set a workflow configuration, so every hospital
+sat on the default `consultation_only` where the screen is correctly, permanently blank.
+
+**The Arrivals board was empty in every environment, always,** and could not be otherwise: an
+arrival is created by a patient scanning a QR code, which no seeder performs and no history leaves
+behind.
+
+Blank-because-nothing-happened is indistinguishable from blank-because-broken, and three screens
+that are always blank teach a tester to stop looking at them.
+
+### Decision
+
+**1. Today's queue is rebuilt on every seed, guarded on today rather than on a marker.**
+`seedTodayQueue` is extracted from the story and called on every run. Its only question is *does
+this hospital already have a visit dated today?* — if it does, nothing happens; if it does not,
+today gets a queue. Re-running is therefore free, a queue somebody is working through is never
+disturbed, and a QA environment has a live board **every morning** rather than on the morning it
+was deployed.
+
+This is the honest division: the story writes a **past**, and a past is written once. The board is
+the **present**, and the present moves.
+
+**2. A dataset can declare how the hospital runs.** `workflow` on the tenant spec, applied once
+like the other configuration, typed as the service's own `UpdateWorkflowConfigInput` minus the
+version rather than a hand-copied union. Both busy hospitals now run `vitalsMode: 'after_checkin'`,
+so the Vitals queue has rows, and both carry consultation and case vocabularies so the fee
+schedule's newest dimensions and the check-in form's type fields have something to offer.
+
+**3. Arrivals are seeded with the queue, and refreshed the same way.** Two people who have
+announced themselves and not yet been checked in, written directly for the same reason the public
+registration queue is: `announceArrival` deliberately requires the hospital's public token and an
+HTTP request, and confirming one is a desk action with its own screen — which is the point of
+seeding a board that has something on it.
+
+**4. A collision degrades, it does not fail.** A slot already taken by a scattered future
+appointment makes that patient a **walk-in**, which the queue is meant to contain anyway; a patient
+already in the OPD is skipped; an arrival whose booking fails is announced **without** an
+appointment, which is a real state the board must show. Every one of these is counted in the seed
+report. The first version of this raised `The provider already has an appointment in this time
+slot` and aborted the entire run — a seeder that refuses to seed because a doctor is busy at 09:20
+is the wrong trade.
+
+### Consequences
+
+- **This is the part that changes staging on the next deploy**, and it needs no reset: the daily
+  refresh is not the clinical story and carries no marker, so the deploy after this one gives
+  `QAHOSP` a live queue, a vitals queue and an arrivals board for that day — and so does every
+  deploy after it.
+- A hospital's history still cannot be lengthened without `--reset` (ADR-132). That remains true
+  and is a different problem; what is fixed here is that the *present* no longer rots.
+- Verified on a database seeded days earlier: the OPD queue went from 0 to **10 rows across every
+  workflow state**, the Vitals queue to **3 waiting**, Arrivals to **2 ready to check in** — and a
+  second run the same day reported `todayQueueAlreadyPresent` for all three hospitals and created
+  nothing.
+- Two stale references fixed while here: the Arrivals empty state and the check-in poster both
+  pointed at *Hospital configuration → Self check-in*, a tab that stopped existing when the three
+  QR surfaces were consolidated (ADR-124).
+- Setting `vitalsMode: 'after_checkin'` changes what the seeded hospitals *do*, not what the
+  product does: it is configuration, a hospital can change it on its own screen, and the default
+  for everyone else is untouched.

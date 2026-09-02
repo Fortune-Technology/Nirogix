@@ -18,6 +18,7 @@ This document states rules only. For the architecture each rule is derived from,
   - [Design System & UI Consistency](#design-system--ui-consistency)
   - [Standard DataTable](#standard-datatable)
   - [Table Row Actions](#table-row-actions)
+  - [Seeded Data That Ages](#seeded-data-that-ages-binding--adr-133)
   - [Multi-Step External Flows](#multi-step-external-flows-binding--adr-130)
   - [Configuration Read Keys](#configuration-read-keys-binding--adr-129)
   - [Page Actions](#page-actions-binding--adr-128)
@@ -87,6 +88,25 @@ This document states rules only. For the architecture each rule is derived from,
 - **Destructive actions always confirm** through the shared `ConfirmDialog`, naming the record and the consequence. No table deletes on a single click.
 - **Overflow rule:** at most three inline icon actions per row; everything beyond that moves into `MoreActions`, so the column stays a fixed, predictable width on every screen size.
 - **Missing capability is added to the shared components**, never worked around in a page.
+
+### Seeded Data That Ages (binding — ADR-133)
+
+**Anything a seeder writes relative to "today" is stale tomorrow.** A queue, an arrivals board, a
+"seen today" count and a vitals queue are the *present*, and the present moves; a history is a
+*past*, and a past is written once. Seed them differently:
+
+- **A past runs once**, guarded by a marker (ADR-122).
+- **The present is rebuilt on every run**, guarded on the day itself — "does today already have
+  one?" — so re-running is free, work in progress is never disturbed, and an environment seeded
+  last week still has a live board this morning.
+- **A screen that is empty in every environment, always, is a seeding gap, not a feature.** The
+  Vitals queue needed a workflow mode no dataset set; the Arrivals board needed rows no history
+  produces. Blank-because-nothing-happened is indistinguishable from blank-because-broken, and a
+  tester learns to stop looking.
+- **A collision degrades, it does not abort.** A taken appointment slot becomes a walk-in, a
+  patient already in the queue is skipped, an arrival without a booking is still an arrival — and
+  each is counted in the seed report. A seeder that refuses to seed because a doctor is busy at
+  09:20 has chosen the wrong trade.
 
 ### Multi-Step External Flows (binding — ADR-130)
 
