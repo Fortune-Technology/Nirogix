@@ -161,6 +161,12 @@ npm run db:seed:staging -w hms_backend
 CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset
 ```
 
+- **Today's board is rebuilt on every run (ADR-133).** The OPD queue, the vitals queue, the
+  arrivals board and "seen today" are relative to the day the seeder runs, and the clinical history
+  is not — so they are seeded differently. The history runs once per tenant; **today's queue and
+  arrivals are re-created whenever the day has none**, which means an environment seeded last week
+  still has a live board this morning, and a deploy gives staging one without a reset. A day that
+  already has a queue is left exactly alone.
 - **Staging is shaped like development, at QA scale (ADR-132).** Three hospitals plus the vendor
   org: **QAHOSP** (every module, six weeks of traffic at three visits a day, 28 charts),
   **QACLINIC** (pharmacy and laboratory **off**, three weeks of traffic — the tenant that proves

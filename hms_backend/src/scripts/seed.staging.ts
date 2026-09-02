@@ -85,6 +85,17 @@ export const STAGING_DATASET: SeedDataset = {
       selfRegistration: true,
       onlineBooking: true,
       selfCheckin: true,
+      // A separate vitals step, because the **Vitals queue is empty in every other mode**
+      // (ADR-133) and a QA environment that never set one had a permanently blank screen.
+      // The hospital's own consultation and case vocabularies come with it, so the fee schedule's
+      // two newest dimensions and the check-in form's type fields have something to offer.
+      workflow: {
+        vitalsMode: 'after_checkin',
+        vitalsRequiredParams: ['bloodPressure'],
+        vitalsOptionalParams: ['pulse', 'tempC', 'weightKg', 'spo2'],
+        consultationTypes: ['First OPD', 'Review', 'Teleconsultation', 'Procedure'],
+        caseTypes: ['Corporate', 'Insurance', 'Camp', 'Medico-legal'],
+      },
       branches: [
         { code: 'QA-MAIN', name: 'QA Main Campus' },
         { code: 'QA-ANNEX', name: 'QA Annexe Clinic' },

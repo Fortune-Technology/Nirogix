@@ -193,7 +193,7 @@ function ArrivalsBoard() {
         <Card>
           <EmptyState
             title="Nobody has checked themselves in"
-            description="Patients appear here when they scan the check-in code in the entrance. Turn it on under Hospital configuration → Self check-in."
+            description="Patients appear here when they scan the check-in code in the entrance. Turn it on under Hospital configuration → Patient self-service."
           />
         </Card>
       ) : (
