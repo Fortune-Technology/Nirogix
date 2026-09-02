@@ -2971,3 +2971,71 @@ convenient than the real thing.
 - **Still not verified against the live sandbox.** These fixes were derived from captured traces
   and proved against the mock; the local backend is `ABDM_PROVIDER=gateway` and a real run needs a
   real Aadhaar and a live OTP. The walkthrough is ABHA-M-02 and ABHA-M-08 in `testcases.md` §44.
+
+## ADR-132 - Staging is shaped like development, at QA scale
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Extends:** ADR-114 (the deterministic staging dataset), ADR-122 (seeding on deploy)
+
+### Context
+
+Staging had **one hospital**. Development has four, and the difference is not decoration:
+
+- **Tenant isolation could not be tested on staging at all.** There was no second hospital whose
+  data the first must not be able to reach — the invariant every module is supposed to be tested
+  against, on the environment where the manual regression script runs.
+- **Neither could module entitlement.** Every module was on, so the screens a hospital *has not
+  bought* — the thing ADR-085's whole gating chain exists for — were never absent.
+- **Nor a suspended tenant**, which the admin console's status filter needs on the other side.
+- And its busiest hospital carried **21 days at 2 visits a day** against development's 42 × 3, so a
+  dashboard trend was short, a collections report had little to sum, and the Visits table barely
+  reached a second page.
+
+Staging is where the manual regression script is run before a release. A dataset that cannot
+exercise isolation, entitlement or a suspended tenant is not a smaller version of production; it is
+a different shape from it.
+
+### Decision
+
+**Three hospitals plus the vendor org, mirroring development's coverage under QA names.**
+
+| | Modules | Story | Purpose |
+|---|---|---|---|
+| `QAHOSP` | all | 42 days × 3 | the busy hospital; 28 charts, second pages, real trends |
+| `QACLINIC` | **no pharmacy, no laboratory** | 21 days × 2 | module entitlement, and the tenant isolation is tested against |
+| `QACLOSED` | — | none | a suspended hospital that must still render |
+
+**The contract is preserved exactly.** `QA Patient One` and `QA Patient Two` stay first and stay
+spelled that way, every `qa.*` account keeps its email and role, and the generator is still seeded
+from the tenant code — so the dataset remains deterministic and E2E's assertions still hold. New
+patients are inserted *before* the two deliberately activity-free charts, because
+`seedClinicalStory` excludes the last two from its rotation and "a patient with no history yet" is
+a state every detail page has to render.
+
+**The dataset is now validated by a test.** Three hundred lines of hand-written records acquire the
+mistakes hand-written records acquire, and the place they surface is halfway through seeding a
+shared environment. `stagingDataset.test.ts` needs no database and checks what actually goes wrong:
+a service pointing at a department code that does not exist, a phone number reused so two patients
+collide on the key the seeder identifies them by (ADR-122), a specialty outside the catalogue, a
+provider linked to a renamed account, and the two E2E fixtures having been reordered.
+
+**Importing a seeder no longer runs it.** All three now guard `main()` behind
+`require.main === module`. Reading the dataset from a test used to execute the whole flow as a side
+effect of the import — the staging one exited the process with code 2, and the *development* one
+would have cheerfully started seeding, because its environment check passes locally.
+
+### Consequences
+
+- **A bigger dataset does not grow an environment that is already seeded.** The clinical story runs
+  once per tenant (ADR-122), so on the next staging deploy `QACLINIC` and `QACLOSED` arrive complete
+  *with* their histories, and `QAHOSP` gains the twelve new charts and catalogue entries but **not**
+  a longer history. Six weeks of traffic for `QAHOSP` needs
+  `CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset`, which empties every
+  tenant-scoped table — so it is announced first, as ADR-114 requires.
+- Staging seeding gets slower: roughly 126 visits for `QAHOSP` plus 42 for `QACLINIC`, against 42
+  before. It runs once per deploy and only on a fresh database or after a reset, because everything
+  else is create-if-missing.
+- Two more sets of credentials to keep out of any quick-login list, for the same reason as the
+  existing ones (ADR-080).
+- The suspended `QACLOSED` deliberately has no clinical history. A suspended hospital that had
+  been running would be a more interesting fixture; it is also a different scenario, and one
+  suspended-tenant shape is enough to render the filter.

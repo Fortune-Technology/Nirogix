@@ -161,6 +161,13 @@ npm run db:seed:staging -w hms_backend
 CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset
 ```
 
+- **Staging is shaped like development, at QA scale (ADR-132).** Three hospitals plus the vendor
+  org: **QAHOSP** (every module, six weeks of traffic at three visits a day, 28 charts),
+  **QACLINIC** (pharmacy and laboratory **off**, three weeks of traffic — the tenant that proves
+  module entitlement hides a whole area of the product, and the second tenant isolation is tested
+  against), and **QACLOSED** (**suspended**, configuration only). It had one hospital before, which
+  meant the two properties a multi-tenant platform lives or dies by — isolation, and a module a
+  hospital has not bought — could not be exercised on staging at all.
 - **Staging seeds itself on every deployment (ADR-122).** The staging deploy workflow runs
   `db:seed:staging` immediately after `db:migrate`, so a new table, a new reference record or a new
   demo record reaches staging on the deploy that ships it. Nobody has to remember. The command above
