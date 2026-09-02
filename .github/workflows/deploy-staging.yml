@@ -3,9 +3,9 @@ name: Deploy (staging)
 # Auto-deploy on merge to `staging` (resources/development-plan.md §18). CI (ci.yml) must be
 # green first — this workflow assumes the branch already passed typecheck/lint/openapi/test/build.
 # It builds, then over SSH: installs, builds ONLY the workspaces affected since the last
-# successful deploy (ADR-076), migrates the DB when the backend is part of the deploy, and
-# PM2-reloads only the affected apps. All connection details are GitHub Environment secrets;
-# nothing here is hard-coded.
+# successful deploy (ADR-076), migrates the DB and tops the QA dataset up when the backend is
+# part of the deploy (ADR-122), and PM2-reloads only the affected apps. All connection
+# details are GitHub Environment secrets; nothing here is hard-coded.
 
 on:
   push:
@@ -129,8 +129,37 @@ jobs:
             # ── Migrations: only when the backend is part of this deploy ───────────
             # (Additive/idempotent by rule, so running them always would be safe —
             # skipping is about the deploy log telling the truth about what it did.)
+            #
+            # The staging seeder runs immediately afterwards, under the same condition: seed
+            # definitions live in hms_backend, so a change to the dataset always puts the
+            # backend in the affected set (ADR-122). It creates what is MISSING and never
+            # updates or deletes anything — a record a tester edited by hand on staging keeps
+            # the tester's values, a table added this week gets its rows, and a record added
+            # to the dataset this week reaches a database seeded months ago. Being safe to run
+            # on every deployment is the whole reason it runs on every deployment.
+            #
+            # Three independent things stop this reaching production:
+            #   1. this workflow triggers only on the `staging` branch, against the staging VM;
+            #   2. `requireEnvironment('staging')` refuses unless NODE_ENV is exactly staging;
+            #   3. the same guard refuses a DATABASE_URL that does not look like a development
+            #      or staging database (seedGuard.ts, ADR-058).
+            # The check below is the fourth, and exists so the deploy log says WHY it stopped
+            # rather than dying inside a script.
             if in_deploy hms_backend; then
               npm run db:migrate -w hms_backend
+
+              # Read straight out of the file the seeder itself reads, and match the whole
+              # line rather than extracting it — nothing but the verdict is ever printed,
+              # because the rest of that file is credentials.
+              if ! grep -Eq "^NODE_ENV=[\"']?staging[\"']?[[:space:]]*$" hms_backend/.env; then
+                echo "FATAL: hms_backend/.env does not set NODE_ENV=staging — refusing to seed." >&2
+                exit 1
+              fi
+
+              # Never --reset from CI. Rebuilding the dataset destroys whatever QA is part-way
+              # through; it is a deliberate, announced act run by hand with CONFIRM_SEED_RESET=yes
+              # (deploy/README.md).
+              npm run db:seed:staging -w hms_backend
             fi
 
             # ── Reload only the PM2 apps whose workspace was rebuilt ───────────────

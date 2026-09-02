@@ -87,7 +87,10 @@ export function PatientHistory({ patientId, layout = "grid", heading = "History"
   return (
     <section className={rail ? "flex flex-col gap-4" : "mt-6 flex flex-col gap-5"}>
       {heading && <h2 className="text-base font-semibold text-fg">{heading}</h2>}
-      <div className={rail ? "flex flex-col gap-4" : "grid gap-5 lg:grid-cols-2"}>
+      {/* `[&>*]:min-w-0`: a grid item's default `min-width: auto` refuses to shrink below its
+          content, so one long visit line pushed these cards past the viewport and scrolled the
+          whole page sideways on a phone. */}
+      <div className={rail ? "flex flex-col gap-4" : "grid gap-5 [&>*]:min-w-0 lg:grid-cols-2"}>
         {/* Rail only. The patient chart has `CasesCard`, which manages cases rather than just
             listing them — two cases blocks on one page would be duplication, not richness. */}
         {canCases && rail && (

@@ -365,18 +365,51 @@ export type VerificationResult = {
   accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string }>;
 };
 
+/**
+ * Everything ABDM has told us about this person **so far**, newest answer winning per field
+ * (ADR-130).
+ *
+ * A verification is several calls, and each one answers a different amount. Aadhaar OTP returns
+ * the whole demographic record; the mobile OTP that follows it returns almost nothing; picking an
+ * ABHA from a list returns a token and little else. Taking the last response as *the* profile
+ * therefore threw away everything the earlier steps had established — the desk watched a filled
+ * card turn into "Unnamed · Not specified · DOB unknown · no phone" on the final step.
+ *
+ * A later step can only **add or correct**, never blank: an absent field means "this call did not
+ * say", which is not the same as "this person has no name".
+ */
+function mergeProfiles(known: AbdmProfile | null | undefined, incoming: AbdmProfile): AbdmProfile {
+  const merged: Record<string, unknown> = { ...(known ?? {}) };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    merged[key] = value;
+  }
+  return merged as AbdmProfile;
+}
+
+/** The demographics already recorded against this transaction, if an earlier step stored any. */
+function storedProfile(txn: AbdmTransaction): AbdmProfile | null {
+  const raw = (txn as { profile?: unknown }).profile;
+  return raw && typeof raw === 'object' ? (raw as AbdmProfile) : null;
+}
+
 async function completeWithProfile(
   tenantId: string,
   txn: AbdmTransaction,
-  profile: AbdmProfile,
+  incoming: AbdmProfile,
   tokens: AbdmTokens,
   extra: { isNewAbha?: boolean; requiresMobileVerification?: boolean; actorUserId?: string } = {},
 ): Promise<VerificationResult> {
+  // What this step returned, laid over what the transaction already knew.
+  const profile = mergeProfiles(storedProfile(txn), incoming);
   const match = await matchPatient(tenantId, profile);
   const updated = await updateTransaction(tenantId, txn.id, {
     state: 'verified',
-    abhaNumber: profile.abhaNumber ?? null,
-    abhaAddress: profile.abhaAddress ?? null,
+    // Never blank an identifier a previous step established: `?? null` on the incoming value alone
+    // wiped the ABHA number on the second call of every two-step flow.
+    abhaNumber: profile.abhaNumber ?? txn.abhaNumber ?? null,
+    abhaAddress: profile.abhaAddress ?? txn.abhaAddress ?? null,
     // The stored profile is what the operator reviews and what a later support question is
     // answered from. It is demographics only — no Aadhaar, no token.
     profile: scrubAadhaar(profile as unknown as Record<string, unknown>),
@@ -909,12 +942,19 @@ export async function verifyIdentifierOtp(
     });
 
     // Several ABHA accounts on one identifier: the operator picks before anything is prefilled.
+    //
+    // The list itself carries real demographics — ABHA number, ABHA address, gender, date of
+    // birth — and they used to be handed to the browser and then forgotten (ADR-130). The
+    // follow-up call that resolves the chosen account returns a token and often nothing else, so
+    // whatever the list said was the only description of that person we would ever have. It is
+    // stored on the transaction now, keyed by ABHA number, and merged in when one is picked.
     if (!result.profile && result.accounts.length > 0) {
       await updateTransaction(tenantId, txn.id, {
         state: 'verified',
         linkingTokenEnc: encryptLinkingToken(result.tokens),
         xTokenEnc: encryptToken(result.tokens.xToken, 'profile token'),
-      });
+        profile: scrubAadhaar({ candidateAccounts: result.accounts } as unknown as Record<string, unknown>),
+      } as Partial<AbdmTransaction>);
       return {
         transactionId: txn.id,
         state: 'verified',
@@ -952,10 +992,40 @@ export async function selectAbhaAccount(
       token: profileToken(txn),
       hipId: await hipIdFor(tenantId, txn.branchId),
     });
-    return await completeWithProfile(tenantId, txn, result.profile, result.tokens, { actorUserId });
+    // What the account list said about the ABHA the operator chose. `loginVerifyUser` returns a
+    // token and, on the sandbox, an almost empty profile — so without this the desk would be
+    // handed a blank form for a patient ABDM had just described (ADR-130).
+    const chosen = chosenAccountProfile(txn, input.abhaNumber);
+    return await completeWithProfile(
+      tenantId,
+      { ...txn, profile: mergeProfiles(chosen, storedProfile(txn) ?? {}) } as AbdmTransaction,
+      mergeProfiles(chosen, result.profile),
+      result.tokens,
+      { actorUserId },
+    );
   } catch (err) {
     throw toAppError(err);
   }
+}
+
+/**
+ * The demographics the account list gave for one ABHA number.
+ *
+ * The list's `name` is a single string; ABDM does not split it, and neither do we — guessing a
+ * surname from a space is how "Patel Jaivik Kamleshkumar" becomes the wrong two fields. It goes in
+ * as the first name and the operator adjusts, which is a correction rather than an invention.
+ */
+function chosenAccountProfile(txn: AbdmTransaction, abhaNumber: string): AbdmProfile {
+  const stored = (txn as { profile?: { candidateAccounts?: Array<Record<string, string | undefined>> } }).profile;
+  const found = (stored?.candidateAccounts ?? []).find((a) => a.abhaNumber === abhaNumber);
+  if (!found) return { abhaNumber };
+  return {
+    abhaNumber: found.abhaNumber,
+    abhaAddress: found.abhaAddress,
+    firstName: found.name,
+    gender: found.gender,
+    dateOfBirth: found.dateOfBirth,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

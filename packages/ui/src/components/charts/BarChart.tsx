@@ -106,28 +106,32 @@ export function BarChart({
         ))}
       </div>
 
-      <table className="hms-visually-hidden">
-        <thead>
-          <tr>
-            <th scope="col">Period</th>
-            {series.map((s) => (
-              <th key={s.key} scope="col">
-                {s.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {labels.map((label, i) => (
-            <tr key={label}>
-              <th scope="row">{label}</th>
+      {/* The wrapper is what is hidden — see the note in AreaChart: a table ignores the
+          utility's 1px box and would otherwise add its full height to the page. */}
+      <div className="hms-visually-hidden">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Period</th>
               {series.map((s) => (
-                <td key={s.key}>{format(s.values[i] ?? 0)}</td>
+                <th key={s.key} scope="col">
+                  {s.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {labels.map((label, i) => (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                {series.map((s) => (
+                  <td key={s.key}>{format(s.values[i] ?? 0)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

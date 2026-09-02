@@ -78,6 +78,12 @@ export type { DialogProps } from './components/Dialog';
 export { ConfirmDialog } from './components/ConfirmDialog';
 export type { ConfirmDialogProps } from './components/ConfirmDialog';
 export { EmptyState, ErrorState, Skeleton } from './components/States';
+// Scrolling over a focused number input must never change its value (ADR-127). Mounted once per
+// app, alongside the other providers.
+export { NumberInputGuard } from './components/NumberInputGuard';
+// The one way a missing value is written — a reason, never a bare dash (ADR-123).
+export { EmptyValue, ValueOrEmpty, emptyLabel, valueLabel } from './components/EmptyValue';
+export type { EmptyValueProps, ValueOrEmptyProps, EmptyReason } from './components/EmptyValue';
 export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
 export { BottomNav, NavDrawer, NavDrawerItem, NavDrawerSection, BOTTOM_NAV_MAX_ITEMS } from './components/MobileNav';
 export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components/MobileNav';

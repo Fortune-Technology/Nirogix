@@ -44,6 +44,7 @@ import {
   payments,
   providers,
   registrationRequests,
+  seedMarkers,
   services as servicesTable,
   visits,
   tenants,
@@ -86,6 +87,7 @@ import { updateOrganizationProfile } from '../modules/organization/organization.
 import { updateBranding } from '../modules/branding/branding.service';
 import { setSelfRegistration } from '../modules/organization/registration.service';
 import { setOnlineBooking } from '../modules/organization/booking.service';
+import { setEnabled as setSelfCheckinEnabled } from '../modules/organization/selfCheckin.service';
 import { findTenantScopedTables } from '../db/rls';
 import type { SeedEnvironment } from './seedGuard';
 
@@ -223,13 +225,21 @@ export type SeedTenantSpec = {
   providers?: SeedProvider[];
   patients?: SeedPatient[];
   labTests?: CreateTestInput[];
-  services?: Array<ServiceInput & { isActive?: boolean }>;
+  /**
+   * `department` is the DEPARTMENT CODE this service belongs to, resolved at seed time. It is
+   * a code and not a name because a name is not an identifier (ADR-122), and it is set because
+   * a services table whose Department column reads "—" for every row is a dataset defect, not
+   * a UI one.
+   */
+  services?: Array<ServiceInput & { isActive?: boolean; department?: string }>;
   drugs?: SeedDrug[];
   suppliers?: SupplierInput[];
   profile?: Record<string, string>;
   branding?: { brandColor?: string; secondaryColor?: string };
   selfRegistration?: boolean;
   onlineBooking?: boolean;
+  /** Patient self check-in (ADR-118) — the third public surface, off unless a dataset says otherwise. */
+  selfCheckin?: boolean;
   /** Public-form submissions awaiting (or already given) a decision at the front desk. */
   registrationRequests?: SeedRequest[];
   bookingRequests?: SeedRequest[];
@@ -342,15 +352,98 @@ async function backdateVisitTree(
 }
 
 // ---------------------------------------------------------------------------
+// Doing a thing once (ADR-122)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which environment's seeder is running. Set once by `runSeed`, read by the marker helpers so
+ * a marker key says where it came from. A process runs exactly one dataset, so this is a fact
+ * about the process, not state being passed around.
+ */
+let seedEnvironment: SeedEnvironment = 'development';
+
+/**
+ * A seeding action that has **no record of its own** — applying an organisation profile,
+ * setting a brand colour, enabling a public form, generating the clinical history, backfilling
+ * a column added later. Each one writes to rows that already exist, so repeating it on the next
+ * deployment is exactly how a tester's manual edit would be overwritten (ADR-122).
+ *
+ * The marker is written after the action succeeds. If the action throws, no marker is written
+ * and the next run tries again — which is the behaviour you want from a half-finished deploy.
+ */
+async function once(
+  key: string,
+  tenantCode: string | null,
+  run: () => Promise<void | Record<string, unknown>>,
+): Promise<boolean> {
+  const markerKey = `${seedEnvironment}:${tenantCode ?? 'platform'}:${key}`;
+  const existing = await db.select({ id: seedMarkers.id }).from(seedMarkers).where(eq(seedMarkers.markerKey, markerKey)).limit(1);
+  if (existing.length > 0) return false;
+
+  const detail = (await run()) ?? null;
+  await db
+    .insert(seedMarkers)
+    .values({ markerKey, environment: seedEnvironment, tenantCode, detail: detail as Record<string, unknown> | null })
+    // A concurrent seeder (two deploys racing) must not turn into a duplicate-key crash.
+    .onConflictDoNothing({ target: seedMarkers.markerKey });
+  return true;
+}
+
+/** Has this action already been done? Used where the marker must be written *after* the work. */
+async function markerExists(key: string, tenantCode: string | null): Promise<boolean> {
+  const markerKey = `${seedEnvironment}:${tenantCode ?? 'platform'}:${key}`;
+  const rows = await db.select({ id: seedMarkers.id }).from(seedMarkers).where(eq(seedMarkers.markerKey, markerKey)).limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Create a record only when it is genuinely absent, identified by a **stable key** — a code, an
+ * email, a registration number, a phone number — never by display name alone (ADR-122).
+ *
+ * The three cases, and the rule for each:
+ *
+ *   found      → leave it exactly as it is. It may have been edited by hand on staging, and
+ *                that edit is the point of having a staging environment.
+ *   missing    → create it. This is what makes a dataset addition reach a database that was
+ *                seeded last month, and what seeds a table added last week.
+ *   no key     → the caller has no way to identify the record; it does not belong here.
+ *
+ * Nothing in this helper ever updates. "Idempotent" here means *converging on present*, not
+ * *converging on the dataset's values*.
+ */
+async function ensure(
+  counts: SeedCounts,
+  label: string,
+  find: () => Promise<string | null | undefined>,
+  create: () => Promise<string | null | undefined>,
+): Promise<string | null> {
+  const found = await find();
+  if (found) {
+    bump(counts, `${label}.kept`);
+    return found;
+  }
+  const created = await create();
+  if (created) bump(counts, label);
+  return created ?? null;
+}
+
+/** First id from a raw single-column lookup, or null. */
+async function firstId(tenantId: string, query: ReturnType<typeof sql>): Promise<string | null> {
+  const rows = await runWithTenant(tenantId, (tx) => tx.execute<{ id: string }>(query));
+  return rows.rows[0]?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Idempotent building blocks
 // ---------------------------------------------------------------------------
 
 export async function upsertTenant(spec: SeedTenantSpec): Promise<string> {
   const existing = (await db.select().from(tenants).where(eq(tenants.code, spec.code)).limit(1))[0];
   if (existing) {
-    if (spec.status && existing.status !== spec.status) {
-      await db.update(tenants).set({ status: spec.status, updatedAt: new Date() }).where(eq(tenants.id, existing.id));
-    }
+    // Status is NOT re-applied. An operator who suspended this tenant on staging to test the
+    // suspended state did that on purpose, and a deployment is not a reason to undo it
+    // (ADR-122). RBAC provisioning is additive — a permission added since the last run has to
+    // reach a tenant that already exists — so it does run again.
     await provisionTenantRbac(existing.id);
     return existing.id;
   }
@@ -365,7 +458,7 @@ export async function upsertUser(
   tenantId: string,
   u: SeedUser,
   password: string,
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   const existing = await runWithTenant(tenantId, (tx) =>
     tx.select({ id: users.id }).from(users).where(eq(users.email, u.email)).limit(1),
   );
@@ -379,40 +472,38 @@ export async function upsertUser(
         .returning({ id: users.id }),
     );
     userId = created[0]!.id;
-  } else if (u.status) {
-    await runWithTenant(tenantId, (tx) =>
-      tx.update(users).set({ status: u.status!, updatedAt: new Date() }).where(eq(users.id, userId!)),
-    );
   }
+  // An existing account is left exactly as it is — password, name and status included. If QA
+  // re-enabled the deliberately-disabled account to test something, it stays enabled (ADR-122).
+  // The role assignment is additive and idempotent, so it is safe to reassert.
   await assignRoleByKey(tenantId, userId, u.role);
-  return userId;
+  return { id: userId, created: existing.length === 0 };
 }
 
-async function upsertBranch(tenantId: string, b: { code: string; name: string; isActive?: boolean }): Promise<string> {
+async function upsertBranch(
+  tenantId: string,
+  b: { code: string; name: string; isActive?: boolean },
+): Promise<{ id: string; created: boolean }> {
   return runWithTenant(tenantId, async (tx) => {
     const existing = (
       await tx.select().from(branches).where(and(eq(branches.tenantId, tenantId), eq(branches.code, b.code))).limit(1)
     )[0];
-    if (existing) {
-      if (b.isActive === false && existing.isActive) {
-        await tx.update(branches).set({ isActive: false, updatedAt: new Date() }).where(eq(branches.id, existing.id));
-      }
-      return existing.id;
-    }
-    const created = (
+    // Present already: left alone, including whether it is active (ADR-122).
+    if (existing) return { id: existing.id, created: false };
+    const made = (
       await tx
         .insert(branches)
         .values({ tenantId, code: b.code, name: b.name, isActive: b.isActive ?? true })
         .returning({ id: branches.id })
     )[0]!;
-    return created.id;
+    return { id: made.id, created: true };
   });
 }
 
 async function upsertDepartment(
   tenantId: string,
   d: { code: string; name: string; specialty?: string; isActive?: boolean },
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   const code = d.code.trim().toUpperCase();
   return runWithTenant(tenantId, async (tx) => {
     const existing = (
@@ -422,13 +513,9 @@ async function upsertDepartment(
         .where(and(eq(departments.tenantId, tenantId), eq(departments.code, code)))
         .limit(1)
     )[0];
-    if (existing) {
-      if (d.isActive === false && existing.isActive) {
-        await tx.update(departments).set({ isActive: false, updatedAt: new Date() }).where(eq(departments.id, existing.id));
-      }
-      return existing.id;
-    }
-    const created = (
+    // Present already: left alone, including whether it is active (ADR-122).
+    if (existing) return { id: existing.id, created: false };
+    const made = (
       await tx
         .insert(departments)
         .values({
@@ -440,7 +527,7 @@ async function upsertDepartment(
         })
         .returning({ id: departments.id })
     )[0]!;
-    return created.id;
+    return { id: made.id, created: true };
   });
 }
 
@@ -664,18 +751,29 @@ function labValue(testName: string, abnormal: boolean): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Seeded only while the tenant's catalogue is empty, so a re-run never duplicates a master
- * record or renumbers anything hanging off it. This is the idempotency rule everywhere in
- * this engine: *create when absent, never overwrite what a tester has since edited.*
+ * The tenant's master catalogues — lab tests, services, suppliers, drugs and opening stock.
+ *
+ * Each record is looked up by its **own stable key** and created only if it is missing
+ * (ADR-122): a lab test by its code, a service by its code, a supplier and a drug by name.
+ * The earlier rule — "seed the catalogue only while the table is empty" — was safe but too
+ * blunt: a test added to the dataset today never reached a hospital seeded last month, which
+ * is exactly the case a staging deployment has to cover.
+ *
+ * Nothing here updates. A price a tester edited on staging is theirs.
  */
 async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<typeof actors>): Promise<void> {
   if (ctx.modules.includes('laboratory') && spec.labTests?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.execute<{ id: string }>(sql`select id from lab_tests where tenant_id = ${ctx.tenantId} limit 1`),
-    );
-    if (existing.rows.length === 0) {
-      for (const t of spec.labTests) await createTest(ctx.tenantId, t, act.admin);
-      bump(ctx.counts, 'labTests', spec.labTests.length);
+    for (const t of spec.labTests) {
+      const key = t.code?.trim();
+      await ensure(
+        ctx.counts,
+        'labTests',
+        () =>
+          key
+            ? firstId(ctx.tenantId, sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and upper(code) = ${key.toUpperCase()} limit 1`)
+            : firstId(ctx.tenantId, sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and name = ${t.name} limit 1`),
+        async () => (await createTest(ctx.tenantId, t, act.admin))?.id,
+      );
     }
     const rows = await runWithTenant(ctx.tenantId, (tx) =>
       tx.execute<{ id: string }>(sql`select id from lab_tests where tenant_id = ${ctx.tenantId} order by created_at`),
@@ -684,22 +782,29 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
   }
 
   if (ctx.modules.includes('billing') && spec.services?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.select({ id: servicesTable.id }).from(servicesTable).where(eq(servicesTable.tenantId, ctx.tenantId)).limit(1),
-    );
-    if (existing.length === 0) {
-      for (const s of spec.services) {
-        const { isActive, ...input } = s;
-        const created = await createService(ctx.tenantId, input, act.admin);
-        // A retired service still has to appear behind the "inactive" filter — and behind the
-        // historical invoices that already reference it.
-        if (isActive === false && created) {
-          await runWithTenant(ctx.tenantId, (tx) =>
-            tx.update(servicesTable).set({ isActive: false, updatedAt: new Date() }).where(eq(servicesTable.id, created.id)),
-          );
-        }
-      }
-      bump(ctx.counts, 'services', spec.services.length);
+    for (const svc of spec.services) {
+      const { isActive, department, ...input } = svc;
+      // The department is named by CODE in the dataset and resolved here, so a service arrives
+      // with the organisational context its table column is for (and its column is not "—").
+      const departmentId = department ? await departmentIdByCode(ctx.tenantId, department) : null;
+      await ensure(
+        ctx.counts,
+        'services',
+        () =>
+          firstId(ctx.tenantId, sql`select id from services where tenant_id = ${ctx.tenantId} and upper(code) = ${input.code.toUpperCase()} limit 1`),
+        async () => {
+          const created = await createService(ctx.tenantId, { ...input, departmentId }, act.admin);
+          if (!created) return null;
+          // A retired service still has to appear behind the "inactive" filter — and behind the
+          // historical invoices that already reference it. Set only at creation.
+          if (isActive === false) {
+            await runWithTenant(ctx.tenantId, (tx) =>
+              tx.update(servicesTable).set({ isActive: false, updatedAt: new Date() }).where(eq(servicesTable.id, created.id)),
+            );
+          }
+          return created.id;
+        },
+      );
     }
     const rows = await runWithTenant(ctx.tenantId, (tx) =>
       tx
@@ -714,30 +819,27 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
   if (!ctx.modules.includes('pharmacy')) return;
 
   const supplierIds = new Map<string, string>();
-  if (spec.suppliers?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.execute<{ id: string; name: string }>(sql`select id, name from suppliers where tenant_id = ${ctx.tenantId}`),
+  for (const sup of spec.suppliers ?? []) {
+    const id = await ensure(
+      ctx.counts,
+      'suppliers',
+      () => firstId(ctx.tenantId, sql`select id from suppliers where tenant_id = ${ctx.tenantId} and name = ${sup.name} limit 1`),
+      async () => (await createSupplier(ctx.tenantId, sup, act.pharmacist ?? act.admin))?.id,
     );
-    if (existing.rows.length === 0) {
-      for (const s of spec.suppliers) {
-        const created = await createSupplier(ctx.tenantId, s, act.pharmacist ?? act.admin);
-        supplierIds.set(created.name, created.id);
-      }
-      bump(ctx.counts, 'suppliers', spec.suppliers.length);
-    } else {
-      for (const row of existing.rows) supplierIds.set(row.name, row.id);
-    }
+    if (id) supplierIds.set(sup.name, id);
   }
 
-  if (spec.drugs?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.execute<{ id: string }>(sql`select id from drugs where tenant_id = ${ctx.tenantId} limit 1`),
-    );
-    if (existing.rows.length === 0) {
-      for (const d of spec.drugs) {
-        const { batches, ...input } = d;
+  for (const d of spec.drugs ?? []) {
+    const { batches, ...input } = d;
+    await ensure(
+      ctx.counts,
+      'drugs',
+      () => firstId(ctx.tenantId, sql`select id from drugs where tenant_id = ${ctx.tenantId} and name = ${input.name} limit 1`),
+      async () => {
         const created = await createDrug(ctx.tenantId, input, act.pharmacist ?? act.admin);
-        if (!created) continue;
+        if (!created) return null;
+        // Opening stock belongs to the drug's creation. A re-run must never receive it again:
+        // that would be inventing stock a hospital never bought.
         for (const b of batches) {
           await receiveStock(
             ctx.tenantId,
@@ -752,15 +854,20 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
             act.pharmacist ?? act.admin,
           );
         }
-      }
-      bump(ctx.counts, 'drugs', spec.drugs.length);
-    }
+        return created.id;
+      },
+    );
   }
 
   const drugRows = await runWithTenant(ctx.tenantId, (tx) =>
     tx.execute<{ id: string; name: string }>(sql`select id, name from drugs where tenant_id = ${ctx.tenantId} order by name`),
   );
   ctx.drugIds = drugRows.rows.map((r) => r.id);
+}
+
+/** Department id from the code the dataset names it by; null when the hospital has no such code. */
+async function departmentIdByCode(tenantId: string, code: string): Promise<string | null> {
+  return firstId(tenantId, sql`select id from departments where tenant_id = ${tenantId} and upper(code) = ${code.trim().toUpperCase()} limit 1`);
 }
 
 /** Drug id by (loose) name, so a presentation's prescription links the real master row. */
@@ -1082,6 +1189,13 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
     bump(ctx.counts, 'storySkippedAlreadySeeded');
     return;
   }
+  // Belt and braces for the case the visits check cannot see: a hospital whose entire seeded
+  // history was deleted by hand is not given a second one behind the tester's back (ADR-122).
+  // `--reset` clears the marker with everything else, which is how a rebuild is asked for.
+  if (await markerExists('history.clinical', ctx.code)) {
+    bump(ctx.counts, 'storySkippedAlreadySeeded');
+    return;
+  }
 
   const r = rng(seedFrom(ctx.code));
 
@@ -1336,6 +1450,10 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
       }
     }
   }
+
+  // Marked only now: a run that died half-way through leaves no marker, so the next deployment
+  // finishes the job rather than declaring a partial history complete (ADR-122).
+  await once('history.clinical', ctx.code, async () => ({ historyDays: plan.historyDays, visitsPerDay: plan.visitsPerDay }));
 }
 
 /** Cancelling is ordinary, but a double-cancel is a conflict — keep the seed idempotent. */
@@ -1425,67 +1543,82 @@ async function seedBillingEdgeCases(ctx: Ctx, act: Act, r: () => number): Promis
  */
 async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<void> {
   if (spec.registrationRequests?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.select({ id: registrationRequests.id }).from(registrationRequests).where(eq(registrationRequests.tenantId, ctx.tenantId)).limit(1),
-    );
-    if (existing.length === 0) {
-      for (let i = 0; i < spec.registrationRequests.length; i++) {
-        const q = spec.registrationRequests[i]!;
-        const reviewed = q.decision !== 'pending';
-        await runWithTenant(ctx.tenantId, (tx) =>
-          tx.insert(registrationRequests).values({
-            tenantId: ctx.tenantId,
-            firstName: q.firstName,
-            lastName: q.lastName ?? null,
-            gender: q.gender ?? null,
-            dateOfBirth: q.dateOfBirth ?? null,
-            phone: q.phone,
-            email: q.email ?? null,
-            city: q.city ?? null,
-            note: q.note ?? null,
-            status: q.decision,
-            patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
-            reviewedBy: reviewed ? (act.reception ?? null) : null,
-            reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
-            rejectionReason: q.decision === 'rejected' ? (q.rejectionReason ?? 'Could not be reached on the number provided') : null,
-            createdAt: dayOffset(-(2 + i), 18, 20),
-          }),
-        );
-        bump(ctx.counts, `registrationRequests.${q.decision}`);
-      }
+    // Keyed by the phone number on the submission: stable, unique in the dataset, and the field
+    // the desk itself de-duplicates by. A request a tester already approved or rejected is left
+    // exactly where they left it (ADR-122).
+    for (let i = 0; i < spec.registrationRequests.length; i++) {
+      const q = spec.registrationRequests[i]!;
+      const reviewed = q.decision !== 'pending';
+      await ensure(
+        ctx.counts,
+        `registrationRequests.${q.decision}`,
+        () => firstId(ctx.tenantId, sql`select id from registration_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`),
+        async () => {
+          const inserted = await runWithTenant(ctx.tenantId, (tx) =>
+            tx
+              .insert(registrationRequests)
+              .values({
+                tenantId: ctx.tenantId,
+                firstName: q.firstName,
+                lastName: q.lastName ?? null,
+                gender: q.gender ?? null,
+                dateOfBirth: q.dateOfBirth ?? null,
+                phone: q.phone,
+                email: q.email ?? null,
+                city: q.city ?? null,
+                note: q.note ?? null,
+                status: q.decision,
+                patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
+                reviewedBy: reviewed ? (act.reception ?? null) : null,
+                reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
+                rejectionReason:
+                  q.decision === 'rejected' ? (q.rejectionReason ?? 'Could not be reached on the number provided') : null,
+                createdAt: dayOffset(-(2 + i), 18, 20),
+              })
+              .returning({ id: registrationRequests.id }),
+          );
+          return inserted[0]?.id;
+        },
+      );
     }
   }
 
   if (spec.bookingRequests?.length) {
-    const existing = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.select({ id: appointmentRequests.id }).from(appointmentRequests).where(eq(appointmentRequests.tenantId, ctx.tenantId)).limit(1),
-    );
-    if (existing.length === 0) {
-      for (let i = 0; i < spec.bookingRequests.length; i++) {
-        const q = spec.bookingRequests[i]!;
-        const reviewed = q.decision !== 'pending';
-        await runWithTenant(ctx.tenantId, (tx) =>
-          tx.insert(appointmentRequests).values({
-            tenantId: ctx.tenantId,
-            firstName: q.firstName,
-            lastName: q.lastName ?? null,
-            phone: q.phone,
-            email: q.email ?? null,
-            preferredDate: q.preferredDate ?? isoDate(dayOffset(2 + i)),
-            preferredTime: q.preferredTime ?? '10:30',
-            departmentId: ctx.departmentIds[i % Math.max(1, ctx.departmentIds.length)] ?? null,
-            providerId: ctx.providerIds[i % Math.max(1, ctx.providerIds.length)] ?? null,
-            note: q.note ?? null,
-            status: q.decision,
-            patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
-            reviewedBy: reviewed ? (act.reception ?? null) : null,
-            reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
-            rejectionReason: q.decision === 'rejected' ? (q.rejectionReason ?? 'No slot available on the requested day') : null,
-            createdAt: dayOffset(-(1 + i), 20, 5),
-          }),
-        );
-        bump(ctx.counts, `bookingRequests.${q.decision}`);
-      }
+    for (let i = 0; i < spec.bookingRequests.length; i++) {
+      const q = spec.bookingRequests[i]!;
+      const reviewed = q.decision !== 'pending';
+      await ensure(
+        ctx.counts,
+        `bookingRequests.${q.decision}`,
+        () => firstId(ctx.tenantId, sql`select id from appointment_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`),
+        async () => {
+          const inserted = await runWithTenant(ctx.tenantId, (tx) =>
+            tx
+              .insert(appointmentRequests)
+              .values({
+                tenantId: ctx.tenantId,
+                firstName: q.firstName,
+                lastName: q.lastName ?? null,
+                phone: q.phone,
+                email: q.email ?? null,
+                preferredDate: q.preferredDate ?? isoDate(dayOffset(2 + i)),
+                preferredTime: q.preferredTime ?? '10:30',
+                departmentId: ctx.departmentIds[i % Math.max(1, ctx.departmentIds.length)] ?? null,
+                providerId: ctx.providerIds[i % Math.max(1, ctx.providerIds.length)] ?? null,
+                note: q.note ?? null,
+                status: q.decision,
+                patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
+                reviewedBy: reviewed ? (act.reception ?? null) : null,
+                reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
+                rejectionReason:
+                  q.decision === 'rejected' ? (q.rejectionReason ?? 'No slot available on the requested day') : null,
+                createdAt: dayOffset(-(1 + i), 20, 5),
+              })
+              .returning({ id: appointmentRequests.id }),
+          );
+          return inserted[0]?.id;
+        },
+      );
     }
   }
 }
@@ -1497,11 +1630,6 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
  * visible.
  */
 async function seedNotificationLog(ctx: Ctx): Promise<void> {
-  const existing = await runWithTenant(ctx.tenantId, (tx) =>
-    tx.select({ id: notificationLog.id }).from(notificationLog).where(eq(notificationLog.tenantId, ctx.tenantId)).limit(1),
-  );
-  if (existing.length > 0) return;
-
   const rows = [
     { channel: 'email', templateKey: 'appointment_confirmed', subject: 'Your appointment is confirmed', status: 'sent', provider: 'msg91' },
     { channel: 'email', templateKey: 'payment_receipt', subject: 'Receipt for your payment', status: 'sent', provider: 'msg91' },
@@ -1511,24 +1639,38 @@ async function seedNotificationLog(ctx: Ctx): Promise<void> {
     { channel: 'sms', templateKey: 'otp_verification', subject: null, status: 'failed', provider: 'msg91' },
     { channel: 'email', templateKey: 'staff_welcome', subject: 'Welcome to Nirogix', status: 'sent', provider: 'msg91' },
   ];
+  // Each line already carries an idempotency key — the log's own stable identifier — so that is
+  // what decides whether it is there (ADR-122). A line added to this list later reaches a tenant
+  // seeded months ago; the ones already written are untouched.
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
-    await runWithTenant(ctx.tenantId, (tx) =>
-      tx.insert(notificationLog).values({
-        tenantId: ctx.tenantId,
-        channel: row.channel,
-        recipient: row.channel === 'sms' ? `+9190000000${String(10 + i).slice(-2)}` : `demo.contact${i + 1}@example.com`,
-        templateKey: row.templateKey,
-        subject: row.subject,
-        status: row.status,
-        provider: row.provider,
-        error: row.status === 'failed' ? 'DLT template not registered for this sender' : null,
-        idempotencyKey: `seed:${ctx.code}:notification:${i}`,
-        createdAt: dayOffset(-(i + 1), 11, 15),
-      }),
+    const key = `seed:${ctx.code}:notification:${i}`;
+    await ensure(
+      ctx.counts,
+      'notifications',
+      () => firstId(ctx.tenantId, sql`select id from notification_log where tenant_id = ${ctx.tenantId} and idempotency_key = ${key} limit 1`),
+      async () => {
+        const created = await runWithTenant(ctx.tenantId, (tx) =>
+          tx
+            .insert(notificationLog)
+            .values({
+              tenantId: ctx.tenantId,
+              channel: row.channel,
+              recipient: row.channel === 'sms' ? `+9190000000${String(10 + i).slice(-2)}` : `demo.contact${i + 1}@example.com`,
+              templateKey: row.templateKey,
+              subject: row.subject,
+              status: row.status,
+              provider: row.provider,
+              error: row.status === 'failed' ? 'DLT template not registered for this sender' : null,
+              idempotencyKey: key,
+              createdAt: dayOffset(-(i + 1), 11, 15),
+            })
+            .returning({ id: notificationLog.id }),
+        );
+        return created[0]?.id;
+      },
     );
   }
-  bump(ctx.counts, 'notifications', rows.length);
 }
 
 /**
@@ -1541,14 +1683,18 @@ async function seedNotificationLog(ctx: Ctx): Promise<void> {
  * describing ordinary days of use.
  */
 async function seedAuditHistory(ctx: Ctx, act: Act, days: number): Promise<void> {
-  const existing = await runWithTenant(ctx.tenantId, (tx) =>
+  // `audit_log` is append-only at the database level, so there is nothing to look a row up
+  // *against* — a second run would simply append another month of invented history. It is a
+  // one-time action, and carries a marker (ADR-122). The original check for an existing
+  // `user.login` row stays, so a database seeded before markers existed is recognised as done.
+  const already = await runWithTenant(ctx.tenantId, (tx) =>
     tx
       .select({ id: auditLog.id })
       .from(auditLog)
       .where(and(eq(auditLog.tenantId, ctx.tenantId), eq(auditLog.action, 'user.login')))
       .limit(1),
   );
-  if (existing.length > 0) return;
+  if (already.length > 0) return;
 
   const sample: Array<{ action: string; resourceType: string; severity: 'info' | 'notice' | 'warning' | 'critical'; actor?: string }> = [
     { action: 'user.login', resourceType: 'session', severity: 'info', actor: act.reception },
@@ -1561,22 +1707,25 @@ async function seedAuditHistory(ctx: Ctx, act: Act, days: number): Promise<void>
   ];
 
   let n = 0;
-  for (let d = Math.min(days, 30); d >= 1; d--) {
-    const entry = sample[d % sample.length]!;
-    await runWithTenant(ctx.tenantId, (tx) =>
-      tx.insert(auditLog).values({
-        tenantId: ctx.tenantId,
-        actorUserId: entry.actor ?? null,
-        action: entry.action,
-        severity: entry.severity,
-        resourceType: entry.resourceType,
-        metadata: { source: 'seed' },
-        createdAt: dayOffset(-d, 8 + (d % 9), (d * 7) % 60),
-      }),
-    );
-    n++;
-  }
-  bump(ctx.counts, 'auditHistory', n);
+  const wrote = await once('history.audit', ctx.code, async () => {
+    for (let d = Math.min(days, 30); d >= 1; d--) {
+      const entry = sample[d % sample.length]!;
+      await runWithTenant(ctx.tenantId, (tx) =>
+        tx.insert(auditLog).values({
+          tenantId: ctx.tenantId,
+          actorUserId: entry.actor ?? null,
+          action: entry.action,
+          severity: entry.severity,
+          resourceType: entry.resourceType,
+          metadata: { source: 'seed' },
+          createdAt: dayOffset(-d, 8 + (d % 9), (d * 7) % 60),
+        }),
+      );
+      n++;
+    }
+    return { entries: n };
+  });
+  if (wrote) bump(ctx.counts, 'auditHistory', n);
 }
 
 /**
@@ -1590,31 +1739,50 @@ async function seedOverrides(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
   const receptionId = reception ? ctx.users.get(reception.email) : undefined;
   if (!cashierId && !receptionId) return;
 
-  const already = await runWithTenant(ctx.tenantId, (tx) =>
-    tx.execute<{ id: string }>(sql`select id from user_permission_overrides where tenant_id = ${ctx.tenantId} limit 1`),
-  );
-  if (already.rows.length > 0) return;
+  // An override is identified by WHO it is about and WHICH permission — the pair the table is
+  // unique on. `setOverride` would happily rewrite an existing one, and surviving a rewrite is
+  // exactly what a tester's experiment needs, so it is called only when the pair is absent.
+  const overrideExists = (userId: string, permission: string) =>
+    firstId(
+      ctx.tenantId,
+      sql`select id from user_permission_overrides
+           where tenant_id = ${ctx.tenantId} and user_id = ${userId} and permission = ${permission} limit 1`,
+    );
 
   if (receptionId) {
-    await setOverride(ctx.tenantId, {
-      userId: receptionId,
-      permission: 'billing.invoice.view',
-      effect: 'GRANT',
-      validUntil: dayOffset(14, 23, 59),
-      reason: 'Covering the billing desk while the cashier is on leave',
-      createdBy: act.admin,
-    });
-    bump(ctx.counts, 'overridesGrant');
+    await ensure(
+      ctx.counts,
+      'overridesGrant',
+      () => overrideExists(receptionId, 'billing.invoice.view'),
+      async () => {
+        await setOverride(ctx.tenantId, {
+          userId: receptionId,
+          permission: 'billing.invoice.view',
+          effect: 'GRANT',
+          validUntil: dayOffset(14, 23, 59),
+          reason: 'Covering the billing desk while the cashier is on leave',
+          createdBy: act.admin,
+        });
+        return overrideExists(receptionId, 'billing.invoice.view');
+      },
+    );
   }
   if (cashierId) {
-    await setOverride(ctx.tenantId, {
-      userId: cashierId,
-      permission: 'patient.record.update',
-      effect: 'DENY',
-      reason: 'Corrections must go through the front desk',
-      createdBy: act.admin,
-    });
-    bump(ctx.counts, 'overridesDeny');
+    await ensure(
+      ctx.counts,
+      'overridesDeny',
+      () => overrideExists(cashierId, 'patient.record.update'),
+      async () => {
+        await setOverride(ctx.tenantId, {
+          userId: cashierId,
+          permission: 'patient.record.update',
+          effect: 'DENY',
+          reason: 'Corrections must go through the front desk',
+          createdBy: act.admin,
+        });
+        return overrideExists(cashierId, 'patient.record.update');
+      },
+    );
   }
 }
 
@@ -1632,17 +1800,20 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
         .limit(1),
     );
     let providerId = existing[0]?.id;
+    const created = !providerId;
     if (!providerId) {
-      const created = await createProvider(ctx.tenantId, {
+      const madeProvider = await createProvider(ctx.tenantId, {
         fullName: p.fullName,
         userId: p.userEmail ? ctx.users.get(p.userEmail) : undefined,
         qualification: p.qualification,
         registrationNumber: p.registrationNumber,
         consultationFeePaise: p.consultationFeePaise ?? null,
       });
-      providerId = created.id;
+      providerId = madeProvider.id;
       await assignSpecialty(ctx.tenantId, providerId, { specialtyCode: p.specialty, isPrimary: true });
       bump(ctx.counts, 'providers');
+    } else {
+      bump(ctx.counts, 'providers.kept');
     }
     if (p.schedule?.length) {
       const current = await runWithTenant(ctx.tenantId, (tx) =>
@@ -1654,7 +1825,8 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
       }
     }
     // A doctor who has left still owns their past consultations — deactivated, never deleted.
-    if (p.isActive === false) {
+    // Applied at creation only: if staging reactivated them by hand, that stands (ADR-122).
+    if (p.isActive === false && created) {
       await runWithTenant(ctx.tenantId, (tx) =>
         tx.update(providers).set({ isActive: false, updatedAt: new Date() }).where(eq(providers.id, providerId!)),
       );
@@ -1676,38 +1848,46 @@ async function seedPatients(ctx: Ctx, spec: SeedTenantSpec, act: Act, historyDay
   const list = spec.patients ?? [];
   if (list.length === 0) return;
 
-  const existing = await runWithTenant(ctx.tenantId, (tx) =>
-    tx.select({ id: patientsTable.id }).from(patientsTable).where(eq(patientsTable.tenantId, ctx.tenantId)).limit(1),
-  );
-
-  if (existing.length === 0) {
-    for (let i = 0; i < list.length; i++) {
-      const { status, immunizations, ...input } = list[i]!;
-      const created = await createPatient(
-        ctx.tenantId,
-        { ...input, branchId: ctx.branchIds[i % Math.max(1, ctx.branchIds.length)] ?? null },
-        act.reception,
-      );
-      bump(ctx.counts, 'patients');
-
-      // Registration dates spread backwards, so the Patients date-range filter has something to
-      // cut on — and so nobody has a visit older than the day they registered. The last two are
-      // deliberately recent *and* activity-free: that is the brand-new-patient case.
-      const isFresh = i >= list.length - 2;
-      const registeredAt = isFresh ? dayOffset(-(1 + (i % 3)), 12, 30) : dayOffset(-(historyDays + 15 + i * 9), 11, 0);
-      await backdatePatient(ctx.tenantId, created.id, registeredAt);
-
-      if (status === 'inactive') {
-        await runWithTenant(ctx.tenantId, (tx) =>
-          tx.update(patientsTable).set({ status: 'inactive', updatedAt: new Date() }).where(eq(patientsTable.id, created.id)),
+  // A patient is identified by their PHONE NUMBER, which is stable, unique in the dataset and
+  // the field a front desk actually searches by — never by name, where two people genuinely
+  // collide (ADR-122). A chart that exists is left alone: on staging it has probably been
+  // edited, and every edit is a test.
+  for (let i = 0; i < list.length; i++) {
+    const { status, immunizations, ...input } = list[i]!;
+    await ensure(
+      ctx.counts,
+      'patients',
+      async () =>
+        input.phone
+          ? firstId(ctx.tenantId, sql`select id from patients where tenant_id = ${ctx.tenantId} and phone = ${input.phone} limit 1`)
+          : null,
+      async () => {
+        const created = await createPatient(
+          ctx.tenantId,
+          { ...input, branchId: ctx.branchIds[i % Math.max(1, ctx.branchIds.length)] ?? null },
+          act.reception,
         );
-        bump(ctx.counts, 'patientsInactive');
-      }
-      for (const im of immunizations ?? []) {
-        await addImmunization(ctx.tenantId, created.id, { ...im, source: 'system' }, act.doctor ?? act.reception);
-        bump(ctx.counts, 'immunizations');
-      }
-    }
+
+        // Registration dates spread backwards, so the Patients date-range filter has something to
+        // cut on — and so nobody has a visit older than the day they registered. The last two are
+        // deliberately recent *and* activity-free: that is the brand-new-patient case.
+        const isFresh = i >= list.length - 2;
+        const registeredAt = isFresh ? dayOffset(-(1 + (i % 3)), 12, 30) : dayOffset(-(historyDays + 15 + i * 9), 11, 0);
+        await backdatePatient(ctx.tenantId, created.id, registeredAt);
+
+        if (status === 'inactive') {
+          await runWithTenant(ctx.tenantId, (tx) =>
+            tx.update(patientsTable).set({ status: 'inactive', updatedAt: new Date() }).where(eq(patientsTable.id, created.id)),
+          );
+          bump(ctx.counts, 'patientsInactive');
+        }
+        for (const im of immunizations ?? []) {
+          await addImmunization(ctx.tenantId, created.id, { ...im, source: 'system' }, act.doctor ?? act.reception);
+          bump(ctx.counts, 'immunizations');
+        }
+        return created.id;
+      },
+    );
   }
 
   // Only active patients take part in the story — an inactive chart with today's appointment
@@ -1744,9 +1924,10 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   };
 
   for (const u of spec.users) {
-    ctx.users.set(u.email, await upsertUser(tenantId, u, dataset.password));
-    bump(ctx.counts, 'users');
-    if (u.status === 'inactive') bump(ctx.counts, 'usersInactive');
+    const account = await upsertUser(tenantId, u, dataset.password);
+    ctx.users.set(u.email, account.id);
+    bump(ctx.counts, account.created ? 'users' : 'users.kept');
+    if (account.created && u.status === 'inactive') bump(ctx.counts, 'usersInactive');
   }
   const act = actors(ctx, spec.users);
 
@@ -1757,9 +1938,10 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   bump(ctx.counts, 'modules', ctx.modules.length);
 
   for (const b of spec.branches ?? []) {
-    ctx.branchIds.push(await upsertBranch(tenantId, b));
-    bump(ctx.counts, 'branches');
-    if (b.isActive === false) bump(ctx.counts, 'branchesInactive');
+    const branch = await upsertBranch(tenantId, b);
+    ctx.branchIds.push(branch.id);
+    bump(ctx.counts, branch.created ? 'branches' : 'branches.kept');
+    if (branch.created && b.isActive === false) bump(ctx.counts, 'branchesInactive');
   }
   // An inactive branch cannot take a visit, so it is not part of the story rotation.
   const activeBranchFlags = await runWithTenant(tenantId, (tx) =>
@@ -1768,9 +1950,9 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   ctx.branchIds = activeBranchFlags.map((b) => b.id);
 
   for (const d of spec.departments ?? []) {
-    await upsertDepartment(tenantId, d);
-    bump(ctx.counts, 'departments');
-    if (d.isActive === false) bump(ctx.counts, 'departmentsInactive');
+    const department = await upsertDepartment(tenantId, d);
+    bump(ctx.counts, department.created ? 'departments' : 'departments.kept');
+    if (department.created && d.isActive === false) bump(ctx.counts, 'departmentsInactive');
   }
   const activeDepts = await runWithTenant(tenantId, (tx) =>
     tx
@@ -1781,19 +1963,42 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   );
   ctx.departmentIds = activeDepts.map((d) => d.id);
 
-  if (spec.profile && act.admin) {
-    await updateOrganizationProfile(tenantId, spec.profile as Parameters<typeof updateOrganizationProfile>[1], act.admin);
-    bump(ctx.counts, 'organizationProfile');
+  // ---- Configuration: applied ONCE, never restated (ADR-122) ---------------
+  // These four write to rows that already exist. Re-applying them on every deployment is
+  // precisely how a hospital profile someone corrected on staging, a brand colour someone was
+  // testing, or a public form someone deliberately turned off would be silently reverted. Each
+  // therefore carries a marker: it is the *initial* configuration, not a configuration the
+  // seeder owns.
+  const adminId = act.admin;
+  if (spec.profile && adminId) {
+    const applied = await once('config.organizationProfile', spec.code, async () => {
+      await updateOrganizationProfile(tenantId, spec.profile as Parameters<typeof updateOrganizationProfile>[1], adminId);
+    });
+    if (applied) bump(ctx.counts, 'organizationProfile');
   }
   if (spec.branding) {
-    await updateBranding(tenantId, spec.branding, act.admin);
-    bump(ctx.counts, 'branding');
+    const applied = await once('config.branding', spec.code, async () => {
+      await updateBranding(tenantId, spec.branding!, act.admin);
+    });
+    if (applied) bump(ctx.counts, 'branding');
   }
-  if (spec.selfRegistration !== undefined && act.admin) {
-    await setSelfRegistration(tenantId, spec.selfRegistration, act.admin);
+  if (spec.selfRegistration !== undefined && adminId) {
+    const applied = await once('config.selfRegistration', spec.code, async () => {
+      await setSelfRegistration(tenantId, spec.selfRegistration!, adminId);
+    });
+    if (applied) bump(ctx.counts, 'selfRegistration');
   }
   if (spec.onlineBooking !== undefined) {
-    await setOnlineBooking(tenantId, spec.onlineBooking, act.admin);
+    const applied = await once('config.onlineBooking', spec.code, async () => {
+      await setOnlineBooking(tenantId, spec.onlineBooking!, act.admin);
+    });
+    if (applied) bump(ctx.counts, 'onlineBooking');
+  }
+  if (spec.selfCheckin !== undefined) {
+    const applied = await once('config.selfCheckin', spec.code, async () => {
+      await setSelfCheckinEnabled(tenantId, spec.selfCheckin!, act.admin);
+    });
+    if (applied) bump(ctx.counts, 'selfCheckin');
   }
 
   await seedProviders(ctx, spec, act);
@@ -1803,12 +2008,56 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   await seedPatients(ctx, spec, act, plan?.historyDays ?? 30);
   if (plan) await seedClinicalStory(ctx, spec, plan, act);
 
+  await applyBackfills(ctx, spec);
+
   await seedPublicRequests(ctx, spec, act);
   await seedNotificationLog(ctx);
   await seedAuditHistory(ctx, act, plan?.historyDays ?? 30);
   await seedOverrides(ctx, spec, act);
 
   return { tenant: spec.name, code: spec.code, counts: ctx.counts };
+}
+
+// ---------------------------------------------------------------------------
+// Columns added after the data was seeded
+// ---------------------------------------------------------------------------
+
+/**
+ * A column added to a table that a hospital already has rows in (ADR-122).
+ *
+ * The rule is narrow on purpose: **fill it only where it is NULL**. A value somebody typed is a
+ * value somebody meant, and a deployment is not allowed to have an opinion about it. Every
+ * backfill is also marked, so it runs at most once even if the column is legitimately left
+ * empty afterwards.
+ *
+ * Each entry stays here permanently — it is the record of what an older seeded database needs
+ * to catch up on, and it costs one marker lookup per deployment.
+ */
+async function applyBackfills(ctx: Ctx, spec: SeedTenantSpec): Promise<void> {
+  // services.department_id (added by ADR-067, populated from ADR-122 onwards). Services seeded
+  // before the dataset named a department for them show "—" in the Department column of
+  // /services, which is a missing value rather than a meaningful one.
+  const withDepartment = (spec.services ?? []).filter((svc) => svc.department);
+  if (withDepartment.length > 0) {
+    await once('backfill.services.departmentId', spec.code, async () => {
+      let filled = 0;
+      for (const svc of withDepartment) {
+        const departmentId = await departmentIdByCode(ctx.tenantId, svc.department!);
+        if (!departmentId) continue;
+        const res = await runWithTenant(ctx.tenantId, (tx) =>
+          tx.execute(sql`
+            update services
+               set department_id = ${departmentId}, updated_at = now()
+             where tenant_id = ${ctx.tenantId}
+               and upper(code) = ${svc.code.toUpperCase()}
+               and department_id is null`),
+        );
+        filled += res.rowCount ?? 0;
+      }
+      if (filled > 0) bump(ctx.counts, 'backfilled.serviceDepartments', filled);
+      return { filled };
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1820,6 +2069,9 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
  * second-guess which database it is talking to, it only writes what it was given.
  */
 export async function runSeed(dataset: SeedDataset): Promise<SeedReport[]> {
+  // Every marker written from here on says which seeder wrote it (ADR-122).
+  seedEnvironment = dataset.environment;
+
   // Platform catalogues first: permission keys, specialty codes, master reference data and the
   // system roles every tenant's RBAC is provisioned from. Additive and idempotent.
   await seedPermissionCatalog();
@@ -1841,7 +2093,13 @@ export async function runSeed(dataset: SeedDataset): Promise<SeedReport[]> {
 function summarise(counts: SeedCounts): string {
   const keys = ['users', 'branches', 'departments', 'providers', 'patients', 'appointments', 'visits', 'invoices', 'payments'];
   const parts = keys.filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`);
-  return parts.length ? parts.join(', ') : 'configuration only';
+  // Everything a run left untouched, counted together. A deployment that reports "created
+  // nothing, kept 214" is the healthy case, and the log has to be able to say so (ADR-122).
+  const kept = Object.entries(counts)
+    .filter(([k]) => k.endsWith('.kept'))
+    .reduce((sum, [, v]) => sum + v, 0);
+  const created = parts.length ? `created ${parts.join(', ')}` : 'created nothing';
+  return kept > 0 ? `${created}; kept ${kept} existing` : created;
 }
 
 /** The full per-tenant tally, printed at the end of a run and quoted in the seed report. */
@@ -1872,7 +2130,9 @@ export function printReport(reports: SeedReport[]): void {
 export async function resetSeedData(): Promise<string[]> {
   const { pool } = await import('../db/client');
   const tenantScoped = await findTenantScopedTables(pool);
-  const extras = ['tenants', 'patient_identity'];
+  // `seed_markers` is seeded state like the rest: clearing it is what makes the next run
+  // re-apply the configuration, the clinical history and every backfill (ADR-122).
+  const extras = ['tenants', 'patient_identity', 'seed_markers'];
   const present = await pool.query<{ table_name: string }>(
     `SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name = ANY($1)`,

@@ -4,18 +4,20 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
+  actionsColumn,
   Alert,
   Badge,
   Button,
   Card,
-  Field,
   DataTable,
+  EditAction,
+  emptyLabel,
+  EmptyValue,
+  Field,
   TableActions,
   ToggleAction,
-  ViewAction,
-  actionsColumn,
-  EditAction,
   type Column,
+  ViewAction,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { UserListItem, Role } from "@hms/types";
@@ -52,7 +54,7 @@ function userColumns(
     key: "roles",
     header: "Roles",
     filterable: true,
-    accessor: (u) => u.roles.join(", ") || "—",
+    accessor: (u) => u.roles.join(", ") || emptyLabel("none"),
     cell: (u) =>
       u.roles.length ? (
         <div className="flex flex-wrap gap-1">
@@ -63,7 +65,8 @@ function userColumns(
           ))}
         </div>
       ) : (
-        "—"
+        // A real and actionable state: the account exists but can do nothing until given a role.
+        <EmptyValue reason="none" />
       ),
   },
   {
@@ -203,7 +206,7 @@ function UsersTable() {
             <label className="hms-field">
               <span className="hms-label">Role (optional)</span>
               <select className="hms-input max-w-sm" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-                <option value="">— no role —</option>
+                <option value="">No role yet</option>
                 {roles.map((r) => (
                   <option key={r.key} value={r.key}>
                     {r.name}

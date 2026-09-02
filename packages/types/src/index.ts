@@ -92,6 +92,23 @@ export interface Role {
   isSystem: boolean;
 }
 
+/**
+ * `GET /rbac/access?permission=…` — why a caller cannot do something (ADR-126).
+ *
+ * `reason` is the part that matters: `module_not_enabled` is the hospital's subscription and no
+ * administrator can grant their way past it, while `permission_missing` is a role question their
+ * administrator can answer today.
+ */
+export interface AccessExplanation {
+  permission: { key: string; label: string };
+  /** Null for Platform Core, which every hospital always has. */
+  module: { key: string; name: string; enabled: boolean } | null;
+  granted: boolean;
+  reason: 'granted' | 'module_not_enabled' | 'permission_missing';
+  /** Roles in this hospital that grant it — system and custom alike. */
+  grantedByRoles: Array<{ key: string; name: string; isSystem: boolean }>;
+}
+
 // ---- Providers & specialties (hms_backend/src/modules/provider) -------------
 
 export interface Specialty {

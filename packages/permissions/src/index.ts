@@ -167,6 +167,130 @@ export const WILDCARD = '*';
 
 export const ALL_PERMISSIONS: readonly PermissionKey[] = Object.values(PERMISSIONS);
 
+/**
+ * What each permission is called when a person has to read it (ADR-126).
+ *
+ * A refused user is told which permission they are missing, and `patient.record.create` is not
+ * an answer they can act on — "Register patients" is. Both are shown: the sentence for the
+ * person, the key for whoever they forward it to.
+ */
+export const PERMISSION_LABELS: Record<PermissionKey, string> = {
+  [PERMISSIONS.TENANTS_MANAGE]: 'Onboard and manage hospitals',
+  [PERMISSIONS.RBAC_MANAGE]: 'Grant and deny individual permissions',
+  [PERMISSIONS.USERS_VIEW]: 'View staff accounts',
+  [PERMISSIONS.USERS_MANAGE]: 'Create and manage staff accounts',
+  [PERMISSIONS.ROLES_VIEW]: 'View roles',
+  [PERMISSIONS.ROLES_MANAGE]: 'Assign and manage roles',
+  [PERMISSIONS.BRANCHES_VIEW]: 'View branches',
+  [PERMISSIONS.BRANCHES_MANAGE]: 'Create and edit branches',
+  [PERMISSIONS.BRANDING_MANAGE]: "Change the hospital's branding",
+  [PERMISSIONS.ORG_PROFILE_MANAGE]: "Manage the hospital's information and setup",
+  [PERMISSIONS.WORKFLOW_CONFIG_VIEW]: 'View the workflow configuration',
+  [PERMISSIONS.WORKFLOW_CONFIG_MANAGE]: 'Change the workflow configuration',
+  [PERMISSIONS.DEPARTMENT_VIEW]: 'View departments',
+  [PERMISSIONS.DEPARTMENT_MANAGE]: 'Create and edit departments',
+  [PERMISSIONS.PLATFORM_SUPPORT_VIEW]: 'View platform support sessions',
+  [PERMISSIONS.PLATFORM_SUPPORT_IMPERSONATE]: 'Start a support session inside a hospital',
+  [PERMISSIONS.PLATFORM_ANALYTICS_VIEW]: 'View cross-hospital analytics',
+  [PERMISSIONS.PLATFORM_BRANDING_MANAGE]: "Change Nirogix's own branding",
+  [PERMISSIONS.AI_PORTAL_ACCESS]: 'Use the AI Portal',
+  [PERMISSIONS.PATIENT_VIEW]: 'View patient records',
+  [PERMISSIONS.PATIENT_CREATE]: 'Register patients',
+  [PERMISSIONS.PATIENT_UPDATE]: 'Edit patient records',
+  [PERMISSIONS.APPOINTMENT_VIEW]: 'View appointments',
+  [PERMISSIONS.APPOINTMENT_CREATE]: 'Book appointments',
+  [PERMISSIONS.APPOINTMENT_CANCEL]: 'Cancel appointments',
+  [PERMISSIONS.OPD_VIEW]: 'View the OPD queue',
+  [PERMISSIONS.OPD_CHECKIN]: 'Check patients in',
+  [PERMISSIONS.OPD_UPDATE]: 'Move a visit through the queue',
+  [PERMISSIONS.CASE_VIEW]: 'View treatment cases',
+  [PERMISSIONS.CASE_MANAGE]: 'Open and close treatment cases',
+  [PERMISSIONS.EMR_VIEW]: 'Read the clinical record',
+  [PERMISSIONS.EMR_WRITE]: 'Write the clinical record',
+  [PERMISSIONS.VITALS_VIEW]: 'View vitals',
+  [PERMISSIONS.VITALS_RECORD]: 'Record vitals',
+  [PERMISSIONS.PHARMACY_DISPENSE]: 'Dispense medicines',
+  [PERMISSIONS.PHARMACY_STOCK_VIEW]: 'View pharmacy stock',
+  [PERMISSIONS.PHARMACY_MANAGE]: 'Manage the drug master and stock',
+  [PERMISSIONS.LAB_ORDER_VIEW]: 'View laboratory orders',
+  [PERMISSIONS.LAB_RESULT_ENTER]: 'Enter laboratory results',
+  [PERMISSIONS.LAB_RESULT_VERIFY]: 'Verify laboratory results',
+  [PERMISSIONS.LAB_MANAGE]: 'Manage the test master and collect samples',
+  [PERMISSIONS.BILLING_VIEW]: 'View invoices',
+  [PERMISSIONS.BILLING_CREATE]: 'Raise invoices',
+  [PERMISSIONS.BILLING_PAYMENT]: 'Collect payments',
+  [PERMISSIONS.BILLING_SERVICES_VIEW]: 'View the services catalogue',
+  [PERMISSIONS.BILLING_SERVICES_MANAGE]: 'Manage the services catalogue',
+  [PERMISSIONS.BILLING_FEE_RULES_VIEW]: 'View the consultation fee schedule',
+  [PERMISSIONS.BILLING_FEE_RULES_MANAGE]: 'Set the consultation fee schedule',
+  [PERMISSIONS.BILLING_FEE_OVERRIDE]: 'Charge a fee other than the price list',
+  [PERMISSIONS.REFERRAL_VIEW]: 'View referrals',
+  [PERMISSIONS.REFERRAL_CREATE]: 'Refer a patient to another department',
+  [PERMISSIONS.REFERRAL_UPDATE]: 'Update a referral',
+  [PERMISSIONS.REPORTS_VIEW]: 'View reports',
+  [PERMISSIONS.AUDIT_VIEW]: 'View the audit log',
+  [PERMISSIONS.NOTIFICATION_SEND]: 'Send notifications',
+  [PERMISSIONS.NOTIFICATION_VIEW]: 'View the notification log',
+  [PERMISSIONS.FILE_UPLOAD]: 'Upload documents',
+  [PERMISSIONS.FILE_VIEW]: 'View documents',
+  [PERMISSIONS.FILE_DELETE]: 'Delete documents',
+  [PERMISSIONS.PROVIDER_VIEW]: 'View doctors and specialties',
+  [PERMISSIONS.PROVIDER_MANAGE]: 'Manage doctors and specialties',
+  [PERMISSIONS.IMMUNIZATION_VIEW]: 'View immunisation records',
+  [PERMISSIONS.IMMUNIZATION_MANAGE]: 'Record immunisations',
+  [PERMISSIONS.CATALOG_MANAGE]: 'Edit the global master-data catalogue',
+  [PERMISSIONS.CATALOG_AVAILABILITY_MANAGE]: 'Choose what each branch offers',
+  [PERMISSIONS.ABDM_VERIFY]: 'Verify an ABHA',
+  [PERMISSIONS.ABDM_LINK]: 'Link an ABHA to a patient record',
+  [PERMISSIONS.ABDM_FACILITY_VIEW]: 'View the ABDM facility configuration',
+  [PERMISSIONS.ABDM_FACILITY_MANAGE]: 'Configure the ABDM facility',
+  [PERMISSIONS.ABDM_PROFILE_UPDATE]: "Correct a patient's profile at ABDM",
+  [PERMISSIONS.ABDM_REGISTRY_VIEW]: 'View the national registry listing',
+  [PERMISSIONS.ABDM_REGISTRY_MANAGE]: 'Manage the national registry listing',
+  [PERMISSIONS.ABDM_HISTORY_REQUEST]: "Request a patient's history from other hospitals",
+  [PERMISSIONS.ABDM_HISTORY_VIEW]: 'Read a history pulled from other hospitals',
+  [PERMISSIONS.ABDM_CONSENT_STATUS_VIEW]: 'See whether a consent is outstanding',
+};
+
+/**
+ * A readable name for any permission key, including one this build has never heard of —
+ * a tenant's custom role can carry a key added by a later release, and a refusal screen that
+ * printed nothing would be worse than one that printed a decent guess.
+ */
+export function permissionLabel(key: string): string {
+  const known = (PERMISSION_LABELS as Record<string, string>)[key];
+  if (known) return known;
+  const parts = key.split('.');
+  const action = parts.pop() ?? key;
+  const subject = parts.slice(1).join(' ').replace(/_/g, ' ');
+  const sentence = `${action.replace(/_/g, ' ')} ${subject}`.trim();
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+/**
+ * Permissions that belong to the **vendor's operators**, not to a hospital (ADR-037).
+ * They reach across tenants or edit something every hospital shares, so no role inside a
+ * hospital holds them — including its administrator.
+ */
+export const OPERATOR_ONLY_PERMISSIONS: readonly PermissionKey[] = [
+  PERMISSIONS.TENANTS_MANAGE,
+  PERMISSIONS.PLATFORM_SUPPORT_VIEW,
+  PERMISSIONS.PLATFORM_SUPPORT_IMPERSONATE,
+  PERMISSIONS.PLATFORM_ANALYTICS_VIEW,
+  PERMISSIONS.PLATFORM_BRANDING_MANAGE,
+  PERMISSIONS.CATALOG_MANAGE,
+];
+
+/**
+ * Permissions withheld from an administrator for a reason **outside** this system.
+ *
+ * Requesting a patient's records from another hospital puts a named clinician's medical
+ * registration number in front of that patient, and it is what they read when deciding whether
+ * to consent (ADR-092, ADR-120). An administrator has no registration number to put there, so
+ * this is not a preference a hospital can configure away.
+ */
+export const CLINICIAN_ONLY_PERMISSIONS: readonly PermissionKey[] = [PERMISSIONS.ABDM_HISTORY_REQUEST];
+
 // Catalog metadata (module per key) for the permissions table + admin UI.
 export function permissionModule(key: string): string {
   return key.split('.')[0] ?? 'unknown';
@@ -197,37 +321,52 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
   { key: 'super_admin', name: 'Super Admin', description: 'Full platform access', permissions: [WILDCARD] },
   {
     key: 'org_admin',
+    /**
+     * **The hospital's administrator, and its most capable account** (ADR-125).
+     *
+     * The rule is one sentence: *anything that happens inside this hospital, this role may do*.
+     * It was previously configuration-plus-read-only — it could define departments, doctors and
+     * a price list but could not correct a patient's phone number, book an appointment or check
+     * anybody in, which left the person accountable for the hospital unable to fix what they
+     * were accountable for.
+     *
+     * What it deliberately still cannot do, and why each one is a boundary rather than an
+     * oversight:
+     *
+     * - **Anything outside this hospital.** `platform.tenants.manage`, the support surface,
+     *   cross-tenant analytics, the vendor's own platform branding, and the GLOBAL master-data
+     *   catalogue every hospital shares. Those belong to the vendor's operators (ADR-037); RLS
+     *   and the wildcard role are what separate them, not politeness.
+     * - **`abdm.history.request`.** Asking another hospital for a patient's records puts a named
+     *   clinician's medical registration number in front of that patient, and it is what they
+     *   read when deciding. An administrator has no registration number to put there. This one
+     *   is an external requirement, not an internal preference, so "full administrator" does not
+     *   reach it (ADR-092, ADR-120).
+     *
+     * A hospital that wants the narrower, older split does not need a code change: DENY the keys
+     * it disagrees with on that account (invariant #3 — explicit DENY always beats a role grant),
+     * or clone this role and remove them. That is the same lever it always had, pointing the
+     * other way.
+     */
     name: 'Organization Admin',
-    description: 'Administers the organization',
-    permissions: [
-      P.RBAC_MANAGE, P.USERS_VIEW, P.USERS_MANAGE, P.ROLES_VIEW, P.ROLES_MANAGE,
-      P.BRANCHES_VIEW, P.BRANCHES_MANAGE, P.BRANDING_MANAGE, P.ORG_PROFILE_MANAGE,
-      // How this hospital runs its own workflow (ADR-113) — hospital configuration, like
-      // branding and the services catalogue.
-      P.WORKFLOW_CONFIG_VIEW, P.WORKFLOW_CONFIG_MANAGE, P.VITALS_VIEW,
-      P.DEPARTMENT_VIEW, P.DEPARTMENT_MANAGE,
-      P.PATIENT_VIEW, P.APPOINTMENT_VIEW, P.IMMUNIZATION_VIEW,
-      // Configure which master-data items each of the org's hospitals offers (ADR-073).
-      P.CATALOG_AVAILABILITY_MANAGE,
-      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.CASE_VIEW,
-      // The services & packages catalogue is hospital configuration (E-3) — the admin owns it.
-      P.BILLING_SERVICES_VIEW, P.BILLING_SERVICES_MANAGE,
-      // What this hospital charges for a consultation, by doctor, department and follow-up
-      // (ADR-117) — the same kind of configuration as the services catalogue.
-      P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_RULES_MANAGE, P.BILLING_FEE_OVERRIDE,
-      P.REFERRAL_VIEW,
-      P.AUDIT_VIEW, P.NOTIFICATION_SEND, P.NOTIFICATION_VIEW,
-      P.FILE_VIEW, P.FILE_UPLOAD, P.FILE_DELETE,
-      P.PROVIDER_VIEW, P.PROVIDER_MANAGE,
-      // The hospital's ABDM/HFR facility registration is organization-level configuration.
-      P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE, P.ABDM_VERIFY, P.ABDM_LINK, P.ABDM_PROFILE_UPDATE,
-      // View a pulled external history for support and audit, but NOT request one: a consent
-      // request must name a clinician the patient can recognise, not an administrator.
-      P.ABDM_HISTORY_VIEW, P.ABDM_CONSENT_STATUS_VIEW,
-      // Listing the hospital itself in the national registry (M4) — organisation-level, org_admin only.
-      P.ABDM_REGISTRY_VIEW, P.ABDM_REGISTRY_MANAGE,
-      P.AI_PORTAL_ACCESS,
-    ],
+    description: 'Administers the hospital, and may perform any action within it',
+    /**
+     * **Derived, not listed** (ADR-126). Every permission except the two named exclusion sets,
+     * so a key added by a later release reaches the administrator automatically instead of
+     * silently not reaching them — which is exactly how this role came to be missing
+     * `patient.record.create` and `opd.visit.checkin`.
+     *
+     * It is still not a wildcard. `super_admin` holds `*`; this role holds a list, so the
+     * operator keys stay out of it by construction.
+     *
+     * **A permission is not access.** Every route runs `requireModule()` before
+     * `requirePermission()`, so holding `pharmacy.stock.manage` grants nothing at all in a
+     * hospital that has not been entitled to the Pharmacy module — the administrator's reach is
+     * the *intersection* of this list with what the hospital owns.
+     */
+    permissions: ALL_PERMISSIONS.filter(
+      (key) => !OPERATOR_ONLY_PERMISSIONS.includes(key) && !CLINICIAN_ONLY_PERMISSIONS.includes(key),
+    ),
   },
   {
     key: 'branch_admin',
@@ -236,6 +375,10 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     permissions: [
       P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
       P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.IMMUNIZATION_VIEW, P.CASE_VIEW,
+      // Reading how the hospital runs is not an administrative act (ADR-129): the patient chart's
+      // cases block asks for the case-type vocabulary, and a role that may see cases must be able
+      // to read the words they are described in. Changing it stays `platform.workflow.manage`.
+      P.WORKFLOW_CONFIG_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -249,6 +392,10 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // A course of treatment is the clinician's to open, describe and declare finished.
       P.CASE_VIEW, P.CASE_MANAGE,
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
+      // Where vitals are taken, when the fee is due, and this hospital's own consultation and case
+      // vocabularies (ADR-113) — the consultation screen is built from them, so it must read them
+      // (ADR-129). Read only; the schedule itself is the administrator's.
+      P.WORKFLOW_CONFIG_VIEW,
       // Vitals recorded earlier in the workflow are part of the picture the doctor consults on,
       // and a clinician must always be able to re-take a reading they doubt.
       P.VITALS_VIEW, P.VITALS_RECORD,
@@ -286,6 +433,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // (ADR-113). Holding this is not the same as being offered it: the mode decides whether
       // the fields appear at all, and the server checks the mode as well as the permission.
       P.VITALS_VIEW, P.VITALS_RECORD,
+      // ...and reading that mode is how the check-in form knows (ADR-129). Without it the desk's
+      // own screen 403'd on load against the configuration that governs it.
+      P.WORKFLOW_CONFIG_VIEW,
       P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE, // front desk records routine vaccinations
       P.REFERRAL_VIEW, // routes a referred patient to the right department at the desk
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
@@ -328,6 +478,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: 'Billing counter',
     permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.BILLING_SERVICES_VIEW,
       P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW, P.CASE_VIEW,
+      // When the consultation fee is due is a workflow setting the billing counter reads to know
+      // what it is looking at, and the chart's cases block needs the case-type words (ADR-129).
+      P.WORKFLOW_CONFIG_VIEW,
       // The billing counter reads the price list, and can charge differently — it is the counter
       // a supervisor already stands at when a concession is agreed.
       P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_OVERRIDE,
@@ -1060,4 +1213,29 @@ export function isCapabilityBuilt(capabilityKey: string): boolean {
  */
 export function capabilityDependents(keyOrModule: string): readonly CapabilityDef[] {
   return ALL_CAPABILITIES.filter((c) => (c.dependencies ?? []).includes(keyOrModule));
+}
+
+/**
+ * Which module a permission belongs to — **derived from the registry**, never a second list
+ * (ADR-126). A permission named by a module, or by one of that module's capabilities, belongs
+ * to it; the first module that claims it wins, and a key claimed by none is Platform Core.
+ *
+ * This is what lets a refusal say the true thing. "You lack a permission" and "your hospital
+ * does not have this module" are different problems with different people to ask, and a screen
+ * that says the first when the second is true sends someone to argue with their administrator
+ * about something their administrator cannot fix.
+ */
+const PERMISSION_TO_MODULE: ReadonlyMap<string, string> = (() => {
+  const index = new Map<string, string>();
+  for (const m of MODULE_REGISTRY) {
+    for (const key of [...(m.permissions ?? []), ...m.capabilities.flatMap((c) => c.permissions ?? [])]) {
+      if (!index.has(key)) index.set(key, m.key);
+    }
+  }
+  return index;
+})();
+
+/** The module a permission belongs to, or `null` for Platform Core — always available. */
+export function permissionModuleKey(permission: string): string | null {
+  return PERMISSION_TO_MODULE.get(permission) ?? null;
 }

@@ -150,7 +150,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
   }
 
   /** The duplicate list gives ids only, so the chosen chart is fetched before selecting it. */
-  async function useExisting(id: string) {
+  async function selectExisting(id: string) {
     setSaving(true);
     try {
       selectAndClose(await api.getPatient(id));
@@ -294,7 +294,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
                     size="sm"
                     type="button"
                     disabled={saving}
-                    onClick={() => void useExisting(c.id)}
+                    onClick={() => void selectExisting(c.id)}
                   >
                     Use this patient
                   </Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Badge, Button, Card, Field, PasswordField } from "@hms/ui";
+import { Badge, Button, Card, Field, PasswordField, ValueOrEmpty } from "@hms/ui";
 
 /**
  * The reusable profile system (ADR-035). One set of pieces serves every role —
@@ -82,7 +82,9 @@ export function ProfileField({ label, children }: { label: string; children: Rea
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-fg-subtle">{label}</dt>
-      <dd className="mt-1 text-[0.975rem] text-fg">{children || "—"}</dd>
+      <dd className="mt-1 text-[0.975rem] text-fg">
+        <ValueOrEmpty value={children} reason="unspecified" />
+      </dd>
     </div>
   );
 }

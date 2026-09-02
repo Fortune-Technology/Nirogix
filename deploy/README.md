@@ -190,8 +190,10 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 5. `npm ci && npm run build`.
 6. `npm run db:migrate -w hms_backend` (applies migrations + RLS + audit-immutability trigger).
 7. `npm run db:seed:staging -w hms_backend` (staging only — the deterministic QA dataset; the
-   development and production seeders refuse to run here by design, ADR-058). Re-running it is
-   safe: it creates what is missing and never replays the clinical history. To rebuild staging from
+   development and production seeders refuse to run here by design, ADR-058). **Every later deploy
+   runs this for you** (ADR-122), so this step is only the first bring-up. Re-running it is safe:
+   it creates what is missing, never replays the clinical history, and never overwrites a record
+   somebody edited on the staging site. To rebuild staging from
    empty — which destroys whatever QA is part-way through, so tell them first —
    `CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset` (ADR-114). What the
    dataset covers is in `docs/seed-data.md`.
@@ -226,9 +228,15 @@ runner has the memory the VM does not. The **VM** then deploys affected-only:
    rebuilds `hms_backend` and every portal importing it; a docs-only push builds nothing).
    `--concurrency=2` stays load-bearing on the shared VM (§ Incidents) — affected-only shrinks
    the work, it does not replace the cap.
-3. **Migrate.** `db:migrate -w hms_backend` runs only when `hms_backend` is in the affected set
-   (or in full mode). Migrations stay additive/idempotent — the skip is honesty about what the
-   deploy did, not a safety requirement.
+3. **Migrate, then seed.** `db:migrate -w hms_backend` runs only when `hms_backend` is in the
+   affected set (or in full mode). Migrations stay additive/idempotent — the skip is honesty about
+   what the deploy did, not a safety requirement. `db:seed:staging` runs immediately after, under
+   the same condition (ADR-122): seed definitions live in `hms_backend`, so a dataset change always
+   puts it in the affected set. The seeder **creates what is missing and updates nothing** — a
+   record a tester edited on the staging site keeps the tester's values, a table added this week
+   gets its rows, and a record added to the dataset this week reaches a database seeded months ago.
+   Before it runs, the script asserts `NODE_ENV=staging` in the VM's `hms_backend/.env` and aborts
+   the deploy if it is anything else; `--reset` is never passed from CI.
 4. **Reload.** Only the PM2 apps whose workspace was rebuilt:
    `pm2 reload deploy/ecosystem.config.cjs --only <names> --env staging`, then `pm2 save`.
    The candidate names are intersected with the apps actually defined in

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity } from "lucide-react";
 import {
+  actionsColumn,
   Alert,
   Badge,
   Button,
@@ -14,8 +15,9 @@ import {
   TableAction,
   TableActions,
   Textarea,
-  actionsColumn,
   type Column,
+  valueLabel,
+  ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { formatTime } from "@hms/utils";
@@ -133,15 +135,15 @@ function VitalsQueue() {
       key: "provider",
       header: "Seeing",
       filterable: true,
-      accessor: (v) => v.providerName ?? "—",
-      cell: (v) => v.providerName ?? <span className="text-fg-subtle">—</span>,
+      accessor: (v) => valueLabel(v.providerName, "unassigned"),
+      cell: (v) => <ValueOrEmpty value={v.providerName} reason="unassigned" />,
     },
     {
       key: "department",
       header: "Department",
       filterable: true,
-      accessor: (v) => v.department ?? "—",
-      cell: (v) => v.department ?? <span className="text-fg-subtle">—</span>,
+      accessor: (v) => valueLabel(v.department, "unassigned"),
+      cell: (v) => <ValueOrEmpty value={v.department} reason="unassigned" />,
     },
     {
       key: "since",

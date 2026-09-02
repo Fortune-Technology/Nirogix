@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import {
+  actionsColumn,
   Alert,
   Badge,
   Button,
   DataTable,
   DateField,
   Dialog,
+  emptyLabel,
   Field,
   Select,
   Skeleton,
@@ -17,8 +19,9 @@ import {
   TableActions,
   Textarea,
   TimeField,
-  actionsColumn,
   type Column,
+  valueLabel,
+  ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type {
@@ -62,7 +65,7 @@ function preferredWhen(r: BookingRequestItem): string {
   const date = r.preferredDate ? formatDate(r.preferredDate) : null;
   const time = r.preferredTime ? formatTime(`2000-01-01T${r.preferredTime}:00`) : null;
   if (date && time) return `${date}, ${time}`;
-  return date ?? time ?? "—";
+  return date ?? time ?? emptyLabel("unspecified");
 }
 
 function statusTone(s: string): "warning" | "success" | "danger" | "neutral" {
@@ -98,15 +101,17 @@ function columns(
       key: "department",
       header: "Department wish",
       filterable: true,
-      accessor: (r) => r.departmentName ?? "—",
-      cell: (r) => r.departmentName ?? "—",
+      // The public form lets a patient ask for "any doctor, any department" — a blank here is
+      // the patient's answer, not a gap in the data.
+      accessor: (r) => valueLabel(r.departmentName, "unspecified"),
+      cell: (r) => <ValueOrEmpty value={r.departmentName} reason="unspecified" />,
     },
     {
       key: "doctor",
       header: "Doctor wish",
       filterable: true,
-      accessor: (r) => r.providerName ?? "—",
-      cell: (r) => r.providerName ?? "—",
+      accessor: (r) => valueLabel(r.providerName, "unspecified"),
+      cell: (r) => <ValueOrEmpty value={r.providerName} reason="unspecified" />,
     },
     {
       key: "note",
@@ -116,7 +121,7 @@ function columns(
       // menu (ADR-063: a hidden-by-default column must state why).
       defaultHidden: true,
       accessor: (r) => r.note ?? "",
-      cell: (r) => <span className="text-fg-muted">{r.note || "—"}</span>,
+      cell: (r) => <ValueOrEmpty value={r.note} reason="none" className="text-fg-muted" />,
     },
     {
       key: "createdAt",

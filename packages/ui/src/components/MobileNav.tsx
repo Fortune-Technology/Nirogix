@@ -89,6 +89,9 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
   useScrollLock(open);
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
+  // The current `onClose`, readable from an effect that must not re-run when its identity changes.
+  const latestClose = useRef(onClose);
+  latestClose.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -98,7 +101,7 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        latestClose.current();
         return;
       }
       if (e.key !== "Tab" || !panelRef.current) return;
@@ -122,7 +125,11 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
       document.removeEventListener("keydown", onKeyDown);
       opener.current?.focus?.();
     };
-  }, [open, onClose]);
+    // `open` alone, deliberately. A caller's inline `onClose` is a new function every render, and
+    // depending on it would tear this down and set it up again mid-interaction — moving focus back
+    // to the trigger and then into the panel each time. Same bug the Dialog had (ADR-127); the
+    // handler reads the current callback from a ref instead.
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

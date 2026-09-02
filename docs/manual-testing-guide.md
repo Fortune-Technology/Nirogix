@@ -227,7 +227,20 @@ For **every** configuration item below, run the **persistence protocol**:
   common service like *General Consultation*; you set the price + tax). **Verify:** listed; editable.
 - [ ] **3.9 Enabled modules.** Settings → *Enabled modules*. **Verify:** shows exactly the modules the
   Platform Admin granted (read-only; entitlements are granted by Nirogix).
-- [ ] **3.9a0 Self check-in (ADR-118).** Settings → **Self check-in**.
+- [ ] **3.9-rbac The administrator can work the hospital (ADR-125, ADR-126).** As org_admin:
+  Patients → a row shows **View, Edit and Deactivate**; **Register patient** opens; Appointments
+  shows **Book appointment** with **Check in** and **Cancel** on a row; `/opd/check-in` opens;
+  Billing can raise an invoice and collect a payment. **Verify:** every module the hospital has is
+  fully usable, and a module it does **not** have refuses with the module message rather than a
+  permission one.
+- [ ] **3.9a0-pre Patient self-service is one screen (ADR-124).** Settings → **Patient self-service**.
+  **Verify:** one tab, holding all three QR surfaces — *Patient self-registration*, *Online
+  appointment booking* and *Patient self check-in* — with an explainer stating that none of them
+  writes to the hospital's records. **Verify:** the three old URLs
+  (`/hospital-setup/patient-registration`, `/hospital-setup/online-booking`,
+  `/hospital-setup/self-check-in`) each redirect here rather than 404. Everything below in §3.9a0
+  and §3.9a0b–d is done in the matching section of this one screen.
+- [ ] **3.9a0 Self check-in (ADR-118).** Settings → **Patient self-service** → *Patient self check-in*.
   **Verify:** it is **off** by default, and the explainer says plainly that scanning announces an
   arrival and checks nobody in. Turn it on.
   **Verify:** a link and a QR preview appear, and the QR actually scans with a phone camera.
@@ -341,6 +354,86 @@ their own branch) and are intentionally not in this screen.
 
 Sign in as the **Receptionist** (Test credentials → Receptionist).
 
+### 5.0e The desk can read the workflow that draws its form (ADR-129)
+
+- [ ] **5.0e.1** Sign in as the **receptionist** and open **Appointments → Book appointment**.
+  **Verify:** the form renders and **no toast appears**. (It used to show *Not permitted* beside a
+  form that then worked.)
+- [ ] **5.0e.2** Open **Check in** and the **Vitals queue** as the same user. **Verify:** both load
+  cleanly, and the vitals fields appear exactly where the hospital's workflow says they should.
+- [ ] **5.0e.3 🔒** As that receptionist, open `/hospital-setup/workflow`. **Verify:** refused —
+  reading how the hospital runs is not permission to change it.
+
+### 5.0d The primary action is always in the same place (ADR-128)
+
+- [ ] **5.0d.1** Open **Patients**, **Appointments**, **OPD queue**, **Billing**, **Services**,
+  **Providers**, **Departments**, **Branches** and **Staff** in turn. **Verify:** on every one the
+  primary action (*Register patient*, *Book appointment*, *Check in*, *New invoice*, …) is
+  **top-right in the page header**, level with the page title — never in the filter row beside
+  **Columns**.
+- [ ] **5.0d.2** **Verify:** the filter row itself holds only search, filters, sort, column
+  visibility and pagination.
+- [ ] **5.0d.3** Sign in as a role without `patient.record.create` and open Patients.
+  **Verify:** the header has no action at all — not a greyed-out button, and not one moved
+  somewhere else.
+
+### 5.0c Typing and scrolling in a form (ADR-127)
+
+- [ ] **5.0c.1** Hospital configuration → **Fee schedule** → **Add a rule** → click **Fee (₹)** and
+  type `500`. **Verify:** all three digits land in the field and the caret never leaves it. (It used
+  to jump to the Doctor dropdown after the first digit.)
+- [ ] **5.0c.2** With `500` in the field, scroll the wheel up and then down with the pointer over
+  it. **Verify:** the value is still `500`, and the page or dialog scrolled normally.
+- [ ] **5.0c.3** Repeat 5.0c.2 on the services price and on the patient-registration form.
+  **Verify:** the same — one listener covers the whole application.
+- [ ] **5.0c.4** In any number field, use ↑/↓ and type a decimal. **Verify:** arrows still step and
+  decimals are still accepted; only the wheel was taken away.
+- [ ] **5.0c.5** In any dialog, Tab past the last control and Shift-Tab past the first, then press
+  Esc. **Verify:** focus wraps inside the dialog, Esc closes it, and focus returns to whatever
+  opened it — the trap still traps.
+
+### 5.0b What a refused user is told (ADR-126)
+
+Two refusals, two different answers. Run both — the point of the change is that they do not read
+the same.
+
+- [ ] **5.0b.1 A permission the role lacks.** Sign in as the **receptionist** and open `/audit`.
+  **Verify:** *You don't have access to this page*, and below it **Permission required: View the
+  audit log · `audit.log.view`** and **Roles with this access: Super Admin, Organization Admin**.
+  **Verify:** no toast appears — the panel is already reporting the failure.
+- [ ] **5.0b.2 A module the hospital does not have.** Sign in as the **org_admin of a hospital
+  without Pharmacy** (the development dataset's `LOTUS`) and open `/pharmacy/stock`.
+  **Verify:** *This feature is not available for your hospital*, naming the **Pharmacy** module and
+  saying plainly that this is not a permission the administrator can grant. **Verify:** no role
+  list — there is nothing to ask anyone for.
+- [ ] **5.0b.3 The module answer wins.** That same administrator **does** hold
+  `pharmacy.stock.view` (ADR-125). **Verify:** the screen still says module, not permission.
+- [ ] **5.0b.4 A custom role is named.** Create a role with `audit.log.view`, then repeat 5.0b.1.
+  **Verify:** the custom role appears in *Roles with this access* — the list is this hospital's own,
+  not a hard-coded set.
+- [ ] **5.0b.5 The dashboard ends where the shell ends.** Open `/dashboard` on a wide screen and
+  scroll to the bottom. **Verify:** no blank strip below the sidebar and content (ADR-126). Repeat
+  on the admin console at `:3003`.
+
+### 5.0a Missing values read as words, not dashes (ADR-123)
+
+Quick cross-cutting pass. Do it once, here, with a seeded database in front of you.
+
+- [ ] **5.0a.1** Open **Services**. **Verify:** the Department column shows real department names,
+  not `—`. Exactly one seeded service (the retired one) reads **Not assigned**.
+- [ ] **5.0a.2** Filter Department by **Not assigned**. **Verify:** it is offered as a filter value
+  and returns only the unfiled services — the empty state is searchable, not invisible.
+- [ ] **5.0a.3** Walk **Patients**, **Providers**, **Users**, **Audit**, the **OPD queue**, the
+  **Vitals queue**, **Arrivals**, **Booking requests**, **Patient registrations**, **Laboratory**,
+  **Pharmacy stock** and **Reports**. **Verify:** no cell anywhere reads `—`. Every absence reads a
+  phrase, and the phrase fits the field: a walk-in with no doctor is *Not assigned*, an optional
+  form field left blank is *Not specified*, an audit row written by a job is *Not applicable*, a
+  doctor with no personal fee is *Not configured*, a user with no roles is *None*.
+- [ ] **5.0a.4** Print an invoice paid in **cash**, a **qualitative** lab result, and a prescription
+  with blank dose fields. **Verify:** they read *Not applicable* / *Not specified*, never a dash.
+- [ ] **5.0a.5** **Verify:** a numeric reference range still prints as `4000–11000`. That dash is
+  typography and stays.
+
 ### 5.1 Patient registration
 
 There are two routes to a chart: the full **Register patient** screen, and registration **inside**
@@ -349,6 +442,13 @@ check-in for the walk-in who has never been here before (ADR-112). Both are test
 - [ ] **5.1.1** Patients → **Register patient**: enter name, gender, DOB, phone, etc. Save.
   **Verify:** a **UHID** is generated automatically and shown.
 - [ ] **5.1.2** Search the patient by name/phone/UHID. **Verify:** found.
+- [ ] **5.1.2a The chart reads top-down in priority order (ADR-127).** Open a patient with history.
+  **Verify:** an identity strip first — initials, name, UHID, **age**, gender, date of birth, blood
+  group, status — then Contact, Emergency contact, National health ID (ABDM), Treatment cases,
+  Immunisations, History, History from other hospitals, and Patient portal access last.
+  **Verify:** a patient with no blood group reads *Blood group not recorded* rather than blank.
+  **Verify:** the age matches what `/patients` showed for the same person.
+  **Verify:** at 375px wide the page does not scroll sideways and long emails wrap inside the card.
 - [ ] **5.1.3 Duplicate handling:** register the *same* person again (same phone + name/DOB).
   **Verify:** a duplicate dialog appears — **Use this patient** (open the existing chart) or **Register
   anyway** — rather than silently creating a second chart.

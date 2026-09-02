@@ -13,7 +13,6 @@ export interface DataTableToolbarProps {
   filters?: ReactNode;
   viewOptions?: ReactNode;
   /** The page's primary action(s). */
-  actions?: ReactNode;
   activeFilterCount?: number;
   onClearFilters?: () => void;
 }
@@ -31,12 +30,11 @@ export function DataTableToolbar({
   facetedFilters,
   filters,
   viewOptions,
-  actions,
   activeFilterCount = 0,
   onClearFilters,
 }: DataTableToolbarProps) {
   const hasLeft = searchable || facetedFilters || filters || activeFilterCount > 0;
-  if (!hasLeft && !viewOptions && !actions) return null;
+  if (!hasLeft && !viewOptions) return null;
 
   return (
     <div className="hms-toolbar">
@@ -65,7 +63,6 @@ export function DataTableToolbar({
 
       <div className="hms-toolbar__right">
         {viewOptions}
-        {actions}
       </div>
     </div>
   );

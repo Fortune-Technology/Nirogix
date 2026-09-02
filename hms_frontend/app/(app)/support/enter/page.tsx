@@ -22,14 +22,19 @@ import { useAuth } from "../../../../lib/auth";
 export default function SupportEnterPage() {
   const router = useRouter();
   const { refresh } = useAuth();
-  const [state, setState] = useState<"waiting" | "entering" | "failed">("waiting");
+  // "Opened directly" is knowable at the first render — `window.opener` is either there
+  // or it is not — so it seeds the state instead of being written back through an effect.
+  // The authenticated shell mounts its pages on the client (the layout gates on the
+  // session), so this runs in the browser; the guard only keeps a server render honest.
+  const [state, setState] = useState<"waiting" | "entering" | "failed">(() =>
+    typeof window !== "undefined" && !window.opener ? "failed" : "waiting",
+  );
   const claimed = useRef(false);
 
   useEffect(() => {
-    if (!window.opener) {
-      setState("failed");
-      return;
-    }
+    // Already reported as failed by the initial state above: there is nobody to hand this
+    // tab a session, so there is no handshake to set up.
+    if (!window.opener) return;
 
     async function onMessage(event: MessageEvent) {
       // Only the platform admin app may hand this tab a session (ADR-051). Before the

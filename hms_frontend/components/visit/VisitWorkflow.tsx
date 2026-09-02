@@ -11,6 +11,7 @@ import {
   Card,
   DateField,
   DateTimeField,
+  emptyLabel,
   Field,
   Select,
   Textarea,
@@ -510,7 +511,7 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
                 <span className="hms-label">Consultation fee</span>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <span className="text-lg font-semibold text-fg">
-                    {calculatedFee ? formatPaise(calculatedFee.feePaise) : "—"}
+                    {calculatedFee ? formatPaise(calculatedFee.feePaise) : emptyLabel("notConfigured")}
                   </span>
                   {/* Saying WHERE the number came from is what turns a price into an answer the
                       desk can give a patient who asks. */}

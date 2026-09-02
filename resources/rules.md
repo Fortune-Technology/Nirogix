@@ -18,6 +18,12 @@ This document states rules only. For the architecture each rule is derived from,
   - [Design System & UI Consistency](#design-system--ui-consistency)
   - [Standard DataTable](#standard-datatable)
   - [Table Row Actions](#table-row-actions)
+  - [Multi-Step External Flows](#multi-step-external-flows-binding--adr-130)
+  - [Configuration Read Keys](#configuration-read-keys-binding--adr-129)
+  - [Page Actions](#page-actions-binding--adr-128)
+  - [Form & Input Behaviour](#form--input-behaviour-binding--adr-127)
+  - [Access Refusals](#access-refusals-binding--adr-126)
+  - [Missing Values](#missing-values-binding--adr-123)
   - [Light & Dark Theme](#light--dark-theme)
   - [Branding & Multi-Tenant Customization](#branding--multi-tenant-customization)
 - **Development Rules**
@@ -81,6 +87,98 @@ This document states rules only. For the architecture each rule is derived from,
 - **Destructive actions always confirm** through the shared `ConfirmDialog`, naming the record and the consequence. No table deletes on a single click.
 - **Overflow rule:** at most three inline icon actions per row; everything beyond that moves into `MoreActions`, so the column stays a fixed, predictable width on every screen size.
 - **Missing capability is added to the shared components**, never worked around in a page.
+
+### Multi-Step External Flows (binding — ADR-130)
+
+**An absent field means "this call did not say", never "this value is empty".** Where a flow spans
+several calls to an external system — ABDM verification and enrolment today — each response is
+**merged over** what is already known, per field, skipping null, undefined and blank. Never treat
+the newest response as the whole answer: the step that returns the most is rarely the last one.
+
+- **Persist what a step gives you even when you cannot use it yet.** An account list the operator
+  must choose from is often the only description of that person the flow will ever produce.
+- **Never split a name on a space.** An external register's single `name` goes in whole; the
+  operator correcting one field beats the system inventing two.
+- **A test double must be no kinder than the system it stands in for.** Where the sandbox returns
+  less on a later call, the mock returns less too — a mock that answers more fully than reality
+  hides exactly the bugs this rule exists to prevent, and 306 passing tests will not find them.
+
+### Configuration Read Keys (binding — ADR-129)
+
+**A permission named for the screen that *edits* something is the wrong key for the screens that
+merely *read* it.** Where a configuration governs a form — where vitals are taken, when a fee is
+due, which vocabularies a dropdown offers — **every role that uses the form needs the read key**,
+or the form 403s against the settings that describe it.
+
+- Keep the pair: `…​.view` is reading how the hospital runs, `…​.manage` is deciding it. Only the
+  administrator holds the second, and the settings screen is gated on it.
+- **Do not "fix" it by dropping the permission from the route.** A page guard on a key no endpoint
+  enforces is a boundary in name only.
+- **A failure the caller already handles must not raise a toast** (ADR-057's `feedback: false`).
+  Where a screen falls back to a documented default, the fallback is the behaviour — reporting an
+  error beside a form that works is noise, and it trains people to ignore real errors.
+
+### Page Actions (binding — ADR-128)
+
+**A page's primary action lives in its `PageHeader`, top-right, and nowhere else.** *Register
+patient*, *Book appointment*, *Check in*, *New invoice*, *Add service*, *Add doctor* — every one of
+them is in the same place on every screen, so a member of staff learns the position once instead of
+hunting for it per page. A control that moved between screens was the defect this rule exists to
+prevent.
+
+- **The header is the only slot.** The Standard DataTable has **no toolbar action slot** — the
+  toolbar is Search → Filters → Sort → Column visibility → Pagination (ADR-029) and holds nothing
+  else. Putting a create button there is not a style choice; there is nowhere to put it.
+- **Ordering when a page has several:** supporting actions first, the primary action **last**
+  (right-most) — `ghost` for navigation away, `secondary` for a side task such as *Print / PDF*,
+  and the default variant for the one action the page is for.
+- **Permission-gated in place.** Wrap the button in `<Can perm={…}>`; an action the user may not
+  perform is not rendered, and the header simply has no actions. Never disable it instead, and
+  never move it.
+- **Row-level actions stay in the Action column** (ADR-039). The header is for the page, the
+  Action column is for a record; they are different questions and never trade places.
+- **Empty states may repeat the primary action** (`emptyAction`), because a table with nothing in
+  it is exactly when somebody needs it and the header may be scrolled away. That is a repeat of the
+  header's action, not an alternative home for it.
+
+### Form & Input Behaviour (binding — ADR-127)
+
+**Typing must never move the caret.** A focus trap — dialog, drawer, any overlay — depends on
+whether it is **open**, never on a callback prop. Callers pass inline handlers, whose identity
+changes on every render; an effect that lists one as a dependency tears down and re-arms on each
+keystroke, moving focus to the first control in the panel. Keep the current callback in a ref and
+read it from the handler.
+
+**Scrolling never edits a value.** `input[type=number]` must not change when the wheel passes over
+it. `NumberInputGuard` from `@hms/ui` is mounted once per app and handles this for every numeric
+input, including raw ones — never an `onWheel` copied into a form, and never a fix applied to one
+page. Typing, arrow keys, `step`, decimals and validation stay as they are.
+
+**A grid that holds free text sets `[&>*]:min-w-0`.** A grid item's default `min-width: auto`
+refuses to shrink below its content, so one long line pushes the track past the viewport and
+scrolls the whole page sideways — the body must never scroll horizontally.
+
+### Access Refusals (binding — ADR-126)
+
+**A refusal names the problem, and the two problems are different.** Every page guard checks the module before the permission, in the order the server enforces (`requireModule()` → `requirePermission()`):
+
+- **The hospital does not have the module** — its subscription. No administrator can grant their way past it, so the screen must not suggest asking for a permission. Different headline, different tone, no role list.
+- **The role does not include the permission** — a question the hospital's administrator can answer today. The screen states the permission in **words and as a key**, and **which of this hospital's roles hold it**, read from that tenant's own `role_permissions` so a custom or renamed role appears without anyone hard-coding a role name.
+
+Two rules follow:
+
+- **Never hard-code a role name in a message.** Roles are per tenant and a hospital may invent its own; the roles that hold a permission are looked up, never assumed.
+- **A guard is still not a boundary.** The server re-checks every call (invariant #2). These rules are about telling the truth to the person refused, not about enforcement.
+
+### Missing Values (binding — ADR-123)
+
+**A missing value states which kind of missing it is.** Never a bare `-` or `—`. Every absence is rendered through `EmptyValue` / `ValueOrEmpty` from `@hms/ui`, or written with `emptyLabel()` / `valueLabel()` wherever a plain string is required — a DataTable `accessor`, a print document, an export, an accessible name.
+
+- **The reason is chosen at the call site**, because only the call site knows which is true: `unassigned` (a link to another record that nobody has made yet), `unspecified` (an optional field left blank), `notRecorded` (an observation nobody took), `notConfigured` (a setting the hospital has not set up), `notApplicable` (the field cannot have a value for this row), `none` (an empty list, where zero is the complete answer), `notAvailable` (the value exists but this screen does not have it — rare, and usually a bug worth chasing rather than labelling).
+- **The accessor carries the same words as the cell**, so the column's filter offers "Not assigned" as a value and a search finds those rows.
+- **Investigate before labelling.** A column empty on *every* row is a data or query problem, not a display one — fix the join, the mapper or the dataset first, and label only what is genuinely absent. Changing the placeholder without finding out why the value is missing is the failure this rule exists to prevent.
+- A dash survives only where it is **typography** — the `–` between the two ends of a reference range — never as a placeholder.
+- **CSV and other machine-readable exports keep an empty cell.** A spreadsheet sorts, filters and sums an empty cell correctly; a label in an amount column turns a number into text. The reason is for a human reading a screen or a printed document.
 
 ### Reusable UI Architecture
 
@@ -300,13 +398,15 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 - **Print and PDF come from the same definition.** "Save as PDF" is the browser dialog over the same markup; a server-rendered PDF, if added, renders the same template headlessly rather than defining the document twice.
 - **Authorization is re-checked, not inherited from the link.** The document route carries the same permission as the screen and reads the same RLS-scoped endpoint, so a user cannot print what they could not open. Only that record's data appears — no application state, no other patients, and nothing sensitive in logs.
 
-### Database Seeding Rules (binding — ADR-058)
+### Database Seeding Rules (binding — ADR-058, ADR-122)
 
 - **One seeder per environment — development, staging, production — and each refuses to run anywhere else.** A seeder declares the environment it is written for; `NODE_ENV` must match, and the guard *additionally* inspects `DATABASE_URL`, because `NODE_ENV` is set by whoever typed the command while the connection string decides which database is actually written.
 - **Development** seeds realistic synthetic data — platform owner, demo hospitals, every role, doctors, staff, departments, patients, appointments. **Never real patient information**, in any environment, ever.
 - **Staging** seeds a controlled, **deterministic** dataset shaped like production, so QA, E2E and regression assertions can depend on exact values.
 - **Production seeds bootstrap configuration only** — the permission catalogue, system roles, and where genuinely required a first administrator. **Never a hospital, a patient, an appointment, a demo doctor, or any other invented record.** It requires an explicit confirmation variable so it cannot run as a side effect of a deploy.
-- **Idempotent and deterministic wherever practical**, so re-running is safe and repeatable.
+- **Idempotent in the useful sense: a seeder converges on *present*, never on the dataset's values** (ADR-122). It creates what is missing and **never updates, resets or deletes** a record that exists — a value edited by hand on a shared environment belongs to the person who edited it. Records are matched on a **stable key** (a code, an email, a registration number, a phone number), never on a display name. An action with no record of its own — applying a profile, a colour, a toggle, a history, a column backfill — is recorded in `seed_markers` and done once; a backfill fills a newly added column **only where it is NULL**.
+- **Staging is seeded automatically by its deployment workflow**, immediately after migrations, so a new table or a newly required record reaches it on the deploy that ships them. Development is run by hand. **No workflow ever seeds production, and no workflow ever passes `--reset`.** Adding seed data for a new table, or a backfill for a new column, is part of the change that adds them.
+- **Deterministic wherever practical**, so re-running is safe and repeatable.
 - **No secrets in a seeder.** Development passwords are known throwaway defaults, and are obviously that.
 - **Every seeder prints its target** (credentials redacted) before the first write, and a refusal exits with a distinct code and a plain sentence — never a stack trace, which invites someone to "fix" the guard.
 

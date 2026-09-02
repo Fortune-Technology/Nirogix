@@ -106,14 +106,17 @@
   scrollbar-width: thin;
   scrollbar-color: var(--hms-border) transparent;
 }
+
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
+
 *::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
 *::-webkit-scrollbar-thumb {
   background-color: var(--hms-border);
   border-radius: 999px;
@@ -122,6 +125,7 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
 *::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:active {
   background-color: var(--hms-fg-subtle);
@@ -147,45 +151,56 @@
   white-space: nowrap;
   user-select: none;
 }
+
 .hms-btn:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .hms-btn--sm {
   padding: 0.375rem 0.625rem;
   font-size: var(--hms-text-sm);
 }
+
 .hms-btn--primary {
   background: var(--hms-brand);
   color: var(--hms-brand-fg);
 }
+
 .hms-btn--primary:hover:not(:disabled) {
   background: var(--hms-brand-hover);
 }
+
 .hms-btn--secondary {
   background: var(--hms-surface);
   color: var(--hms-fg);
   border-color: var(--hms-border);
 }
+
 .hms-btn--secondary:hover:not(:disabled) {
   background: var(--hms-surface-2);
 }
+
 .hms-btn--ghost {
   background: transparent;
   color: var(--hms-fg-muted);
 }
+
 .hms-btn--ghost:hover:not(:disabled) {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-btn--danger {
   background: var(--hms-danger);
   color: var(--hms-danger-fg);
 }
+
 .hms-btn--danger:hover:not(:disabled) {
   opacity: 0.9;
 }
@@ -198,12 +213,14 @@
   flex-direction: column;
   gap: 0.375rem;
 }
+
 .hms-label {
   font-family: var(--hms-font-sans);
   font-size: var(--hms-text-sm);
   font-weight: 500;
   color: var(--hms-fg);
 }
+
 .hms-input {
   font-family: var(--hms-font-sans);
   font-size: var(--hms-text-base);
@@ -215,14 +232,17 @@
   width: 100%;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
 .hms-input::placeholder {
   color: var(--hms-fg-subtle);
 }
+
 .hms-input:focus {
   outline: none;
   border-color: var(--hms-ring);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
 }
+
 .hms-input:disabled {
   background: var(--hms-surface-2);
   cursor: not-allowed;
@@ -242,17 +262,21 @@
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
+
 .hms-phonefield:focus-within {
   border-color: var(--hms-ring);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
 }
+
 .hms-phonefield--error {
   border-color: var(--hms-danger);
 }
+
 .hms-phonefield--disabled {
   background: var(--hms-surface-2);
   cursor: not-allowed;
 }
+
 .hms-phonefield__prefix {
   display: inline-flex;
   align-items: center;
@@ -264,6 +288,7 @@
   border-right: 1px solid var(--hms-border);
   user-select: none;
 }
+
 .hms-phonefield__input {
   flex: 1;
   min-width: 0;
@@ -275,16 +300,20 @@
   color: var(--hms-fg);
   outline: none;
 }
+
 .hms-phonefield__input::placeholder {
   color: var(--hms-fg-subtle);
 }
+
 .hms-phonefield__input:disabled {
   cursor: not-allowed;
 }
+
 .hms-field__error {
   font-size: var(--hms-text-sm);
   color: var(--hms-danger);
 }
+
 /* Guidance under a field — format, units, or what the value is used for. Muted so it
    reads as help rather than as an error. */
 .hms-field__hint {
@@ -301,9 +330,11 @@
   position: relative;
   width: 100%;
 }
+
 .hms-select__required {
   color: var(--hms-danger);
 }
+
 .hms-select__trigger {
   display: flex;
   align-items: center;
@@ -322,25 +353,31 @@
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
+
 .hms-select__trigger:hover:not(:disabled) {
   border-color: var(--hms-ring);
 }
+
 .hms-select__trigger:focus-visible {
   outline: none;
   border-color: var(--hms-ring);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
 }
+
 .hms-select__trigger--error {
   border-color: var(--hms-danger);
 }
+
 .hms-select__trigger--empty .hms-select__value {
   color: var(--hms-fg-subtle);
 }
+
 .hms-select__trigger:disabled {
   background: var(--hms-surface-2);
   color: var(--hms-fg-muted);
   cursor: not-allowed;
 }
+
 /* The value takes the slack and truncates; the chevron and meta never get pushed out
    of the control by a long doctor's name or a five-word department. */
 .hms-select__value {
@@ -350,22 +387,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .hms-select__meta {
   flex-shrink: 0;
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
   white-space: nowrap;
 }
+
 .hms-select__icon {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   color: var(--hms-fg-muted);
 }
+
 .hms-select__chevron {
   flex-shrink: 0;
   color: var(--hms-fg-muted);
 }
+
 .hms-select__clear {
   display: inline-flex;
   flex-shrink: 0;
@@ -377,10 +418,12 @@
   color: var(--hms-fg-muted);
   cursor: pointer;
 }
+
 .hms-select__clear:hover {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 /* Portalled to the body and positioned in viewport coordinates: an ancestor with
    `overflow` — a dialog's scrolling body, a sticky table header — would otherwise clip
    the list, which is what makes an in-flow dropdown feel half-usable. Above the dialog
@@ -397,6 +440,7 @@
   box-shadow: var(--hms-shadow-md);
   overflow: hidden;
 }
+
 .hms-select__search {
   display: flex;
   align-items: center;
@@ -405,6 +449,7 @@
   border-bottom: 1px solid var(--hms-border);
   color: var(--hms-fg-muted);
 }
+
 .hms-select__search-input {
   flex: 1;
   min-width: 0;
@@ -415,15 +460,18 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-fg);
 }
+
 .hms-select__search-input::placeholder {
   color: var(--hms-fg-subtle);
 }
+
 .hms-select__list {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.25rem;
   outline: none;
 }
+
 .hms-select__group {
   padding: 0.375rem 0.5rem 0.25rem;
   font-size: var(--hms-text-xs);
@@ -432,6 +480,7 @@
   letter-spacing: 0.04em;
   color: var(--hms-fg-subtle);
 }
+
 .hms-select__option {
   display: flex;
   align-items: flex-start;
@@ -442,17 +491,21 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-fg);
 }
+
 .hms-select__option--active {
   background: var(--hms-surface-2);
 }
+
 .hms-select__option--selected {
   color: var(--hms-brand);
   font-weight: 500;
 }
+
 .hms-select__option--disabled {
   color: var(--hms-fg-subtle);
   cursor: not-allowed;
 }
+
 .hms-select__check {
   display: inline-flex;
   flex-shrink: 0;
@@ -462,6 +515,7 @@
   height: 1.25rem;
   color: var(--hms-brand);
 }
+
 /* Long option labels wrap rather than truncate: in the open list there is room, and a
    half-shown drug or department name is what makes the wrong one get picked. */
 .hms-select__option-text {
@@ -471,20 +525,24 @@
   flex-direction: column;
   gap: 0.125rem;
 }
+
 .hms-select__option-label {
   overflow-wrap: anywhere;
 }
+
 .hms-select__option-desc {
   font-size: var(--hms-text-xs);
   color: var(--hms-fg-muted);
   font-weight: 400;
 }
+
 .hms-select__empty {
   padding: 1rem 0.75rem;
   text-align: center;
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
 }
+
 /* Touch targets on a phone: the same control, with room for a finger. */
 @media (max-width: 640px) {
   .hms-select__option {
@@ -501,12 +559,14 @@
   border-radius: var(--hms-radius-lg);
   box-shadow: var(--hms-shadow-sm);
 }
+
 .hms-card__header {
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--hms-border);
   font-weight: 600;
   color: var(--hms-fg);
 }
+
 .hms-card__body {
   padding: 1.25rem;
 }
@@ -526,18 +586,22 @@
   background: var(--hms-surface-2);
   color: var(--hms-fg-muted);
 }
+
 .hms-badge--brand {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
 }
+
 .hms-badge--success {
   background: var(--hms-success-subtle);
   color: var(--hms-success);
 }
+
 .hms-badge--warning {
   background: var(--hms-warning-subtle);
   color: var(--hms-warning);
 }
+
 .hms-badge--danger {
   background: var(--hms-danger-subtle);
   color: var(--hms-danger);
@@ -555,11 +619,13 @@
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-alert--danger {
   background: var(--hms-danger-subtle);
   border-color: color-mix(in srgb, var(--hms-danger) 35%, transparent);
   color: var(--hms-danger);
 }
+
 .hms-alert--success {
   background: var(--hms-success-subtle);
   border-color: color-mix(in srgb, var(--hms-success) 35%, transparent);
@@ -578,6 +644,7 @@
   border-radius: 50%;
   animation: hms-spin 0.6s linear infinite;
 }
+
 @keyframes hms-spin {
   to {
     transform: rotate(360deg);
@@ -592,9 +659,11 @@
   display: flex;
   align-items: center;
 }
+
 .hms-password .hms-input {
   padding-right: 2.75rem;
 }
+
 .hms-password__toggle {
   position: absolute;
   right: 0.375rem;
@@ -613,10 +682,12 @@
   cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
+
 .hms-password__toggle:hover {
   color: var(--hms-fg);
   background: var(--hms-surface-2);
 }
+
 .hms-password__toggle:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
@@ -632,6 +703,7 @@
   border-radius: var(--hms-radius-lg);
   background: var(--hms-surface);
 }
+
 .hms-table {
   width: 100%;
   border-collapse: collapse;
@@ -639,6 +711,7 @@
   font-size: var(--hms-text-base);
   font-variant-numeric: tabular-nums;
 }
+
 .hms-table thead th {
   text-align: left;
   font-weight: 600;
@@ -649,18 +722,22 @@
   border-bottom: 1px solid var(--hms-border);
   white-space: nowrap;
 }
+
 .hms-table tbody td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--hms-border);
   color: var(--hms-fg);
   vertical-align: middle;
 }
+
 .hms-table tbody tr:last-child td {
   border-bottom: none;
 }
+
 .hms-table tbody tr:hover td {
   background: var(--hms-surface-2);
 }
+
 .hms-table__state {
   padding: 2.5rem 1rem;
   text-align: center;
@@ -693,27 +770,33 @@
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.15s ease;
 }
+
 .hms-backtotop--visible {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
+
 .hms-backtotop:hover {
   background: var(--hms-brand-hover);
 }
+
 .hms-backtotop:active {
   background: color-mix(in srgb, var(--hms-brand-hover) 88%, var(--hms-fg));
 }
+
 .hms-backtotop:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 @media (prefers-reduced-motion: reduce) {
   .hms-backtotop {
     transition: opacity 0.2s ease;
     transform: none;
   }
 }
+
 @media (min-width: 640px) {
   .hms-backtotop {
     right: 1.75rem;
@@ -730,6 +813,7 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
 .hms-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -737,6 +821,7 @@
   justify-content: space-between;
   gap: 0.5rem;
 }
+
 .hms-toolbar__left,
 .hms-toolbar__right {
   display: flex;
@@ -744,25 +829,30 @@
   align-items: center;
   gap: 0.5rem;
 }
+
 .hms-search {
   position: relative;
   display: flex;
   align-items: center;
 }
+
 .hms-search__icon {
   position: absolute;
   left: 0.625rem;
   color: var(--hms-fg-subtle);
   pointer-events: none;
 }
+
 .hms-search__input {
   padding-left: 2rem;
   min-width: min(18rem, 60vw);
 }
+
 .hms-input--sm {
   padding: 0.3125rem 0.5rem;
   font-size: var(--hms-text-sm);
 }
+
 .hms-filter__count {
   display: inline-flex;
   align-items: center;
@@ -777,9 +867,11 @@
   font-size: 0.6875rem;
   font-weight: 600;
 }
+
 .hms-filter__label {
   flex: 1;
 }
+
 .hms-filter__facet {
   color: var(--hms-fg-subtle);
   font-variant-numeric: tabular-nums;
@@ -793,20 +885,25 @@
   gap: 0.375rem;
   min-width: 0;
 }
+
 .hms-rangefilter__label {
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
   white-space: nowrap;
 }
+
 .hms-rangefilter__field {
   width: 8.5rem;
 }
+
 .hms-rangefilter__num {
   width: 6.5rem;
 }
+
 .hms-rangefilter__dash {
   color: var(--hms-fg-subtle);
 }
+
 .hms-rangefilter__clear {
   display: inline-flex;
   align-items: center;
@@ -822,10 +919,12 @@
     border-color 0.15s ease,
     color 0.15s ease;
 }
+
 .hms-rangefilter__clear:hover {
   border-color: var(--hms-brand);
   color: var(--hms-brand);
 }
+
 .hms-rangefilter__clear:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
@@ -844,34 +943,42 @@
   cursor: pointer;
   border-radius: var(--hms-radius-sm);
 }
+
 .hms-th__sort:hover .hms-th__icon {
   color: var(--hms-fg);
 }
+
 .hms-th__sort:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-th__icon {
   display: inline-flex;
   color: var(--hms-fg-subtle);
   transition: color 0.15s ease;
 }
+
 .hms-th__icon--active {
   color: var(--hms-brand);
 }
+
 .hms-th__order {
   font-size: 0.625rem;
   font-weight: 600;
   color: var(--hms-brand);
 }
+
 .hms-table--sticky thead th {
   position: sticky;
   top: 0;
   z-index: 1;
 }
+
 .hms-table tbody tr[data-selected] td {
   background: var(--hms-brand-subtle);
 }
+
 .hms-checkbox {
   width: 0.95rem;
   height: 0.95rem;
@@ -890,32 +997,38 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
 }
+
 .hms-pagination__info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
+
 .hms-pagination__selected {
   color: var(--hms-brand);
 }
+
 .hms-pagination__controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
 }
+
 .hms-pagination__size {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   white-space: nowrap;
 }
+
 .hms-pagination__pages {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
 }
+
 .hms-pagination__btn {
   display: inline-flex;
   align-items: center;
@@ -931,27 +1044,33 @@
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
+
 .hms-pagination__btn:hover:not(:disabled) {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-pagination__btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
 .hms-pagination__btn--active {
   background: var(--hms-brand);
   border-color: var(--hms-brand);
   color: var(--hms-brand-fg);
 }
+
 .hms-pagination__btn--active:hover {
   background: var(--hms-brand-hover);
   color: var(--hms-brand-fg);
 }
+
 .hms-pagination__btn:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-pagination__gap {
   padding: 0 0.25rem;
   color: var(--hms-fg-subtle);
@@ -964,6 +1083,7 @@
   position: relative;
   display: inline-flex;
 }
+
 .hms-menu__panel {
   position: absolute;
   top: calc(100% + 0.25rem);
@@ -978,10 +1098,12 @@
   background: var(--hms-surface);
   box-shadow: var(--hms-shadow-md);
 }
+
 .hms-menu__panel--start {
   right: auto;
   left: 0;
 }
+
 .hms-menu__item {
   display: flex;
   align-items: center;
@@ -997,28 +1119,35 @@
   text-align: left;
   cursor: pointer;
 }
+
 .hms-menu__item:hover:not(:disabled),
 .hms-menu__item:focus-visible {
   background: var(--hms-surface-2);
   outline: none;
 }
+
 .hms-menu__item:focus-visible {
   box-shadow: inset 0 0 0 2px var(--hms-ring);
 }
+
 .hms-menu__item:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .hms-menu__item--danger {
   color: var(--hms-danger);
 }
+
 .hms-menu__item-icon {
   display: inline-flex;
   color: var(--hms-fg-subtle);
 }
+
 .hms-menu__item--danger .hms-menu__item-icon {
   color: var(--hms-danger);
 }
+
 .hms-menu__check {
   flex-shrink: 0;
   width: 0.875rem;
@@ -1027,16 +1156,19 @@
   border-radius: 3px;
   background: var(--hms-surface);
 }
+
 .hms-menu__check--on {
   border-color: var(--hms-brand);
   background: var(--hms-brand);
   box-shadow: inset 0 0 0 2px var(--hms-surface);
 }
+
 .hms-menu__sep {
   height: 1px;
   margin: 0.25rem 0;
   background: var(--hms-border);
 }
+
 /* --------------------------------------------------------------------------
  * Action column — the one row-actions system (rules.md → Table Row Actions).
  * Every colour here is a token, so a tenant accent or a marketing-brand
@@ -1049,6 +1181,7 @@
   gap: 0.125rem;
   white-space: nowrap;
 }
+
 .hms-rowaction {
   display: inline-flex;
   align-items: center;
@@ -1064,38 +1197,47 @@
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
+
 .hms-rowaction:hover {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
 }
+
 .hms-rowaction:active {
   background: color-mix(in srgb, var(--hms-brand) 22%, var(--hms-surface));
 }
+
 .hms-rowaction:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
 }
+
 .hms-rowaction[aria-expanded='true'] {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
 }
+
 .hms-rowaction--danger:hover {
   background: var(--hms-danger-subtle);
   color: var(--hms-danger);
 }
+
 .hms-rowaction--danger:active {
   background: color-mix(in srgb, var(--hms-danger) 22%, var(--hms-surface));
 }
+
 .hms-rowaction--inert,
 .hms-rowaction:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
 .hms-rowaction--inert:hover,
 .hms-rowaction:disabled:hover {
   background: transparent;
   color: var(--hms-fg-muted);
 }
+
 .hms-rowaction__spin {
   animation: hms-spin 0.6s linear infinite;
 }
@@ -1115,6 +1257,7 @@
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+
 .hms-switch__thumb {
   width: 0.875rem;
   height: 0.875rem;
@@ -1123,36 +1266,45 @@
   box-shadow: var(--hms-shadow-sm);
   transition: transform 0.15s ease, background-color 0.15s ease;
 }
+
 .hms-switch--on {
   background: var(--hms-brand);
   border-color: var(--hms-brand);
 }
+
 .hms-switch--on .hms-switch__thumb {
   transform: translateX(1rem);
   background: var(--hms-brand-fg);
 }
+
 .hms-switch:hover:not(.hms-switch--inert) {
   border-color: var(--hms-brand);
 }
+
 .hms-switch--on:hover:not(.hms-switch--inert) {
   background: var(--hms-brand-hover);
   border-color: var(--hms-brand-hover);
 }
+
 .hms-switch:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-switch--inert,
 .hms-switch:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-rowaction,
   .hms-switch,
   .hms-switch__thumb {
     transition: none;
   }
+
   .hms-rowaction__spin {
     animation-duration: 1.6s;
   }
@@ -1170,6 +1322,7 @@
   text-align: center;
   font-family: var(--hms-font-sans);
 }
+
 .hms-state__icon {
   display: inline-flex;
   align-items: center;
@@ -1180,47 +1333,53 @@
   background: var(--hms-surface-2);
   color: var(--hms-fg-subtle);
 }
+
 .hms-state--error .hms-state__icon {
   background: var(--hms-danger-subtle);
   color: var(--hms-danger);
 }
+
 .hms-state__title {
   margin: 0;
   font-size: var(--hms-text-base);
   font-weight: 600;
   color: var(--hms-fg);
 }
+
 .hms-state__desc {
   margin: 0;
   max-width: 28rem;
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
 }
+
 .hms-state__action {
   margin-top: 0.25rem;
 }
+
 .hms-skeleton {
   display: block;
   width: 100%;
   height: 1rem;
   border-radius: var(--hms-radius-sm);
-  background: linear-gradient(
-    90deg,
-    var(--hms-surface-2) 25%,
-    color-mix(in srgb, var(--hms-surface-2) 55%, var(--hms-surface)) 37%,
-    var(--hms-surface-2) 63%
-  );
+  background: linear-gradient(90deg,
+      var(--hms-surface-2) 25%,
+      color-mix(in srgb, var(--hms-surface-2) 55%, var(--hms-surface)) 37%,
+      var(--hms-surface-2) 63%);
   background-size: 400% 100%;
   animation: hms-shimmer 1.4s ease infinite;
 }
+
 @keyframes hms-shimmer {
   0% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0 50%;
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .hms-skeleton {
     animation: none;
@@ -1239,6 +1398,7 @@
   padding: 1rem;
   background: color-mix(in srgb, var(--hms-fg) 45%, transparent);
 }
+
 .hms-dialog {
   width: min(26rem, 100%);
   /* A form dialog can outgrow a short viewport; the panel scrolls, the page does not
@@ -1253,28 +1413,34 @@
   box-shadow: var(--hms-shadow-md);
   font-family: var(--hms-font-sans);
 }
+
 /* sm = a confirmation · md = a short form · lg = a record with sections. */
 .hms-dialog--sm {
   width: min(26rem, 100%);
 }
+
 .hms-dialog--md {
   width: min(32rem, 100%);
 }
+
 .hms-dialog--lg {
   width: min(46rem, 100%);
 }
+
 .hms-dialog__head {
   display: flex;
   align-items: flex-start;
   gap: 0.625rem;
   flex-shrink: 0;
 }
+
 .hms-dialog__desc {
   margin: 0.125rem 0 0;
   font-size: var(--hms-text-sm);
   line-height: 1.45;
   color: var(--hms-fg-muted);
 }
+
 .hms-dialog__close {
   display: inline-flex;
   align-items: center;
@@ -1290,18 +1456,22 @@
   color: var(--hms-fg-subtle);
   cursor: pointer;
 }
+
 .hms-dialog__close:hover:not(:disabled) {
   color: var(--hms-fg);
   background: color-mix(in srgb, var(--hms-fg) 8%, transparent);
 }
+
 .hms-dialog__close:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-dialog__close:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .hms-dialog__icon {
   display: inline-flex;
   align-items: center;
@@ -1312,16 +1482,19 @@
   background: var(--hms-surface-2);
   color: var(--hms-fg-muted);
 }
+
 .hms-dialog__icon--danger {
   background: var(--hms-danger-subtle);
   color: var(--hms-danger);
 }
+
 .hms-dialog__title {
   margin: 0;
   font-size: var(--hms-text-lg);
   font-weight: 600;
   color: var(--hms-fg);
 }
+
 .hms-dialog__body {
   margin-top: 0.75rem;
   font-size: var(--hms-text-sm);
@@ -1332,6 +1505,7 @@
   overflow-y: auto;
   flex: 1 1 auto;
 }
+
 .hms-dialog__foot {
   display: flex;
   justify-content: flex-end;
@@ -1397,22 +1571,27 @@
   align-items: flex-start;
   gap: 0.625rem;
 }
+
 .hms-toast .Toastify__toast-body {
   align-items: flex-start;
   padding: 0;
   margin: 0;
   gap: 0.625rem;
 }
+
 /* A tinted left edge doubles the icon's signal without being the only carrier of it. */
 .hms-toast--success {
   border-left: 3px solid var(--hms-success);
 }
+
 .hms-toast--error {
   border-left: 3px solid var(--hms-danger);
 }
+
 .hms-toast--warning {
   border-left: 3px solid var(--hms-warning);
 }
+
 .hms-toast--info,
 .hms-toast--loading {
   border-left: 3px solid var(--hms-brand);
@@ -1423,22 +1602,28 @@
   flex-shrink: 0;
   margin-top: 0.0625rem;
 }
+
 .hms-toast__icon--success {
   color: var(--hms-success);
 }
+
 .hms-toast__icon--error {
   color: var(--hms-danger);
 }
+
 .hms-toast__icon--warning {
   color: var(--hms-warning);
 }
+
 .hms-toast__icon--info,
 .hms-toast__icon--loading {
   color: var(--hms-brand);
 }
+
 .hms-toast__spin {
   animation: hms-toast-spin 0.9s linear infinite;
 }
+
 @keyframes hms-toast-spin {
   to {
     transform: rotate(360deg);
@@ -1452,10 +1637,12 @@
   width: 100%;
   min-width: 0;
 }
+
 .hms-toast__text {
   min-width: 0;
   flex: 1;
 }
+
 .hms-toast__title {
   margin: 0;
   font-size: 0.875rem;
@@ -1463,6 +1650,7 @@
   line-height: 1.35;
   color: var(--hms-fg);
 }
+
 .hms-toast__desc {
   margin: 0.125rem 0 0;
   font-size: 0.8125rem;
@@ -1470,6 +1658,7 @@
   color: var(--hms-fg-muted);
   overflow-wrap: anywhere;
 }
+
 .hms-toast__action {
   flex-shrink: 0;
   align-self: center;
@@ -1490,10 +1679,12 @@
   cursor: pointer;
   align-self: flex-start;
 }
+
 .hms-toast__close:hover {
   color: var(--hms-fg);
   background: color-mix(in srgb, var(--hms-fg) 8%, transparent);
 }
+
 .hms-toast__close:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
@@ -1516,6 +1707,7 @@
     width: auto;
     padding: 0 0.5rem;
   }
+
   /* Scoped through the container so it outranks the library's own
      `.Toastify__toast { border-radius: 0 }` at this breakpoint, whichever
      stylesheet the bundler happens to emit last. */
@@ -1527,12 +1719,14 @@
 
 /* Someone who asked for less motion gets the toast without the slide. */
 @media (prefers-reduced-motion: reduce) {
+
   .Toastify__bounce-enter--top-right,
   .Toastify__bounce-exit--top-right,
   .Toastify__slide-enter--top-right,
   .Toastify__slide-exit--top-right {
     animation: none !important;
   }
+
   .hms-toast__spin {
     animation-duration: 2s;
   }
@@ -1558,6 +1752,7 @@
   backdrop-filter: blur(12px);
   font-family: var(--hms-font-sans);
 }
+
 .hms-bottomnav__item {
   flex: 1 1 0;
   display: flex;
@@ -1576,29 +1771,43 @@
   cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
+
 .hms-bottomnav__item:active {
   background: var(--hms-surface-2);
 }
+
 .hms-bottomnav__item--active {
   color: var(--hms-brand);
 }
+
 .hms-bottomnav__item:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: -2px;
 }
+
 .hms-bottomnav__label {
   font-size: 0.6875rem;
   line-height: 1;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
-/* Keeps page content clear of the fixed bar. */
+
+/*
+ * Keeps page content clear of the fixed bottom bar — by ADDING to the page's own bottom
+ * padding, never by replacing it. The earlier rule set `padding-bottom: 0` above the
+ * breakpoint, which silently cancelled the shell's `p-5` on desktop: content was padded on
+ * three sides and sat flush against the bottom of the scroll area.
+ *
+ * `--hms-page-pad` is the consuming layout's own padding; the default matches the app
+ * shell's `p-5`. An app that pads differently sets the variable rather than fighting this rule.
+ */
 .hms-bottomnav-offset {
-  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--hms-page-pad, 1.25rem) + 4.25rem + env(safe-area-inset-bottom, 0px));
 }
+
 @media (min-width: 768px) {
   .hms-bottomnav-offset {
-    padding-bottom: 0;
+    padding-bottom: var(--hms-page-pad, 1.25rem);
   }
 }
 
@@ -1609,6 +1818,7 @@
   background: color-mix(in srgb, var(--hms-fg) 45%, transparent);
   animation: hms-fade-in 0.15s ease-out;
 }
+
 .hms-drawer {
   position: absolute;
   top: 0;
@@ -1624,6 +1834,7 @@
   animation: hms-slide-in-right 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   outline: none;
 }
+
 .hms-drawer--left {
   right: auto;
   left: 0;
@@ -1631,6 +1842,7 @@
   border-right: 1px solid var(--hms-border);
   animation-name: hms-slide-in-left;
 }
+
 .hms-drawer__head {
   display: flex;
   align-items: center;
@@ -1639,11 +1851,13 @@
   padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--hms-border);
 }
+
 .hms-drawer__title {
   font-size: var(--hms-text-base);
   font-weight: 600;
   color: var(--hms-fg);
 }
+
 .hms-drawer__close {
   display: inline-flex;
   align-items: center;
@@ -1656,27 +1870,33 @@
   color: var(--hms-fg-muted);
   cursor: pointer;
 }
+
 .hms-drawer__close:hover {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-drawer__close:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
 }
+
 .hms-drawer__body {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.75rem;
 }
+
 .hms-drawer__foot {
   padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--hms-border);
 }
-.hms-drawer__section + .hms-drawer__section {
+
+.hms-drawer__section+.hms-drawer__section {
   margin-top: 1rem;
 }
+
 .hms-drawer__section-title {
   margin: 0 0 0.25rem;
   padding: 0 0.5rem;
@@ -1686,6 +1906,7 @@
   text-transform: uppercase;
   color: var(--hms-fg-subtle);
 }
+
 .hms-drawer__item {
   display: flex;
   align-items: center;
@@ -1696,31 +1917,54 @@
   font-size: var(--hms-text-base);
   text-decoration: none;
 }
+
 .hms-drawer__item:hover {
   background: var(--hms-surface-2);
 }
+
 .hms-drawer__item--active {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
   font-weight: 500;
 }
+
 .hms-drawer__item:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: -2px;
 }
+
 @keyframes hms-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
+
 @keyframes hms-slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
+
 @keyframes hms-slide-in-left {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-drawer,
   .hms-drawer__overlay {
     animation: none;
@@ -1740,14 +1984,17 @@
   opacity: 1;
   transition: opacity 0.45s ease;
 }
+
 .hms-preloader--leaving {
   opacity: 0;
   pointer-events: none;
 }
+
 .hms-preloader__anim {
   width: min(42vw, 240px);
   height: auto;
 }
+
 @media (prefers-reduced-motion: reduce) {
   .hms-preloader {
     transition-duration: 0.2s;
@@ -1759,6 +2006,14 @@
  * Dependency-free: geometry comes from the components, everything visual from
  * these tokens, so a chart follows Light/Dark and a tenant accent for free.
  * ------------------------------------------------------------------------ */
+/*
+ * Available to a screen reader, invisible on screen.
+ *
+ * **Wrap a table in this; never put it ON a table.** A `<table>` sizes to its content and
+ * ignores `width: 1px; height: 1px`, so the box below never shrinks — the element stays
+ * absolutely positioned at full height and lengthens the page by however tall it is. Forcing
+ * `display: block` would hide it and strip the table semantics the markup exists for.
+ */
 .hms-visually-hidden {
   position: absolute;
   width: 1px;
@@ -1780,30 +2035,36 @@
   width: 100%;
   min-width: 0;
 }
+
 .hms-chart__plot {
   position: relative;
   width: 100%;
 }
+
 .hms-chart__svg {
   width: 100%;
   height: 100%;
   display: block;
   overflow: visible;
 }
+
 .hms-chart__grid {
   stroke: var(--hms-border);
   stroke-width: 1;
   stroke-dasharray: 3 4;
   opacity: 0.7;
 }
+
 .hms-chart__cursor {
   stroke: var(--hms-fg-subtle);
   stroke-width: 1;
 }
+
 .hms-chart__dot {
   stroke: var(--hms-surface);
   stroke-width: 2;
 }
+
 .hms-chart__yaxis {
   position: absolute;
   inset: 0 auto 0 0;
@@ -1815,23 +2076,28 @@
   color: var(--hms-fg-subtle);
   pointer-events: none;
 }
+
 .hms-chart__xaxis {
   position: relative;
   height: 1rem;
   font-size: 0.6875rem;
   color: var(--hms-fg-subtle);
 }
+
 .hms-chart__xaxis span {
   position: absolute;
   transform: translateX(-50%);
   white-space: nowrap;
 }
+
 .hms-chart__xaxis span:first-child {
   transform: none;
 }
+
 .hms-chart__xaxis span:last-child {
   transform: translateX(-100%);
 }
+
 .hms-chart__tooltip {
   position: absolute;
   top: 0.25rem;
@@ -1850,14 +2116,17 @@
   pointer-events: none;
   z-index: 2;
 }
+
 .hms-chart__tooltip--bar {
   top: -0.25rem;
   left: 50%;
 }
+
 .hms-chart__tooltip-title {
   font-weight: 600;
   color: var(--hms-fg);
 }
+
 .hms-chart__tooltip-row {
   display: flex;
   align-items: center;
@@ -1865,23 +2134,27 @@
   color: var(--hms-fg-muted);
   white-space: nowrap;
 }
+
 .hms-chart__tooltip-row strong {
   margin-left: auto;
   color: var(--hms-fg);
   font-variant-numeric: tabular-nums;
 }
+
 .hms-chart__swatch {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 2px;
   flex: 0 0 auto;
 }
+
 .hms-chart--empty {
   display: grid;
   place-items: center;
   border: 1px dashed var(--hms-border);
   border-radius: var(--hms-radius-md);
 }
+
 .hms-chart__empty {
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-subtle);
@@ -1894,6 +2167,7 @@
   gap: 0.375rem;
   width: 100%;
 }
+
 .hms-bars__col {
   position: relative;
   flex: 1 1 0;
@@ -1904,6 +2178,7 @@
   justify-content: flex-end;
   gap: 0.375rem;
 }
+
 .hms-bars__stack {
   display: flex;
   flex-direction: column-reverse;
@@ -1912,13 +2187,16 @@
   border-radius: var(--hms-radius-sm);
   overflow: hidden;
 }
+
 .hms-bars__seg {
   width: 100%;
   transition: opacity 0.15s ease;
 }
+
 .hms-bars__col--on .hms-bars__seg {
   opacity: 0.82;
 }
+
 .hms-bars__label {
   font-size: 0.6875rem;
   color: var(--hms-fg-subtle);
@@ -1936,24 +2214,29 @@
   transform-origin: bottom center;
   animation: hms-bar-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
 @keyframes hms-bar-grow {
   from {
     transform: scaleY(0);
   }
+
   to {
     transform: scaleY(1);
   }
 }
+
 .hms-chart--animate .hms-chart__series {
   /* Fade the whole series group (line + filled area) in as one. A plain opacity
      fade is robust under `preserveAspectRatio="none"` — a stroke-dash "draw" renders
      as a broken/dotted line once the path is non-uniformly stretched. */
   animation: hms-series-in 0.5s ease both;
 }
+
 @keyframes hms-series-in {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1971,20 +2254,24 @@
   font-family: var(--hms-font-sans);
   min-width: 0;
 }
+
 .hms-stat__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
+
 .hms-stat__label {
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
 }
+
 .hms-stat__icon {
   display: inline-flex;
   color: var(--hms-brand);
 }
+
 .hms-stat__value {
   display: flex;
   align-items: baseline;
@@ -1996,16 +2283,19 @@
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
+
 .hms-stat__unit {
   font-size: var(--hms-text-sm);
   font-weight: 500;
   color: var(--hms-fg-subtle);
 }
+
 .hms-stat__skeleton {
   height: 1.9rem;
   width: 55%;
   border-radius: var(--hms-radius-sm);
 }
+
 .hms-stat__foot {
   display: flex;
   align-items: center;
@@ -2013,6 +2303,7 @@
   gap: 0.75rem;
   min-height: 1.25rem;
 }
+
 .hms-stat__hint,
 .hms-stat__delta {
   display: inline-flex;
@@ -2021,23 +2312,28 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-subtle);
 }
+
 .hms-stat__delta--good {
   color: var(--hms-success);
 }
+
 .hms-stat__delta--bad {
   color: var(--hms-danger);
 }
+
 .hms-stat__spark {
   width: 4.5rem;
   height: 1.5rem;
   flex: 0 0 auto;
   overflow: visible;
 }
+
 .hms-stat__head-end {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
 }
+
 /* The navigability affordance on a clickable tile (ADR-062) — present before hover,
    so the card reads as a link, not only once the cursor is over it. */
 .hms-stat__go {
@@ -2047,11 +2343,13 @@
     color 0.15s ease,
     transform 0.15s ease;
 }
+
 /* The brand-led tile — one figure a dashboard wants to lead with. */
 .hms-stat--highlight {
   background: var(--hms-brand-subtle);
   border-color: color-mix(in srgb, var(--hms-brand) 30%, var(--hms-border));
 }
+
 /* A tile that is a real link/button. The visual is identical to a plain tile at
    rest; the states are what tell the user it acts. Button and anchor are reset onto
    the same box so all three render the same. */
@@ -2069,36 +2367,44 @@
     box-shadow 0.15s ease,
     transform 0.15s ease;
 }
+
 .hms-stat--link:hover {
   border-color: var(--hms-brand);
   background: var(--hms-surface-2);
   box-shadow: var(--hms-shadow-sm);
   transform: translateY(-1px);
 }
+
 .hms-stat--highlight.hms-stat--link:hover {
   background: color-mix(in srgb, var(--hms-brand) 20%, var(--hms-surface));
 }
+
 .hms-stat--link:hover .hms-stat__go,
 .hms-stat--link:focus-visible .hms-stat__go {
   color: var(--hms-brand);
   transform: translate(1px, -1px);
 }
+
 .hms-stat--link:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 2px;
   border-color: var(--hms-brand);
 }
+
 .hms-stat--link:active {
   transform: translateY(0);
   box-shadow: none;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-stat__go,
   .hms-stat--link {
     transition:
       border-color 0.15s ease,
       background-color 0.15s ease;
   }
+
   .hms-stat--link:hover,
   .hms-stat--link:active,
   .hms-stat--link:hover .hms-stat__go,
@@ -2114,6 +2420,7 @@
   gap: 0.375rem;
   font-family: var(--hms-font-sans);
 }
+
 .hms-usage__head {
   display: flex;
   align-items: baseline;
@@ -2121,29 +2428,36 @@
   gap: 0.75rem;
   font-size: var(--hms-text-sm);
 }
+
 .hms-usage__label {
   color: var(--hms-fg);
 }
+
 .hms-usage__value {
   color: var(--hms-fg-subtle);
   font-variant-numeric: tabular-nums;
 }
+
 .hms-usage__track {
   height: 0.4375rem;
   border-radius: 9999px;
   background: var(--hms-surface-2);
   overflow: hidden;
 }
+
 .hms-usage__fill {
   height: 100%;
   border-radius: 9999px;
   transition: width 0.3s ease;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-usage__fill,
   .hms-bars__seg {
     transition: none;
   }
+
   /* Show the final state at once — no grow-in, no fade-in. */
   .hms-bars--animate .hms-bars__stack,
   .hms-chart--animate .hms-chart__series {
@@ -2163,6 +2477,7 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
 .hms-meridiem {
   display: inline-block;
   padding: 0.05rem 0.3rem;
@@ -2189,6 +2504,7 @@
   background: var(--hms-surface-2);
   padding: 1.5rem 1rem 3rem;
 }
+
 .hms-print-toolbar {
   display: flex;
   align-items: center;
@@ -2197,11 +2513,13 @@
   max-width: 210mm;
   margin: 0 auto 1rem;
 }
+
 .hms-print-toolbar__actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
+
 .hms-print-toolbar__hint {
   display: inline-flex;
   align-items: center;
@@ -2231,6 +2549,7 @@
   line-height: 1.45;
   box-shadow: var(--hms-shadow-md);
 }
+
 /* A pre-designed letterhead image (ADR-065) stands in for the constructed identity block:
    full content width, its own aspect ratio kept, above a title bar carrying the accent rule. */
 .hms-doc__header--image {
@@ -2238,6 +2557,7 @@
   padding-bottom: 0;
   border-bottom: none;
 }
+
 .hms-doc__letterhead {
   display: block;
   width: 100%;
@@ -2246,6 +2566,7 @@
   object-fit: contain;
   object-position: center top;
 }
+
 .hms-doc__title-bar {
   display: flex;
   align-items: baseline;
@@ -2255,10 +2576,12 @@
   padding-bottom: 4mm;
   border-bottom: 2px solid var(--doc-accent);
 }
+
 .hms-doc__title-bar .hms-doc__reference {
   margin-top: 0;
   text-align: right;
 }
+
 .hms-doc__header {
   display: flex;
   align-items: flex-start;
@@ -2267,28 +2590,33 @@
   padding-bottom: 4mm;
   border-bottom: 2px solid var(--doc-accent);
 }
+
 .hms-doc__identity {
   display: flex;
   align-items: flex-start;
   gap: 3mm;
   min-width: 0;
 }
+
 .hms-doc__logo {
   height: 16mm;
   width: auto;
   max-width: 45mm;
   object-fit: contain;
 }
+
 .hms-doc__org {
   font-size: 15pt;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--doc-ink);
 }
+
 .hms-doc__contact {
   font-size: 8.5pt;
   color: var(--doc-muted);
 }
+
 /* The letterhead line the hospital writes for itself — sits between the name and
    the address block, and reads as part of the identity rather than another contact. */
 .hms-doc__tagline {
@@ -2297,10 +2625,12 @@
   color: var(--doc-muted);
   margin-bottom: 0.5mm;
 }
+
 .hms-doc__title-block {
   text-align: right;
   flex-shrink: 0;
 }
+
 .hms-doc__title {
   margin: 0;
   font-size: 14pt;
@@ -2309,23 +2639,29 @@
   letter-spacing: 0.04em;
   color: var(--doc-accent);
 }
+
 .hms-doc__reference {
   margin-top: 1mm;
   font-size: 9.5pt;
   color: var(--doc-muted);
 }
+
 .hms-doc__meta {
   margin-top: 5mm;
 }
+
 .hms-doc__body {
   margin-top: 6mm;
 }
+
 .hms-doc__section {
   margin-top: 6mm;
 }
+
 .hms-doc__section--break {
   break-before: page;
 }
+
 .hms-doc__section-title {
   margin: 0 0 2mm;
   font-size: 10pt;
@@ -2334,31 +2670,37 @@
   letter-spacing: 0.05em;
   color: var(--doc-muted);
 }
+
 .hms-doc__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2mm 8mm;
   margin: 0;
 }
+
 .hms-doc__field {
   display: flex;
   gap: 2mm;
   font-size: 10pt;
   break-inside: avoid;
 }
+
 .hms-doc__field dt {
   color: var(--doc-muted);
   min-width: 32mm;
 }
+
 .hms-doc__field dd {
   margin: 0;
   font-weight: 600;
 }
+
 .hms-doc__table {
   width: 100%;
   border-collapse: collapse;
   font-size: 10pt;
 }
+
 .hms-doc__table th {
   padding: 2mm 2mm;
   border-bottom: 1px solid var(--doc-accent);
@@ -2368,21 +2710,25 @@
   letter-spacing: 0.04em;
   color: var(--doc-muted);
 }
+
 .hms-doc__table td {
   padding: 2mm;
   border-bottom: 1px solid var(--doc-rule);
   vertical-align: top;
 }
+
 .hms-doc__empty {
   font-size: 10pt;
   color: var(--doc-muted);
 }
+
 .hms-doc__totals {
   margin-top: 4mm;
   margin-left: auto;
   width: 70mm;
   break-inside: avoid;
 }
+
 .hms-doc__total {
   display: flex;
   justify-content: space-between;
@@ -2391,6 +2737,7 @@
   font-size: 10pt;
   border-bottom: 1px solid var(--doc-rule);
 }
+
 .hms-doc__total--strong {
   border-bottom: none;
   border-top: 2px solid var(--doc-accent);
@@ -2399,6 +2746,7 @@
   font-size: 12pt;
   font-weight: 700;
 }
+
 .hms-doc__signatures {
   display: flex;
   justify-content: space-between;
@@ -2406,22 +2754,27 @@
   margin-top: 16mm;
   break-inside: avoid;
 }
+
 .hms-doc__signature {
   min-width: 50mm;
   text-align: center;
 }
+
 .hms-doc__signature-line {
   border-top: 1px solid var(--doc-ink);
   margin-bottom: 1.5mm;
 }
+
 .hms-doc__signature-label {
   font-size: 9pt;
   color: var(--doc-muted);
 }
+
 .hms-doc__signature-name {
   font-size: 10pt;
   font-weight: 600;
 }
+
 .hms-doc__note {
   margin-top: 5mm;
   padding: 3mm;
@@ -2430,29 +2783,34 @@
   font-size: 9.5pt;
   break-inside: avoid;
 }
+
 /* The registration poster (ADR-056). Deliberately the largest thing on its page:
    it is read from across a waiting room, not held at arm's length. */
 .hms-qr-poster {
   text-align: center;
   padding: 6mm 0;
 }
+
 .hms-qr-poster__lead {
   font-size: 20pt;
   font-weight: 700;
   color: var(--doc-ink);
   margin: 0 0 2mm;
 }
+
 .hms-qr-poster__sub {
   font-size: 11pt;
   color: var(--doc-muted);
   margin: 0 0 6mm;
 }
+
 .hms-qr-poster__code {
   width: 92mm;
   height: 92mm;
   display: block;
   margin: 0 auto;
 }
+
 .hms-qr-poster__url {
   margin: 5mm auto 0;
   max-width: 120mm;
@@ -2460,10 +2818,12 @@
   color: var(--doc-muted);
   word-break: break-all;
 }
+
 .hms-doc__note-title {
   font-weight: 700;
   margin-bottom: 1mm;
 }
+
 .hms-doc__footer {
   margin-top: 8mm;
   padding-top: 3mm;
@@ -2471,6 +2831,7 @@
   font-size: 8.5pt;
   color: var(--doc-muted);
 }
+
 /* The hospital's own letterhead footer, when configured — full width and centred,
    above the platform's confidentiality line rather than competing with it. */
 .hms-doc__letterfoot {
@@ -2478,11 +2839,13 @@
   margin-bottom: 2mm;
   white-space: pre-line;
 }
+
 .hms-doc__footer-row {
   display: flex;
   justify-content: space-between;
   gap: 4mm;
 }
+
 .hms-doc__generated {
   white-space: nowrap;
 }
@@ -2493,10 +2856,12 @@
     size: A4;
     margin: 12mm;
   }
+
   html,
   body {
     background: #ffffff !important;
   }
+
   /* The application shell and any screen-only control never reach the paper. */
   .hms-print-hide,
   .hms-print-toolbar,
@@ -2508,26 +2873,32 @@
   [data-print="hide"] {
     display: none !important;
   }
+
   .hms-print-page {
     padding: 0;
     background: #ffffff;
   }
+
   .hms-doc {
     width: auto;
     padding: 0;
     box-shadow: none;
     font-size: 10.5pt;
   }
+
   /* Repeat the header of a table that spans pages, and never split a row. */
   .hms-doc__table thead {
     display: table-header-group;
   }
+
   .hms-doc__table tr {
     break-inside: avoid;
   }
+
   .hms-doc__footer {
     break-inside: avoid;
   }
+
   /* Keep the brand rules and tints — a document without its accent is not the
    * hospital's document. Browsers strip backgrounds unless told otherwise. */
   * {
@@ -2560,6 +2931,7 @@
 .hms-popover-positioner {
   z-index: 70;
 }
+
 .hms-popover {
   background: var(--hms-surface);
   border: 1px solid var(--hms-border);
@@ -2570,6 +2942,7 @@
   transform-origin: var(--transform-origin);
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
+
 /* Keyed off `data-closed` ONLY, never `data-ending-style`. Base UI closes some
  * interactions instantly (`data-instant`); with no animation to complete it leaves
  * `data-ending-style` behind, which then makes the NEXT open render invisible.
@@ -2583,11 +2956,14 @@
   visibility: hidden;
   pointer-events: none;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   /* Still a duration — without one the popup would never unmount (see above). */
   .hms-popover {
     transition-duration: 0.01s;
   }
+
   .hms-popover[data-starting-style],
   .hms-popover[data-ending-style] {
     transform: none;
@@ -2606,20 +2982,24 @@
   border-radius: var(--hms-radius-md);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
 .hms-datefield:focus-within,
 .hms-timefield:focus-within {
   border-color: var(--hms-brand);
   box-shadow: 0 0 0 3px var(--hms-brand-subtle);
 }
+
 .hms-datefield--error,
 .hms-timefield--error {
   border-color: var(--hms-danger);
 }
+
 .hms-datefield--disabled,
 .hms-timefield--disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .hms-datefield__input {
   flex: 1;
   min-width: 0;
@@ -2632,9 +3012,11 @@
   font-size: var(--hms-text-base);
   font-variant-numeric: tabular-nums;
 }
+
 .hms-datefield__input::placeholder {
   color: var(--hms-fg-subtle);
 }
+
 .hms-datefield__trigger {
   display: inline-flex;
   align-items: center;
@@ -2649,10 +3031,12 @@
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
+
 .hms-datefield__trigger:hover:not(:disabled) {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
 }
+
 .hms-datefield__trigger:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
@@ -2663,6 +3047,7 @@
   padding: 0 0.375rem 0 0.5rem;
   gap: 0.125rem;
 }
+
 .hms-timefield__part {
   width: 2.25rem;
   padding: 0.5rem 0;
@@ -2675,12 +3060,15 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
 .hms-timefield__part::placeholder {
   color: var(--hms-fg-subtle);
 }
+
 .hms-timefield__sep {
   color: var(--hms-fg-subtle);
 }
+
 .hms-timefield__meridiem {
   display: inline-flex;
   margin-left: 0.375rem;
@@ -2688,6 +3076,7 @@
   border-radius: var(--hms-radius-sm);
   background: var(--hms-surface-2);
 }
+
 .hms-timefield__mer-btn {
   padding: 0.2rem 0.45rem;
   border: none;
@@ -2700,10 +3089,12 @@
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
+
 .hms-timefield__mer-btn--on {
   background: var(--hms-brand);
   color: var(--hms-brand-fg);
 }
+
 .hms-timefield__mer-btn:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
@@ -2714,10 +3105,12 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
 .hms-datetimefield__date {
   flex: 1 1 11rem;
   min-width: 0;
 }
+
 .hms-datetimefield__time {
   flex: 0 0 auto;
 }
@@ -2729,6 +3122,7 @@
   font-size: var(--hms-text-sm);
   color: var(--hms-fg);
 }
+
 /* react-day-picker renders the nav as a SIBLING of the month, inside `months` —
  * not inside the caption. So `months` is the containing block, and the nav is
  * pinned to the caption's own strip at the top; positioning it against anything
@@ -2738,11 +3132,13 @@
   display: flex;
   gap: 1rem;
 }
+
 .hms-calendar__month {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .hms-calendar__caption {
   display: flex;
   align-items: center;
@@ -2751,11 +3147,13 @@
   /* Room for the arrows on both sides, so a long month name never runs under them. */
   padding: 0 2.25rem;
 }
+
 .hms-calendar__caption-label {
   font-weight: 600;
   color: var(--hms-fg);
   white-space: nowrap;
 }
+
 .hms-calendar__nav {
   position: absolute;
   top: 0;
@@ -2767,6 +3165,7 @@
   justify-content: space-between;
   pointer-events: none;
 }
+
 .hms-calendar__nav-btn {
   pointer-events: auto;
   display: inline-flex;
@@ -2780,21 +3179,26 @@
   color: var(--hms-fg-muted);
   cursor: pointer;
 }
+
 .hms-calendar__nav-btn:hover:not(:disabled) {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-calendar__nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
 .hms-calendar__nav-btn:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
 }
+
 .hms-calendar__grid {
   border-collapse: collapse;
 }
+
 .hms-calendar__weekday {
   width: var(--rdp-cell-size);
   padding-bottom: 0.25rem;
@@ -2803,12 +3207,14 @@
   color: var(--hms-fg-subtle);
   text-transform: uppercase;
 }
+
 .hms-calendar__day {
   width: var(--rdp-cell-size);
   height: var(--rdp-cell-size);
   padding: 1px;
   text-align: center;
 }
+
 .hms-calendar__day-btn {
   width: 100%;
   height: 100%;
@@ -2822,47 +3228,58 @@
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
+
 .hms-calendar__day-btn:hover:not(:disabled) {
   background: var(--hms-surface-2);
 }
+
 .hms-calendar__day-btn:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: -1px;
 }
+
 .hms-calendar__day--today .hms-calendar__day-btn {
   box-shadow: inset 0 0 0 1px var(--hms-brand);
   font-weight: 600;
 }
+
 .hms-calendar__day--selected .hms-calendar__day-btn {
   background: var(--hms-brand);
   color: var(--hms-brand-fg);
   font-weight: 600;
 }
+
 .hms-calendar__day--range-middle .hms-calendar__day-btn {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
   border-radius: 0;
   font-weight: 500;
 }
+
 .hms-calendar__day--range-start .hms-calendar__day-btn,
 .hms-calendar__day--range-end .hms-calendar__day-btn {
   background: var(--hms-brand);
   color: var(--hms-brand-fg);
   font-weight: 600;
 }
+
 .hms-calendar__day--outside .hms-calendar__day-btn {
   color: var(--hms-fg-subtle);
   opacity: 0.6;
 }
+
 .hms-calendar__day--disabled .hms-calendar__day-btn {
   color: var(--hms-fg-subtle);
   opacity: 0.35;
   cursor: not-allowed;
 }
+
 .hms-calendar__day--hidden {
   visibility: hidden;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-calendar__day-btn,
   .hms-timefield__mer-btn,
   .hms-datefield__trigger {
@@ -2887,31 +3304,38 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
+
 .hms-period__trigger:hover:not(:disabled) {
   background: var(--hms-surface-2);
   border-color: var(--hms-brand);
 }
+
 .hms-period__trigger:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: 1px;
 }
+
 .hms-period__trigger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.hms-period__trigger > svg:first-child {
+
+.hms-period__trigger>svg:first-child {
   flex: 0 0 auto;
   color: var(--hms-fg-muted);
 }
+
 .hms-period__trigger-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .hms-period__trigger-prefix {
   margin-right: 0.25rem;
   color: var(--hms-fg-muted);
 }
+
 .hms-period__trigger-caret {
   flex: 0 0 auto;
   color: var(--hms-fg-subtle);
@@ -2924,16 +3348,19 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
 .hms-period__presets {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .hms-period__group {
   display: flex;
   flex-direction: column;
   gap: 0.0625rem;
 }
+
 .hms-period__group-label {
   padding: 0.25rem 0.5rem 0.125rem;
   font-size: 0.625rem;
@@ -2942,6 +3369,7 @@
   letter-spacing: 0.06em;
   color: var(--hms-fg-subtle);
 }
+
 .hms-period__item {
   display: flex;
   align-items: center;
@@ -2957,24 +3385,29 @@
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
+
 .hms-period__item:hover {
   background: var(--hms-surface-2);
   color: var(--hms-fg);
 }
+
 .hms-period__item:focus-visible {
   outline: 2px solid var(--hms-ring);
   outline-offset: -1px;
 }
+
 .hms-period__item--active {
   background: var(--hms-brand-subtle);
   color: var(--hms-brand);
   font-weight: 600;
 }
+
 .hms-period__custom {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .hms-period__custom-footer {
   display: flex;
   flex-direction: column;
@@ -2982,17 +3415,21 @@
   border-top: 1px solid var(--hms-border);
   padding-top: 0.5rem;
 }
+
 .hms-period__custom-range {
   text-align: center;
   font-size: var(--hms-text-sm);
   color: var(--hms-fg-muted);
 }
+
 .hms-period__custom-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .hms-period__trigger,
   .hms-period__item {
     transition: none;

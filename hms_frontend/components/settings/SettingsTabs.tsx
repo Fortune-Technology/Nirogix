@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarPlus, DoorOpen, FileText, IndianRupee, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, Workflow, type LucideIcon } from "lucide-react";
+import { Building2, FileText, IndianRupee, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, Workflow, type LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@hms/permissions";
 import { useCan } from "../../lib/auth";
 
@@ -25,9 +25,10 @@ const TABS: Tab[] = [
   { href: "/hospital-setup/hospital-information", label: "Hospital information", icon: Building2, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/hospital-setup/letterhead", label: "Letterhead", icon: FileText, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/hospital-setup/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
-  { href: "/hospital-setup/patient-registration", label: "Patient registration", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/hospital-setup/online-booking", label: "Online booking", icon: CalendarPlus, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/hospital-setup/self-check-in", label: "Self check-in", icon: DoorOpen, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
+  // One tab for the three QR surfaces — self-registration, online booking, self check-in. They
+  // are one mechanism with three destinations, and three tabs only asked the administrator to
+  // remember which was which (ADR-124). Each still has its own setting, token and queue.
+  { href: "/hospital-setup/public-access", label: "Patient self-service", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
   { href: "/hospital-setup/hospital-availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
   { href: "/hospital-setup/workflow", label: "Workflow", icon: Workflow, perm: PERMISSIONS.WORKFLOW_CONFIG_VIEW },
   { href: "/hospital-setup/fee-schedule", label: "Fee schedule", icon: IndianRupee, perm: PERMISSIONS.BILLING_FEE_RULES_VIEW },

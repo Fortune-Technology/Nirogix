@@ -3,18 +3,22 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { CalendarClock, Plus, Stethoscope, X } from "lucide-react";
 import {
+  actionsColumn,
   Badge,
   Button,
   DataTable,
   Dialog,
   EditAction,
+  emptyLabel,
+  EmptyValue,
   Field,
   PhoneField,
   TableAction,
   TableActions,
   ToggleAction,
-  actionsColumn,
   type Column,
+  valueLabel,
+  ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Provider, ScheduleWindow, Specialty, Department, UserListItem } from "@hms/types";
@@ -317,13 +321,23 @@ function ProvidersTable() {
       accessor: (p) => p.fullName,
       cell: (p) => <span className="font-medium text-fg">{p.fullName}</span>,
     },
-    { key: "reg", header: "Registration", accessor: (p) => p.registrationNumber, cell: (p) => p.registrationNumber ?? "—" },
-    { key: "qual", header: "Qualification", accessor: (p) => p.qualification, cell: (p) => p.qualification ?? "—" },
+    {
+      key: "reg",
+      header: "Registration",
+      accessor: (p) => valueLabel(p.registrationNumber, "unspecified"),
+      cell: (p) => <ValueOrEmpty value={p.registrationNumber} reason="unspecified" />,
+    },
+    {
+      key: "qual",
+      header: "Qualification",
+      accessor: (p) => valueLabel(p.qualification, "unspecified"),
+      cell: (p) => <ValueOrEmpty value={p.qualification} reason="unspecified" />,
+    },
     {
       key: "specialties",
       header: "Specialties",
       filterable: true,
-      accessor: (p) => p.specialties.map((s) => s.replace(/_/g, " ")).join(", ") || "—",
+      accessor: (p) => p.specialties.map((s) => s.replace(/_/g, " ")).join(", ") || emptyLabel("none"),
       cell: (p) =>
         p.specialties.length ? (
           <div className="flex flex-wrap gap-1">
@@ -334,14 +348,16 @@ function ProvidersTable() {
             ))}
           </div>
         ) : (
-          "—"
+          <EmptyValue reason="none" />
         ),
     },
     {
       key: "fee",
       header: "Consultation fee",
       accessor: (p) => p.consultationFeePaise,
-      cell: (p) => (p.consultationFeePaise != null ? `₹${p.consultationFeePaise / 100}` : "—"),
+      // No fee on the doctor means the hospital's fee schedule decides it (ADR-117).
+      cell: (p) =>
+        p.consultationFeePaise != null ? `₹${p.consultationFeePaise / 100}` : <EmptyValue reason="notConfigured" />,
     },
     {
       key: "status",
@@ -395,7 +411,7 @@ function ProvidersTable() {
       <label className="hms-field">
         <span className="hms-label">Gender</span>
         <select className="hms-input" value={form.gender} onChange={(e) => set("gender", e.target.value)}>
-          <option value="">—</option>
+          <option value="">Not specified</option>
           <option value="male">Male</option>
           <option value="female">Female</option>
           <option value="other">Other</option>

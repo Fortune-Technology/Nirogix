@@ -2288,3 +2288,605 @@ same one ADR-113 told about vitals.
 - 18 new API tests; **754 backend tests pass** (was 736). No new permission — the two vocabularies
   are workflow configuration (`workflow.config.manage`) and the price list is still
   `billing.fee_rules.manage`.
+
+## ADR-122 - The staging seeder runs on every deployment, and never overwrites anything
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Extends:** ADR-058 (three seeders, one per environment), ADR-114 (a demo database with a past), ADR-076 (affected-only deploys)
+
+### Context
+
+Staging is where the manual regression script runs and where E2E asserts. Its dataset is a
+contract — but a contract that only holds if somebody remembers to run `db:seed:staging` after
+every deployment, which nobody does. A table shipped on Tuesday has no rows on staging until
+Thursday, and the feature it belongs to cannot be tested until then.
+
+The obvious fix — run the seeder from the deploy workflow — was not safe to do as the seeder
+stood. It was idempotent in the weak sense: it would not *crash* on a second run, because most of
+it was guarded by "is this table empty?". Two consequences followed from that shape, and both are
+disqualifying for something running unattended on every deploy:
+
+- **It overwrote work.** `updateOrganizationProfile`, `updateBranding`, `setSelfRegistration` and
+  `setOnlineBooking` were called unconditionally. A tester who corrected the hospital's address, or
+  turned a public form off to test the disabled state, lost it at the next deployment. So did an
+  operator who suspended a tenant, deactivated a branch, or re-enabled the deliberately-disabled QA
+  account — each of those was restated from the dataset on every run.
+- **It could not add anything.** "Seed the catalogue while the table is empty" means a lab test
+  added to the dataset in September never reaches a hospital seeded in July. Precisely the case an
+  automatic seeder exists to cover.
+
+### Decision
+
+**The seeder converges on *present*, never on *the dataset's values*.**
+
+Three mechanisms, in the order they are reached:
+
+1. **A stable key per record, and creation only when it is missing.** A tenant by code, a user by
+   email, a branch and a department by code, a provider by registration number, a lab test and a
+   service by code, a supplier and a drug by name, a patient by **phone number**, a public request
+   by the phone that submitted it, a notification by the idempotency key it already carried, an
+   override by (user, permission). Never by display name: two real people share a name, and two
+   services can both be called "Dressing". Found means **left alone, in whatever state it is in** —
+   edited, renamed, repriced, deactivated. Missing means created. Nothing updates.
+
+2. **A marker for every action that has no record of its own** — the new `seed_markers` table.
+   Applying an organisation profile, a brand colour, a public-form toggle, the clinical history, a
+   column backfill: each writes to rows that already exist, so each is done once and marked. The
+   marker is written **after** the work succeeds, so a deploy that dies half-way finishes the job
+   next time rather than declaring a partial history complete.
+
+3. **Backfills that fill only NULL.** A column added to a table that already has rows is filled
+   where nobody has entered a value and nowhere else, once, behind its own marker. The first is
+   `services.department_id` — services seeded before the dataset named their department, which is
+   why `/services` showed "—" in its Department column on every row (ADR-123).
+
+**In the workflow, alongside migrations, under the same condition.** Seed definitions live in
+`hms_backend`, so a dataset change always puts the backend in the affected set (ADR-076) and the
+seeder always runs when the dataset moves. It runs *after* `db:migrate`, so a table added this week
+exists before its rows are written.
+
+**Four independent things keep it away from production**, because one would be a single point of
+failure for an unrecoverable accident: the workflow triggers only on the `staging` branch against
+the staging VM; `requireEnvironment('staging')` refuses unless `NODE_ENV` is exactly staging; the
+same guard refuses a `DATABASE_URL` that does not look like a development or staging database; and
+the workflow itself asserts `NODE_ENV=staging` in the VM's `.env` before invoking anything, so the
+deploy log says *why* it stopped. **`--reset` is never passed from CI** — rebuilding the dataset
+destroys whatever QA is part-way through, and stays a deliberate, announced act.
+
+### Consequences
+
+- One migration, `0050`, one new platform-managed table (`seed_markers`, no `tenant_id`, therefore
+  no RLS policy — like `tenants` and `patient_identity`). `--reset` empties it with everything
+  else, which is how a full rebuild is asked for.
+- The seed report now distinguishes **created** from **kept**: "created nothing; kept 113 existing"
+  is the healthy steady state of a staging deployment, and a log that could not say so was lying by
+  omission. Every `*.kept` count is evidence that a re-run changed nothing.
+- Verified by running the development seeder twice against a database holding 244 visits and 59
+  patients, with four hand edits applied first (a renamed patient, a repriced service, an edited
+  hospital city, a changed brand colour). Second run: **every table count identical except
+  `audit_log`** — which grew because the seeder's own writes are audited, as they should be — and
+  all four edits intact.
+- The production seeder is untouched and still cannot reach this machinery: it does not import
+  `seedKit.ts` at all, has no `--reset`, and demands `CONFIRM_PRODUCTION_SEED`.
+- A no-op deployment seed costs one lookup per seeded record plus one per marker. On the staging
+  dataset that is a few hundred indexed selects — seconds, once per deploy.
+
+## ADR-123 - A missing value states which kind of missing it is
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Relates to:** ADR-029 (the Standard DataTable), ADR-047 (printed documents)
+
+### Context
+
+Roughly eighty places in the Portal rendered `—` for an absent value, each written by hand at the
+call site. On `/services` every row read `Department: —`; on the OPD queue every walk-in read
+`Provider: —`.
+
+A dash is three different statements wearing the same clothes: *nobody has assigned this yet*,
+*this cannot have a value*, and *the screen failed to fetch it*. A reader cannot act on it, because
+they cannot tell which one they are looking at. It is also invisible to the table: the accessor
+returned `"—"`, so a filter could not offer "unassigned" as a value and a search could not find
+those rows.
+
+`/services` was the case worth chasing to the bottom, because it turned out not to be a display
+problem at all. The API returns `departmentName` from a real left join; the dataset simply never
+named a department for any seeded service, so every service genuinely had none.
+
+### Decision
+
+**One component, and the call site states the reason.** `EmptyValue` / `ValueOrEmpty` /
+`emptyLabel()` / `valueLabel()` in `@hms/ui`, with seven reasons: `unassigned`, `unspecified`,
+`notRecorded`, `notConfigured`, `notApplicable`, `none`, `notAvailable`. Only the call site knows
+which is true, so the reason is a required decision rather than a default.
+
+**The accessor carries the same words as the cell.** `valueLabel(s.departmentName, "unassigned")`
+means the Department filter offers "Not assigned" as a value and a search for it finds those rows —
+"show me every service nobody has filed" becomes a question the table can answer.
+
+**Fix the data where the data is the problem.** The dataset now names a department for every seeded
+service, and a backfill fills `department_id` where it is NULL for hospitals seeded earlier
+(ADR-122). One service is left deliberately unassigned, because "not assigned" is a state the
+column has to render.
+
+**A dash survives only where it is typography** — the `–` between the two ends of a reference range.
+It is no longer a placeholder anywhere.
+
+### Consequences
+
+- Every table, list, detail page, card and print document in the Portal now says which kind of
+  missing it is. Print documents use `emptyLabel()`, because a printed page needs a string, and a
+  patient reading "Not applicable" understands it where a dash tells them nothing.
+- Two dashboard tiles that showed `—` while loading now show `0`, which is what a count of nothing
+  is. A tile cannot be "not applicable".
+- `notAvailable` is deliberately rare: a value that exists but did not arrive is usually a bug to
+  chase, not a label to print.
+- **CSV exports keep an empty cell**, and that is not an oversight. A spreadsheet sorts, filters and
+  sums an empty cell correctly; "Not assigned" in an amount column turns a number into text and
+  breaks the thing the export exists for. The label is for a human reading a screen or a printed
+  page; a machine-readable file gets nothing.
+
+## ADR-124 - One screen for every code a patient scans
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Supersedes the navigation of:** ADR-056 (self-registration), ADR-069 (online booking), ADR-118 (self check-in)
+
+### Context
+
+Three tabs in Hospital configuration — *Patient registration*, *Online booking*, *Self check-in* —
+rendered the same component, `PublicAccessPanel`, with different words. Same toggle, same QR card,
+same copy/download/print/preview/regenerate row, same disabled alert. An administrator looking at
+one of them could not tell from the screen which one they were on, and "where do I turn the QR code
+off?" had three answers.
+
+They are not, however, one setting. Each has its own database column, its own token, its own public
+endpoint, its own review queue and its own audit trail; turning one off must leave the other two
+working. Deleting either of the two named in the request would have removed a working feature.
+
+### Decision
+
+**One screen, three sections: `/hospital-setup/public-access` — "Patient self-service".** The three
+`PublicAccessPanel` configurations move onto it unchanged, under a short explainer stating the thing
+everyone gets wrong once: **none of the three writes to the hospital's records.** Each produces a
+request; a member of staff turns it into a patient, an appointment or a visit.
+
+**Self check-in joined them** even though the request named only registration and booking. It is the
+same pattern, the same component and the same promise; consolidating two of three and leaving the
+third as its own tab would have replaced one inconsistency with a stranger one.
+
+**Nothing behind the screen changed.** Not a setting, a token, a column, an endpoint, a permission
+or a queue. This is a navigation decision, and it is reversible by splitting the sections back into
+pages if a hospital ever needs three.
+
+**The old paths redirect permanently** rather than 404 — they are in bookmarks, in the manual
+testing guide, and printed on the back of QR posters. The three poster documents point their "back"
+link at the new route.
+
+### Consequences
+
+- One tab where there were three. The sidebar's *Registration requests*, *Booking requests* and
+  *Arrivals* items are untouched, because those are **queues of work**, not settings, and belong
+  where the work is done.
+- `PublicAccessPanel` keeps earning its existence: it is now used three times on one screen, which
+  is the clearest possible statement of what it is for.
+- The page is longer than any of the three it replaces. That is the trade — one scroll against three
+  places to look — and the section headings are what make the scroll navigable.
+
+## ADR-125 - The Organization Admin may do anything inside their own hospital
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Changes:** the seeded `org_admin` role from ADR-009's MVP set · **Constrained by:** ADR-037 (the operator boundary), ADR-092/ADR-120 (who may ask for an external history)
+
+### Context
+
+`org_admin` was configuration-plus-read-only. It could create staff, roles, branches, departments
+and providers, set the branding, the workflow, the services catalogue and the fee schedule, read
+every report and the whole audit log — and could not correct a patient's phone number, book an
+appointment, check anybody in, raise an invoice or take a payment.
+
+The result on screen is what surfaced it: an administrator opens Patients and the Actions column
+holds one eye icon; opens Appointments and there is no *New appointment* button. Not a bug — the
+role has `patient.record.view` and `appointment.booking.view` and nothing else — but the person a
+hospital holds accountable could not fix what they were accountable for. In a clinic of six people
+the administrator *is* the person who covers the desk when the receptionist is on leave, and the
+answer "grant yourself a permission exception first" is a poor one when the same person also holds
+`platform.rbac.manage` and can simply do that. A boundary that the person on the wrong side of it
+can lift in two clicks is not protecting anything; it is only making them slower.
+
+### Decision
+
+**One sentence: anything that happens inside this hospital, this role may do.**
+
+The role gains the operational and clinical keys — patient create/update, appointment
+create/cancel, OPD check-in and update, cases, referrals, immunisations, vitals recording, the
+encounter (read and write), invoice creation and payment collection, pharmacy stock and dispensing,
+lab test management and result entry and verification.
+
+Two things it deliberately still cannot do, and each is a boundary rather than an oversight:
+
+- **Anything outside this hospital.** `platform.tenants.manage`, the support surface, cross-tenant
+  analytics, the vendor's own platform branding, and the **global** master-data catalogue every
+  hospital shares. Those belong to the vendor's operators (ADR-037), and the separation is
+  structural — a different organisation, RLS, and the wildcard role — not a matter of which keys
+  are in a list.
+- **`abdm.history.request`.** Requesting a patient's records from another hospital puts a named
+  clinician's medical registration number in front of that patient, and it is what they read when
+  deciding whether to consent. An administrator has no registration number to put there. This is an
+  external requirement, so "full administrator" does not reach it. Reading a history a doctor has
+  already pulled stays permitted, for support and audit.
+
+**The clinical grant is the one worth arguing about, and the argument is the lever, not the
+default.** Until today the product's own marketing repeated that "an Organization Admin cannot read
+the clinical record". That sentence is retired. What replaces it is truer and more useful: a
+hospital that wants its administrator kept out of the chart **denies `emr.encounter.view` /
+`.write` on that account** — an explicit DENY beats the role that grants it (invariant #3), applies
+on the next request, can be time-bound, and is audited. The separation is now *available* rather
+than assumed, which is the honest description of a configurable system.
+
+### Consequences
+
+- **Existing hospitals get the wider role on the next deploy**, through
+  `reconcileSystemRoles()` → `provisionTenantRbac()`, which runs inside `db:migrate`. That path is
+  **additive only** — it inserts missing role→permission rows and removes none — so a tenant that
+  customised its own roles keeps its customisation, and no hospital loses a permission.
+- **The role's stored `description` does not change on an existing tenant.** `provisionTenantRbac`
+  never updates a row it did not create, deliberately (ADR-122's rule, applied here): a tenant that
+  renamed the role would have the rename reverted by a deploy. New tenants get the new wording;
+  existing ones keep the old sentence next to the new powers.
+- **The frontend needed no change at all.** Every button and row action was already gated on a
+  permission key rather than on a role, so widening the role revealed them. That is the evidence
+  the gating was built the right way round.
+- **Nothing about enforcement moved.** Every route still runs `requireModule` → `requireCapability`
+  → `requirePermission`; the server re-checks each call; RLS is untouched. This changes *what one
+  role holds*, not how anything is enforced.
+- Documentation that asserted the old split is corrected in the same change: the marketing
+  capability reference's role matrix, its Organization Admin detail and the demo line (v2.25), plus
+  `testcases.md` PAT-03 and QR-19/QR-20, which used `org_admin` precisely *because* it lacked these
+  keys and now name a role that still does.
+
+## ADR-126 - A refusal says which of the two things went wrong, and what to ask for
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Extends:** ADR-125 (the administrator's scope), ADR-085 (module ∩ capability ∩ permission), ADR-054 (the shared guards)
+
+### Context
+
+Three problems, and they turned out to be one.
+
+**The administrator kept losing permissions by omission.** ADR-125 widened `org_admin` by writing
+a longer list — and a list is exactly the thing that goes stale. Every permission key added by a
+future release would default to *not* being in it, and the failure mode is silent: no error, no
+test, just a button that never appears for the person accountable for the hospital. That is
+precisely how the role came to be missing `patient.record.create` and `opd.visit.checkin`.
+
+**A refusal told the user nothing they could act on.** "You don't have access to this. Contact your
+organization administrator." Which permission? Who has it? Is it even a permission problem? A
+person forwarding that screenshot to their administrator has given them nothing to work with.
+
+**And the widening made a new kind of wrong answer possible.** An administrator now holds
+`pharmacy.stock.view` whether or not their hospital has the Pharmacy module. The old panel would
+have told them their *role* was missing something — sending them to ask their administrator (i.e.
+themselves) for a change that would have done nothing, because the real answer is that the hospital
+does not have the module.
+
+### Decision
+
+**1. `org_admin` is derived, not listed.**
+
+```ts
+permissions: ALL_PERMISSIONS.filter(
+  (k) => !OPERATOR_ONLY_PERMISSIONS.includes(k) && !CLINICIAN_ONLY_PERMISSIONS.includes(k),
+)
+```
+
+A key added tomorrow reaches the administrator by default, and *withholding* one becomes the
+deliberate act that has to be written down — which is the right way round. It is still not a
+wildcard: `super_admin` holds `*`, this holds a computed list, so the six operator keys and
+`abdm.history.request` stay out by construction. Today: 68 of 75.
+
+**A permission is not access.** Every route runs `requireModule()` before `requirePermission()`, so
+the administrator's real reach is the *intersection* of that list with the modules their hospital
+owns. Widening the role did not widen any hospital's surface by one screen.
+
+**2. The page guard checks the module first, like the server does.** `RequirePermission` in
+`@hms/client` now resolves the permission's module through `permissionModuleKey()` — derived from
+`MODULE_REGISTRY`, never a second list — and refuses when the hospital does not have it. A
+permission the registry does not claim is Platform Core and is never module-gated. While the
+entitlement set is still loading it is empty, and an empty set is *not* read as "this hospital has
+nothing", or every page of a healthy session would flash a refusal.
+
+**3. `GET /api/v1/rbac/access?permission=…` explains the refusal.** It returns the permission's
+human label and key, the module and whether the hospital has it, and **the roles in this hospital
+that grant it** — read from that tenant's own `role_permissions`, so a cloned or renamed role
+appears without anyone hard-coding a role name, and a role holding the wildcard counts.
+
+`reason` is module-first (`module_not_enabled` → `granted` → `permission_missing`), because the two
+failures have different owners: a module is the hospital's subscription and no administrator can
+grant their way past it; a permission is a role question their administrator can answer today.
+
+Authenticated, and nothing more. Which roles exist and what each may do is what an employee is told
+on their first day; withholding it only makes the refusal useless. The response is closed — a test
+asserts its exact key set — and names no patient, no account and no other tenant.
+
+**4. The panel says all of it.** Required permission in words *and* as a key (the sentence for the
+person, the key for whoever they forward it to), the module, the roles that hold it, and the note
+that a grant can be per-account and time-limited. A hospital without the module gets a different
+headline, a different tone and no mention of roles at all.
+
+### Consequences
+
+- `PERMISSION_LABELS` in `@hms/permissions` names all 75 keys, with `permissionLabel()` falling
+  back to a derived sentence for a key this build has never seen — a tenant's custom role can carry
+  one from a later release, and a blank line is worse than a decent guess.
+- `@hms/client` now depends on `@hms/permissions`. It already depended on the *idea*; the guard is
+  the first thing that needed the registry itself.
+- Every frontend gets the module-first guard, not just the Portal. The panel stays per app, because
+  each one sends a refused user somewhere different (ADR-054).
+- The 27 page-level guards in the Portal were audited against the derived role: all 27 name a
+  permission the administrator holds, so no page refuses them any more. The only component-level
+  action still hidden from an administrator is `abdm.history.request`, which is deliberate.
+- **Custom roles are handled by not handling them.** Nothing reads `SYSTEM_ROLES` at refusal time;
+  it is all `role_permissions` rows, so a hospital that invents "Reception Manager" sees it named
+  on the refusal screen the moment it grants the key.
+- 6 new API tests. The one worth keeping honest is the module case: an administrator who holds the
+  permission and still has no access, which a permission-only message would describe wrongly.
+
+## ADR-127 - Three input defects, and a patient chart ordered by what staff reach for
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Touches:** ADR-029 (the shared kit), ADR-119 (the patient chart), ADR-060 (row actions and correction)
+
+### Context
+
+Three reports, one theme: the screen was fighting the person using it.
+
+**1. Typing a fee moved the caret to the Doctor dropdown.** On the fee schedule, entering `5` in
+the Fee field put focus on the first control in the dialog. The cause was not the field. `Dialog`'s
+focus-trap effect declared `[open, onClose, busy]` as its dependencies, and every caller passes an
+inline `onClose={() => setOpen(false)}` — a new function identity on every render. So each keystroke
+changed a dependency, tore the effect down (which restores focus to whatever opened the dialog) and
+set it up again (which focuses the first control in the body). The field was fine; the trap was
+re-arming under it. `NavDrawer` had the same shape.
+
+**2. Scrolling over a focused number input changed its value.** A cashier types `500`, scrolls to
+reach Save, and the amount becomes `501` because the pointer was over the field. Nothing announces
+it, and the number that was checked is not the number that is saved. This is browser default
+behaviour and a genuine hazard in a hospital.
+
+**3. The patient chart made staff hunt.** Name and UHID were in the header, then a two-column grid
+of *Identity / Contact / Emergency contact / Portal access* — with age nowhere at all, blood group
+as the third row of a card called "Identity", and *Patient portal access* (a desk task) sharing the
+top tier with a phone number. Visits and consultations, the reason most people open a chart, were
+at the very bottom, below immunisations.
+
+### Decision
+
+**1. A focus trap depends on `open`, and nothing else.** `Dialog` and `NavDrawer` keep the current
+`onClose`/`busy` in a ref that is reassigned each render, and the effect reads from it. The handler
+always calls the current callback; the effect never notices the identity changed. Fixed once in the
+kit rather than by memoising `onClose` at each of the ~20 call sites — a rule that says "always wrap
+your handler in `useCallback` or the dialog misbehaves" is a rule that will be broken.
+
+**2. One wheel listener for the whole application.** `NumberInputGuard` in `@hms/ui`, mounted beside
+the other providers in each app. When the pointer is over a **focused** `input[type=number]` it
+cancels the wheel and **forwards the scroll** to the nearest scrollable ancestor — cancelling alone
+would have fixed the value and frozen the page. Deliberately not a prop on an input component: it
+has to hold for a raw `<input type="number">` on a page nobody has migrated, and copying an
+`onWheel` into every form is how half of them end up without it. It is a document listener because
+React registers `onWheel` passively, and a passive listener may not call `preventDefault`. Typing,
+arrow keys, `step`, decimals, validation and touch devices are all untouched.
+
+**3. The chart is ordered by what someone reaches for, in five tiers.**
+
+| | | |
+|---|---|---|
+| 1 | **Identity strip** | Initials, name, UHID, **age**, gender, date of birth, **blood group**, status — one line, above everything |
+| 2 | **Contact**, then **Emergency contact** | "How do we reach them" is the second question at a desk |
+| 3 | **National health ID (ABDM)** | An identifier, not a demographic — its own card, below the details people open the chart for |
+| 4 | **Treatment cases**, then **Immunisations** | Ongoing care before past care |
+| 5 | **History** → **History from other hospitals** → **Portal access** | Visits, consultations, invoices, lab orders, documents; then borrowed records; then the administrative task |
+
+Blood group moves out of a table row and becomes a badge: it is a clinical fact, and **its absence
+is stated** rather than left blank, because "we do not know this patient's blood group" is the thing
+worth knowing. Age is computed by `ageInYears` in `@hms/utils`, now shared with the patients list —
+a chart that disagreed with the list it was opened from is a bug people report.
+
+**Nothing was removed.** Every field, card and permission gate that existed still renders; only the
+order changed, and `Patient portal access` moved from the grid to the bottom.
+
+### Consequences
+
+- **A real permission bug surfaced while reordering.** `CasesCard` was gated on
+  `clinical.immunization.view` because it sat inside the same `<Can>` as the immunisations card. A
+  role permitted to manage treatment cases but not immunisations saw neither. It now carries
+  `opd.case.view` — the key the API actually enforces.
+- **The chart scrolled sideways on a phone**, and had before this change: `PatientHistory`'s grid
+  items kept their default `min-width: auto`, so one long visit line pushed the cards to 817px
+  inside a 375px viewport. `[&>*]:min-w-0` — the same remedy the dashboard grid already used — and
+  `break-words` on the detail rows, so a long email stays inside its card. Measured after: zero
+  elements wider than the viewport.
+- **No allergies section, deliberately.** The request asked for one and the product has no allergies
+  field on a patient — inventing an empty card would promise a place to record something the system
+  cannot store. Recorded in `BACKLOG.md` instead.
+- The dialog fix is invisible where it works, which is most places: every dialog in every app that
+  passes an inline `onClose` was re-arming its focus trap on each render, and only a field the user
+  types into for more than one character made it visible.
+
+## ADR-128 - A page's primary action is in one place, and there is nowhere else to put it
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Extends:** ADR-029 (the Standard DataTable), ADR-039 (the Action column)
+
+### Context
+
+*Book appointment* on Appointments and *Check in* on the OPD queue sit top-right, in the page
+header, level with the page title. *Register patient* on Patients sat one row lower, inside the
+table's filter toolbar next to **Columns**.
+
+One screen out of twenty-one, but it is the screen a receptionist opens most, and the cost is paid
+every time: the button is not where the last page put it, so it has to be found rather than
+reached for. Consistency of position is worth more here than on almost any other control, because
+this is the one a user goes to without looking.
+
+The mechanism was `toolbarActions`, a slot on the Standard DataTable. Exactly one page in the
+whole monorepo used it — which is the tell. A slot that only one caller uses, doing something no
+other caller does, is not a feature being used; it is a way to be inconsistent that happened to be
+available.
+
+### Decision
+
+**The primary action lives in `PageHeader`, top-right. There is no other slot.**
+
+`toolbarActions` is removed from `DataTable`, and the `actions` prop it fed is removed from
+`DataTableToolbar`. The toolbar is Search → Filters → Sort → Column visibility → Pagination
+(ADR-029) and holds nothing else. This is deliberately mechanical rather than a note in a style
+guide: a written rule saying "prefer the header" would be broken by the next person who finds a
+convenient prop, and a rule you cannot break is worth more than one you have to remember.
+
+**Ordering when a page has several actions:** supporting first, primary **last** (right-most).
+`ghost` for navigating away (*All patients*), `secondary` for a side task (*Print / PDF*, *Add
+item*), the default variant for the action the page exists for. This is what every multi-action
+header already did; it is written down now.
+
+**Permission-gated in place.** `<Can perm={…}>` around the button — an action the user may not
+perform is not rendered and the header simply has no actions. Never disabled instead, and never
+moved somewhere less prominent.
+
+**An empty state may repeat it** (`emptyAction`), and that is a repeat rather than a second home:
+an empty table is exactly when somebody needs the button, and the header may be scrolled out of
+view.
+
+### Consequences
+
+- One page changed. Twenty other list and detail screens already did this and are untouched, which
+  is the evidence the convention was real and Patients was the exception.
+- Two props deleted from the kit. Nothing else referenced them in any of the five frontends —
+  verified by grep before removing, and 107 `@hms/ui` component tests pass unchanged.
+- `Register patient` grows from `size="sm"` to the default size, matching every other primary
+  action. The `emptyAction` copy of it stays small, because it sits inside an empty-state block.
+- The next screen that wants a create button has exactly one place to put it, and finding that out
+  costs a look at any existing page rather than a review comment.
+
+## ADR-129 - Reading how the hospital runs is not an administrative act
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Corrects:** ADR-113 (workflow configuration) · **Relates to:** ADR-057 (one notification per failure)
+
+### Context
+
+A receptionist opening **Book appointment** was met with a *Not permitted — you do not have
+permission to perform this action* toast, beside a form that then worked perfectly.
+
+`GET /workflow-config` requires `platform.workflow.view`, and the receptionist did not hold it.
+But the workflow configuration is what the desk's own form is built from (ADR-113): where vitals
+are taken decides whether the vitals fields render at all, when the fee is settled decides whether
+payment gates the consultation, and the consultation-type and case-type vocabularies are the
+hospital's own words in two of the form's dropdowns. The screen cannot be drawn without reading it.
+
+The key was scoped as though the configuration were an administrator's private setting. It is not:
+it is *how this hospital runs*, and every staff-facing screen that follows the workflow has to know
+it. Four screens read it — the check-in and booking form, the vitals queue, the patient chart's
+cases block, and the fee schedule — and only the last is an administrator's.
+
+Two defects, not one. The permission gap was the cause; the toast was a second, separable problem.
+Every caller already handled failure correctly (`Promise.allSettled`, fall back to the platform
+defaults), so the *page* was never broken — but the shared API-feedback layer reported the failure
+anyway, which is right for a call nobody is handling and wrong for one the page deliberately
+tolerates.
+
+### Decision
+
+**1. The read key goes to the roles whose screens read it** — receptionist, doctor, branch_admin
+and cashier, alongside the administrator who already had it. Not to the pharmacist or the lab
+technician, who reach none of those four screens.
+
+The split that matters is preserved exactly: **`platform.workflow.view` is reading how the hospital
+runs; `platform.workflow.manage` is deciding it**, and only the administrator holds the second. The
+configuration screen itself is still gated on the manage key.
+
+Widening the *route* to any authenticated session was the alternative, and was rejected: it would
+have left `platform.workflow.view` enforced by nothing, and a page guard on a key no endpoint
+checks is a boundary in name only.
+
+**2. A failure the caller already handles does not raise a toast.** `getWorkflowConfig` is fetched
+with `feedback: false` (ADR-057's own opt-out). Every call site treats "no config" as "use the
+platform defaults" — which is the behaviour a hospital that has configured nothing gets anyway, so
+the fallback is correct rather than merely quiet. A hospital that DENIES this key on one account
+now sees that account's form fall back to defaults, not an error next to a working form.
+
+### Consequences
+
+- Nothing about enforcement moved: the route still runs `requirePermission`, and the server still
+  decides. Four roles hold one more read key.
+- The fix reaches existing hospitals through `reconcileSystemRoles()` in `db:migrate`, additively —
+  no tenant loses anything, and a customised role keeps its customisation.
+- Verified as a receptionist: **Book appointment**, **Check in** and the **Vitals queue** all load
+  with no toast, and `GET /workflow-config` returns 200 where it previously returned 403.
+- The general lesson is worth stating because it will recur: **a permission named for the screen
+  that *edits* something is the wrong key for the screens that merely *read* it.** When a
+  configuration governs a form, everyone who uses the form needs the read key — or the form 403s
+  against the settings that describe it.
+
+## ADR-130 - A verification is several answers, and the last one is not the whole of it
+
+**Status:** Accepted · **Date:** 02/09/2026 · **Fixes:** ADR-084 (ABDM Milestone 1)
+
+### Context
+
+Two reports from the sandbox, one cause.
+
+**An existing ABHA produced an empty form.** `verification/verify` returned the account list with
+real demographics —
+
+```json
+"accounts": [{ "abhaNumber": "91-…-5832", "abhaAddress": "…@sbx", "gender": "M", "dateOfBirth": "2001-09-01" }]
+```
+
+— and the `select-account` that followed returned `"prefill": { "gender": null }`. Everything the
+list had said was gone.
+
+**Creating an ABHA produced the same empty form.** `enrolment/aadhaar/verify` returned the whole
+record — name, gender, date of birth, phone, address, city, state, pincode, ABHA number — and the
+`enrolment/mobile/verify` that followed returned `"prefill": { "gender": null }`. The desk watched a
+filled card become *Unnamed · Not specified · DOB unknown · no phone*, above a blank registration
+form.
+
+The cause is one line of reasoning that is wrong: **`completeWithProfile` treated the newest
+response as *the* profile.** A verification is several calls and each answers a different amount —
+Aadhaar returns everything, the mobile OTP after it returns a token, resolving a chosen ABHA
+returns a token. Overwriting with the newest answer therefore discarded everything the earlier
+steps had established. `abhaNumber: profile.abhaNumber ?? null` blanked the identifier for the same
+reason.
+
+And the multi-account branch never stored the account list at all. Since the call that resolves the
+chosen ABHA returns almost nothing, that list was the only description of those patients we would
+ever have, and it was handed to the browser and forgotten.
+
+**None of this was visible in 306 passing ABDM tests, because the mock was kinder than the
+sandbox** — it answered the second call with the full profile again. A mock more generous than the
+thing it stands for is not a test double; it is a second implementation, and it hides exactly the
+class of bug where a later step returns less.
+
+### Decision
+
+**An absent field means "this call did not say", never "this person has no name".**
+
+- **`completeWithProfile` merges** the incoming profile over what the transaction already holds,
+  per field, skipping null, undefined and blank. It stores the merged profile and builds the
+  prefill from it. Identifiers fall back to the transaction's own (`profile.abhaNumber ?? txn.abhaNumber ?? null`).
+- **The account list is persisted** on the transaction when the operator has to choose, and the
+  chosen account's fields — ABHA number, ABHA address, name, gender, date of birth — are merged in
+  when they pick. The list's `name` goes in as the first name and is **not split on a space**:
+  guessing a surname is how "Patel Jaivik Kamleshkumar" becomes the wrong two fields, and the
+  operator correcting one field beats the system inventing two.
+- **The panel merges too.** The screen keeps its own copy of the result across steps, and the same
+  rule applies there, so a step that says nothing about a field cannot unsay it mid-flow.
+- **The mock now answers sparsely, as the sandbox does.** `loginVerifyUser` returns the ABHA number
+  and a token; `enrolMobileVerifyOtp` returns the mobile it just proved and a token. Every existing
+  ABDM test still passes — which is the evidence the merge does the work the mock used to do for it.
+
+### Consequences
+
+- All four verification identifiers behave the same, because the fix is in the shared completion
+  path: **ABHA number, ABHA address, mobile and Aadhaar**. So do both enrolment paths, with or
+  without the secondary mobile step.
+- **There is no driving-licence flow, and this change did not add one.** `AbhaIdentifierType` is
+  `abha_number | abha_address | mobile | aadhaar`, and no provider method accepts a licence. It is
+  in `BACKLOG.md` as a gap rather than described as working.
+- The existing multi-account test asserted only that the ABHA number survived — the one field that
+  did. It now asserts the demographics as well, and a second test asserts that a later step never
+  blanks an earlier one. That pair is what would have caught this.
+- The wider lesson, worth more than the fix: **a test double must be no kinder than the system it
+  stands in for.** Where the sandbox returns less on a later call, the mock returns less too, or
+  the suite is testing a system nobody runs.

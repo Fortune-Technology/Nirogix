@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
-import { Alert, Button, Card, DataTable, Field, type Column } from "@hms/ui";
+import { Alert, Button, Card, DataTable, EmptyValue, Field, type Column, valueLabel, ValueOrEmpty } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { LabTest } from "@hms/types";
 import * as api from "../../../../lib/api";
@@ -132,14 +132,20 @@ function Tests() {
       key: "sample",
       header: "Sample",
       filterable: true,
-      accessor: (t) => t.sampleType ?? "—",
-      cell: (t) => <span className="text-fg-muted">{t.sampleType ?? "—"}</span>,
+      accessor: (t) => valueLabel(t.sampleType, "unspecified"),
+      cell: (t) => <ValueOrEmpty value={t.sampleType} reason="unspecified" className="text-fg-muted" />,
     },
     {
       key: "range",
       header: "Reference",
       sortable: false,
-      cell: (t) => (t.refLow || t.refHigh ? `${t.refLow ?? ""}–${t.refHigh ?? ""} ${t.unit ?? ""}` : "—"),
+      // A qualitative test (Positive / Negative) has no numeric range to state.
+      cell: (t) =>
+        t.refLow || t.refHigh ? (
+          `${t.refLow ?? ""}–${t.refHigh ?? ""} ${t.unit ?? ""}`
+        ) : (
+          <EmptyValue reason="notApplicable" />
+        ),
     },
     { key: "price", header: "Price", accessor: (t) => t.pricePaise, cell: (t) => formatPaise(t.pricePaise) },
   ];

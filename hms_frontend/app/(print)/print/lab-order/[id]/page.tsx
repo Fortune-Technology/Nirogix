@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  emptyLabel,
   PrintDocument,
   PrintFields,
   PrintNote,
@@ -49,7 +50,9 @@ function LabReportDocument({ id }: { id: string }) {
 
   const result = order.result;
   const range =
-    result && (result.refLow || result.refHigh) ? `${result.refLow ?? ""} – ${result.refHigh ?? ""}` : "—";
+    result && (result.refLow || result.refHigh)
+      ? `${result.refLow ?? ""} – ${result.refHigh ?? ""}`
+      : emptyLabel("notApplicable");
 
   return (
     <>
@@ -84,7 +87,7 @@ function LabReportDocument({ id }: { id: string }) {
               columns={[
                 { key: "test", header: "Investigation", cell: (r: typeof result) => order.testName },
                 { key: "value", header: "Result", cell: (r) => r.value },
-                { key: "unit", header: "Unit", cell: (r) => r.unit ?? "—" },
+                { key: "unit", header: "Unit", cell: (r) => r.unit ?? emptyLabel("notApplicable") },
                 { key: "range", header: "Reference range", cell: () => range },
                 {
                   key: "flag",

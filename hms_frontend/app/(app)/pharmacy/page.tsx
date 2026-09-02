@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
-import { Alert, Button, Card, Spinner } from "@hms/ui";
+import { Alert, Button, Card, emptyLabel, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { PendingPrescription, Drug } from "@hms/types";
 import * as api from "../../../lib/api";
@@ -59,7 +59,7 @@ function DispenseCard({
         <div>
           <div className="font-medium text-fg">{rx.drugName}</div>
           <div className="mt-0.5 text-sm text-fg-muted">
-            {[rx.dose, rx.frequency, rx.duration].filter(Boolean).join(" · ") || "—"}
+            {[rx.dose, rx.frequency, rx.duration].filter(Boolean).join(" · ") || emptyLabel("unspecified")}
           </div>
           <div className="mt-1 text-xs text-fg-subtle">
             {rx.patientName} · <span className="font-mono">{rx.patientUhid}</span>

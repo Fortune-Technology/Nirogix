@@ -369,3 +369,94 @@ renders **outside** an ancestor with `overflow`. The package now runs **107 test
 Browser-checked: no Lenis instance on the Portal or Admin after hydration, and the `lenis` class still
 present on marketing. Visual verification of `Select` in Light + Dark under a non-default accent is
 manual — cases SEL-01…SEL-10 in `testcases.md`.
+
+## 2026-09-02 — A missing value says which kind of missing it is (ADR-123)
+
+`src/components/EmptyValue.tsx`: `EmptyValue` and `ValueOrEmpty` for rendered absences,
+`emptyLabel()` and `valueLabel()` for the places that need a string — a DataTable `accessor`, a
+print document, an export, an accessible name.
+
+Seven reasons, because a dash was saying three different things in the same three characters:
+`unassigned`, `unspecified`, `notRecorded`, `notConfigured`, `notApplicable`, `none`,
+`notAvailable`. The reason is a required decision at the call site, since only the call site knows
+whether nobody has filled the field in, the field cannot apply to that row, or the value never
+arrived.
+
+Rendering is `text-fg-subtle`, no colour and no icon: an absence is not a status. The pairing that
+matters is `valueLabel()` in the accessor with `ValueOrEmpty` in the cell — the column then filters
+and searches on "Not assigned", which a `"—"` accessor could never do.
+
+## 2026-09-02 — `.hms-bottomnav-offset` adds to the page padding instead of replacing it
+
+The class exists to keep content clear of the fixed mobile bottom bar. It did that with
+`padding-bottom: calc(4.25rem + safe-area)` below the breakpoint and **`padding-bottom: 0` above
+it** — which silently cancelled the consuming layout's own bottom padding on every desktop screen.
+The Portal shell's `<main class="p-5">` therefore padded three sides, and content sat flush against
+the bottom of the scroll area.
+
+It now composes: `padding-bottom: calc(var(--hms-page-pad, 1.25rem) + 4.25rem + safe-area)` on
+mobile and `var(--hms-page-pad, 1.25rem)` on desktop. The default matches the app shell's `p-5`; an
+app that pads differently sets the variable rather than fighting the rule.
+
+Verified on the running Portal: `20px 20px 20px 20px` at 1280px wide, `20px 20px 88px 20px` at
+375px.
+
+## 2026-09-02 — A chart's screen-reader table was adding its full height to the page
+
+`AreaChart` and `BarChart` each render a `<table>` of the plotted values for a screen reader,
+marked `.hms-visually-hidden`. That class is a correct visually-hidden recipe for almost any
+element and **not for a table**: a table sizes to its content and ignores `width: 1px;
+height: 1px`, so the box never shrank. The element stayed absolutely positioned at its natural
+height — 744px on a dashboard — and lengthened the document by however much of that fell below the
+app shell, which is the blank scroll area reported on `/dashboard` in both the Portal and the admin
+console.
+
+The wrapper now carries the class and the table sits inside it: clipped, invisible, and still a
+table. Putting `display: block` on the table would also have hidden it and would have stripped the
+table semantics the markup exists for, which is the one thing it is there to provide. The utility
+now says so in a comment, so the next table does not repeat it.
+
+## 2026-09-02 — The focus trap was re-arming on every keystroke, and a wheel could edit a number (ADR-127)
+
+**`Dialog` and `NavDrawer` depended on their `onClose` prop.** Their focus-trap effect listed
+`[open, onClose, busy]`, and every caller passes an inline `onClose={() => setOpen(false)}` — a new
+function on each render. So a keystroke inside the dialog changed a dependency, ran the cleanup
+(which returns focus to whatever opened it) and set the effect up again (which focuses the first
+control in the body). Typing a digit into the fee field on the fee-schedule form moved the caret to
+the Doctor dropdown after one character. Both now keep the current callback in a ref and depend on
+`open` alone. Fixed here rather than by memoising the handler at ~20 call sites: a rule that says
+"wrap your `onClose` in `useCallback` or the dialog misbehaves" is a rule that gets broken.
+
+**`NumberInputGuard`** — one document-level wheel listener, mounted beside the providers in each
+app. When the pointer is over a *focused* `input[type=number]` it cancels the wheel and **forwards
+the scroll** to the nearest scrollable ancestor, so the value holds still and the page still moves.
+Cancelling alone would have frozen the page. It is a document listener because React registers
+`onWheel` passively and a passive listener may not `preventDefault`, and it is not a prop on an
+input because it has to cover raw `<input type="number">` too.
+
+Untouched on purpose: typing, arrow keys, `step`, decimals, validation, and touch devices, which
+have no wheel.
+
+**Testing status:** 107 `@hms/ui` component tests pass. Verified in the running Portal: typing
+`500` into the fee field leaves focus on the field with the value intact, and wheeling up and down
+over it leaves the value at `500`.
+
+## 2026-09-02 — One place for a page's primary action (ADR-128)
+
+*Book appointment* and *Check in* sat top-right in the page header. *Register patient* sat one row
+lower, inside the table's filter toolbar beside **Columns** — one screen out of twenty-one, and the
+one a receptionist opens most. It now matches every other list.
+
+The mechanism was `toolbarActions` on the Standard DataTable, used by exactly one page in the whole
+monorepo. A slot with one caller doing something no other caller does is not a feature in use; it
+is an available way to be inconsistent. It is **deleted**, along with the `actions` prop it fed on
+`DataTableToolbar`, so the toolbar is Search → Filters → Sort → Column visibility → Pagination and a
+create button has nowhere else to go. A rule you cannot break beats one you have to remember.
+
+Written down with it: supporting actions first and the primary **last** (right-most) — `ghost` for
+navigating away, `secondary` for a side task like *Print / PDF*, the default variant for the action
+the page exists for. That is what every multi-action header already did.
+
+**Testing status:** 107 `@hms/ui` component tests pass unchanged; frontend typecheck clean.
+Verified in the running Portal — *Register patient* now sits level with the page title, and the
+filter row holds only search, filters and Columns.

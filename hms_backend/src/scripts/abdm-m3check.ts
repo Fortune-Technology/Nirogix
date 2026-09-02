@@ -159,10 +159,13 @@ async function main(): Promise<void> {
     console.log('  · HIU_FLOW_202 (revoke)  — records deleted, keys deleted, audit kept');
     console.log('  · HIU_FLOW_301 (expiry)  — invisible before the sweep, deleted by it');
     console.log('');
-    console.log('What this does NOT prove — and cannot, until the bridge URL is registered:');
-    console.log('  · that ABDM can reach us (needs TLS on api-staging.nirogix.com — BACKLOG I-5)');
+    console.log('What this does NOT prove:');
+    console.log('  · that a real HIP can push to us. The bridge URL is registered and active,');
+    console.log('    but the bridge holds services: [] and ABDM_HIU_PUSH_BASE_URL is unset —');
+    console.log('    either one alone stops a real delivery. Check: npm run abdm:bridge');
     console.log('  · that the four unverified M3 inbound paths are the right ones');
-    console.log('  · that Fidelius decrypts correctly (mock mode does not encrypt — it marks)');
+    console.log('  · that THIS payload was really decrypted — mock mode marks, it does not');
+    console.log('    encrypt. Fidelius round-trips for real in: npm run abdm:fidelius-check');
     console.log('');
     console.log('Run with --payloads to see the full JSON we would send ABDM at each step,');
     console.log('or --logs to keep the application log alongside the report.');

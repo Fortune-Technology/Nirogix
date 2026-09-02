@@ -57,3 +57,6 @@ export * from './feeRules';
 export * from './selfCheckin';
 // Documents attached to a patient, visit or case — ADR-119.
 export * from './patientDocuments';
+// What a seeder has already done, so it never does it twice — ADR-122. Platform-managed,
+// no tenant_id, therefore no RLS policy (like ./tenants).
+export * from './seedMarkers';

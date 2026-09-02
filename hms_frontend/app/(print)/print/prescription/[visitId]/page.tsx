@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  emptyLabel,
   PrintDocument,
   PrintFields,
   PrintNote,
@@ -71,8 +72,8 @@ function PrescriptionDocument({ visitId }: { visitId: string }) {
             fields={[
               { label: "Patient", value: enc.patientName },
               { label: "UHID", value: enc.patientUhid },
-              { label: "Complaint", value: enc.chiefComplaint ?? "—" },
-              { label: "Diagnosis", value: dxLine || "—" },
+              { label: "Complaint", value: enc.chiefComplaint ?? emptyLabel("notRecorded") },
+              { label: "Diagnosis", value: dxLine || emptyLabel("notRecorded") },
             ]}
           />
         }
@@ -85,11 +86,11 @@ function PrescriptionDocument({ visitId }: { visitId: string }) {
             <PrintTable
               columns={[
                 { key: "drug", header: "Medicine", cell: (r: RxRow) => r.drugName },
-                { key: "dose", header: "Dose", cell: (r: RxRow) => r.dose ?? "—" },
-                { key: "freq", header: "Frequency", cell: (r: RxRow) => r.frequency ?? "—" },
-                { key: "route", header: "Route", cell: (r: RxRow) => r.route ?? "—" },
-                { key: "duration", header: "Duration", cell: (r: RxRow) => r.duration ?? "—" },
-                { key: "instructions", header: "Instructions", cell: (r: RxRow) => r.instructions ?? "—" },
+                { key: "dose", header: "Dose", cell: (r: RxRow) => r.dose ?? emptyLabel("unspecified") },
+                { key: "freq", header: "Frequency", cell: (r: RxRow) => r.frequency ?? emptyLabel("unspecified") },
+                { key: "route", header: "Route", cell: (r: RxRow) => r.route ?? emptyLabel("unspecified") },
+                { key: "duration", header: "Duration", cell: (r: RxRow) => r.duration ?? emptyLabel("unspecified") },
+                { key: "instructions", header: "Instructions", cell: (r: RxRow) => r.instructions ?? emptyLabel("unspecified") },
               ]}
               rows={enc.prescriptions}
               rowKey={(r: RxRow) => r.id}

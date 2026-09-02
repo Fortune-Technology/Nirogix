@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import {
+  actionsColumn,
   Alert,
   Badge,
   Button,
@@ -14,8 +15,8 @@ import {
   TableAction,
   TableActions,
   Textarea,
-  actionsColumn,
   type Column,
+  valueLabel,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { formatTime } from "@hms/utils";
@@ -113,7 +114,7 @@ function ArrivalsBoard() {
       key: "appointment",
       header: "Appointment",
       filterable: true,
-      accessor: (r) => r.providerName ?? "—",
+      accessor: (r) => valueLabel(r.providerName, "unassigned"),
       cell: (r) =>
         r.appointmentId ? (
           <div className="flex flex-col">

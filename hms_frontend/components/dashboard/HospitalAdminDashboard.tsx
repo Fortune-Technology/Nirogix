@@ -215,11 +215,11 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
             <div>
               <div className="text-xs text-fg-subtle">New patients today</div>
-              <div className="text-lg font-semibold text-fg">{counts?.newPatients ?? "—"}</div>
+              <div className="text-lg font-semibold text-fg">{counts?.newPatients ?? 0}</div>
             </div>
             <div>
               <div className="text-xs text-fg-subtle">Pending lab orders</div>
-              <div className="text-lg font-semibold text-fg">{overview?.pendingLabOrders ?? "—"}</div>
+              <div className="text-lg font-semibold text-fg">{overview?.pendingLabOrders ?? 0}</div>
             </div>
           </div>
         </Card>

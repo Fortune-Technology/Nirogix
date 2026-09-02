@@ -4,15 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Stethoscope, UserCheck } from "lucide-react";
 import {
+  actionsColumn,
   Badge,
   Button,
   DataTable,
+  EmptyValue,
   Select,
   TableAction,
   TableActions,
-  ViewAction,
-  actionsColumn,
   type Column,
+  valueLabel,
+  ValueOrEmpty,
+  ViewAction,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Visit } from "@hms/types";
@@ -119,7 +122,8 @@ function OpdQueue() {
       key: "case",
       header: "Case",
       filterable: true,
-      accessor: (v) => v.caseTitle ?? "—",
+      // A one-off visit belongs to no ongoing case, which is the normal state (ADR-116).
+      accessor: (v) => valueLabel(v.caseTitle, "notApplicable"),
       cell: (v) =>
         v.caseNumber ? (
           <span className="flex flex-col">
@@ -127,15 +131,16 @@ function OpdQueue() {
             <span className="font-mono text-xs text-fg-muted">{v.caseNumber}</span>
           </span>
         ) : (
-          <span className="text-fg-subtle">—</span>
+          <EmptyValue reason="notApplicable" />
         ),
     },
     {
       key: "provider",
       header: "Provider",
       filterable: true,
-      accessor: (v) => v.providerName ?? "—",
-      cell: (v) => v.providerName ?? <span className="text-fg-subtle">—</span>,
+      // A walk-in is checked in before a doctor is chosen — assignable, so say so.
+      accessor: (v) => valueLabel(v.providerName, "unassigned"),
+      cell: (v) => <ValueOrEmpty value={v.providerName} reason="unassigned" />,
     },
     {
       key: "since",
@@ -153,7 +158,7 @@ function OpdQueue() {
     {
       key: "bill",
       header: "Bill",
-      accessor: (v) => v.invoice?.status.replace("_", " ") ?? "—",
+      accessor: (v) => valueLabel(v.invoice?.status.replace("_", " "), "notApplicable"),
       cell: (v) =>
         v.invoice ? (
           <Link href={`/billing/${v.invoice.id}`} className="inline-flex items-center gap-2 hover:underline">
@@ -163,7 +168,8 @@ function OpdQueue() {
             )}
           </Link>
         ) : (
-          <span className="text-fg-subtle">—</span>
+          // Nothing chargeable has happened on this visit yet, so there is no bill to show.
+          <EmptyValue reason="notApplicable" />
         ),
     },
     actionsColumn<Visit>((v) => (
