@@ -182,6 +182,24 @@ export const STAGING_DATASET: SeedDataset = {
         { firstName: 'Salim', lastName: 'Mirza', gender: 'other', dateOfBirth: '1983-11-21', phone: '+919000000013', bloodGroup: 'A+', addressLine: 'Nikol', city: 'Ahmedabad', state: 'Gujarat', pincode: '382350' },
         // Deactivated chart — the Patients status filter needs its other side.
         { firstName: 'Hasmukh', lastName: 'Patel', gender: 'male', dateOfBirth: '1955-05-09', phone: '+919000000014', bloodGroup: 'B+', addressLine: 'Ellis Bridge', city: 'Ahmedabad', state: 'Gujarat', pincode: '380006', status: 'inactive' },
+        // A second page of patients, and enough variety for the list's filters to cut on
+        // something (ADR-132). Deliberately ordinary names: the tables, sorting and search behave
+        // the way they will in production, and every one is still unmistakably synthetic.
+        { firstName: 'Falguni', lastName: 'Dave', gender: 'female', dateOfBirth: '1991-11-11', phone: '+919000000301', bloodGroup: 'A+', addressLine: 'Vejalpur', city: 'Ahmedabad', state: 'Gujarat', pincode: '380051' },
+        { firstName: 'Yashpal', lastName: 'Rana', gender: 'male', dateOfBirth: '1966-02-18', phone: '+919000000302', bloodGroup: 'B+', addressLine: 'Ranip', city: 'Ahmedabad', state: 'Gujarat', pincode: '382480' },
+        { firstName: 'Alpa', lastName: 'Trivedi', gender: 'female', dateOfBirth: '1984-07-04', phone: '+919000000303', email: 'alpa.trivedi@example.com', bloodGroup: 'O+', addressLine: 'Chandkheda', city: 'Ahmedabad', state: 'Gujarat', pincode: '382424' },
+        { firstName: 'Mitesh', lastName: 'Barot', gender: 'male', dateOfBirth: '1997-01-29', phone: '+919000000304', bloodGroup: 'AB+', addressLine: 'Nikol', city: 'Ahmedabad', state: 'Gujarat', pincode: '382350' },
+        { firstName: 'Hetal', lastName: 'Modi', gender: 'female', dateOfBirth: '1973-09-16', phone: '+919000000305', bloodGroup: 'A-', addressLine: 'Ghatlodia', city: 'Ahmedabad', state: 'Gujarat', pincode: '380061' },
+        { firstName: 'Chirag', lastName: 'Suthar', gender: 'male', dateOfBirth: '2005-03-22', phone: '+919000000306', bloodGroup: 'O+', addressLine: 'Sola', city: 'Ahmedabad', state: 'Gujarat', pincode: '380060', immunizations: [
+          { vaccineCode: 'BCG', vaccineName: 'BCG', dateGiven: '2005-03-24', doseLabel: 'Birth' },
+          { vaccineCode: 'MR', vaccineName: 'Measles-Rubella', dateGiven: '2006-04-10', doseLabel: 'Dose 1' },
+        ] },
+        { firstName: 'Rekha', lastName: 'Vaghela', gender: 'female', dateOfBirth: '1959-12-08', phone: '+919000000307', bloodGroup: 'B-', addressLine: 'Saraspur', city: 'Ahmedabad', state: 'Gujarat', pincode: '380018' },
+        { firstName: 'Paresh', lastName: 'Thakkar', gender: 'male', dateOfBirth: '1980-05-14', phone: '+919000000308', bloodGroup: 'A+', addressLine: 'Naroda', city: 'Ahmedabad', state: 'Gujarat', pincode: '382330' },
+        { firstName: 'Vaishali', lastName: 'Gohel', gender: 'female', dateOfBirth: '1994-08-03', phone: '+919000000309', email: 'vaishali.gohel@example.com', bloodGroup: 'AB-', addressLine: 'Sector 7', city: 'Gandhinagar', state: 'Gujarat', pincode: '382007' },
+        { firstName: 'Ketan', lastName: 'Solanki', gender: 'male', dateOfBirth: '1970-10-27', phone: '+919000000310', bloodGroup: 'O-', addressLine: 'Sector 16', city: 'Gandhinagar', state: 'Gujarat', pincode: '382016' },
+        { firstName: 'Urvashi', lastName: 'Pandya', gender: 'female', dateOfBirth: '2000-04-19', phone: '+919000000311', bloodGroup: 'B+', addressLine: 'Kalol Road', city: 'Gandhinagar', state: 'Gujarat', pincode: '382721' },
+        { firstName: 'Anand', lastName: 'Prajapati', gender: 'male', dateOfBirth: '1988-06-11', phone: '+919000000312', bloodGroup: 'A+', addressLine: 'Adalaj', city: 'Gandhinagar', state: 'Gujarat', pincode: '382421' },
         // The two newest charts stay activity-free: an empty patient detail page is a state too.
         { firstName: 'Trupti', lastName: 'Raval', gender: 'female', dateOfBirth: '1998-03-03', phone: '+919000000015', bloodGroup: 'O+', addressLine: 'Naranpura', city: 'Ahmedabad', state: 'Gujarat', pincode: '380013' },
         { firstName: 'Jignesh', lastName: 'Chokshi', gender: 'male', dateOfBirth: '1977-08-17', phone: '+919000000016', bloodGroup: 'A+', addressLine: 'Ambawadi', city: 'Ahmedabad', state: 'Gujarat', pincode: '380006' },
@@ -204,7 +222,114 @@ export const STAGING_DATASET: SeedDataset = {
         { firstName: 'QA Booking', lastName: 'Rejected One', phone: '+919000002006', decision: 'rejected', rejectionReason: 'No slot available on the requested day' },
         { firstName: 'QA Booking', lastName: 'Rejected Two', phone: '+919000002007', decision: 'rejected', rejectionReason: 'Could not be reached to confirm' },
       ],
-      story: { historyDays: 21, visitsPerDay: 2, futureDays: 10, futureAppointments: 8 },
+      // Matched to the busiest development hospital (ADR-132): six weeks of completed traffic at
+      // three visits a day is what gives a dashboard a real trend, a collections report a range
+      // worth summing, and the Visits table more than one page.
+      story: { historyDays: 42, visitsPerDay: 3, futureDays: 14, futureAppointments: 12 },
+    },
+
+    // ---------------------------------------------------------------------------------------
+    // A SECOND hospital. Staging had exactly one, which meant the two things a multi-tenant
+    // platform must be tested for could not be tested on it at all: that one hospital cannot
+    // see another's data, and that a module a hospital has not bought is genuinely absent.
+    //
+    // Pharmacy and laboratory are OFF here, so this tenant proves both at once (ADR-132).
+    // ---------------------------------------------------------------------------------------
+    {
+      code: 'QACLINIC',
+      name: 'QA Family Clinic',
+      kind: 'hospital',
+      modules: ['patient', 'appointment', 'opd', 'emr', 'billing'],
+      profile: {
+        legalName: 'QA Family Clinic LLP',
+        addressLine1: '9, Quality Lane',
+        addressLine2: 'Prahlad Nagar',
+        city: 'Ahmedabad',
+        state: 'Gujarat',
+        postalCode: '380015',
+        country: 'India',
+        phone: '07944440000',
+        email: 'qa.clinic@qaclinic.example',
+        registrationNumber: 'QA-REG-CLIN-0002',
+        gstin: '24AAQCQ0002Q1ZZ',
+      },
+      branding: { brandColor: '#B45309', secondaryColor: '#0F766E' },
+      // Off here on purpose: the Patient registrations screen needs an empty state somewhere,
+      // and a hospital with the feature switched off is where it comes from.
+      selfRegistration: false,
+      onlineBooking: true,
+      branches: [{ code: 'QC-MAIN', name: 'QA Clinic Main' }],
+      departments: [
+        { code: 'QC-GEN', name: 'General Medicine', specialty: 'general_medicine' },
+        { code: 'QC-PAED', name: 'Paediatrics', specialty: 'pediatrics' },
+      ],
+      users: [
+        { email: 'qc.admin@qaclinic.example', fullName: 'QC Org Admin', role: 'org_admin' },
+        { email: 'qc.doctor@qaclinic.example', fullName: 'QC Doctor', role: 'doctor' },
+        { email: 'qc.reception@qaclinic.example', fullName: 'QC Receptionist', role: 'receptionist' },
+        { email: 'qc.cashier@qaclinic.example', fullName: 'QC Cashier', role: 'cashier' },
+      ],
+      providers: [
+        { fullName: 'Dr QC Physician', qualification: 'MBBS, MD', registrationNumber: 'QC-REG-0001', specialty: 'general_medicine', userEmail: 'qc.doctor@qaclinic.example', consultationFeePaise: 40000, schedule: QA_ROSTER },
+        { fullName: 'Dr QC Paediatrician', qualification: 'MBBS, DCH', registrationNumber: 'QC-REG-0002', specialty: 'pediatrics', consultationFeePaise: 35000 },
+      ],
+      services: [
+        { code: 'QC-FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000, department: 'QC-GEN' },
+        { code: 'QC-DRESS', name: 'Dressing (small)', pricePaise: 15000, department: 'QC-GEN' },
+        { code: 'QC-VACC', name: 'Vaccination visit', pricePaise: 25000, department: 'QC-PAED' },
+      ],
+      patients: [
+        { firstName: 'Nilesh', lastName: 'Chavda', gender: 'male', dateOfBirth: '1982-04-06', phone: '+919000000401', bloodGroup: 'B+', addressLine: 'Prahlad Nagar', city: 'Ahmedabad', state: 'Gujarat', pincode: '380015' },
+        { firstName: 'Asmita', lastName: 'Raval', gender: 'female', dateOfBirth: '1990-09-21', phone: '+919000000402', email: 'asmita.raval@example.com', bloodGroup: 'O+', addressLine: 'Satellite', city: 'Ahmedabad', state: 'Gujarat', pincode: '380015' },
+        { firstName: 'Tejas', lastName: 'Bhatt', gender: 'male', dateOfBirth: '1975-01-13', phone: '+919000000403', bloodGroup: 'A+', addressLine: 'Vastrapur', city: 'Ahmedabad', state: 'Gujarat', pincode: '380015' },
+        { firstName: 'Krupa', lastName: 'Shah', gender: 'female', dateOfBirth: '2018-07-30', phone: '+919000000404', bloodGroup: 'AB+', addressLine: 'Bodakdev', city: 'Ahmedabad', state: 'Gujarat', pincode: '380054', immunizations: [
+          { vaccineCode: 'BCG', vaccineName: 'BCG', dateGiven: '2018-08-01', doseLabel: 'Birth' },
+          { vaccineCode: 'PENTA', vaccineName: 'Pentavalent', dateGiven: '2018-09-15', doseLabel: 'Dose 1' },
+        ] },
+        { firstName: 'Rajendra', lastName: 'Mehta', gender: 'male', dateOfBirth: '1961-03-02', phone: '+919000000405', bloodGroup: 'O-', addressLine: 'Ambawadi', city: 'Ahmedabad', state: 'Gujarat', pincode: '380006' },
+        { firstName: 'Dhara', lastName: 'Patel', gender: 'female', dateOfBirth: '1996-12-25', phone: '+919000000406', bloodGroup: 'B-', addressLine: 'Thaltej', city: 'Ahmedabad', state: 'Gujarat', pincode: '380059' },
+        { firstName: 'Sanjay', lastName: 'Desai', gender: 'male', dateOfBirth: '1979-05-17', phone: '+919000000407', bloodGroup: 'A-', addressLine: 'Gota', city: 'Ahmedabad', state: 'Gujarat', pincode: '382481' },
+        { firstName: 'Poonam', lastName: 'Joshi', gender: 'female', dateOfBirth: '1987-08-09', phone: '+919000000408', bloodGroup: 'O+', addressLine: 'Paldi', city: 'Ahmedabad', state: 'Gujarat', pincode: '380007' },
+        // Activity-free, for the same reason as QAHOSP's last two.
+        { firstName: 'Bhargav', lastName: 'Oza', gender: 'male', dateOfBirth: '1993-02-14', phone: '+919000000409', bloodGroup: 'A+', addressLine: 'Navrangpura', city: 'Ahmedabad', state: 'Gujarat', pincode: '380009' },
+        { firstName: 'Shital', lastName: 'Panchal', gender: 'female', dateOfBirth: '1999-06-06', phone: '+919000000410', bloodGroup: 'B+', addressLine: 'Maninagar', city: 'Ahmedabad', state: 'Gujarat', pincode: '380008' },
+      ],
+      registrationRequests: [],
+      bookingRequests: [
+        { firstName: 'QC Booking', lastName: 'Pending One', phone: '+919000002101', decision: 'pending' },
+        { firstName: 'QC Booking', lastName: 'Pending Two', phone: '+919000002102', note: 'Paediatric review', decision: 'pending' },
+        { firstName: 'QC Booking', lastName: 'Approved One', phone: '+919000002103', decision: 'approved' },
+        { firstName: 'QC Booking', lastName: 'Rejected One', phone: '+919000002104', decision: 'rejected', rejectionReason: 'The clinic does not offer that service' },
+      ],
+      story: { historyDays: 21, visitsPerDay: 2, futureDays: 10, futureAppointments: 6 },
+    },
+
+    // ---------------------------------------------------------------------------------------
+    // A suspended hospital. Configured, then switched off: the Admin console's status filter
+    // needs a row on the other side, and a suspended hospital must still render everywhere it
+    // appears rather than breaking a screen.
+    // ---------------------------------------------------------------------------------------
+    {
+      code: 'QACLOSED',
+      name: 'QA Retired Hospital',
+      kind: 'hospital',
+      status: 'suspended',
+      modules: ['patient', 'appointment', 'opd', 'emr'],
+      branches: [{ code: 'QR-MAIN', name: 'QA Retired Main' }],
+      departments: [{ code: 'QR-GEN', name: 'General Medicine', specialty: 'general_medicine' }],
+      users: [
+        { email: 'qr.admin@qaretired.example', fullName: 'QR Org Admin', role: 'org_admin' },
+        { email: 'qr.reception@qaretired.example', fullName: 'QR Receptionist', role: 'receptionist' },
+      ],
+      providers: [
+        { fullName: 'Dr QR Physician', qualification: 'MBBS', registrationNumber: 'QR-REG-0001', specialty: 'general_medicine', userEmail: 'qr.admin@qaretired.example', consultationFeePaise: 30000 },
+      ],
+      patients: [
+        { firstName: 'QA Retired', lastName: 'Patient One', gender: 'male', dateOfBirth: '1985-01-01', phone: '+919000000501', bloodGroup: 'B+', city: 'Ahmedabad', state: 'Gujarat', pincode: '380001' },
+        { firstName: 'QA Retired', lastName: 'Patient Two', gender: 'female', dateOfBirth: '1978-02-02', phone: '+919000000502', bloodGroup: 'O+', city: 'Ahmedabad', state: 'Gujarat', pincode: '380001' },
+      ],
+      // Suspended before it ever ran a clinic — configuration only, no clinical history.
+      story: false,
     },
   ],
 };
@@ -235,21 +360,30 @@ async function main(): Promise<void> {
 
   /* eslint-disable no-console */
   console.log('\nDeterministic staging dataset ready.');
-  console.log('  Portal  QAHOSP / qa.admin@qahospital.example  (and the qa.* account for every role)');
-  console.log('  Admin   NIROGIX / the operator accounts — their real staging passwords are not in this repo.');
+  console.log('  Portal  QAHOSP   / qa.admin@qahospital.example   (every role has a qa.* account)');
+  console.log('  Portal  QACLINIC / qc.admin@qaclinic.example     (no pharmacy, no laboratory)');
+  console.log('  Portal  QACLOSED / qr.admin@qaretired.example    (suspended hospital)');
+  console.log('  Admin   NIROGIX  / the operator accounts — their real staging passwords are not in this repo.');
   /* eslint-enable no-console */
 
   await pool.end();
   process.exit(0);
 }
 
-main().catch((err) => {
-  if (err instanceof SeedRefused) {
+
+/**
+ * Only when this file is the command being run. Importing it — a test reading the dataset, a
+ * script reusing it — must not seed anything or refuse anything (ADR-132).
+ */
+if (require.main === module) {
+  main().catch((err) => {
+    if (err instanceof SeedRefused) {
+      // eslint-disable-next-line no-console
+      console.error(`\nseed refused: ${err.message}\n`);
+      process.exit(2);
+    }
     // eslint-disable-next-line no-console
-    console.error(`\nseed refused: ${err.message}\n`);
-    process.exit(2);
-  }
-  // eslint-disable-next-line no-console
-  console.error('staging seed failed:', err);
-  process.exit(1);
-});
+    console.error('staging seed failed:', err);
+    process.exit(1);
+  });
+}

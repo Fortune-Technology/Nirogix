@@ -490,15 +490,21 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch((err) => {
-  // A refusal is a correct outcome, not a crash — say so plainly rather than printing a stack
-  // trace that invites someone to "fix" the guard.
-  if (err instanceof SeedRefused) {
+/**
+ * Only when this file is the command being run. Importing it — a test reading the dataset, a
+ * script reusing it — must not seed anything or refuse anything (ADR-132).
+ */
+if (require.main === module) {
+  main().catch((err) => {
+    // A refusal is a correct outcome, not a crash — say so plainly rather than printing a stack
+    // trace that invites someone to "fix" the guard.
+    if (err instanceof SeedRefused) {
+      // eslint-disable-next-line no-console
+      console.error(`\nseed refused: ${err.message}\n`);
+      process.exit(2);
+    }
     // eslint-disable-next-line no-console
-    console.error(`\nseed refused: ${err.message}\n`);
-    process.exit(2);
-  }
-  // eslint-disable-next-line no-console
-  console.error('development seed failed:', err);
-  process.exit(1);
-});
+    console.error('development seed failed:', err);
+    process.exit(1);
+  });
+}

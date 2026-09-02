@@ -2412,3 +2412,45 @@ condition rather than a flag the mock always set. **307 ABDM tests pass, 48 in M
 
 **Not verified live.** These came from captured sandbox traces and are proved against the mock; the
 local backend is `ABDM_PROVIDER=gateway` and a real run needs a real Aadhaar and a live OTP.
+
+## 2026-09-02 — Staging is shaped like development now, not just smaller (ADR-132)
+
+Staging had **one hospital**, which meant the two properties a multi-tenant platform lives or dies
+by could not be exercised on the environment where the manual regression script runs: **tenant
+isolation** had no second tenant to be isolated from, and **module entitlement** had no hospital
+missing a module. There was no suspended tenant either, and the busiest hospital carried 21 days ×
+2 visits against development's 42 × 3 — a short trend, little to sum in a collections report, and
+barely a second page of patients.
+
+Three hospitals now, mirroring development's coverage under QA names:
+
+| | Modules | Story | Why it exists |
+|---|---|---|---|
+| `QAHOSP` | all | 42 × 3 | the busy hospital — 28 charts, second pages, real trends |
+| `QACLINIC` | **no pharmacy, no laboratory** | 21 × 2 | module entitlement, and the tenant isolation is tested against |
+| `QACLOSED` | — | none | a suspended hospital that must still render everywhere |
+
+**The contract is intact.** `QA Patient One` and `QA Patient Two` stay first and stay spelled that
+way; every `qa.*` account keeps its email and role; the generator is still seeded from the tenant
+code. The twelve new charts are inserted *before* the two deliberately activity-free ones, because
+`seedClinicalStory` excludes the last two from its rotation.
+
+**The dataset is validated by a test now** (`scripts/__tests__/stagingDataset.test.ts`, no database
+needed). Three hundred lines of hand-written records acquire hand-written mistakes, and the place
+they surface is halfway through seeding a shared environment. It checks the ones that actually
+happen: a service pointing at a department code that does not exist, a phone reused so two patients
+collide on the key they are identified by, a specialty outside the catalogue, a provider linked to
+a renamed account, and the E2E fixtures having been reordered.
+
+**Importing a seeder no longer runs it.** All three guard `main()` behind
+`require.main === module`. Reading the dataset from a test used to execute the whole flow as an
+import side effect — the staging seeder exited with code 2, and the *development* one would have
+started seeding, because its environment check passes locally.
+
+**What the next staging deploy actually does.** `QACLINIC` and `QACLOSED` arrive complete, with
+their histories. `QAHOSP` gains the twelve charts and the catalogue entries but **not** a longer
+history: the clinical story runs once per tenant (ADR-122). Six weeks of traffic for `QAHOSP` needs
+an announced `CONFIRM_SEED_RESET=yes … -- --reset`.
+
+**Testing status:** 7 dataset tests, 16 across `scripts/`. All three seeders still refuse the wrong
+environment and still run as commands.

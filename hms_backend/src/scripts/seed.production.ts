@@ -159,13 +159,19 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch((err) => {
-  if (err instanceof SeedRefused) {
+/**
+ * Only when this file is the command being run. Importing it must never start a production
+ * seed as a side effect (ADR-132).
+ */
+if (require.main === module) {
+  main().catch((err) => {
+    if (err instanceof SeedRefused) {
+      // eslint-disable-next-line no-console
+      console.error(`\nseed refused: ${err.message}\n`);
+      process.exit(2);
+    }
     // eslint-disable-next-line no-console
-    console.error(`\nseed refused: ${err.message}\n`);
-    process.exit(2);
-  }
-  // eslint-disable-next-line no-console
-  console.error('production seed failed:', err);
-  process.exit(1);
-});
+    console.error('production seed failed:', err);
+    process.exit(1);
+  });
+}
