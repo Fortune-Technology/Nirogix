@@ -1796,7 +1796,12 @@ export interface AbhaVerificationResult {
   requiresMobileVerification?: boolean;
   requiresAbhaAddress?: boolean;
   /** Present when one identifier resolved to several ABHA accounts and one must be chosen. */
-  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string }>;
+  /**
+   * When one identifier resolves to several ABHAs the operator picks one. The list carries real
+   * demographics, and they are the only description of that person the flow produces — the call
+   * that resolves the chosen account returns a token and little else (ADR-130).
+   */
+  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string; gender?: string; dateOfBirth?: string }>;
 }
 
 export interface AbdmOtpSent {

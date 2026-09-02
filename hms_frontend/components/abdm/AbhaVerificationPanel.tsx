@@ -560,15 +560,38 @@ function CreateWithAadhaar({
         otp,
         mobile: mobile.replace(/\D/g, "") || undefined,
       });
-      if (res.requiresMobileVerification) {
-        const otpRes = await api.requestAbhaMobileOtp({ transactionId: res.transactionId, mobile: mobile.replace(/\D/g, "") });
-        setSent(otpRes);
-        setOtp(otpRes.devOtp ?? "");
-        setPending(res);
-        setStep("mobileOtp");
+
+      if (!res.requiresMobileVerification) {
+        await afterProfile(res);
         return;
       }
-      await afterProfile(res);
+
+      // ABDM has already told us who this is — name, gender, date of birth, address, ABHA number.
+      // **Fill the form now** (ADR-131). This used to `return` straight into the mobile step, so a
+      // complete profile sat unused behind a second OTP and the operator watched an empty form
+      // while holding every field on the screen above it. The remaining step confirms a *phone
+      // number*; it is not permission to know the rest.
+      onVerified(res);
+      setPending(res);
+
+      // The mobile OTP is its own request and gets its own error. Folding it into this `try` meant
+      // an ABDM failure on the second call was reported as "Could not verify the OTP" under the
+      // Verify button — the step that had just succeeded.
+      try {
+        const otpRes = await api.requestAbhaMobileOtp({
+          transactionId: res.transactionId,
+          mobile: mobile.replace(/\D/g, ""),
+        });
+        setSent(otpRes);
+        setOtp(otpRes.devOtp ?? "");
+        setStep("mobileOtp");
+      } catch (err) {
+        onError(
+          err instanceof Error
+            ? `The details below are verified and filled in. Confirming the mobile number failed: ${err.message}`
+            : "The details below are verified and filled in, but the mobile number could not be confirmed.",
+        );
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not verify the OTP.");
     } finally {

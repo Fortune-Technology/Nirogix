@@ -362,7 +362,8 @@ export type VerificationResult = {
   /** Set when the ABHA was just created and has no ABHA address yet. */
   requiresAbhaAddress?: boolean;
   /** Present only when several ABHA accounts share the identifier and one must be chosen. */
-  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string }>;
+  /** The demographics the list carries are kept: they are what fills the form when one is picked (ADR-130). */
+  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string; gender?: string; dateOfBirth?: string }>;
 };
 
 /**
@@ -547,8 +548,21 @@ export async function verifyAadhaarOtp(
     if (result.txnId && result.txnId !== txn.txnId) {
       await updateTransaction(tenantId, txn.id, { txnId: result.txnId });
     }
-    // A mobile the patient asked for that ABDM does not hold means the secondary OTP is due.
-    const requiresMobileVerification = Boolean(input.mobile) && result.mobileMatchesAadhaar === false;
+    // A second OTP is due only when the desk asked for a mobile ABDM does **not** already hold
+    // (ADR-131).
+    //
+    // This used to fire whenever a mobile was typed at all, because the gateway reported an absent
+    // `mobileMatchesAadhaar` as `false`. The number the operator types is almost always the
+    // Aadhaar-linked one — it is the number that just received the first OTP — so the common case
+    // was two OTPs to the same phone for no reason.
+    //
+    // The numbers themselves are the decisive test: if what was asked for is what ABDM holds,
+    // there is nothing left to prove, whatever the flag says. Where they differ, ABDM's own
+    // `true` still short-circuits it, and not knowing means asking.
+    const requestedMobile = input.mobile?.replace(/\D/g, '') || undefined;
+    const mobileOnRecord = result.profile.mobile?.replace(/\D/g, '') || undefined;
+    const requiresMobileVerification =
+      Boolean(requestedMobile) && requestedMobile !== mobileOnRecord && result.mobileMatchesAadhaar !== true;
     return await completeWithProfile(tenantId, { ...txn, txnId: result.txnId || txn.txnId }, result.profile, result.tokens, {
       isNewAbha: result.isNewAbha,
       requiresMobileVerification,
