@@ -139,6 +139,19 @@ function fieldKeyedMessage(parsed: Json): string | undefined {
   return undefined;
 }
 
+/**
+ * A tri-state flag from a JSON body: true, false, or **absent**.
+ *
+ * ABDM sends booleans as booleans and, sometimes, as the strings "true"/"false". What it mostly
+ * does with `mobileMatchesAadhaar` is not send it at all, and that is not the same as `false`.
+ */
+function asOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
 export class AbdmGatewayProvider implements AbdmProvider {
   readonly name = 'gateway' as const;
 
@@ -231,7 +244,11 @@ export class AbdmGatewayProvider implements AbdmProvider {
       tokens: toTokens(data),
       // NHA reports this as the string 'new' | 'existing' on `isNew`/`new`.
       isNewAbha: String(pick(data, 'isNew', 'new') ?? '').toLowerCase() === 'new',
-      mobileMatchesAadhaar: Boolean(pick((profileRaw ?? {}) as Json, 'mobileMatchesAadhaar') ?? undefined),
+      // `Boolean(x ?? undefined)` was a no-op that always produced a boolean, so an ABDM
+      // response that simply does not carry this field — which is most of them — was recorded as
+      // "the mobile does NOT match", and the desk was sent to a second OTP every single time
+      // (ADR-131). Absent must stay absent; the service decides what to do with not knowing.
+      mobileMatchesAadhaar: asOptionalBoolean(pick((profileRaw ?? {}) as Json, 'mobileMatchesAadhaar')),
     };
   }
 

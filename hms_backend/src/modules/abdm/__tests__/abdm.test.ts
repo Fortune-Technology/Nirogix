@@ -143,6 +143,22 @@ describe('Aadhaar OTP flow', () => {
     expect(verified.prefill.phone).toBe('9000011111');
   });
 
+  test('the same mobile as the Aadhaar-linked one asks for no second OTP', async ({ skip }) => {
+    if (!ready) return skip();
+    // The reported case (ADR-131). The number a receptionist types is nearly always the one the
+    // first OTP just went to, and the desk was being sent to a second OTP on the same phone —
+    // because an ABDM response that omits `mobileMatchesAadhaar` was being read as "does not
+    // match". The numbers themselves settle it.
+    const linked = `98${AADHAAR_NEW.slice(-8)}`;
+    const result = await runAadhaarFlow(AADHAAR_NEW, linked);
+    expect(result.requiresMobileVerification).toBeFalsy();
+    expect(result.prefill.phone).toBe(linked);
+    // And the profile arrives complete on this first step, which is what fills the form.
+    expect(result.prefill.firstName).toBeTruthy();
+    expect(result.prefill.dateOfBirth).toBeTruthy();
+    expect(result.prefill.abhaNumber).toBeTruthy();
+  });
+
   test('ABHA address suggestions can be claimed', async ({ skip }) => {
     if (!ready) return skip();
     const result = await runAadhaarFlow(AADHAAR_NEW);

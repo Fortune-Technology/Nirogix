@@ -2372,3 +2372,43 @@ driving-licence flow exists** and none was added; it is in `BACKLOG.md`.
 **Testing status:** the multi-account test asserted only that the ABHA number survived — the one
 field that did — and now asserts the demographics too; a second test asserts a later step never
 blanks an earlier one. **47 M1 tests pass**, 306 across ABDM.
+
+## 2026-09-02 — Three defects behind one "create a new ABHA" attempt (ADR-131)
+
+A receptionist reported one flow and it contained three separate faults, all sitting on a
+`enrolment/aadhaar/verify` that returned **200 with a complete profile** — name, gender, date of
+birth, phone, full address, ABHA number.
+
+**The form stayed empty.** The panel saw `requiresMobileVerification: true` and `return`ed into the
+mobile-OTP step without handing the profile up. Every field the desk needed was on the screen above
+an empty form, held behind another OTP. It now calls `onVerified(res)` first: a further step that
+confirms *a phone number* is not permission to withhold the other ten fields, and an operator whose
+second OTP never arrives is left holding a complete, editable form instead of a blank one.
+
+**"User not found" appeared under the Verify button** on a step that had just succeeded, because
+the mobile-OTP request shared the verification's `try`. It has its own now, and its own message —
+*"The details below are verified and filled in. Confirming the mobile number failed: …"*.
+
+**A second OTP went to the phone that had just received the first.** The gateway adapter read the
+flag as `Boolean(pick(...) ?? undefined)`, which cannot produce `undefined`, so ABDM omitting
+`mobileMatchesAadhaar` — which it usually does — was recorded as *does not match*, and
+`Boolean(input.mobile) && matches === false` then demanded a second OTP whenever a mobile was typed
+at all. The adapter now keeps the flag tri-state, and the service decides from the **numbers**:
+
+```ts
+Boolean(requestedMobile) && requestedMobile !== mobileOnRecord && result.mobileMatchesAadhaar !== true
+```
+
+If the desk asked for the mobile ABDM already holds there is nothing to prove; where they differ,
+an explicit `true` short-circuits it, and not knowing means asking.
+
+**And the mock hid it, again.** `enrolByAadhaar` echoed the requested mobile back as the profile's
+mobile, so the two could never differ. It returns the Aadhaar-linked number now, as the sandbox
+does — the third mock-fidelity correction in two days.
+
+**Testing status:** a new test asserts that the same mobile asks for no second OTP and that the
+profile arrives complete on the first step; the existing differs-mobile test now exercises the real
+condition rather than a flag the mock always set. **307 ABDM tests pass, 48 in M1.**
+
+**Not verified live.** These came from captured sandbox traces and are proved against the mock; the
+local backend is `ABDM_PROVIDER=gateway` and a real run needs a real Aadhaar and a live OTP.

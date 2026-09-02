@@ -100,8 +100,21 @@ the newest response as the whole answer: the step that returns the most is rarel
 - **Never split a name on a space.** An external register's single `name` goes in whole; the
   operator correcting one field beats the system inventing two.
 - **A test double must be no kinder than the system it stands in for.** Where the sandbox returns
-  less on a later call, the mock returns less too — a mock that answers more fully than reality
-  hides exactly the bugs this rule exists to prevent, and 306 passing tests will not find them.
+  less on a later call, the mock returns less too, and where it returns the value it holds rather
+  than the value you asked for, so does the mock — a double that answers more fully, or more
+  agreeably, than reality hides exactly the bugs this rule exists to prevent, and a full green
+  suite will not find them.
+- **Use what you already have as soon as you have it** (ADR-131). A profile that has arrived fills
+  the form now; a further step that confirms one field is not a reason to withhold the other ten,
+  and an operator whose last step fails should still be holding everything the earlier ones proved.
+- **One request, one error.** Two calls sharing a `try` means a failure in the second is reported
+  with the first one's message — a step that succeeded gets blamed for one that did not.
+- **Parse a tri-state as a tri-state.** `true`, `false` and *absent* are three answers. An adapter
+  that flattens "not stated" into `false` is inventing a response, and the caller then acts on it:
+  a missing `mobileMatchesAadhaar` read as `false` sent every patient to a second OTP.
+- **Decide from the data where the data can decide.** Where two values can simply be compared —
+  the mobile asked for against the mobile on record — compare them, and treat a provider's flag as
+  a tie-breaker rather than the authority.
 
 ### Configuration Read Keys (binding — ADR-129)
 

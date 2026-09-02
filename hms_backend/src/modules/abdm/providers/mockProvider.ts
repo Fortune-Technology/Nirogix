@@ -169,7 +169,11 @@ export class AbdmMockProvider implements AbdmProvider {
     const txn = this.require(input.txnId);
     this.checkOtp(txn, input.encryptedOtp);
     txn.mobile = input.mobile;
-    const profile = profileFor(txn.aadhaar, input.mobile);
+    // The profile carries the **Aadhaar-linked** mobile, not the one that was asked for (ADR-131).
+    // Echoing the request back made the two always equal, which hid the fact that the service was
+    // deciding "does a second OTP apply?" from a flag rather than from the numbers. The sandbox
+    // returns the linked number — the one the first OTP went to.
+    const profile = profileFor(txn.aadhaar);
     const existing = txn.scenario === 'existing';
     if (existing) profile.abhaAddress = `${profile.firstName?.toLowerCase()}${txn.aadhaar.slice(-4)}@sbx`;
     return {
