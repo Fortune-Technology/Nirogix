@@ -22,7 +22,7 @@ export default function CheckinQrPrintPage() {
         sub="Scan this code with your phone camera and enter the mobile number we have on your record. It takes a few seconds."
         whatNext="Our front desk is told you are here and will call you through. If you are not sure your appointment is today, or nobody calls you shortly, please come to the desk."
         disabledMessage="Self check-in is switched off, so there is no poster to print. Turn it on under Hospital configuration → Self check-in."
-        backHref="/hospital-setup/self-check-in"
+        backHref="/hospital-setup/public-access"
         load={api.getSelfCheckinSettings}
         useQr={useCheckinQr}
       />

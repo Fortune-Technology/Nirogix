@@ -161,10 +161,40 @@ npm run db:seed:staging -w hms_backend
 CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset
 ```
 
-- **Re-running without `--reset` is safe.** Tenants, users, branches, departments, providers,
-  catalogues, drugs and patients are created only when absent. The **clinical story runs once**: a
-  hospital that already has visits keeps the history it has, because replaying it would double every
-  day's traffic and collide with its own live queue. Regenerating the story is what `--reset` is for.
+- **Staging seeds itself on every deployment (ADR-122).** The staging deploy workflow runs
+  `db:seed:staging` immediately after `db:migrate`, so a new table, a new reference record or a new
+  demo record reaches staging on the deploy that ships it. Nobody has to remember. The command above
+  is for first bring-up and for running it by hand.
+- **Re-running without `--reset` is safe, and "safe" means specific things.** The seeder converges
+  on *present*, never on the dataset's values:
+
+  | It does | It never does |
+  |---|---|
+  | Create a record that is missing | Update a record that exists |
+  | Seed a table added since the last run | Delete or truncate anything |
+  | Add a record added to the dataset since the last run | Reset a field a person edited |
+  | Fill a **newly added column where it is NULL** | Overwrite a value somebody typed |
+
+  So a patient renamed on the staging site keeps the new name, a service repriced by QA keeps the
+  new price, a public form somebody turned off to test the disabled state stays off, and a
+  deliberately-disabled account that QA re-enabled stays enabled.
+- **Records are matched on a stable key, never a display name.** A tenant by code, a user by email,
+  a branch and a department by code, a provider by registration number, a lab test and a service by
+  code, a supplier and a drug by name, a **patient by phone number**, a public request by the phone
+  that submitted it, a notification by its idempotency key, a permission override by (user,
+  permission). Two people share a name; two services can both be called "Dressing".
+- **Actions with no record of their own are marked done.** Applying the organisation profile, the
+  brand colour, the three public-form toggles, the clinical history and every column backfill each
+  write a row in `seed_markers` and are then never repeated. The marker is written *after* the work
+  succeeds, so a deploy that fails half-way finishes the job next time. The **clinical story runs
+  once** for the same reason it always did: replaying it would double every day's traffic and
+  collide with its own live queue. Regenerating it is what `--reset` is for, and `--reset` clears
+  the markers along with everything else.
+- **Adding seed data for a new table** is one addition to the dataset in `seed.staging.ts` (and
+  `seed.development.ts`) plus, if the records have no natural key already, one `ensure()` call in
+  `seedKit.ts` naming the column that identifies them. **Adding a column to an existing table** that
+  needs a value on old rows is one entry in `applyBackfills()` — it must fill only where the column
+  is NULL. Both then run automatically on the next staging deploy.
 - **`--reset` empties every tenant-scoped table**, plus the tenant list and the patient identities
   that sit outside tenancy, then reseeds. The table list is *discovered* (every table with a
   `tenant_id` column — the same rule that decides where RLS is applied), so a table added next month
@@ -187,7 +217,7 @@ CONFIRM_SEED_RESET=yes npm run db:seed:staging -w hms_backend -- --reset
 
 ## 5. Production cannot receive demo data
 
-Four independent reasons, any one of which is sufficient:
+Five independent reasons, any one of which is sufficient:
 
 1. **The production seeder does not import the demo-data engine.** `seed.production.ts` has no
    reference to `seedKit.ts` — there is no flag, environment variable or code path in it that
@@ -203,6 +233,11 @@ Four independent reasons, any one of which is sufficient:
    `development` — the realistic accident is a copied `.env`, not malice.
 4. **The production seeder requires an explicit confirmation variable**
    (`CONFIRM_PRODUCTION_SEED=yes`) before it writes anything at all.
+5. **The only automated seeding is in the staging workflow, and it checks first** (ADR-122).
+   `.github/workflows/deploy-staging.yml` triggers only on the `staging` branch against the staging
+   VM, and before invoking the seeder it asserts `NODE_ENV=staging` in that VM's
+   `hms_backend/.env`, aborting the deploy with a stated reason otherwise. No production workflow
+   runs a seeder, and no workflow anywhere passes `--reset`.
 
 **There is no reset path in production.** `resetSeedData()` lives in `seedKit.ts`, which the
 production seeder does not import. Nothing in this repository can truncate a production table.

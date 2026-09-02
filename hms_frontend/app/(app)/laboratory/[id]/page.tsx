@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Spinner, type Column } from "@hms/ui";
+import { Alert, Badge, Button, Card, DataTable, EmptyValue, Spinner, type Column, ValueOrEmpty } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { LabOrder } from "@hms/types";
 import * as api from "../../../../lib/api";
@@ -33,13 +33,21 @@ const resultColumns: Array<Column<ResultRow>> = [
     ),
   },
   { key: "value", header: "Result", cell: ({ result }) => <span className="font-medium text-fg">{result.value}</span> },
-  { key: "unit", header: "Unit", cell: ({ result }) => <span className="text-fg-muted">{result.unit ?? "—"}</span> },
+  {
+    key: "unit",
+    header: "Unit",
+    cell: ({ result }) => <ValueOrEmpty value={result.unit} reason="notApplicable" className="text-fg-muted" />,
+  },
   {
     key: "reference",
     header: "Reference",
     cell: ({ result }) => (
       <span className="text-fg-muted">
-        {result.refLow || result.refHigh ? `${result.refLow ?? ""}–${result.refHigh ?? ""}` : "—"}
+        {result.refLow || result.refHigh ? (
+          `${result.refLow ?? ""}–${result.refHigh ?? ""}`
+        ) : (
+          <EmptyValue reason="notApplicable" />
+        )}
       </span>
     ),
   },

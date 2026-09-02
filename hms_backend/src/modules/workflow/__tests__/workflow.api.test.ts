@@ -38,7 +38,7 @@ beforeAll(async () => {
   await cleanupTenant(CODE);
   tenant = await makeTenant(CODE, 'Workflow Config Hospital');
 
-  for (const role of ['org_admin', 'receptionist', 'doctor', 'cashier'] as const) {
+  for (const role of ['org_admin', 'receptionist', 'doctor', 'cashier', 'pharmacist'] as const) {
     sessions[role] = await login(CODE, tenant.users[role]!);
   }
 
@@ -338,12 +338,25 @@ describe('the configuration itself', () => {
 
   test('the front desk may read the configuration but not change it', async ({ skip }) => {
     if (!ready) return skip();
-    // Reception does not hold the workflow keys at all — it follows the workflow, it does not
-    // choose it. Both verbs are refused, which is what makes this a boundary rather than a screen.
-    expect((await authed(sessions.receptionist!).get('/api/v1/workflow-config')).status).toBe(403);
+    // The name of this test was always right and its first assertion was always wrong: it refused
+    // the READ as well, and the desk's own check-in form is drawn from this configuration — where
+    // vitals are taken, when the fee is due, the hospital's own consultation and case words. So a
+    // receptionist opening the booking screen met a 403 against the settings that describe it
+    // (ADR-129).
+    //
+    // Reading is not deciding, and that is the boundary: GET is open to the roles whose screens
+    // are built from it, PUT stays `platform.workflow.manage` — the administrator's alone.
+    expect((await authed(sessions.receptionist!).get('/api/v1/workflow-config')).status).toBe(200);
     expect(
       (await authed(sessions.receptionist!).put('/api/v1/workflow-config').send({ version: 1 })).status,
     ).toBe(403);
+  });
+
+  test('a role with no reason to read the workflow still cannot', async ({ skip }) => {
+    if (!ready) return skip();
+    // The read key went to the roles whose screens consume it, not to everyone (ADR-129). A
+    // pharmacist reaches none of those screens, so the boundary is still a boundary.
+    expect((await authed(sessions.pharmacist!).get('/api/v1/workflow-config')).status).toBe(403);
   });
 
   test('a branch override does not disturb the organization default', async ({ skip }) => {

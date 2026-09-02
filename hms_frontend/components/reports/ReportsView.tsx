@@ -8,10 +8,13 @@ import {
   Button,
   Card,
   DataTable,
+  EmptyValue,
   PeriodFilter,
   Spinner,
-  usePeriodParam,
   type Column,
+  usePeriodParam,
+  valueLabel,
+  ValueOrEmpty,
 } from "@hms/ui";
 import type { OpdRegisterRow, CollectionsReport, PendingLabRow } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
@@ -79,9 +82,15 @@ export function ReportsView({ view }: { view: ReportView }) {
     { key: "token", header: "Token", accessor: (r) => r.tokenNumber, cell: (r) => `#${r.tokenNumber}` },
     { key: "date", header: "Date", accessor: (r) => r.visitDate, cell: (r) => formatDate(r.visitDate) },
     { key: "patient", header: "Patient", accessor: (r) => `${r.patientName} ${r.patientUhid}`, cell: (r) => <span>{r.patientName} <span className="font-mono text-xs text-fg-muted">{r.patientUhid}</span></span> },
-    { key: "provider", header: "Provider", filterable: true, accessor: (r) => r.providerName ?? "—", cell: (r) => r.providerName ?? "—" },
+    {
+      key: "provider",
+      header: "Provider",
+      filterable: true,
+      accessor: (r) => valueLabel(r.providerName, "unassigned"),
+      cell: (r) => <ValueOrEmpty value={r.providerName} reason="unassigned" />,
+    },
     { key: "status", header: "Status", filterable: true, accessor: (r) => r.status, cell: (r) => <Badge tone={r.status === "completed" ? "success" : "neutral"}>{r.status}</Badge> },
-    { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceTotalPaise ?? 0, cell: (r) => (r.invoiceNumber ? `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}` : "—") },
+    { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceTotalPaise ?? 0, cell: (r) => (r.invoiceNumber ? `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}` : <EmptyValue reason="notApplicable" />) },
   ];
 
   const pendingCols: Array<Column<PendingLabRow>> = [
@@ -154,7 +163,7 @@ export function ReportsView({ view }: { view: ReportView }) {
             <Card>
               <div className="text-xs text-fg-muted">By method</div>
               <div className="mt-1 flex flex-col gap-0.5 text-sm text-fg">
-                {collections.byMethod.length === 0 ? <span className="text-fg-subtle">—</span> : collections.byMethod.map((m) => (
+                {collections.byMethod.length === 0 ? <EmptyValue reason="none" label="Nothing collected" /> : collections.byMethod.map((m) => (
                   <div key={m.method} className="flex justify-between"><span className="uppercase text-fg-muted">{m.method}</span><span>{formatPaise(m.totalPaise)}</span></div>
                 ))}
               </div>

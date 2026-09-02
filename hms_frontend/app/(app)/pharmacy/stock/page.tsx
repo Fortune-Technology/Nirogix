@@ -12,12 +12,14 @@ import {
   DataTable,
   DateField,
   Dialog,
+  EmptyValue,
   Field,
   TableAction,
   TableActions,
   Textarea,
   ToggleAction,
   type Column,
+  ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { formatDateTime, todayApiDate } from "@hms/utils";
@@ -429,7 +431,9 @@ function Stock() {
       key: "reorder",
       header: "Reorder",
       accessor: (d) => d.reorderLevel,
-      cell: (d) => <span className="text-fg-muted">{d.reorderLevel || "—"}</span>,
+      // A drug with no reorder level set never raises a low-stock warning — a configuration
+      // gap the pharmacist can close, not an absent fact.
+      cell: (d) => <ValueOrEmpty value={d.reorderLevel || null} reason="notConfigured" className="text-fg-muted" />,
     },
     {
       key: "stock",
@@ -473,13 +477,13 @@ function Stock() {
       key: "phone",
       header: "Phone",
       accessor: (s) => s.phone ?? "",
-      cell: (s) => s.phone ?? <span className="text-fg-subtle">—</span>,
+      cell: (s) => <ValueOrEmpty value={s.phone} reason="unspecified" />,
     },
     {
       key: "gstin",
       header: "GSTIN",
       accessor: (s) => s.gstin ?? "",
-      cell: (s) => (s.gstin ? <span className="font-mono text-xs">{s.gstin}</span> : <span className="text-fg-subtle">—</span>),
+      cell: (s) => (s.gstin ? <span className="font-mono text-xs">{s.gstin}</span> : <EmptyValue reason="unspecified" />),
     },
     {
       key: "status",

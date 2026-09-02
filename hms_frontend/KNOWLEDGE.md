@@ -92,10 +92,62 @@ components/
 - **Appearance moved to `/profile`.** A theme is one person's preference, not the hospital's configuration.
 - **Printed documents carry the hospital's identity:** `useDocumentBrand` fetches branding and the organization profile together and passes `contactLines`, the letterhead lines, the default signatory, the uploaded **letterhead image** and the **page size** into `PrintDocument` (ADR-065). An unconfigured hospital still prints name and logo only — nothing is invented; a hospital with an uploaded letterhead prints that image full-width in place of the text header.
 - **One record, more than one screen (ADR-056).** `/settings/organization` edits `organization_profile` through the shared `components/settings/ProfileForm.tsx`; `/settings/documents` is its own cohesive screen (letterhead image, page size and letterhead text) that calls the profile API directly (ADR-065). Each screen declares the fields it owns and sends only those, so saving the letterhead cannot blank an address. There is no second identity store to drift.
-- **`/settings/registration` (ADR-056)** — the patient-registration QR. Copy link, download PNG, print poster, preview, and a confirmed regenerate that says every printed poster stops working. The page states plainly that nothing is added to the patient list automatically.
+- **`/hospital-setup/public-access` — "Patient self-service" (ADR-124)** — the one screen for all three QR surfaces: self-registration (ADR-056), online booking (ADR-069) and self check-in (ADR-118). Each is a `PublicAccessPanel` section with its own toggle, token, review-queue link, copy link, download PNG, print poster, preview and confirmed regenerate; each states plainly that nothing is created automatically. They were three tabs rendering the same component with different words, which left an administrator unable to tell from the screen which one they were on — but they are **not one setting**: separate columns, tokens, public endpoints, queues and audit trails, and turning one off leaves the other two working. The three old routes (`/hospital-setup/patient-registration`, `/hospital-setup/online-booking`, `/hospital-setup/self-check-in`) are **permanent redirects** in `next.config.ts`, because they are in bookmarks and printed on posters.
 - **The QR is drawn in the hospital's own accent**, through `components/print/useRegistrationQr.ts` — one definition shared by the settings screen and the printable poster, so a preview and the printed sheet cannot differ. The colour passes through `ensureContrast` from `@hms/utils` first: a pale accent is darkened until it scans, keeping its hue, because a QR is read by a camera off a photocopy and a code that looks pretty but does not scan is worthless. Light modules stay pure white. The code is held **with the URL it encodes**, so a regenerated token never shows the retired code beside the new link.
 - **`/print/registration-qr`** is the poster — a real document route with the hospital's logo, name, address and colour from `useDocumentBrand`, not a hand-built popup (ADR-047). It reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**.
-- **`/patients/registrations` is the review queue**, in the *Clinical* nav group. Gated on `patient.record.view` — deliberately **not** `patient.record.create`, which `org_admin` does not hold; the approve/reject actions carry `permitted={canReview}` so an administrator sees the queue read-only. The server re-checks both regardless.
+- **`/patients/registrations` is the review queue**, in the *Clinical* nav group. Gated on `patient.record.view` — deliberately **not** `patient.record.create`, because gating the screen on the permission to *act* would hide it from everyone who may only look. The approve/reject actions carry `permitted={canReview}` (`patient.record.create`), so a role that may view but not act — a cashier — sees the queue read-only. Since ADR-125 `org_admin` holds both and can work the queue; the server re-checks both regardless.
+
+## The patient chart (ADR-119, reordered by ADR-127)
+
+Five tiers, ordered by what a member of staff reaches for: an **identity strip** (initials, name,
+UHID, age, gender, date of birth, blood group, status) above everything; **Contact** then
+**Emergency contact**; **National health ID (ABDM)**, which is an identifier rather than a
+demographic; **Treatment cases** then **Immunisations**, because ongoing care outranks past care;
+and then **History** → **History from other hospitals** → **Patient portal access**, which is
+administrative and goes last.
+
+Blood group is a badge, not a table row — it is clinical, and its **absence is stated** rather than
+left blank. Age comes from `ageInYears` in `@hms/utils`, shared with the patients list so the two
+cannot disagree. `CasesCard` carries `opd.case.view` (it was gated on `clinical.immunization.view`
+by sharing a `<Can>` with the immunisations card, so a role with case permission but not
+immunisation permission saw neither). There is **no allergies section**: the patient record has no
+allergies field, and an empty card would promise a place to record something the system cannot
+store — tracked in `BACKLOG.md`.
+
+## Access refusals (ADR-126)
+
+`RequirePermission` checks the **module before the permission**, in the order the server enforces
+(`requireModule()` → `requirePermission()`). It matters now that an administrator holds nearly
+every key (ADR-125): typing `/pharmacy/stock` in a hospital with no Pharmacy module would
+otherwise render the screen and fail against the API. The module comes from
+`permissionModuleKey()` in `@hms/permissions`, derived from the registry; a permission the
+registry does not claim is Platform Core and is never module-gated. An entitlement set that has not
+loaded yet is empty and is **not** read as "this hospital has nothing" — the sidebar makes the same
+allowance.
+
+`components/Forbidden.tsx` fetches `GET /rbac/access?permission=…` and answers what a bare 403
+cannot: the required permission in words *and* as a key, the roles in **this** hospital that hold it
+(from the tenant's own `role_permissions`, so a custom role appears without being hard-coded), and
+whether the hospital has the module at all. The module case gets its own headline and no role list,
+because it is the hospital's subscription and no administrator can grant past it. The fetch is
+`feedback: false` — the screen is already showing the refusal, and a toast would report the same
+event twice (ADR-057).
+
+## Missing values (ADR-123)
+
+Nothing in the Portal renders a bare `—` any more. An absence goes through `EmptyValue` /
+`ValueOrEmpty` from `@hms/ui`, or `emptyLabel()` / `valueLabel()` where a string is needed — a
+DataTable `accessor`, a print document, an export, an accessible name — and the call site names the
+reason, because only the call site knows which is true: a walk-in's Provider is **Not assigned**
+(assignable), a public booking's Department is **Not specified** (the patient did not ask), an audit
+entry written by a job is **Not applicable**, a doctor without a personal fee is **Not configured**
+(the fee schedule decides — ADR-117), a user with no roles is **None**.
+
+Two habits go with it. The **accessor carries the same words as the cell**, so a column filters and
+searches on "Not assigned". And a column that is empty on *every* row is treated as a data or query
+problem: `/services` read `Department: —` on every row not because the API withheld it — it comes
+from a real left join — but because the dataset never named a department for a seeded service
+(fixed in the dataset, with a backfill for rows already seeded — ADR-122).
 
 ## Design system & theming
 
@@ -124,6 +176,8 @@ Every tabular view renders through `DataTable` from `@hms/ui` (ADR-029) — a **
 - The remaining screens (audit, appointments, billing, opd, laboratory, pharmacy, users, branches, tenants, reports) still pass the original `{ key, header, cell }` columns — valid, since the API is a superset — and gain sorting/filters by adding flags. Tracked in root `BACKLOG.md`.
 
 ## Shared workflow components
+
+Consultation type and case type (ADR-121) appear **only where the hospital has defined them** — in the check-in form, in `CasePicker`, in `CasesCard`'s new-case dialog, and as two more dimensions on the fee-schedule screen. An empty vocabulary means no field anywhere, which is the default. `hospital-setup/workflow` edits both lists with a local `TypeListEditor` (a chip list, not a comma-separated field, so a trailing comma cannot become a price dimension); it is used twice on that one screen and moves to `@hms/ui` if a third use appears. `CaseChoice` carries the chosen case's own `caseType` so the desk can be quoted the right fee without a second fetch — it is never sent back, because the server prices from the case row.
 
 `components/patients/ConsentStatusCard.tsx` shows a patient's ABDM consent **state** in the check-in rail (ADR-120) — waiting, granted, declined, lapsed or failed — and never a record, a source hospital or the requesting clinician. It also says who may ask: the request carries a named doctor's registration number to the patient, so the desk can see that nothing has been asked but cannot ask. Where the hospital lacks the external-history capability the API 403s and the card renders **nothing**, because advertising a feature a hospital has not bought is worse than silence. Rail-only — the chart has `ExternalHistoryCard`, which shows the records to whoever may read them.
 

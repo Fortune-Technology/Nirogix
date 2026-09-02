@@ -8,7 +8,7 @@ import * as api from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { useTheme } from "../../../lib/theme";
 import { PageHeader } from "../../../components/PageHeader";
-import { Badge, Button } from "@hms/ui";
+import { Badge, Button, EmptyValue } from "@hms/ui";
 import {
   Field,
   ProfileEditableCard,
@@ -119,7 +119,9 @@ export default function ProfilePage() {
         <ProfileField label="Account status">{me.status ?? "active"}</ProfileField>
         <ProfileField label="Two-factor authentication">{me.mfaEnabled ? "Enabled" : "Not enabled"}</ProfileField>
         <ProfileField label="Last sign-in">{me.lastLoginAt ? formatDateTime(me.lastLoginAt) : "This session"}</ProfileField>
-        <ProfileField label="Member since">{me.createdAt ? formatDateTime(me.createdAt) : "—"}</ProfileField>
+        <ProfileField label="Member since">
+          {me.createdAt ? formatDateTime(me.createdAt) : <EmptyValue reason="notAvailable" />}
+        </ProfileField>
       </ProfileInfoCard>
 
       <ProfileSecurityCard onSubmit={changePassword} busy={changing} />

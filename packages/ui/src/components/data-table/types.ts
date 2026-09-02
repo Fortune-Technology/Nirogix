@@ -102,7 +102,7 @@ export interface DataTableProps<Row> {
   /** Module-specific filter controls, rendered next to the built-in ones. */
   filters?: ReactNode;
   /** Right-hand toolbar slot — usually the page's primary action. */
-  toolbarActions?: ReactNode;
+
   /** Show the Columns (show/hide) control. Default true when any column is hideable. */
   columnVisibility?: boolean;
 

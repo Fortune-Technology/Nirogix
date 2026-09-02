@@ -69,16 +69,23 @@ const LAB_TESTS = [
   { name: 'C-Reactive Protein', code: 'CRP', sampleType: 'blood', unit: 'mg/L', refLow: '0', refHigh: '6', pricePaise: 45000 },
 ];
 
+/**
+ * `department` is a department CODE, resolved per tenant at seed time (ADR-122). Every tenant in
+ * this dataset has GENMED; a tenant without ORTHO or CARDIO simply gets a service with no
+ * department, which is a real state and not a defect. Naming the department matters: a services
+ * table whose Department column reads "—" on every row teaches nobody anything.
+ */
 const SERVICES = [
-  { code: 'DRESS-S', name: 'Dressing (small)', pricePaise: 15000 },
-  { code: 'DRESS-L', name: 'Dressing (large)', pricePaise: 32000 },
-  { code: 'INJ-IM', name: 'Injection (intramuscular)', pricePaise: 5000 },
-  { code: 'NEBU', name: 'Nebulisation', pricePaise: 20000 },
-  { code: 'FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000 },
-  { code: 'ECG', name: 'ECG (12 lead)', pricePaise: 30000 },
-  { code: 'SUTURE', name: 'Suturing (minor wound)', pricePaise: 85000 },
-  { code: 'PHYSIO', name: 'Physiotherapy session', pricePaise: 45000 },
-  // Retired, but historical invoices still reference it — deactivated, never deleted.
+  { code: 'DRESS-S', name: 'Dressing (small)', pricePaise: 15000, department: 'GENMED' },
+  { code: 'DRESS-L', name: 'Dressing (large)', pricePaise: 32000, department: 'GENMED' },
+  { code: 'INJ-IM', name: 'Injection (intramuscular)', pricePaise: 5000, department: 'GENMED' },
+  { code: 'NEBU', name: 'Nebulisation', pricePaise: 20000, department: 'GENMED' },
+  { code: 'FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000, department: 'GENMED' },
+  { code: 'ECG', name: 'ECG (12 lead)', pricePaise: 30000, department: 'CARDIO' },
+  { code: 'SUTURE', name: 'Suturing (minor wound)', pricePaise: 85000, department: 'ORTHO' },
+  { code: 'PHYSIO', name: 'Physiotherapy session', pricePaise: 45000, department: 'ORTHO' },
+  // Retired, but historical invoices still reference it — deactivated, never deleted. No
+  // department on purpose: "not assigned" is a state the Department column has to render too.
   { code: 'HOMEVISIT', name: 'Home visit (discontinued)', pricePaise: 120000, isActive: false },
 ];
 

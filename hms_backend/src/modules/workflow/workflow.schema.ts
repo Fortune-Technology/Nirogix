@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { VITALS_MODES, PAYMENT_TIMINGS, VITAL_PARAMETERS } from './workflowConfig.service';
+import {
+  VITALS_MODES,
+  PAYMENT_TIMINGS,
+  VITAL_PARAMETERS,
+  MAX_TYPE_LENGTH,
+  MAX_TYPE_VALUES,
+} from './workflowConfig.service';
 
 extendZodWithOpenApi(z);
 
@@ -38,6 +44,13 @@ export const UpdateWorkflowConfigBody = z.object({
   vitalsRequiredParams: z.array(vitalParameter).max(VITAL_PARAMETERS.length).optional(),
   vitalsOptionalParams: z.array(vitalParameter).max(VITAL_PARAMETERS.length).optional(),
   paymentTiming: paymentTiming.optional(),
+  /**
+   * The hospital's own vocabularies (ADR-121). Sent whole — the list as it should now read, not a
+   * patch — so removing a value is expressed as leaving it out, and the service can tell that a
+   * removed value is still priced by an active fee rule and refuse.
+   */
+  consultationTypes: z.array(z.string().max(MAX_TYPE_LENGTH)).max(MAX_TYPE_VALUES).optional(),
+  caseTypes: z.array(z.string().max(MAX_TYPE_LENGTH)).max(MAX_TYPE_VALUES).optional(),
 });
 
 /** `branchId` absent means the organization-wide scope, which is a real scope, not a missing value. */
@@ -62,6 +75,8 @@ export const WorkflowConfigSchema = z
     vitalsRequiredParams: z.array(vitalParameter),
     vitalsOptionalParams: z.array(vitalParameter),
     paymentTiming,
+    consultationTypes: z.array(z.string()),
+    caseTypes: z.array(z.string()),
     version: z.number().int(),
     isDefault: z.boolean(),
     inheritedFromOrganization: z.boolean(),

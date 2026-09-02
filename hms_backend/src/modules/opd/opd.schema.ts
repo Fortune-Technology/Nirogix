@@ -30,13 +30,24 @@ export const CheckInBody = z
      */
     arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).nullable().optional(),
     /**
+     * What kind of consultation (ADR-121). A free string here rather than an enum because the
+     * vocabulary belongs to the hospital; the service checks it against that hospital's configured
+     * list, which is the check that matters — this bound only stops a novel being sent.
+     */
+    consultationType: z.string().max(40).nullable().optional(),
+    /**
      * Check in under an existing open treatment case, or open a new one (ADR-116). Mutually
      * exclusive — sending both is a client that has not decided, and the service refuses rather
      * than guessing which was meant.
      */
     caseId: z.string().uuid().nullable().optional(),
     newCase: z
-      .object({ title: z.string().min(2).max(200), notes: z.string().max(2000).nullable().optional() })
+      .object({
+        title: z.string().min(2).max(200),
+        notes: z.string().max(2000).nullable().optional(),
+        /** What kind of episode this is (ADR-121) — it prices every visit under the case. */
+        caseType: z.string().max(40).nullable().optional(),
+      })
       .nullable()
       .optional(),
   })
@@ -82,11 +93,14 @@ export const VisitSchema = z
     visitDate: z.string(),
     visitType: z.string(),
     arrivalType: z.string(),
+    consultationType: z.string().nullable(),
     caseId: z.string().uuid().nullable(),
     calculatedFeePaise: z.number().int().nullable(),
     feeOverrideReason: z.string().nullable(),
     caseNumber: z.string().nullable(),
     caseTitle: z.string().nullable(),
+    /** The case's type, carried on the visit's response so a screen can show what priced it. */
+    caseType: z.string().nullable(),
     status: z.string(),
     version: z.number(),
     department: z.string().nullable(),

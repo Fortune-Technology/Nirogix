@@ -10,8 +10,10 @@ import './script-env';
  * The M2 counterpart to `abdm:check`, and it has to work differently, because M1 and M2 are shaped
  * differently. **M1 is outbound**: we call NHA, so a connectivity check proves it. **M2 is inbound**:
  * NHA calls *us*, so there is nothing to "connect to" and nothing to click through in the Portal —
- * M2 has no screens by design. Until the bridge URL is registered, the only honest way to see M2
- * work is to **play the gateway ourselves** and watch what the code does.
+ * M2 has no screens by design. Until a HIP service is attached to our bridge, the only honest way
+ * to see M2 work is to **play the gateway ourselves** and watch what the code does. (The bridge
+ * URL itself is registered and live — `npm run abdm:bridge` reads it back — but its `services`
+ * list is empty, so nothing NHA sends is routed to us yet.)
  *
  * That is what this does. It drives the real services — not mocks of them — through the whole
  * chain, in order, against your local database:
@@ -142,10 +144,13 @@ async function main(): Promise<void> {
   if (failed === 0) {
     console.log(`M2 is working end to end locally: ${passed} checks passed.`);
     console.log('');
-    console.log('What this does NOT prove — and cannot, until the bridge URL is registered:');
-    console.log('  · that ABDM can reach us (needs TLS on api-staging.nirogix.com — BACKLOG I-5)');
+    console.log('What this does NOT prove:');
+    console.log('  · that ABDM can reach us. The bridge URL is registered and active, but the');
+    console.log('    bridge holds services: [] — no HIP service is attached, so no inbound call');
+    console.log('    is routed to us. Read it back with: npm run abdm:bridge   (read-only)');
     console.log('  · that the four unverified inbound paths are the right ones');
-    console.log('  · that Fidelius encrypts correctly (mock mode does not encrypt — it marks)');
+    console.log('  · that THIS payload is encrypted — mock mode marks it, it does not encrypt.');
+    console.log('    Fidelius itself is proven separately: npm run abdm:fidelius-check');
     console.log('');
     console.log('Run with --payloads to see the full JSON we would send ABDM at each step,');
     console.log('or --logs to keep the application log alongside the report.');

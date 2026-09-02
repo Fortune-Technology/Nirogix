@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, DataTable, type Column, type DataTableQuery } from "@hms/ui";
+import { Badge, DataTable, EmptyValue, type Column, type DataTableQuery, valueLabel, ValueOrEmpty } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AuditEntry } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
@@ -35,7 +35,14 @@ const columns: Array<Column<AuditEntry>> = [
     accessor: (r) => r.action,
     cell: (r) => <span className="font-medium text-fg">{r.action}</span>,
   },
-  { key: "resource", header: "Resource", accessor: (r) => r.resourceType, cell: (r) => r.resourceType ?? "—" },
+  // An entry about the session itself (a sign-in, a failed sign-in) is attached to no
+  // resource. That is the shape of the event, not a missing field.
+  {
+    key: "resource",
+    header: "Resource",
+    accessor: (r) => valueLabel(r.resourceType, "notApplicable"),
+    cell: (r) => <ValueOrEmpty value={r.resourceType} reason="notApplicable" />,
+  },
   {
     key: "method",
     header: "Request",
@@ -47,7 +54,8 @@ const columns: Array<Column<AuditEntry>> = [
           {r.method} {r.path}
         </span>
       ) : (
-        "—"
+        // Written by the system rather than by a request — a job, an event handler, a seeder.
+        <EmptyValue reason="notApplicable" />
       ),
   },
   {
@@ -62,7 +70,8 @@ const columns: Array<Column<AuditEntry>> = [
     key: "statusCode",
     header: "Status",
     accessor: (r) => r.statusCode,
-    cell: (r) => (r.statusCode === null ? "—" : <Badge tone={statusTone(r.statusCode)}>{r.statusCode}</Badge>),
+    cell: (r) =>
+      r.statusCode === null ? <EmptyValue reason="notApplicable" /> : <Badge tone={statusTone(r.statusCode)}>{r.statusCode}</Badge>,
   },
 ];
 

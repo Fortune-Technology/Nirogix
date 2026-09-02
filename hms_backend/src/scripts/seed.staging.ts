@@ -84,6 +84,7 @@ export const STAGING_DATASET: SeedDataset = {
       branding: { brandColor: '#7C3AED', secondaryColor: '#0891B2' },
       selfRegistration: true,
       onlineBooking: true,
+      selfCheckin: true,
       branches: [
         { code: 'QA-MAIN', name: 'QA Main Campus' },
         { code: 'QA-ANNEX', name: 'QA Annexe Clinic' },
@@ -126,13 +127,15 @@ export const STAGING_DATASET: SeedDataset = {
         { name: 'Urine Routine', code: 'URINE-R', sampleType: 'urine', unit: null, refLow: null, refHigh: null, pricePaise: 12000 },
         { name: 'Dengue NS1 Antigen', code: 'DENG-NS1', sampleType: 'blood', unit: null, refLow: null, refHigh: null, pricePaise: 90000 },
       ],
+      // `department` is a department CODE from the list above, resolved at seed time (ADR-122).
+      // QA-RETIRED deliberately has none: an unassigned service is a state the table renders too.
       services: [
-        { code: 'QA-DRESS', name: 'Dressing (small)', pricePaise: 15000 },
-        { code: 'QA-INJ', name: 'Injection (intramuscular)', pricePaise: 5000 },
-        { code: 'QA-NEBU', name: 'Nebulisation', pricePaise: 20000 },
-        { code: 'QA-ECG', name: 'ECG (12 lead)', pricePaise: 30000 },
-        { code: 'QA-FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000 },
-        { code: 'QA-PHYSIO', name: 'Physiotherapy session', pricePaise: 45000 },
+        { code: 'QA-DRESS', name: 'Dressing (small)', pricePaise: 15000, department: 'QA-GEN' },
+        { code: 'QA-INJ', name: 'Injection (intramuscular)', pricePaise: 5000, department: 'QA-GEN' },
+        { code: 'QA-NEBU', name: 'Nebulisation', pricePaise: 20000, department: 'QA-PAED' },
+        { code: 'QA-ECG', name: 'ECG (12 lead)', pricePaise: 30000, department: 'QA-CARD' },
+        { code: 'QA-FOLLOWUP', name: 'Follow-up consultation', pricePaise: 20000, department: 'QA-GEN' },
+        { code: 'QA-PHYSIO', name: 'Physiotherapy session', pricePaise: 45000, department: 'QA-ORTH' },
         { code: 'QA-RETIRED', name: 'Retired service', pricePaise: 99000, isActive: false },
       ],
       suppliers: [

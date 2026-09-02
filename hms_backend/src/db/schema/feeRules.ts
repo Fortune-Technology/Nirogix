@@ -14,17 +14,21 @@ import { departments } from './departments';
  * check-in. Which is not a pricing policy. It is a policy held in the receptionist's head, applied
  * inconsistently, and invisible to anyone auditing what the hospital actually charges.
  *
- * A rule matches on any combination of **doctor**, **department** and **how the patient arrived**
- * (walk-in / first visit / follow-up). A NULL means "any" — so one row can say "every follow-up is
- * ₹200" and another "Dr Sharma, first visit, ₹800", and both are legitimate rules about different
- * things.
+ * A rule matches on any combination of **doctor**, **department**, **consultation type**, **case
+ * type** and **how the patient arrived**. A NULL means "any" — so one row can say "every follow-up
+ * is ₹200" and another "Dr Sharma, first visit, ₹800", and both are legitimate rules about
+ * different things.
  *
  * **The most specific matching rule wins**, and specificity is a number rather than a judgement:
- * doctor is worth more than department, which is worth more than arrival type. That ordering is the
- * one a hospital means — a named consultant's own fee overrides their department's, which overrides
- * a blanket follow-up rate. It is total: no two distinct combinations can score the same, so there
- * is never a tie to break arbitrarily, and the unique index stops the same combination existing
- * twice.
+ * doctor (16) beats department (8) beats case type (4) beats consultation type (2) beats arrival
+ * type (1). That ordering is the one a hospital means. A named consultant's own fee overrides
+ * their department's. And a case type outranks a consultation type because it describes the
+ * *arrangement* the hospital is treating under — a corporate or camp tariff is agreed in a
+ * contract, and it is meant to survive whatever kind of consultation happens inside it.
+ *
+ * The weights are powers of two, so the ordering is total: no two distinct combinations can score
+ * the same, there is never a tie to break arbitrarily, and the unique index stops the same
+ * combination existing twice.
  *
  * Nothing matching falls back to the doctor's own configured fee, and then to zero — which is
  * exactly what the product did before this table existed. A hospital that never opens the screen
@@ -45,6 +49,14 @@ export const consultationFeeRules = pgTable(
     departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'restrict' }),
     /** `walk_in` | `appointment` | `follow_up` — the ADR-115 vocabulary, unchanged. */
     arrivalType: varchar('arrival_type', { length: 20 }),
+    /**
+     * What kind of consultation, in the hospital's own vocabulary (ADR-121). Validated on write
+     * against `hospital_workflow_config.consultation_types` for this rule's scope, so a rule can
+     * never price a type the hospital does not offer.
+     */
+    consultationType: varchar('consultation_type', { length: 40 }),
+    /** What kind of episode, from the same config's `case_types` (ADR-121). */
+    caseType: varchar('case_type', { length: 40 }),
 
     feePaise: integer('fee_paise').notNull(),
 

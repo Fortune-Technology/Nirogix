@@ -92,6 +92,23 @@ export interface Role {
   isSystem: boolean;
 }
 
+/**
+ * `GET /rbac/access?permission=…` — why a caller cannot do something (ADR-126).
+ *
+ * `reason` is the part that matters: `module_not_enabled` is the hospital's subscription and no
+ * administrator can grant their way past it, while `permission_missing` is a role question their
+ * administrator can answer today.
+ */
+export interface AccessExplanation {
+  permission: { key: string; label: string };
+  /** Null for Platform Core, which every hospital always has. */
+  module: { key: string; name: string; enabled: boolean } | null;
+  granted: boolean;
+  reason: 'granted' | 'module_not_enabled' | 'permission_missing';
+  /** Roles in this hospital that grant it — system and custom alike. */
+  grantedByRoles: Array<{ key: string; name: string; isSystem: boolean }>;
+}
+
 // ---- Providers & specialties (hms_backend/src/modules/provider) -------------
 
 export interface Specialty {
@@ -748,9 +765,9 @@ export interface SelfCheckinSettings {
 // ---- Consultation fee schedule (ADR-117) ----------------------------------
 
 /**
- * One line of the price list. Any of doctor / department / arrival type may be null, meaning
- * "any" — which is what lets one table express both "every follow-up is ₹200" and "Dr Sharma's
- * first visit is ₹800". The most specific match wins.
+ * One line of the price list. Any of doctor / department / case type / consultation type / arrival
+ * type may be null, meaning "any" — which is what lets one table express both "every follow-up is
+ * ₹200" and "Dr Sharma's first visit is ₹800". The most specific match wins.
  */
 export interface ConsultationFeeRule {
   id: string;
@@ -761,10 +778,17 @@ export interface ConsultationFeeRule {
   departmentId: string | null;
   departmentName: string | null;
   arrivalType: string | null;
+  /** What kind of consultation, in the hospital's own vocabulary (ADR-121). */
+  consultationType: string | null;
+  /** What kind of episode (ADR-121). Read from the case, never from the check-in form. */
+  caseType: string | null;
   feePaise: number;
   isActive: boolean;
   label: string | null;
-  /** Doctor (4) + department (2) + arrival type (1). Higher wins; the ordering is total. */
+  /**
+   * Doctor (16) + department (8) + case type (4) + consultation type (2) + arrival type (1).
+   * Higher wins; powers of two make the ordering total, so there is never a tie.
+   */
   specificity: number;
   version: number;
   createdAt: string;
@@ -775,6 +799,10 @@ export interface CreateFeeRuleRequest {
   providerId?: string | null;
   departmentId?: string | null;
   arrivalType?: ArrivalType | null;
+  /** Must be one of the hospital's configured consultation types (ADR-121). */
+  consultationType?: string | null;
+  /** Must be one of the hospital's configured case types (ADR-121). */
+  caseType?: string | null;
   feePaise: number;
   label?: string | null;
 }
@@ -882,6 +910,11 @@ export interface PatientCase {
   patientUhid: string;
   /** Free text, not a diagnosis — a case is opened before anyone has examined the patient. */
   title: string;
+  /**
+   * What kind of episode this is (ADR-121), in the hospital's own vocabulary — "Corporate",
+   * "Insurance", "Camp". It prices every visit under the case.
+   */
+  caseType: string | null;
   /** `open` | `closed`. */
   status: string;
   departmentId: string | null;
@@ -904,6 +937,8 @@ export interface OpenCaseRequest {
   providerId?: string | null;
   branchId?: string | null;
   notes?: string | null;
+  /** One of the hospital's configured case types (ADR-121). */
+  caseType?: string | null;
 }
 
 export interface UpdateCaseRequest {
@@ -912,6 +947,8 @@ export interface UpdateCaseRequest {
   departmentId?: string | null;
   providerId?: string | null;
   notes?: string | null;
+  /** Correctable — it changes what future visits under this case are charged, never past ones. */
+  caseType?: string | null;
 }
 
 export interface CloseCaseRequest {
@@ -939,6 +976,11 @@ export interface Visit {
   visitType: string;
   /** `walk_in` | `appointment` | `follow_up` (ADR-115). */
   arrivalType: string;
+  /**
+   * What kind of consultation this is (ADR-121). A third, separate question from `visitType`
+   * (where) and `arrivalType` (how they got here): this is what is about to happen.
+   */
+  consultationType: string | null;
   /** The treatment case this visit belongs to, when it belongs to one (ADR-116). */
   caseId: string | null;
   /** What the fee schedule said this consultation costs (ADR-117). */
@@ -947,6 +989,8 @@ export interface Visit {
   feeOverrideReason: string | null;
   caseNumber: string | null;
   caseTitle: string | null;
+  /** The case's type (ADR-121) — carried here because it is what priced this consultation. */
+  caseType: string | null;
   status: string; // checked_in | in_consultation | completed | cancelled
   /** Optimistic-lock version — send it back with a status change. */
   version: number;
@@ -980,12 +1024,17 @@ export interface CheckInRequest {
   referralId?: string | null;
   /** How the patient arrived (ADR-115). An appointment check-in overrides this server-side. */
   arrivalType?: ArrivalType | null;
+  /**
+   * What kind of consultation (ADR-121), from the hospital's configured vocabulary. Rejected where
+   * the hospital has configured none — a value no screen can explain is worse than no value.
+   */
+  consultationType?: string | null;
   /** Check in under an existing open case (ADR-116). Mutually exclusive with `newCase`. */
   caseId?: string | null;
   /** Required whenever the amount differs from the calculated fee (ADR-117). */
   feeOverrideReason?: string | null;
   /** Open a new case in the same transaction as the visit. Mutually exclusive with `caseId`. */
-  newCase?: { title: string; notes?: string | null } | null;
+  newCase?: { title: string; notes?: string | null; caseType?: string | null } | null;
   /**
    * Readings taken at the desk, when the hospital collects vitals during check-in
    * (`vitalsMode: during_checkin`, ADR-113). Ignored in any other mode — the server decides
@@ -1306,6 +1355,13 @@ export interface HospitalWorkflowConfig {
   vitalsRequiredParams: VitalParameter[];
   vitalsOptionalParams: VitalParameter[];
   paymentTiming: PaymentTiming;
+  /**
+   * The hospital's own vocabularies (ADR-121), used as pricing dimensions and offered as fields at
+   * check-in. **Empty means the question is not asked** — which is the default, so a hospital that
+   * never opens this screen sees no new fields and no change in what it charges.
+   */
+  consultationTypes: string[];
+  caseTypes: string[];
   version: number;
   /**
    * True when no row exists for this scope and the platform defaults are being reported. Saving
@@ -1322,6 +1378,9 @@ export interface UpdateHospitalWorkflowConfigRequest {
   vitalsRequiredParams?: VitalParameter[];
   vitalsOptionalParams?: VitalParameter[];
   paymentTiming?: PaymentTiming;
+  /** Sent whole, not as a patch: leaving a value out is how it is removed. */
+  consultationTypes?: string[];
+  caseTypes?: string[];
 }
 
 export interface VitalsRecord extends Vitals {

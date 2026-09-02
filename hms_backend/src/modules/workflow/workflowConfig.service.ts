@@ -1,6 +1,11 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { hospitalWorkflowConfig, branches, type HospitalWorkflowConfigRow } from '../../db/schema';
+import {
+  hospitalWorkflowConfig,
+  branches,
+  consultationFeeRules,
+  type HospitalWorkflowConfigRow,
+} from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 
@@ -41,11 +46,26 @@ export const VITAL_PARAMETERS = [
 ] as const;
 export type VitalParameter = (typeof VITAL_PARAMETERS)[number];
 
+/**
+ * The two vocabularies a hospital defines for itself (ADR-121). Both are the hospital's own words,
+ * because there is no shared list: a teaching hospital, a corporate clinic and a camp operator mean
+ * different things by "consultation type", and an enum would be wrong for all three.
+ *
+ * A value is at most 40 characters because it is stored on every visit and every case that uses it,
+ * printed on screens beside a price, and read aloud at a desk. It is a label, not a description.
+ */
+export const MAX_TYPE_VALUES = 30;
+export const MAX_TYPE_LENGTH = 40;
+
 export interface ResolvedWorkflowConfig {
   vitalsMode: VitalsMode;
   vitalsRequiredParams: VitalParameter[];
   vitalsOptionalParams: VitalParameter[];
   paymentTiming: PaymentTiming;
+  /** What kinds of consultation this hospital offers. Empty means the field is not asked. */
+  consultationTypes: string[];
+  /** What kinds of episode a case can be. Empty means the field is not asked. */
+  caseTypes: string[];
 }
 
 /**
@@ -59,6 +79,12 @@ export const PLATFORM_DEFAULTS: ResolvedWorkflowConfig = {
   // The set a general OPD actually asks for. A hospital narrows or widens it.
   vitalsOptionalParams: ['bloodPressure', 'pulse', 'spo2', 'tempC', 'weightKg', 'heightCm'],
   paymentTiming: 'before_consultation',
+  // Deliberately empty. A hospital that has not written its own price list has no vocabulary to
+  // offer, so check-in asks neither question and the fee schedule has two inert dimensions.
+  // Suggesting a default list here would put words in a hospital's mouth and, worse, would start
+  // showing two new fields on a check-in form nobody asked to change.
+  consultationTypes: [],
+  caseTypes: [],
 };
 
 function toResolved(row: HospitalWorkflowConfigRow): ResolvedWorkflowConfig {
@@ -67,7 +93,63 @@ function toResolved(row: HospitalWorkflowConfigRow): ResolvedWorkflowConfig {
     vitalsRequiredParams: row.vitalsRequiredParams as VitalParameter[],
     vitalsOptionalParams: row.vitalsOptionalParams as VitalParameter[],
     paymentTiming: row.paymentTiming as PaymentTiming,
+    consultationTypes: row.consultationTypes ?? [],
+    caseTypes: row.caseTypes ?? [],
   };
+}
+
+/**
+ * Check a value against the vocabulary this hospital has configured (ADR-121).
+ *
+ * Every writer goes through here — the fee schedule, check-in and case creation — so "is this a
+ * type this hospital actually uses?" is answered in one place. An empty vocabulary rejects every
+ * value rather than accepting anything: a hospital that has configured no consultation types is a
+ * hospital where a consultation type is meaningless, and silently storing one would leave a value
+ * on a visit that no screen can explain.
+ *
+ * Case-insensitive on the way in, and it returns the **configured spelling** — so a rule written as
+ * "corporate" and a case opened as "Corporate" are the same thing, which is what the person typing
+ * either of them meant.
+ */
+export function matchConfiguredType(value: string, allowed: string[]): string | null {
+  const needle = value.trim().toLowerCase();
+  return allowed.find((a) => a.toLowerCase() === needle) ?? null;
+}
+
+export async function assertConsultationType(
+  tenantId: string,
+  branchId: string | null | undefined,
+  value: string,
+): Promise<string> {
+  const config = await resolveConfig(tenantId, branchId);
+  const matched = matchConfiguredType(value, config.consultationTypes);
+  if (!matched) {
+    throw Errors.validation(
+      undefined,
+      config.consultationTypes.length
+        ? `Not a consultation type this hospital uses. Configured: ${config.consultationTypes.join(", ")}`
+        : 'This hospital has not set up consultation types. Add them under Hospital setup → Workflow first',
+    );
+  }
+  return matched;
+}
+
+export async function assertCaseType(
+  tenantId: string,
+  branchId: string | null | undefined,
+  value: string,
+): Promise<string> {
+  const config = await resolveConfig(tenantId, branchId);
+  const matched = matchConfiguredType(value, config.caseTypes);
+  if (!matched) {
+    throw Errors.validation(
+      undefined,
+      config.caseTypes.length
+        ? `Not a case type this hospital uses. Configured: ${config.caseTypes.join(", ")}`
+        : 'This hospital has not set up case types. Add them under Hospital setup → Workflow first',
+    );
+  }
+  return matched;
 }
 
 /**
@@ -175,6 +257,80 @@ export interface UpdateWorkflowConfigInput {
   vitalsRequiredParams?: VitalParameter[];
   vitalsOptionalParams?: VitalParameter[];
   paymentTiming?: PaymentTiming;
+  consultationTypes?: string[];
+  caseTypes?: string[];
+}
+
+/**
+ * Tidy a submitted vocabulary: trimmed, blanks dropped, duplicates removed case-insensitively.
+ *
+ * "Corporate" and "corporate " as two entries is a list that reads as a mistake in a dropdown and
+ * prices as two different things in the schedule. The first spelling wins, because that is the one
+ * the administrator typed deliberately.
+ */
+function normaliseTypeList(values: string[], label: string): string[] {
+  const out: string[] = [];
+  for (const raw of values) {
+    const value = raw.trim();
+    if (!value) continue;
+    if (value.length > MAX_TYPE_LENGTH) {
+      throw Errors.validation(undefined, `${label} must be ${MAX_TYPE_LENGTH} characters or fewer: "${value}"`);
+    }
+    if (!out.some((v) => v.toLowerCase() === value.toLowerCase())) out.push(value);
+  }
+  if (out.length > MAX_TYPE_VALUES) {
+    throw Errors.validation(undefined, `${label}: at most ${MAX_TYPE_VALUES} values`);
+  }
+  return out;
+}
+
+/**
+ * Removing a word from the vocabulary must not silently strand a price.
+ *
+ * A fee rule naming a type that no longer exists can never match again, so the hospital would go on
+ * seeing "Teleconsultation ₹300" in its price list while every teleconsultation quietly fell through
+ * to a different rule. Refusing, and naming the rules, is the only version of this that a hospital
+ * can act on. Retired rules are ignored — they price history and match nothing.
+ */
+async function assertRemovedTypesUnused(
+  tx: Parameters<Parameters<typeof runWithTenant>[1]>[0],
+  tenantId: string,
+  removed: { consultationTypes: string[]; caseTypes: string[] },
+): Promise<void> {
+  if (removed.consultationTypes.length === 0 && removed.caseTypes.length === 0) return;
+  const clashes: string[] = [];
+  if (removed.consultationTypes.length > 0) {
+    const rows = await tx
+      .select({ t: consultationFeeRules.consultationType })
+      .from(consultationFeeRules)
+      .where(
+        and(
+          eq(consultationFeeRules.tenantId, tenantId),
+          eq(consultationFeeRules.isActive, true),
+          inArray(consultationFeeRules.consultationType, removed.consultationTypes),
+        ),
+      );
+    for (const r of rows) if (r.t && !clashes.includes(r.t)) clashes.push(r.t);
+  }
+  if (removed.caseTypes.length > 0) {
+    const rows = await tx
+      .select({ t: consultationFeeRules.caseType })
+      .from(consultationFeeRules)
+      .where(
+        and(
+          eq(consultationFeeRules.tenantId, tenantId),
+          eq(consultationFeeRules.isActive, true),
+          inArray(consultationFeeRules.caseType, removed.caseTypes),
+        ),
+      );
+    for (const r of rows) if (r.t && !clashes.includes(r.t)) clashes.push(r.t);
+  }
+  if (clashes.length > 0) {
+    throw Errors.validation(
+      undefined,
+      `The fee schedule still prices ${clashes.join(", ")}. Retire those rules before removing the type`,
+    );
+  }
 }
 
 export async function updateConfig(
@@ -190,6 +346,10 @@ export async function updateConfig(
     vitalsRequiredParams: input.vitalsRequiredParams ?? before.vitalsRequiredParams,
     vitalsOptionalParams: input.vitalsOptionalParams ?? before.vitalsOptionalParams,
     paymentTiming: input.paymentTiming ?? before.paymentTiming,
+    consultationTypes: input.consultationTypes
+      ? normaliseTypeList(input.consultationTypes, 'A consultation type')
+      : before.consultationTypes,
+    caseTypes: input.caseTypes ? normaliseTypeList(input.caseTypes, 'A case type') : before.caseTypes,
   };
 
   // A parameter cannot be both required and merely offered — one of the two lists is wrong, and
@@ -204,6 +364,11 @@ export async function updateConfig(
   }
 
   await runWithTenant(tenantId, async (tx) => {
+    await assertRemovedTypesUnused(tx, tenantId, {
+      consultationTypes: before.consultationTypes.filter((t) => !next.consultationTypes.includes(t)),
+      caseTypes: before.caseTypes.filter((t) => !next.caseTypes.includes(t)),
+    });
+
     const existing = (
       await tx
         .select({ id: hospitalWorkflowConfig.id, version: hospitalWorkflowConfig.version })
@@ -228,6 +393,8 @@ export async function updateConfig(
           vitalsRequiredParams: next.vitalsRequiredParams,
           vitalsOptionalParams: next.vitalsOptionalParams,
           paymentTiming: next.paymentTiming,
+          consultationTypes: next.consultationTypes,
+          caseTypes: next.caseTypes,
           version: existing.version + 1,
           updatedAt: new Date(),
         })
@@ -247,6 +414,8 @@ export async function updateConfig(
       vitalsRequiredParams: next.vitalsRequiredParams,
       vitalsOptionalParams: next.vitalsOptionalParams,
       paymentTiming: next.paymentTiming,
+      consultationTypes: next.consultationTypes,
+      caseTypes: next.caseTypes,
     });
   });
 
@@ -266,6 +435,8 @@ export async function updateConfig(
         vitalsRequiredParams: before.vitalsRequiredParams,
         vitalsOptionalParams: before.vitalsOptionalParams,
         paymentTiming: before.paymentTiming,
+        consultationTypes: before.consultationTypes,
+        caseTypes: before.caseTypes,
       },
       after: next,
     },

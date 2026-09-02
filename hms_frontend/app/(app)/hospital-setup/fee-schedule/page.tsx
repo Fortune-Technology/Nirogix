@@ -19,7 +19,13 @@ import {
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import type { ArrivalType, ConsultationFeeRule, Department, Provider } from "@hms/types";
+import type {
+  ArrivalType,
+  ConsultationFeeRule,
+  Department,
+  HospitalWorkflowConfig,
+  Provider,
+} from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission } from "../../../../components/Can";
 import { useCan } from "../../../../lib/auth";
@@ -35,6 +41,10 @@ import { formatPaise, rupeesToPaise } from "../../../../lib/money";
  *
  * An empty list is not an error state: a hospital with no rules falls back to each doctor's own
  * configured fee, which is exactly what the product did before this screen existed.
+ *
+ * **Consultation type and case type only appear once the hospital has defined them** (ADR-121).
+ * Showing two empty dropdowns to a hospital that prices by doctor alone would be two more things
+ * to not understand; the screen says where to define them instead.
  */
 
 const ARRIVAL_LABEL: Record<string, string> = {
@@ -51,6 +61,7 @@ function FeeSchedule() {
   const [rules, setRules] = useState<ConsultationFeeRule[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [workflow, setWorkflow] = useState<HospitalWorkflowConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showRetired, setShowRetired] = useState(false);
@@ -59,6 +70,8 @@ function FeeSchedule() {
   const [providerId, setProviderId] = useState(ANY);
   const [departmentId, setDepartmentId] = useState(ANY);
   const [arrivalType, setArrivalType] = useState(ANY);
+  const [consultationType, setConsultationType] = useState(ANY);
+  const [caseType, setCaseType] = useState(ANY);
   const [feeRupees, setFeeRupees] = useState("");
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
@@ -70,14 +83,17 @@ function FeeSchedule() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, p, d] = await Promise.all([
+      const [r, p, d, w] = await Promise.all([
         api.listFeeRules(showRetired),
         api.listProviders(),
         api.listDepartments({ activeOnly: true }),
+        // The hospital's own vocabularies. Without them there are no type dimensions to price on.
+        api.getWorkflowConfig(),
       ]);
       setRules(r);
       setProviders(p);
       setDepartments(d);
+      setWorkflow(w);
       setError(null);
     } catch (e) {
       setError(e instanceof api.ApiRequestError ? e.message : "Could not load the fee schedule.");
@@ -105,6 +121,9 @@ function FeeSchedule() {
     [departments],
   );
 
+  const consultationTypes = workflow?.consultationTypes ?? [];
+  const caseTypes = workflow?.caseTypes ?? [];
+
   async function add() {
     const fee = Number(feeRupees);
     if (!Number.isFinite(fee) || fee < 0) {
@@ -118,6 +137,8 @@ function FeeSchedule() {
         providerId: providerId === ANY ? undefined : providerId,
         departmentId: departmentId === ANY ? undefined : departmentId,
         arrivalType: arrivalType === ANY ? undefined : (arrivalType as ArrivalType),
+        consultationType: consultationType === ANY ? undefined : consultationType,
+        caseType: caseType === ANY ? undefined : caseType,
         feePaise: rupeesToPaise(fee),
         label: label.trim() || undefined,
       });
@@ -125,6 +146,8 @@ function FeeSchedule() {
       setProviderId(ANY);
       setDepartmentId(ANY);
       setArrivalType(ANY);
+      setConsultationType(ANY);
+      setCaseType(ANY);
       setFeeRupees("");
       setLabel("");
       await load();
@@ -159,7 +182,8 @@ function FeeSchedule() {
       key: "applies",
       header: "Applies to",
       hideable: false,
-      accessor: (r) => `${r.providerName ?? ""} ${r.departmentName ?? ""} ${r.arrivalType ?? ""}`,
+      accessor: (r) =>
+        `${r.providerName ?? ""} ${r.departmentName ?? ""} ${r.arrivalType ?? ""} ${r.consultationType ?? ""} ${r.caseType ?? ""}`,
       cell: (r) => (
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -168,6 +192,10 @@ function FeeSchedule() {
             <Badge tone={r.arrivalType ? "brand" : "neutral"}>
               {r.arrivalType ? ARRIVAL_LABEL[r.arrivalType] : "Any visit type"}
             </Badge>
+            {/* Only shown when set: a row of four "Any …" badges says nothing and hides the one
+                dimension that actually narrows this rule. */}
+            {r.consultationType && <Badge tone="brand">{r.consultationType}</Badge>}
+            {r.caseType && <Badge tone="brand">{r.caseType}</Badge>}
           </div>
           {r.label && <span className="text-xs text-fg-muted">{r.label}</span>}
         </div>
@@ -221,11 +249,22 @@ function FeeSchedule() {
         <p className="text-sm text-fg-muted">
           A rule can name a <strong className="font-medium text-fg">doctor</strong>, a{" "}
           <strong className="font-medium text-fg">department</strong>, a{" "}
+          <strong className="font-medium text-fg">case type</strong>, a{" "}
+          <strong className="font-medium text-fg">consultation type</strong>, a{" "}
           <strong className="font-medium text-fg">visit type</strong>, or any combination. Leaving one as
           &ldquo;any&rdquo; makes the rule broader. When several rules match, the{" "}
           <strong className="font-medium text-fg">most specific wins</strong> — a named doctor beats a department,
-          which beats a blanket visit-type rate. Rules are listed below in that order.
+          which beats a case type, which beats a consultation type, which beats a blanket visit-type rate. Rules
+          are listed below in that order.
         </p>
+        {consultationTypes.length === 0 && caseTypes.length === 0 && (
+          <p className="mt-3 text-sm text-fg-muted">
+            Consultation types (teleconsultation, procedure, review…) and case types (corporate, insurance,
+            camp…) are your own words, and you have not defined any yet. Add them under{" "}
+            <strong className="font-medium text-fg">Hospital setup → Workflow</strong> and they become
+            available here and on the check-in form.
+          </p>
+        )}
         <p className="mt-3 text-sm text-fg-muted">
           Where nothing matches, the doctor&rsquo;s own configured fee applies, and then ₹0. A hospital that adds no
           rules here keeps behaving exactly as it does today.
@@ -295,6 +334,32 @@ function FeeSchedule() {
                 { value: "follow_up", label: "Follow-up" },
               ]}
             />
+            {/* Both are hidden until the hospital has a vocabulary — an empty dropdown is a dead end. */}
+            {caseTypes.length > 0 && (
+              <Select
+                label="Case type"
+                value={caseType}
+                onChange={setCaseType}
+                searchable={false}
+                hint="Beats consultation type when both match."
+                options={[
+                  { value: ANY, label: "Any case type" },
+                  ...caseTypes.map((t) => ({ value: t, label: t })),
+                ]}
+              />
+            )}
+            {consultationTypes.length > 0 && (
+              <Select
+                label="Consultation type"
+                value={consultationType}
+                onChange={setConsultationType}
+                searchable={false}
+                options={[
+                  { value: ANY, label: "Any consultation type" },
+                  ...consultationTypes.map((t) => ({ value: t, label: t })),
+                ]}
+              />
+            )}
             <Field
               label="Fee (₹)"
               type="number"

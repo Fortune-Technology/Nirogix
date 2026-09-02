@@ -38,6 +38,8 @@ const AADHAAR_LINK_B = '777788889992';
 const AADHAAR_LINK_C = '333344445556';
 /** Its own identity, because one ABHA number may now belong to exactly one chart (ADR-100). */
 const AADHAAR_ISOLATED = '555566667778';
+/** Its own Aadhaar, so the two-step merge test does not collide with a chart another test planted. */
+const AADHAAR_MERGE = '666677778882';
 
 let ready = false;
 let tenantId = '';
@@ -390,6 +392,47 @@ describe('verify an existing ABHA', () => {
       abhaNumber: verified.accounts![0]!.abhaNumber,
     });
     expect(chosen.prefill.abhaNumber).toBe(verified.accounts![0]!.abhaNumber);
+
+    // ...and it loads the person, not just their number (ADR-130). The account list is the only
+    // place ABDM describes these patients — the call that resolves the chosen one returns a token
+    // and little else — so a prefill carrying nothing but the ABHA number left the desk typing a
+    // form for a patient ABDM had just named. This assertion is the one that was missing.
+    expect(chosen.prefill.abhaAddress).toBe(verified.accounts![0]!.abhaAddress);
+    expect(chosen.prefill.gender).toBeTruthy();
+    expect(chosen.prefill.dateOfBirth).toBe(verified.accounts![0]!.dateOfBirth);
+    expect(chosen.prefill.firstName).toBeTruthy();
+  });
+
+  test('a later step never blanks what an earlier one established', async ({ skip }) => {
+    if (!ready) return skip();
+    // Aadhaar OTP returns the whole demographic record; the mobile OTP that follows it returns a
+    // token and the mobile. Taking the newest answer wholesale is what turned a filled card into
+    // "Unnamed · Not specified · DOB unknown · no phone" on the final step (ADR-130).
+    const started = await abdm.startAadhaarEnrolment(tenantId, {
+      aadhaar: AADHAAR_MERGE,
+      consentGiven: true,
+    });
+    const afterAadhaar = await abdm.verifyAadhaarOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
+    expect(afterAadhaar.prefill.firstName).toBeTruthy();
+    expect(afterAadhaar.prefill.dateOfBirth).toBeTruthy();
+
+    await abdm.requestMobileOtp(tenantId, { transactionId: started.transactionId, mobile: '9812345678' });
+    const afterMobile = await abdm.verifyMobileOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
+
+    // Everything Aadhaar established survives, and the step that ran adds what it actually knew.
+    expect(afterMobile.prefill.firstName).toBe(afterAadhaar.prefill.firstName);
+    expect(afterMobile.prefill.lastName).toBe(afterAadhaar.prefill.lastName);
+    expect(afterMobile.prefill.gender).toBe(afterAadhaar.prefill.gender);
+    expect(afterMobile.prefill.dateOfBirth).toBe(afterAadhaar.prefill.dateOfBirth);
+    expect(afterMobile.prefill.abhaNumber).toBe(afterAadhaar.prefill.abhaNumber);
+    expect(afterMobile.prefill.addressLine).toBe(afterAadhaar.prefill.addressLine);
+    expect(afterMobile.prefill.phone).toBe('9812345678');
   });
 });
 

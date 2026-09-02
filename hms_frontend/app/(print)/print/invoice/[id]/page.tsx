@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  emptyLabel,
   PrintDocument,
   PrintFields,
   PrintNote,
@@ -128,7 +129,8 @@ function InvoiceDocument({ id }: { id: string }) {
               columns={[
                 { key: "when", header: "Date", cell: (p: Invoice["payments"][number]) => formatDateTime(p.collectedAt) },
                 { key: "method", header: "Method", cell: (p) => p.method },
-                { key: "ref", header: "Reference", cell: (p) => p.reference ?? "—" },
+                // Cash has no transaction reference to print.
+                { key: "ref", header: "Reference", cell: (p) => p.reference ?? emptyLabel("notApplicable") },
                 {
                   key: "amount",
                   header: "Amount",

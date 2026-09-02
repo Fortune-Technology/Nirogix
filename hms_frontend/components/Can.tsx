@@ -20,8 +20,10 @@ export function Can({ perm, children, fallback = null }: { perm: string; childre
 }
 
 export function RequirePermission({ perm, children }: { perm: string; children: ReactNode }) {
+  // The key is handed to the panel so a refusal can name what is missing, say whether the
+  // hospital even has the module, and list the roles that hold it (ADR-126).
   return (
-    <SharedRequirePermission perm={perm} forbidden={<Forbidden />}>
+    <SharedRequirePermission perm={perm} forbidden={<Forbidden perm={perm} />}>
       {children}
     </SharedRequirePermission>
   );

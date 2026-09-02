@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCan } from "./auth";
+import { permissionModuleKey } from "@hms/permissions";
+import { useAuth, useCan } from "./auth";
 
 /**
  * Permission guards, shared by every Nirogix frontend (ADR-054).
@@ -28,7 +29,24 @@ export function Can({
   return useCan(perm) ? <>{children}</> : <>{fallback}</>;
 }
 
-/** Page-level guard: renders the app's own forbidden panel when `perm` is missing. */
+/**
+ * Page-level guard, in the order the server enforces (ADR-126, mirroring ADR-085):
+ *
+ *   1. does the hospital have the module this permission belongs to?
+ *   2. does this user hold the permission?
+ *
+ * The module check matters more now that an administrator holds nearly every permission
+ * (ADR-125): without it, typing `/pharmacy/stock` in a hospital that has no Pharmacy module
+ * would render the screen and let it fail against the API. The refusal panel asks the server
+ * which of the two happened, so the message names the real problem.
+ *
+ * **A permission whose module is not in the registry is Platform Core** — patients, users,
+ * branches, reports, audit — and is never module-gated.
+ *
+ * While the entitlement set is still loading it is EMPTY, and an empty set must not be read as
+ * "this hospital has nothing": that would flash a refusal on every page of a healthy session.
+ * The module check therefore applies only once something is known, exactly as the sidebar does.
+ */
 export function RequirePermission({
   perm,
   forbidden,
@@ -38,5 +56,10 @@ export function RequirePermission({
   forbidden: ReactNode;
   children: ReactNode;
 }) {
-  return useCan(perm) ? <>{children}</> : <>{forbidden}</>;
+  const permitted = useCan(perm);
+  const { modules, hasModule } = useAuth();
+  const moduleKey = permissionModuleKey(perm);
+  const moduleRefused = moduleKey !== null && modules.size > 0 && !hasModule(moduleKey);
+
+  return permitted && !moduleRefused ? <>{children}</> : <>{forbidden}</>;
 }

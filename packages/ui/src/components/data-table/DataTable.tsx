@@ -54,7 +54,6 @@ export function DataTable<Row>({
   searchable,
   searchPlaceholder = "Search…",
   filters,
-  toolbarActions,
   columnVisibility: showColumnVisibility,
   pagination = {},
   multiSort = true,
@@ -330,7 +329,6 @@ export function DataTable<Row>({
             <DataTableViewOptions table={table} />
           ) : null
         }
-        actions={toolbarActions}
       />
 
       <div className="hms-table__wrap">

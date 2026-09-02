@@ -22,6 +22,7 @@ export {
   toApiDateTime,
   toApiTime,
   todayApiDate,
+  ageInYears,
   addDays,
   addMonths,
   startOfWeek,

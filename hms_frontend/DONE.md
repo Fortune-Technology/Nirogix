@@ -1163,3 +1163,253 @@ records themselves to whoever may read them.
 **Testing status:** monorepo typecheck 13/13; **926 tests pass**. The card needs a signed-in session
 and was not visually verified here. Cases CST-01…CST-12 in `testcases.md`, and §5.2h1b in
 `docs/manual-testing-guide.md`, cover it.
+
+## 2026-09-01 — Two more ways to price a consultation, shown only where they exist (ADR-121)
+
+**What:** consultation type and case type in the check-in form, `CasePicker`, `CasesCard` and the
+fee-schedule screen, plus a vocabulary editor in `hospital-setup/workflow`.
+
+The rule the whole change follows: **a field nobody has defined is not shown**. A hospital that
+has not written its own consultation types sees no dropdown at check-in, no extra dimension in the
+price list, and a line on the fee screen telling it where to define them if it wants them. Two
+permanently empty dropdowns would be two more things to not understand.
+
+The vocabulary editor is a **chip list, not a comma-separated text field**, because these values
+are stored on every visit and case that uses them and are matched by the fee schedule — so
+"Corporate," with a trailing comma has to be impossible to create rather than merely discouraged.
+
+`CasePicker` asks for the case type **once, when the case is opened**, and then shows it on the
+chosen case: *"This is a Corporate case, and that is what prices this visit."* The desk sees why
+the number is what it is instead of wondering.
+
+**Testing status:** monorepo typecheck 13/13; **944 tests pass**. Not visually verified — the
+screens need a signed-in session. Cases FRT-01…FRT-14 in `testcases.md` and §5.2f2 in
+`docs/manual-testing-guide.md` cover them.
+
+## 2026-09-01 — The SOAP note now says what each box is for
+
+**What:** placeholder hints on Chief complaint, Subjective, Objective, Assessment and Plan in the
+consultation screen. `SOAP_HINT` in `app/(app)/opd/[id]/page.tsx`.
+
+SOAP is the standard clinical note, but only to someone who was taught it. The four one-word labels
+told a receptionist, a new junior, or the non-clinical staff who read these notes back precisely
+nothing, and the boxes sat empty with no guidance in them at all — the prescription and lab rows on
+the same screen had placeholders, these did not. The hints carry the one distinction people actually
+get wrong: **Subjective is what the patient claims, Objective is what the room measured**, Assessment
+is the conclusion, Plan is the action.
+
+Hint text, not a template: it disappears the moment the clinician types, so it teaches the reader who
+needs it and costs nothing to the doctor who does not.
+
+**Testing status:** monorepo typecheck clean; frontend suite 13/13. Not visually verified — the
+consultation screen needs a signed-in session with a live visit.
+
+## 2026-09-02 — Missing values, and one screen for the three QR codes (ADR-123, ADR-124)
+
+**Every `—` in the Portal now says which kind of missing it is.** Around eighty call sites across
+tables, list views, filtered results, detail pages, cards, dropdowns and the three print documents
+moved onto `EmptyValue` / `ValueOrEmpty` / `emptyLabel()` / `valueLabel()` from `@hms/ui`, each
+naming a reason: a walk-in's Provider is **Not assigned** (someone can assign it), a public
+booking's Department is **Not specified** (the patient did not ask for one), an audit entry written
+by a job has **Not applicable** in Request and Status, a qualitative lab test has **Not applicable**
+for its reference range, a doctor with no personal fee is **Not configured** (the hospital's fee
+schedule decides), a user with no roles is **None**. Empty `<option>` labels became words too.
+
+**`/services` was the reported case, and it was not a display bug.** The API returns
+`departmentName` from a real left join; the dataset had simply never named a department for a
+seeded service, so every row was genuinely unassigned. Fixed where it was broken — the dataset now
+names a department per service and a backfill fills existing rows (ADR-122) — after which the
+column reads *General Medicine*, *Cardiology*, *Orthopaedics*, and **Not assigned** on the one
+service deliberately left unfiled.
+
+The accessor now carries the same words as the cell, so the Department filter offers "Not assigned"
+as a value and a search finds those rows. Two dashboard tiles that showed `—` before their count
+arrived now show `0`, which is what a count of nothing is.
+
+**Three settings tabs became one: `/hospital-setup/public-access` — "Patient self-service"**
+(ADR-124). *Patient registration*, *Online booking* and *Self check-in* rendered the same
+`PublicAccessPanel` with different words, and an administrator could not tell from the screen which
+one they were on. They are now three sections of one page, under an explainer that states the thing
+everyone gets wrong once: none of the three writes to the hospital's records. **Nothing behind the
+screen changed** — each keeps its own toggle, token, public endpoint, review queue and audit trail,
+and turning one off leaves the other two working. The three old paths are permanent redirects in
+`next.config.ts`, because they are in bookmarks and printed on posters, and the three poster
+documents now point their back link at the new route.
+
+**Testing status:** frontend typecheck and `next build` clean; verified in the running Portal —
+`/services` renders real department names, `/hospital-setup/patient-registration` redirects to the
+consolidated page with all three panels live and their pending counts intact.
+
+## 2026-09-02 — Bottom padding restored, and the admin's own buttons appear (ADR-125)
+
+**The app shell padded three sides.** `<main>` carries `p-5`, but `.hms-bottomnav-offset` in
+`@hms/ui` set `padding-bottom: 0` above the `md` breakpoint — the class meant to clear the mobile
+bottom bar was cancelling the page's own bottom padding on every desktop screen, so content sat
+flush against the bottom of the scroll area. The class now **adds** to the page padding instead of
+replacing it (`--hms-page-pad`, defaulting to the shell's `1.25rem`). Measured on the running
+Portal: desktop `20px` on all four sides, mobile `20px / 20px / 88px / 20px` — 20 page padding plus
+68 of bar clearance.
+
+**Missing action buttons were the role, not the UI** (ADR-125). An Organization Admin saw one eye
+icon in the Patients Actions column and no *New appointment* button, because `org_admin` held
+`patient.record.view` and `appointment.booking.view` and nothing else. The role now covers every
+action inside its own hospital. **No frontend change was needed** — every button and row action was
+already gated on a permission key rather than on a role, so widening the role revealed them. That
+is the evidence the gating was built the right way round.
+
+## 2026-09-02 — The refusal panel explains itself, and the dashboard stops growing (ADR-126)
+
+**A dashboard scrolled ~200px past the bottom of the app shell**, on the Portal and the admin
+console alike. The cause was in `@hms/ui`: each chart carries a screen-reader data table marked
+`.hms-visually-hidden`, and a `<table>` sizes to its content and **ignores** the utility's
+`width: 1px; height: 1px`. The element stayed absolutely positioned at its full 744px and
+lengthened the page by whatever was left below the shell. The wrapper now carries the class and
+the table sits inside it, hidden and clipped, semantics intact — `display: block` on the table
+would also have hidden it, and would have stripped the table role the markup exists for.
+Measured after: document height equals shell height exactly.
+
+**`RequirePermission` checks the module before the permission**, in the order the server enforces
+it. This matters now that an administrator holds nearly every key (ADR-125): typing
+`/pharmacy/stock` in a hospital with no Pharmacy module would otherwise have rendered the screen
+and let it fail against the API. A permission the registry does not claim is Platform Core and is
+never module-gated, and an entitlement set that has not loaded yet is *not* read as "this hospital
+has nothing".
+
+**The `Forbidden` panel now answers the three questions a bare 403 cannot** — which permission (in
+words *and* as a key), which of this hospital's roles hold it (read from the tenant's own tables,
+so a custom role appears without being hard-coded), and whether the hospital even has the module.
+The module case gets its own headline and no role list, because "your hospital has not enabled
+this" is not something an administrator can grant their way past.
+
+Verified in the running Portal: the two pages the report named — `/patients/new` and
+`/opd/check-in` — render for an Organization Admin; a hospital without Pharmacy sees *This feature
+is not available for your hospital*; a receptionist opening `/audit` sees *View the audit log ·
+`audit.log.view`* with *Super Admin, Organization Admin* listed as the roles that hold it.
+
+## 2026-09-02 — The patient chart in the order staff read it (ADR-127)
+
+**The old page made people hunt.** Name and UHID sat in the header; below them a two-column grid of
+*Identity / Contact / Emergency contact / Portal access*. Age appeared nowhere, blood group was the
+third row of a card called "Identity", *Patient portal access* — a desk task — shared the top tier
+with a phone number, and visits and consultations came last, below immunisations.
+
+**Five tiers now, ordered by what somebody reaches for:**
+
+1. **Identity strip** — initials, name, UHID, **age**, gender, date of birth, **blood group**,
+   status. One line, above everything, and the five things a member of staff checks against the
+   person in front of them. Blood group is a badge rather than a table row because it is a clinical
+   fact, and **its absence is stated** — "we do not know this patient's blood group" is the part
+   worth knowing.
+2. **Contact**, then **Emergency contact**.
+3. **National health ID (ABDM)** — an identifier, not a demographic, so it has its own card below
+   the details people open the chart for.
+4. **Treatment cases**, then **Immunisations** — ongoing care before past care.
+5. **History** (visits, consultations, invoices, lab orders, documents) → **History from other
+   hospitals** → **Patient portal access**, last, because it is administrative.
+
+**Nothing was removed.** Every field, card and permission gate still renders; the order changed and
+portal access moved out of the grid.
+
+**A permission bug surfaced while reordering.** `CasesCard` was inside the same `<Can>` as the
+immunisations card and so was gated on `clinical.immunization.view` — a role permitted to manage
+treatment cases but not immunisations saw neither. It now carries `opd.case.view`, the key the API
+enforces.
+
+**And the chart scrolled sideways on a phone**, which it had before this change: `PatientHistory`'s
+grid items kept their default `min-width: auto`, so one long visit line pushed the cards to 817px
+inside a 375px viewport. `[&>*]:min-w-0` on both grids, `break-words` on the detail rows. Measured
+after: **zero elements wider than the viewport**.
+
+`ageInYears` moved to `@hms/utils` and is now shared with the patients list — a chart that
+disagreed with the list it was opened from is a bug people report.
+
+**Testing status:** frontend typecheck and `next build` clean; verified in the running Portal at
+desktop and at 375px.
+
+## 2026-09-02 — One place for a page's primary action (ADR-128)
+
+*Book appointment* and *Check in* sat top-right in the page header. *Register patient* sat one row
+lower, inside the table's filter toolbar beside **Columns** — one screen out of twenty-one, and the
+one a receptionist opens most. It now matches every other list.
+
+The mechanism was `toolbarActions` on the Standard DataTable, used by exactly one page in the whole
+monorepo. A slot with one caller doing something no other caller does is not a feature in use; it
+is an available way to be inconsistent. It is **deleted**, along with the `actions` prop it fed on
+`DataTableToolbar`, so the toolbar is Search → Filters → Sort → Column visibility → Pagination and a
+create button has nowhere else to go. A rule you cannot break beats one you have to remember.
+
+Written down with it: supporting actions first and the primary **last** (right-most) — `ghost` for
+navigating away, `secondary` for a side task like *Print / PDF*, the default variant for the action
+the page exists for. That is what every multi-action header already did.
+
+**Testing status:** 107 `@hms/ui` component tests pass unchanged; frontend typecheck clean.
+Verified in the running Portal — *Register patient* now sits level with the page title, and the
+filter row holds only search, filters and Columns.
+
+## 2026-09-02 — The desk could not read the workflow that draws its own form (ADR-129)
+
+A receptionist opening **Book appointment** got *Not permitted*, beside a form that then worked.
+`GET /workflow-config` requires `platform.workflow.view`, which the receptionist did not hold — and
+the workflow configuration is what that form is built from (ADR-113): where vitals are taken decides
+whether the vitals fields render, when the fee is due decides whether payment gates the
+consultation, and the consultation-type and case-type vocabularies fill two of its dropdowns.
+
+The key had been scoped as though the configuration were the administrator's private setting. Four
+screens read it — the check-in and booking form, the vitals queue, the patient chart's cases block,
+and the fee schedule — and only the last belongs to an administrator.
+
+**`platform.workflow.view` now goes to receptionist, doctor, branch_admin and cashier** as well as
+the administrator; not to the pharmacist or lab technician, who reach none of those screens. The
+split that matters is untouched: *view* is reading how the hospital runs, **`platform.workflow.manage`
+is deciding it**, and only the administrator holds the second. Widening the route to any
+authenticated session was the alternative and was rejected — it would leave the permission enforced
+by nothing, and a page guard on a key no endpoint checks is a boundary in name only.
+
+**And a failure the caller already handles no longer raises a toast.** `getWorkflowConfig` is
+fetched with `feedback: false` (ADR-057's own opt-out). Every call site already treated "no config"
+as "use the platform defaults" — the behaviour a hospital that has configured nothing gets anyway —
+so a hospital that denies this key on one account now sees that account's form fall back, rather
+than an error beside a form that works.
+
+Existing hospitals pick the key up through `reconcileSystemRoles()` in `db:migrate`, additively.
+
+**Testing status:** verified as `reception@citycare.example` — **Book appointment**, **Check in**
+and the **Vitals queue** all load with no toast, and `GET /workflow-config` returns 200 where it
+previously returned 403.
+
+## 2026-09-02 — An ABHA verification stopped throwing away everything but its last step (ADR-130)
+
+Two sandbox reports, one cause. `verification/verify` returned an account list carrying ABHA
+number, ABHA address, gender and date of birth, and the `select-account` after it returned
+`prefill: { gender: null }`. `enrolment/aadhaar/verify` returned the whole demographic record —
+name, gender, DOB, phone, address, city, state, pincode, ABHA number — and the
+`enrolment/mobile/verify` after it returned `prefill: { gender: null }`. The desk watched a filled
+card become *Unnamed · Not specified · DOB unknown · no phone*, above a blank form.
+
+`completeWithProfile` treated **the newest response as the whole profile**. A verification is
+several calls answering different amounts — Aadhaar returns everything, the mobile OTP after it
+returns a token, resolving a chosen ABHA returns a token — so overwriting with the newest answer
+discarded what the earlier steps had established. `abhaNumber: profile.abhaNumber ?? null` blanked
+the identifier for the same reason. And the multi-account branch never stored the account list,
+which was the only description of those patients the flow would ever produce.
+
+**Now: an absent field means "this call did not say", never "this person has no name."**
+`completeWithProfile` merges the incoming profile over what the transaction holds, per field,
+skipping null/undefined/blank, stores the merged result and builds the prefill from it; identifiers
+fall back to the transaction's own. The candidate account list is persisted, and the chosen
+account's fields are merged in when the operator picks — its single `name` going in **whole**,
+because guessing a surname from a space is how "Patel Jaivik Kamleshkumar" becomes the wrong two
+fields.
+
+**The mock now answers as sparsely as the sandbox.** It used to return the full profile on the
+second call of both flows, which is exactly why 306 passing ABDM tests never saw this. All 306
+still pass against the sparse mock — that is the evidence the merge does the work the mock was
+doing for it.
+
+All four verification identifiers get the fix together (ABHA number, ABHA address, mobile,
+Aadhaar), because it lives in the shared completion path, as do both enrolment paths. **No
+driving-licence flow exists** and none was added; it is in `BACKLOG.md`.
+
+**Testing status:** the multi-account test asserted only that the ABHA number survived — the one
+field that did — and now asserts the demographics too; a second test asserts a later step never
+blanks an earlier one. **47 M1 tests pass**, 306 across ABDM.

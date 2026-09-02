@@ -114,6 +114,8 @@ is not) · **☐ manual only**.
 | **Password policy** — length, classes, blocklist, own-details, generated temp passwords | AUTH-48…50 | ✅ | Unit + Integration | `passwordPolicy.test.ts`, `passwordReset.test.ts` |
 | **Upload content validation** (magic bytes vs declared type) | UPLOAD-01…03 | ✅ | Unit | `file/__tests__/fileSniff.test.ts` |
 | **Request correlation id** — header, uniqueness, audit row, untrusted input | REQID-01…03 | ✅ | API | `audit/__tests__/requestId.api.test.ts` |
+| **Access refusals** — module before permission, roles from the tenant's own tables, closed response shape, 401 without a session | DENY-01…09 | ✅ | API | `rbac/__tests__/accessExplain.api.test.ts` |
+| **Seeding twice changes nothing** — a hand edit survives, no duplicates, a newly added record still reaches an old database | SEED-26…28 | ✅ | Integration | `scripts/__tests__/seedIdempotency.test.ts` |
 
 ### Frontend
 

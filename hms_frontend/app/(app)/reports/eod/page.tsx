@@ -9,8 +9,11 @@ import {
   Card,
   DataTable,
   DateField,
+  EmptyValue,
   StatCard,
   type Column,
+  valueLabel,
+  ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { CollectionsReport, OpdRegisterRow, PendingLabRow } from "@hms/types";
@@ -80,7 +83,13 @@ function EodReport() {
         </span>
       ),
     },
-    { key: "provider", header: "Provider", filterable: true, accessor: (r) => r.providerName ?? "—", cell: (r) => r.providerName ?? "—" },
+    {
+      key: "provider",
+      header: "Provider",
+      filterable: true,
+      accessor: (r) => valueLabel(r.providerName, "unassigned"),
+      cell: (r) => <ValueOrEmpty value={r.providerName} reason="unassigned" />,
+    },
     {
       key: "status",
       header: "Status",
@@ -92,7 +101,12 @@ function EodReport() {
       key: "invoice",
       header: "Invoice",
       accessor: (r) => r.invoiceTotalPaise ?? 0,
-      cell: (r) => (r.invoiceNumber ? `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}` : "—"),
+      cell: (r) =>
+        r.invoiceNumber ? (
+          `${r.invoiceNumber} · ${formatPaise(r.invoiceTotalPaise ?? 0)}`
+        ) : (
+          <EmptyValue reason="notApplicable" />
+        ),
     },
   ];
 

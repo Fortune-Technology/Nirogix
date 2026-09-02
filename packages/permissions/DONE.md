@@ -145,3 +145,90 @@ request must name a clinician the patient can recognise, and an administrator re
 history for support is a different thing from an administrator raising the request. The
 `abdm.external_history` capability is registered as **PLANNED** — describing a module is not a claim
 it exists (ADR-085), and no health record has been exchanged with ABDM in any environment.
+
+## 2026-09-02 — The Organization Admin may do anything inside its own hospital (ADR-125)
+
+`org_admin` was configuration-plus-read-only: it defined departments, doctors, a price list and a
+workflow, and could not correct a patient's phone number, book an appointment, check anybody in or
+take a payment. The person a hospital holds accountable could not fix what they were accountable
+for — and could lift the restriction themselves in two clicks, since the same role holds
+`platform.rbac.manage`, so the boundary was only slowing them down.
+
+**Added:** `patient.record.create` / `.update`, `appointment.booking.create` / `.cancel`,
+`opd.visit.checkin` / `.update`, `opd.case.manage`, `opd.referral.create` / `.update`,
+`clinical.immunization.manage`, `emr.vitals.record`, `emr.encounter.view` / `.write`,
+`billing.invoice.create`, `billing.payment.collect`, `pharmacy.stock.view` / `.manage` /
+`pharmacy.dispense.create`, `laboratory.order.view` / `test.manage` / `result.enter` / `result.verify`.
+
+**Still withheld, and why each is a boundary rather than an oversight:** everything outside this
+hospital (`platform.tenants.manage`, the support surface, cross-tenant analytics, the vendor's own
+platform branding, the global master-data catalogue), and `abdm.history.request` — a consent
+request carries a named clinician's medical registration number to the patient, and an
+administrator has none to carry. Reading a history a doctor already pulled stays permitted.
+
+**The clinical grant is reversible per hospital, which is the point.** A hospital that wants its
+administrator kept out of the chart denies `emr.encounter.view` / `.write` on that account:
+explicit DENY beats the role (invariant #3), applies on the next request, can be time-bound, and is
+audited. The old marketing line — "an Organization Admin cannot read the clinical record" — is
+retired in the same change (capability reference v2.25).
+
+Existing tenants receive the wider role through `reconcileSystemRoles()` inside `db:migrate`, which
+is additive only: no permission is removed and a customised role keeps its customisation. The
+frontend needed no change — every button was already gated on a permission key rather than a role.
+
+## 2026-09-02 — A refusal that can be acted on, and a role that stops going stale (ADR-126)
+
+**`org_admin` is now derived rather than listed** —
+`ALL_PERMISSIONS` minus `OPERATOR_ONLY_PERMISSIONS` (six keys that reach across tenants or edit
+the shared master catalogue) minus `CLINICIAN_ONLY_PERMISSIONS` (`abdm.history.request`, which
+carries a named clinician's registration number to the patient). 68 of 75 today, and a key added
+next release reaches the administrator by default instead of silently not reaching them. Still not
+a wildcard, so the operator keys stay out by construction.
+
+**`GET /api/v1/rbac/access?permission=…`** explains a refusal: the permission's human label and
+key, the module and whether this hospital has it, and **the roles that grant it read from the
+tenant's own `role_permissions`** — so a cloned or renamed role appears without anyone hard-coding
+a role name, and a role holding the wildcard counts. `reason` is module-first
+(`module_not_enabled` → `granted` → `permission_missing`) because the two failures have different
+owners: a module is the hospital's subscription and no administrator can grant past it. Requires a
+session and nothing more; the response shape is closed and names no patient, account or other
+tenant, and a test asserts exactly that.
+
+`PERMISSION_LABELS` in `@hms/permissions` names all 75 keys; `permissionLabel()` derives a readable
+sentence for a key this build has never seen, because a tenant's custom role can carry one from a
+later release. `permissionModuleKey()` derives permission → module from `MODULE_REGISTRY`, so there
+is no second list to drift.
+
+**Testing status:** 6 new API tests; **762 backend tests pass** (was 756). OpenAPI validates with
+the new route documented.
+
+## 2026-09-02 — The desk could not read the workflow that draws its own form (ADR-129)
+
+A receptionist opening **Book appointment** got *Not permitted*, beside a form that then worked.
+`GET /workflow-config` requires `platform.workflow.view`, which the receptionist did not hold — and
+the workflow configuration is what that form is built from (ADR-113): where vitals are taken decides
+whether the vitals fields render, when the fee is due decides whether payment gates the
+consultation, and the consultation-type and case-type vocabularies fill two of its dropdowns.
+
+The key had been scoped as though the configuration were the administrator's private setting. Four
+screens read it — the check-in and booking form, the vitals queue, the patient chart's cases block,
+and the fee schedule — and only the last belongs to an administrator.
+
+**`platform.workflow.view` now goes to receptionist, doctor, branch_admin and cashier** as well as
+the administrator; not to the pharmacist or lab technician, who reach none of those screens. The
+split that matters is untouched: *view* is reading how the hospital runs, **`platform.workflow.manage`
+is deciding it**, and only the administrator holds the second. Widening the route to any
+authenticated session was the alternative and was rejected — it would leave the permission enforced
+by nothing, and a page guard on a key no endpoint checks is a boundary in name only.
+
+**And a failure the caller already handles no longer raises a toast.** `getWorkflowConfig` is
+fetched with `feedback: false` (ADR-057's own opt-out). Every call site already treated "no config"
+as "use the platform defaults" — the behaviour a hospital that has configured nothing gets anyway —
+so a hospital that denies this key on one account now sees that account's form fall back, rather
+than an error beside a form that works.
+
+Existing hospitals pick the key up through `reconcileSystemRoles()` in `db:migrate`, additively.
+
+**Testing status:** verified as `reception@citycare.example` — **Book appointment**, **Check in**
+and the **Vitals queue** all load with no toast, and `GET /workflow-config` returns 200 where it
+previously returned 403.

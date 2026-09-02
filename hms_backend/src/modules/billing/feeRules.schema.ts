@@ -1,9 +1,12 @@
 import { z } from '../../openapi/registry';
 
 /**
- * The consultation fee schedule (ADR-117). Every dimension is optional, and omitting one means
- * "any" — that is what lets one table hold both "every follow-up is ₹200" and "Dr Sharma's first
- * visit is ₹800" without either being a special case.
+ * The consultation fee schedule (ADR-117, extended by ADR-121). Every dimension is optional, and
+ * omitting one means "any" — that is what lets one table hold both "every follow-up is ₹200" and
+ * "Dr Sharma's first visit is ₹800" without either being a special case.
+ *
+ * `consultationType` and `caseType` are free strings here on purpose: the vocabulary belongs to the
+ * hospital, and the service checks each against that hospital's configured list before writing.
  */
 export const CreateFeeRuleBody = z
   .object({
@@ -11,6 +14,8 @@ export const CreateFeeRuleBody = z
     providerId: z.string().uuid().nullable().optional(),
     departmentId: z.string().uuid().nullable().optional(),
     arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).nullable().optional(),
+    consultationType: z.string().max(40).nullable().optional(),
+    caseType: z.string().max(40).nullable().optional(),
     /** Paise, like every other amount in the product. Zero is legitimate — a free follow-up. */
     feePaise: z.number().int().min(0).max(100_000_000),
     label: z.string().max(200).nullable().optional(),
@@ -38,6 +43,8 @@ export const PreviewFeeQuery = z.object({
   providerId: z.string().uuid().optional(),
   departmentId: z.string().uuid().optional(),
   arrivalType: z.enum(['walk_in', 'appointment', 'follow_up']).optional(),
+  consultationType: z.string().max(40).optional(),
+  caseType: z.string().max(40).optional(),
   branchId: z.string().uuid().optional(),
 });
 
@@ -51,6 +58,8 @@ export const FeeRuleSchema = z
     departmentId: z.string().uuid().nullable(),
     departmentName: z.string().nullable(),
     arrivalType: z.string().nullable(),
+    consultationType: z.string().nullable(),
+    caseType: z.string().nullable(),
     feePaise: z.number().int(),
     isActive: z.boolean(),
     label: z.string().nullable(),

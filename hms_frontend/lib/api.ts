@@ -8,6 +8,7 @@
 // admin console on its own origin.
 
 import type {
+  AccessExplanation,
   AuditEntry,
   MeResponse,
   Paginated,
@@ -316,6 +317,18 @@ export async function getDashboardOverview(
   return request<DashboardOverview>(`/dashboard/overview?${qs}`);
 }
 
+/**
+ * Why a refusal happened, for the panel that has to explain it (ADR-126).
+ *
+ * `feedback: false` — the screen is already showing the refusal in full; a toast on top of it
+ * would report the same event twice (ADR-057).
+ */
+export async function explainAccess(permission: string): Promise<AccessExplanation> {
+  return request<AccessExplanation>(`/rbac/access?permission=${encodeURIComponent(permission)}`, {
+    feedback: false,
+  });
+}
+
 export async function getOrgSummary(): Promise<OrgSummary> {
   return request<OrgSummary>("/dashboard/summary");
 }
@@ -466,6 +479,9 @@ export async function previewConsultationFee(opts: {
   providerId?: string;
   departmentId?: string;
   arrivalType?: string;
+  consultationType?: string;
+  /** From the selected case, not typed by the desk — the server prices from the case either way. */
+  caseType?: string;
   branchId?: string;
 }): Promise<ResolvedConsultationFee> {
   const q = new URLSearchParams();
@@ -587,9 +603,18 @@ export async function reopenCase(id: string, version: number): Promise<PatientCa
 // ---- Workflow configuration & vitals (hms_backend/src/modules/workflow) ----
 
 /** Omit `branchId` for the organization-wide scope, which is a real scope rather than a default. */
+/**
+ * How this hospital runs (ADR-113) — read by the check-in form, the vitals queue, the cases block
+ * and the fee schedule to know which fields to render.
+ *
+ * `feedback: false` (ADR-057, ADR-129): every caller already treats a failure as "use the platform
+ * defaults", which is the behaviour a hospital that has configured nothing gets anyway. A hospital
+ * that denies this key on one account should see that account's check-in form fall back, not a
+ * *Not permitted* toast on every page load next to a form that works.
+ */
 export async function getWorkflowConfig(branchId?: string | null): Promise<HospitalWorkflowConfig> {
   const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
-  return request<HospitalWorkflowConfig>(`/workflow-config${q}`);
+  return request<HospitalWorkflowConfig>(`/workflow-config${q}`, { feedback: false });
 }
 
 export async function updateWorkflowConfig(

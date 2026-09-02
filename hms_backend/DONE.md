@@ -2229,3 +2229,146 @@ absences. OpenAPI validates. No migration.
 **Unchanged:** no health record has been exchanged with ABDM in any environment; production access
 still needs NHA functional testing, a WASA certificate and HTC approval. This made an existing,
 uncertified feature correctly gated and correctly narrow — it did not make it live.
+
+## 2026-09-01 — Consultation type and case type as pricing dimensions (ADR-121)
+
+**What:** two more dimensions on `consultation_fee_rules`, `visits.consultation_type`,
+`patient_cases.case_type`, and two hospital-defined vocabularies in `hospital_workflow_config`.
+Migration `0049`, entirely additive.
+
+ADR-117 priced on doctor, department and arrival type — a grid of doctors. It could not say
+"teleconsultation ₹300" or "corporate patients are billed to the employer", which are the two
+things an OPD tariff usually turns on. A hospital needing either had one option: type the number
+by hand at every check-in, which is the practice the fee schedule exists to end.
+
+**The vocabularies belong to the hospital**, not to us — a teaching hospital and a corporate
+clinic mean different things by "consultation type", so an enum would be wrong for both. What
+makes a free string safe is that the vocabulary is closed: `assertConsultationType` /
+`assertCaseType` gate every writer, and an **empty vocabulary rejects every value** rather than
+accepting anything.
+
+**The case type is on the case, not the visit,** and is not a field on the check-in body at all.
+A corporate arrangement is a property of the episode; asking per visit is how the third follow-up
+gets priced as something the first two were not, and accepting it from the caller would be a
+client-chosen price. A test sends `caseType` on a check-in and asserts it changes nothing.
+
+**Ordering:** doctor (16) > department (8) > case type (4) > consultation type (2) > arrival type
+(1). Case type above consultation type because a corporate or camp rate is agreed in a contract
+and is meant to hold whatever kind of consultation happens inside it.
+
+**Removing a word is refused while an active rule prices it** — otherwise the price list would go
+on showing a rate that could never match again. Retired rules are ignored; they price history.
+
+**Everything starts empty, and empty means the question is not asked.** No field appears, no
+dimension appears, every existing rule keeps NULL in both columns and matches what it always did.
+
+**Testing status:** **754 backend tests pass** (was 736). 18 new API tests. OpenAPI validates.
+
+## 2026-09-02 — Staging seeds itself on every deployment, and stops overwriting people's work (ADR-122)
+
+`.github/workflows/deploy-staging.yml` now runs `db:seed:staging` immediately after
+`db:migrate`, under the same "is the backend in this deploy?" condition. Making that safe was the
+actual work: the seeder had to stop being idempotent in the weak sense (it does not crash twice)
+and start being idempotent in the useful one (**it converges on present, never on the dataset's
+values**).
+
+**Records are identified by a stable key and created only when missing.** Tenant by code, user by
+email, branch and department by code, provider by registration number, lab test and service by
+code, supplier and drug by name, patient by **phone**, public request by the phone that submitted
+it, notification by the idempotency key it already carried, override by (user, permission). Never
+by display name. A record that exists is left exactly as it is — renamed, repriced, deactivated,
+whatever a tester did to it. The old "seed the catalogue only while the table is empty" guard is
+gone in both directions: it protected existing rows, but it also meant a lab test added to the
+dataset today could never reach a hospital seeded last month.
+
+**`seed_markers` (migration `0050`) records the actions that have no record of their own** —
+applying the organisation profile, the brand colour, the three public-form toggles, the clinical
+history, and every column backfill. Those write to rows that already exist, so each runs once and
+is marked, and the marker is written **after** the work succeeds so a half-finished deploy retries
+rather than declaring itself done. Platform-managed like `tenants`: no `tenant_id`, no RLS policy.
+`--reset` truncates it with everything else, which is how a full rebuild is requested.
+
+**Backfills fill NULL and nothing else.** `applyBackfills()` is where a column added after the
+data was seeded gets caught up; the first entry populates `services.department_id` for services
+seeded before the dataset named a department for them (the root cause behind ADR-123's `/services`
+report).
+
+**Four independent production guards**, because one is a single point of failure for an accident
+with no undo: the workflow triggers only on `staging` against the staging VM; `requireEnvironment`
+demands `NODE_ENV=staging`; the guard rejects a `DATABASE_URL` that does not look like dev or
+staging; and the workflow asserts `NODE_ENV=staging` in the VM's `.env` first, so the deploy log
+says why it stopped. CI never passes `--reset`.
+
+**The seed report tells the truth about a no-op.** `summarise()` now prints created *and* kept:
+`created nothing; kept 113 existing` is the healthy steady state, and every `*.kept` count is the
+evidence a re-run changed nothing.
+
+**Testing status:** **754 backend tests pass** — unchanged, none broken. Verified by hand against a
+development database of 244 visits / 59 patients: four manual edits applied (renamed patient,
+repriced service, edited hospital city, changed brand colour), seeder run twice, **every table
+count identical except `audit_log`** (which grows because the seeder's own writes are audited) and
+all four edits intact. The staging dataset also gained department codes on its services and the
+self check-in toggle.
+
+## 2026-09-02 — A refusal that can be acted on, and a role that stops going stale (ADR-126)
+
+**`org_admin` is now derived rather than listed** —
+`ALL_PERMISSIONS` minus `OPERATOR_ONLY_PERMISSIONS` (six keys that reach across tenants or edit
+the shared master catalogue) minus `CLINICIAN_ONLY_PERMISSIONS` (`abdm.history.request`, which
+carries a named clinician's registration number to the patient). 68 of 75 today, and a key added
+next release reaches the administrator by default instead of silently not reaching them. Still not
+a wildcard, so the operator keys stay out by construction.
+
+**`GET /api/v1/rbac/access?permission=…`** explains a refusal: the permission's human label and
+key, the module and whether this hospital has it, and **the roles that grant it read from the
+tenant's own `role_permissions`** — so a cloned or renamed role appears without anyone hard-coding
+a role name, and a role holding the wildcard counts. `reason` is module-first
+(`module_not_enabled` → `granted` → `permission_missing`) because the two failures have different
+owners: a module is the hospital's subscription and no administrator can grant past it. Requires a
+session and nothing more; the response shape is closed and names no patient, account or other
+tenant, and a test asserts exactly that.
+
+`PERMISSION_LABELS` in `@hms/permissions` names all 75 keys; `permissionLabel()` derives a readable
+sentence for a key this build has never seen, because a tenant's custom role can carry one from a
+later release. `permissionModuleKey()` derives permission → module from `MODULE_REGISTRY`, so there
+is no second list to drift.
+
+**Testing status:** 6 new API tests; **762 backend tests pass** (was 756). OpenAPI validates with
+the new route documented.
+
+## 2026-09-02 — An ABHA verification stopped throwing away everything but its last step (ADR-130)
+
+Two sandbox reports, one cause. `verification/verify` returned an account list carrying ABHA
+number, ABHA address, gender and date of birth, and the `select-account` after it returned
+`prefill: { gender: null }`. `enrolment/aadhaar/verify` returned the whole demographic record —
+name, gender, DOB, phone, address, city, state, pincode, ABHA number — and the
+`enrolment/mobile/verify` after it returned `prefill: { gender: null }`. The desk watched a filled
+card become *Unnamed · Not specified · DOB unknown · no phone*, above a blank form.
+
+`completeWithProfile` treated **the newest response as the whole profile**. A verification is
+several calls answering different amounts — Aadhaar returns everything, the mobile OTP after it
+returns a token, resolving a chosen ABHA returns a token — so overwriting with the newest answer
+discarded what the earlier steps had established. `abhaNumber: profile.abhaNumber ?? null` blanked
+the identifier for the same reason. And the multi-account branch never stored the account list,
+which was the only description of those patients the flow would ever produce.
+
+**Now: an absent field means "this call did not say", never "this person has no name."**
+`completeWithProfile` merges the incoming profile over what the transaction holds, per field,
+skipping null/undefined/blank, stores the merged result and builds the prefill from it; identifiers
+fall back to the transaction's own. The candidate account list is persisted, and the chosen
+account's fields are merged in when the operator picks — its single `name` going in **whole**,
+because guessing a surname from a space is how "Patel Jaivik Kamleshkumar" becomes the wrong two
+fields.
+
+**The mock now answers as sparsely as the sandbox.** It used to return the full profile on the
+second call of both flows, which is exactly why 306 passing ABDM tests never saw this. All 306
+still pass against the sparse mock — that is the evidence the merge does the work the mock was
+doing for it.
+
+All four verification identifiers get the fix together (ABHA number, ABHA address, mobile,
+Aadhaar), because it lives in the shared completion path, as do both enrolment paths. **No
+driving-licence flow exists** and none was added; it is in `BACKLOG.md`.
+
+**Testing status:** the multi-account test asserted only that the ABHA number survived — the one
+field that did — and now asserts the demographics too; a second test asserts a later step never
+blanks an earlier one. **47 M1 tests pass**, 306 across ABDM.

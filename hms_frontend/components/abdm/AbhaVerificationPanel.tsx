@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Button, Card, Field, PhoneField, Spinner } from "@hms/ui";
+import { Alert, Badge, Button, Card, emptyLabel, Field, PhoneField, Spinner } from "@hms/ui";
 import { formatDate } from "@hms/utils";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AbdmCapabilities, AbdmPendingShare, AbhaIdentifierType, AbhaPrefill, AbhaVerificationResult } from "@hms/types";
@@ -68,11 +68,34 @@ const IDENTIFIER_LABELS: Record<AbhaIdentifierType, string> = {
   aadhaar: "Aadhaar number",
 };
 
+/**
+ * Everything ABDM has said about this person so far, the newest answer winning per field
+ * (ADR-130).
+ *
+ * A step that omits a field has said nothing about it, which is not the same as saying the person
+ * has no name — so an absent, null or blank value never overwrites one an earlier step supplied.
+ */
+function mergePrefill(known: AbhaPrefill, incoming: AbhaPrefill): AbhaPrefill {
+  const merged: Record<string, unknown> = { ...known };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim() === "") continue;
+    merged[key] = value;
+  }
+  return merged as AbhaPrefill;
+}
+
 export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificationPanelProps) {
   const [capabilities, setCapabilities] = useState<AbdmCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("scan");
   const [result, setResult] = useState<AbhaVerificationResult | null>(null);
+  /**
+   * The same value, readable synchronously. `handleVerified` has to merge the incoming step onto
+   * what is already known *and* hand the merged result to `accept` in the same tick, which a
+   * functional `setState` cannot give back.
+   */
+  const latest = useRef<AbhaVerificationResult | null>(null);
   /** Whether this verification has already been written into the registration form. */
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,8 +137,19 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
    */
   const handleVerified = useCallback(
     (r: AbhaVerificationResult) => {
-      setResult(r);
-      if (r.match.outcome === "new" && r.prefill.abhaNumber) accept(r);
+      // Merge, never replace (ADR-130). A verification is several calls and each answers a
+      // different amount: the Aadhaar step returns the whole demographic record, the mobile OTP
+      // that follows it returns almost nothing, and picking an ABHA from a list returns a token.
+      // Taking the newest response wholesale is what turned a filled card into "Unnamed · Not
+      // specified · DOB unknown · no phone" on the final step. The server merges as well; this is
+      // the same rule where the screen keeps its own copy, so a step that says nothing about a
+      // field cannot unsay what an earlier one established.
+      const merged: AbhaVerificationResult = latest.current
+        ? { ...r, prefill: mergePrefill(latest.current.prefill, r.prefill) }
+        : r;
+      latest.current = merged;
+      setResult(merged);
+      if (merged.match.outcome === "new" && merged.prefill.abhaNumber) accept(merged);
     },
     [accept],
   );
@@ -172,8 +206,12 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
             result={result}
             applied={applied}
             onAccept={accept}
-            onUpdated={setResult}
+            onUpdated={(r) => {
+              latest.current = r;
+              setResult(r);
+            }}
             onDismiss={() => {
+              latest.current = null;
               setResult(null);
               setApplied(false);
             }}
@@ -729,7 +767,7 @@ function VerifiedProfile({
           {match.outcome === "returning" && <Badge tone="warning">Already registered here</Badge>}
         </div>
         <p className="mt-1 text-sm text-fg-muted">
-          {prefill.gender ?? "—"} · {prefill.dateOfBirth ? formatDate(prefill.dateOfBirth) : "DOB unknown"} · {prefill.phone ?? "no phone"}
+          {prefill.gender ?? emptyLabel("unspecified")} · {prefill.dateOfBirth ? formatDate(prefill.dateOfBirth) : "DOB unknown"} · {prefill.phone ?? "no phone"}
         </p>
         <p className="mt-1 font-mono text-xs text-fg-muted">
           {prefill.abhaNumber ?? "no ABHA number"}

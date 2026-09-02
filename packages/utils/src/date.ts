@@ -363,3 +363,21 @@ export function resolveDateRange(
       return range(new Date(t.getFullYear() - 1, 0, 1), new Date(t.getFullYear() - 1, 11, 31));
   }
 }
+
+/**
+ * Whole years between a date of birth and today, or `null` when the date of birth is missing or
+ * in the future.
+ *
+ * Age was calculated in two places before this existed, and a chart header that says a different
+ * number from the list it was opened from is a bug people report. Returns a number so the caller
+ * decides how to say "unknown" — a table cell and a patient header word it differently.
+ */
+export function ageInYears(dateOfBirth: DateInput, today: DateInput = new Date()): number | null {
+  const dob = parseDate(dateOfBirth);
+  const now = parseDate(today);
+  if (!dob || !now) return null;
+  let years = now.getFullYear() - dob.getFullYear();
+  const months = now.getMonth() - dob.getMonth();
+  if (months < 0 || (months === 0 && now.getDate() < dob.getDate())) years--;
+  return years >= 0 ? years : null;
+}

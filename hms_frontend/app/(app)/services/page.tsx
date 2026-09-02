@@ -8,11 +8,13 @@ import {
   DataTable,
   Dialog,
   EditAction,
+  EmptyValue,
   Field,
   TableActions,
   Textarea,
   ToggleAction,
   actionsColumn,
+  valueLabel,
   type Column,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
@@ -206,8 +208,11 @@ function ServicesTable() {
       key: "department",
       header: "Department",
       filterable: true,
-      accessor: (s) => s.departmentName ?? "—",
-      cell: (s) => (s.departmentName ? <span className="text-fg-muted">{s.departmentName}</span> : "—"),
+      // Unassigned, not unknown: a service may legitimately belong to no department, and the
+      // accessor carries the same words so the filter and the search can find those rows.
+      accessor: (s) => valueLabel(s.departmentName, "unassigned"),
+      cell: (s) =>
+        s.departmentName ? <span className="text-fg-muted">{s.departmentName}</span> : <EmptyValue reason="unassigned" />,
     },
     {
       key: "price",

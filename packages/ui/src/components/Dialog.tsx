@@ -64,6 +64,23 @@ export function Dialog({
   const titleId = useId();
   const descId = useId();
 
+  // The latest `onClose` and `busy`, readable from an effect that must NOT re-run when they
+  // change. Almost every caller passes an inline `onClose={() => setOpen(false)}`, which is a new
+  // function on every render — see the note on the focus effect below for what that used to cost.
+  const latest = useRef({ onClose, busy });
+  latest.current = { onClose, busy };
+
+  /**
+   * Open once, focus once.
+   *
+   * **This effect depends on `open` alone, and that is the whole point.** It used to depend on
+   * `[open, onClose, busy]` as well — and since callers pass an inline arrow for `onClose`, every
+   * keystroke inside the dialog changed that identity, tore the effect down and set it up again.
+   * Teardown restores focus to whatever opened the dialog and setup focuses the first control in
+   * the body, so typing a digit into the fee field on the fee-schedule form moved the caret to the
+   * Doctor dropdown after one character. The handler reads `onClose`/`busy` from a ref instead, so
+   * it always calls the current one without the effect having to notice it changed.
+   */
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement as HTMLElement | null;
@@ -86,7 +103,7 @@ export function Dialog({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (!busy) onClose();
+        if (!latest.current.busy) latest.current.onClose();
         return;
       }
       if (e.key !== "Tab") return;
@@ -108,7 +125,7 @@ export function Dialog({
       document.removeEventListener("keydown", onKeyDown);
       opener.current?.focus?.();
     };
-  }, [open, onClose, busy]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
-import { Alert, Badge, Button, Card, Dialog, Field, Select, Skeleton, Textarea } from "@hms/ui";
+import { Alert, Badge, Button, Card, Dialog, emptyLabel, Field, Select, Skeleton, Textarea } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { DOCUMENT_TYPES, type DocumentType, type PatientDocument } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
@@ -33,7 +33,7 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPE_OPTIONS = DOCUMENT_TYPES.map((t) => ({ value: t, label: TYPE_LABEL[t] ?? t }));
 
 function humanSize(bytes: number): string {
-  if (bytes <= 0) return "—";
+  if (bytes <= 0) return emptyLabel("notAvailable");
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;

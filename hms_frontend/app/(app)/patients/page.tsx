@@ -5,35 +5,35 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import {
+  actionsColumn,
   Badge,
   Button,
   DataTable,
   DateRangeFilter,
   EditAction,
+  emptyLabel,
   TableActions,
   ToggleAction,
-  ViewAction,
-  actionsColumn,
   type Column,
   type DataTableQuery,
   type DateRangeValue,
+  valueLabel,
+  ValueOrEmpty,
+  ViewAction,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Patient } from "@hms/types";
-import { formatDate } from "@hms/utils";
+import { ageInYears, formatDate } from "@hms/utils";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
 import { PageHeader } from "../../../components/PageHeader";
 import { useCan } from "../../../lib/auth";
 
+// One calculation, shared with the patient chart's identity strip (ADR-127) — a list and the
+// record it opens must not disagree about somebody's age.
 function age(dob: string | null): string {
-  if (!dob) return "—";
-  const d = new Date(dob);
-  const now = new Date();
-  let a = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
-  return a >= 0 ? `${a}y` : "—";
+  const years = ageInYears(dob);
+  return years === null ? emptyLabel("notRecorded") : `${years}y`;
 }
 
 /**
@@ -68,11 +68,28 @@ function patientColumns(
       accessor: (p) => [p.firstName, p.lastName].filter(Boolean).join(" "),
       cell: (p) => <span className="font-medium text-fg">{[p.firstName, p.lastName].filter(Boolean).join(" ")}</span>,
     },
-    { key: "gender", header: "Gender", filterable: true, accessor: (p) => p.gender ?? "—", cell: (p) => p.gender ?? "—" },
+    {
+      key: "gender",
+      header: "Gender",
+      filterable: true,
+      accessor: (p) => valueLabel(p.gender, "unspecified"),
+      cell: (p) => <ValueOrEmpty value={p.gender} reason="unspecified" />,
+    },
     // Left, like every other label: "24y" is not a magnitude anyone compares down the column.
     { key: "age", header: "Age", accessor: (p) => p.dateOfBirth, cell: (p) => age(p.dateOfBirth) },
-    { key: "phone", header: "Phone", accessor: (p) => p.phone, cell: (p) => p.phone ?? "—" },
-    { key: "city", header: "City", filterable: true, accessor: (p) => p.city ?? "—", cell: (p) => p.city ?? "—" },
+    {
+      key: "phone",
+      header: "Phone",
+      accessor: (p) => valueLabel(p.phone, "unspecified"),
+      cell: (p) => <ValueOrEmpty value={p.phone} reason="unspecified" />,
+    },
+    {
+      key: "city",
+      header: "City",
+      filterable: true,
+      accessor: (p) => valueLabel(p.city, "unspecified"),
+      cell: (p) => <ValueOrEmpty value={p.city} reason="unspecified" />,
+    },
     {
       key: "registered",
       header: "Registered",
@@ -161,7 +178,19 @@ function PatientsTable() {
 
   return (
     <>
-      <PageHeader title="Patients" description={`${total} registered`} />
+      <PageHeader
+        title="Patients"
+        description={`${total} registered`}
+        actions={
+          <Can perm={PERMISSIONS.PATIENT_CREATE}>
+            <Link href="/patients/new">
+              <Button>
+                <Plus size={16} strokeWidth={2} /> Register patient
+              </Button>
+            </Link>
+          </Can>
+        }
+      />
       <DataTable
         columns={patientColumns(
           canEdit,
@@ -190,15 +219,6 @@ function PatientsTable() {
           query.search ? "Try a different UHID, name, or phone number." : "Register the first patient to get started."
         }
         emptyAction={
-          <Can perm={PERMISSIONS.PATIENT_CREATE}>
-            <Link href="/patients/new">
-              <Button size="sm">
-                <Plus size={16} strokeWidth={2} /> Register patient
-              </Button>
-            </Link>
-          </Can>
-        }
-        toolbarActions={
           <Can perm={PERMISSIONS.PATIENT_CREATE}>
             <Link href="/patients/new">
               <Button size="sm">

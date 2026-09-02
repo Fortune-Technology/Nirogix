@@ -101,6 +101,17 @@ type RxRow = {
 type LabRow = { id: string | null; testId: string | null; testName: string; testCode: string; priority: string; status: string };
 
 
+// SOAP is the standard clinical note, but only to someone who was taught it — the four labels say
+// nothing to a receptionist, a new junior, or the non-clinical staff who read these notes back.
+// The hint carries the one distinction people actually get wrong: Subjective is what the patient
+// claims, Objective is what the room measured, Assessment is the conclusion, Plan is the action.
+const SOAP_HINT = {
+  subjective: "What the patient tells you — symptoms, how long, what they have already taken",
+  objective: "What you see and measure — examination findings, readings, report values",
+  assessment: "What you think it is — working diagnosis, severity, what still needs ruling out",
+  plan: "What happens next — tests, medicines, advice, when to review, when to come back sooner",
+} as const;
+
 function numOrNull(s: string): number | null {
   const n = Number(s);
   return s.trim() === "" || Number.isNaN(n) ? null : n;
@@ -470,7 +481,13 @@ function Consultation({ visitId }: { visitId: string }) {
               <span className="hms-label">Chief complaint</span>
               {!disabled && <DictationButton onText={(t) => setChiefComplaint((v) => (v ? `${v} ${t}` : t))} />}
             </div>
-            <input className="hms-input w-full" value={chiefComplaint} disabled={disabled} onChange={(e) => setChiefComplaint(e.target.value)} />
+            <input
+              className="hms-input w-full"
+              placeholder="In a few words — Fever, Chest pain, Diabetes follow-up"
+              value={chiefComplaint}
+              disabled={disabled}
+              onChange={(e) => setChiefComplaint(e.target.value)}
+            />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {(["subjective", "objective", "assessment", "plan"] as const).map((k) => (
@@ -481,6 +498,7 @@ function Consultation({ visitId }: { visitId: string }) {
                 </div>
                 <textarea
                   className="hms-input min-h-[80px] w-full"
+                  placeholder={SOAP_HINT[k]}
                   value={soap[k]}
                   disabled={disabled}
                   onChange={(e) => setSoap((s) => ({ ...s, [k]: e.target.value }))}

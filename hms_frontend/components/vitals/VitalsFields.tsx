@@ -1,6 +1,6 @@
 "use client";
 
-import { Field, Select } from "@hms/ui";
+import { emptyLabel, Field, Select } from "@hms/ui";
 import type { VitalParameter, Vitals, VitalsRecord, VitalsStage } from "@hms/types";
 
 /** Where in the workflow a reading was taken. Shown beside it, because it changes how it reads. */
@@ -15,7 +15,7 @@ export const VITALS_STAGE_LABEL: Record<VitalsStage, string> = {
  * numbers is never abbreviated two different ways in one product.
  */
 export function summariseVitals(v: VitalsRecord | null): string {
-  if (!v) return "—";
+  if (!v) return emptyLabel("notRecorded");
   const parts: string[] = [];
   if (v.systolic != null && v.diastolic != null) parts.push(`${v.systolic}/${v.diastolic} mmHg`);
   if (v.pulse != null) parts.push(`${v.pulse} bpm`);

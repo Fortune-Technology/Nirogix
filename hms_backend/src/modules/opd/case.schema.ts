@@ -12,6 +12,11 @@ export const OpenCaseBody = z
     providerId: z.string().uuid().nullable().optional(),
     branchId: z.string().uuid().nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
+    /**
+     * What kind of episode this is (ADR-121), from this hospital's configured case types. It
+     * prices every visit under the case, so it is a commercial fact as much as a clinical one.
+     */
+    caseType: z.string().max(40).nullable().optional(),
   })
   .openapi('OpenCaseBody');
 
@@ -22,6 +27,8 @@ export const UpdateCaseBody = z
     departmentId: z.string().uuid().nullable().optional(),
     providerId: z.string().uuid().nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
+    /** Correctable (ADR-060): a case that turns out to be an insurance claim is the ordinary case. */
+    caseType: z.string().max(40).nullable().optional(),
   })
   .openapi('UpdateCaseBody');
 
@@ -50,6 +57,7 @@ export const CaseSchema = z
     patientName: z.string(),
     patientUhid: z.string(),
     title: z.string(),
+    caseType: z.string().nullable(),
     status: z.string(),
     departmentId: z.string().uuid().nullable(),
     departmentName: z.string().nullable(),

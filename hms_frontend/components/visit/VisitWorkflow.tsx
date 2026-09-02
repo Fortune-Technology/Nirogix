@@ -11,6 +11,7 @@ import {
   Card,
   DateField,
   DateTimeField,
+  emptyLabel,
   Field,
   Select,
   Textarea,
@@ -97,6 +98,8 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
   const [providerId, setProviderId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [arrivalType, setArrivalType] = useState<ArrivalType>(defaultTiming === "now" ? "walk_in" : "appointment");
+  /** Empty means not stated. Only ever offered where the hospital has defined a vocabulary (ADR-121). */
+  const [consultationType, setConsultationType] = useState("");
   const [reason, setReason] = useState("");
   // Which course of treatment this visit belongs to, if any (ADR-116).
   const [caseChoice, setCaseChoice] = useState<CaseChoice>(NO_CASE);
@@ -206,6 +209,11 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
     };
   }, [isNow, providerId, slotDate]);
 
+  // What the case says this visit is, whichever way the case was chosen — the dimension that
+  // outranks consultation type in the schedule, so the quote is wrong without it.
+  const caseTypeForPricing =
+    caseChoice.kind === "existing" ? caseChoice.caseType : caseChoice.kind === "new" ? caseChoice.caseType : null;
+
   // The desk quotes the fee as it picks the doctor, rather than remembering a policy. Re-run
   // whenever anything the schedule keys on changes; a failure leaves no calculated fee shown
   // rather than a wrong one.
@@ -216,13 +224,21 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
     }
     let cancelled = false;
     api
-      .previewConsultationFee({ providerId: providerId || undefined, departmentId: departmentId || undefined, arrivalType })
+      .previewConsultationFee({
+        providerId: providerId || undefined,
+        departmentId: departmentId || undefined,
+        arrivalType,
+        consultationType: consultationType || undefined,
+        // From the case that was picked, or the one about to be opened. The quote has to match
+        // what the server will charge, and the server prices from the case.
+        caseType: caseTypeForPricing || undefined,
+      })
       .then((f) => !cancelled && setCalculatedFee(f))
       .catch(() => !cancelled && setCalculatedFee(null));
     return () => {
       cancelled = true;
     };
-  }, [isNow, providerId, departmentId, arrivalType]);
+  }, [isNow, providerId, departmentId, arrivalType, consultationType, caseTypeForPricing]);
 
   const providerOptions = useMemo<SelectOption[]>(
     () =>
@@ -300,10 +316,15 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
           departmentId: departmentId || undefined,
           reason: reason.trim() || undefined,
           arrivalType,
+          consultationType: consultationType || undefined,
           caseId: caseChoice.kind === "existing" ? caseChoice.caseId : undefined,
           newCase:
             caseChoice.kind === "new" && caseChoice.title.trim()
-              ? { title: caseChoice.title.trim(), notes: caseChoice.notes.trim() || undefined }
+              ? {
+                  title: caseChoice.title.trim(),
+                  notes: caseChoice.notes.trim() || undefined,
+                  caseType: caseChoice.caseType || undefined,
+                }
               : undefined,
           consultationFeePaise: feeTyped ? rupeesToPaise(fee) : undefined,
           feeOverrideReason: feeTyped ? feeOverrideReason.trim() || undefined : undefined,
@@ -424,6 +445,7 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
               value={caseChoice}
               onChange={setCaseChoice}
               preferExisting={arrivalType === "follow_up"}
+              caseTypes={workflow?.caseTypes ?? []}
             />
           </Card>
         )}
@@ -454,6 +476,21 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
               hint={isNow ? "Optional — the doctor's fee sets the default charge." : undefined}
             />
 
+            {/* Only where the hospital has said what kinds of consultation it offers. A dropdown
+                with nothing in it is worse than no dropdown. */}
+            {(workflow?.consultationTypes.length ?? 0) > 0 && (
+              <Select
+                label="Consultation type"
+                value={consultationType}
+                onChange={setConsultationType}
+                options={(workflow?.consultationTypes ?? []).map((t) => ({ value: t, label: t }))}
+                searchable={(workflow?.consultationTypes.length ?? 0) > 7}
+                clearable
+                placeholder="Not specified"
+                hint="Optional. It can change what is charged."
+              />
+            )}
+
             <Select
               label="Visit type"
               value={arrivalType}
@@ -474,7 +511,7 @@ export function VisitWorkflow({ defaultTiming }: VisitWorkflowProps) {
                 <span className="hms-label">Consultation fee</span>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <span className="text-lg font-semibold text-fg">
-                    {calculatedFee ? formatPaise(calculatedFee.feePaise) : "—"}
+                    {calculatedFee ? formatPaise(calculatedFee.feePaise) : emptyLabel("notConfigured")}
                   </span>
                   {/* Saying WHERE the number came from is what turns a price into an answer the
                       desk can give a patient who asks. */}

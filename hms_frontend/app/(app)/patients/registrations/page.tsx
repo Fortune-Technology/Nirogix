@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
-import { Alert, Button, DataTable, Dialog, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
+import { actionsColumn, Alert, Button, DataTable, Dialog, EmptyValue, TableAction, TableActions, type Column, valueLabel, ValueOrEmpty } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { DuplicatePatientCandidate, RegistrationRequestItem } from "@hms/types";
 import { formatDate, formatDateTime } from "@hms/utils";
@@ -48,15 +48,32 @@ function columns(
       cell: (r) => <span className="font-medium text-fg">{name(r)}</span>,
     },
     { key: "phone", header: "Phone", accessor: (r) => r.phone, cell: (r) => r.phone },
-    { key: "gender", header: "Gender", filterable: true, accessor: (r) => r.gender ?? "—", cell: (r) => r.gender ?? "—" },
+    {
+      key: "gender",
+      header: "Gender",
+      filterable: true,
+      accessor: (r) => valueLabel(r.gender, "unspecified"),
+      cell: (r) => <ValueOrEmpty value={r.gender} reason="unspecified" />,
+    },
     {
       key: "dateOfBirth",
       header: "Date of birth",
       accessor: (r) => r.dateOfBirth ?? "",
-      cell: (r) => (r.dateOfBirth ? formatDate(r.dateOfBirth) : "—"),
+      cell: (r) => (r.dateOfBirth ? formatDate(r.dateOfBirth) : <EmptyValue reason="unspecified" />),
     },
-    { key: "email", header: "Email", accessor: (r) => r.email ?? "—", cell: (r) => r.email ?? "—" },
-    { key: "city", header: "City", filterable: true, accessor: (r) => r.city ?? "—", cell: (r) => r.city ?? "—" },
+    {
+      key: "email",
+      header: "Email",
+      accessor: (r) => valueLabel(r.email, "unspecified"),
+      cell: (r) => <ValueOrEmpty value={r.email} reason="unspecified" />,
+    },
+    {
+      key: "city",
+      header: "City",
+      filterable: true,
+      accessor: (r) => valueLabel(r.city, "unspecified"),
+      cell: (r) => <ValueOrEmpty value={r.city} reason="unspecified" />,
+    },
     {
       key: "note",
       header: "Their note",
@@ -65,7 +82,7 @@ function columns(
       // menu (ADR-063: a hidden-by-default column must state why).
       defaultHidden: true,
       accessor: (r) => r.note ?? "",
-      cell: (r) => <span className="text-fg-muted">{r.note || "—"}</span>,
+      cell: (r) => <ValueOrEmpty value={r.note} reason="none" className="text-fg-muted" />,
     },
     {
       key: "createdAt",

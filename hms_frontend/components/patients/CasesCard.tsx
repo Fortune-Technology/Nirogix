@@ -43,6 +43,9 @@ export function CasesCard({ patientId }: { patientId: string }) {
   const [providerId, setProviderId] = useState("");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
+  /** The hospital's own case types (ADR-121). Empty — the usual case — and the field is not shown. */
+  const [caseTypes, setCaseTypes] = useState<string[]>([]);
+  const [caseType, setCaseType] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [closing, setClosing] = useState<PatientCase | null>(null);
@@ -66,9 +69,16 @@ export function CasesCard({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     if (!opening) return;
-    Promise.allSettled([api.listDepartments({ activeOnly: true }), api.listProviders()]).then(([d, p]) => {
+    Promise.allSettled([
+      api.listDepartments({ activeOnly: true }),
+      api.listProviders(),
+      api.getWorkflowConfig(),
+    ]).then(([d, p, w]) => {
       setDepartments(d.status === "fulfilled" ? d.value : []);
       setProviders(p.status === "fulfilled" ? p.value : []);
+      // A failure here means no case-type field, not a broken dialog: the type is optional and
+      // the case is what matters.
+      setCaseTypes(w.status === "fulfilled" ? w.value.caseTypes : []);
     });
   }, [opening]);
 
@@ -88,10 +98,12 @@ export function CasesCard({ patientId }: { patientId: string }) {
         notes: notes.trim() || undefined,
         departmentId: departmentId || undefined,
         providerId: providerId || undefined,
+        caseType: caseType || undefined,
       });
       setOpening(false);
       setTitle("");
       setNotes("");
+      setCaseType("");
       setDepartmentId("");
       setProviderId("");
       await load();
@@ -131,7 +143,10 @@ export function CasesCard({ patientId }: { patientId: string }) {
       <li className="flex flex-wrap items-start gap-3 rounded-token border border-border px-3 py-3">
         <Badge tone={isOpen ? "brand" : "neutral"}>{c.caseNumber}</Badge>
         <div className="min-w-0 flex-1">
-          <p className="text-fg">{c.title}</p>
+          <p className="flex flex-wrap items-center gap-2 text-fg">
+            {c.title}
+            {c.caseType && <Badge tone="neutral">{c.caseType}</Badge>}
+          </p>
           <p className="text-xs text-fg-muted">
             Opened <DateDisplay value={c.openedAt} />
             {c.visitCount > 0 && ` · ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}`}
@@ -244,6 +259,18 @@ export function CasesCard({ patientId }: { patientId: string }) {
             onChange={(e) => setTitle(e.target.value)}
             hint="In words the patient would recognise. Not a diagnosis — the doctor codes that in the consultation."
           />
+          {caseTypes.length > 0 && (
+            <Select
+              label="Case type"
+              value={caseType}
+              onChange={setCaseType}
+              options={caseTypes.map((t) => ({ value: t, label: t }))}
+              searchable={caseTypes.length > 7}
+              clearable
+              placeholder="Not specified"
+              hint="Optional. It prices every visit under this case."
+            />
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label="Department"

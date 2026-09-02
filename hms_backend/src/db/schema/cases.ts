@@ -51,6 +51,17 @@ export const patientCases = pgTable(
     departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'restrict' }),
     providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'restrict' }),
 
+    /**
+     * What kind of episode this is (ADR-121), from `hospital_workflow_config.case_types` —
+     * "General", "Corporate", "Insurance", "Camp", "Medico-legal".
+     *
+     * Deliberately on the **case** and not the visit. A corporate arrangement, an insurance
+     * claim or a medico-legal case is a property of the episode, and putting it on each visit
+     * would invite the third follow-up to be recorded as something the first two were not. It
+     * prices every visit under the case, which is what a hospital means by a corporate rate.
+     */
+    caseType: varchar('case_type', { length: 40 }),
+
     /** `open` | `closed`. A closed case can be reopened — treatment resumes, and people mis-click. */
     status: varchar('status', { length: 16 }).notNull().default('open'),
 

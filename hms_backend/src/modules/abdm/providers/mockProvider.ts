@@ -188,12 +188,24 @@ export class AbdmMockProvider implements AbdmProvider {
     return { txnId: input.txnId, mobileHint: `XXXXXX${txn.mobile.slice(-4)}`, devOtp: FIXED_OTP };
   }
 
+  /**
+   * **Deliberately sparse, because the sandbox is** (ADR-130).
+   *
+   * The real `enrol/byAadhaar` returns the whole demographic record and the `enrol/byMobile` that
+   * follows it returns a token and effectively nothing else. This mock used to answer the second
+   * call with the full profile again, which is precisely why a bug that blanked the registration
+   * form on the last step of every two-step flow was invisible in every test and obvious to the
+   * first person who used the sandbox. A mock that is kinder than the thing it stands for is not
+   * a test double, it is a second implementation.
+   *
+   * The mobile the patient just proved is the one fact this call genuinely establishes.
+   */
   async enrolMobileVerifyOtp(input: { txnId: string; encryptedOtp: string }): Promise<AbdmEnrolResult> {
     const txn = this.require(input.txnId);
     this.checkOtp(txn, input.encryptedOtp);
     return {
       txnId: input.txnId,
-      profile: profileFor(txn.aadhaar, txn.mobile),
+      profile: txn.mobile ? { mobile: txn.mobile } : {},
       tokens: { xToken: `mock-x-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` },
       isNewAbha: false,
       mobileMatchesAadhaar: true,
@@ -258,13 +270,16 @@ export class AbdmMockProvider implements AbdmProvider {
     };
   }
 
+  /**
+   * Sparse for the same reason as `enrolMobileVerifyOtp` (ADR-130): resolving a chosen ABHA
+   * returns a token, and the demographics came from the account list one call earlier. Answering
+   * with a full profile here hid the fact that the service was throwing that list away.
+   */
   async loginVerifyUser(input: { txnId: string; abhaNumber: string }): Promise<AbdmEnrolResult> {
-    const txn = this.require(input.txnId);
-    const profile = profileFor(txn.aadhaar);
-    profile.abhaNumber = input.abhaNumber;
+    this.require(input.txnId);
     return {
       txnId: input.txnId,
-      profile,
+      profile: { abhaNumber: input.abhaNumber },
       tokens: { xToken: `mock-x-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` },
       isNewAbha: false,
     };

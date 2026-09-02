@@ -205,28 +205,36 @@ export function ChartTable({
   caption?: ReactNode;
 }) {
   return (
-    <table className="hms-visually-hidden">
-      {caption ? <caption>{caption}</caption> : null}
-      <thead>
-        <tr>
-          <th scope="col">Period</th>
-          {series.map((s) => (
-            <th key={s.key} scope="col">
-              {s.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {labels.map((label, i) => (
-          <tr key={label}>
-            <th scope="row">{label}</th>
+    // The WRAPPER carries the visually-hidden class, not the table. A `<table>` sizes to its
+    // content and ignores `width: 1px; height: 1px`, so the class left it absolutely positioned
+    // at full height — several hundred pixels of invisible page below the app shell, which is
+    // exactly what a dashboard's blank scroll area was. Applying `display: block` to the table
+    // instead would hide it correctly and strip its table semantics, which is the one thing this
+    // markup exists for.
+    <div className="hms-visually-hidden">
+      <table>
+        {caption ? <caption>{caption}</caption> : null}
+        <thead>
+          <tr>
+            <th scope="col">Period</th>
             {series.map((s) => (
-              <td key={s.key}>{format(s.values[i] ?? 0)}</td>
+              <th key={s.key} scope="col">
+                {s.label}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {labels.map((label, i) => (
+            <tr key={label}>
+              <th scope="row">{label}</th>
+              {series.map((s) => (
+                <td key={s.key}>{format(s.values[i] ?? 0)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

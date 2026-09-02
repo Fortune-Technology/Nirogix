@@ -122,7 +122,7 @@ function RegisterForm() {
             <label className="hms-field">
               <span className="hms-label">Gender</span>
               <select className="hms-input" value={f.gender ?? ""} onChange={(e) => set("gender", e.target.value)}>
-                <option value="">—</option>
+                <option value="">Not specified</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -137,7 +137,7 @@ function RegisterForm() {
             <label className="hms-field">
               <span className="hms-label">Blood group</span>
               <select className="hms-input" value={f.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>
-                <option value="">—</option>
+                <option value="">Not recorded</option>
                 {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </label>

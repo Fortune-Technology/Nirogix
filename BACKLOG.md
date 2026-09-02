@@ -30,7 +30,7 @@ Related: `resources/memory.md` (Pending Decisions), `resources/development-plan.
 | # | Item | Blocked by | Notes |
 |---|---|---|---|
 | I-1 | Real notification send verified in staging | **Email: unblocked 17/08/2026** — `mail.nirogix.com` verified at MSG91 (SPF/DKIM/CNAME), so once `MSG91_API_KEY` + `MSG91_EMAIL_*` are set on the VM, email OTP/notifications send for real. **SMS: header done 01/09/2026** — `NIROGX` is **Active** on DLT (STPL PE panel, valid to 31/12/2026) after three rejections traced to the dead apex site (I-7); `TAKORI` is active too. The OTP content template `Nirogix OTP` (Service Implicit, Health, one NUMBER variable) was **approved the same day, 10:28** — the whole DLT side is done. **The send path is now wired** — the OTP SMS sends the registered wording with the code as the flow's single variable, keyed by `MSG91_OTP_TEMPLATE_VAR`. **Remaining: template approval, then add it in the MSG91 panel to mint the flow id for `MSG91_OTP_TEMPLATE_ID`, then fund the wallet.** Note every *other* SMS text needs its own DLT template before it can send — the generic `sendSms` paths (notification API, job queue) have none. | Stage 0 exit criterion; code + provider abstraction done; email DNS done; SMS awaits DLT + the template-id wiring. |
-| I-2 | Auto-deploy-to-staging half of CI/CD | The staging VM | `deploy-staging.yml` is authored but has never run against real hosts. |
+| I-2 | Auto-deploy-to-staging half of CI/CD | The staging VM | `deploy-staging.yml` is authored but has never run against real hosts. **02/09/2026:** it now also seeds staging after migrating (ADR-122), which likewise has never run on the VM. Two things to confirm on the first real deploy: the VM's `hms_backend/.env` sets `NODE_ENV=staging` (the workflow aborts the deploy if not), and `tsx` is present after `npm ci` (it is a devDependency, and `npm ci` installs dev dependencies — but this has not been observed on the box). Test cases SEED-25 and SEED-30…32 are staging-only for the same reason. |
 | I-3 | Backup + restore drill executed for real | Managed PostgreSQL + object storage in staging | `deploy/backup.sh` + `restore-drill.sh` exist; RPO/RTO validated at Stage 3. |
 | I-4 | **R2 bucket pinned to India** for PHI | Cloudflare account configuration | ADR-017 compliance note: R2 defaults to global auto-placement. If a stricter MeitY-empanelled guarantee is needed, switch to E2E Object Storage (same adapter, different endpoint). Buckets are per environment — `nirogix-documents` and `nirogix-documents-staging`, never shared. |
 | I-6 | **The staging VM cannot reach ABDM at all, and is hosted outside India** | Hosting provider / infrastructure decision | **Confirmed 27/08/2026.** Every ABDM call from `74.208.78.255` (IONOS, **United States**) returns `403` with `server: CloudFront` and the body `Request blocked` — including a plain unauthenticated `GET` to the bare domain, which proves it is a network-level block reached before any ABDM logic runs. The identical request from an Indian IP returns `400 Invalid user credentials`, i.e. it reaches NHA normally. **No ABDM call has ever succeeded from the VM**; every working call in this project ran from a developer machine in India. NHA’s onboarding email contains no mention of allowlisting, static IPs or firewalls, so this is not a registration step that was skipped. **This is also a compliance problem independent of ABDM:** ADR-006 and `resources/architecture.md` require India-resident infrastructure for PHI (E2E Networks), and a US host holding patient records contradicts that regardless of connectivity. **Move staging to an India-resident host** — it resolves both at once; the runbook is `deploy/e2e-provisioning.md`, whose Step 0 proves the region can reach ABDM before anything is built on it. An egress proxy would unblock testing while leaving PHI in the wrong country, and is not defensible at assessment. | 27/08/2026 |
@@ -366,12 +366,18 @@ complaint, reception's billing access (ADR-110), and native scrolling across the
   total ordering, falling back to the doctor's own fee then zero. A Fee schedule tab, a live
   preview at check-in, and `billing.fee.override` — which the receptionist role does **not** hold —
   gating any different amount, with a required reason and both numbers kept on the visit and in a
-  `warning`-severity audit entry. **Still open:** (a) no effective dating, so a price change applies
-  from that moment and the old value survives only in the audit log and the invoices it priced;
-  (b) rules cover the consultation fee only — pharmacy, lab and the services catalogue keep their
-  own pricing; (c) a case (ADR-116) is not a pricing dimension, so "the third visit of an episode is
-  free" cannot be expressed; (d) a rule's match conditions cannot be edited by design — retire and
-  re-add — which is correct but means bulk re-pricing is repetitive.
+  `warning`-severity audit entry. **Extended 01/09/2026 (ADR-121)** with two more dimensions —
+  **consultation type** and **case type**, both in the hospital's own configured words, ranked
+  doctor > department > case type > consultation type > arrival type. **Still open:** (a) no
+  effective dating, so a price change applies from that moment and the old value survives only in
+  the audit log and the invoices it priced; (b) rules cover the consultation fee only — pharmacy,
+  lab and the services catalogue keep their own pricing, so this is not a payer-wise tariff;
+  (c) a case is a pricing dimension only through its **type** — "the third visit of an episode is
+  free" still cannot be expressed, because nothing keys on a case's history; (d) a rule's match
+  conditions cannot be edited by design — retire and re-add — which is correct but means bulk
+  re-pricing is repetitive; (e) a case type can be corrected afterwards and changes only what
+  **future** visits are charged: re-pricing a paid consultation would be a credit note, which is
+  not built.
 - ~~**Vitals have no workflow and no configuration.**~~ **Shipped 01/09/2026 (ADR-113).**
   `hospital_workflow_config` (branch-then-organization, platform defaults = the old behaviour) and
   `patient_vitals` (one row per observation, on the **visit** rather than the encounter). Vitals can
@@ -417,6 +423,50 @@ complaint, reception's billing access (ADR-110), and native scrolling across the
   had a national records pull. All five routes are now gated, and the capability is BUILT.
   **Unchanged:** no record has been exchanged with ABDM in any environment, and production access
   still needs NHA functional testing, a WASA certificate and HTC approval.
+
+**Engineering — ABDM**
+
+- **No driving-licence identifier.** ABHA verification accepts `abha_number`, `abha_address`,
+  `mobile` and `aadhaar`; enrolment is Aadhaar-only. A driving licence was asked about
+  (02/09/2026) and is **not implemented anywhere** — not in `AbhaIdentifierType`, not in any
+  provider method, not in the mock. Adding it is a new identifier type, a provider method on both
+  the gateway and mock providers, its own OTP path, and NHA test cases; it is not a flag. Recorded
+  so nobody reads the ABHA panel as supporting it.
+
+**Engineering — clinical data**
+
+- **A patient has no allergies field.** The patient-chart review (ADR-127) asked for allergies and
+  clinical alerts at the top of the record, and the product cannot store either: `patients` carries
+  a blood group and nothing else clinical. Blood group is surfaced as an alert badge; allergies are
+  **not** shown, because an empty "Allergies" card promises a place to record something the system
+  has no column for. Adding it is a schema change plus a place to enter it — the check-in form and
+  the chart's edit form — and belongs with whatever ADR takes on clinical alerts properly.
+
+**Engineering — access refusals**
+
+- **Only the Portal's refusal panel explains itself.** The module-before-permission guard is in
+  `@hms/client` and therefore applies to every frontend (ADR-126), but the *panel* is per app by
+  design (ADR-054) and `admin/components/Forbidden.tsx` still shows the generic message. The
+  operator console refuses far fewer people and its audience knows the permission model, so this
+  is a deliberate ordering rather than an oversight — move the Portal's panel into `@hms/ui` if a
+  second app needs it, rather than copying it.
+
+**Engineering — seeding**
+
+- **The seed-idempotency suite leaves its fixture tenant behind.**
+  `scripts/__tests__/seedIdempotency.test.ts` deletes everything it created except the tenant row
+  itself: `audit_log` is append-only at the database level (invariant #6) and references
+  `tenants` with ON DELETE RESTRICT, so a tenant that has been audited cannot be removed. CI's
+  database is ephemeral, so this only affects a developer's local database, where it appears as
+  one empty hospital named "Seed Idempotency Hospital". Fixing it properly means running the suite
+  against its own database or schema; not worth it until a second suite needs the same thing.
+
+- **The clinical story still cannot be topped up, only rebuilt.** `seedClinicalStory` runs once per
+  tenant and is then marked done (ADR-122). If the dataset later wants a *new* workflow state
+  represented — a lifecycle the queue does not currently cover — an already-seeded staging database
+  will not grow one; it needs `--reset`. The alternative (generating "the missing part" of a
+  history) means diffing a narrative against a database, which is a much larger thing than it
+  sounds. Revisit only if a QA gap actually appears.
 
 ## 4. Deferred on purpose (recorded so it is not re-litigated)
 

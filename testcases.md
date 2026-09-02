@@ -292,7 +292,7 @@ The capability tier beneath modules. Chain: `requireAuth → requireModule → r
 | ROS-01 | Set a weekly roster | `providers.manage` | Providers → Weekly schedule → add windows → Save | Windows persist; overlapping windows on one day are refused with a message | P1 | Functional | org_admin | Not run |
 | ROS-02 | Booking outside the roster | Provider with windows | Book at a time outside every window | Refused: "not available at that time"; inside a window books normally | P1 | Validation | receptionist | Not run |
 | ROS-03 | Slot picker | Roster + one booked slot | Appointments → New → pick provider + date | Free slots shown as chips; the booked slot is absent; no roster → free-form time entry stays | P1 | Functional | receptionist | Not run |
-| BKG-01 | Enable online booking | `platform.organization.manage` | Settings → Booking → enable | Token minted once; public link + QR shown; poster printable | P1 | Functional | org_admin | Not run |
+| BKG-01 | Enable online booking | `platform.organization.manage` | Hospital configuration → Patient self-service → *Online appointment booking* → enable | Token minted once; public link + QR shown; poster printable | P1 | Functional | org_admin | Not run |
 | BKG-02 | Public request form | Enabled booking token | Open the public link → fill name, phone, wish → submit | 202 "hospital will confirm"; a REQUEST appears in the queue — no appointment, no patient created | P1 | Functional | public | Not run |
 | BKG-03 | Uniform token failure | — | Open an unknown/disabled/retired token | Identical "not valid" response in all three cases — no hospital enumeration | P1 | Security | public | Not run |
 | BKG-04 | Approve a request | Pending request | Booking requests → Approve → provider + real slot | Patient created (or duplicate flow triggers), appointment booked through the normal rules (roster + double-booking), request approved | P1 | Integration | receptionist | Not run |
@@ -346,7 +346,7 @@ The portal frontend does not exist yet — these are API cases, run with curl or
 |---|---|---|---|---|---|---|---|---|
 | PAT-01 | Hospital grants portal access | Receptionist, a registered patient | `POST /patients/{id}/portal-access` with a mobile | 201 with `identityId` and `linkId`; an audit entry `patient.portal.link` at **notice** | P1 | Functional | receptionist | Not run |
 | PAT-02 | Granting is the only way in | — | Search the API for any route that lets a caller link themselves | None exists — there is no public patient signup | P1 | Security | — | Not run |
-| PAT-03 | Wrong permission is refused | org_admin (holds only `patient.record.view`) | Same call as PAT-01 | 403 | P1 | Security | org_admin | Not run |
+| PAT-03 | Wrong permission is refused | cashier (holds `patient.record.view` but not `patient.record.create`) | Same call as PAT-01 | 403 | P1 | Security | cashier | Not run |
 | PAT-04 | Linking is idempotent | An existing link | Repeat PAT-01 | Same `linkId`, no duplicate | P2 | Functional | receptionist | Not run |
 | PAT-05 | A chart cannot be claimed twice | A linked patient | Link the same patient to a different contact | 409 | P1 | Security | receptionist | Not run |
 | PAT-06 | Code request is uniform | — | `POST /patient/auth/request-code` for a registered contact, then an unregistered one | Both 202, identical body — the endpoint never reveals who is a patient | P1 | Security | — | Not run |
@@ -568,7 +568,7 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | QR-04 | **Unknown, retired and disabled fail identically** | One valid token | Request a made-up token; regenerate then reuse the old one; switch registration off and reuse the current one | All three return the same 404 and the same message — nothing reveals which hospitals exist or which are open | P1 | Security | public | Not run |
 | QR-05 | **A submission creates no patient** | Registration on | Submit the form, then check the patient list and the database | Nothing in `patients`; one row in `registration_requests` with status *pending* | P1 | Security | receptionist | Not run |
 | QR-06 | **Another hospital cannot act on the queue** | A pending request in A | As B's receptionist, POST approve with A's request id | 404 — the record does not exist for this caller; A's request is untouched | P1 | Security | receptionist | Not run |
-| QR-07 | Off by default | A newly onboarded hospital | Hospital configuration → Patient registration | Status reads *Disabled*; no QR is shown | P1 | Functional | org_admin | Not run |
+| QR-07 | Off by default | A newly onboarded hospital | Hospital configuration → Patient self-service → *Patient self-registration* | Status reads *Disabled*; no QR is shown | P1 | Functional | org_admin | Not run |
 | QR-08 | Turning it on issues a QR | Registration off | Turn on | A QR and a link appear; status reads *Enabled* | P1 | Functional | org_admin | Not run |
 | QR-09 | Disabling keeps the token | Registration on; note the link | Turn off, then on again | The link is identical — pausing does not require reprinting posters | P1 | Functional | org_admin | Not run |
 | QR-10 | The public form is refused while off | Registration off | Open the link | *This registration link is not active*; a POST returns 404 | P1 | Security | public | Not run |
@@ -586,14 +586,15 @@ There is **no AI capability**. These cases prove the door, and that the room beh
 | QR-16 | Date of birth is `DD/MM/YYYY` | A valid link | Open the date field | `DateField`, not a native picker; typed and displayed as `DD/MM/YYYY`; a future date is refused | P2 | Functional | public | Not run |
 | QR-17 | Validation | A valid link | Submit with no name, then a bad phone | 422 with a field-level message; nothing created | P2 | Validation | public | Not run |
 | QR-18 | Rate limiting | A valid link | Submit rapidly, repeatedly | Throttled at the sign-in tier with a 429 | P2 | Security | public | Not run |
-| QR-19 | **The configurer can see the queue** | A pending request | Sign in as org_admin → Clinical → Registration requests | The queue is visible and lists the request — org_admin does **not** hold `patient.record.create`, and gating the screen on it hid this page from the person who printed the QR | P1 | Security | org_admin | Not run |
-| QR-20 | ...but cannot act on it | As QR-19 | Look for the row actions, then POST approve directly | No approve or reject action is rendered; the API returns 403 | P1 | Security | org_admin | Not run |
+| QR-19 | **The queue is gated on viewing, not on creating** | A pending request | Sign in as cashier → Clinical → Registration requests | The queue is visible and lists the request. The screen is gated on `patient.record.view`; gating it on `patient.record.create` would hide it from everyone who cannot approve | P1 | Security | cashier | Not run |
+| QR-20 | ...and a role without `patient.record.create` cannot act on it | As QR-19 | Look for the row actions, then POST approve directly | No approve or reject action is rendered; the API returns 403 | P1 | Security | cashier | Not run |
+| QR-20a | The administrator can act on it (ADR-125) | A pending request | Sign in as org_admin → Registration requests → Register as a patient → confirm | Approve and reject are rendered and work — org_admin now holds `patient.record.create` | P1 | Functional | org_admin | Not run |
 | QR-21 | The front desk can act | A pending request | Sign in as receptionist → Registration requests → Register as a patient → confirm | A patient record with a UHID is created; the browser lands on it | P1 | Functional | receptionist | Not run |
 | QR-22 | Approving twice is refused | A just-approved request | POST approve again with the same id | 409 *already reviewed*; no second patient | P1 | Validation | receptionist | Not run |
 | QR-23 | Rejecting keeps the row | A pending request | Reject → confirm | No patient created; the request is retained with status *rejected* and the reason | P1 | Functional | receptionist | Not run |
 | QR-24 | Review is audited | Just approved and rejected one each | Open Audit | `patient.registration.approved` and `.rejected` at **notice**; the approval names the created patient | P1 | Security | org_admin | Not run |
 | QR-25 | The list leaks nothing internal | A pending request | Inspect the `GET /registration-requests` response | No `tenantId`, no submitted IP, no reviewer id — only the documented fields | P2 | Security | receptionist | Not run |
-| QR-26 | Pending count on the settings page | One pending request | Hospital configuration → Patient registration | A badge reads *1 awaiting review* | P2 | Functional | org_admin | Not run |
+| QR-26 | Pending count on the settings page | One pending request | Hospital configuration → Patient self-service → *Patient self-registration* | A badge reads *1 awaiting review* | P2 | Functional | org_admin | Not run |
 
 ## 14e. Hospital letterhead (ADR-056)
 
@@ -1323,7 +1324,7 @@ and that is deliberate — do not report it as a bug.
 
 | ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
 |---|---|---|---|---|---|---|---|---|
-| SCI-01 | Off by default | A fresh tenant | Settings → Self check-in | Off, with copy saying scanning announces an arrival and checks nobody in | P1 | Functional | org_admin | Not run |
+| SCI-01 | Off by default | A fresh tenant | Hospital configuration → Patient self-service → *Patient self check-in* | Off, with copy saying scanning announces an arrival and checks nobody in | P1 | Functional | org_admin | Not run |
 | SCI-02 | Turning it on mints a link | SCI-01 | Enable | A link and a scannable QR appear | P1 | Functional | org_admin | Not run |
 | SCI-03 | The kiosk page asks one thing | SCI-02 | Open the link | Hospital name and a single mobile-number field; no name, DOB or reference asked | P1 | Usability | public | Not run |
 | SCI-04 | 🔒 A match tells you nothing | A patient with an appointment today | Submit their number | A generic thank-you; **no patient name, doctor or time anywhere in the response** | P1 | Security | public | Not run |
@@ -1404,6 +1405,225 @@ permission has not quietly become a wide one.
 | CST-10 | An active consent shows its deadline | A granted, live consent | Inspect the card | Shows the date our copy must be destroyed by | P2 | Functional | receptionist | Not run |
 | CST-11 | 🔒 Capability off removes everything together | ABDM entitled, M3 capability disabled | Call status, history list and timeline | **403** on all three, and the card disappears from check-in | P1 | Security | doctor | Not run |
 | CST-12 | The card is silent, not broken, when unavailable | CST-11 | Open check-in | No card at all — it must not advertise a feature this hospital does not have | P2 | Usability | receptionist | Not run |
+
+---
+
+## 33. Consultation type and case type in the fee schedule (ADR-121)
+
+Two dimensions in the hospital's own words. The order that matters: doctor beats department beats
+**case type** beats **consultation type** beats arrival type.
+
+FRT-08 and FRT-09 are the cases that matter: the price comes from the case row, and a word the
+hospital never configured cannot reach a visit.
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FRT-01 | Nothing configured, nothing asked | A fresh hospital | Open Workflow settings, then Check in | Both vocabularies empty; no type field anywhere | P1 | Functional | org_admin | Not run |
+| FRT-02 | A rule cannot invent a type | FRT-01 | POST a fee rule with `consultationType` | 422, saying the hospital has not set up consultation types | P1 | Negative | org_admin | Not run |
+| FRT-03 | The vocabulary is tidied on save | — | Save `["Teleconsultation"," Procedure ","Review","review",""]` | Stored as three values, trimmed, no duplicate, no blank | P2 | Functional | org_admin | Not run |
+| FRT-04 | Case-insensitive, stored in the configured spelling | FRT-03 | Add a rule with `caseType: "corporate"` | Stored as `Corporate` | P2 | Functional | org_admin | Not run |
+| FRT-05 | A word outside the list is refused | FRT-03 | Add a rule with `caseType: "Charity"` | 422, listing the configured case types | P1 | Negative | org_admin | Not run |
+| FRT-06 | Case type outranks consultation type | Rules for Teleconsultation ₹300 and Corporate ₹0 | Preview a corporate teleconsultation | ₹0 — the contract holds whatever happens inside it | P1 | Functional | receptionist | Not run |
+| FRT-07 | A named doctor outranks both | FRT-06 plus a doctor rule ₹900 | Preview the same | ₹900 | P1 | Functional | receptionist | Not run |
+| FRT-08 | 🔒 The case decides the case type, not the caller | Doctor+Corporate rule ₹450 | Check in with `caseType: "Corporate"` in the body and no case | Charged the ordinary price; the visit has no case type | P1 | Security | receptionist | Not run |
+| FRT-09 | 🔒 An unconfigured type creates nothing | FRT-03 | Check in with `consultationType: "Home visit"` | 422, and no visit, case or invoice created | P1 | Security | receptionist | Not run |
+| FRT-10 | The consultation type reaches the visit | A rule pricing it | Check in with that type | Visit carries the type; invoice matches the rule | P1 | Functional | receptionist | Not run |
+| FRT-11 | A new case carries its type and prices the visit | FRT-07 | Check in opening a Corporate case | ₹450, and the case shows as Corporate | P1 | Functional | receptionist | Not run |
+| FRT-12 | A later visit under the case is priced the same | FRT-11 | Check in again under that case | ₹450, without being asked again | P1 | Functional | receptionist | Not run |
+| FRT-13 | Removing a priced word is refused | An active rule names Teleconsultation | Save the vocabulary without it | 422, naming Teleconsultation | P1 | Negative | org_admin | Not run |
+| FRT-14 | And allowed once the rule is retired | FRT-13 | Retire the rule, save again | Saved; visits already recorded under that type keep it | P2 | Functional | org_admin | Not run |
+
+---
+
+## 34. Automatic staging seeding, and not overwriting anything (ADR-122)
+
+*The seeder now runs unattended on every staging deployment. These cases are what makes that
+acceptable: it must add what is missing and change nothing else. SEED-30 to SEED-33 are the
+production guards — run them on every release that touches `seedKit.ts`, `seedGuard.ts` or the
+deploy workflow.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| SEED-25 | The deploy seeds staging by itself | A staging deploy that touches `hms_backend` | Merge to `staging`; read the workflow log | `db:migrate` runs, then `db:seed:staging`; the log prints the per-tenant tally | P1 | Functional | ops | Not run |
+| SEED-26 | **A manual edit survives the next deploy** | Seeded staging | Rename a patient, reprice a service, change the hospital's city, change the brand colour, turn one public form off — then deploy again | Every one of those five is exactly as it was left. Nothing is reverted to the dataset's value | P1 | Functional | ops | Not run |
+| SEED-27 | Nothing is duplicated | Seeded staging | Note the row counts of patients, services, visits, invoices, registration requests, booking requests and notifications; deploy again; recount | Identical, except `audit_log`, which grows because the seeder's own writes are audited | P1 | Functional | ops | Not run |
+| SEED-28 | A newly added record reaches an old database | Staging seeded before the change | Add one service and one lab test to the staging dataset; deploy | Both appear on staging; every existing service and test is untouched | P1 | Functional | ops | Not run |
+| SEED-29 | A new column is filled only where empty | Staging seeded before the change | Add a column with a backfill entry; set the value by hand on one row; deploy | The hand-set row keeps its value; only NULL rows are filled; a second deploy fills nothing | P1 | Functional | ops | Not run |
+| SEED-30 | 🔒 The workflow refuses a non-staging VM | — | Set `NODE_ENV=production` in the VM's `hms_backend/.env` and run the deploy | The deploy fails **before** the seeder starts, with a message naming `NODE_ENV`; nothing is written | P1 | Security | ops | Not run |
+| SEED-31 | 🔒 No workflow seeds production | — | Grep `.github/workflows/` for `db:seed` | The only match is `db:seed:staging` in `deploy-staging.yml` | P1 | Security | ops | Not run |
+| SEED-32 | 🔒 CI never resets | — | Grep `.github/workflows/` for `--reset` and `CONFIRM_SEED_RESET` | Neither appears anywhere | P1 | Security | ops | Not run |
+| SEED-33 | 🔒 A deactivated record stays deactivated | Seeded staging | Deactivate a branch, a department, a service and a doctor; re-enable the deliberately-disabled QA account; deploy | All five are as the tester left them — the seeder does not restate `isActive` or `status` on a record that exists | P1 | Functional | ops | Not run |
+| SEED-34 | A half-finished seed finishes next time | A deploy interrupted during seeding | Interrupt the seeder mid-run; deploy again | The second run completes the work; the clinical history is not doubled and not left half-built | P2 | Functional | ops | Not run |
+| SEED-35 | The report says what it did | Seeded staging | Read the seed output of a no-op deploy | Reads `created nothing; kept N existing`, with a `*.kept` tally per record type | P2 | Functional | ops | Not run |
+| SEED-36 | Markers are cleared by a reset | Seeded staging | `CONFIRM_SEED_RESET=yes … -- --reset` | `seed_markers` is emptied with the tenant-scoped tables; the following run re-applies configuration, history and backfills | P2 | Functional | ops | Not run |
+
+---
+
+## 35. Missing values across the application (ADR-123)
+
+*No screen renders a bare `—`. Run EMPTY-01 first: it is the reported case, and it was a data
+problem rather than a display one.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| EMPTY-01 | Services show their department | Seeded database | Open `/services` | Real department names — General Medicine, Cardiology, Orthopaedics — not `—`. The one deliberately unfiled service reads **Not assigned** | P1 | Functional | org_admin | Not run |
+| EMPTY-02 | The empty state is filterable | `/services` open | Filter Department by *Not assigned* | Returns exactly the services with no department; searching "Not assigned" finds the same rows | P1 | Functional | org_admin | Not run |
+| EMPTY-03 | No bare dash anywhere | Seeded database | Walk Patients, Services, Providers, Users, Audit, OPD queue, Vitals queue, Arrivals, Booking requests, Patient registrations, Laboratory, Pharmacy stock, Reports, EOD | No cell reads `—`. Every absence reads a phrase: Not assigned / Not specified / Not recorded / Not configured / Not applicable / None / Not available | P1 | UI/UX | org_admin | Not run |
+| EMPTY-04 | The reason fits the field | As EMPTY-03 | Check specific cells | A walk-in with no doctor: **Not assigned**. A public booking with no department asked for: **Not specified**. An audit row written by a job: **Not applicable** in Request and Status. A qualitative lab test's range: **Not applicable**. A doctor with no personal fee: **Not configured**. A user with no roles: **None** | P1 | UI/UX | org_admin | Not run |
+| EMPTY-05 | Dropdowns say what blank means | — | Open the patient form's Gender and Blood group, the provider form's specialty, the new-user Role | Each blank option reads a phrase (*Not specified*, *Not recorded*, *No role yet*), never `—` | P2 | UI/UX | receptionist | Not run |
+| EMPTY-06 | Printed documents read as sentences | An invoice paid in cash; a qualitative lab result; an encounter with no diagnosis | Print each | Reference reads *Not applicable*, the lab unit and range read *Not applicable*, the prescription's blank fields read *Not specified*. No dashes | P2 | UI/UX | cashier | Not run |
+| EMPTY-07 | A count of nothing is zero | A hospital with no new patients today | Dashboard | The tiles read `0`, not `—` — a count is never "not applicable" | P2 | UI/UX | org_admin | Not run |
+| EMPTY-08 | A reference range keeps its dash | A test with a numeric range | Laboratory → a test with low and high values | The range still reads `4000–11000` — the dash between two numbers is typography, not a placeholder | P2 | UI/UX | lab_technician | Not run |
+
+---
+
+## 36. Patient self-service — the consolidated public-access screen (ADR-124)
+
+*Three tabs became three sections of one screen. Nothing behind them changed, and these cases exist
+to prove it.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| PUB-01 | One tab, three sections | `platform.organization.manage` | Hospital configuration | A single **Patient self-service** tab; no *Patient registration*, *Online booking* or *Self check-in* tab. The page holds all three sections | P1 | UI/UX | org_admin | Not run |
+| PUB-02 | Old links still work | — | Visit `/hospital-setup/patient-registration`, then `/hospital-setup/online-booking`, then `/hospital-setup/self-check-in` | Each redirects to `/hospital-setup/public-access`; no 404 | P1 | Functional | org_admin | Not run |
+| PUB-03 | The three are independent | All three on | Turn **online booking** off | Booking's link and QR stop working; self-registration and self check-in are unaffected, and their links still resolve | P1 | Functional | org_admin | Not run |
+| PUB-04 | Each keeps its own token | All three on | Compare the three links | Three different tokens; regenerating one leaves the other two unchanged | P1 | Security | org_admin | Not run |
+| PUB-05 | Each keeps its own queue | Pending items in all three | Click each pending badge | Registration → `/patients/registrations`; booking → `/appointments/requests`; check-in → `/opd/arrivals` | P1 | Functional | org_admin | Not run |
+| PUB-06 | Posters point back to the new screen | All three on | Print each poster, then use its back link | Each returns to `/hospital-setup/public-access` | P2 | Functional | org_admin | Not run |
+| PUB-07 | Existing settings survived | A hospital configured before the change | Open the screen | Every toggle, token and QR is exactly what it was — the consolidation migrated no data and reset nothing | P1 | Functional | org_admin | Not run |
+| PUB-08 | The workflows still work end to end | All three on | Submit the public registration form, the public booking form and a self check-in, then work each queue | A patient, an appointment and a visit are created by staff action, exactly as before | P1 | Functional | receptionist | Not run |
+| PUB-09 | The permission is unchanged | A user without `platform.organization.manage` | Open `/hospital-setup/public-access` | Refused, as each of the three pages was | P1 | Security | receptionist | Not run |
+| PUB-10 | The queues stay in the sidebar | — | Look at the navigation | *Registration requests*, *Booking requests* and *Arrivals* are still their own items — queues of work were not consolidated, only settings | P2 | UI/UX | receptionist | Not run |
+
+---
+
+## 37. The Organization Admin's scope (ADR-125)
+
+*The role is now "anything inside this hospital". ADMIN-06…09 are the boundaries that did not move
+— run them on every release that touches `@hms/permissions`.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ADMIN-01 | The front desk is available | org_admin | Patients → row actions; Register patient; Appointments → New appointment; OPD → check a patient in | Edit and Deactivate render on a patient row; registration, booking, cancelling and check-in all succeed | P1 | Functional | org_admin | Not run |
+| ADMIN-02 | Money is available | org_admin | Billing → raise an invoice; collect a payment | Both succeed and are audited against the administrator | P1 | Functional | org_admin | Not run |
+| ADMIN-03 | Pharmacy and laboratory are available | org_admin | Pharmacy → receive stock, dispense; Laboratory → enter a result, verify it | All four succeed | P1 | Functional | org_admin | Not run |
+| ADMIN-04 | The clinical record is available | org_admin | Open a visit → write and sign an encounter | The encounter saves and signs; a signed encounter still locks | P1 | Functional | org_admin | Not run |
+| ADMIN-05 | Existing hospitals receive it | A tenant seeded before this change | Deploy (runs `db:migrate` → `reconcileSystemRoles`), then sign in as its org_admin | The new actions are available; no permission the tenant had was removed, and a customised role keeps its customisation | P1 | Functional | ops | Not run |
+| ADMIN-05a | A disabled module is still closed to the administrator | A hospital without Pharmacy | As its org_admin, open `/pharmacy/stock` and call the pharmacy API | The screen says the module is not enabled; the API 403s. Holding the permission changes nothing (ADR-126) | P1 | Security | org_admin | Not run |
+| ADMIN-05b | A permission added later reaches the administrator | A release that adds a permission key | Deploy, then sign in as org_admin | The new capability is available without anyone editing the role — the role is derived, not listed | P2 | Functional | ops | Not run |
+| ADMIN-06 | 🔒 Still cannot leave the hospital | org_admin token | Call the admin console API, a support-session start, and cross-tenant analytics | 403 on each; the Admin app shows the Forbidden panel | P1 | Security | org_admin | Not run |
+| ADMIN-07 | 🔒 Still cannot request an external history | org_admin | Open a patient with ABDM linked; look for *Request history*; then POST the request directly | The action is not rendered; the API returns 403. A history a doctor already pulled is readable | P1 | Security | org_admin | Not run |
+| ADMIN-08 | 🔒 Still confined to its own tenant | Two tenants | As A's org_admin, request a record id belonging to B | 404 — RLS, not the role, is what separates them | P1 | Security | org_admin | Not run |
+| ADMIN-09 | 🔒 A hospital can take the chart back | org_admin | Add a DENY override for `emr.encounter.view` on that account, sign in again | The clinical record is refused in the UI and by the API — explicit DENY beats the role grant | P1 | Security | org_admin | Not run |
+| ADMIN-10 | Every action is attributable | org_admin | Do one of ADMIN-01…04, then open Audit | The entry names the administrator, the action and the record | P1 | Security | org_admin | Not run |
+
+---
+
+## 38. Access refusals — module vs permission (ADR-126)
+
+*A refusal has to say which of the two problems it is, because they have different owners. DENY-05
+to DENY-08 are the security cases.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| DENY-01 | A missing permission is explained | Receptionist | Open `/audit` | *You don't have access to this page*, plus **Permission required: View the audit log · `audit.log.view`** and **Roles with this access: Super Admin, Organization Admin** | P1 | UI/UX | receptionist | Not run |
+| DENY-02 | A disabled module reads differently | A hospital without Pharmacy, as its org_admin | Open `/pharmacy/stock` | *This feature is not available for your hospital* — names the module, says it is not a permission the administrator can grant, and lists **no roles** | P1 | UI/UX | org_admin | Not run |
+| DENY-03 | The module answer wins | As DENY-02 | Note that the administrator **does** hold `pharmacy.stock.view` | The screen still says module, not permission — the two are not confused when both could apply | P1 | Functional | org_admin | Not run |
+| DENY-04 | A custom role is named | A custom role granted `audit.log.view` | As DENY-01 | The custom role appears in *Roles with this access* — the list is read from this hospital's roles, not from a hard-coded set | P1 | Functional | org_admin | Not run |
+| DENY-05 | 🔒 The explanation needs a session | — | `GET /api/v1/rbac/access?permission=patient.record.view` with no token | 401 | P1 | Security | public | Not run |
+| DENY-06 | 🔒 It describes only your hospital | Two tenants, one with a renamed role | As A's receptionist, call the endpoint | Only A's role names; no user, no patient, no tenant id, and nothing from B | P1 | Security | receptionist | Not run |
+| DENY-07 | 🔒 It is not a way to enumerate people | Any session | Read the response of DENY-01 | Roles only — no account, no email, no count of who holds the role | P1 | Security | receptionist | Not run |
+| DENY-08 | 🔒 Guards are not the boundary | Receptionist | Call the audit API directly with their token | 403 from the server regardless of what any screen renders | P1 | Security | receptionist | Not run |
+| DENY-09 | An unknown key still explains itself | — | Call the endpoint with `something.nobody.declared` | 200 with a derived readable label and only wildcard-holding roles listed; no crash | P2 | Functional | org_admin | Not run |
+| DENY-10 | The refusal raises no toast | Receptionist | Open `/audit` and watch the top-right | The panel explains it; **no toast** — the same failure is not reported twice (ADR-057) | P2 | UI/UX | receptionist | Not run |
+
+---
+
+## 39. The dashboard's blank scroll area (ADR-126)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CHART-01 | The page ends where the shell ends | Seeded database | Open `/dashboard` on a wide screen and scroll to the bottom | No blank strip below the sidebar and content; the document ends with the app shell | P1 | UI/UX | org_admin | Not run |
+| CHART-02 | The same on the admin console | A platform operator | Open the admin dashboard (`:3003`) and scroll to the bottom | The same — both apps draw their charts from `@hms/ui` | P1 | UI/UX | super_admin | Not run |
+| CHART-03 | The chart is still readable by a screen reader | `/dashboard` | Inspect a chart with a screen reader or the accessibility tree | Each chart still exposes a data **table** with a Period column and one column per series | P2 | Accessibility | org_admin | Not run |
+
+---
+
+## 40. Form and input behaviour (ADR-127)
+
+*Two defects that only show up while somebody is actually typing. FORM-01 is the reported one;
+FORM-04 to FORM-07 are the ones the same fix has to not break.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| FORM-01 | Typing does not move the caret | `platform.billing.fee_rules.manage` | Fee schedule → **Add a rule** → click **Fee (₹)** → type `500` | All three digits land in the field; focus stays there; the Doctor dropdown is untouched | P1 | Functional | org_admin | Not run |
+| FORM-02 | The same holds in every dialog | Any dialog with a text field | Open one, type several characters into the first field | Focus never jumps between characters — every dialog passes an inline `onClose` and this was the shape of the bug | P1 | Functional | org_admin | Not run |
+| FORM-03 | The trap still traps | Any dialog | Tab past the last control, then Shift-Tab past the first; press Esc | Focus wraps inside the dialog; Esc closes it; closing returns focus to whatever opened it | P1 | Accessibility | org_admin | Not run |
+| FORM-04 | Scrolling does not edit a number | Fee schedule → Add a rule | Type `500`, then scroll the wheel up and down with the pointer over the field | The value stays `500` — never 499 or 501 | P1 | Functional | org_admin | Not run |
+| FORM-05 | ...and the page still scrolls | As FORM-04 | Scroll with the pointer over the field on a page taller than the viewport | The page (or the dialog body) scrolls normally — the gesture is forwarded, not swallowed | P1 | UI/UX | org_admin | Not run |
+| FORM-06 | Every numeric field, not just this one | — | Repeat FORM-04 on the services price, the patient-registration form, pharmacy stock, and a raw numeric input | The same behaviour everywhere — one listener covers the application | P1 | Functional | org_admin | Not run |
+| FORM-07 | Keyboard editing is untouched | Any number field | Use ↑/↓, type a decimal, submit an invalid value | Arrows still step, decimals still accepted where `step` allows, validation still fires | P1 | Functional | org_admin | Not run |
+
+---
+
+## 41. The patient chart's order (ADR-127)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| CHART-10 | Identity first | A patient with history | Open the chart | Above everything: initials, name, UHID, **age**, gender, date of birth, blood group and status | P1 | UI/UX | receptionist | Not run |
+| CHART-11 | Blood group states its absence | A patient with no blood group recorded | Open the chart | Reads *Blood group not recorded* rather than being blank or missing | P1 | UI/UX | receptionist | Not run |
+| CHART-12 | The order is contact → identifiers → care → history → admin | As CHART-10 | Scroll the page | Contact, Emergency contact, National health ID, Treatment cases, Immunisations, History, History from other hospitals, Patient portal access — in that order | P1 | UI/UX | receptionist | Not run |
+| CHART-13 | Nothing was lost | A patient with every field filled | Compare against the record | Every field, card and action still present; Edit still saves them all | P1 | Functional | org_admin | Not run |
+| CHART-14 | Age agrees with the list | Any patient with a date of birth | Compare the age on `/patients` with the chart's identity strip | Identical — one calculation, shared | P2 | Functional | receptionist | Not run |
+| CHART-15 | Cases use their own permission | A role with `opd.case.view` but **not** `clinical.immunization.view` | Open a chart | Treatment cases render; Immunisations do not. Previously neither did | P1 | Security | receptionist | Not run |
+| CHART-16 | The chart does not scroll sideways | A patient with visits, invoices and a long email | Open the chart at 375px wide | No horizontal scrolling; long values wrap inside their cards | P1 | UI/UX | receptionist | Not run |
+| CHART-17 | Permission gating still holds | A receptionist | Open a chart | Consultations are absent (they need `emr.encounter.view`); visits, bills and documents render | P1 | Security | receptionist | Not run |
+
+---
+
+## 42. Where a page's primary action is (ADR-128)
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| BTN-01 | The button is in the same place on every list | org_admin | Open Patients, Appointments, OPD queue, Billing, Services, Providers, Departments, Branches, Users in turn | The primary action is top-right in the page header on every one, level with the title — never in the filter toolbar | P1 | UI/UX | org_admin | Not run |
+| BTN-02 | The toolbar holds no actions | Any list screen | Look at the filter row | Search → Filters → Sort → Column visibility → Pagination only; no create button among them | P1 | UI/UX | org_admin | Not run |
+| BTN-03 | Ordering with several actions | An invoice detail page | Look at the header | Supporting actions first (*Print / PDF*, *Add item*), the primary action right-most | P2 | UI/UX | cashier | Not run |
+| BTN-04 | Permission removes it, never relocates it | A role without `patient.record.create` | Open Patients | No action in the header — not a disabled button, and not moved elsewhere | P1 | Security | cashier | Not run |
+| BTN-05 | The empty state repeats it | A hospital with no services | Open Services | The empty state offers *Add service*, and the header still offers it too | P2 | UI/UX | org_admin | Not run |
+
+---
+
+## 43. Reading the workflow configuration (ADR-129)
+
+*The desk's own form is drawn from settings it has to be able to read. WF-01 is the reported
+defect.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| WF-01 | The booking form loads clean | receptionist | Open `/appointments/new` | The form renders and **no toast appears**. It used to show *Not permitted* beside a working form | P1 | Functional | receptionist | Not run |
+| WF-02 | So does check-in and the vitals queue | receptionist | Open `/opd/check-in`, then `/opd/vitals` | Both load with no toast; `GET /workflow-config` returns 200 | P1 | Functional | receptionist | Not run |
+| WF-03 | The doctor and the counter too | doctor, then cashier | Open a consultation; open a patient chart with cases | No toast; the case-type words and the vitals fields appear where the hospital configured them | P1 | Functional | doctor | Not run |
+| WF-04 | 🔒 Reading is not editing | receptionist | `PUT /api/v1/workflow-config` directly | 403 — `platform.workflow.manage` is the administrator's alone | P1 | Security | receptionist | Not run |
+| WF-05 | 🔒 The settings screen stays closed | receptionist | Open `/hospital-setup/workflow` | Refused, naming the manage permission | P1 | Security | receptionist | Not run |
+| WF-06 | 🔒 Roles that do not need it do not have it | pharmacist or lab_technician | `GET /api/v1/workflow-config` | 403 — they reach none of the screens that read it | P2 | Security | pharmacist | Not run |
+| WF-07 | A denied account degrades, it does not break | Any staff account with a DENY override on `platform.workflow.view` | Open `/opd/check-in` | The form renders on the platform defaults; **no toast** — the fallback is the behaviour, not an error | P1 | Functional | receptionist | Not run |
+
+---
+
+## 44. ABHA verification keeps what each step told it (ADR-130)
+
+*Both reported failures, plus the identifiers that share the same completion path. ABHA-M-01 and
+ABHA-M-02 are the reproductions.*
+
+| ID | Case | Preconditions | Steps | Expected result | Priority | Type | Role | Status |
+|---|---|---|---|---|---|---|---|---|
+| ABHA-M-01 | An existing ABHA fills the form | A patient with an ABHA; ABDM sandbox or mock | Patients → Register patient → **Patient has an ABHA** → verify by mobile → pick the account | The card shows the name, gender, date of birth, ABHA number and ABHA address — not *Unnamed · Not specified · DOB unknown* — and the form below is filled | P1 | Functional | receptionist | Not run |
+| ABHA-M-02 | Creating an ABHA keeps the Aadhaar details | An Aadhaar with a different mobile | **Create a new ABHA** → Aadhaar OTP → enter a different mobile → mobile OTP | Everything the Aadhaar step showed is still on the card after the mobile step, and the new mobile is added to it | P1 | Functional | receptionist | Not run |
+| ABHA-M-03 | All four identifiers behave alike | — | Verify by ABHA number, by ABHA address, by mobile, by Aadhaar in turn | Each ends with a filled card and a filled form; they share one completion path | P1 | Functional | receptionist | Not run |
+| ABHA-M-04 | A name is not split by guesswork | An ABHA whose registered name is three words | Verify and look at the form | The whole name is in **First name**; nothing was invented for **Last name** | P2 | UI/UX | receptionist | Not run |
+| ABHA-M-05 | A returning patient still stops and asks | An ABHA already on a chart here | Verify it | The match is *returning* and the form is **not** auto-filled — a filled prefill must not become a duplicate chart | P1 | Security | receptionist | Not run |
+| ABHA-M-06 | The mock is no kinder than the sandbox | — | Read `mockProvider.loginVerifyUser` and `enrolMobileVerifyOtp` | Both answer sparsely, as ABDM does. A mock that returns more than the real system hides this whole class of defect | P2 | Functional | ops | Not run |
+| ABHA-M-07 | No driving-licence flow is offered | — | Open the ABHA panel | Only ABHA number, ABHA address, mobile and Aadhaar are offered — nothing claims a licence is supported | P2 | UI/UX | receptionist | Not run |
 
 ---
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Card, Select, Skeleton } from "@hms/ui";
+import { Plus, X } from "lucide-react";
+import { Alert, Badge, Button, Card, Field, Select, Skeleton } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import {
   VITAL_PARAMETERS,
@@ -89,6 +90,95 @@ const PARAM_STATE_OPTIONS = [
 
 const ORG_SCOPE = "__org__";
 
+/**
+ * A short list of the hospital's own words (ADR-121).
+ *
+ * Deliberately a chip list rather than a comma-separated text field: these values are stored on
+ * every visit and every case that uses them and are matched by the fee schedule, so "Corporate," with
+ * a trailing comma has to be impossible to create rather than merely discouraged. Each entry is added
+ * and removed as a whole thing.
+ *
+ * Local to this screen on purpose — it is used twice here and nowhere else. If a third use appears it
+ * moves to `@hms/ui` (ADR-029).
+ */
+function TypeListEditor({
+  label,
+  hint,
+  values,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  hint: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+  const trimmed = draft.trim();
+  const duplicate = values.some((v) => v.toLowerCase() === trimmed.toLowerCase());
+
+  function add() {
+    if (!trimmed || duplicate) return;
+    onChange([...values, trimmed]);
+    setDraft("");
+  }
+
+  return (
+    <div>
+      <p className="hms-label mb-1">{label}</p>
+      <p className="mb-3 text-sm text-fg-muted">{hint}</p>
+      {values.length > 0 && (
+        <ul className="mb-3 flex flex-wrap gap-2">
+          {values.map((v) => (
+            <li key={v}>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-1.5 text-sm text-fg">
+                {v}
+                {!disabled && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${v}`}
+                    className="rounded-full p-0.5 text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                    onClick={() => onChange(values.filter((x) => x !== v))}
+                  >
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!disabled && (
+        <div className="flex items-end gap-2">
+          <Field
+            label={`Add a ${label.toLowerCase().replace(/s$/, "")}`}
+            value={draft}
+            maxLength={40}
+            placeholder={placeholder}
+            onChange={(e) => setDraft(e.target.value)}
+            // Enter adds the entry rather than submitting the form — a half-typed word must not
+            // save the whole page.
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            error={trimmed && duplicate ? "Already in the list." : undefined}
+            className="flex-1"
+          />
+          <Button type="button" variant="secondary" onClick={add} disabled={!trimmed || duplicate}>
+            <Plus size={16} strokeWidth={2} /> Add
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WorkflowSettings() {
   const canManage = useCan(PERMISSIONS.WORKFLOW_CONFIG_MANAGE);
 
@@ -105,6 +195,8 @@ function WorkflowSettings() {
     () => Object.fromEntries(VITAL_PARAMETERS.map((p) => [p, "off"])) as Record<VitalParameter, ParamState>,
   );
   const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>("before_consultation");
+  const [consultationTypes, setConsultationTypes] = useState<string[]>([]);
+  const [caseTypes, setCaseTypes] = useState<string[]>([]);
 
   useEffect(() => {
     api.listBranches().then(setBranches).catch(() => setBranches([]));
@@ -120,6 +212,8 @@ function WorkflowSettings() {
       setConfig(c);
       setVitalsMode(c.vitalsMode);
       setPaymentTiming(c.paymentTiming);
+      setConsultationTypes(c.consultationTypes);
+      setCaseTypes(c.caseTypes);
       setParamStates(
         Object.fromEntries(
           VITAL_PARAMETERS.map((p) => [
@@ -159,6 +253,8 @@ function WorkflowSettings() {
         vitalsRequiredParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === "required"),
         vitalsOptionalParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === "optional"),
         paymentTiming,
+        consultationTypes,
+        caseTypes,
       });
       setConfig(updated);
     } catch (err) {
@@ -240,6 +336,36 @@ function WorkflowSettings() {
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card header="Consultation and case types">
+        <p className="mb-4 text-sm text-fg-muted">
+          Your own words for the kinds of consultation you offer and the kinds of case you treat under. Both are
+          optional. Leave them empty and neither question is asked anywhere — nothing changes.
+        </p>
+        <div className="flex flex-col gap-6">
+          <TypeListEditor
+            label="Consultation types"
+            hint="What kind of consultation this is. Offered as a field at check-in, and usable as a price in the fee schedule."
+            placeholder="Teleconsultation, Procedure, Review…"
+            values={consultationTypes}
+            onChange={setConsultationTypes}
+            disabled={!canManage}
+          />
+          <TypeListEditor
+            label="Case types"
+            hint="What kind of episode a treatment case is. Set once when the case is opened, and it prices every visit under it."
+            placeholder="Corporate, Insurance, Camp, Medico-legal…"
+            values={caseTypes}
+            onChange={setCaseTypes}
+            disabled={!canManage}
+          />
+        </div>
+        <Alert tone="neutral" className="mt-4">
+          Removing a type does not change any visit or case already recorded under it. If the fee schedule still
+          prices that type, saving is refused until you retire the rule — otherwise the price would stay on the
+          screen while never applying again.
+        </Alert>
       </Card>
 
       <Card header="Payment">

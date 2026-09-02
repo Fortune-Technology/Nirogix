@@ -19,7 +19,7 @@ import { completeReferralTx } from '../referral/referral.service';
 import { assertCaseUsableTx, openCaseTx } from './case.service';
 import { resolveConsultationFeeTx } from '../billing/feeRules.service';
 import { logger } from '../../config/logger';
-import { resolveConfig } from '../workflow/workflowConfig.service';
+import { assertCaseType, assertConsultationType, resolveConfig } from '../workflow/workflowConfig.service';
 import {
   assertRequiredPresent,
   hasAnyReading,
@@ -74,6 +74,14 @@ export interface CheckInInput {
    */
   arrivalType?: 'walk_in' | 'appointment' | 'follow_up' | null;
   /**
+   * What kind of consultation this is (ADR-121), from the hospital's own configured vocabulary.
+   *
+   * A pricing dimension and a clinical fact at once: a teleconsultation and a dressing change are
+   * both walk-ins and are not the same consultation. Rejected outright where the hospital has
+   * configured no vocabulary — a value no screen can explain is worse than no value.
+   */
+  consultationType?: string | null;
+  /**
    * Check in under an existing treatment case (ADR-116). The case must belong to this patient and
    * still be open; both are checked server-side, because an id from another chart would file the
    * visit under a stranger's episode.
@@ -86,7 +94,7 @@ export interface CheckInInput {
    * The case is created in the SAME transaction as the visit, so a check-in that fails afterwards
    * cannot leave an empty case behind.
    */
-  newCase?: { title: string; notes?: string | null } | null;
+  newCase?: { title: string; notes?: string | null; caseType?: string | null } | null;
 }
 
 // Flat column selection — predictable nullability (left-joined columns are nullable).
@@ -94,6 +102,7 @@ const visitColumns = {
   v: visits,
   caseNumber: patientCases.caseNumber,
   caseTitle: patientCases.title,
+  caseType: patientCases.caseType,
   patientFirst: patients.firstName,
   patientLast: patients.lastName,
   patientUhid: patients.uhid,
@@ -109,6 +118,7 @@ type VisitRowFlat = {
   v: VisitRow;
   caseNumber: string | null;
   caseTitle: string | null;
+  caseType: string | null;
   patientFirst: string;
   patientLast: string | null;
   patientUhid: string;
@@ -129,11 +139,14 @@ function toVisitDto(row: VisitRowFlat) {
     visitDate: v.visitDate,
     visitType: v.visitType,
     arrivalType: v.arrivalType,
+    consultationType: v.consultationType,
     caseId: v.caseId,
     calculatedFeePaise: v.calculatedFeePaise,
     feeOverrideReason: v.feeOverrideReason,
     caseNumber: row.caseNumber,
     caseTitle: row.caseTitle,
+    // From the case, not the visit: what prices this consultation is the episode it belongs to.
+    caseType: row.caseType,
     status: v.status,
     version: v.version,
     department: v.department,
@@ -201,6 +214,16 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       'Check the patient in under an existing case, or open a new one — not both',
     );
   }
+
+  // Both checked against this hospital's configured vocabulary (ADR-121) BEFORE the transaction
+  // opens, for the same reason the vitals rules are: a value the hospital does not use should fail
+  // while the desk still has the form, not after a visit, a case and an invoice exist.
+  const consultationType = input.consultationType
+    ? await assertConsultationType(tenantId, input.branchId ?? null, input.consultationType)
+    : null;
+  const newCaseType = input.newCase?.caseType
+    ? await assertCaseType(tenantId, input.branchId ?? null, input.newCase.caseType)
+    : null;
 
   const {
     visitId,
@@ -314,9 +337,14 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     // The case this visit belongs to (ADR-116). Resolved inside this transaction so a newly
     // opened case and the visit that justified it either both exist or neither does.
     let caseId: string | null = null;
+    // The case type prices the visit, and it is read from the case rather than taken from the
+    // form — a corporate case prices its own follow-ups, and a desk restating it per visit is how
+    // the third visit ends up charged as something the first two were not.
+    let caseType: string | null = null;
     if (input.caseId) {
       const existingCase = await assertCaseUsableTx(tx, tenantId, input.caseId, patientId);
       caseId = existingCase.id;
+      caseType = existingCase.caseType;
       // The case knows where it is being run; a desk that picked it should not have to re-pick.
       departmentIdInput = departmentIdInput ?? existingCase.departmentId;
       providerId = providerId ?? existingCase.providerId;
@@ -328,6 +356,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
           patientId,
           title: input.newCase.title,
           notes: input.newCase.notes ?? null,
+          caseType: newCaseType,
           departmentId: departmentIdInput,
           providerId,
           branchId: input.branchId ?? null,
@@ -335,6 +364,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
         actorUserId,
       );
       caseId = created.id;
+      caseType = created.caseType;
     }
 
     // What this consultation costs, from the fee schedule (ADR-117) — resolved here, with the
@@ -344,6 +374,8 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       providerId,
       departmentId: departmentIdInput,
       arrivalType,
+      consultationType,
+      caseType,
       branchId: input.branchId ?? null,
     });
 
@@ -387,6 +419,7 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
           departmentId: departmentIdInput,
           reason: input.reason ?? referral?.reason ?? null,
           arrivalType: arrivalType ?? 'walk_in',
+          consultationType,
           caseId,
           // Kept even when the desk charged something else: the invoice holds what was billed,
           // this holds what should have been, and the gap is what an override means.

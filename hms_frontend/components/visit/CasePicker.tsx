@@ -26,8 +26,14 @@ import { useCan } from "../../lib/auth";
 
 export type CaseChoice =
   | { kind: "none" }
-  | { kind: "existing"; caseId: string }
-  | { kind: "new"; title: string; notes: string };
+  /**
+   * The chosen case's own type travels with the choice (ADR-121) so the check-in form can quote
+   * the right fee without fetching the case again. It is **not** sent back to the server — the
+   * server prices from the case row, because a client-stated case type would be a price the
+   * client chose.
+   */
+  | { kind: "existing"; caseId: string; caseType: string | null }
+  | { kind: "new"; title: string; notes: string; caseType: string };
 
 export const NO_CASE: CaseChoice = { kind: "none" };
 
@@ -41,9 +47,21 @@ export interface CasePickerProps {
    */
   preferExisting?: boolean;
   disabled?: boolean;
+  /**
+   * The hospital's own case types (ADR-121). Empty — the usual case — and the question is not
+   * asked at all.
+   */
+  caseTypes?: string[];
 }
 
-export function CasePicker({ patientId, value, onChange, preferExisting, disabled }: CasePickerProps) {
+export function CasePicker({
+  patientId,
+  value,
+  onChange,
+  preferExisting,
+  disabled,
+  caseTypes = [],
+}: CasePickerProps) {
   const canView = useCan(PERMISSIONS.CASE_VIEW);
   const canManage = useCan(PERMISSIONS.CASE_MANAGE);
 
@@ -77,7 +95,7 @@ export function CasePicker({ patientId, value, onChange, preferExisting, disable
   useEffect(() => {
     if (!preferExisting || value.kind !== "none") return;
     const latest = openCases?.[0];
-    if (latest) onChange({ kind: "existing", caseId: latest.id });
+    if (latest) onChange({ kind: "existing", caseId: latest.id, caseType: latest.caseType });
   }, [preferExisting, openCases, value.kind, onChange]);
 
   if (!canView) return null;
@@ -127,8 +145,8 @@ export function CasePicker({ patientId, value, onChange, preferExisting, disable
         value={selected}
         onChange={(v) => {
           if (v === "none" || v === "") onChange({ kind: "none" });
-          else if (v === "new") onChange({ kind: "new", title: "", notes: "" });
-          else onChange({ kind: "existing", caseId: v });
+          else if (v === "new") onChange({ kind: "new", title: "", notes: "", caseType: "" });
+          else onChange({ kind: "existing", caseId: v, caseType: cases.find((c) => c.id === v)?.caseType ?? null });
         }}
         options={options}
         searchable={cases.length > 5}
@@ -139,6 +157,12 @@ export function CasePicker({ patientId, value, onChange, preferExisting, disable
             : "Pick the case this visit belongs to, or leave it as a one-off."
         }
       />
+
+      {value.kind === "existing" && value.caseType && (
+        <p className="text-sm text-fg-muted">
+          This is a <Badge tone="brand">{value.caseType}</Badge> case, and that is what prices this visit.
+        </p>
+      )}
 
       {value.kind === "new" && (
         <div className="flex flex-col gap-4 rounded-token border border-border p-4">
@@ -152,6 +176,22 @@ export function CasePicker({ patientId, value, onChange, preferExisting, disable
             onChange={(e) => onChange({ ...value, title: e.target.value })}
             hint="In words the patient would recognise. Not a diagnosis — the doctor codes that in the consultation."
           />
+          {/* Asked once, when the case is opened, because it is a property of the episode — and
+              because asking it at every visit is how the third visit gets priced as something the
+              first two were not. */}
+          {caseTypes.length > 0 && (
+            <Select
+              label="Case type"
+              value={value.caseType}
+              onChange={(v) => onChange({ ...value, caseType: v })}
+              options={caseTypes.map((t) => ({ value: t, label: t }))}
+              searchable={caseTypes.length > 7}
+              clearable
+              placeholder="Not specified"
+              disabled={disabled}
+              hint="Optional. It prices every visit under this case, not just this one."
+            />
+          )}
           <Textarea
             label="Notes"
             value={value.notes}
