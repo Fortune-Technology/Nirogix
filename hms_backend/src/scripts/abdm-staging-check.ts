@@ -385,6 +385,18 @@ async function main(): Promise<void> {
   console.log('     Aadhaar and a real OTP, so it belongs to NHA functional testing');
   console.log('   · that a real HIP or PHR app has ever called these routes. A route that');
   console.log('     answers 401 to us answers correctly to ABDM; it has still never been used');
+  if (failed > 0) {
+    // Said out loud, because npm wraps a non-zero exit in its own "Lifecycle script failed"
+    // noise and that reads as a broken script rather than as the finding it is.
+    console.log('');
+    console.log(
+      `  Exiting 1 because ${failed} check(s) failed. That is the finding, not a crash —`,
+    );
+    console.log(
+      '  npm will print its own "Lifecycle script failed" wrapper underneath. To see the',
+    );
+    console.log('  report without it: npx tsx src/scripts/abdm-staging-check.ts');
+  }
   console.log('');
   process.exit(failed > 0 ? 1 : 0);
 }

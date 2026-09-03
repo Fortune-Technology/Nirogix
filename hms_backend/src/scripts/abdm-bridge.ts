@@ -38,8 +38,17 @@ import { randomUUID } from 'node:crypto';
  */
 
 const GATEWAY = process.env.ABDM_GATEWAY_BASE_URL ?? 'https://dev.abdm.gov.in';
-const FACILITY_REGISTRY =
-  process.env.ABDM_FACILITY_REGISTRY_URL ?? 'https://facilitysbx.abdm.gov.in';
+/**
+ * `facilitysbx.abdm.gov.in` is GONE, and nothing here uses it any more (03/09/2026, ADR-142).
+ *
+ * The M1 collection put bridge-service registration on that host. The M2 and M3 collections put
+ * it on the HFR host below, and `facilitysbx` now fails to connect at all — verified from the
+ * staging VM in India **and** from a developer machine in India, so it is retirement rather than
+ * a network problem at either end. The constant stays only to explain its own absence: an
+ * operator who finds the old host in NHA's onboarding email should not spend an afternoon
+ * proving it is dead a second time.
+ */
+const RETIRED_FACILITY_REGISTRY = 'https://facilitysbx.abdm.gov.in';
 /** The HFR/HPR host (M4). A third base URL — neither the ABHA host nor the HIE-CM gateway. */
 const FACILITY_SERVICES = process.env.ABDM_HFR_BASE_URL ?? 'https://apihspsbx.abdm.gov.in/v4/int';
 const CM_ID = process.env.ABDM_CM_ID ?? 'sbx';
@@ -266,7 +275,7 @@ async function main(): Promise<void> {
   console.log('\nABDM bridge registration');
   console.log('------------------------');
   console.log(`  gateway   ${GATEWAY}`);
-  console.log(`  registry  ${FACILITY_REGISTRY}`);
+  console.log(`  registry  ${FACILITY_SERVICES}   (${RETIRED_FACILITY_REGISTRY} is retired)`);
   console.log(`  X-CM-ID   ${CM_ID}`);
   console.log(`  client id ${CLIENT_ID ?? '(not set)'}`);
   console.log(
