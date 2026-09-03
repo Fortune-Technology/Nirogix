@@ -17,6 +17,8 @@ export * from './capabilityEntitlements';
 export * from './auditLog';
 export * from './notifications';
 export * from './files';
+export * from './signatures';
+export * from './imports';
 export * from './providers';
 export * from './departments';
 export * from './branding';

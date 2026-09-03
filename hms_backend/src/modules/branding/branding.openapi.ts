@@ -13,7 +13,8 @@ registry.registerPath({
   operationId: 'getCurrentBranding',
   tags: ['Config'],
   summary: 'Get the active tenant branding (feeds the Portal at session bootstrap)',
-  description: 'Colours + resolved logo/favicon URLs + typography. Nulls mean "use the default tokens".',
+  description:
+    'Colours + resolved logo/favicon URLs + typography. Nulls mean "use the default tokens".',
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: 'Branding', ...json(BrandingSchema) }, 401: notAuthed },
 });
@@ -41,7 +42,11 @@ registry.registerPath({
   tags: ['Config'],
   summary: 'Reset branding to the default token palette',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Reset branding', ...json(BrandingSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Reset branding', ...json(BrandingSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({

@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, integer, text, timestamp, unique, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  text,
+  timestamp,
+  unique,
+  index,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { branches } from './branches';
@@ -25,7 +34,9 @@ import { visits } from './visits';
 export const hospitalWorkflowConfig = pgTable(
   'hospital_workflow_config',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -54,8 +65,14 @@ export const hospitalWorkflowConfig = pgTable(
      * about is configuration, and adding one must not be a migration. The *readings* stay strongly
      * typed in `patient_vitals` (invariant #5) — it is the choice of which to collect that is data.
      */
-    vitalsRequiredParams: text('vitals_required_params').array().notNull().default(sql`'{}'::text[]`),
-    vitalsOptionalParams: text('vitals_optional_params').array().notNull().default(sql`'{}'::text[]`),
+    vitalsRequiredParams: text('vitals_required_params')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    vitalsOptionalParams: text('vitals_optional_params')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
 
     /**
      * The hospital's own words for what kind of consultation this is (ADR-121) — "First OPD",
@@ -67,13 +84,19 @@ export const hospitalWorkflowConfig = pgTable(
      * would be wrong for both. **Empty by default**, which means the field is not shown and the
      * dimension is inert — a hospital that never opens the screen sees no change.
      */
-    consultationTypes: text('consultation_types').array().notNull().default(sql`'{}'::text[]`),
+    consultationTypes: text('consultation_types')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     /**
      * The same, for what kind of *episode* a treatment case is — "General", "Corporate",
      * "Insurance", "Camp", "Medico-legal". Set once when the case is opened, and it prices every
      * visit under that case: a corporate case does not stop being corporate on its third visit.
      */
-    caseTypes: text('case_types').array().notNull().default(sql`'{}'::text[]`),
+    caseTypes: text('case_types')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
 
     /**
      * When the consultation fee has to be settled.
@@ -89,7 +112,9 @@ export const hospitalWorkflowConfig = pgTable(
      * The gate is enforced server-side in the EMR service. This setting moves it; it is never read
      * by the frontend to decide whether to allow something.
      */
-    paymentTiming: varchar('payment_timing', { length: 24 }).notNull().default('before_consultation'),
+    paymentTiming: varchar('payment_timing', { length: 24 })
+      .notNull()
+      .default('before_consultation'),
 
     // Optimistic locking, same shape as tenant_branding and organization_profile.
     version: integer('version').notNull().default(1),
@@ -124,7 +149,9 @@ export const hospitalWorkflowConfig = pgTable(
 export const patientVitals = pgTable(
   'patient_vitals',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),

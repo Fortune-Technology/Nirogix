@@ -3,7 +3,9 @@ import * as svc from './department.service';
 
 export async function list(req: Request, res: Response): Promise<void> {
   const { activeOnly, branchId } = req.query as { activeOnly?: boolean; branchId?: string };
-  res.json({ departments: await svc.listDepartments(req.auth!.tenantId, { activeOnly, branchId }) });
+  res.json({
+    departments: await svc.listDepartments(req.auth!.tenantId, { activeOnly, branchId }),
+  });
 }
 
 export async function getOne(req: Request, res: Response): Promise<void> {
@@ -15,5 +17,7 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 export async function update(req: Request, res: Response): Promise<void> {
-  res.json(await svc.updateDepartment(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await svc.updateDepartment(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }

@@ -1,44 +1,57 @@
-"use client";
+'use client';
 
-import { useId, useState, type FormEvent } from "react";
-import { Check, Loader2 } from "lucide-react";
-import { Button } from "../ui/Button";
+import { useId, useState, type FormEvent } from 'react';
+import { Check, Loader2 } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 /*
  * Demo-request form. NOTE: the marketing site is static and has no backend, so on
  * submit this shows a success state without transmitting anywhere. Before launch,
  * wire handleSubmit to a real endpoint or CRM (the TODO below). Field names are
  * stable so that wiring is a drop-in.
+ *
+ * The role field is a **native `<select>` on purpose** — the one left in the monorepo after the
+ * Portal moved to `@hms/ui`'s `Select` (ADR-112). Three reasons, and they are marketing's, not
+ * the Portal's:
+ *
+ * - This form is **uncontrolled**. It has no state per field, submits natively, and leans on the
+ *   browser's `required` to refuse an empty role. `Select` is controlled and its hidden input
+ *   carries no `required`, so swapping it in would quietly remove that validation.
+ * - Marketing is an **independent token scope** (`--mk-*`, ADR-040) with its own `inputClass`.
+ *   The kit's control is styled for the Portal's fields, which this form does not use.
+ * - Five options with no search. There is nothing here the kit's control would do better.
+ *
+ * Consistency is the reason to use the shared control, not a reason to lose form validation.
  */
 
 const inputClass =
-  "w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-[0.975rem] text-ink " +
-  "placeholder:text-ink-faint transition-shadow focus:outline-none focus:border-accent " +
-  "focus:ring-3 focus:ring-accent/25";
-const labelClass = "text-sm font-medium text-ink";
+  'w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-[0.975rem] text-ink ' +
+  'placeholder:text-ink-faint transition-shadow focus:outline-none focus:border-accent ' +
+  'focus:ring-3 focus:ring-accent/25';
+const labelClass = 'text-sm font-medium text-ink';
 
 const ROLE_OPTIONS = [
-  "Owner or founder",
-  "Hospital administrator",
-  "Doctor",
-  "IT or operations",
-  "Other",
+  'Owner or founder',
+  'Hospital administrator',
+  'Doctor',
+  'IT or operations',
+  'Other',
 ];
 
 export function ContactForm() {
-  const [status, setStatus] = useState<"idle" | "submitting" | "done">("idle");
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
   const uid = useId();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus("submitting");
+    setStatus('submitting');
     // TODO(before launch): POST the form data to the real demo-request endpoint / CRM.
     // The form is intentionally inert on the static marketing site.
     await new Promise((r) => setTimeout(r, 500));
-    setStatus("done");
+    setStatus('done');
   }
 
-  if (status === "done") {
+  if (status === 'done') {
     return (
       <div className="rounded-xl border border-hairline bg-surface p-8 text-center">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-accent-subtle text-accent">
@@ -54,13 +67,22 @@ export function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-hairline bg-surface p-6 sm:p-8">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-hairline bg-surface p-6 sm:p-8"
+    >
       <div className="grid gap-5">
         <div className="grid gap-2">
           <label htmlFor={`${uid}-name`} className={labelClass}>
             Full name
           </label>
-          <input id={`${uid}-name`} name="name" required autoComplete="name" className={inputClass} />
+          <input
+            id={`${uid}-name`}
+            name="name"
+            required
+            autoComplete="name"
+            className={inputClass}
+          />
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -129,14 +151,14 @@ export function ContactForm() {
           </p>
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={status === "submitting"}>
-          {status === "submitting" ? (
+        <Button type="submit" size="lg" className="w-full" disabled={status === 'submitting'}>
+          {status === 'submitting' ? (
             <>
               <Loader2 size={18} strokeWidth={2} className="animate-spin" />
               Sending
             </>
           ) : (
-            "Book a demo"
+            'Book a demo'
           )}
         </Button>
         <p className="text-center text-xs leading-relaxed text-ink-faint">

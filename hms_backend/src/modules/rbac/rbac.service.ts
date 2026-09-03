@@ -99,10 +99,7 @@ export async function assignRoleByKey(
         .limit(1)
     )[0];
     if (!role) throw new Error(`Role not found: ${roleKey}`);
-    await tx
-      .insert(userRoles)
-      .values({ tenantId, userId, roleId: role.id })
-      .onConflictDoNothing();
+    await tx.insert(userRoles).values({ tenantId, userId, roleId: role.id }).onConflictDoNothing();
   });
   cache.invalidateUser(tenantId, userId);
   await writeAudit({
@@ -229,7 +226,13 @@ export async function resolvePermissions(
     return { effective, wildcard, earliestValidUntil };
   });
 
-  cache.setCached(tenantId, userId, resolved.effective, resolved.wildcard, resolved.earliestValidUntil);
+  cache.setCached(
+    tenantId,
+    userId,
+    resolved.effective,
+    resolved.wildcard,
+    resolved.earliestValidUntil,
+  );
   return { permissions: resolved.effective, wildcard: resolved.wildcard };
 }
 

@@ -106,7 +106,8 @@ function isAbnormal(observation: Json): boolean {
   for (const interpretation of asArray(observation.interpretation)) {
     for (const coding of asArray(asJson(interpretation).coding)) {
       const code = str(asJson(coding).code).toUpperCase();
-      if (['H', 'L', 'A', 'AA', 'HH', 'LL', 'ABNORMAL', 'HIGH', 'LOW', 'CRITICAL'].includes(code)) return true;
+      if (['H', 'L', 'A', 'AA', 'HH', 'LL', 'ABNORMAL', 'HIGH', 'LOW', 'CRITICAL'].includes(code))
+        return true;
     }
     const text = str(asJson(interpretation).text).toLowerCase();
     if (/abnormal|high|low|critical|positive/.test(text)) return true;
@@ -121,7 +122,8 @@ function resources(bundle: Json): Json[] {
     .filter((r) => Object.keys(r).length > 0);
 }
 
-const byType = (all: Json[], type: string): Json[] => all.filter((r) => str(r.resourceType) === type);
+const byType = (all: Json[], type: string): Json[] =>
+  all.filter((r) => str(r.resourceType) === type);
 
 /**
  * Turns one stored bundle into one timeline entry.
@@ -144,7 +146,10 @@ export function toTimelineEntry(record: AbdmHiuRecord): TimelineEntry {
   }
 
   // Medications, from either shape a source may use.
-  for (const medication of [...byType(all, 'MedicationRequest'), ...byType(all, 'MedicationStatement')]) {
+  for (const medication of [
+    ...byType(all, 'MedicationRequest'),
+    ...byType(all, 'MedicationStatement'),
+  ]) {
     const name = codeText(medication.medicationCodeableConcept);
     const instruction = asArray(medication.dosageInstruction)
       .map((d) => str(asJson(d).text))
@@ -180,7 +185,11 @@ export function toTimelineEntry(record: AbdmHiuRecord): TimelineEntry {
   for (const immunisation of byType(all, 'Immunization')) {
     const vaccine = codeText(immunisation.vaccineCode);
     if (vaccine) {
-      details.push({ group: 'Immunisations', label: vaccine, value: str(immunisation.occurrenceDateTime) || 'Given' });
+      details.push({
+        group: 'Immunisations',
+        label: vaccine,
+        value: str(immunisation.occurrenceDateTime) || 'Given',
+      });
     }
   }
 
@@ -192,7 +201,8 @@ export function toTimelineEntry(record: AbdmHiuRecord): TimelineEntry {
   for (const allergy of byType(all, 'AllergyIntolerance')) {
     const text = codeText(allergy.code);
     // Always emphasised: an allergy is the one line whose being missed causes direct harm.
-    if (text) details.push({ group: 'Allergies', label: 'Allergy', value: text, emphasis: 'abnormal' });
+    if (text)
+      details.push({ group: 'Allergies', label: 'Allergy', value: text, emphasis: 'abnormal' });
   }
 
   const organisation = byType(all, 'Organization')[0];

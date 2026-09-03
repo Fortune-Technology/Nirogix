@@ -30,14 +30,22 @@ const QuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   severity: severityFilter,
   /** Date window (inclusive) over `created_at`, e.g. an end-of-day report (YYYY-MM-DD). */
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   sortBy: z.enum(['createdAt', 'action', 'severity', 'statusCode']).default('createdAt'),
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export async function listAuditLog(req: Request, res: Response): Promise<void> {
-  const { page, pageSize, search, severity, from, to, sortBy, sortDir } = QuerySchema.parse(req.query);
+  const { page, pageSize, search, severity, from, to, sortBy, sortDir } = QuerySchema.parse(
+    req.query,
+  );
   const { rows, total } = await listAudit(req.auth!.tenantId, {
     page,
     pageSize,

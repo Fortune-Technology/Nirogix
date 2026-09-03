@@ -1,16 +1,32 @@
-"use client";
+'use client';
 
-import { useState, type ReactNode } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { BOTTOM_NAV_MAX_ITEMS, BottomNav, BrandMark, Button, HeaderUser, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
-import { formatRoleNames } from "@hms/permissions";
-import { Menu, ShieldAlert } from "lucide-react";
-import { useAuth } from "../lib/auth";
-import { useTheme } from "../lib/theme";
-import { NAV_ITEMS, activeNavHref, mobilePrimaryNav, navEntitled, navGroupsForUser } from "../lib/nav";
-import { ThemeToggle } from "./ThemeToggle";
+import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  BOTTOM_NAV_MAX_ITEMS,
+  BottomNav,
+  BrandMark,
+  Button,
+  HeaderUser,
+  NavDrawer,
+  NavDrawerItem,
+  NavDrawerSection,
+  cn,
+} from '@hms/ui';
+import { formatRoleNames } from '@hms/permissions';
+import { Menu, ShieldAlert } from 'lucide-react';
+import { useAuth } from '../lib/auth';
+import { useTheme } from '../lib/theme';
+import {
+  NAV_ITEMS,
+  activeNavHref,
+  mobilePrimaryNav,
+  navEntitled,
+  navGroupsForUser,
+} from '../lib/nav';
+import { ThemeToggle } from './ThemeToggle';
 
 // The authenticated shell: a permission-filtered sidebar + a topbar. The nav only
 // shows items the user's effective permissions allow (UX mirror of server enforcement).
@@ -51,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   async function handleLogout() {
     await logout();
-    router.replace("/login");
+    router.replace('/login');
   }
 
   return (
@@ -87,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={group.label ?? `group-${gi}`}
               // A hairline above every group but the first draws the section boundary
               // without adding a heavy divider to a narrow column.
-              className={cn("flex flex-col gap-1", gi > 0 && "border-t border-border pt-4")}
+              className={cn('flex flex-col gap-1', gi > 0 && 'border-t border-border pt-4')}
             >
               {group.label ? (
                 <span className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.07em] text-fg-subtle">
@@ -101,10 +117,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    aria-current={active ? "page" : undefined}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
-                      active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+                      'flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-brand-subtle text-brand'
+                        : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >
                     <Icon size={17} strokeWidth={1.75} className="shrink-0" />
@@ -122,7 +140,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex flex-wrap items-center justify-between gap-3 bg-warning-subtle px-5 py-2.5 text-sm">
             <span className="flex items-center gap-2 font-medium text-warning">
               <ShieldAlert size={16} strokeWidth={2} aria-hidden />
-              Support session: you are acting as {user?.fullName} and every action is audited in this tenant.
+              Support session: you are acting as {user?.fullName} and every action is audited in
+              this tenant.
             </span>
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Exit support session
@@ -164,7 +183,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="hms-bottomnav-offset flex flex-1 flex-col gap-5 bg-bg p-5">{children}</main>
+        <main className="hms-bottomnav-offset flex flex-1 flex-col gap-5 bg-bg p-5">
+          {children}
+        </main>
       </div>
 
       {/* Mobile only — desktop keeps the sidebar (ADR-033). */}
@@ -182,7 +203,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} title="Menu">
         {navGroups.map((group, gi) => (
-          <NavDrawerSection key={group.label ?? `group-${gi}`} title={group.label ?? "Overview"}>
+          <NavDrawerSection key={group.label ?? `group-${gi}`} title={group.label ?? 'Overview'}>
             {group.items.map((item) => (
               <NavDrawerItem
                 key={item.href}

@@ -1,5 +1,5 @@
-import { PERMISSIONS } from "@hms/permissions";
-import type { LucideIcon } from "lucide-react";
+import { PERMISSIONS } from '@hms/permissions';
+import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   Building2,
@@ -24,7 +24,7 @@ import {
   ScrollText,
   Settings,
   Network,
-} from "lucide-react";
+} from 'lucide-react';
 
 // The Portal's primary navigation. Each item names the permission required to see
 // it; the sidebar filters by the user's effective set. `perm: null` = always shown
@@ -69,71 +69,168 @@ export interface NavGroup {
  */
 export const TENANT_NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
-    items: [{ label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard }],
+    label: 'Overview',
+    items: [{ label: 'Dashboard', href: '/dashboard', perm: null, icon: LayoutDashboard }],
   },
   {
-    label: "Clinical",
+    label: 'Clinical',
     items: [
-      { label: "Patients", href: "/patients", perm: PERMISSIONS.PATIENT_VIEW, icon: Users, module: "patient" },
+      {
+        label: 'Patients',
+        href: '/patients',
+        perm: PERMISSIONS.PATIENT_VIEW,
+        icon: Users,
+        module: 'patient',
+      },
       // Visible to anyone who may see patients; only the front desk can act on a request.
-      { label: "Registration requests", href: "/patients/registrations", perm: PERMISSIONS.PATIENT_VIEW, icon: UserPlus, module: "opd", capability: "opd.self_registration" },
-      { label: "Appointments", href: "/appointments", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarDays, module: "appointment" },
+      {
+        label: 'Registration requests',
+        href: '/patients/registrations',
+        perm: PERMISSIONS.PATIENT_VIEW,
+        icon: UserPlus,
+        module: 'opd',
+        capability: 'opd.self_registration',
+      },
+      {
+        label: 'Appointments',
+        href: '/appointments',
+        perm: PERMISSIONS.APPOINTMENT_VIEW,
+        icon: CalendarDays,
+        module: 'appointment',
+      },
       // Online-booking review queue (ADR-069). Nested under /appointments so the
       // longest-match rule highlights it on its own route.
-      { label: "Booking requests", href: "/appointments/requests", perm: PERMISSIONS.APPOINTMENT_VIEW, icon: CalendarCheck, module: "appointment", capability: "appointment.online_booking" },
-      { label: "OPD queue", href: "/opd", perm: PERMISSIONS.OPD_VIEW, icon: ClipboardList, module: "opd", capability: "opd.queue" },
+      {
+        label: 'Booking requests',
+        href: '/appointments/requests',
+        perm: PERMISSIONS.APPOINTMENT_VIEW,
+        icon: CalendarCheck,
+        module: 'appointment',
+        capability: 'appointment.online_booking',
+      },
+      {
+        label: 'OPD queue',
+        href: '/opd',
+        perm: PERMISSIONS.OPD_VIEW,
+        icon: ClipboardList,
+        module: 'opd',
+        capability: 'opd.queue',
+      },
       // The vitals step between check-in and consultation (ADR-113). Shown wherever the
       // capability is entitled and the user may record; the screen itself explains when this
       // hospital has chosen a different placement, because the mode is per-branch and the nav
       // is not branch-aware.
-      { label: "Vitals queue", href: "/opd/vitals", perm: PERMISSIONS.VITALS_VIEW, icon: Activity, module: "emr", capability: "emr.vitals" },
+      {
+        label: 'Vitals queue',
+        href: '/opd/vitals',
+        perm: PERMISSIONS.VITALS_VIEW,
+        icon: Activity,
+        module: 'emr',
+        capability: 'emr.vitals',
+      },
       // Patients who told us they are here (ADR-118). Shown wherever check-in is; the board
       // itself explains when the hospital has self check-in switched off.
-      { label: "Arrivals", href: "/opd/arrivals", perm: PERMISSIONS.OPD_VIEW, icon: DoorOpen, module: "opd", capability: "opd.self_registration" },
+      {
+        label: 'Arrivals',
+        href: '/opd/arrivals',
+        perm: PERMISSIONS.OPD_VIEW,
+        icon: DoorOpen,
+        module: 'opd',
+        capability: 'opd.self_registration',
+      },
       // The receiving side of in-hospital referrals (ADR-068).
-      { label: "Referrals", href: "/referrals", perm: PERMISSIONS.REFERRAL_VIEW, icon: Send, module: "opd", capability: "opd.referral" },
+      {
+        label: 'Referrals',
+        href: '/referrals',
+        perm: PERMISSIONS.REFERRAL_VIEW,
+        icon: Send,
+        module: 'opd',
+        capability: 'opd.referral',
+      },
       // Gated by the LANDING page's permission (the dispense queue), not the broader
       // stock-view key: a doctor holds `pharmacy.stock.view` for the in-consult
       // formulary picker, and advertising the pharmacy workspace to them showed a
       // sidebar item whose destination refused them. The rule: a nav item's `perm`
       // is always its landing page's `RequirePermission` key.
-      { label: "Pharmacy", href: "/pharmacy", perm: PERMISSIONS.PHARMACY_DISPENSE, icon: Pill, module: "pharmacy" },
-      { label: "Laboratory", href: "/laboratory", perm: PERMISSIONS.LAB_ORDER_VIEW, icon: FlaskConical, module: "laboratory" },
+      {
+        label: 'Pharmacy',
+        href: '/pharmacy',
+        perm: PERMISSIONS.PHARMACY_DISPENSE,
+        icon: Pill,
+        module: 'pharmacy',
+      },
+      {
+        label: 'Laboratory',
+        href: '/laboratory',
+        perm: PERMISSIONS.LAB_ORDER_VIEW,
+        icon: FlaskConical,
+        module: 'laboratory',
+      },
     ],
   },
   {
-    label: "Revenue",
+    label: 'Revenue',
     items: [
-      { label: "Billing", href: "/billing", perm: PERMISSIONS.BILLING_VIEW, icon: Receipt, module: "billing" },
+      {
+        label: 'Billing',
+        href: '/billing',
+        perm: PERMISSIONS.BILLING_VIEW,
+        icon: Receipt,
+        module: 'billing',
+      },
       // The services & packages catalogue (ADR-067, E-3) — priced items billing consumes.
-      { label: "Services", href: "/services", perm: PERMISSIONS.BILLING_SERVICES_VIEW, icon: ListChecks },
-      { label: "Reports", href: "/reports", perm: PERMISSIONS.REPORTS_VIEW, icon: BarChart3 },
+      {
+        label: 'Services',
+        href: '/services',
+        perm: PERMISSIONS.BILLING_SERVICES_VIEW,
+        icon: ListChecks,
+      },
+      { label: 'Reports', href: '/reports', perm: PERMISSIONS.REPORTS_VIEW, icon: BarChart3 },
       // Sits with Reports — a day's operating picture is a report, and shares its
       // permission. Nested under /reports so it highlights on its own route (the
       // longest-match rule in `activeNavHref`) without stealing Reports' highlight.
-      { label: "EOD report", href: "/reports/eod", perm: PERMISSIONS.REPORTS_VIEW, icon: CalendarCheck },
+      {
+        label: 'EOD report',
+        href: '/reports/eod',
+        perm: PERMISSIONS.REPORTS_VIEW,
+        icon: CalendarCheck,
+      },
     ],
   },
   {
-    label: "Organization",
+    label: 'Organization',
     items: [
-      { label: "Departments", href: "/departments", perm: PERMISSIONS.DEPARTMENT_VIEW, icon: Network },
-      { label: "Providers", href: "/providers", perm: PERMISSIONS.PROVIDER_VIEW, icon: Stethoscope },
-      { label: "Users", href: "/users", perm: PERMISSIONS.USERS_VIEW, icon: UserCog },
-      { label: "Branches", href: "/branches", perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
+      {
+        label: 'Departments',
+        href: '/departments',
+        perm: PERMISSIONS.DEPARTMENT_VIEW,
+        icon: Network,
+      },
+      {
+        label: 'Providers',
+        href: '/providers',
+        perm: PERMISSIONS.PROVIDER_VIEW,
+        icon: Stethoscope,
+      },
+      { label: 'Users', href: '/users', perm: PERMISSIONS.USERS_VIEW, icon: UserCog },
+      { label: 'Branches', href: '/branches', perm: PERMISSIONS.BRANCHES_VIEW, icon: GitBranch },
       // The Hospital Configuration console (ADR-049) — where a hospital's administrator
       // sets the organization up and sees how far that has got.
-      { label: "Hospital setup", href: "/hospital-setup", perm: PERMISSIONS.ORG_PROFILE_MANAGE, icon: Settings },
-      { label: "Audit log", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
+      {
+        label: 'Hospital setup',
+        href: '/hospital-setup',
+        perm: PERMISSIONS.ORG_PROFILE_MANAGE,
+        icon: Settings,
+      },
+      { label: 'Audit log', href: '/audit', perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },
   {
-    label: "Account",
+    label: 'Account',
     items: [
       // Appearance is a per-user preference and lives on the profile, not in the
       // hospital's configuration — one person's dark mode is not a hospital setting.
-      { label: "My profile", href: "/profile", perm: null, icon: UserCircle },
+      { label: 'My profile', href: '/profile', perm: null, icon: UserCircle },
     ],
   },
 ];
@@ -155,7 +252,7 @@ export const NAV_ITEMS: NavItem[] = TENANT_NAV_GROUPS.flatMap((g) => g.items);
 export function activeNavHref(pathname: string, items: NavItem[] = NAV_ITEMS): string | null {
   let best: string | null = null;
   for (const item of items) {
-    const matches = pathname === item.href || pathname.startsWith(item.href + "/");
+    const matches = pathname === item.href || pathname.startsWith(item.href + '/');
     if (matches && (best === null || item.href.length > best.length)) best = item.href;
   }
   return best;
@@ -170,14 +267,14 @@ export function activeNavHref(pathname: string, items: NavItem[] = NAV_ITEMS): s
  * administration left this app for the admin console in ADR-051.)
  */
 export const MOBILE_PRIMARY_ORDER = [
-  "/dashboard",
-  "/opd",
-  "/appointments",
-  "/patients",
-  "/billing",
-  "/pharmacy",
-  "/laboratory",
-  "/users",
+  '/dashboard',
+  '/opd',
+  '/appointments',
+  '/patients',
+  '/billing',
+  '/pharmacy',
+  '/laboratory',
+  '/users',
 ] as const;
 
 /**

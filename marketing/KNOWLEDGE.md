@@ -29,7 +29,7 @@ The public-facing product site (unauthenticated). It presents the product across
 
 Installed, but **not** a second kit: the marketing components in `components/ui/*` and `@hms/ui` stay canonical.
 
-- `components.json` (style `base-nova`, base `base` = Base UI, Lucide) with the `ui` alias pointed at **`@/components/shadcn`** — deliberately *not* `components/ui`, because `shadcn init` overwrote the site's own `Button.tsx` on first run (restored from git). Generated components land in their own folder and can never clobber the marketing kit. `lib/utils.ts` holds `cn` for them. Dependencies: `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI is a devDependency.
+- `components.json` (style `base-nova`, base `base` = Base UI, Lucide) with the `ui` alias pointed at **`@/components/shadcn`** — deliberately _not_ `components/ui`, because `shadcn init` overwrote the site's own `Button.tsx` on first run (restored from git). Generated components land in their own folder and can never clobber the marketing kit. `lib/utils.ts` holds `cn` for them. Dependencies: `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI is a devDependency.
 - **`app/globals.css` re-points shadcn's semantic contract at `--mk-*`** (`--background`, `--foreground`, `--card`, `--primary`, `--muted`, `--accent`, `--destructive`, `--border`, `--ring`, `--radius`), keeps `--font-sans` on Geist, drops shadcn's OKLCH palette and `.dark` block, and redefines `@custom-variant dark` to `[data-theme="dark"]`. `--color-accent` / `--color-secondary` stay bound to the marketing scale (`bg-accent` is the teal CTA). Platform-branding overrides (ADR-024) therefore reach shadcn components too.
 - Usage rule: `npx shadcn@latest add <component>`, then review and restyle before it ships.
 
@@ -105,16 +105,16 @@ This site owns **all** product SEO; the Portal is never indexed. Reference stand
 
 **Keyword → page intent map** (used naturally in title/H1/body, or not at all — never stuffed). Note "HMS" below is the **industry search term** for a hospital management system, which hospitals genuinely type; our product is **Nirogix** and is never called HMS in copy (ADR-041):
 
-| Page | Primary intent | Supporting terms |
-|---|---|---|
-| `/` | Hospital Management System · Hospital Management Software | Hospital Management System in India, Healthcare Management Software, HMS Software for Hospitals |
-| `/platform` | Hospital ERP Software | Healthcare Management Software, multi-tenant hospital software |
-| `/modules` | HMS Software for Hospitals | module-level terms for the catalogue |
-| `/modules/[slug]` | the module's own term | Patient Management System · Hospital Appointment Management · Doctor Management System · Hospital Billing Software · Pharmacy Management · Laboratory Management System · Clinic Management Software |
-| `/solutions` | Clinic Management Software | Hospital Management Software India, by-role / by-facility phrasing |
-| `/pricing` | Hospital Management Software India | Best Hospital Management System in India (only as honest positioning, never a fabricated claim) |
-| `/about`, `/contact` | Hospital Software Ahmedabad | Hospital Management Software Gujarat, Hospital Management System Gujarat |
-| `/security`, `/integrations` | topical (India residency, ABDM/FHIR) | no location or commercial stuffing |
+| Page                         | Primary intent                                            | Supporting terms                                                                                                                                                                                     |
+| ---------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                          | Hospital Management System · Hospital Management Software | Hospital Management System in India, Healthcare Management Software, HMS Software for Hospitals                                                                                                      |
+| `/platform`                  | Hospital ERP Software                                     | Healthcare Management Software, multi-tenant hospital software                                                                                                                                       |
+| `/modules`                   | HMS Software for Hospitals                                | module-level terms for the catalogue                                                                                                                                                                 |
+| `/modules/[slug]`            | the module's own term                                     | Patient Management System · Hospital Appointment Management · Doctor Management System · Hospital Billing Software · Pharmacy Management · Laboratory Management System · Clinic Management Software |
+| `/solutions`                 | Clinic Management Software                                | Hospital Management Software India, by-role / by-facility phrasing                                                                                                                                   |
+| `/pricing`                   | Hospital Management Software India                        | Best Hospital Management System in India (only as honest positioning, never a fabricated claim)                                                                                                      |
+| `/about`, `/contact`         | Hospital Software Ahmedabad                               | Hospital Management Software Gujarat, Hospital Management System Gujarat                                                                                                                             |
+| `/security`, `/integrations` | topical (India residency, ABDM/FHIR)                      | no location or commercial stuffing                                                                                                                                                                   |
 
 Module pages carry their own intent map (`MODULE_SEO` in `app/modules/[slug]/page.tsx`): Patient Management System · Hospital Appointment Management Software · OPD Management & Patient Check-in Software · EMR Software · Pharmacy Management Software for Hospitals · Laboratory Management System (LIS) · Hospital Billing Software.
 

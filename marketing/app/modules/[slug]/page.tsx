@@ -1,18 +1,18 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowRight, Check, Clock, Puzzle } from "lucide-react";
-import { PageHeader } from "../../../components/site/PageHeader";
-import { CtaSection } from "../../../components/site/CtaSection";
-import { Button } from "../../../components/ui/Button";
-import { Container, Pill, SectionHeading } from "../../../components/ui/primitives";
-import { Reveal } from "../../../components/ui/Reveal";
-import { ProductFrame } from "../../../components/product/ProductFrame";
-import { AppointmentsPreview } from "../../../components/product/previews";
-import { CLINIC_MODULES } from "../../../lib/site";
-import { AvailabilityBadge } from "../../../components/site/AvailabilityBadge";
-import { JsonLd } from "../../../components/site/JsonLd";
-import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../../lib/seo";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowRight, Check, Clock, Puzzle } from 'lucide-react';
+import { PageHeader } from '../../../components/site/PageHeader';
+import { CtaSection } from '../../../components/site/CtaSection';
+import { Button } from '../../../components/ui/Button';
+import { Container, Pill, SectionHeading } from '../../../components/ui/primitives';
+import { Reveal } from '../../../components/ui/Reveal';
+import { ProductFrame } from '../../../components/product/ProductFrame';
+import { AppointmentsPreview } from '../../../components/product/previews';
+import { CLINIC_MODULES } from '../../../lib/site';
+import { AvailabilityBadge } from '../../../components/site/AvailabilityBadge';
+import { JsonLd } from '../../../components/site/JsonLd';
+import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from '../../../lib/seo';
 
 const bySlug = Object.fromEntries(CLINIC_MODULES.map((m) => [m.slug, m]));
 
@@ -23,39 +23,39 @@ const bySlug = Object.fromEntries(CLINIC_MODULES.map((m) => [m.slug, m]));
  */
 const MODULE_SEO: Record<string, { title: string; description: string }> = {
   patients: {
-    title: "Patient Management System",
+    title: 'Patient Management System',
     description:
-      "Patient management software for hospitals and clinics: one record per patient with a tenant-unique UHID, demographics and ABHA number, and search by name, phone, or UHID.",
+      'Patient management software for hospitals and clinics: one record per patient with a tenant-unique UHID, demographics and ABHA number, and search by name, phone, or UHID.',
   },
   appointments: {
-    title: "Hospital Appointment Management Software",
+    title: 'Hospital Appointment Management Software',
     description:
       "Hospital appointment management: booking against each doctor's slots with conflict prevention, cancellation that frees the slot, and check-in straight from the booking.",
   },
   opd: {
-    title: "OPD Management & Patient Check-in Software",
+    title: 'OPD Management & Patient Check-in Software',
     description:
-      "OPD software from check-in to consult: token queues, a live waiting list in token order, and a consultation bill opened automatically at check-in.",
+      'OPD software from check-in to consult: token queues, a live waiting list in token order, and a consultation bill opened automatically at check-in.',
   },
   emr: {
-    title: "EMR Software: Clinical Workflow & Prescriptions",
+    title: 'EMR Software: Clinical Workflow & Prescriptions',
     description:
-      "EMR for outpatient care: structured SOAP notes and vitals, ICD-10 diagnosis coding, and prescriptions and lab orders raised from the consultation itself.",
+      'EMR for outpatient care: structured SOAP notes and vitals, ICD-10 diagnosis coding, and prescriptions and lab orders raised from the consultation itself.',
   },
   pharmacy: {
-    title: "Pharmacy Management Software for Hospitals",
+    title: 'Pharmacy Management Software for Hospitals',
     description:
       "Hospital pharmacy management: dispensing against prescriptions, batch and expiry-aware stock issued first-expiry-first-out, reorder levels, and charges on the patient's bill.",
   },
   laboratory: {
-    title: "Laboratory Management System (LIS)",
+    title: 'Laboratory Management System (LIS)',
     description:
       "Laboratory management for hospitals and diagnostic centres: order to result, sample collection tracking, reference ranges with abnormal flags, and lab charges on the patient's bill.",
   },
   billing: {
-    title: "Hospital Billing Software",
+    title: 'Hospital Billing Software',
     description:
-      "Hospital billing software: one invoice across consultation, pharmacy, and lab, with line-level tax, part payments, a running balance, and a complete collections trail.",
+      'Hospital billing software: one invoice across consultation, pharmacy, and lab, with line-level tax, part payments, a running balance, and a complete collections trail.',
   },
 };
 
@@ -70,12 +70,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const mod = bySlug[slug];
-  if (!mod) return { title: "Module not found", robots: { index: false, follow: true } };
+  if (!mod) return { title: 'Module not found', robots: { index: false, follow: true } };
   const seo = MODULE_SEO[slug];
   return pageMetadata({
     path: `/modules/${slug}`,
     title: seo?.title ?? mod.name,
-    description: seo?.description ?? `${mod.name}. ${mod.tagline} Part of the modular Nirogix platform.`,
+    description:
+      seo?.description ?? `${mod.name}. ${mod.tagline} Part of the modular Nirogix platform.`,
   });
 }
 
@@ -98,8 +99,8 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
       />
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: "Home", path: "/" },
-          { name: "Modules", path: "/modules" },
+          { name: 'Home', path: '/' },
+          { name: 'Modules', path: '/modules' },
           { name: mod.name, path: `/modules/${slug}` },
         ])}
       />
@@ -154,7 +155,11 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
                   <ul className="mt-4 flex flex-col gap-3">
                     {mod.planned.map((point) => (
                       <li key={point} className="flex items-start gap-3">
-                        <Clock size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-ink-faint" />
+                        <Clock
+                          size={18}
+                          strokeWidth={1.75}
+                          className="mt-0.5 shrink-0 text-ink-faint"
+                        />
                         <span className="text-sm leading-relaxed text-ink-muted">{point}</span>
                       </li>
                     ))}
@@ -163,7 +168,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
               )}
             </div>
 
-            {slug === "appointments" ? (
+            {slug === 'appointments' ? (
               <Reveal className="min-w-0">
                 <ProductFrame path={`portal.hms · ${mod.slug}`}>
                   <AppointmentsPreview />

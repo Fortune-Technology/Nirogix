@@ -14,8 +14,8 @@
  *   backend resolves, and this app never sees a patient's session.
  */
 
-const clean = (value: string) => value.replace(/\/$/, "");
+const clean = (value: string) => value.replace(/\/$/, '');
 
-export const ADMIN_ORIGIN = clean(process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? "http://localhost:3003");
+export const ADMIN_ORIGIN = clean(process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? 'http://localhost:3003');
 
-export const PATIENT_ORIGIN = clean(process.env.NEXT_PUBLIC_PATIENT_URL ?? "http://localhost:3002");
+export const PATIENT_ORIGIN = clean(process.env.NEXT_PUBLIC_PATIENT_URL ?? 'http://localhost:3002');

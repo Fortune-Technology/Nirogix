@@ -1,6 +1,6 @@
-import { Info } from "lucide-react";
-import { PageHeader } from "./PageHeader";
-import { Container } from "../ui/primitives";
+import { Info } from 'lucide-react';
+import { PageHeader } from './PageHeader';
+import { Container } from '../ui/primitives';
 
 export type LegalSection = { heading: string; body: string[] };
 

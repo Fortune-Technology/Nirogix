@@ -19,7 +19,11 @@ import { completeReferralTx } from '../referral/referral.service';
 import { assertCaseUsableTx, openCaseTx } from './case.service';
 import { resolveConsultationFeeTx } from '../billing/feeRules.service';
 import { logger } from '../../config/logger';
-import { assertCaseType, assertConsultationType, resolveConfig } from '../workflow/workflowConfig.service';
+import {
+  assertCaseType,
+  assertConsultationType,
+  resolveConfig,
+} from '../workflow/workflowConfig.service';
 import {
   assertRequiredPresent,
   hasAnyReading,
@@ -242,44 +246,69 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     let patientId = input.patientId;
     let departmentIdInput = input.departmentId ?? null;
     if (input.referralId) {
-      referral = (
-        await tx.select().from(referrals).where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, input.referralId))).limit(1)
-      )[0] ?? null;
+      referral =
+        (
+          await tx
+            .select()
+            .from(referrals)
+            .where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, input.referralId)))
+            .limit(1)
+        )[0] ?? null;
       if (!referral) throw Errors.notFound('Referral not found');
-      if (referral.status !== 'pending') throw Errors.conflict('This referral has already been used or cancelled');
+      if (referral.status !== 'pending')
+        throw Errors.conflict('This referral has already been used or cancelled');
       patientId = referral.patientId;
       departmentIdInput = departmentIdInput ?? referral.toDepartmentId;
     }
 
     // Validate the patient (tenant-scoped).
     const patient = (
-      await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId))).limit(1)
+      await tx
+        .select({ id: patients.id })
+        .from(patients)
+        .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
+        .limit(1)
     )[0];
     if (!patient) throw Errors.notFound('Patient not found');
 
     let providerId = input.providerId ?? referral?.toProviderId ?? null;
     // A referred patient is arriving for a scheduled onward consultation, not off the street.
-    let arrivalType: CheckInInput['arrivalType'] = input.arrivalType ?? (referral ? 'follow_up' : 'walk_in');
+    let arrivalType: CheckInInput['arrivalType'] =
+      input.arrivalType ?? (referral ? 'follow_up' : 'walk_in');
 
     // If checking in against an appointment: validate it, dedupe, and default the provider.
     if (input.appointmentId) {
       const appt = (
-        await tx.select().from(appointments).where(and(eq(appointments.tenantId, tenantId), eq(appointments.id, input.appointmentId))).limit(1)
+        await tx
+          .select()
+          .from(appointments)
+          .where(and(eq(appointments.tenantId, tenantId), eq(appointments.id, input.appointmentId)))
+          .limit(1)
       )[0];
       if (!appt) throw Errors.notFound('Appointment not found');
       const already = (
-        await tx.select({ id: visits.id }).from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.appointmentId, input.appointmentId))).limit(1)
+        await tx
+          .select({ id: visits.id })
+          .from(visits)
+          .where(and(eq(visits.tenantId, tenantId), eq(visits.appointmentId, input.appointmentId)))
+          .limit(1)
       )[0];
       if (already) {
         // Idempotent — already checked in.
-        return { visitId: already.id, existing: true, feePaise: 0, patientId: input.patientId, override: null };
+        return {
+          visitId: already.id,
+          existing: true,
+          feePaise: 0,
+          patientId: input.patientId,
+          override: null,
+        };
       }
       if (!providerId) providerId = appt.providerId;
       departmentIdInput = departmentIdInput ?? appt.departmentId;
       // The intent was decided when the appointment was booked. Taking it from the appointment
       // rather than the request is what stops a scheduled follow-up being recorded as a walk-in
       // a week later by a desk that never saw the booking.
-      arrivalType = appt.arrivalType as CheckInInput['arrivalType'] ?? 'appointment';
+      arrivalType = (appt.arrivalType as CheckInInput['arrivalType']) ?? 'appointment';
     }
 
     // A patient can only be in the OPD once at a time: block a second check-in while an
@@ -307,7 +336,11 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     if (providerId) {
       const provider = (
         await tx
-          .select({ id: providers.id, consultationFeePaise: providers.consultationFeePaise, isActive: providers.isActive })
+          .select({
+            id: providers.id,
+            consultationFeePaise: providers.consultationFeePaise,
+            isActive: providers.isActive,
+          })
           .from(providers)
           .where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId)))
           .limit(1)
@@ -396,11 +429,21 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     // Day's queue token for this branch (cosmetic; not a financial key).
     const branchConds = [eq(visits.tenantId, tenantId), eq(visits.visitDate, visitDate)];
     if (input.branchId) branchConds.push(eq(visits.branchId, input.branchId));
-    const todayCount = Number((await tx.select({ c: count() }).from(visits).where(and(...branchConds)))[0]?.c ?? 0);
+    const todayCount = Number(
+      (
+        await tx
+          .select({ c: count() })
+          .from(visits)
+          .where(and(...branchConds))
+      )[0]?.c ?? 0,
+    );
     const tokenNumber = todayCount + 1;
 
     // Tenant-monotonic visit number, retry on the unique conflict.
-    const existingVisits = Number((await tx.select({ c: count() }).from(visits).where(eq(visits.tenantId, tenantId)))[0]?.c ?? 0);
+    const existingVisits = Number(
+      (await tx.select({ c: count() }).from(visits).where(eq(visits.tenantId, tenantId)))[0]?.c ??
+        0,
+    );
     let row: VisitRow | undefined;
     for (let i = 1; i <= 8; i++) {
       const visitNumber = `V-${String(existingVisits + i).padStart(6, '0')}`;
@@ -447,7 +490,11 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
       feePaise,
       patientId,
       override: isOverride
-        ? { calculatedPaise: calculated.feePaise, chargedPaise: feePaise, reason: input.feeOverrideReason!.trim() }
+        ? {
+            calculatedPaise: calculated.feePaise,
+            chargedPaise: feePaise,
+            reason: input.feeOverrideReason!.trim(),
+          }
         : null,
     };
   });
@@ -478,7 +525,12 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     try {
       await recordCheckInVitals(
         tenantId,
-        { visitId, patientId: effectivePatientId, branchId: input.branchId ?? null, input: deskVitals },
+        {
+          visitId,
+          patientId: effectivePatientId,
+          branchId: input.branchId ?? null,
+          input: deskVitals,
+        },
         actorUserId,
       );
     } catch (err) {
@@ -512,12 +564,17 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
         actorUserId,
       );
       await runWithTenant(tenantId, (tx) =>
-        tx.update(visits).set({ invoiceId: invoice.id, updatedAt: new Date() }).where(eq(visits.id, visitId)),
+        tx
+          .update(visits)
+          .set({ invoiceId: invoice.id, updatedAt: new Date() })
+          .where(eq(visits.id, visitId)),
       );
     } catch (err) {
       // Never leave an unbilled visit behind: the visit was created in this request and nothing
       // references it yet, so compensate by removing it and surface the billing failure.
-      await runWithTenant(tenantId, (tx) => tx.delete(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))));
+      await runWithTenant(tenantId, (tx) =>
+        tx.delete(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))),
+      );
       throw err;
     }
   }
@@ -529,7 +586,11 @@ export async function checkIn(tenantId: string, input: CheckInInput, actorUserId
     action: 'visit.check_in',
     resourceType: 'visit',
     resourceId: visitId,
-    metadata: { patientId: effectivePatientId, appointmentId: input.appointmentId ?? null, referralId: input.referralId ?? null },
+    metadata: {
+      patientId: effectivePatientId,
+      appointmentId: input.appointmentId ?? null,
+      referralId: input.referralId ?? null,
+    },
   });
   return getVisit(tenantId, visitId);
 }
@@ -560,7 +621,11 @@ export async function listQueue(tenantId: string, filter: ListQueueFilter) {
       .leftJoin(invoices, eq(invoices.id, visits.invoiceId))
       .leftJoin(patientCases, eq(patientCases.id, visits.caseId))
       .where(and(...conds))
-      .orderBy(...(filter.patientId ? [sql`${visits.visitDate} desc`, sql`${visits.checkedInAt} desc`] : [visits.tokenNumber]));
+      .orderBy(
+        ...(filter.patientId
+          ? [sql`${visits.visitDate} desc`, sql`${visits.checkedInAt} desc`]
+          : [visits.tokenNumber]),
+      );
 
     return rows.map(toVisitDto);
   });
@@ -582,7 +647,11 @@ export async function updateStatus(
 ) {
   await runWithTenant(tenantId, async (tx) => {
     const visit = (
-      await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))).limit(1)
+      await tx
+        .select()
+        .from(visits)
+        .where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId)))
+        .limit(1)
     )[0];
     if (!visit) throw Errors.notFound('Visit not found');
     if (version !== undefined && visit.version !== version) {
@@ -603,7 +672,9 @@ export async function updateStatus(
           .limit(1)
       )[0];
       if (inv && inv.totalPaise > inv.amountPaidPaise) {
-        throw Errors.conflict('Consultation fee is unpaid. Collect the payment before the consultation starts');
+        throw Errors.conflict(
+          'Consultation fee is unpaid. Collect the payment before the consultation starts',
+        );
       }
     }
 

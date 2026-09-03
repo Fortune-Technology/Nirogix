@@ -1,25 +1,28 @@
-import type { Metadata } from "next";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Container } from "../../components/ui/primitives";
-import { INTEGRATION_GROUPS } from "../../lib/catalogue";
-import { AvailabilityBadge, ReleaseNote } from "../../components/site/AvailabilityBadge";
-import { JsonLd } from "../../components/site/JsonLd";
-import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
+import type { Metadata } from 'next';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Container } from '../../components/ui/primitives';
+import { INTEGRATION_GROUPS } from '../../lib/catalogue';
+import { AvailabilityBadge, ReleaseNote } from '../../components/site/AvailabilityBadge';
+import { JsonLd } from '../../components/site/JsonLd';
+import { breadcrumbJsonLd, pageMetadata } from '../../lib/seo';
 
 // Topical intent (healthcare interoperability standards).
 export const metadata: Metadata = pageMetadata({
-  path: "/integrations",
-  title: "Healthcare Integrations: FHIR, ABDM, DICOM & Payments",
+  path: '/integrations',
+  title: 'Healthcare Integrations: FHIR, ABDM, DICOM & Payments',
   description:
-    "Where our interoperability stands: ICD-10 coding and transactional email today, with HL7 FHIR R4, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, SMS, WhatsApp, payment gateways, and Tally export planned.",
+    'Where our interoperability stands: ICD-10 coding and transactional email today, with HL7 FHIR R4, SNOMED CT, LOINC, DICOM and PACS, ABDM and ABHA, SMS, WhatsApp, payment gateways, and Tally export planned.',
 });
 
 export default function IntegrationsPage() {
   return (
     <>
       <JsonLd
-        data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Integrations", path: "/integrations" }])}
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Integrations', path: '/integrations' },
+        ])}
       />
       <PageHeader
         eyebrow="Integrations"
@@ -36,8 +39,8 @@ export default function IntegrationsPage() {
           key={group.title}
           className={
             i % 2 === 1
-              ? "border-t border-hairline bg-surface"
-              : "border-t border-hairline bg-canvas"
+              ? 'border-t border-hairline bg-surface'
+              : 'border-t border-hairline bg-canvas'
           }
         >
           <Container className="py-16 sm:py-20">

@@ -38,7 +38,9 @@ const statusFilter = z
     const vals = v
       .split(',')
       .map((s) => s.trim())
-      .filter((s): s is AppointmentStatus => (APPOINTMENT_STATUSES as readonly string[]).includes(s));
+      .filter((s): s is AppointmentStatus =>
+        (APPOINTMENT_STATUSES as readonly string[]).includes(s),
+      );
     return vals.length ? vals : undefined;
   });
 
@@ -50,6 +52,9 @@ export const ListAppointmentsQuery = z.object({
   providerId: z.string().uuid().optional(),
   patientId: z.string().uuid().optional(),
   status: statusFilter,
+  // The DataTable's own URL format, `key:dir,key:dir` (ADR-136). Validated as a shape only —
+  // which keys are acceptable is the service's business, because only it knows its columns.
+  sort: z.string().max(120).optional(),
 });
 
 export const AppointmentViewSchema = z
@@ -73,6 +78,11 @@ export const AppointmentViewSchema = z
 export const AppointmentsPageSchema = z
   .object({
     data: z.array(AppointmentViewSchema),
-    page: z.object({ number: z.number(), size: z.number(), total: z.number(), totalPages: z.number() }),
+    page: z.object({
+      number: z.number(),
+      size: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
   })
   .openapi('AppointmentsPage');

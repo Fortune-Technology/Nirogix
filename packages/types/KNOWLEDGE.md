@@ -15,7 +15,7 @@ Shared TypeScript types and API contracts for the Nirogix monorepo. Consumed by 
 ## Rules
 
 - These are hand-authored contracts, not generated — **when a backend controller's response shape changes, update the matching type here in the same change** (the Portal type-checks against it). Keep field names/nullability identical to the controller output.
-- Types only — no runtime code, no dependencies. Permission *strings* live in `@hms/permissions`, not here.
+- Types only — no runtime code, no dependencies. Permission _strings_ live in `@hms/permissions`, not here.
 - **Compiles to `dist/`** (ADR-075): `tsconfig.build.json` emits CommonJS + declarations, and `main`/`types`/`exports` point at `dist/` so no plain-Node consumer ever resolves raw TypeScript. The package `dev` script (`tsc --watch`) keeps `dist/` fresh under root `npm run dev`. The plain `tsconfig.json` stays check-only.
 
 ## Verify

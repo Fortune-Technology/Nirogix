@@ -25,11 +25,11 @@ import type {
   TenantCapability,
   TenantDetail,
   TenantModuleConfig,
-} from "@hms/types";
-import { createApiClient, notifyError, notifySuccess } from "@hms/client";
+} from '@hms/types';
+import { createApiClient, notifyError, notifySuccess } from '@hms/client';
 
 const client = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1',
 });
 
 const { request, send, parseError } = client;
@@ -37,38 +37,59 @@ const { request, send, parseError } = client;
 /** The client the AuthProvider drives. */
 export const apiClient = client;
 
-export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
-export const { setAccessToken, getAccessToken, setOnSessionExpired, tryRefresh, login, logout, me, myPermissions } =
-  client;
+export { ApiRequestError, NetworkError, TimeoutError } from '@hms/client';
+export const {
+  setAccessToken,
+  getAccessToken,
+  setOnSessionExpired,
+  tryRefresh,
+  login,
+  logout,
+  me,
+  myPermissions,
+} = client;
 
 // ---- Forgot password (ADR-081) — both unauthenticated ----------------------
 
-export async function forgotPassword(body: { orgCode: string; email: string }): Promise<{ message: string }> {
+export async function forgotPassword(body: {
+  orgCode: string;
+  email: string;
+}): Promise<{ message: string }> {
   // `client: "admin"` → the emailed link opens THIS console's reset page (ADMIN_URL).
   // Outcomes render inline on the pages, so the shared toast stays quiet.
-  return request<{ message: string }>("/auth/forgot-password", {
-    method: "POST",
-    body: { ...body, client: "admin" },
+  return request<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: { ...body, client: 'admin' },
     feedback: false,
   });
 }
 
-export async function resetPassword(body: { token: string; newPassword: string }): Promise<{ message: string }> {
-  return request<{ message: string }>("/auth/reset-password", { method: "POST", body, feedback: false });
+export async function resetPassword(body: {
+  token: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/reset-password', {
+    method: 'POST',
+    body,
+    feedback: false,
+  });
 }
 
-export async function changePassword(body: { currentPassword: string; newPassword: string }): Promise<void> {
-  await request<void>("/auth/change-password", {
-    method: "POST",
+export async function changePassword(body: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  await request<void>('/auth/change-password', {
+    method: 'POST',
     body,
-    feedback: { success: "Password changed. Sign in again with the new one." },
+    feedback: { success: 'Password changed. Sign in again with the new one.' },
   });
 }
 
 // ---- Platform administration ----------------------------------------------
 
 export async function listTenants(): Promise<Tenant[]> {
-  return (await request<{ tenants: Tenant[] }>("/admin/tenants")).tenants;
+  return (await request<{ tenants: Tenant[] }>('/admin/tenants')).tenants;
 }
 
 export async function getTenant(id: string): Promise<TenantDetail> {
@@ -76,35 +97,38 @@ export async function getTenant(id: string): Promise<TenantDetail> {
 }
 
 export async function onboardTenant(body: OnboardTenantRequest): Promise<OnboardTenantResponse> {
-  return request<OnboardTenantResponse>("/admin/tenants", {
-    method: "POST",
+  return request<OnboardTenantResponse>('/admin/tenants', {
+    method: 'POST',
     body,
-    feedback: { success: "Hospital onboarded." },
+    feedback: { success: 'Hospital onboarded.' },
   });
 }
 
 export async function setTenantStatus(id: string, status: string): Promise<Tenant> {
   return request<Tenant>(`/admin/tenants/${id}/status`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: { status },
-    feedback: { success: "Tenant status updated." },
+    feedback: { success: 'Tenant status updated.' },
   });
 }
 
 export async function grantTenantModule(id: string, module: string): Promise<void> {
   await request(`/admin/tenants/${id}/modules`, {
-    method: "POST",
+    method: 'POST',
     body: { module },
-    feedback: { success: "Module granted." },
+    feedback: { success: 'Module granted.' },
   });
 }
 
 export async function revokeTenantModule(id: string, key: string): Promise<void> {
-  await request(`/admin/tenants/${id}/modules/${key}`, { method: "DELETE", feedback: { success: "Module revoked." } });
+  await request(`/admin/tenants/${id}/modules/${key}`, {
+    method: 'DELETE',
+    feedback: { success: 'Module revoked.' },
+  });
 }
 
 export async function listModuleCatalog(): Promise<ModuleCatalogItem[]> {
-  return (await request<{ modules: ModuleCatalogItem[] }>("/admin/module-catalog")).modules;
+  return (await request<{ modules: ModuleCatalogItem[] }>('/admin/module-catalog')).modules;
 }
 
 /** The whole module/capability configuration for a tenant, grouped by domain (ADR-085 §19). */
@@ -114,7 +138,8 @@ export async function getTenantModuleConfig(id: string): Promise<TenantModuleCon
 
 /** The capabilities of a tenant's entitled modules, each with its enabled state (ADR-085). */
 export async function listTenantCapabilities(id: string): Promise<TenantCapability[]> {
-  return (await request<{ capabilities: TenantCapability[] }>(`/admin/tenants/${id}/capabilities`)).capabilities;
+  return (await request<{ capabilities: TenantCapability[] }>(`/admin/tenants/${id}/capabilities`))
+    .capabilities;
 }
 
 /** Enable or disable one capability of a tenant's module (ADR-085). */
@@ -125,9 +150,9 @@ export async function setTenantCapability(
   enabled: boolean,
 ): Promise<void> {
   await request(`/admin/tenants/${id}/capabilities`, {
-    method: "PUT",
+    method: 'PUT',
     body: { module, capability, enabled },
-    feedback: { success: enabled ? "Capability enabled." : "Capability disabled." },
+    feedback: { success: enabled ? 'Capability enabled.' : 'Capability disabled.' },
   });
 }
 
@@ -135,12 +160,14 @@ export async function setTenantCapability(
  * Starts a support session (ADR-037). The token belongs to the TARGET user in the
  * TARGET tenant, and is handed to a Portal tab — never used on this origin (ADR-051).
  */
-export async function startSupportSession(body: StartSupportSessionRequest): Promise<StartSupportSessionResponse> {
-  return request<StartSupportSessionResponse>("/admin/support-sessions", { method: "POST", body });
+export async function startSupportSession(
+  body: StartSupportSessionRequest,
+): Promise<StartSupportSessionResponse> {
+  return request<StartSupportSessionResponse>('/admin/support-sessions', { method: 'POST', body });
 }
 
 export async function getPlatformStats(): Promise<PlatformStats> {
-  return request<PlatformStats>("/admin/stats");
+  return request<PlatformStats>('/admin/stats');
 }
 
 // A rolling `months` count or an explicit inclusive ISO `{ from, to }` window (the
@@ -148,7 +175,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
 export async function getPlatformTrends(
   range: number | { from: string; to: string } = 12,
 ): Promise<PlatformTrends> {
-  const qs = typeof range === "object" ? `from=${range.from}&to=${range.to}` : `months=${range}`;
+  const qs = typeof range === 'object' ? `from=${range.from}&to=${range.to}` : `months=${range}`;
   return request<PlatformTrends>(`/admin/trends?${qs}`);
 }
 
@@ -158,9 +185,13 @@ export async function getPlatformTrends(
  * shared error toast.
  */
 export async function getSystemHealth(): Promise<{ api: boolean; db: boolean }> {
-  const api = await request<{ status: string }>("/health").then(() => true).catch(() => false);
+  const api = await request<{ status: string }>('/health')
+    .then(() => true)
+    .catch(() => false);
   const db = api
-    ? await request<{ status: string }>("/health/ready").then(() => true).catch(() => false)
+    ? await request<{ status: string }>('/health/ready')
+        .then(() => true)
+        .catch(() => false)
     : false;
   return { api, db };
 }
@@ -179,33 +210,35 @@ export async function updatePlatformBranding(
   tokens: BrandingTokens,
 ): Promise<PlatformBranding> {
   return request<PlatformBranding>(`/platform-branding/${scope}`, {
-    method: "PUT",
+    method: 'PUT',
     body: { tokens },
-    feedback: { success: "Platform branding saved." },
+    feedback: { success: 'Platform branding saved.' },
   });
 }
 
-export async function resetPlatformBranding(scope: PlatformBrandingScope): Promise<PlatformBranding> {
+export async function resetPlatformBranding(
+  scope: PlatformBrandingScope,
+): Promise<PlatformBranding> {
   return request<PlatformBranding>(`/platform-branding/${scope}`, {
-    method: "DELETE",
-    feedback: { success: "Platform branding reset." },
+    method: 'DELETE',
+    feedback: { success: 'Platform branding reset.' },
   });
 }
 
 export async function uploadPlatformBrandingAsset(
   scope: PlatformBrandingScope,
-  kind: "logo" | "favicon",
+  kind: 'logo' | 'favicon',
   file: File,
 ): Promise<PlatformBranding> {
   const form = new FormData();
-  form.append("file", file);
+  form.append('file', file);
   const headers: Record<string, string> = {};
   const token = client.getAccessToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await send(`/platform-branding/${scope}/${kind}`, {
-    method: "POST",
+    method: 'POST',
     headers,
-    credentials: "include",
+    credentials: 'include',
     body: form,
   });
   if (!res.ok) {
@@ -214,7 +247,7 @@ export async function uploadPlatformBrandingAsset(
     throw failure;
   }
   const branding = (await res.json()) as PlatformBranding;
-  notifySuccess(kind === "logo" ? "Logo updated." : "Favicon updated.");
+  notifySuccess(kind === 'logo' ? 'Logo updated.' : 'Favicon updated.');
   return branding;
 }
 
@@ -237,7 +270,7 @@ export interface EmailTemplatePreview {
 }
 
 export async function listEmailTemplates(): Promise<EmailTemplateSummary[]> {
-  return (await request<{ templates: EmailTemplateSummary[] }>("/admin/email-templates")).templates;
+  return (await request<{ templates: EmailTemplateSummary[] }>('/admin/email-templates')).templates;
 }
 
 export async function previewEmailTemplate(key: string): Promise<EmailTemplatePreview> {
@@ -256,17 +289,17 @@ export async function listAudit(
     from?: string;
     to?: string;
     sortBy?: string;
-    sortDir?: "asc" | "desc";
+    sortDir?: 'asc' | 'desc';
   } = {},
 ): Promise<Paginated<AuditEntry>> {
   const q = new URLSearchParams();
-  q.set("page", String(opts.page ?? 1));
-  q.set("pageSize", String(opts.pageSize ?? 20));
-  if (opts.search) q.set("search", opts.search);
-  if (opts.severity) q.set("severity", opts.severity);
-  if (opts.from) q.set("from", opts.from);
-  if (opts.to) q.set("to", opts.to);
-  if (opts.sortBy) q.set("sortBy", opts.sortBy);
-  if (opts.sortDir) q.set("sortDir", opts.sortDir);
+  q.set('page', String(opts.page ?? 1));
+  q.set('pageSize', String(opts.pageSize ?? 20));
+  if (opts.search) q.set('search', opts.search);
+  if (opts.severity) q.set('severity', opts.severity);
+  if (opts.from) q.set('from', opts.from);
+  if (opts.to) q.set('to', opts.to);
+  if (opts.sortBy) q.set('sortBy', opts.sortBy);
+  if (opts.sortDir) q.set('sortDir', opts.sortDir);
   return request<Paginated<AuditEntry>>(`/audit?${q.toString()}`);
 }

@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { LifeBuoy } from "lucide-react";
-import { Card, Spinner } from "@hms/ui";
-import * as api from "../../../../lib/api";
-import { ADMIN_ORIGIN } from "../../../../lib/origins";
-import { useAuth } from "../../../../lib/auth";
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LifeBuoy } from 'lucide-react';
+import { Card, Spinner } from '@hms/ui';
+import * as api from '../../../../lib/api';
+import { ADMIN_ORIGIN } from '../../../../lib/origins';
+import { useAuth } from '../../../../lib/auth';
 
 /**
  * The landing tab for a support session (ADR-037).
@@ -26,8 +26,8 @@ export default function SupportEnterPage() {
   // or it is not — so it seeds the state instead of being written back through an effect.
   // The authenticated shell mounts its pages on the client (the layout gates on the
   // session), so this runs in the browser; the guard only keeps a server render honest.
-  const [state, setState] = useState<"waiting" | "entering" | "failed">(() =>
-    typeof window !== "undefined" && !window.opener ? "failed" : "waiting",
+  const [state, setState] = useState<'waiting' | 'entering' | 'failed'>(() =>
+    typeof window !== 'undefined' && !window.opener ? 'failed' : 'waiting',
   );
   const claimed = useRef(false);
 
@@ -44,27 +44,27 @@ export default function SupportEnterPage() {
       // the attack this check exists to refuse.
       if (event.origin !== ADMIN_ORIGIN) return;
       const data = event.data as { type?: string; accessToken?: string } | null;
-      if (data?.type !== "hms:support-session" || !data.accessToken || claimed.current) return;
+      if (data?.type !== 'hms:support-session' || !data.accessToken || claimed.current) return;
 
       claimed.current = true;
-      setState("entering");
+      setState('entering');
       api.setAccessToken(data.accessToken);
       // Load the impersonated user's identity and permissions before rendering the
       // shell, so the sidebar and the support banner appear together.
       await refresh();
-      router.replace("/dashboard");
+      router.replace('/dashboard');
     }
 
-    window.addEventListener("message", onMessage);
+    window.addEventListener('message', onMessage);
     // Tell the opener this tab is ready to receive the session.
-    window.opener.postMessage({ type: "hms:support-ready" }, ADMIN_ORIGIN);
+    window.opener.postMessage({ type: 'hms:support-ready' }, ADMIN_ORIGIN);
 
     const timeout = setTimeout(() => {
-      if (!claimed.current) setState("failed");
+      if (!claimed.current) setState('failed');
     }, 8000);
 
     return () => {
-      window.removeEventListener("message", onMessage);
+      window.removeEventListener('message', onMessage);
       clearTimeout(timeout);
     };
   }, [refresh, router]);
@@ -76,12 +76,13 @@ export default function SupportEnterPage() {
           <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-subtle text-brand">
             <LifeBuoy size={22} strokeWidth={1.75} aria-hidden />
           </span>
-          {state === "failed" ? (
+          {state === 'failed' ? (
             <>
               <p className="font-semibold text-fg">Support session not received</p>
               <p className="text-sm text-fg-muted">
-                This tab was opened directly, or the handover timed out. Start the session again from the tenant page.
-                A support session cannot be resumed from a bookmark, by design.
+                This tab was opened directly, or the handover timed out. Start the session again
+                from the tenant page. A support session cannot be resumed from a bookmark, by
+                design.
               </p>
             </>
           ) : (

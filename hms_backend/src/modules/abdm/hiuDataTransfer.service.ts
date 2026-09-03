@@ -17,7 +17,12 @@ import { writeAudit } from '../audit/audit.service';
 import { DATA_FLOW_PATHS, HIU_DATA_REQUEST_PATH } from './abdm.constants';
 import { hipPost } from './hipGateway';
 import { getFacilityConfig } from './abdm.service';
-import { checksumMatches, decryptFromHip, generateKeyPair, EncryptionUnavailableError } from './cipher';
+import {
+  checksumMatches,
+  decryptFromHip,
+  generateKeyPair,
+  EncryptionUnavailableError,
+} from './cipher';
 import { dataPushUrl, usableConsents } from './hiuConsent.service';
 
 /**
@@ -47,7 +52,10 @@ export type RequestRecordsResult = { transferId: string; transactionId: string }
  * its private half is encrypted and stored, because the answer arrives on a different connection
  * some minutes later and there is nothing else that could read it.
  */
-export async function requestRecords(tenantId: string, consentRowId: string): Promise<RequestRecordsResult> {
+export async function requestRecords(
+  tenantId: string,
+  consentRowId: string,
+): Promise<RequestRecordsResult> {
   const consent = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .select()
@@ -67,6 +75,10 @@ export async function requestRecords(tenantId: string, consentRowId: string): Pr
   const pushUrl = dataPushUrl();
 
   const keys = await generateKeyPair();
+  // A PLACEHOLDER, not the transaction id. The request body carries none: the consent manager
+  // assigns one and returns it on `/api/v3/hiu/health-information/on-request`, and the HIP pushes
+  // under that. This row is written before the request goes out, so the column needs a value now;
+  // `recordDataRequestAck` replaces it the moment ABDM states the real one.
   const transactionId = randomUUID();
   const requestId = randomUUID();
 
@@ -105,7 +117,11 @@ export async function requestRecords(tenantId: string, consentRowId: string): Pr
             dhPublicKey: {
               expiry: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
               parameters: 'Curve25519/32byte random key',
-              keyValue: keys.publicKey,
+              // The X.509 form when Fidelius gives us one, exactly as the HIP side sends it
+              // (ADR-107). NHA's note that "certain HIUs only accept the public key in the
+              // base64-encoded X.509 format" was applied to the HIP half and missed here — and the
+              // constraint is symmetric, so a HIP that is strict about it could not read us.
+              keyValue: keys.x509PublicKey ?? keys.publicKey,
             },
             nonce: keys.nonce,
           },
@@ -132,7 +148,10 @@ export async function requestRecords(tenantId: string, consentRowId: string): Pr
 }
 
 /** Asks every hospital that granted a consent for this patient. One request per artefact. */
-export async function requestAllRecords(tenantId: string, patientId: string): Promise<RequestRecordsResult[]> {
+export async function requestAllRecords(
+  tenantId: string,
+  patientId: string,
+): Promise<RequestRecordsResult[]> {
   const consents = await usableConsents(tenantId, patientId);
   const results: RequestRecordsResult[] = [];
   for (const consent of consents) {
@@ -141,10 +160,84 @@ export async function requestAllRecords(tenantId: string, patientId: string): Pr
     } catch (err) {
       // One hospital being unreachable must not stop the others — a partial history is worth more
       // than none, provided the doctor is told which sources answered.
-      logger.warn({ tenantId, consentId: consent.consentId, err }, 'Could not request records from one HIP');
+      logger.warn(
+        { tenantId, consentId: consent.consentId, err },
+        'Could not request records from one HIP',
+      );
     }
   }
   return results;
+}
+
+/**
+ * The consent manager's answer to our request for records (`on-request`).
+ *
+ * This is where the transaction id comes from, and it is the whole reason the callback matters: the
+ * request body has no field for one, so until this arrives our row is keyed on a placeholder that
+ * nobody else has ever seen. A HIP pushing under ABDM's id would match nothing and be discarded.
+ *
+ * Correlated on **our** `requestId`, which is the one identifier both sides held before this call.
+ * Unknown ids are logged and dropped rather than throwing — an inbound callback we cannot place is
+ * not an error the caller can act on, and answering 5xx makes NHA retry something that will never
+ * succeed.
+ */
+export async function recordDataRequestAck(body: {
+  hiRequest?: { transactionId?: string; sessionStatus?: string };
+  error?: { code?: string; message?: string } | null;
+  response?: { requestId?: string };
+}): Promise<void> {
+  const requestId = body.response?.requestId;
+  if (!requestId) {
+    logger.warn('HIU data-request acknowledgement carried no requestId — discarded');
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(abdmHiuDataTransfers)
+    .where(eq(abdmHiuDataTransfers.requestId, requestId))
+    .limit(1);
+  const transfer = rows[0];
+  if (!transfer) {
+    logger.warn({ requestId }, 'Acknowledgement for an unknown HIU data request — discarded');
+    return;
+  }
+
+  if (body.error) {
+    // The consent manager refused the request outright — an expired artefact, usually. There will
+    // be no push, so the transfer is closed now rather than left waiting for a delivery.
+    await finish(
+      transfer.tenantId,
+      transfer.id,
+      'failed',
+      body.error.message ?? body.error.code ?? 'The consent manager refused the request',
+    );
+    return;
+  }
+
+  const transactionId = body.hiRequest?.transactionId;
+  if (!transactionId) {
+    logger.warn({ requestId }, 'HIU data-request acknowledgement carried no transactionId');
+    return;
+  }
+
+  await runWithTenant(transfer.tenantId, (tx) =>
+    tx
+      .update(abdmHiuDataTransfers)
+      .set({ transactionId, updatedAt: new Date() })
+      .where(eq(abdmHiuDataTransfers.id, transfer.id)),
+  );
+
+  await writeAudit({
+    tenantId: transfer.tenantId,
+    actorUserId: null,
+    action: 'abdm.hiu.data_request_acknowledged',
+    resourceType: 'abdm_hiu_data_transfer',
+    resourceId: transfer.id,
+    // The transaction id is the correlation handle, not a secret — and without it in the audit a
+    // support question about a missing delivery has nothing to search on.
+    metadata: { transactionId, sessionStatus: body.hiRequest?.sessionStatus ?? null },
+  });
 }
 
 export type PushedPage = {
@@ -171,8 +264,13 @@ export type PushedPage = {
  * thrown: a page holding nine good entries and one corrupt one should yield nine records and an
  * honest error status, not zero records and an exception.
  */
-export async function receivePushedRecords(page: PushedPage): Promise<{ stored: number; failed: number }> {
-  // The transaction id is the only handle an inbound push carries, and it is ours — we minted it.
+export async function receivePushedRecords(
+  page: PushedPage,
+): Promise<{ stored: number; failed: number }> {
+  // The transaction id is the only handle an inbound push carries, and it is **ABDM's** — recorded
+  // by `recordDataRequestAck` when the consent manager answered our request. It used to be a value
+  // we minted ourselves, which nobody else knew, so a real push matched nothing and was discarded
+  // with the warning below. Mock mode never showed it: there, both halves are us.
   const rows = await db
     .select()
     .from(abdmHiuDataTransfers)
@@ -180,7 +278,10 @@ export async function receivePushedRecords(page: PushedPage): Promise<{ stored: 
     .limit(1);
   const transfer = rows[0];
   if (!transfer) {
-    logger.warn({ transactionId: page.transactionId }, 'Records pushed for an unknown transaction — discarded');
+    logger.warn(
+      { transactionId: page.transactionId },
+      'Records pushed for an unknown transaction — discarded',
+    );
     return { stored: 0, failed: 0 };
   }
   const tenantId = transfer.tenantId;
@@ -192,7 +293,9 @@ export async function receivePushedRecords(page: PushedPage): Promise<{ stored: 
       .select({ consent: abdmHiuConsents, patientId: abdmHiuConsentRequests.patientId })
       .from(abdmHiuConsents)
       .innerJoin(abdmHiuConsentRequests, eq(abdmHiuConsentRequests.id, abdmHiuConsents.requestId))
-      .where(and(eq(abdmHiuConsents.tenantId, tenantId), eq(abdmHiuConsents.id, transfer.consentId)))
+      .where(
+        and(eq(abdmHiuConsents.tenantId, tenantId), eq(abdmHiuConsents.id, transfer.consentId)),
+      )
       .limit(1);
     return found[0] ?? null;
   });
@@ -202,9 +305,17 @@ export async function receivePushedRecords(page: PushedPage): Promise<{ stored: 
   // Revoked or expired while the data was in flight. Arriving records are dropped unread — the
   // permission that would have justified storing them no longer exists.
   if (!consent || !patientId || !isUsable(consent)) {
-    await finish(tenantId, transfer.id, 'failed', 'The consent was withdrawn before the records arrived');
+    await finish(
+      tenantId,
+      transfer.id,
+      'failed',
+      'The consent was withdrawn before the records arrived',
+    );
     await notifyTransfer(tenantId, transfer, [], 'ERRORED');
-    logger.warn({ tenantId, transactionId: page.transactionId }, 'Records arrived under a consent that no longer permits them');
+    logger.warn(
+      { tenantId, transactionId: page.transactionId },
+      'Records arrived under a consent that no longer permits them',
+    );
     return { stored: 0, failed: page.entries.length };
   }
 
@@ -249,7 +360,10 @@ export async function receivePushedRecords(page: PushedPage): Promise<{ stored: 
     // What we hold must be what was sent. Rendering anything else to a clinician is worse than
     // rendering nothing.
     if (!checksumMatches(plaintext, entry.checksum)) {
-      logger.error({ tenantId, careContext: entry.careContextReference }, 'Checksum mismatch on a pushed record');
+      logger.error(
+        { tenantId, careContext: entry.careContextReference },
+        'Checksum mismatch on a pushed record',
+      );
       failed += 1;
       continue;
     }
@@ -292,7 +406,9 @@ export async function receivePushedRecords(page: PushedPage): Promise<{ stored: 
         entriesStored: transfer.entriesStored + stored,
         status: complete ? (failed > 0 ? 'partial' : 'delivered') : 'receiving',
         ...(complete ? { completedAt: new Date() } : {}),
-        ...(failed > 0 ? { reason: `${failed} entr${failed === 1 ? 'y' : 'ies'} could not be read` } : {}),
+        ...(failed > 0
+          ? { reason: `${failed} entr${failed === 1 ? 'y' : 'ies'} could not be read` }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(abdmHiuDataTransfers.id, transfer.id)),
@@ -346,13 +462,19 @@ async function notifyTransfer(
       },
     },
     { hipId: facility?.hipId },
-  ).catch((err: unknown) => logger.error({ err }, 'Could not notify ABDM of a completed HIU transfer'));
+  ).catch((err: unknown) =>
+    logger.error({ err }, 'Could not notify ABDM of a completed HIU transfer'),
+  );
 }
 
 /** Throws unless this consent may still yield a record, naming which rule stopped it. */
 function assertUsable(consent: AbdmHiuConsent): void {
   if (consent.status !== 'granted') {
-    throw new AppError(403, 'ABDM_CONSENT_NOT_GRANTED', `This consent is ${consent.status} and cannot be used`);
+    throw new AppError(
+      403,
+      'ABDM_CONSENT_NOT_GRANTED',
+      `This consent is ${consent.status} and cannot be used`,
+    );
   }
   if (consent.dataEraseAt && consent.dataEraseAt <= new Date()) {
     throw new AppError(403, 'ABDM_CONSENT_EXPIRED', 'This consent has expired and cannot be used');
@@ -370,7 +492,9 @@ const isUsable = (consent: AbdmHiuConsent): boolean =>
  * health document rather than dropped — an unfamiliar type is not a reason to lose a record.
  */
 function hiTypeOf(bundle: Record<string, unknown>, consent: AbdmHiuConsent): string {
-  const entries = (bundle.entry as Array<{ resource?: { resourceType?: string; type?: { text?: string } } }>) ?? [];
+  const entries =
+    (bundle.entry as Array<{ resource?: { resourceType?: string; type?: { text?: string } } }>) ??
+    [];
   const composition = entries.find((e) => e.resource?.resourceType === 'Composition')?.resource;
   const text = composition?.type?.text ?? '';
   const known = [
@@ -382,14 +506,17 @@ function hiTypeOf(bundle: Record<string, unknown>, consent: AbdmHiuConsent): str
     'HealthDocumentRecord',
     'WellnessRecord',
   ];
-  const matched = known.find((t) => text.replace(/\s+/g, '').toLowerCase().includes(t.toLowerCase()));
+  const matched = known.find((t) =>
+    text.replace(/\s+/g, '').toLowerCase().includes(t.toLowerCase()),
+  );
   return matched ?? consent.hiTypes[0] ?? 'HealthDocumentRecord';
 }
 
 /** The bundle's own clinical date — what the timeline sorts on. */
 function bundleDate(bundle: Record<string, unknown>): Date | null {
   const timestamp = typeof bundle.timestamp === 'string' ? bundle.timestamp : null;
-  const entries = (bundle.entry as Array<{ resource?: { resourceType?: string; date?: string } }>) ?? [];
+  const entries =
+    (bundle.entry as Array<{ resource?: { resourceType?: string; date?: string } }>) ?? [];
   const composition = entries.find((e) => e.resource?.resourceType === 'Composition')?.resource;
   const value = composition?.date ?? timestamp;
   if (!value) return null;
@@ -397,11 +524,21 @@ function bundleDate(bundle: Record<string, unknown>): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-async function finish(tenantId: string, transferId: string, status: string, reason?: string): Promise<void> {
+async function finish(
+  tenantId: string,
+  transferId: string,
+  status: string,
+  reason?: string,
+): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(abdmHiuDataTransfers)
-      .set({ status, reason: reason?.slice(0, 300) ?? null, completedAt: new Date(), updatedAt: new Date() })
+      .set({
+        status,
+        reason: reason?.slice(0, 300) ?? null,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(abdmHiuDataTransfers.id, transferId)),
   );
 }

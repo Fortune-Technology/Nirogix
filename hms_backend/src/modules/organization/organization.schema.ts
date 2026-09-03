@@ -36,7 +36,13 @@ export const UpdateOrganizationProfileBody = z
       .nullable()
       .optional(),
     email: z.string().trim().email('Enter a valid email address').max(255).nullable().optional(),
-    website: z.string().trim().url('Enter a full URL, including https://').max(255).nullable().optional(),
+    website: z
+      .string()
+      .trim()
+      .url('Enter a full URL, including https://')
+      .max(255)
+      .nullable()
+      .optional(),
     registrationNumber: text(100),
     displayName: text(200),
     secondaryPhone: z
@@ -46,7 +52,13 @@ export const UpdateOrganizationProfileBody = z
       .regex(/^[0-9+\-() ]{6,32}$/, 'Enter a valid phone number')
       .nullable()
       .optional(),
-    supportEmail: z.string().trim().email('Enter a valid email address').max(255).nullable().optional(),
+    supportEmail: z
+      .string()
+      .trim()
+      .email('Enter a valid email address')
+      .max(255)
+      .nullable()
+      .optional(),
     // Letterhead — reuses this record rather than a second identity store (ADR-056).
     letterheadHeader: text(300),
     letterheadFooter: text(500),

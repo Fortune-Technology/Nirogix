@@ -69,5 +69,7 @@ export async function attachDocument(req: Request, res: Response): Promise<void>
 }
 
 export async function archiveDocument(req: Request, res: Response): Promise<void> {
-  res.json(await docSvc.archiveDocument(req.auth!.tenantId, req.params.docId!, req.body, req.auth!.userId));
+  res.json(
+    await docSvc.archiveDocument(req.auth!.tenantId, req.params.docId!, req.body, req.auth!.userId),
+  );
 }

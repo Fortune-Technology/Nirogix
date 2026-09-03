@@ -15,6 +15,17 @@ export async function signEncounter(req: Request, res: Response): Promise<void> 
   res.json(await svc.signEncounter(req.auth!.tenantId, req.params.id!, req.auth!.userId));
 }
 
+// Reopen a signed consultation for correction (ADR-134) — its own permission, its own reason.
+export async function amendEncounter(req: Request, res: Response): Promise<void> {
+  res.json(
+    await svc.openAmendment(req.auth!.tenantId, req.params.id!, req.body.reason, req.auth!.userId),
+  );
+}
+
+export async function cancelAmendment(req: Request, res: Response): Promise<void> {
+  res.json(await svc.cancelAmendment(req.auth!.tenantId, req.params.id!, req.auth!.userId));
+}
+
 // Read-only chart access (never creates a draft) — EMR_VIEW, not EMR_WRITE.
 export async function getEncounter(req: Request, res: Response): Promise<void> {
   res.json(await svc.getEncounter(req.auth!.tenantId, req.params.id!));

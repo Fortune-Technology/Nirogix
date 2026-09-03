@@ -12,7 +12,12 @@ import { writeAudit } from '../audit/audit.service';
 // belongs to one branch or is org-wide), so they are per-hospital by construction and need no
 // overlay. This overlay is for the tenant-only master items that lack a branch dimension.
 export type AvailabilityItemType = 'drug' | 'lab_test' | 'service' | 'vaccine';
-export const AVAILABILITY_ITEM_TYPES: readonly AvailabilityItemType[] = ['drug', 'lab_test', 'service', 'vaccine'];
+export const AVAILABILITY_ITEM_TYPES: readonly AvailabilityItemType[] = [
+  'drug',
+  'lab_test',
+  'service',
+  'vaccine',
+];
 
 export interface AvailabilityOverride {
   branchId: string;
@@ -42,7 +47,10 @@ export async function listOverrides(
       eq(branchItemAvailability.branchId, branchId),
     ];
     if (itemType) conds.push(eq(branchItemAvailability.itemType, itemType));
-    const rows = await tx.select().from(branchItemAvailability).where(and(...conds));
+    const rows = await tx
+      .select()
+      .from(branchItemAvailability)
+      .where(and(...conds));
     return rows.map((r) => ({
       branchId: r.branchId,
       itemType: r.itemType as AvailabilityItemType,
@@ -76,7 +84,11 @@ export async function setAvailability(
         .where(and(eq(branches.tenantId, tenantId), eq(branches.id, input.branchId)))
         .limit(1)
     )[0];
-    if (!branch) throw Errors.validation({ branchId: input.branchId }, 'That branch does not belong to your organization.');
+    if (!branch)
+      throw Errors.validation(
+        { branchId: input.branchId },
+        'That branch does not belong to your organization.',
+      );
 
     return (
       await tx
@@ -112,7 +124,12 @@ export async function setAvailability(
     action: 'catalog.availability.set',
     resourceType: 'branch_item_availability',
     resourceId: row.id,
-    metadata: { branchId: input.branchId, itemType: input.itemType, itemRef: input.itemRef, isAvailable: input.isAvailable },
+    metadata: {
+      branchId: input.branchId,
+      itemType: input.itemType,
+      itemRef: input.itemRef,
+      isAvailable: input.isAvailable,
+    },
   });
 
   return {

@@ -1,13 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Alert, Badge, Card, EmptyState, ErrorState, Skeleton } from "@hms/ui";
-import { DateDisplay, DateTimeDisplay } from "@hms/ui";
-import type { Appointment, InvoiceListItem, PatientLabReport, PatientPortalProfile } from "@hms/types";
-import * as api from "../../../../lib/api";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import { Alert, Badge, Card, EmptyState, ErrorState, Skeleton } from '@hms/ui';
+import { DateDisplay, DateTimeDisplay } from '@hms/ui';
+import type {
+  Appointment,
+  InvoiceListItem,
+  PatientLabReport,
+  PatientPortalProfile,
+} from '@hms/types';
+import * as api from '../../../../lib/api';
 
 /**
  * One hospital's records for this patient (ADR-052).
@@ -48,7 +53,7 @@ export default function HospitalRecordsPage() {
         setError(
           e instanceof api.ApiRequestError
             ? e.message
-            : "Could not load your records from this hospital.",
+            : 'Could not load your records from this hospital.',
         ),
       )
       .finally(() => setLoading(false));
@@ -56,26 +61,30 @@ export default function HospitalRecordsPage() {
 
   useEffect(load, [tenantId]);
 
-  if (error) return <ErrorState title="Could not load these records" message={error} onRetry={load} />;
+  if (error)
+    return <ErrorState title="Could not load these records" message={error} onRetry={load} />;
   if (loading || !profile) return <Skeleton height="20rem" />;
 
   return (
     <>
-      <Link href="/" className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+      >
         <ArrowLeft size={14} strokeWidth={2} aria-hidden /> All hospitals
       </Link>
 
       <Card header="Your details">
         <dl className="grid gap-3 sm:grid-cols-2">
-          <Detail label="Name" value={`${profile.firstName} ${profile.lastName ?? ""}`.trim()} />
+          <Detail label="Name" value={`${profile.firstName} ${profile.lastName ?? ''}`.trim()} />
           <Detail label="Hospital ID (UHID)" value={profile.uhid} />
           <Detail
             label="Date of birth"
-            value={profile.dateOfBirth ? <DateDisplay value={profile.dateOfBirth} /> : "—"}
+            value={profile.dateOfBirth ? <DateDisplay value={profile.dateOfBirth} /> : '—'}
           />
-          <Detail label="Blood group" value={profile.bloodGroup ?? "—"} />
-          <Detail label="Mobile" value={profile.phone ?? "—"} />
-          <Detail label="Email" value={profile.email ?? "—"} />
+          <Detail label="Blood group" value={profile.bloodGroup ?? '—'} />
+          <Detail label="Mobile" value={profile.phone ?? '—'} />
+          <Detail label="Email" value={profile.email ?? '—'} />
         </dl>
         <p className="mt-4 text-xs text-fg-subtle">
           These details are held by the hospital. To correct anything, ask them at your next visit.
@@ -84,7 +93,10 @@ export default function HospitalRecordsPage() {
 
       <Card header="Appointments">
         {appointments.length === 0 ? (
-          <EmptyState title="No appointments" description="Appointments booked for you will appear here." />
+          <EmptyState
+            title="No appointments"
+            description="Appointments booked for you will appear here."
+          />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {appointments.map((a) => (
@@ -92,8 +104,8 @@ export default function HospitalRecordsPage() {
                 <span className="text-sm text-fg">
                   <DateTimeDisplay value={a.scheduledAt} />
                 </span>
-                <span className="text-sm text-fg-muted">{a.providerName ?? "—"}</span>
-                <Badge tone={a.status === "cancelled" ? "neutral" : "brand"}>{a.status}</Badge>
+                <span className="text-sm text-fg-muted">{a.providerName ?? '—'}</span>
+                <Badge tone={a.status === 'cancelled' ? 'neutral' : 'brand'}>{a.status}</Badge>
               </li>
             ))}
           </ul>
@@ -111,8 +123,8 @@ export default function HospitalRecordsPage() {
                 <span className="text-sm text-fg-muted">
                   <DateDisplay value={i.createdAt} />
                 </span>
-                <Badge tone={i.balancePaise > 0 ? "warning" : "success"}>
-                  {i.balancePaise > 0 ? "Balance due" : "Paid"}
+                <Badge tone={i.balancePaise > 0 ? 'warning' : 'success'}>
+                  {i.balancePaise > 0 ? 'Balance due' : 'Paid'}
                 </Badge>
               </li>
             ))}
@@ -137,15 +149,16 @@ export default function HospitalRecordsPage() {
                   </span>
                 </span>
                 <span className="text-sm text-fg">
-                  {r.value ?? "—"} {r.unit ?? ""}
+                  {r.value ?? '—'} {r.unit ?? ''}
                 </span>
-                {r.flag && r.flag !== "normal" ? <Badge tone="warning">{r.flag}</Badge> : null}
+                {r.flag && r.flag !== 'normal' ? <Badge tone="warning">{r.flag}</Badge> : null}
               </li>
             ))}
           </ul>
         )}
         <Alert className="mt-4">
-          A result outside the usual range is not a diagnosis. Talk to your doctor about what a report means.
+          A result outside the usual range is not a diagnosis. Talk to your doctor about what a
+          report means.
         </Alert>
       </Card>
     </>

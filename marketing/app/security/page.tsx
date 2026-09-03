@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from 'next';
 import {
   DatabaseZap,
   Building2,
@@ -10,22 +10,22 @@ import {
   HardDriveDownload,
   EyeOff,
   CreditCard,
-} from "lucide-react";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Container, SectionHeading } from "../../components/ui/primitives";
-import { Reveal } from "../../components/ui/Reveal";
-import { ProductFrame } from "../../components/product/ProductFrame";
-import { AuditPreview } from "../../components/product/previews";
-import { JsonLd } from "../../components/site/JsonLd";
-import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
+} from 'lucide-react';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Container, SectionHeading } from '../../components/ui/primitives';
+import { Reveal } from '../../components/ui/Reveal';
+import { ProductFrame } from '../../components/product/ProductFrame';
+import { AuditPreview } from '../../components/product/previews';
+import { JsonLd } from '../../components/site/JsonLd';
+import { breadcrumbJsonLd, pageMetadata } from '../../lib/seo';
 
 // Topical intent (data protection / residency) — no location or commercial terms here.
 export const metadata: Metadata = pageMetadata({
-  path: "/security",
-  title: "Security, Tenant Isolation & India Data Residency",
+  path: '/security',
+  title: 'Security, Tenant Isolation & India Data Residency',
   description:
-    "How Nirogix protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.",
+    'How Nirogix protects hospital data: PostgreSQL row-level tenant isolation, India-resident hosting, an immutable audit trail, encryption in transit and at rest, and least-privilege access.',
 });
 
 // Split deliberately (rules.md → Marketing Content & Claim Accuracy): `enforced` is
@@ -33,59 +33,64 @@ export const metadata: Metadata = pageMetadata({
 // that becomes verifiable at deployment, and is never written as already proven.
 const PRACTICES: { name: string; icon: typeof Lock; body: string; commitment?: boolean }[] = [
   {
-    name: "Role-based access",
+    name: 'Role-based access',
     icon: KeyRound,
-    body: "Fine-grained permissions, per-user overrides, and time-bound grants. Explicit deny always wins, and every endpoint re-checks on the server.",
+    body: 'Fine-grained permissions, per-user overrides, and time-bound grants. Explicit deny always wins, and every endpoint re-checks on the server.',
   },
   {
-    name: "Validated and rate-limited",
+    name: 'Validated and rate-limited',
     icon: ShieldAlert,
-    body: "Every request is schema-validated at the server boundary, and credential routes are rate-limited tighter than ordinary reads.",
+    body: 'Every request is schema-validated at the server boundary, and credential routes are rate-limited tighter than ordinary reads.',
   },
   {
     // Everything here is enforced in code today (ADR-082) — no aspiration, and no
     // certification or test-result claim, which the security page never makes.
-    name: "Sign-in and session protection",
+    name: 'Sign-in and session protection',
     icon: Timer,
-    body: "Repeated failed sign-ins lock an account with a growing delay, one password policy applies wherever a password is set, and a session left unattended for fifteen minutes signs itself out.",
+    body: 'Repeated failed sign-ins lock an account with a growing delay, one password policy applies wherever a password is set, and a session left unattended for fifteen minutes signs itself out.',
   },
   {
-    name: "Encryption everywhere",
+    name: 'Encryption everywhere',
     icon: Lock,
     commitment: true,
     body: "AES-256 at rest and TLS 1.2+ in transit is the platform's encryption standard, applied at deployment.",
   },
   {
-    name: "Backups and recovery",
+    name: 'Backups and recovery',
     icon: HardDriveDownload,
     commitment: true,
-    body: "Automated backups with defined recovery objectives. The restore drill runs against real infrastructure before go-live.",
+    body: 'Automated backups with defined recovery objectives. The restore drill runs against real infrastructure before go-live.',
   },
   {
-    name: "PII masking",
+    name: 'PII masking',
     icon: EyeOff,
     commitment: true,
-    body: "Personal data masked in logs and outside production, on a least-privilege architecture.",
+    body: 'Personal data masked in logs and outside production, on a least-privilege architecture.',
   },
   {
-    name: "PCI-aligned payments",
+    name: 'PCI-aligned payments',
     icon: CreditCard,
     commitment: true,
-    body: "The payment gateway is planned scope. When it ships, card data is never stored on the platform and handling follows PCI DSS-aligned practice.",
+    body: 'The payment gateway is planned scope. When it ships, card data is never stored on the platform and handling follows PCI DSS-aligned practice.',
   },
 ];
 
 const ALIGNED = [
-  "Digital Personal Data Protection Act (DPDP), 2023",
-  "Ayushman Bharat Digital Mission (ABDM)",
-  "GST and e-invoicing for billing",
-  "Telemedicine Practice Guidelines, 2020",
+  'Digital Personal Data Protection Act (DPDP), 2023',
+  'Ayushman Bharat Digital Mission (ABDM)',
+  'GST and e-invoicing for billing',
+  'Telemedicine Practice Guidelines, 2020',
 ];
 
 export default function SecurityPage() {
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Security", path: "/security" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Security', path: '/security' },
+        ])}
+      />
       <PageHeader
         eyebrow="Security & trust"
         title="Health data, protected at the layer that matters."
@@ -106,10 +111,10 @@ export default function SecurityPage() {
             </div>
             <div className="lg:col-span-2">
               <p className="text-lg leading-relaxed text-ink-muted">
-                Tenant isolation is enforced with PostgreSQL row-level security. A hospital’s data is
-                unreachable from any other tenant, and that isolation is tested on every module, not
-                assumed. Tenant context comes only from the authenticated session, never from client
-                input, so a request cannot ask for another hospital’s data.
+                Tenant isolation is enforced with PostgreSQL row-level security. A hospital’s data
+                is unreachable from any other tenant, and that isolation is tested on every module,
+                not assumed. Tenant context comes only from the authenticated session, never from
+                client input, so a request cannot ask for another hospital’s data.
               </p>
             </div>
           </div>
@@ -124,7 +129,9 @@ export default function SecurityPage() {
               <span className="grid h-12 w-12 place-items-center rounded-lg bg-accent-subtle text-accent">
                 <Building2 size={24} strokeWidth={1.6} />
               </span>
-              <h2 className="mk-heading mt-5 text-2xl text-ink sm:text-3xl">Data stays in India.</h2>
+              <h2 className="mk-heading mt-5 text-2xl text-ink sm:text-3xl">
+                Data stays in India.
+              </h2>
             </div>
             <div className="lg:col-span-2">
               <p className="text-lg leading-relaxed text-ink-muted">
@@ -184,13 +191,13 @@ export default function SecurityPage() {
                     <h3 className="text-base font-semibold text-ink">{p.name}</h3>
                     <span
                       className={
-                        "rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                        'rounded-full px-2.5 py-0.5 text-xs font-medium ' +
                         (p.commitment
-                          ? "border border-hairline bg-surface-2 text-ink-muted"
-                          : "border border-accent-border bg-accent-subtle text-accent")
+                          ? 'border border-hairline bg-surface-2 text-ink-muted'
+                          : 'border border-accent-border bg-accent-subtle text-accent')
                       }
                     >
-                      {p.commitment ? "Commitment" : "Enforced today"}
+                      {p.commitment ? 'Commitment' : 'Enforced today'}
                     </span>
                   </div>
                   <p className="mt-1.5 text-sm leading-relaxed text-ink-subtle">{p.body}</p>
@@ -226,8 +233,9 @@ export default function SecurityPage() {
               </ul>
               <p className="mt-6 text-sm leading-relaxed text-ink-subtle">
                 These describe how the platform is designed and aligned. They are not claims of
-                formal certification, audit, or accreditation, and no third party has certified them.
-                We are happy to walk your compliance team through our controls during onboarding.
+                formal certification, audit, or accreditation, and no third party has certified
+                them. We are happy to walk your compliance team through our controls during
+                onboarding.
               </p>
             </div>
           </div>

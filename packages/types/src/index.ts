@@ -64,9 +64,7 @@ export interface LoginRequest {
 }
 
 /** `POST /auth/login` → tokens, OR an MFA challenge when the user has MFA enabled. */
-export type LoginResponse =
-  | { accessToken: string; user: AuthUser }
-  | { mfaRequired: true };
+export type LoginResponse = { accessToken: string; user: AuthUser } | { mfaRequired: true };
 
 export interface RefreshResponse {
   accessToken: string;
@@ -609,7 +607,13 @@ export interface DashboardOverview {
   outstandingPaise: number;
   pendingLabOrders: number;
   lowStock: Array<{ id: string; name: string; onHand: number; reorderLevel: number }>;
-  providerLoad: Array<{ providerId: string; name: string; seen: number; inProgress: number; booked: number }>;
+  providerLoad: Array<{
+    providerId: string;
+    name: string;
+    seen: number;
+    inProgress: number;
+    booked: number;
+  }>;
 }
 
 /** `GET /dashboard/summary` — the caller's own tenant, RLS-scoped. */
@@ -1458,9 +1462,35 @@ export interface Encounter {
   patientUhid: string;
   providerId: string | null;
   providerName: string | null;
-  status: string; // draft | signed
+  /**
+   * `draft` → `signed`, and `signed` → `amending` → `signed` for a correction (ADR-134).
+   * `amending` is editable exactly like a draft; it differs in that the note it is
+   * correcting is already preserved in an amendment record.
+   */
+  status: string; // draft | signed | amending
   version: number;
+  /** When the note was LAST signed. A re-signed amendment moves it. */
   signedAt: string | null;
+  /** Whether this consultation has ever been signed — true throughout an amendment. */
+  wasSigned: boolean;
+  /**
+   * The signature this note was signed with (ADR-137) — the version PINNED at signing, so it
+   * does not change when the clinician uploads a new one. `null` when the signer had none, and
+   * for every note signed before the feature existed.
+   *
+   * An uploaded image. Never describe it as a cryptographic digital signature.
+   */
+  signature: {
+    signatureId: string;
+    version: number;
+    signedByName: string | null;
+    /** Short-lived signed URL. Fetch the encounter again rather than caching this. */
+    imageUrl: string;
+  } | null;
+  /** Every amendment on this encounter, newest first. Empty for a note never reopened. */
+  amendments: EncounterAmendment[];
+  /** The open amendment, when the encounter is being corrected right now. */
+  openAmendment: EncounterAmendment | null;
   chiefComplaint: string | null;
   subjective: string | null;
   objective: string | null;
@@ -1473,6 +1503,131 @@ export interface Encounter {
   diagnoses: Diagnosis[];
   prescriptions: Prescription[];
   labOrders: LabOrder[];
+}
+
+/**
+ * One reopening of a signed consultation (ADR-134) — who, when, why, and what changed.
+ *
+ * `snapshot` is deliberately absent from this shape: the amendment TRAIL is what a chart
+ * shows, and shipping a full frozen copy of every past note into the consultation screen
+ * would send far more clinical data than the screen displays. The snapshot stays server-side
+ * as the preserved original.
+ */
+export interface EncounterAmendment {
+  id: string;
+  status: string; // open | completed | cancelled
+  reason: string;
+  /** Field names that differ between the signed note and the amended one. */
+  changedFields: string[] | null;
+  amendedById: string | null;
+  amendedByName: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface AmendEncounterRequest {
+  /** Why the signed record is being reopened. Recorded permanently against the amendment. */
+  reason: string;
+}
+
+/**
+ * One version of a person's uploaded signature (ADR-137).
+ *
+ * An **image**, never a cryptographic digital signature. `superseded` was replaced by a newer
+ * one; `removed` was withdrawn from future documents. Neither is deleted, because documents
+ * signed with them still render them.
+ */
+export interface SignatureVersion {
+  id: string;
+  version: number;
+  status: 'active' | 'superseded' | 'removed';
+  fileId: string;
+  createdAt: string;
+  retiredAt: string | null;
+}
+
+/** `GET /me/signature` — your own signature and its history, and nobody else's. */
+export interface MySignature {
+  active: (SignatureVersion & { imageUrl: string | null }) | null;
+  versions: SignatureVersion[];
+  /** Stated by the API: what this holds is an uploaded image (ADR-137). */
+  kind: 'electronic_image';
+}
+
+// ---- Bulk import (hms_backend/src/modules/import, ADR-138) -------------------
+
+export interface ImportFieldSpec {
+  key: string;
+  label: string;
+  required: boolean;
+  hint?: string;
+  example: string;
+}
+
+export interface ImportModuleSpec {
+  key: string;
+  label: string;
+  description: string;
+  permission: string;
+  /** The field that identifies the same record twice — a code, never a name. */
+  duplicateKey: { field: string; label: string };
+  /** `false` where updating in bulk would be wrong (patients). The screen hides the option. */
+  supportsUpdate: boolean;
+  fields: ImportFieldSpec[];
+}
+
+export type ImportDuplicateStrategy = 'skip' | 'update' | 'create_only';
+
+export interface ImportOptions {
+  /** Only the imports this user may actually perform. */
+  modules: ImportModuleSpec[];
+  duplicateStrategies: Array<{
+    value: ImportDuplicateStrategy;
+    label: string;
+    description: string;
+  }>;
+}
+
+export interface ImportPreviewRow {
+  /** 1-based, counting the header — the row number the person sees in their spreadsheet. */
+  line: number;
+  values: Record<string, unknown>;
+  keyValue: string | null;
+  status: 'ready' | 'duplicate' | 'error';
+  matched?: { id: string; label: string };
+  errors: Array<{ field: string | null; message: string }>;
+}
+
+export interface ImportPreview {
+  module: ImportModuleSpec;
+  columns: string[];
+  /** CSV column header → system field key, or null for a column that is ignored. */
+  mapping: Record<string, string | null>;
+  missingRequired: Array<{ key: string; label: string }>;
+  totals: { rows: number; ready: number; duplicates: number; errors: number };
+  rows: ImportPreviewRow[];
+}
+
+export interface ImportCommitResult {
+  runId: string;
+  totals: { rows: number; created: number; updated: number; skipped: number; failed: number };
+  errors: Array<{ line: number; message: string }>;
+}
+
+export interface ImportRun {
+  id: string;
+  module: string;
+  moduleLabel: string;
+  filename: string;
+  duplicateStrategy: string;
+  totalRows: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: Array<{ line: number; message: string }>;
+  importedByName: string | null;
+  createdAt: string;
 }
 
 export interface Icd10Code {
@@ -1488,7 +1643,12 @@ export interface SaveEncounterRequest {
   assessment?: string | null;
   plan?: string | null;
   vitals?: Partial<Vitals>;
-  diagnoses: Array<{ icd10Code: string; icd10Term: string; isPrimary?: boolean; notes?: string | null }>;
+  diagnoses: Array<{
+    icd10Code: string;
+    icd10Term: string;
+    isPrimary?: boolean;
+    notes?: string | null;
+  }>;
   prescriptions: Array<{
     /** Present on rows that already exist — a re-save updates them in place. */
     id?: string | null;
@@ -1801,7 +1961,13 @@ export interface AbhaVerificationResult {
    * demographics, and they are the only description of that person the flow produces — the call
    * that resolves the chosen account returns a token and little else (ADR-130).
    */
-  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string; gender?: string; dateOfBirth?: string }>;
+  accounts?: Array<{
+    abhaNumber: string;
+    abhaAddress?: string;
+    name?: string;
+    gender?: string;
+    dateOfBirth?: string;
+  }>;
 }
 
 export interface AbdmOtpSent {
@@ -1810,6 +1976,11 @@ export interface AbdmOtpSent {
   mobileHint?: string;
   /** Sandbox/mock only — no SMS is sent, so the OTP comes back in-band. Never in production. */
   devOtp?: string;
+  /**
+   * What the registry says an ABHA **address** supports, from its auth-method search.
+   * Present only on an ABHA-address verification; no other identifier has that call.
+   */
+  authMethods?: string[];
 }
 
 /** A profile a patient pushed by scanning the hospital's QR, waiting at the desk. */
@@ -1823,6 +1994,15 @@ export interface AbdmPendingShare {
 }
 
 export type AbhaIdentifierType = 'abha_number' | 'abha_address' | 'mobile' | 'aadhaar';
+
+/**
+ * Which system delivers the verification OTP.
+ *
+ * An ABHA number and an ABHA address each accept both, and NHA requires both to be shown:
+ * `VRFY_ABHA_101`/`_102` are the Aadhaar-OTP routes, `VRFY_ABHA_201`/`_202` the ABHA-linked-mobile
+ * ones. A mobile or Aadhaar identifier accepts only its own.
+ */
+export type AbhaOtpSystem = 'aadhaar' | 'abdm';
 
 /**
  * A correction to the patient's profile AT ABDM — the one M1 call that writes to the national

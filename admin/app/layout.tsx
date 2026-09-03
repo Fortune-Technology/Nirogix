@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
-import "@hms/ui/styles.css";
-import "./globals.css";
-import { BackToTop, Toaster } from "@hms/ui";
-import { Providers } from "./providers";
+import type { Metadata } from 'next';
+import { headers } from 'next/headers';
+import { Geist, Geist_Mono } from 'next/font/google';
+import '@hms/ui/styles.css';
+import './globals.css';
+import { BackToTop, Toaster } from '@hms/ui';
+import { Providers } from './providers';
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 /**
  * Nirogix Platform Administration (ADR-051).
@@ -20,15 +20,15 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
  * Never indexed, and it never renders a tenant's name in metadata (ADR-027).
  */
 export const metadata: Metadata = {
-  title: "Nirogix Platform Admin",
-  description: "Nirogix platform administration",
+  title: 'Nirogix Platform Admin',
+  description: 'Nirogix platform administration',
   robots: {
     index: false,
     follow: false,
     nocache: true,
     googleBot: { index: false, follow: false, noimageindex: true },
   },
-  referrer: "strict-origin-when-cross-origin",
+  referrer: 'strict-origin-when-cross-origin',
 };
 
 // Applies the persisted theme before first paint to avoid a flash. This app has no
@@ -42,7 +42,7 @@ const noFlashScript = `(function(){try{
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The nonce minted for THIS request by proxy.ts (ADR-082). Next stamps it on the scripts
   // it emits; the one inline script this app owns has to be given it by hand.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html

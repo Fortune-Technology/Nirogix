@@ -49,7 +49,10 @@ beforeAll(async () => {
     pincode: '411001',
   });
   patientId = patient.id;
-  await pool.query("UPDATE patients SET abha_address = 'meera@sbx', abha_number = '91-1111-2222-3333', abha_verified_at = now() WHERE id = $1", [patientId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'meera@sbx', abha_number = '91-1111-2222-3333', abha_verified_at = now() WHERE id = $1",
+    [patientId],
+  );
 
   // A visit with a signed consultation: vitals, an ICD-10 diagnosis, two medicines, a verified lab
   // result and an unverified one, an attachment, an invoice, and an immunisation.
@@ -151,7 +154,9 @@ describe('the document envelope', () => {
     expect(bundle.type).toBe('document');
     // ABDM rejects a bundle whose Composition is not the first entry.
     expect(bundle.entry[0]!.resource.resourceType).toBe('Composition');
-    expect(bundle.meta.profile).toContain('https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle');
+    expect(bundle.meta.profile).toContain(
+      'https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle',
+    );
   });
 
   test('every entry is referenced by its own fullUrl', async ({ skip }) => {
@@ -185,7 +190,9 @@ describe('the document envelope', () => {
   test('the patient carries their ABHA identifiers and the hospital UHID', async ({ skip }) => {
     if (!ready) return skip();
     const bundle = await buildDocumentBundle(tenantId, { visitId, hiType: 'Prescription' });
-    const patient = find<never>(bundle, 'Patient') as unknown as { identifier: Array<{ value?: string }> };
+    const patient = find<never>(bundle, 'Patient') as unknown as {
+      identifier: Array<{ value?: string }>;
+    };
     const values = patient.identifier.map((i) => i.value);
     expect(values).toContain('meera@sbx');
     expect(values).toContain('91-1111-2222-3333');
@@ -236,7 +243,9 @@ describe('clinical mapping', () => {
     if (!ready) return skip();
     // Systolic and diastolic emitted separately would lose the fact they were measured together.
     const bundle = await buildDocumentBundle(tenantId, { visitId, hiType: 'WellnessRecord' });
-    const bp = findAll<FhirObservation>(bundle, 'Observation').find((o) => o.code.coding?.[0]?.code === '85354-9')!;
+    const bp = findAll<FhirObservation>(bundle, 'Observation').find(
+      (o) => o.code.coding?.[0]?.code === '85354-9',
+    )!;
     expect(bp.component).toHaveLength(2);
     expect(bp.component![0]!.valueQuantity?.value).toBe(128);
     expect(bp.component![1]!.valueQuantity?.value).toBe(82);
@@ -245,7 +254,9 @@ describe('clinical mapping', () => {
   test('a lab result keeps its LOINC code, units and abnormal flag', async ({ skip }) => {
     if (!ready) return skip();
     const bundle = await buildDocumentBundle(tenantId, { visitId, hiType: 'DiagnosticReport' });
-    const obs = findAll<FhirObservation>(bundle, 'Observation').find((o) => o.code.text === 'Haemoglobin')!;
+    const obs = findAll<FhirObservation>(bundle, 'Observation').find(
+      (o) => o.code.text === 'Haemoglobin',
+    )!;
     expect(obs.code.coding?.[0]?.code).toBe('718-7');
     // A numeric result becomes a Quantity rather than a string.
     expect(obs.valueQuantity?.value).toBe(11.2);
@@ -266,7 +277,10 @@ describe('clinical mapping', () => {
     const invoice = find<never>(bundle, 'Invoice') as unknown as {
       status: string;
       totalGross: { value: number; currency: string };
-      lineItem: Array<{ chargeItemCodeableConcept: { text: string }; priceComponent: Array<{ amount: { value: number } }> }>;
+      lineItem: Array<{
+        chargeItemCodeableConcept: { text: string };
+        priceComponent: Array<{ amount: { value: number } }>;
+      }>;
     };
     expect(invoice.status).toBe('balanced'); // paid
     expect(invoice.totalGross).toEqual({ value: 500, currency: 'INR' });
@@ -289,7 +303,15 @@ describe('clinical mapping', () => {
     if (!ready) return skip();
     const bundle = await buildDocumentBundle(tenantId, { visitId, hiType: 'OPConsultation' });
     const titles = find<FhirComposition>(bundle, 'Composition')!.section!.map((s) => s.title);
-    expect(titles).toEqual(expect.arrayContaining(['Chief complaints', 'Diagnoses', 'Vital signs', 'Medications', 'Investigations']));
+    expect(titles).toEqual(
+      expect.arrayContaining([
+        'Chief complaints',
+        'Diagnoses',
+        'Vital signs',
+        'Medications',
+        'Investigations',
+      ]),
+    );
   });
 });
 
@@ -311,7 +333,10 @@ describe('refusing to send nothing', () => {
   test('a missing visit is refused rather than guessed at', async ({ skip }) => {
     if (!ready) return skip();
     await expect(
-      buildDocumentBundle(tenantId, { visitId: '00000000-0000-4000-8000-000000000000', hiType: 'Prescription' }),
+      buildDocumentBundle(tenantId, {
+        visitId: '00000000-0000-4000-8000-000000000000',
+        hiType: 'Prescription',
+      }),
     ).rejects.toMatchObject({ code: 'ABDM_VISIT_NOT_FOUND' });
   });
 });

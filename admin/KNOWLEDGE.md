@@ -8,7 +8,7 @@ Current state of the **Nirogix Platform Admin** app. Read after root `CLAUDE.md`
 
 The vendor's own operators, on their own origin (ADR-051). `:3003` in development, `admin.nirogix.com` in production.
 
-This app is **not** a copy of the staff Portal. It shares the design system through `@hms/ui` and nothing else, so operator code never ships inside a hospital's bundle and a change here cannot regress a clinic. It contains **no clinical navigation and no clinical API calls** — an operator who needs to work inside a hospital opens an audited support session, which hands them the *Portal* on the tenant's own origin, with the support banner visible (ADR-037).
+This app is **not** a copy of the staff Portal. It shares the design system through `@hms/ui` and nothing else, so operator code never ships inside a hospital's bundle and a change here cannot regress a clinic. It contains **no clinical navigation and no clinical API calls** — an operator who needs to work inside a hospital opens an audited support session, which hands them the _Portal_ on the tenant's own origin, with the support banner visible (ADR-037).
 
 ## What is built
 
@@ -40,7 +40,7 @@ components/
 
 ## Conventions specific to this app
 
-- **Two gates, not one.** `(app)/layout.tsx` checks a session *and* `platform.tenants.manage`. A hospital's org_admin has a valid session — there is one backend — so being signed in is not enough; they get the Forbidden panel. That is UX only: every endpoint is independently gated, so the same person typing the URL gets nothing from the API either.
+- **Two gates, not one.** `(app)/layout.tsx` checks a session _and_ `platform.tenants.manage`. A hospital's org_admin has a valid session — there is one backend — so being signed in is not enough; they get the Forbidden panel. That is UX only: every endpoint is independently gated, so the same person typing the URL gets nothing from the API either.
 - **No tenant branding.** The app always wears the Nirogix accent. A console that changes colour depending on whose data is on screen is one you can misread under pressure.
 - **No metric without a source (ADR-043).** The dashboard shows hospitals, users, doctors, branches, module adoption and a link to the audit trail, because those are real queries. Revenue, MRR, subscription mix, storage, uptime and support tickets are **absent and stated as absent** — there is no subscription or tenant-billing model to draw them from (ADR-020).
 - **No development credentials in source.** The seeded operator account lives in `hms_backend/src/scripts/seed.development.ts` and `testcases.md`. The login screen hints at nothing.
@@ -50,12 +50,11 @@ components/
 
 `/tenants/[id]` starts a session and hands the token to a **Portal** tab. Both ends name the other's origin from configuration — `lib/portal.ts` here (`NEXT_PUBLIC_PORTAL_URL`), `lib/adminOrigin.ts` there — because `window.location.origin` stopped being the right answer the moment the apps split. The token travels by `postMessage`, never in a URL.
 
-The operator continues in the *Portal*, on the hospital's origin, with the support banner visible. Nothing clinical is ever rendered here.
+The operator continues in the _Portal_, on the hospital's origin, with the support banner visible. Nothing clinical is ever rendered here.
 
 ## Not built yet
 
 Subscriptions, revenue, platform users, system health, feature flags, integrations and platform settings each need a data source before they can be honest (ADR-043), and **a navigation item is never a placeholder for an unbuilt screen**. See `BACKLOG.md`.
-
 
 ## Module & capability manager (ADR-085)
 

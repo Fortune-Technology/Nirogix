@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  api,
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 
 /**
  * Explaining a refusal (ADR-126).
@@ -54,7 +63,10 @@ describe('GET /rbac/access (ADR-126)', () => {
     expect(res.status).toBe(200);
     expect(res.body.granted).toBe(true);
     expect(res.body.reason).toBe('granted');
-    expect(res.body.permission).toEqual({ key: 'patient.record.create', label: 'Register patients' });
+    expect(res.body.permission).toEqual({
+      key: 'patient.record.create',
+      label: 'Register patients',
+    });
     expect(res.body.module).toEqual({ key: 'patient', name: expect.any(String), enabled: true });
   });
 
@@ -104,7 +116,9 @@ describe('GET /rbac/access (ADR-126)', () => {
     const res = await explain(sessions.receptionist!, 'audit.log.view');
     const body = JSON.stringify(res.body);
     // No user, no patient, no other tenant — only permission, module and role names.
-    expect(Object.keys(res.body).sort()).toEqual(['grantedByRoles', 'granted', 'module', 'permission', 'reason'].sort());
+    expect(Object.keys(res.body).sort()).toEqual(
+      ['grantedByRoles', 'granted', 'module', 'permission', 'reason'].sort(),
+    );
     expect(body).not.toContain('@');
     expect(body).not.toContain(tenant.tenantId);
   });

@@ -54,7 +54,16 @@
   --hms-shadow-md: 0 10px 30px rgba(15, 60, 76, 0.1);
 
   /* Typography */
-  --hms-font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif);
+  --hms-font-sans: var(
+    --font-geist-sans,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif
+  );
   --hms-text-xs: 0.75rem;
   --hms-text-sm: 0.8125rem;
   --hms-text-base: 0.9375rem;
@@ -147,7 +156,10 @@
   border-radius: var(--hms-radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
   white-space: nowrap;
   user-select: none;
 }
@@ -230,7 +242,9 @@
   border-radius: var(--hms-radius-md);
   padding: 0.5625rem 0.75rem;
   width: 100%;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .hms-input::placeholder {
@@ -366,6 +380,15 @@
 
 .hms-select__trigger--error {
   border-color: var(--hms-danger);
+}
+
+/* A compact trigger for a toolbar row, where the control sits beside buttons rather than
+   inside a form. Sized to land on the same 30px as `.hms-pagination__btn` beside it —
+   a control two pixels taller than its neighbours is what makes a toolbar look assembled
+   rather than designed. */
+.hms-select__trigger--sm {
+  font-size: var(--hms-text-sm);
+  padding: 0.25rem 0.5rem;
 }
 
 .hms-select__trigger--empty .hms-select__value {
@@ -551,6 +574,87 @@
 }
 
 /* --------------------------------------------------------------------------
+ * Combobox (ADR-029) — a searchable field that also accepts free text. Shares the
+ * Select panel above (one list, one option row, one empty state); only the control
+ * itself differs, because here the user types into the field rather than into a
+ * search box inside the panel. Sized to match `.hms-input` exactly, so a combobox
+ * and a text input sitting in the same grid row line up.
+ * ------------------------------------------------------------------------ */
+.hms-combobox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  padding: 0 0.75rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.hms-combobox:focus-within {
+  border-color: var(--hms-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
+}
+
+.hms-combobox:has(.hms-combobox__input:disabled) {
+  background: var(--hms-surface-2);
+}
+
+.hms-combobox__icon {
+  flex-shrink: 0;
+  color: var(--hms-fg-muted);
+}
+
+/* Borderless inside the framed wrapper: the wrapper owns the border, the focus ring and
+   the disabled surface, so the control reads and focuses as one thing. The vertical
+   padding is `.hms-input`'s, which is what keeps the heights identical. */
+.hms-combobox__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  color: var(--hms-fg);
+  padding: 0.5625rem 0;
+}
+
+.hms-combobox__input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+
+.hms-combobox__input:disabled {
+  color: var(--hms-fg-muted);
+  cursor: not-allowed;
+}
+
+.hms-combobox__clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--hms-radius-sm);
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+}
+
+.hms-combobox__clear:hover {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+
+.hms-combobox__clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hms-ring) 45%, transparent);
+}
+
+/* --------------------------------------------------------------------------
  * Card
  * ------------------------------------------------------------------------ */
 .hms-card {
@@ -569,6 +673,28 @@
 
 .hms-card__body {
   padding: 1.25rem;
+}
+
+/* Where a card-scoped action lives once the form above it is filled — "Add another
+   prescription", "Add another test". Left-aligned on purpose: it continues the list it
+   sits under rather than terminating the card the way a dialog's right-aligned Save does.
+   Wraps, so several actions never push each other off a narrow screen. */
+.hms-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--hms-border);
+  background: var(--hms-surface-2);
+  border-bottom-left-radius: var(--hms-radius-lg);
+  border-bottom-right-radius: var(--hms-radius-lg);
+}
+
+/* Pushes everything after it to the right edge — a hint or a count on the left, the
+   action on the right, without the card inventing its own flex wrapper. */
+.hms-card__footer-spacer {
+  margin-left: auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -680,7 +806,9 @@
   background: transparent;
   color: var(--hms-fg-subtle);
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .hms-password__toggle:hover {
@@ -768,7 +896,10 @@
   opacity: 0;
   transform: translateY(0.75rem);
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.15s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    background-color 0.15s ease;
 }
 
 .hms-backtotop--visible {
@@ -1023,6 +1154,12 @@
   white-space: nowrap;
 }
 
+/* The shared Select fills its container by default, which is right in a form and wrong in a
+   toolbar row: here it must be exactly as wide as the two digits it holds. */
+.hms-pagination__size-select {
+  width: auto;
+}
+
 .hms-pagination__pages {
   display: inline-flex;
   align-items: center;
@@ -1195,7 +1332,10 @@
   background: transparent;
   color: var(--hms-fg-muted);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .hms-rowaction:hover {
@@ -1255,7 +1395,9 @@
   border-radius: 9999px;
   background: var(--hms-surface-2);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .hms-switch__thumb {
@@ -1264,7 +1406,9 @@
   border-radius: 9999px;
   background: var(--hms-surface);
   box-shadow: var(--hms-shadow-sm);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .hms-switch--on {
@@ -1298,7 +1442,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-rowaction,
   .hms-switch,
   .hms-switch__thumb {
@@ -1362,10 +1505,12 @@
   width: 100%;
   height: 1rem;
   border-radius: var(--hms-radius-sm);
-  background: linear-gradient(90deg,
-      var(--hms-surface-2) 25%,
-      color-mix(in srgb, var(--hms-surface-2) 55%, var(--hms-surface)) 37%,
-      var(--hms-surface-2) 63%);
+  background: linear-gradient(
+    90deg,
+    var(--hms-surface-2) 25%,
+    color-mix(in srgb, var(--hms-surface-2) 55%, var(--hms-surface)) 37%,
+    var(--hms-surface-2) 63%
+  );
   background-size: 400% 100%;
   animation: hms-shimmer 1.4s ease infinite;
 }
@@ -1719,7 +1864,6 @@
 
 /* Someone who asked for less motion gets the toast without the slide. */
 @media (prefers-reduced-motion: reduce) {
-
   .Toastify__bounce-enter--top-right,
   .Toastify__bounce-exit--top-right,
   .Toastify__slide-enter--top-right,
@@ -1769,7 +1913,9 @@
   font: inherit;
   text-decoration: none;
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .hms-bottomnav__item:active {
@@ -1893,7 +2039,7 @@
   border-top: 1px solid var(--hms-border);
 }
 
-.hms-drawer__section+.hms-drawer__section {
+.hms-drawer__section + .hms-drawer__section {
   margin-top: 1rem;
 }
 
@@ -1964,7 +2110,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-drawer,
   .hms-drawer__overlay {
     animation: none;
@@ -2397,7 +2542,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-stat__go,
   .hms-stat--link {
     transition:
@@ -2452,7 +2596,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-usage__fill,
   .hms-bars__seg {
     transition: none;
@@ -2760,6 +2903,26 @@
   text-align: center;
 }
 
+/* The uploaded signature image, above the rule (ADR-137). A FIXED height whether or not there is
+   an image: a page with one signed line beside one blank line must not step down the middle, and
+   reserving the space is what keeps the two rules level. `mix-blend-mode: multiply` drops the
+   white box around a signature scanned without transparency — common, and otherwise a white
+   rectangle sits on the letterhead. */
+.hms-doc__signature-mark {
+  height: 14mm;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 1mm;
+}
+
+.hms-doc__signature-mark img {
+  max-height: 14mm;
+  max-width: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
 .hms-doc__signature-line {
   border-top: 1px solid var(--doc-ink);
   margin-bottom: 1.5mm;
@@ -2773,6 +2936,12 @@
 .hms-doc__signature-name {
   font-size: 10pt;
   font-weight: 600;
+}
+
+/* When it was signed. Smaller than the name, because the name is what identifies the signer. */
+.hms-doc__signature-meta {
+  font-size: 8.5pt;
+  color: var(--doc-muted);
 }
 
 .hms-doc__note {
@@ -2870,7 +3039,7 @@
   header.hms-appbar,
   .hms-bottomnav,
   .hms-backtotop,
-  [data-print="hide"] {
+  [data-print='hide'] {
     display: none !important;
   }
 
@@ -2940,7 +3109,9 @@
   padding: 0.5rem;
   font-family: var(--hms-font-sans);
   transform-origin: var(--transform-origin);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 
 /* Keyed off `data-closed` ONLY, never `data-ending-style`. Base UI closes some
@@ -2958,7 +3129,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   /* Still a duration — without one the popup would never unmount (see above). */
   .hms-popover {
     transition-duration: 0.01s;
@@ -2980,7 +3150,9 @@
   background: var(--hms-surface);
   border: 1px solid var(--hms-border);
   border-radius: var(--hms-radius-md);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .hms-datefield:focus-within,
@@ -3029,7 +3201,9 @@
   background: transparent;
   color: var(--hms-fg-muted);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .hms-datefield__trigger:hover:not(:disabled) {
@@ -3087,7 +3261,9 @@
   font-size: 0.6875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .hms-timefield__mer-btn--on {
@@ -3226,7 +3402,9 @@
   font-size: var(--hms-text-sm);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .hms-calendar__day-btn:hover:not(:disabled) {
@@ -3279,7 +3457,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-calendar__day-btn,
   .hms-timefield__mer-btn,
   .hms-datefield__trigger {
@@ -3302,7 +3479,9 @@
   font-size: var(--hms-text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .hms-period__trigger:hover:not(:disabled) {
@@ -3320,7 +3499,7 @@
   cursor: not-allowed;
 }
 
-.hms-period__trigger>svg:first-child {
+.hms-period__trigger > svg:first-child {
   flex: 0 0 auto;
   color: var(--hms-fg-muted);
 }
@@ -3383,7 +3562,9 @@
   font-size: var(--hms-text-sm);
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .hms-period__item:hover {
@@ -3429,7 +3610,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .hms-period__trigger,
   .hms-period__item {
     transition: none;

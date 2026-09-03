@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { FolderPlus } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import { FolderPlus } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -15,11 +15,11 @@ import {
   Select,
   Skeleton,
   Textarea,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Department, PatientCase, Provider } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Department, PatientCase, Provider } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * A patient's treatment cases on their chart (ADR-116).
@@ -37,19 +37,19 @@ export function CasesCard({ patientId }: { patientId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const [opening, setOpening] = useState(false);
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [providerId, setProviderId] = useState("");
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [providerId, setProviderId] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   /** The hospital's own case types (ADR-121). Empty — the usual case — and the field is not shown. */
   const [caseTypes, setCaseTypes] = useState<string[]>([]);
-  const [caseType, setCaseType] = useState("");
+  const [caseType, setCaseType] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [closing, setClosing] = useState<PatientCase | null>(null);
-  const [closeReason, setCloseReason] = useState("");
+  const [closeReason, setCloseReason] = useState('');
   const [reopening, setReopening] = useState<PatientCase | null>(null);
 
   const load = useCallback(async () => {
@@ -57,7 +57,9 @@ export function CasesCard({ patientId }: { patientId: string }) {
       setCases(await api.listCases({ patientId }));
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load this patient's cases.");
+      setError(
+        e instanceof api.ApiRequestError ? e.message : "Could not load this patient's cases.",
+      );
       setCases([]);
     }
   }, [patientId]);
@@ -74,19 +76,19 @@ export function CasesCard({ patientId }: { patientId: string }) {
       api.listProviders(),
       api.getWorkflowConfig(),
     ]).then(([d, p, w]) => {
-      setDepartments(d.status === "fulfilled" ? d.value : []);
-      setProviders(p.status === "fulfilled" ? p.value : []);
+      setDepartments(d.status === 'fulfilled' ? d.value : []);
+      setProviders(p.status === 'fulfilled' ? p.value : []);
       // A failure here means no case-type field, not a broken dialog: the type is optional and
       // the case is what matters.
-      setCaseTypes(w.status === "fulfilled" ? w.value.caseTypes : []);
+      setCaseTypes(w.status === 'fulfilled' ? w.value.caseTypes : []);
     });
   }, [opening]);
 
   if (!canView) return null;
   if (cases === null) return <Skeleton className="h-32" />;
 
-  const open = cases.filter((c) => c.status === "open");
-  const closed = cases.filter((c) => c.status !== "open");
+  const open = cases.filter((c) => c.status === 'open');
+  const closed = cases.filter((c) => c.status !== 'open');
 
   async function createCase() {
     if (!title.trim()) return;
@@ -101,11 +103,11 @@ export function CasesCard({ patientId }: { patientId: string }) {
         caseType: caseType || undefined,
       });
       setOpening(false);
-      setTitle("");
-      setNotes("");
-      setCaseType("");
-      setDepartmentId("");
-      setProviderId("");
+      setTitle('');
+      setNotes('');
+      setCaseType('');
+      setDepartmentId('');
+      setProviderId('');
       await load();
     } finally {
       setSaving(false);
@@ -116,9 +118,12 @@ export function CasesCard({ patientId }: { patientId: string }) {
     if (!closing || !closeReason.trim()) return;
     setSaving(true);
     try {
-      await api.closeCase(closing.id, { version: closing.version, closeReason: closeReason.trim() });
+      await api.closeCase(closing.id, {
+        version: closing.version,
+        closeReason: closeReason.trim(),
+      });
       setClosing(null);
-      setCloseReason("");
+      setCloseReason('');
       await load();
     } finally {
       setSaving(false);
@@ -138,10 +143,10 @@ export function CasesCard({ patientId }: { patientId: string }) {
   }
 
   function CaseRow({ c }: { c: PatientCase }) {
-    const isOpen = c.status === "open";
+    const isOpen = c.status === 'open';
     return (
       <li className="flex flex-wrap items-start gap-3 rounded-token border border-border px-3 py-3">
-        <Badge tone={isOpen ? "brand" : "neutral"}>{c.caseNumber}</Badge>
+        <Badge tone={isOpen ? 'brand' : 'neutral'}>{c.caseNumber}</Badge>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-fg">
             {c.title}
@@ -149,10 +154,10 @@ export function CasesCard({ patientId }: { patientId: string }) {
           </p>
           <p className="text-xs text-fg-muted">
             Opened <DateDisplay value={c.openedAt} />
-            {c.visitCount > 0 && ` · ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}`}
+            {c.visitCount > 0 && ` · ${c.visitCount} visit${c.visitCount === 1 ? '' : 's'}`}
             {c.lastVisitDate && (
               <>
-                {" · last "}
+                {' · last '}
                 <DateDisplay value={c.lastVisitDate} />
               </>
             )}
@@ -174,7 +179,7 @@ export function CasesCard({ patientId }: { patientId: string }) {
             type="button"
             onClick={() => (isOpen ? setClosing(c) : setReopening(c))}
           >
-            {isOpen ? "Close case" : "Reopen"}
+            {isOpen ? 'Close case' : 'Reopen'}
           </Button>
         )}
       </li>
@@ -233,10 +238,20 @@ export function CasesCard({ patientId }: { patientId: string }) {
         busy={saving}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setOpening(false)} disabled={saving}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setOpening(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="button" loading={saving} onClick={() => void createCase()} disabled={!title.trim()}>
+            <Button
+              type="button"
+              loading={saving}
+              onClick={() => void createCase()}
+              disabled={!title.trim()}
+            >
               Open case
             </Button>
           </>
@@ -245,8 +260,8 @@ export function CasesCard({ patientId }: { patientId: string }) {
         <div className="flex flex-col gap-4">
           {open.length > 0 && (
             <Alert tone="neutral">
-              This patient already has {open.length} open {open.length === 1 ? "case" : "cases"}. Check that this is
-              genuinely something different before opening another.
+              This patient already has {open.length} open {open.length === 1 ? 'case' : 'cases'}.
+              Check that this is genuinely something different before opening another.
             </Alert>
           )}
           <Field
@@ -289,7 +304,7 @@ export function CasesCard({ patientId }: { patientId: string }) {
                 .map((p) => ({
                   value: p.id,
                   label: p.fullName,
-                  description: p.specialties.length > 0 ? p.specialties.join(", ") : undefined,
+                  description: p.specialties.length > 0 ? p.specialties.join(', ') : undefined,
                 }))}
               placeholder="Not specified"
               clearable
@@ -309,15 +324,25 @@ export function CasesCard({ patientId }: { patientId: string }) {
       <Dialog
         open={closing !== null}
         onClose={() => setClosing(null)}
-        title={closing ? `Close ${closing.caseNumber}` : "Close case"}
+        title={closing ? `Close ${closing.caseNumber}` : 'Close case'}
         description="The case and its visits are kept. Closing says the course of treatment is finished."
         busy={saving}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setClosing(null)} disabled={saving}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setClosing(null)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="button" loading={saving} onClick={() => void doClose()} disabled={!closeReason.trim()}>
+            <Button
+              type="button"
+              loading={saving}
+              onClick={() => void doClose()}
+              disabled={!closeReason.trim()}
+            >
               Close case
             </Button>
           </>
@@ -340,7 +365,7 @@ export function CasesCard({ patientId }: { patientId: string }) {
         open={reopening !== null}
         onCancel={() => setReopening(null)}
         onConfirm={() => void doReopen()}
-        title={reopening ? `Reopen ${reopening.caseNumber}?` : "Reopen case"}
+        title={reopening ? `Reopen ${reopening.caseNumber}?` : 'Reopen case'}
         description="Every visit already under this case is kept. Reopening is the right move when treatment resumes — opening a second case for the same episode splits the history in two."
         confirmLabel="Reopen case"
         busy={saving}

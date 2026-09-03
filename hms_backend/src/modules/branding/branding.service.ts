@@ -60,8 +60,12 @@ export async function getCurrentBranding(tenantId: string): Promise<ResolvedBran
   // Logo and favicon are rendered in an <img>/<link>, so they must serve inline (not as a
   // forced download) — see getDownloadUrl.
   const [logo, favicon] = await Promise.all([
-    row.logoFileId ? getDownloadUrl(tenantId, row.logoFileId, { disposition: 'inline' }) : Promise.resolve(null),
-    row.faviconFileId ? getDownloadUrl(tenantId, row.faviconFileId, { disposition: 'inline' }) : Promise.resolve(null),
+    row.logoFileId
+      ? getDownloadUrl(tenantId, row.logoFileId, { disposition: 'inline' })
+      : Promise.resolve(null),
+    row.faviconFileId
+      ? getDownloadUrl(tenantId, row.faviconFileId, { disposition: 'inline' })
+      : Promise.resolve(null),
   ]);
   return {
     brandColor: row.brandColor,
@@ -80,7 +84,11 @@ export async function getCurrentBranding(tenantId: string): Promise<ResolvedBran
  */
 async function getOrganization(tenantId: string): Promise<{ name: string; code: string } | null> {
   const row = (
-    await db.select({ name: tenants.name, code: tenants.code }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+    await db
+      .select({ name: tenants.name, code: tenants.code })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
   )[0];
   return row ? { name: row.name, code: row.code } : null;
 }
@@ -109,25 +117,54 @@ export async function updateBranding(
     action: 'branding.update',
     resourceType: 'branding',
     resourceId: id,
-    metadata: { brandColor: patch.brandColor ?? null, secondaryColor: patch.secondaryColor ?? null },
+    metadata: {
+      brandColor: patch.brandColor ?? null,
+      secondaryColor: patch.secondaryColor ?? null,
+    },
   });
   return getCurrentBranding(tenantId);
 }
 
-export async function setLogo(tenantId: string, fileId: string, actorUserId?: string): Promise<void> {
+export async function setLogo(
+  tenantId: string,
+  fileId: string,
+  actorUserId?: string,
+): Promise<void> {
   const id = await ensureRow(tenantId);
   await runWithTenant(tenantId, (tx) =>
-    tx.update(tenantBranding).set({ logoFileId: fileId, updatedAt: new Date() }).where(eq(tenantBranding.id, id)),
+    tx
+      .update(tenantBranding)
+      .set({ logoFileId: fileId, updatedAt: new Date() })
+      .where(eq(tenantBranding.id, id)),
   );
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'branding.logo', resourceType: 'branding', resourceId: id });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'branding.logo',
+    resourceType: 'branding',
+    resourceId: id,
+  });
 }
 
-export async function setFavicon(tenantId: string, fileId: string, actorUserId?: string): Promise<void> {
+export async function setFavicon(
+  tenantId: string,
+  fileId: string,
+  actorUserId?: string,
+): Promise<void> {
   const id = await ensureRow(tenantId);
   await runWithTenant(tenantId, (tx) =>
-    tx.update(tenantBranding).set({ faviconFileId: fileId, updatedAt: new Date() }).where(eq(tenantBranding.id, id)),
+    tx
+      .update(tenantBranding)
+      .set({ faviconFileId: fileId, updatedAt: new Date() })
+      .where(eq(tenantBranding.id, id)),
   );
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'branding.favicon', resourceType: 'branding', resourceId: id });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'branding.favicon',
+    resourceType: 'branding',
+    resourceId: id,
+  });
 }
 
 // Reset to the default token palette (clears colours, logo, favicon, typography).
@@ -147,5 +184,11 @@ export async function resetBranding(tenantId: string, actorUserId?: string): Pro
       })
       .where(eq(tenantBranding.id, row.id)),
   );
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'branding.reset', resourceType: 'branding', resourceId: row.id });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'branding.reset',
+    resourceType: 'branding',
+    resourceId: row.id,
+  });
 }

@@ -49,6 +49,21 @@ export interface AbdmOtpResult {
   devOtp?: string;
 }
 
+/**
+ * What `/v3/phr/web/login/abha/search` answers for an ABHA address.
+ *
+ * The registry reports which authentication methods that address actually supports. Two things
+ * follow, and both are the point of asking: an address ABDM does not know at all comes back with
+ * nothing to offer, and an address whose holder has no Aadhaar-linked mobile cannot be sent an
+ * Aadhaar OTP however reasonable the request looks.
+ */
+export interface PhrAuthMethods {
+  /** ABDM's own transaction, when the search opens one. Carried into the OTP request if present. */
+  txnId?: string;
+  /** e.g. `['AADHAAR_OTP', 'MOBILE_OTP', 'PASSWORD']`. Upper-cased as the registry spells them. */
+  authMethods: string[];
+}
+
 export interface AbdmEnrolResult {
   txnId: string;
   profile: AbdmProfile;
@@ -66,7 +81,13 @@ export interface AbdmLoginVerifyResult {
    * One identifier can resolve to several ABHA accounts — a shared family mobile is the common
    * case. When it does, the operator must pick one before a profile exists.
    */
-  accounts: Array<{ abhaNumber: string; abhaAddress?: string; name?: string; gender?: string; dateOfBirth?: string }>;
+  accounts: Array<{
+    abhaNumber: string;
+    abhaAddress?: string;
+    name?: string;
+    gender?: string;
+    dateOfBirth?: string;
+  }>;
   /** Present when the identifier resolved to exactly one account. */
   profile?: AbdmProfile;
 }
@@ -109,12 +130,29 @@ export interface AbdmProvider {
 
   // --- Creation ---------------------------------------------------------------------------
   enrolRequestOtp(input: { encryptedAadhaar: string; hipId?: string }): Promise<AbdmOtpResult>;
-  enrolByAadhaar(input: { txnId: string; encryptedOtp: string; mobile?: string; hipId?: string }): Promise<AbdmEnrolResult>;
+  enrolByAadhaar(input: {
+    txnId: string;
+    encryptedOtp: string;
+    mobile?: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult>;
   /** Secondary mobile verification — request, then verify, when the mobile differs from Aadhaar's. */
-  enrolMobileRequestOtp(input: { txnId: string; encryptedMobile: string; hipId?: string }): Promise<AbdmOtpResult>;
-  enrolMobileVerifyOtp(input: { txnId: string; encryptedOtp: string; hipId?: string }): Promise<AbdmEnrolResult>;
+  enrolMobileRequestOtp(input: {
+    txnId: string;
+    encryptedMobile: string;
+    hipId?: string;
+  }): Promise<AbdmOtpResult>;
+  enrolMobileVerifyOtp(input: {
+    txnId: string;
+    encryptedOtp: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult>;
   suggestAbhaAddress(input: { txnId: string; hipId?: string }): Promise<string[]>;
-  createAbhaAddress(input: { txnId: string; abhaAddress: string; hipId?: string }): Promise<{ abhaAddress: string; tokens: AbdmTokens }>;
+  createAbhaAddress(input: {
+    txnId: string;
+    abhaAddress: string;
+    hipId?: string;
+  }): Promise<{ abhaAddress: string; tokens: AbdmTokens }>;
 
   // --- Verification -----------------------------------------------------------------------
   loginRequestOtp(input: {
@@ -139,16 +177,54 @@ export interface AbdmProvider {
     family: 'profile' | 'phr';
     hipId?: string;
   }): Promise<AbdmLoginVerifyResult>;
+  /**
+   * The auth methods ABDM will accept for an ABHA **address**, asked before any OTP is sent.
+   *
+   * NHA's M1 workbook lists `/v3/phr/web/login/abha/search` as the FIRST call of both mandatory
+   * ABHA-address cases (VRFY_ABHA_102, VRFY_ABHA_202). Skipping it is not a shortcut: an address
+   * whose holder has no Aadhaar-linked mobile cannot take an `aadhaar` OTP, and asking for one
+   * anyway fails at the registry rather than at the desk, after the operator has already promised
+   * the patient a message.
+   */
+  phrSearchAuthMethods(input: {
+    encryptedAbhaAddress: string;
+    hipId?: string;
+  }): Promise<PhrAuthMethods>;
   /** Choose one ABHA when `loginVerify` returned several. */
-  loginVerifyUser(input: { txnId: string; abhaNumber: string; token: string; hipId?: string }): Promise<AbdmEnrolResult>;
-  getProfile(input: { xToken: string; hipId?: string }): Promise<AbdmProfile>;
+  loginVerifyUser(input: {
+    txnId: string;
+    abhaNumber: string;
+    token: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult>;
+  /**
+   * The verified holder's profile.
+   *
+   * `family` is not cosmetic. An ABHA **address** verification issues its token in the PHR
+   * web-login family, and that token is only accepted by that family's own profile path
+   * (`/v3/phr/web/login/profile/abha-profile`). Reading it from `/v3/profile/account` answers
+   * 401 — a credential error for what is really a wrong-endpoint mistake.
+   */
+  getProfile(input: {
+    xToken: string;
+    hipId?: string;
+    family?: 'profile' | 'phr';
+  }): Promise<AbdmProfile>;
   /**
    * Amends the ABHA holder's own profile at ABDM (`PATCH /v3/profile/account`, authenticated with
    * the holder's `X-token`). The field set is an explicit allow-list rather than a passthrough —
    * see `AbdmProfilePatch`.
    */
-  updateProfile(input: { xToken: string; patch: AbdmProfilePatch; hipId?: string }): Promise<AbdmProfile>;
-  getAbhaCard(input: { xToken: string; hipId?: string }): Promise<AbdmCard>;
+  updateProfile(input: {
+    xToken: string;
+    patch: AbdmProfilePatch;
+    hipId?: string;
+  }): Promise<AbdmProfile>;
+  getAbhaCard(input: {
+    xToken: string;
+    hipId?: string;
+    family?: 'profile' | 'phr';
+  }): Promise<AbdmCard>;
 }
 
 /**

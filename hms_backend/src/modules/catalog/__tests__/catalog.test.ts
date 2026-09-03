@@ -45,9 +45,17 @@ async function cleanupTenant(code: string): Promise<void> {
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
-    'patient_immunizations', 'tenant_reference_items', 'lab_tests', 'patients',
-    'organization_profile', 'user_roles', 'role_permissions', 'roles', 'tenant_entitlements',
-    'branches', 'users',
+    'patient_immunizations',
+    'tenant_reference_items',
+    'lab_tests',
+    'patients',
+    'organization_profile',
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
   ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }
@@ -75,8 +83,11 @@ beforeAll(async () => {
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    actorA = (await pool.query('SELECT id FROM users WHERE tenant_id = $1 LIMIT 1', [tenantA])).rows[0].id;
-    patientA = (await createPatient(tenantA, { firstName: 'Imm', lastName: 'One', phone: '9700000009' })).id;
+    actorA = (await pool.query('SELECT id FROM users WHERE tenant_id = $1 LIMIT 1', [tenantA]))
+      .rows[0].id;
+    patientA = (
+      await createPatient(tenantA, { firstName: 'Imm', lastName: 'One', phone: '9700000009' })
+    ).id;
     ready = true;
   } catch (err) {
     ready = false;
@@ -113,7 +124,9 @@ describe('system catalogue (ADR-072)', () => {
 });
 
 describe('hospital custom data (ADR-072)', () => {
-  test('a custom vaccine appears merged and tagged custom, with a CUSTOM_ code', async ({ skip }) => {
+  test('a custom vaccine appears merged and tagged custom, with a CUSTOM_ code', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const created = await createCustomItem(tenantA, 'vaccine', { name: 'Yellow Fever' }, actorA);
     expect(created.source).toBe('custom');
@@ -148,7 +161,8 @@ describe('adoption + immunisation consumer (ADR-072)', () => {
       catalogCode: 'CBC',
       pricePaise: 30000,
     });
-    const row = (await pool.query('SELECT catalog_code FROM lab_tests WHERE id = $1', [test!.id])).rows[0];
+    const row = (await pool.query('SELECT catalog_code FROM lab_tests WHERE id = $1', [test!.id]))
+      .rows[0];
     expect(row.catalog_code).toBe('CBC');
   });
 
@@ -157,7 +171,13 @@ describe('adoption + immunisation consumer (ADR-072)', () => {
     await addImmunization(
       tenantA,
       patientA,
-      { vaccineCode: 'BCG', vaccineName: 'BCG', source: 'system', dateGiven: '2026-01-15', doseLabel: 'Birth dose' },
+      {
+        vaccineCode: 'BCG',
+        vaccineName: 'BCG',
+        source: 'system',
+        dateGiven: '2026-01-15',
+        doseLabel: 'Birth dose',
+      },
       actorA,
     );
     const list = await listImmunizations(tenantA, patientA);

@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "../../cn";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '../../cn';
+import { Select } from '../Select';
 
 export interface DataTablePaginationProps {
   page: number;
@@ -16,14 +17,14 @@ export interface DataTablePaginationProps {
 }
 
 /** Windowed page numbers: 1 … 4 5 [6] 7 8 … 20 — never an unbounded strip. */
-function pageWindow(page: number, pageCount: number): Array<number | "gap"> {
+function pageWindow(page: number, pageCount: number): Array<number | 'gap'> {
   if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
-  const pages: Array<number | "gap"> = [1];
+  const pages: Array<number | 'gap'> = [1];
   const from = Math.max(2, page - 1);
   const to = Math.min(pageCount - 1, page + 1);
-  if (from > 2) pages.push("gap");
+  if (from > 2) pages.push('gap');
   for (let p = from; p <= to; p++) pages.push(p);
-  if (to < pageCount - 1) pages.push("gap");
+  if (to < pageCount - 1) pages.push('gap');
   pages.push(pageCount);
   return pages;
 }
@@ -52,24 +53,27 @@ export function DataTablePagination({
         <span>
           Showing <strong>{first}</strong>–<strong>{last}</strong> of <strong>{total}</strong>
         </span>
-        {selectedCount ? <span className="hms-pagination__selected">{selectedCount} selected</span> : null}
+        {selectedCount ? (
+          <span className="hms-pagination__selected">{selectedCount} selected</span>
+        ) : null}
       </div>
 
       <div className="hms-pagination__controls">
-        <label className="hms-pagination__size">
-          <span>Rows per page</span>
-          <select
-            className="hms-input hms-input--sm"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* The kit's own control, not the browser's — a native `<select>` here would have been
+            the one place in the product that ignored the design tokens on every single table
+            (ADR-112). Not searchable: four numbers do not need a search box. */}
+        <div className="hms-pagination__size">
+          <span aria-hidden>Rows per page</span>
+          <Select
+            value={String(pageSize)}
+            onChange={(v) => v && onPageSizeChange(Number(v))}
+            options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
+            searchable={false}
+            aria-label="Rows per page"
+            className="hms-pagination__size-select"
+            triggerClassName="hms-select__trigger--sm"
+          />
+        </div>
 
         <nav className="hms-pagination__pages" aria-label="Pagination">
           <button
@@ -83,7 +87,7 @@ export function DataTablePagination({
           </button>
 
           {pageWindow(page, Math.max(pageCount, 1)).map((p, i) =>
-            p === "gap" ? (
+            p === 'gap' ? (
               <span key={`gap-${i}`} className="hms-pagination__gap" aria-hidden>
                 …
               </span>
@@ -91,8 +95,8 @@ export function DataTablePagination({
               <button
                 key={p}
                 type="button"
-                className={cn("hms-pagination__btn", p === page && "hms-pagination__btn--active")}
-                aria-current={p === page ? "page" : undefined}
+                className={cn('hms-pagination__btn', p === page && 'hms-pagination__btn--active')}
+                aria-current={p === page ? 'page' : undefined}
                 aria-label={`Page ${p}`}
                 onClick={() => onPageChange(p)}
               >

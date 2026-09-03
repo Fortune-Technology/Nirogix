@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { Alert, Card, ErrorState, Skeleton } from "@hms/ui";
-import * as api from "../../lib/api";
-import type { AiPortalSession } from "../../lib/api";
+import { useEffect, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
+import { Alert, Card, ErrorState, Skeleton } from '@hms/ui';
+import * as api from '../../lib/api';
+import type { AiPortalSession } from '../../lib/api';
 
 /**
  * The AI Portal's landing screen (ADR-053).
@@ -30,12 +30,15 @@ export default function AiPortalHome() {
         setSession(s);
         setError(null);
       })
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not open the AI Portal."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not open the AI Portal.'),
+      );
   };
 
   useEffect(load, []);
 
-  if (error) return <ErrorState title="Could not open the AI Portal" message={error} onRetry={load} />;
+  if (error)
+    return <ErrorState title="Could not open the AI Portal" message={error} onRetry={load} />;
   if (!session) return <Skeleton height="12rem" />;
 
   return (
@@ -51,9 +54,10 @@ export default function AiPortalHome() {
         <Card header="No capability is enabled">
           <p className="text-sm text-fg-muted">{session.notice}</p>
           <p className="mt-3 text-sm text-fg-muted">
-            When one is added it will appear here, behind the access control you have just passed through. That is
-            why this portal exists before the capability does. Anything that touches diagnosis or treatment additionally
-            needs a regulatory classification review before it is built at all.
+            When one is added it will appear here, behind the access control you have just passed
+            through. That is why this portal exists before the capability does. Anything that
+            touches diagnosis or treatment additionally needs a regulatory classification review
+            before it is built at all.
           </p>
         </Card>
       ) : (
@@ -72,8 +76,8 @@ export default function AiPortalHome() {
         <span className="flex items-start gap-2">
           <ShieldCheck size={16} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            Access to this portal is granted per person and is not part of any role. Every entry is recorded in the
-            audit trail, and patients cannot sign in here at all.
+            Access to this portal is granted per person and is not part of any role. Every entry is
+            recorded in the audit trail, and patients cannot sign in here at all.
           </span>
         </span>
       </Alert>

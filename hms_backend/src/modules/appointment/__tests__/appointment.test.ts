@@ -21,7 +21,18 @@ async function cleanup(): Promise<void> {
   await pool.query('DELETE FROM notification_log WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
-  for (const table of ['appointments', 'patients', 'practitioner_roles', 'providers', 'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users']) {
+  for (const table of [
+    'appointments',
+    'patients',
+    'practitioner_roles',
+    'providers',
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
+  ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);
@@ -32,10 +43,16 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await seedPermissionCatalog();
     await cleanup();
-    const r = await onboardTenant({ code: CODE, name: 'Appt Test Hospital', admin: { email: 'admin@apptest.example', fullName: 'Appt Admin' } });
+    const r = await onboardTenant({
+      code: CODE,
+      name: 'Appt Test Hospital',
+      admin: { email: 'admin@apptest.example', fullName: 'Appt Admin' },
+    });
     tenantId = r.tenant.id;
     patientId = (await createPatient(tenantId, { firstName: 'Test', lastName: 'Patient' })).id;
-    providerId = (await createProvider(tenantId, { fullName: 'Dr. Test', registrationNumber: 'T-1' })).id;
+    providerId = (
+      await createProvider(tenantId, { fullName: 'Dr. Test', registrationNumber: 'T-1' })
+    ).id;
     ready = true;
   } catch (err) {
     ready = false;
@@ -81,9 +98,17 @@ describe('appointments', () => {
 
     // Multi-value status filter (ADR-063): asking for booked OR cancelled returns
     // only those, and never fewer than the single-status query.
-    const multi = await listAppointments(tenantId, { page: 1, pageSize: 50, status: ['booked', 'cancelled'] });
+    const multi = await listAppointments(tenantId, {
+      page: 1,
+      pageSize: 50,
+      status: ['booked', 'cancelled'],
+    });
     for (const r of multi.rows) expect(['booked', 'cancelled']).toContain(r.status);
-    const bookedOnly = await listAppointments(tenantId, { page: 1, pageSize: 50, status: ['booked'] });
+    const bookedOnly = await listAppointments(tenantId, {
+      page: 1,
+      pageSize: 50,
+      status: ['booked'],
+    });
     expect(multi.total).toBeGreaterThanOrEqual(bookedOnly.total);
   });
 

@@ -1,11 +1,11 @@
-import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
-import { Button } from "../ui/Button";
-import { Container, SectionHeading } from "../ui/primitives";
-import { Reveal } from "../ui/Reveal";
-import { ProductFrame } from "../product/ProductFrame";
-import { EntitlementsPreview, AuditPreview } from "../product/previews";
-import { AvailabilityBadge, ReleaseNote } from "../site/AvailabilityBadge";
+import Link from 'next/link';
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Container, SectionHeading } from '../ui/primitives';
+import { Reveal } from '../ui/Reveal';
+import { ProductFrame } from '../product/ProductFrame';
+import { EntitlementsPreview, AuditPreview } from '../product/previews';
+import { AvailabilityBadge, ReleaseNote } from '../site/AvailabilityBadge';
 import {
   CLINIC_MODULES,
   PLATFORM_CORE,
@@ -13,7 +13,7 @@ import {
   TRUST_FACTS,
   COUNTS,
   type ModuleEntry,
-} from "../../lib/site";
+} from '../../lib/site';
 
 /* -------------------------------------------------------------------------- */
 /* Trust strip — honest, architecture-backed facts (no fake logos / customers) */
@@ -64,9 +64,9 @@ export function ModularSection() {
             />
             <ul className="mt-8 flex flex-col gap-3">
               {[
-                "Modules are entitlements per hospital, not code forks.",
-                "Entitlement and user access are separate levers.",
-                "Add a module the day the hospital is ready for it.",
+                'Modules are entitlements per hospital, not code forks.',
+                'Entitlement and user access are separate levers.',
+                'Add a module the day the hospital is ready for it.',
               ].map((point) => (
                 <li key={point} className="flex items-start gap-3 text-ink">
                   <Check size={20} strokeWidth={2} className="mt-0.5 shrink-0 text-accent" />
@@ -96,8 +96,8 @@ function ModuleCard({ module, className }: { module: ModuleEntry; className?: st
     <Link
       href={`/modules/${module.slug}`}
       className={
-        "group flex flex-col rounded-xl border border-hairline bg-surface p-6 transition-colors hover:border-accent-border " +
-        (className ?? "")
+        'group flex flex-col rounded-xl border border-hairline bg-surface p-6 transition-colors hover:border-accent-border ' +
+        (className ?? '')
       }
     >
       <span className="grid h-11 w-11 place-items-center rounded-lg bg-surface-2 text-ink transition-colors group-hover:bg-accent-subtle group-hover:text-accent">
@@ -140,7 +140,7 @@ export function ModulesBento() {
                   key={m.slug}
                   className="rounded-full border border-accent-border bg-surface px-3 py-1 text-xs font-medium text-ink-muted"
                 >
-                  {m.name.replace(" Management", "").replace(" & Check-in", "")}
+                  {m.name.replace(' Management', '').replace(' & Check-in', '')}
                 </span>
               ))}
             </div>
@@ -196,10 +196,10 @@ export function SecuritySection() {
             />
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {[
-                "Row-level isolation per tenant",
-                "Append-only, tamper-evident audit",
-                "AES-256 at rest, TLS 1.2+ in transit",
-                "Hosted in India, kept in-region",
+                'Row-level isolation per tenant',
+                'Append-only, tamper-evident audit',
+                'AES-256 at rest, TLS 1.2+ in transit',
+                'Hosted in India, kept in-region',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-ink">
                   <Check size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-accent" />

@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { PERMISSIONS } from "@hms/permissions";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PublicQrPoster } from "../../../../components/print/PublicQrPoster";
-import { useRegistrationQr } from "../../../../components/print/useRegistrationQr";
+import { PERMISSIONS } from '@hms/permissions';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PublicQrPoster } from '../../../../components/print/PublicQrPoster';
+import { useRegistrationQr } from '../../../../components/print/useRegistrationQr';
 
 /** The patient-registration poster (ADR-047, ADR-056) — a configuration of the shared poster document. */
 export default function RegistrationQrPrintPage() {

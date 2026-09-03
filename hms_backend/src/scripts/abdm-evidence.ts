@@ -72,7 +72,9 @@ function main(): void {
   const out: string[] = [];
   out.push('# ABDM certification evidence pack');
   out.push('');
-  out.push(`**Applicant type:** ${role} · **Scope:** ${all ? 'all cases' : 'mandatory and conditional only'}`);
+  out.push(
+    `**Applicant type:** ${role} · **Scope:** ${all ? 'all cases' : 'mandatory and conditional only'}`,
+  );
   out.push('');
   out.push(
     'Requirements are derived from NHA’s published workbooks in `docs/testcasesofficial/`; regenerate with ' +
@@ -80,7 +82,9 @@ function main(): void {
       'A case with no entry is reported as **NOT EVIDENCED** rather than assumed to pass.',
   );
   out.push('');
-  out.push('> This states what can be **demonstrated**. It does not claim a pass — that is NHA’s to decide during functional testing.');
+  out.push(
+    '> This states what can be **demonstrated**. It does not claim a pass — that is NHA’s to decide during functional testing.',
+  );
   out.push('');
 
   out.push('## Summary');
@@ -108,7 +112,9 @@ function main(): void {
   for (const m of milestones) {
     const mine = rows
       .filter((r) => r.c.milestone === m)
-      .sort((a, b) => SEVERITY.indexOf(a.key) - SEVERITY.indexOf(b.key) || a.c.id.localeCompare(b.c.id));
+      .sort(
+        (a, b) => SEVERITY.indexOf(a.key) - SEVERITY.indexOf(b.key) || a.c.id.localeCompare(b.c.id),
+      );
     if (mine.length === 0) continue;
 
     out.push(`## ${m}`);

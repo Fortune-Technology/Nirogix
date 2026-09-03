@@ -1,24 +1,24 @@
-import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Button } from "../../components/ui/Button";
-import { Container, SectionHeading } from "../../components/ui/primitives";
-import { Reveal } from "../../components/ui/Reveal";
-import { ProductFrame } from "../../components/product/ProductFrame";
-import { EntitlementsPreview } from "../../components/product/previews";
-import { PlatformCoreSection, TrustStrip } from "../../components/home/sections";
-import { PLATFORM_PILLARS } from "../../lib/catalogue";
-import { PORTAL_LOGIN_URL } from "../../lib/portal";
-import { JsonLd } from "../../components/site/JsonLd";
-import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../lib/seo";
+import type { Metadata } from 'next';
+import { ArrowRight } from 'lucide-react';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Button } from '../../components/ui/Button';
+import { Container, SectionHeading } from '../../components/ui/primitives';
+import { Reveal } from '../../components/ui/Reveal';
+import { ProductFrame } from '../../components/product/ProductFrame';
+import { EntitlementsPreview } from '../../components/product/previews';
+import { PlatformCoreSection, TrustStrip } from '../../components/home/sections';
+import { PLATFORM_PILLARS } from '../../lib/catalogue';
+import { PORTAL_LOGIN_URL } from '../../lib/portal';
+import { JsonLd } from '../../components/site/JsonLd';
+import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from '../../lib/seo';
 
 // Primary intent: "hospital ERP software" / "healthcare management software".
 export const metadata: Metadata = pageMetadata({
-  path: "/platform",
-  title: "Hospital ERP Software Platform",
+  path: '/platform',
+  title: 'Hospital ERP Software Platform',
   description:
-    "One multi-tenant healthcare management platform: isolated per hospital, modular and independently sellable, multi-branch, and configurable per tenant without code forks.",
+    'One multi-tenant healthcare management platform: isolated per hospital, modular and independently sellable, multi-branch, and configurable per tenant without code forks.',
 });
 
 export default function PlatformPage() {
@@ -26,13 +26,18 @@ export default function PlatformPage() {
     <>
       <JsonLd
         data={softwareApplicationJsonLd({
-          name: "Nirogix, hospital ERP software",
+          name: 'Nirogix, hospital ERP software',
           description:
-            "The multi-tenant platform underneath every Nirogix module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.",
-          path: "/platform",
+            'The multi-tenant platform underneath every Nirogix module: tenant isolation, module entitlements, RBAC, branches, and per-tenant configuration.',
+          path: '/platform',
         })}
       />
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Platform", path: "/platform" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Platform', path: '/platform' },
+        ])}
+      />
       <PageHeader
         eyebrow="Platform"
         title="Build the core once. Sell the modules independently."

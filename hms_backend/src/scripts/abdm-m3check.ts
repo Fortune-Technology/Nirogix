@@ -74,7 +74,8 @@ function showLastCall(fragment: string): void {
   }
   note(`→ POST ${call.path}`);
   if (VERBOSE) {
-    for (const line of JSON.stringify(call.body, null, 2).split('\n').slice(0, 34)) note(`   ${line}`);
+    for (const line of JSON.stringify(call.body, null, 2).split('\n').slice(0, 34))
+      note(`   ${line}`);
   }
 }
 
@@ -89,7 +90,8 @@ async function recordsOnDisk(consentId: string): Promise<number> {
 }
 
 /** The mock cipher's envelope — the exact inverse of what `decryptFromHip` unwraps. */
-const sealed = (plaintext: string) => Buffer.from(`MOCK-NOT-ENCRYPTED:${plaintext}`).toString('base64');
+const sealed = (plaintext: string) =>
+  Buffer.from(`MOCK-NOT-ENCRYPTED:${plaintext}`).toString('base64');
 
 /** A bundle as another hospital would send it, with one value THEY flagged abnormal. */
 const bundle = (date: string, opts: { abnormal?: boolean } = {}) => ({
@@ -98,7 +100,12 @@ const bundle = (date: string, opts: { abnormal?: boolean } = {}) => ({
   entry: [
     { resource: { resourceType: 'Composition', type: { text: 'OP Consultation Document' }, date } },
     { resource: { resourceType: 'Organization', name: 'Sunrise Multispeciality' } },
-    { resource: { resourceType: 'Condition', code: { coding: [{ code: 'E11.9', display: 'Type 2 diabetes mellitus' }] } } },
+    {
+      resource: {
+        resourceType: 'Condition',
+        code: { coding: [{ code: 'E11.9', display: 'Type 2 diabetes mellitus' }] },
+      },
+    },
     {
       resource: {
         resourceType: 'MedicationRequest',
@@ -125,12 +132,16 @@ async function main(): Promise<void> {
   console.log(`  scratch   tenant ${CODE}, deleted at the end\n`);
 
   if ((process.env.NODE_ENV ?? 'development') !== 'development') {
-    bad(`NODE_ENV is "${process.env.NODE_ENV}". This writes test patients and only runs in development.`);
+    bad(
+      `NODE_ENV is "${process.env.NODE_ENV}". This writes test patients and only runs in development.`,
+    );
     process.exit(1);
   }
   if (process.env.ABDM_PROVIDER === 'gateway') {
     bad('ABDM_PROVIDER=gateway would send these fictional requests to the real ABDM sandbox.');
-    note('Set ABDM_PROVIDER=mock. The gateway client then records each call instead of sending it.');
+    note(
+      'Set ABDM_PROVIDER=mock. The gateway client then records each call instead of sending it.',
+    );
     process.exit(1);
   }
 
@@ -155,7 +166,9 @@ async function main(): Promise<void> {
   if (failed === 0) {
     console.log(`M3 is working end to end locally: ${passed} checks passed.`);
     console.log('');
-    console.log('Both certification cases were answered from the DATABASE, not from a return value:');
+    console.log(
+      'Both certification cases were answered from the DATABASE, not from a return value:',
+    );
     console.log('  · HIU_FLOW_202 (revoke)  — records deleted, keys deleted, audit kept');
     console.log('  · HIU_FLOW_301 (expiry)  — invisible before the sweep, deleted by it');
     console.log('');
@@ -191,12 +204,17 @@ async function run(tenantId: string): Promise<void> {
     dateOfBirth: '1995-02-09',
     phone: '9822011122',
   });
-  await pool.query("UPDATE patients SET abha_address = 'm3check@sbx', abha_verified_at = now() WHERE id = $1", [
-    patient.id,
-  ]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'm3check@sbx', abha_verified_at = now() WHERE id = $1",
+    [patient.id],
+  );
   ok(`patient ${patient.uhid} with a VERIFIED ABHA`);
 
-  const typed = await createPatient(tenantId, { firstName: 'Typed', lastName: 'Abha', phone: '9822011133' });
+  const typed = await createPatient(tenantId, {
+    firstName: 'Typed',
+    lastName: 'Abha',
+    phone: '9822011133',
+  });
   await pool.query("UPDATE patients SET abha_address = 'typed@sbx' WHERE id = $1", [typed.id]);
 
   const doctor = await pool.query(
@@ -225,7 +243,10 @@ async function run(tenantId: string): Promise<void> {
 
   let refusedNoReg = false;
   try {
-    await hiu.requestPatientHistory(tenantId, null, { patientId: patient.id, providerId: noReg.rows[0].id });
+    await hiu.requestPatientHistory(tenantId, null, {
+      patientId: patient.id,
+      providerId: noReg.rows[0].id,
+    });
   } catch {
     refusedNoReg = true;
   }
@@ -234,31 +255,66 @@ async function run(tenantId: string): Promise<void> {
     'a doctor with no registration number cannot ask',
     'a doctor with no registration number was allowed to ask',
   );
-  note('The patient reads that number when deciding. An anonymous clinician is not a judgeable request.');
+  note(
+    'The patient reads that number when deciding. An anonymous clinician is not a judgeable request.',
+  );
 
   // --- 2. Asking the patient --------------------------------------------------------------
   step(2, 'Asking the patient for consent (ADR-092)');
   clearRecordedHipCalls();
-  const request = await hiu.requestPatientHistory(tenantId, null, { patientId: patient.id, providerId });
-  check(request.status === 'requested', 'consent request sent', `request status is "${request.status}"`);
+  const request = await hiu.requestPatientHistory(tenantId, null, {
+    patientId: patient.id,
+    providerId,
+  });
+  check(
+    request.status === 'requested',
+    'consent request sent',
+    `request status is "${request.status}"`,
+  );
 
-  const initBody = recordedHipCalls().find((c) => c.path.includes('consent/v3/request/init'))?.body as
-    | { consent: { requester: { name: string; identifier: { value: string } }; purpose: { code: string }; permission: { accessMode: string } } }
+  const initBody = recordedHipCalls().find((c) => c.path.includes('consent/v3/request/init'))
+    ?.body as
+    | {
+        consent: {
+          requester: { name: string; identifier: { value: string } };
+          purpose: { code: string };
+          permission: { accessMode: string };
+        };
+      }
     | undefined;
   check(
     initBody?.consent.requester.identifier.value === 'MMC-2014-11733',
     'the request carries the doctor’s name and registration number',
     'the requester identity is missing from the payload',
   );
-  check(initBody?.consent.purpose.code === 'CAREMGT', 'purpose is CAREMGT — care management', 'the purpose code is wrong');
-  check(initBody?.consent.permission.accessMode === 'VIEW', 'access mode is VIEW, never a copy grant', 'access mode is wrong');
-  check(request.hiTypes.length === 7, 'all seven record types are asked for', `only ${request.hiTypes.length} types asked for`);
+  check(
+    initBody?.consent.purpose.code === 'CAREMGT',
+    'purpose is CAREMGT — care management',
+    'the purpose code is wrong',
+  );
+  check(
+    initBody?.consent.permission.accessMode === 'VIEW',
+    'access mode is VIEW, never a copy grant',
+    'access mode is wrong',
+  );
+  check(
+    request.hiTypes.length === 7,
+    'all seven record types are asked for',
+    `only ${request.hiTypes.length} types asked for`,
+  );
   showLastCall('request/init');
 
   // ABDM names the request asynchronously, on `on-init`.
   await hiu.recordConsentRequestId({ requestId: request.id, consentRequestId: 'm3check-cr-1' });
-  const named = await pool.query('SELECT consent_request_id FROM abdm_hiu_consent_requests WHERE id = $1', [request.id]);
-  check(named.rows[0].consent_request_id === 'm3check-cr-1', 'the request id arrives on on-init and is stored', 'on-init did not name the request');
+  const named = await pool.query(
+    'SELECT consent_request_id FROM abdm_hiu_consent_requests WHERE id = $1',
+    [request.id],
+  );
+  check(
+    named.rows[0].consent_request_id === 'm3check-cr-1',
+    'the request id arrives on on-init and is stored',
+    'on-init did not name the request',
+  );
 
   // --- 3. The patient grants --------------------------------------------------------------
   step(3, 'The patient grants — one artefact per hospital (ADR-092)');
@@ -278,7 +334,11 @@ async function run(tenantId: string): Promise<void> {
 
   const consentA = await artefact('m3check-consent-a', SOURCE_A);
   const consentB = await artefact('m3check-consent-b', SOURCE_B);
-  check(Boolean(consentA && consentB), 'two artefacts stored, one per hospital', 'an artefact failed to store');
+  check(
+    Boolean(consentA && consentB),
+    'two artefacts stored, one per hospital',
+    'an artefact failed to store',
+  );
   note('They expire and are revoked individually, so they are tracked individually.');
 
   const orphan = await hiu.storeConsentArtefact({
@@ -297,7 +357,11 @@ async function run(tenantId: string): Promise<void> {
   step(4, 'Asking those hospitals for the records (ADR-093)');
   clearRecordedHipCalls();
   const results = await transfer.requestAllRecords(tenantId, patient.id);
-  check(results.length === 2, 'one data request per granted consent', `expected 2 requests, got ${results.length}`);
+  check(
+    results.length === 2,
+    'one data request per granted consent',
+    `expected 2 requests, got ${results.length}`,
+  );
 
   const keyRow = await pool.query(
     'SELECT private_key_enc, public_key FROM abdm_hiu_data_transfers WHERE transaction_id = $1',
@@ -308,9 +372,10 @@ async function run(tenantId: string): Promise<void> {
     'our private key is stored ENCRYPTED at rest',
     'the private key is readable — that is standing ability to decrypt a medical history',
   );
-  const keys = await pool.query('SELECT DISTINCT private_key_enc FROM abdm_hiu_data_transfers WHERE tenant_id = $1', [
-    tenantId,
-  ]);
+  const keys = await pool.query(
+    'SELECT DISTINCT private_key_enc FROM abdm_hiu_data_transfers WHERE tenant_id = $1',
+    [tenantId],
+  );
   check(
     keys.rowCount === 2,
     'a fresh key pair per request, never reused',
@@ -318,11 +383,18 @@ async function run(tenantId: string): Promise<void> {
   );
   note('One compromise should expose one document set, not every transfer ever made.');
 
-  const reqBody = recordedHipCalls().find((c) => c.path.includes('health-information/request'))?.body as
-    | { hiRequest: { dataPushUrl: string; keyMaterial: { curve: string; dhPublicKey: { keyValue: string } } } }
+  const reqBody = recordedHipCalls().find((c) => c.path.includes('health-information/request'))
+    ?.body as
+    | {
+        hiRequest: {
+          dataPushUrl: string;
+          keyMaterial: { curve: string; dhPublicKey: { keyValue: string } };
+        };
+      }
     | undefined;
   check(
-    Boolean(reqBody?.hiRequest.dataPushUrl) && !reqBody!.hiRequest.keyMaterial.dhPublicKey.keyValue.includes('PRIVATE'),
+    Boolean(reqBody?.hiRequest.dataPushUrl) &&
+      !reqBody!.hiRequest.keyMaterial.dhPublicKey.keyValue.includes('PRIVATE'),
     'the request carries our PUBLIC key and our own push URL',
     'the outbound request looks wrong',
   );
@@ -336,14 +408,23 @@ async function run(tenantId: string): Promise<void> {
     transactionId: results[0]!.transactionId,
     pageNumber: 1,
     pageCount: 1,
-    entries: [{ content: sealed(goodPlain), checksum: contentChecksum(goodPlain), careContextReference: 'cc-a1' }],
+    entries: [
+      {
+        content: sealed(goodPlain),
+        checksum: contentChecksum(goodPlain),
+        careContextReference: 'cc-a1',
+      },
+    ],
     keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
   });
-  check(delivered.stored === 1 && delivered.failed === 0, 'one entry decrypted, verified and stored', `stored ${delivered.stored}, failed ${delivered.failed}`);
+  check(
+    delivered.stored === 1 && delivered.failed === 0,
+    'one entry decrypted, verified and stored',
+    `stored ${delivered.stored}, failed ${delivered.failed}`,
+  );
 
-  const notifyBody = recordedHipCalls().find((c) => c.path.includes('health-information/notify'))?.body as
-    | { notification: { notifier: { type: string } } }
-    | undefined;
+  const notifyBody = recordedHipCalls().find((c) => c.path.includes('health-information/notify'))
+    ?.body as { notification: { notifier: { type: string } } } | undefined;
   check(
     notifyBody?.notification.notifier.type === 'HIU',
     'the completion notify says HIU, not HIP — we are the receiver here',
@@ -355,7 +436,13 @@ async function run(tenantId: string): Promise<void> {
   const rejected = await transfer.receivePushedRecords({
     transactionId: results[1]!.transactionId,
     pageCount: 1,
-    entries: [{ content: sealed(badPlain), checksum: 'not-the-right-checksum', careContextReference: 'cc-b1' }],
+    entries: [
+      {
+        content: sealed(badPlain),
+        checksum: 'not-the-right-checksum',
+        careContextReference: 'cc-b1',
+      },
+    ],
     keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
   });
   check(
@@ -369,18 +456,31 @@ async function run(tenantId: string): Promise<void> {
     transactionId: 'a-transaction-we-never-started',
     entries: [{ content: sealed('{}'), checksum: contentChecksum('{}') }],
   });
-  check(unknown.stored === 0, 'records pushed for an unknown transaction are discarded', 'an unsolicited push was stored');
+  check(
+    unknown.stored === 0,
+    'records pushed for an unknown transaction are discarded',
+    'an unsolicited push was stored',
+  );
 
   // --- 6. What the doctor sees -------------------------------------------------------------
   step(6, 'What the doctor sees (ADR-094)');
   const timeline = await patientTimeline(tenantId, patient.id);
-  check(timeline.length === 1, 'the stored record appears on the timeline', `expected 1 entry, got ${timeline.length}`);
+  check(
+    timeline.length === 1,
+    'the stored record appears on the timeline',
+    `expected 1 entry, got ${timeline.length}`,
+  );
 
   const entry = timeline[0];
-  check(entry?.sourceHipId === SOURCE_A, 'attributed to the hospital it came from', 'the source is wrong or missing');
+  check(
+    entry?.sourceHipId === SOURCE_A,
+    'attributed to the hospital it came from',
+    'the source is wrong or missing',
+  );
   const values = entry?.details.map((d) => `${d.label}: ${d.value}`) ?? [];
   check(
-    values.some((v) => v.includes('Type 2 diabetes mellitus')) && values.some((v) => v.includes('Metformin')),
+    values.some((v) => v.includes('Type 2 diabetes mellitus')) &&
+      values.some((v) => v.includes('Metformin')),
     'diagnosis and medicine are extracted and labelled',
     'the FHIR mapping lost something',
   );
@@ -389,14 +489,20 @@ async function run(tenantId: string): Promise<void> {
     'the abnormal flag comes from the SOURCE hospital’s own record',
     'the abnormal flag was not carried through',
   );
-  note('We never decide a value is abnormal ourselves — that range belongs to the lab that ran it.');
+  note(
+    'We never decide a value is abnormal ourselves — that range belongs to the lab that ran it.',
+  );
   if (VERBOSE) {
     for (const line of JSON.stringify(entry, null, 2).split('\n').slice(0, 30)) note(`   ${line}`);
   }
 
   // --- 7. HIU_FLOW_202 ---------------------------------------------------------------------
   step(7, 'HIU_FLOW_202 — the patient revokes');
-  check((await recordsOnDisk('m3check-consent-a')) === 1, 'a record is held under that consent', 'nothing was held to revoke');
+  check(
+    (await recordsOnDisk('m3check-consent-a')) === 1,
+    'a record is held under that consent',
+    'nothing was held to revoke',
+  );
   clearRecordedHipCalls();
   await hiu.handleConsentNotification({ consentId: 'm3check-consent-a', status: 'REVOKED' });
 
@@ -405,20 +511,30 @@ async function run(tenantId: string): Promise<void> {
     'the records are DELETED — the assessor’s actual question, answered from the database',
     'records survived the revocation, which fails certification',
   );
-  const consentGone = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', ['m3check-consent-a']);
-  check(consentGone.rowCount === 0, 'the consent artefact is gone too', 'the artefact survived');
-  const keysGone = await pool.query('SELECT id FROM abdm_hiu_data_transfers WHERE transaction_id = $1', [
-    results[0]!.transactionId,
+  const consentGone = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', [
+    'm3check-consent-a',
   ]);
+  check(consentGone.rowCount === 0, 'the consent artefact is gone too', 'the artefact survived');
+  const keysGone = await pool.query(
+    'SELECT id FROM abdm_hiu_data_transfers WHERE transaction_id = $1',
+    [results[0]!.transactionId],
+  );
   check(
     keysGone.rowCount === 0,
     'the keys that could decrypt a re-delivery are gone with it',
     'the decryption keys survived the purge',
   );
   const ack = recordedHipCalls().find((c) => c.path.includes('hiu/on-notify'));
-  check(Boolean(ack), 'ABDM is acknowledged — AFTER the delete, so the acknowledgement is true', 'ABDM was never acknowledged');
+  check(
+    Boolean(ack),
+    'ABDM is acknowledged — AFTER the delete, so the acknowledgement is true',
+    'ABDM was never acknowledged',
+  );
 
-  const ourRecords = await pool.query('SELECT count(*)::int AS n FROM encounters WHERE tenant_id = $1', [tenantId]);
+  const ourRecords = await pool.query(
+    'SELECT count(*)::int AS n FROM encounters WHERE tenant_id = $1',
+    [tenantId],
+  );
   check(
     ourRecords.rows[0].n >= 0,
     'our own clinical records are untouched — the consent expired, not the care',
@@ -429,7 +545,8 @@ async function run(tenantId: string): Promise<void> {
     "SELECT metadata FROM audit_log WHERE tenant_id = $1 AND action = 'abdm.hiu.consent_purged' ORDER BY created_at DESC LIMIT 1",
     [tenantId],
   );
-  const metadata = audit.rows[0]?.metadata as { reason?: string; recordsDeleted?: number } | undefined;
+  const metadata = audit.rows[0]?.metadata as
+    { reason?: string; recordsDeleted?: number } | undefined;
   check(
     metadata?.reason === 'revoked' && !JSON.stringify(metadata).includes('diabetes'),
     'the audit survives the deletion and holds metadata only',
@@ -443,15 +560,26 @@ async function run(tenantId: string): Promise<void> {
   await transfer.receivePushedRecords({
     transactionId: results[1]!.transactionId,
     pageCount: 1,
-    entries: [{ content: sealed(secondPlain), checksum: contentChecksum(secondPlain), careContextReference: 'cc-b2' }],
+    entries: [
+      {
+        content: sealed(secondPlain),
+        checksum: contentChecksum(secondPlain),
+        careContextReference: 'cc-b2',
+      },
+    ],
     keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
   });
-  check((await recordsOnDisk('m3check-consent-b')) === 1, 'a record is held under the second consent', 'nothing was stored');
+  check(
+    (await recordsOnDisk('m3check-consent-b')) === 1,
+    'a record is held under the second consent',
+    'nothing was stored',
+  );
 
   // Lapse it WITHOUT sweeping — the row stays on disk on purpose.
-  await pool.query("UPDATE abdm_hiu_consents SET data_erase_at = '2020-01-01' WHERE consent_id = $1", [
-    'm3check-consent-b',
-  ]);
+  await pool.query(
+    "UPDATE abdm_hiu_consents SET data_erase_at = '2020-01-01' WHERE consent_id = $1",
+    ['m3check-consent-b'],
+  );
   check(
     (await recordsOnDisk('m3check-consent-b')) === 1,
     'the record is still physically on disk (the sweep has not run)',
@@ -466,7 +594,11 @@ async function run(tenantId: string): Promise<void> {
   note('Two independent guarantees: the query hides by the clock, the sweep deletes on schedule.');
 
   const swept = await sweepOnce();
-  check(swept.records >= 1, `the sweep then deletes it (${swept.records} record(s) purged)`, 'the sweep purged nothing');
+  check(
+    swept.records >= 1,
+    `the sweep then deletes it (${swept.records} record(s) purged)`,
+    'the sweep purged nothing',
+  );
   check(
     (await recordsOnDisk('m3check-consent-b')) === 0,
     'gone from disk as well',
@@ -474,7 +606,11 @@ async function run(tenantId: string): Promise<void> {
   );
 
   const secondRun = await sweepOnce();
-  check(secondRun.consents === 0, 'running the sweep again is safe', 'the sweep re-purged something already gone');
+  check(
+    secondRun.consents === 0,
+    'running the sweep again is safe',
+    'the sweep re-purged something already gone',
+  );
 
   void consentB;
 }

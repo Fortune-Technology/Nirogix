@@ -1,6 +1,6 @@
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../components/Can";
-import { ReportsView } from "../../../components/reports/ReportsView";
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../components/Can';
+import { ReportsView } from '../../../components/reports/ReportsView';
 
 // The OPD register lives at the section root; Collections and Pending labs are its
 // siblings (`/reports/collections`, `/reports/pending-labs`). Each register is its own

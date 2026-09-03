@@ -32,7 +32,10 @@ export type ResolvedDepartment = {
   createdAt: string;
 };
 
-async function assertBranchBelongs(tenantId: string, branchId: string | null | undefined): Promise<void> {
+async function assertBranchBelongs(
+  tenantId: string,
+  branchId: string | null | undefined,
+): Promise<void> {
   if (!branchId) return;
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
@@ -41,10 +44,14 @@ async function assertBranchBelongs(tenantId: string, branchId: string | null | u
       .where(and(eq(branches.tenantId, tenantId), eq(branches.id, branchId)))
       .limit(1),
   );
-  if (!rows[0]) throw Errors.validation(undefined, 'That branch does not belong to your organization');
+  if (!rows[0])
+    throw Errors.validation(undefined, 'That branch does not belong to your organization');
 }
 
-async function assertProviderBelongs(tenantId: string, providerId: string | null | undefined): Promise<void> {
+async function assertProviderBelongs(
+  tenantId: string,
+  providerId: string | null | undefined,
+): Promise<void> {
   if (!providerId) return;
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
@@ -53,7 +60,8 @@ async function assertProviderBelongs(tenantId: string, providerId: string | null
       .where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId)))
       .limit(1),
   );
-  if (!rows[0]) throw Errors.validation(undefined, 'That provider does not belong to your organization');
+  if (!rows[0])
+    throw Errors.validation(undefined, 'That provider does not belong to your organization');
 }
 
 export async function listDepartments(
@@ -167,7 +175,8 @@ export async function updateDepartment(
 ): Promise<ResolvedDepartment> {
   const existing = await getDepartment(tenantId, id); // 404s if it is not this hospital's
   if (patch.branchId !== undefined) await assertBranchBelongs(tenantId, patch.branchId);
-  if (patch.headProviderId !== undefined) await assertProviderBelongs(tenantId, patch.headProviderId);
+  if (patch.headProviderId !== undefined)
+    await assertProviderBelongs(tenantId, patch.headProviderId);
 
   await runWithTenant(tenantId, (tx) =>
     tx

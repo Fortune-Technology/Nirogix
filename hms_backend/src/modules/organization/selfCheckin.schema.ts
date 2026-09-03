@@ -54,7 +54,9 @@ export const SelfCheckinRequestSchema = z
   })
   .openapi('SelfCheckinRequest');
 
-export const SelfCheckinRequestListSchema = z.array(SelfCheckinRequestSchema).openapi('SelfCheckinRequestList');
+export const SelfCheckinRequestListSchema = z
+  .array(SelfCheckinRequestSchema)
+  .openapi('SelfCheckinRequestList');
 
 export const SelfCheckinSettingsSchema = z
   .object({ enabled: z.boolean(), token: z.string().nullable(), pendingCount: z.number().int() })

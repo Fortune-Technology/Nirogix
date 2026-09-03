@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { CalendarDays, ClipboardList, Receipt, Users, Wallet } from "lucide-react";
-import { Card, StatCard } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { DashboardOverview, OrgSummary } from "@hms/types";
-import { useAuth, useCan } from "../../lib/auth";
-import * as api from "../../lib/api";
-import { formatPaise } from "../../lib/money";
-import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, firstName } from "./DashboardShell";
-import { TENANT_NAV_GROUPS } from "../../lib/nav";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { CalendarDays, ClipboardList, Receipt, Users, Wallet } from 'lucide-react';
+import { Card, StatCard } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { DashboardOverview, OrgSummary } from '@hms/types';
+import { useAuth, useCan } from '../../lib/auth';
+import * as api from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, firstName } from './DashboardShell';
+import { TENANT_NAV_GROUPS } from '../../lib/nav';
 
 /**
  * The fallback dashboard (ADR-044) — a cashier, a records clerk, an auditor: staff
@@ -26,8 +26,14 @@ export function StaffDashboard({ fullName }: { fullName?: string }) {
   const canPatients = useCan(PERMISSIONS.PATIENT_VIEW);
 
   useEffect(() => {
-    void api.getDashboardOverview(7).then(setOverview).catch(() => setOverview(null));
-    void api.getOrgSummary().then(setSummary).catch(() => setSummary(null));
+    void api
+      .getDashboardOverview(7)
+      .then(setOverview)
+      .catch(() => setOverview(null));
+    void api
+      .getOrgSummary()
+      .then(setSummary)
+      .catch(() => setSummary(null));
   }, []);
 
   const counts = overview?.today_counts;
@@ -36,11 +42,14 @@ export function StaffDashboard({ fullName }: { fullName?: string }) {
   // Permission-filtered, like the sidebar. Listing a route the user will only be
   // 403'd on is worse than listing nothing (rules.md → UI / UX Rules).
   const links = TENANT_NAV_GROUPS.flatMap((g) => g.items).filter(
-    (n) => n.href !== "/dashboard" && (n.perm === null || can(n.perm)),
+    (n) => n.href !== '/dashboard' && (n.perm === null || can(n.perm)),
   );
 
   return (
-    <DashboardShell context="Your organization today" title={`Welcome${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}>
+    <DashboardShell
+      context="Your organization today"
+      title={`Welcome${firstName(fullName) ? `, ${firstName(fullName)}` : ''}`}
+    >
       <KpiGrid>
         {canPatients && (
           <StatCard
@@ -110,7 +119,10 @@ export function StaffDashboard({ fullName }: { fullName?: string }) {
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <Row label="Staff accounts" value={summary.users} />
               <Row label="Practitioners" value={summary.doctors} />
-              <Row label="Branches" value={`${summary.branches.active} of ${summary.branches.total} active`} />
+              <Row
+                label="Branches"
+                value={`${summary.branches.active} of ${summary.branches.total} active`}
+              />
               <Row label="Modules" value={summary.modules.length} />
             </dl>
           ) : (

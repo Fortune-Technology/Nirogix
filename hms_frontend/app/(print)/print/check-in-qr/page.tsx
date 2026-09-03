@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { PERMISSIONS } from "@hms/permissions";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PublicQrPoster } from "../../../../components/print/PublicQrPoster";
-import { useCheckinQr } from "../../../../components/print/useCheckinQr";
+import { PERMISSIONS } from '@hms/permissions';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PublicQrPoster } from '../../../../components/print/PublicQrPoster';
+import { useCheckinQr } from '../../../../components/print/useCheckinQr';
 
 /**
  * The self check-in poster (ADR-047, ADR-118) — a configuration of the shared poster document.

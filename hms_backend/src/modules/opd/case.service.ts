@@ -131,9 +131,18 @@ export async function listCases(tenantId: string, opts: ListCasesOptions = {}): 
       .leftJoin(providers, eq(providers.id, patientCases.providerId))
       .where(and(...conds))
       // Open before closed, then most recently opened — the desk is choosing from what is live.
-      .orderBy(patientCases.status, desc(patientCases.openedAt));
+      // Ordered on the MEANING of the status, not on the string: sorting the column alphabetically
+      // put 'closed' above 'open', which is the exact opposite of what this comment has claimed.
+      .orderBy(
+        sql`case when ${patientCases.status} = 'open' then 0 else 1 end`,
+        desc(patientCases.openedAt),
+      );
 
-    const stats = await visitStats(tx, tenantId, rows.map((r) => r.c.id));
+    const stats = await visitStats(
+      tx,
+      tenantId,
+      rows.map((r) => r.c.id),
+    );
     return rows.map((r) => {
       const s = stats.get(r.c.id);
       return toDto(r, s?.count ?? 0, s?.last ?? null);
@@ -223,7 +232,9 @@ export async function openCaseTx(
   // Tenant-monotonic case number, retried on the unique conflict — the same shape as visit
   // numbering, and for the same reason: two desks opening a case in the same instant.
   const existing = Number(
-    (await tx.select({ c: count() }).from(patientCases).where(eq(patientCases.tenantId, tenantId)))[0]?.c ?? 0,
+    (
+      await tx.select({ c: count() }).from(patientCases).where(eq(patientCases.tenantId, tenantId))
+    )[0]?.c ?? 0,
   );
   for (let i = 1; i <= 8; i++) {
     const caseNumber = `C-${String(existing + i).padStart(6, '0')}`;
@@ -248,8 +259,14 @@ export async function openCaseTx(
   throw Errors.conflict('Could not allocate a case number. Please retry');
 }
 
-export async function openCase(tenantId: string, input: OpenCaseInput, actorUserId?: string): Promise<CaseDto> {
-  const caseType = input.caseType ? await assertCaseType(tenantId, input.branchId, input.caseType) : null;
+export async function openCase(
+  tenantId: string,
+  input: OpenCaseInput,
+  actorUserId?: string,
+): Promise<CaseDto> {
+  const caseType = input.caseType
+    ? await assertCaseType(tenantId, input.branchId, input.caseType)
+    : null;
   const row = await runWithTenant(tenantId, async (tx) => {
     // The same advisory lock check-in uses, for the same read-then-write on the number.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:case_number`}))`);
@@ -336,7 +353,8 @@ export async function updateCase(
         ),
       )
       .returning({ id: patientCases.id });
-    if (!bumped[0]) throw Errors.conflict('This case was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('This case was changed by someone else. Reload and try again');
   });
 
   await writeAudit({
@@ -388,7 +406,9 @@ export async function closeCase(
         .limit(1)
     )[0];
     if (live) {
-      throw Errors.conflict(`${live.visitNumber} is still open under this case. Complete or cancel it first`);
+      throw Errors.conflict(
+        `${live.visitNumber} is still open under this case. Complete or cancel it first`,
+      );
     }
 
     const bumped = await tx
@@ -409,7 +429,8 @@ export async function closeCase(
         ),
       )
       .returning({ id: patientCases.id });
-    if (!bumped[0]) throw Errors.conflict('This case was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('This case was changed by someone else. Reload and try again');
   });
 
   await writeAudit({
@@ -418,7 +439,11 @@ export async function closeCase(
     action: 'case.closed',
     resourceType: 'patient_case',
     resourceId: caseId,
-    metadata: { caseNumber: before.caseNumber, closeReason: input.closeReason, visitCount: before.visitCount },
+    metadata: {
+      caseNumber: before.caseNumber,
+      closeReason: input.closeReason,
+      visitCount: before.visitCount,
+    },
   });
   return getCase(tenantId, caseId);
 }
@@ -458,7 +483,8 @@ export async function reopenCase(
         ),
       )
       .returning({ id: patientCases.id });
-    if (!bumped[0]) throw Errors.conflict('This case was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('This case was changed by someone else. Reload and try again');
   });
 
   await writeAudit({
@@ -500,7 +526,9 @@ export async function assertCaseUsableTx(
     throw Errors.validation(undefined, 'That case belongs to a different patient');
   }
   if (row.status !== 'open') {
-    throw Errors.conflict('That case is closed. Reopen it, or check the patient in under a new case');
+    throw Errors.conflict(
+      'That case is closed. Reopen it, or check the patient in under a new case',
+    );
   }
   return row;
 }

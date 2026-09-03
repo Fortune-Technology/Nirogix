@@ -4,7 +4,9 @@ const nnum = z.number().nullable().optional();
 
 // ---- Requests --------------------------------------------------------------
 
-export const OpenEncounterBody = z.object({ visitId: z.string().uuid() }).openapi('OpenEncounterBody');
+export const OpenEncounterBody = z
+  .object({ visitId: z.string().uuid() })
+  .openapi('OpenEncounterBody');
 
 // Vitals are the workflow module's record; the encounter reports them rather than defining them.
 import { VitalsRecordListSchema } from '../workflow/workflow.schema';
@@ -112,6 +114,28 @@ export const LabOrderSchema = z
   })
   .openapi('LabOrder');
 
+// One reopening of a signed consultation (ADR-134). The snapshot itself is never returned —
+// the trail is what a chart shows; the frozen note stays server-side as the preserved original.
+export const EncounterAmendmentSchema = z
+  .object({
+    id: z.string(),
+    status: z.enum(['open', 'completed', 'cancelled']),
+    reason: z.string(),
+    changedFields: z.array(z.string()).nullable(),
+    amendedById: z.string().nullable(),
+    amendedByName: z.string().nullable(),
+    createdAt: z.string(),
+    completedAt: z.string().nullable(),
+  })
+  .openapi('EncounterAmendment');
+
+export const AmendEncounterBody = z
+  .object({
+    // Long enough to be a reason rather than a keystroke; it is permanent and someone reads it.
+    reason: z.string().trim().min(10, 'Say why the signed record is being corrected').max(1000),
+  })
+  .openapi('AmendEncounterRequest');
+
 export const EncounterSchema = z
   .object({
     id: z.string(),
@@ -121,9 +145,22 @@ export const EncounterSchema = z
     patientUhid: z.string(),
     providerId: z.string().nullable(),
     providerName: z.string().nullable(),
-    status: z.string(),
+    status: z.enum(['draft', 'signed', 'amending']),
     version: z.number(),
     signedAt: z.string().nullable(),
+    wasSigned: z.boolean(),
+    // The signature the note was signed with, as pinned (ADR-137). An uploaded image, never a
+    // cryptographic signature — see the module docs before describing it as anything else.
+    signature: z
+      .object({
+        signatureId: z.string(),
+        version: z.number().int(),
+        signedByName: z.string().nullable(),
+        imageUrl: z.string(),
+      })
+      .nullable(),
+    amendments: z.array(EncounterAmendmentSchema),
+    openAmendment: EncounterAmendmentSchema.nullable(),
     chiefComplaint: z.string().nullable(),
     subjective: z.string().nullable(),
     objective: z.string().nullable(),
@@ -156,7 +193,9 @@ export const Icd10ListSchema = z.array(Icd10Schema).openapi('Icd10List');
 export const AiDraftBody = z
   .object({
     chiefComplaint: z.string().max(500).nullable().optional(),
-    diagnoses: z.array(z.object({ icd10Code: z.string().max(10), icd10Term: z.string().max(300) })).default([]),
+    diagnoses: z
+      .array(z.object({ icd10Code: z.string().max(10), icd10Term: z.string().max(300) }))
+      .default([]),
     ageYears: z.number().int().min(0).max(130).nullable().optional(),
     gender: z.string().max(20).nullable().optional(),
     vitalsSummary: z.string().max(300).nullable().optional(),
@@ -180,7 +219,9 @@ export const AiDraftResponseSchema = z
   })
   .openapi('AiDraftResponse');
 
-export const AiCapabilitiesSchema = z.object({ prescriptionDraft: z.boolean() }).openapi('AiCapabilities');
+export const AiCapabilitiesSchema = z
+  .object({ prescriptionDraft: z.boolean() })
+  .openapi('AiCapabilities');
 
 // One row of a patient's clinical history (signed encounters only).
 export const EncounterSummarySchema = z
@@ -192,9 +233,13 @@ export const EncounterSummarySchema = z
     providerName: z.string().nullable(),
     signedAt: z.string().nullable(),
     chiefComplaint: z.string().nullable(),
-    diagnoses: z.array(z.object({ icd10Code: z.string(), icd10Term: z.string(), isPrimary: z.boolean() })),
+    diagnoses: z.array(
+      z.object({ icd10Code: z.string(), icd10Term: z.string(), isPrimary: z.boolean() }),
+    ),
     prescriptionCount: z.number(),
     labOrderCount: z.number(),
   })
   .openapi('EncounterSummary');
-export const EncounterSummaryListSchema = z.array(EncounterSummarySchema).openapi('EncounterSummaryList');
+export const EncounterSummaryListSchema = z
+  .array(EncounterSummarySchema)
+  .openapi('EncounterSummaryList');

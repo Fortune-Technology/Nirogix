@@ -5,7 +5,14 @@ import { requireModule } from '../../http/requireModule';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
-import { CreateDrugBody, ReceiveStockBody, DispenseBody, CreateSupplierBody, UpdateSupplierBody, AdjustStockBody } from './pharmacy.schema';
+import {
+  CreateDrugBody,
+  ReceiveStockBody,
+  DispenseBody,
+  CreateSupplierBody,
+  UpdateSupplierBody,
+  AdjustStockBody,
+} from './pharmacy.schema';
 import * as c from './pharmacy.controller';
 
 // Pharmacy — gated by the `pharmacy` module entitlement. View/dispense = pharmacist;
@@ -13,7 +20,13 @@ import * as c from './pharmacy.controller';
 export const pharmacyRouter = Router();
 const mod = requireModule('pharmacy');
 
-pharmacyRouter.get('/drugs', requireAuth, mod, requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW), asyncHandler(c.listDrugs));
+pharmacyRouter.get(
+  '/drugs',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW),
+  asyncHandler(c.listDrugs),
+);
 pharmacyRouter.post(
   '/drugs',
   requireAuth,
@@ -39,8 +52,20 @@ pharmacyRouter.post(
   validate({ body: AdjustStockBody }),
   asyncHandler(c.adjustStock),
 );
-pharmacyRouter.get('/stock-adjustments', requireAuth, mod, requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW), asyncHandler(c.listAdjustments));
-pharmacyRouter.get('/suppliers', requireAuth, mod, requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW), asyncHandler(c.listSuppliers));
+pharmacyRouter.get(
+  '/stock-adjustments',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW),
+  asyncHandler(c.listAdjustments),
+);
+pharmacyRouter.get(
+  '/suppliers',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.PHARMACY_STOCK_VIEW),
+  asyncHandler(c.listSuppliers),
+);
 pharmacyRouter.post(
   '/suppliers',
   requireAuth,
@@ -57,7 +82,13 @@ pharmacyRouter.patch(
   validate({ body: UpdateSupplierBody }),
   asyncHandler(c.updateSupplier),
 );
-pharmacyRouter.get('/prescriptions/pending', requireAuth, mod, requirePermission(PERMISSIONS.PHARMACY_DISPENSE), asyncHandler(c.pendingPrescriptions));
+pharmacyRouter.get(
+  '/prescriptions/pending',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.PHARMACY_DISPENSE),
+  asyncHandler(c.pendingPrescriptions),
+);
 pharmacyRouter.post(
   '/dispense',
   requireAuth,

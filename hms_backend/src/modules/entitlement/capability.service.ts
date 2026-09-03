@@ -9,10 +9,7 @@ import {
   type LifecycleStatus,
 } from '@hms/permissions';
 import { runWithTenant } from '../../db/tenantContext';
-import {
-  tenantCapabilityEntitlements,
-  type TenantCapabilityEntitlement,
-} from '../../db/schema';
+import { tenantCapabilityEntitlements, type TenantCapabilityEntitlement } from '../../db/schema';
 import { writeAudit } from '../audit/audit.service';
 import { isModuleEntitled, listEntitledModules } from './entitlement.service';
 
@@ -48,8 +45,7 @@ export function isCapabilityRowEffective(
 export function resolveCapabilityEnabled(
   moduleEntitled: boolean,
   overrideRow:
-    | Pick<TenantCapabilityEntitlement, 'status' | 'effectiveFrom' | 'effectiveUntil'>
-    | undefined,
+    Pick<TenantCapabilityEntitlement, 'status' | 'effectiveFrom' | 'effectiveUntil'> | undefined,
 ): boolean {
   if (!moduleEntitled) return false;
   if (!overrideRow) return true; // default ON when the module is on

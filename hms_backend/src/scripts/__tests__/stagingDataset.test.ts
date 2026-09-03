@@ -43,7 +43,8 @@ describe('the staging dataset', () => {
   test('every specialty is one the catalogue knows', () => {
     const known = new Set(SPECIALTY_CATALOG.map((s) => s.code));
     for (const t of hospitals(STAGING_DATASET)) {
-      for (const p of t.providers ?? []) expect(known, `${t.code} ${p.fullName}`).toContain(p.specialty);
+      for (const p of t.providers ?? [])
+        expect(known, `${t.code} ${p.fullName}`).toContain(p.specialty);
       for (const d of t.departments ?? []) {
         if (d.specialty) expect(known, `${t.code} department ${d.code}`).toContain(d.specialty);
       }
@@ -59,14 +60,38 @@ describe('the staging dataset', () => {
         const present = values.filter(Boolean) as string[];
         expect(new Set(present).size, `${t.code} duplicate ${what}`).toBe(present.length);
       };
-      unique(t.users.map((u) => u.email), 'user email');
-      unique((t.patients ?? []).map((p) => p.phone ?? undefined), 'patient phone');
-      unique((t.providers ?? []).map((p) => p.registrationNumber), 'provider registration number');
-      unique((t.services ?? []).map((s) => s.code.toUpperCase()), 'service code');
-      unique((t.departments ?? []).map((d) => d.code.toUpperCase()), 'department code');
-      unique((t.branches ?? []).map((b) => b.code.toUpperCase()), 'branch code');
-      unique((t.labTests ?? []).map((l) => l.code?.toUpperCase()), 'lab test code');
-      unique([...(t.registrationRequests ?? []), ...(t.bookingRequests ?? [])].map((r) => r.phone), 'request phone');
+      unique(
+        t.users.map((u) => u.email),
+        'user email',
+      );
+      unique(
+        (t.patients ?? []).map((p) => p.phone ?? undefined),
+        'patient phone',
+      );
+      unique(
+        (t.providers ?? []).map((p) => p.registrationNumber),
+        'provider registration number',
+      );
+      unique(
+        (t.services ?? []).map((s) => s.code.toUpperCase()),
+        'service code',
+      );
+      unique(
+        (t.departments ?? []).map((d) => d.code.toUpperCase()),
+        'department code',
+      );
+      unique(
+        (t.branches ?? []).map((b) => b.code.toUpperCase()),
+        'branch code',
+      );
+      unique(
+        (t.labTests ?? []).map((l) => l.code?.toUpperCase()),
+        'lab test code',
+      );
+      unique(
+        [...(t.registrationRequests ?? []), ...(t.bookingRequests ?? [])].map((r) => r.phone),
+        'request phone',
+      );
     }
     // Emails are how a person signs in, and the login is org-scoped — but a duplicate ACROSS
     // tenants would still confuse whoever reads the credentials list.
@@ -80,7 +105,9 @@ describe('the staging dataset', () => {
     // on and which has fewer than three patients would have almost nothing in the rotation.
     for (const t of hospitals(STAGING_DATASET)) {
       if (!t.story) continue;
-      expect((t.patients ?? []).length, `${t.code} needs patients for its story`).toBeGreaterThan(2);
+      expect((t.patients ?? []).length, `${t.code} needs patients for its story`).toBeGreaterThan(
+        2,
+      );
     }
   });
 
@@ -101,9 +128,13 @@ describe('the staging dataset', () => {
 
     // And its busiest hospital carries a history comparable to development's busiest, which is
     // what the reported thinness was actually about.
-    const busiestStaging = Math.max(...hs.map((t) => (t.story ? t.story.historyDays * t.story.visitsPerDay : 0)));
+    const busiestStaging = Math.max(
+      ...hs.map((t) => (t.story ? t.story.historyDays * t.story.visitsPerDay : 0)),
+    );
     const busiestDev = Math.max(
-      ...hospitals(DEVELOPMENT_DATASET).map((t) => (t.story ? t.story.historyDays * t.story.visitsPerDay : 0)),
+      ...hospitals(DEVELOPMENT_DATASET).map((t) =>
+        t.story ? t.story.historyDays * t.story.visitsPerDay : 0,
+      ),
     );
     expect(busiestStaging).toBeGreaterThanOrEqual(busiestDev);
   });

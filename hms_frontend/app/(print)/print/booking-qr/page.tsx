@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { PERMISSIONS } from "@hms/permissions";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PublicQrPoster } from "../../../../components/print/PublicQrPoster";
-import { useBookingQr } from "../../../../components/print/useBookingQr";
+import { PERMISSIONS } from '@hms/permissions';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PublicQrPoster } from '../../../../components/print/PublicQrPoster';
+import { useBookingQr } from '../../../../components/print/useBookingQr';
 
 /** The appointment-booking poster (ADR-047, ADR-069) — a configuration of the shared poster document. */
 export default function BookingQrPrintPage() {

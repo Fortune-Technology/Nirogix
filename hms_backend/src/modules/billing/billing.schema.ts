@@ -62,6 +62,8 @@ export const ListInvoicesQuery = z
     amountTo: z.coerce.number().int().min(0).optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),
+    // The DataTable's own URL format, `key:dir,key:dir` (ADR-136).
+    sort: z.string().max(120).optional(),
   })
   .openapi('ListInvoicesQuery');
 
@@ -112,9 +114,12 @@ export const AddInvoiceLineBody = z
     unitPricePaise: z.number().int().nonnegative().optional(),
     taxRateBps: z.number().int().min(0).max(100000).optional(),
   })
-  .refine((b) => Boolean(b.serviceId) !== Boolean(b.description && b.unitPricePaise !== undefined), {
-    message: 'Provide either serviceId, or description + unitPricePaise for a custom line',
-  })
+  .refine(
+    (b) => Boolean(b.serviceId) !== Boolean(b.description && b.unitPricePaise !== undefined),
+    {
+      message: 'Provide either serviceId, or description + unitPricePaise for a custom line',
+    },
+  )
   .openapi('AddInvoiceLineBody');
 
 // ---- Responses -------------------------------------------------------------
@@ -184,6 +189,11 @@ export const InvoiceListItemSchema = z
 export const InvoicesPageSchema = z
   .object({
     data: z.array(InvoiceListItemSchema),
-    page: z.object({ number: z.number(), size: z.number(), total: z.number(), totalPages: z.number() }),
+    page: z.object({
+      number: z.number(),
+      size: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
   })
   .openapi('InvoicesPage');

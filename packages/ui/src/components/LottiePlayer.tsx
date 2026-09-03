@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import Lottie from "lottie-react";
-import { cn } from "../cn";
-import { recolorLottie } from "../lottieRecolor";
+import { useEffect, useMemo, useState } from 'react';
+import Lottie from 'lottie-react';
+import { cn } from '../cn';
+import { recolorLottie } from '../lottieRecolor';
 
 type LottieData = Record<string, unknown>;
 
@@ -26,20 +26,20 @@ export interface LottiePlayerProps {
 
 function prefersReducedMotion(): boolean {
   return (
-    typeof window !== "undefined" &&
+    typeof window !== 'undefined' &&
     !!window.matchMedia &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
 }
 
 function readCssColor(cssVar: string): string | null {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
   if (!raw) return null;
-  if (raw.startsWith("#") || raw.startsWith("rgb")) return raw;
+  if (raw.startsWith('#') || raw.startsWith('rgb')) return raw;
   // Normalise any other form (e.g. color-mix) to rgb() via a probe element.
-  const probe = document.createElement("span");
+  const probe = document.createElement('span');
   probe.style.color = raw;
-  probe.style.display = "none";
+  probe.style.display = 'none';
   document.body.appendChild(probe);
   const resolved = getComputedStyle(probe).color;
   probe.remove();
@@ -91,7 +91,7 @@ export function LottiePlayer({
     const observer = new MutationObserver(read);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme", "style", "class"],
+      attributeFilter: ['data-theme', 'style', 'class'],
     });
     return () => observer.disconnect();
   }, [tintCssVar]);
@@ -111,7 +111,7 @@ export function LottiePlayer({
       autoplay={reduced ? false : autoplay}
       className={cn(className)}
       aria-label={ariaLabel}
-      role={ariaLabel ? "img" : undefined}
+      role={ariaLabel ? 'img' : undefined}
     />
   );
 }

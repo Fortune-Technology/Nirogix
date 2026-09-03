@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { Search, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Search, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 export interface DataTableToolbarProps {
   search: string;
@@ -26,7 +26,7 @@ export function DataTableToolbar({
   search,
   onSearchChange,
   searchable = true,
-  placeholder = "Search…",
+  placeholder = 'Search…',
   facetedFilters,
   filters,
   viewOptions,
@@ -55,15 +55,17 @@ export function DataTableToolbar({
         {facetedFilters}
         {filters}
         {activeFilterCount > 0 && onClearFilters ? (
-          <button type="button" className="hms-btn hms-btn--ghost hms-btn--sm" onClick={onClearFilters}>
+          <button
+            type="button"
+            className="hms-btn hms-btn--ghost hms-btn--sm"
+            onClick={onClearFilters}
+          >
             <X size={15} strokeWidth={2} aria-hidden /> Clear
           </button>
         ) : null}
       </div>
 
-      <div className="hms-toolbar__right">
-        {viewOptions}
-      </div>
+      <div className="hms-toolbar__right">{viewOptions}</div>
     </div>
   );
 }

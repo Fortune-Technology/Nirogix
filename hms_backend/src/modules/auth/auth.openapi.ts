@@ -80,7 +80,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: json(z.object({ fullName: z.string().min(2).max(200) })) },
   responses: {
-    200: { description: 'Updated profile', ...json(z.object({ user: PublicUserSchema, message: z.string() })) },
+    200: {
+      description: 'Updated profile',
+      ...json(z.object({ user: PublicUserSchema, message: z.string() })),
+    },
     400: { description: 'Validation failed', ...json(ErrorResponseSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
   },
@@ -105,7 +108,10 @@ registry.registerPath({
   },
   responses: {
     200: { description: 'Password changed', ...json(z.object({ message: z.string() })) },
-    400: { description: 'Current password incorrect, or the new password is invalid', ...json(ErrorResponseSchema) },
+    400: {
+      description: 'Current password incorrect, or the new password is invalid',
+      ...json(ErrorResponseSchema),
+    },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
   },
 });
@@ -143,8 +149,14 @@ registry.registerPath({
   request: { body: json(ResetPasswordBody) },
   responses: {
     200: { description: 'Password reset', ...json(MessageResponseSchema) },
-    400: { description: 'Validation failed (password policy, or new password equals the old one)', ...json(ErrorResponseSchema) },
-    401: { description: 'Invalid, expired, or already-used reset link', ...json(ErrorResponseSchema) },
+    400: {
+      description: 'Validation failed (password policy, or new password equals the old one)',
+      ...json(ErrorResponseSchema),
+    },
+    401: {
+      description: 'Invalid, expired, or already-used reset link',
+      ...json(ErrorResponseSchema),
+    },
     429: { description: 'Rate limited', ...json(ErrorResponseSchema) },
   },
 });

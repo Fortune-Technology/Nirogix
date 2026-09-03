@@ -9,7 +9,7 @@
 // the people who may use this are hospital staff and platform operators — a patient
 // principal is refused by the backend before any permission is read.
 
-import { createApiClient } from "@hms/client";
+import { createApiClient } from '@hms/client';
 
 export interface AiPortalSession {
   /** Empty, deliberately. A capability appears here only when one is actually built. */
@@ -18,15 +18,23 @@ export interface AiPortalSession {
 }
 
 const client = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1',
 });
 
 export const apiClient = client;
-export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
-export const { setAccessToken, getAccessToken, setOnSessionExpired, tryRefresh, login, logout, me, myPermissions } =
-  client;
+export { ApiRequestError, NetworkError, TimeoutError } from '@hms/client';
+export const {
+  setAccessToken,
+  getAccessToken,
+  setOnSessionExpired,
+  tryRefresh,
+  login,
+  logout,
+  me,
+  myPermissions,
+} = client;
 
 /** Records entry (audited server-side) and returns what the portal can actually do. */
 export async function enterPortal(): Promise<AiPortalSession> {
-  return client.request<AiPortalSession>("/ai/portal/session", { method: "POST", feedback: false });
+  return client.request<AiPortalSession>('/ai/portal/session', { method: 'POST', feedback: false });
 }

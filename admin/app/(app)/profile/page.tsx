@@ -1,13 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { AuthUser } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { useAuth } from "../../../lib/auth";
-import { PageHeader } from "../../../components/PageHeader";
-import { ProfileField, ProfileHeader, ProfileInfoCard, ProfileSecurityCard } from "../../../components/profile";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { AuthUser } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { useAuth } from '../../../lib/auth';
+import { PageHeader } from '../../../components/PageHeader';
+import {
+  ProfileField,
+  ProfileHeader,
+  ProfileInfoCard,
+  ProfileSecurityCard,
+} from '../../../components/profile';
 
 /**
  * My profile for the platform operator (closes the gap where an operator had to sign
@@ -45,7 +50,7 @@ export default function ProfilePage() {
     try {
       await api.changePassword(input);
       // Every session was revoked server-side, including this one.
-      router.replace("/login");
+      router.replace('/login');
     } catch {
       /* reported by the shared API-feedback layer */
     } finally {
@@ -61,15 +66,26 @@ export default function ProfilePage() {
     <>
       <PageHeader title="My profile" description="Your operator account and security settings." />
 
-      <ProfileHeader fullName={me.fullName} email={me.email} roles={me.roles ?? []} status={me.status ?? "active"} />
+      <ProfileHeader
+        fullName={me.fullName}
+        email={me.email}
+        roles={me.roles ?? []}
+        status={me.status ?? 'active'}
+      />
 
       <ProfileInfoCard header="Account">
         <ProfileField label="Email">{me.email}</ProfileField>
-        <ProfileField label="Role">{(me.roles ?? []).join(", ")}</ProfileField>
-        <ProfileField label="Account status">{me.status ?? "active"}</ProfileField>
-        <ProfileField label="Two-factor authentication">{me.mfaEnabled ? "Enabled" : "Not enabled"}</ProfileField>
-        <ProfileField label="Last sign-in">{me.lastLoginAt ? formatDateTime(me.lastLoginAt) : "This session"}</ProfileField>
-        <ProfileField label="Member since">{me.createdAt ? formatDateTime(me.createdAt) : "—"}</ProfileField>
+        <ProfileField label="Role">{(me.roles ?? []).join(', ')}</ProfileField>
+        <ProfileField label="Account status">{me.status ?? 'active'}</ProfileField>
+        <ProfileField label="Two-factor authentication">
+          {me.mfaEnabled ? 'Enabled' : 'Not enabled'}
+        </ProfileField>
+        <ProfileField label="Last sign-in">
+          {me.lastLoginAt ? formatDateTime(me.lastLoginAt) : 'This session'}
+        </ProfileField>
+        <ProfileField label="Member since">
+          {me.createdAt ? formatDateTime(me.createdAt) : '—'}
+        </ProfileField>
       </ProfileInfoCard>
 
       <ProfileSecurityCard onSubmit={changePassword} busy={changing} />

@@ -55,7 +55,6 @@ export async function postLogout(req: Request, res: Response): Promise<void> {
   res.json({ message: ended?.impersonatedBy ? 'Support session ended.' : 'Logged out' });
 }
 
-
 export async function getMe(req: Request, res: Response): Promise<void> {
   // requireAuth guarantees req.auth is set.
   const { tenantId, userId, roles, impersonatedBy } = req.auth!;
@@ -94,7 +93,8 @@ export async function postForgotPassword(req: Request, res: Response): Promise<v
   await authService.requestPasswordReset(req.body, clientMeta(req));
   // Uniform 202 no matter what happened — this endpoint is not a directory.
   res.status(202).json({
-    message: 'If an account matches, a password-reset link has been emailed. It is valid for 30 minutes.',
+    message:
+      'If an account matches, a password-reset link has been emailed. It is valid for 30 minutes.',
   });
 }
 

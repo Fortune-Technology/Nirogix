@@ -171,12 +171,17 @@ export async function recordCareContextForVisit(
 }
 
 /** Care contexts for one patient, newest first — what the desk and the discovery flow both read. */
-export async function listCareContexts(tenantId: string, patientId: string): Promise<AbdmCareContext[]> {
+export async function listCareContexts(
+  tenantId: string,
+  patientId: string,
+): Promise<AbdmCareContext[]> {
   return runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(abdmCareContexts)
-      .where(and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patientId)))
+      .where(
+        and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patientId)),
+      )
       .orderBy(desc(abdmCareContexts.createdAt)),
   );
 }

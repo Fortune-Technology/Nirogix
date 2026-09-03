@@ -8,8 +8,16 @@ export const SubmitBookingBody = z
     lastName: z.string().max(100).nullable().optional(),
     phone: z.string().min(8).max(20),
     email: z.string().email().nullable().optional(),
-    preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-    preferredTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+    preferredDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .optional(),
+    preferredTime: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .nullable()
+      .optional(),
     departmentId: z.string().uuid().nullable().optional(),
     providerId: z.string().uuid().nullable().optional(),
     note: z.string().max(500).nullable().optional(),
@@ -48,7 +56,9 @@ export const BookingRequestSchema = z
     createdAt: z.string(),
   })
   .openapi('BookingRequest');
-export const BookingRequestListSchema = z.object({ requests: z.array(BookingRequestSchema) }).openapi('BookingRequestList');
+export const BookingRequestListSchema = z
+  .object({ requests: z.array(BookingRequestSchema) })
+  .openapi('BookingRequestList');
 
 export const ApproveBookingBody = z
   .object({
@@ -64,7 +74,9 @@ export const RejectBookingBody = z
   .object({ reason: z.string().trim().max(300).optional() })
   .openapi('RejectBookingBody');
 
-export const SetOnlineBookingBody = z.object({ enabled: z.boolean() }).openapi('SetOnlineBookingBody');
+export const SetOnlineBookingBody = z
+  .object({ enabled: z.boolean() })
+  .openapi('SetOnlineBookingBody');
 
 export const BookingSettingsSchema = z
   .object({ enabled: z.boolean(), token: z.string().nullable(), pendingCount: z.number() })

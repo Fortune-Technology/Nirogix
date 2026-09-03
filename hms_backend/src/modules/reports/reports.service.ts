@@ -120,7 +120,9 @@ export async function pendingLabs(tenantId: string) {
       })
       .from(labOrders)
       .innerJoin(patients, eq(patients.id, labOrders.patientId))
-      .where(and(eq(labOrders.tenantId, tenantId), sql`${labOrders.status} in ('ordered', 'collected')`))
+      .where(
+        and(eq(labOrders.tenantId, tenantId), sql`${labOrders.status} in ('ordered', 'collected')`),
+      )
       .orderBy(asc(labOrders.createdAt));
 
     return rows.map((r) => ({

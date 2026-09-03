@@ -1,10 +1,17 @@
 import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
-import { BookAppointmentBody, CancelAppointmentBody, AppointmentsPageSchema } from './appointment.schema';
+import {
+  BookAppointmentBody,
+  CancelAppointmentBody,
+  AppointmentsPageSchema,
+} from './appointment.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the appointment module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the appointment module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 const AckSchema = z.object({ id: z.string().uuid(), status: z.string() }).openapi('AppointmentAck');
 
@@ -23,13 +30,16 @@ registry.registerPath({
       to: z.string().optional(),
       providerId: z.string().uuid().optional(),
       patientId: z.string().uuid().optional(),
-      status: z
-        .string()
-        .optional()
-        .openapi({ description: 'Comma-separated statuses (multi-select): booked,cancelled,completed,no_show' }),
+      status: z.string().optional().openapi({
+        description: 'Comma-separated statuses (multi-select): booked,cancelled,completed,no_show',
+      }),
     }),
   },
-  responses: { 200: { description: 'Appointments', ...json(AppointmentsPageSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Appointments', ...json(AppointmentsPageSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({

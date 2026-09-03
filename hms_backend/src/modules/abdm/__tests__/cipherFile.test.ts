@@ -32,13 +32,19 @@ import { EncryptionUnavailableError, encryptForHiu, generateKeyPair } from '../c
 /** Anything this module left behind in the system temp directory. */
 async function strayParameterDirs(): Promise<string[]> {
   const entries = await readdir(tmpdir(), { withFileTypes: true }).catch(() => []);
-  return entries.filter((e) => e.isDirectory() && e.name.startsWith('fidelius-')).map((e) => e.name);
+  return entries
+    .filter((e) => e.isDirectory() && e.name.startsWith('fidelius-'))
+    .map((e) => e.name);
 }
 
 describe('the Fidelius parameter file', () => {
   test('a failed encryption still refuses, rather than degrading', async () => {
     await expect(
-      encryptForHiu({ plaintext: '{"resourceType":"Bundle"}', hiuPublicKey: 'pub', hiuNonce: 'nonce' }),
+      encryptForHiu({
+        plaintext: '{"resourceType":"Bundle"}',
+        hiuPublicKey: 'pub',
+        hiuNonce: 'nonce',
+      }),
     ).rejects.toBeInstanceOf(EncryptionUnavailableError);
   });
 

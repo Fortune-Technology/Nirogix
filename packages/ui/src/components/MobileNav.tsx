@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { X } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { cn } from "../cn";
-import { useScrollLock } from "../useScrollLock";
+import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '../cn';
+import { useScrollLock } from '../useScrollLock';
 
 /**
  * App-like mobile navigation (ADR-033), shared by the Portal and the marketing
@@ -41,23 +41,23 @@ export const BOTTOM_NAV_MAX_ITEMS = 5;
 export function BottomNav({
   items,
   trailing,
-  linkAs: Link = "a",
-  label = "Primary",
+  linkAs: Link = 'a',
+  label = 'Primary',
   className,
 }: BottomNavProps) {
   const visible = items.slice(0, trailing ? BOTTOM_NAV_MAX_ITEMS - 1 : BOTTOM_NAV_MAX_ITEMS);
   if (visible.length === 0 && !trailing) return null;
 
   return (
-    <nav className={cn("hms-bottomnav", className)} aria-label={label}>
+    <nav className={cn('hms-bottomnav', className)} aria-label={label}>
       {visible.map((item) => {
         const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={cn("hms-bottomnav__item", item.active && "hms-bottomnav__item--active")}
-            aria-current={item.active ? "page" : undefined}
+            className={cn('hms-bottomnav__item', item.active && 'hms-bottomnav__item--active')}
+            aria-current={item.active ? 'page' : undefined}
           >
             <Icon size={20} strokeWidth={item.active ? 2 : 1.75} aria-hidden />
             <span className="hms-bottomnav__label">{item.label}</span>
@@ -75,7 +75,7 @@ export interface NavDrawerProps {
   children: ReactNode;
   title?: string;
   /** Which edge it slides from. Right pairs with a top-right hamburger. */
-  side?: "right" | "left";
+  side?: 'right' | 'left';
   footer?: ReactNode;
 }
 
@@ -85,7 +85,14 @@ export interface NavDrawerProps {
  * `data-lenis-prevent`, so the page never scrolls behind it and normal scrolling
  * resumes on close. Focus is trapped while open and returns to the trigger.
  */
-export function NavDrawer({ open, onClose, children, title = "Menu", side = "right", footer }: NavDrawerProps) {
+export function NavDrawer({
+  open,
+  onClose,
+  children,
+  title = 'Menu',
+  side = 'right',
+  footer,
+}: NavDrawerProps) {
   useScrollLock(open);
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -99,12 +106,12 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
     panelRef.current?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         latestClose.current();
         return;
       }
-      if (e.key !== "Tab" || !panelRef.current) return;
+      if (e.key !== 'Tab' || !panelRef.current) return;
       const focusable = panelRef.current.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
@@ -120,9 +127,9 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
       }
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener('keydown', onKeyDown);
       opener.current?.focus?.();
     };
     // `open` alone, deliberately. A caller's inline `onClose` is a new function every render, and
@@ -131,7 +138,7 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
     // handler reads the current callback from a ref instead.
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
@@ -145,11 +152,16 @@ export function NavDrawer({ open, onClose, children, title = "Menu", side = "rig
         aria-modal="true"
         aria-label={title}
         data-lenis-prevent
-        className={cn("hms-drawer", side === "left" && "hms-drawer--left")}
+        className={cn('hms-drawer', side === 'left' && 'hms-drawer--left')}
       >
         <div className="hms-drawer__head">
           <span className="hms-drawer__title">{title}</span>
-          <button type="button" className="hms-drawer__close" aria-label="Close menu" onClick={onClose}>
+          <button
+            type="button"
+            className="hms-drawer__close"
+            aria-label="Close menu"
+            onClick={onClose}
+          >
             <X size={20} strokeWidth={2} aria-hidden />
           </button>
         </div>
@@ -167,7 +179,7 @@ export function NavDrawerItem({
   icon: Icon,
   active,
   onClick,
-  linkAs: Link = "a",
+  linkAs: Link = 'a',
   children,
 }: {
   href: string;
@@ -181,8 +193,8 @@ export function NavDrawerItem({
     <Link
       href={href}
       onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={cn("hms-drawer__item", active && "hms-drawer__item--active")}
+      aria-current={active ? 'page' : undefined}
+      className={cn('hms-drawer__item', active && 'hms-drawer__item--active')}
     >
       {Icon ? <Icon size={18} strokeWidth={1.75} aria-hidden /> : null}
       <span>{children}</span>

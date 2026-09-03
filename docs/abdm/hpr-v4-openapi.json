@@ -1,1 +1,2938 @@
-{"openapi":"3.0.1","info":{"title":"Health Professional Registry APIs"},"servers":[{"url":"https://apihspsbx.abdm.gov.in/v4/int"}],"security":[{"BearerAuth":[]}],"paths":{"/aadhaar/generateLink":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"generateAadhaarLink","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AadharGenerateLinkRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/AadharGenerateLinkResponse"}}}}}}},"/aadhaar/isAuthenticated":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"isAadhaarAuthenticated","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AadhaarGetTransactionRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"boolean"}}}}}}},"/v2/registration/aadhaar/verifyOTP":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"verifyOtp","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AadhaarGetTransactionRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/AadharVerifyResponsePayload"}}}}}}},"/v2/registration/aadhaar/demographicAuthViaMobile":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"demographicAuthViaMobile","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HPRIDGenerateMobileOTPResponseDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/MobileDemographicAuthResponseModel"}}}}}}},"/v1/registration/aadhaar/checkHpIdAccountExist":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"accountExist","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AccountExistPayload"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/AccountExistResponsePayload"}}}}}}},"/v1/registration/aadhaar/hpid/suggestion":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"getSuggesstion","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HpIdSuggestionRequst"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"type":"string"}}}}}}}},"/v1/registration/aadhaar/generateMobileOTP":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"generateMobileOtp","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HPRIDGenerateMobileOTPRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/HPRIDGenerateMobileOTPResponseDTO"}}}}}}},"/v1/registration/aadhaar/verifyMobileOTP":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"verifyMobileOTP","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HPRIDVerifyMobileOTPRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/HPRIDVerifyMobileOTPResponseDTO"}}}}}}},"/v2/registration/aadhaar/createHprIdWithPreVerified":{"post":{"tags":["Registration API's Collection Via Aadhaar"],"operationId":"createHprIdV2","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateAccountWithPreVerifiedAadhaar"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CreateAccountJwtResponse"}}}}}}},"/apis/v1/doctors/register-professional-new":{"post":{"tags":["Enrollment"],"operationId":"registerProfesstional","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HealthProfessionalDto"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/HealthProfessionalResponseDto"}}}}}}},"/apis/v1/doctors/update-professional-new":{"post":{"tags":["Enrollment"],"operationId":"updateProfesstional","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HealthProfessionalDto"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/HealthProfessionalResponseDto"}}}}}}},"/apis/v1/doctors/fetch-documents-list":{"post":{"tags":["Enrollment"],"operationId":"fetchDocuments","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FetchRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/FetchDocumentResponseDTO"}}}}}}},"/apis/v1/uploads/upload-document":{"post":{"tags":["Enrollment"],"operationId":"uploadDocuments","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UploadDocumentDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/UploadDocumentResponseDTO"}}}}}}},"/apis/v1/doctors/fetch-professional-info":{"post":{"tags":["Enrollment"],"operationId":"getProfessionalInfo","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FetchPracticionerRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/FetchProfessionalResponseDTO"}}}}}}},"/apis/v1/masters/affiliated-board":{"get":{"tags":["Utility"],"operationId":"getAllAffiliatedBoard","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/AffiliatedBoardResponseDTO"}}}}}}}},"/apis/v1/masters/affiliated-board/states/{id}":{"get":{"tags":["Utility"],"operationId":"getAffiliatedBoardByStateId","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int32"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/AffiliatedBoard"}}}}}}}},"/apis/v1/masters/affiliated-board/{id}":{"get":{"tags":["Utility"],"operationId":"getAffiliatedBoardById","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/AffiliatedBoardResponseDTO"}}}}}}},"/apis/v1/masters/colleges/{id}":{"get":{"tags":["Utility"],"operationId":"getCollegeByState","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/CollegeResponseDTO"}}}}}}}},"/apis/v1/masters/colleges/{stateId}/{medicineId}":{"get":{"tags":["Utility"],"operationId":"getCollegeByStateAndMedicineId","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"stateId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"medicineId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/CollegeResponseDTO"}}}}}}}},"/apis/v1/masters/countries":{"get":{"tags":["Utility"],"operationId":"getAllCountries","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/CountriesResponseDTO"}}}}}}}},"/apis/v1/masters/countries/{id}":{"get":{"tags":["Utility"],"operationId":"getCountriesById","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int32"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CountriesResponseDTO"}}}}}}},"/apis/v1/masters/courses":{"post":{"tags":["Utility"],"operationId":"listCourses","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CoursesRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/CoursesRequestDTO"}}}}}}}},"/apis/v1/masters/district":{"get":{"tags":["Utility"],"operationId":"getAllDistricts","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/DistrictsResponseDTO"}}}}}}}},"/apis/v1/masters/district/{id}":{"get":{"tags":["Utility"],"operationId":"getDistrictsByState","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/DistrictsResponseDTO"}}}}}}}},"/apis/v1/masters/languages":{"get":{"tags":["Utility"],"operationId":"listGovernmentHealthProgrammes","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/PiLanguagesResponseDTO"}}}}}}}},"/apis/v1/masters/languages/{id}":{"get":{"tags":["Utility"],"operationId":"getPiLanguagesById","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int32"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PiLanguagesResponseDTO"}}}}}}},"/apis/v1/masters/medical-councils":{"get":{"tags":["Utility"],"operationId":"getAllMedicalCouncil","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/MedicalCouncilResponseDTO"}}}}}}}},"/apis/v1/masters/medical-councils/name":{"get":{"tags":["Utility"],"operationId":"getMedicalCouncilBySystemOfMedicineName","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"medicineName","in":"query","required":true,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/MedicalCouncilResponseDTO"}}}}}}}},"/apis/v1/masters/nurse-councils":{"get":{"tags":["Utility"],"operationId":"getAllNurseCouncils","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/NurseCouncilsResponseDTO"}}}}}}}},"/apis/v1/masters/states":{"get":{"tags":["Utility"],"operationId":"getAllStates","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/StatesResponseDTO"}}}}}}}},"/apis/v1/masters/states/{id}":{"get":{"tags":["Utility"],"operationId":"getStatus","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"pattern":"^[0-9]{2}$","type":"integer","format":"int64"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/StatesResponseDTO"}}}}}}},"/apis/v1/masters/sub-districts":{"get":{"tags":["Utility"],"operationId":"getAllSubDistricts","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/SubDistrictsResponseDTO"}}}}}}}},"/apis/v1/masters/sub-districts/{id}":{"get":{"tags":["Utility"],"operationId":"getAllSubDistricts_1","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int32"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/SubDistrictsResponseDTO"}}}}}}}},"/apis/v1/masters/system-of-medicines":{"get":{"tags":["Utility"],"operationId":"getAllMedicalSystem","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/MedicalSystemResponseDTO"}}}}}}}},"/apis/v1/masters/universites":{"get":{"tags":["Utility"],"operationId":"listAllUniversity","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/UniversityResponseDTO"}}}}}}}},"/apis/v1/masters/universites/{id}":{"get":{"tags":["Utility"],"operationId":"getUniversityByCollege","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/UniversityResponseDTO"}}}}}}}},"/fetchProfessionalFacility":{"post":{"tags":["hpr"],"operationId":"fetchProfessionalFacility","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FacilityRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/HprProfileFacilityResponseDTO"}}}}}}}},"/getFacilityCreatedByHprId":{"post":{"tags":["Utility"],"operationId":"getFacilitiesCreatedByHprId","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32"}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FacilitiesByHprIdRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/FacilityByHprIdResponse"}}}}}}},"/getFacilityDeclaredByHprId":{"post":{"tags":["Utility"],"operationId":"getFacilitiesDeclaredByHprId","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FacilitiesByHprIdRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/FacilityDeclaredByHprIdResponseDTO"}}}}}}},"/hprFacilitySuggestions":{"post":{"tags":["hpr"],"operationId":"createFacilitySuggestion","parameters":[{"name":"Authorization","in":"header","required":true,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/HprFacilitySuggestionRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/HprFacilitySuggestionResponseDTO"}}}}}}},"/hprWorkDetails/status":{"put":{"tags":["Utility"],"operationId":"updateStatus","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/WorkStatusUpdateRequestDTO"}}},"required":true},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/relinkOrDelinkProfessionalFromFacility":{"post":{"tags":["Utility"],"operationId":"linkDelinkExistingFacility","parameters":[{"name":"Authorization","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RelinkDelinkExistingFacilityRequest"}}}},"responses":{"404":{"description":"Not Found","content":{"*/*":{"schema":{"type":"string"}}}},"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/RelinkDelinkExistingFacilityResponse"}}}}}}}},"components":{"schemas":{"WorkStatusUpdateRequestDTO":{"type":"object","properties":{"status":{"type":"string"},"facilityId":{"type":"string"},"professionalHprId":{"type":"string"},"managerHprId":{"type":"string"},"isHpr":{"type":"boolean"}}},"AadhaarGetTransactionRequest":{"type":"object","properties":{"txnId":{"type":"string"}}},"AadharVerifyResponsePayload":{"type":"object","properties":{"txnId":{"type":"string"},"mobileNumber":{"type":"string"},"photo":{"type":"string"},"gender":{"type":"string"},"name":{"type":"string"},"email":{"type":"string"},"pincode":{"type":"string"},"birthdate":{"type":"string"},"careOf":{"type":"string"},"house":{"type":"string"},"street":{"type":"string"},"landmark":{"type":"string"},"locality":{"type":"string"},"villageTownCity":{"type":"string"},"subDist":{"type":"string"},"district":{"type":"string"},"state":{"type":"string"},"postOffice":{"type":"string"},"address":{"type":"string"}}},"HPRIDGenerateMobileOTPResponseDTO":{"type":"object","properties":{"txnId":{"type":"string"},"mobileNumber":{"type":"string"}}},"MobileDemographicAuthResponseModel":{"type":"object","properties":{"verified":{"type":"boolean"}}},"CreateAccountWithPreVerifiedAadhaar":{"required":["email","txnId"],"type":"object","properties":{"idType":{"type":"string","example":"hpr_id"},"domainName":{"type":"string","example":"@hpr.abdm"},"email":{"type":"string","description":"Email Address of the user.","example":"user@abdm.com"},"firstName":{"type":"string","description":"First Name of the user).","example":"Ayushman"},"middleName":{"type":"string","description":"Middle name of the user ","example":"Bharat"},"lastName":{"type":"string","description":"Last name of the user ","example":"Mission"},"password":{"type":"string","description":"Passwords for authentication","example":"Ayushman@143"},"profilePhoto":{"type":"string","description":"Profile photo of the user (Uploaded by the user).","example":"<BASE64 ENCODED STRING>"},"txnId":{"type":"string","description":"Transaction ID","format":"uuid","example":"c3b0c27d-e19d-4244-b8bb-3fa19285054a"},"hprId":{"type":"string","description":"Healthcare Professional ID Alias.","example":"user@hpr.abdm"},"sourceType":{"type":"string","enum":["DRIVING_LICENSE","AADHAAR"]},"hpCategoryCode":{"type":"integer","format":"int32","example":1},"hpSubCategoryCode":{"type":"integer","format":"int32","example":1},"clientId":{"type":"string","example":"V4"},"stateCode":{"type":"string"},"districtCode":{"type":"string"},"council":{"type":"boolean"},"role":{"type":"integer","format":"int32"}}},"CreateAccountJwtResponse":{"type":"object","properties":{"token":{"type":"string"},"hprIdNumber":{"type":"string"},"name":{"type":"string"},"gender":{"type":"string"},"yearOfBirth":{"type":"string"},"monthOfBirth":{"type":"string"},"dayOfBirth":{"type":"string"},"firstName":{"type":"string"},"hprId":{"type":"string"},"lastName":{"type":"string"},"middleName":{"type":"string"},"stateCode":{"type":"string"},"districtCode":{"type":"string"},"subDistrictCode":{"type":"string"},"subDistrictName":{"type":"string"},"stateName":{"type":"string"},"districtName":{"type":"string"},"email":{"type":"string"},"kycPhoto":{"type":"string"},"mobile":{"type":"string"},"categoryId":{"type":"integer","format":"int32"},"subCategoryId":{"type":"integer","format":"int32"},"role":{"type":"integer","format":"int32"},"authMethods":{"uniqueItems":true,"type":"array","items":{"type":"string","enum":["AADHAAR_OTP","MOBILE_OTP","PASSWORD","DEMOGRAPHICS","AADHAAR_BIO","EMAIL_OTP","MOBILE_OTP_RESET_PASSWROD","FACE_AUTH"]}},"new":{"type":"boolean"}}},"VerifyOtpRequest":{"type":"object","properties":{"txnId":{"type":"string"},"otp":{"type":"string"}}},"VerifyDoctorOtpResponse":{"type":"object","properties":{"message":{"type":"string"},"verified":{"type":"boolean"}}},"SendOtpIfDoctorVerifiedRequest":{"type":"object","properties":{"hprId":{"type":"string"},"mobileNumber":{"type":"string"}}},"SendOtpIfDoctorVerifiedResponse":{"type":"object","properties":{"txnId":{"type":"string"},"message":{"type":"string"},"mobileNumber":{"type":"string"}}},"HPRIDVerifyMobileOTPRequestDTO":{"type":"object","properties":{"otp":{"type":"string"},"txnId":{"type":"string"}}},"HPRIDVerifyMobileOTPResponseDTO":{"type":"object","properties":{"txnId":{"type":"string"},"mobileNumber":{"type":"string"}}},"HpIdSuggestionRequst":{"required":["txnId"],"type":"object","properties":{"txnId":{"type":"string","description":"Based on UUID","example":"a825f76b-0696-40f3-864c-5a3a5b389a83"}}},"HPRIDGenerateMobileOTPRequestDTO":{"type":"object","properties":{"mobile":{"type":"string"},"txnId":{"type":"string"}}},"AccountExistPayload":{"type":"object","properties":{"txnId":{"type":"string"},"preverifiedCheck":{"type":"boolean"}}},"AccountExistResponsePayload":{"type":"object","properties":{"token":{"type":"string"},"hprIdNumber":{"type":"string"},"categoryId":{"type":"integer","format":"int32"},"categoryName":{"type":"string"},"subCategoryId":{"type":"integer","format":"int32"},"categorySubName":{"type":"string"},"txnId":{"type":"string","format":"uuid"},"name":{"type":"string"},"gender":{"type":"string"},"yearOfBirth":{"type":"string"},"monthOfBirth":{"type":"string"},"dayOfBirth":{"type":"string"},"firstName":{"type":"string"},"middleName":{"type":"string"},"lastName":{"type":"string"},"stateCode":{"type":"string"},"districtCode":{"type":"string"},"stateName":{"type":"string"},"districtName":{"type":"string"},"address":{"type":"string"},"pincode":{"type":"string"},"profilePhoto":{"type":"string"},"mobile":{"type":"string"},"hprId":{"type":"string"},"new":{"type":"boolean"}}},"RetriveHprIdMobilePayLoad":{"required":["firstName","gender","name","otp","txnId","yearOfBirth"],"type":"object","properties":{"txnId":{"type":"string","format":"uuid"},"name":{"type":"string"},"gender":{"pattern":"^(M|F|O|U)$","type":"string"},"yearOfBirth":{"pattern":"^(\\d{4})$","type":"string"},"monthOfBirth":{"pattern":"^(0?[1-9]|1[012])$","type":"string"},"dayOfBirth":{"pattern":"^(0?[1-9]|[12][0-9]|3[01])$","type":"string"},"firstName":{"type":"string"},"lastName":{"type":"string"},"middleName":{"type":"string"},"otp":{"type":"string"}}},"RetrieveHprIdPayloadResponse":{"type":"object","properties":{"hprId":{"type":"string"},"hprIdNumber":{"type":"string"},"token":{"type":"string"}}},"SendOtpRequest":{"type":"object","properties":{"mobileNumber":{"type":"string"},"email":{"type":"string"},"type":{"type":"string"},"hpid":{"type":"string"}}},"SendOtpResponse":{"type":"object","properties":{"txnId":{"type":"string"},"msg":{"type":"string"},"mobileNumber":{"type":"string"}}},"AadhaarVerifyOtpRequestDto":{"type":"object","properties":{"aadhaarNumber":{"type":"string"},"otp":{"type":"string"},"faceAuthPid":{"type":"string"},"aadhaarLogType":{"type":"string"},"transactionId":{"type":"string"},"txnId":{"type":"string"}}},"AuthRequestDto":{"type":"object","properties":{"authType":{"type":"string","enum":["AADHAAR_OTP","USERNAME_PASSWORD","MOBILE_OTP"]},"hprId":{"type":"string"},"password":{"type":"string"},"aadhaar":{"type":"string"},"mobileNumber":{"type":"string"},"txnId":{"type":"string","format":"uuid"},"otp":{"type":"string"},"resend":{"type":"boolean"},"aadhaarVerifyOtpRequestDto":{"$ref":"#/components/schemas/AadhaarVerifyOtpRequestDto"}}},"UserDTO":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"hprId":{"type":"string"},"mobile":{"type":"string"},"firstName":{"type":"string"},"middleName":{"type":"string"},"lastName":{"type":"string"},"name":{"type":"string"},"yearOfBirth":{"type":"string"},"dayOfBirth":{"type":"string"},"monthOfBirth":{"type":"string"},"gender":{"type":"string"},"email":{"type":"string"},"profilePhoto":{"type":"string"},"stateCode":{"type":"string"},"districtCode":{"type":"string"},"subDistrictCode":{"type":"string"},"villageCode":{"type":"string"},"townCode":{"type":"string"},"wardCode":{"type":"string"},"pinCode":{"type":"string"},"address":{"type":"string"},"kycPhoto":{"type":"string"},"stateName":{"type":"string"},"districtName":{"type":"string"},"subdistrictName":{"type":"string"},"villageName":{"type":"string"},"townName":{"type":"string"},"wardName":{"type":"string"},"authMethods":{"uniqueItems":true,"type":"array","items":{"type":"string","enum":["AADHAAR_OTP","MOBILE_OTP","PASSWORD","DEMOGRAPHICS","AADHAAR_BIO","EMAIL_OTP","MOBILE_OTP_RESET_PASSWROD","FACE_AUTH"]}},"kycVerified":{"type":"boolean"},"verificationType":{"type":"string"},"verificationStatus":{"type":"string"},"categoryId":{"type":"integer","format":"int32"},"categoryName":{"type":"string"},"categorySubId":{"type":"integer","format":"int32"},"categorySubName":{"type":"string"},"token":{"type":"string"},"hprIdCategories":{"type":"array","items":{"type":"integer","format":"int32"}},"fileEntityProfileId":{"type":"integer","format":"int64"},"fileEntityKycId":{"type":"integer","format":"int64"},"role":{"type":"integer","format":"int32"},"hprProfileId":{"type":"integer","format":"int64"},"new":{"type":"boolean"},"emailVerified":{"type":"boolean"},"xmluidexist":{"type":"boolean"}}},"TxnResponse":{"type":"object","properties":{"txnId":{"type":"string","description":"Based on UUID","format":"uuid","example":"a825f76b-0696-40f3-864c-5a3a5b389a83"},"mobileNumber":{"type":"string","example":"******2125"},"msg":{"type":"string"},"verified":{"type":"boolean"}}},"RelinkDelinkExistingFacilityRequest":{"type":"object","properties":{"hprId":{"type":"string"},"facilityId":{"type":"string"},"action":{"type":"string"}}},"RelinkDelinkExistingFacilityResponse":{"type":"object","properties":{"facilityId":{"type":"string"},"hprId":{"type":"string"},"status":{"type":"string"},"message":{"type":"string"},"errorStatus":{"type":"array","items":{"type":"object"}}}},"UpdateAccountWebRequest":{"type":"object","properties":{"firstName":{"type":"string","description":"First Name of the user).","example":"Ayushman"},"lastName":{"type":"string","description":"Last name of the user ","example":"Mission"},"middleName":{"type":"string","description":"Middle name of the user ","example":"Bharat"},"hprId":{"type":"string","description":"Healthcare Professional ID Alias.","example":"user@hpr.abdm"},"password":{"type":"string","description":"User Authentication password.","example":"Abdm@143"},"email":{"type":"string","description":"Email Address of the user.","example":"user@abdm.com"},"profilePhoto":{"type":"string","description":"Profile photo of the user (Uploaded by the user).","example":"<BASE64 ENCODED STRING>"},"stateCode":{"type":"string","description":"State Code of the user (LGD).","example":"7"},"districtCode":{"type":"string","description":"District Code of the user (LGD).","example":"71"},"subdistrictCode":{"type":"string","description":"Sub District Code of the user (LGD).","example":"1"},"villageCode":{"type":"string","description":"Village Code of the user (LGD)."},"townCode":{"type":"string","description":"Town Code of the user (LGD)."},"wardCode":{"type":"string","description":"Ward Code of the user (LGD)."},"pincode":{"type":"integer","description":"Pincode of the user.","format":"int32","example":110001},"address":{"type":"string","description":"Address of the user.","example":"9th Floor, Tower-l, Jeevan Bharati Building, Connaught Place, New Delhi - 110001"},"yearOfBirth":{"type":"string","description":"Year of birth of the user.","example":"2021"},"monthOfBirth":{"type":"string","description":"Month of birth of the user.","example":"8"},"dayOfBirth":{"type":"string","description":"Day of birth of the user.","example":"15"},"hpCategoryCode":{"type":"string","example":"1"},"hpSubCategoryCode":{"type":"string","example":"1"},"txnId":{"type":"string","format":"uuid"},"role":{"type":"string"},"consentToDelete":{"type":"boolean"}}},"HidOtpWebRequestPaylaod":{"required":["newPassword","otp","txnId"],"type":"object","properties":{"newPassword":{"type":"string","description":"Encrypted new Password."},"otp":{"type":"string","description":"Encrypted OTP."},"txnId":{"type":"string","format":"uuid"}}},"PasswordChangeDTO":{"type":"object","properties":{"message":{"type":"string"}}},"ValidateAaddhaarDemographicMobileResponseDTO":{"type":"object","properties":{"verified":{"type":"boolean"},"txnId":{"type":"string"}}},"HidChangePasswordRequestPayload":{"required":["newPassword"],"type":"object","properties":{"oldPassword":{"type":"string"},"newPassword":{"type":"string"},"txnId":{"type":"string"},"hprID":{"type":"string"},"otp":{"type":"string"}}},"CategoryRequest":{"required":["hprId"],"type":"object","properties":{"hprId":{"type":"string"},"categories":{"type":"object","additionalProperties":{"type":"string"}}}},"Districts":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"stateId":{"type":"integer","format":"int64"},"districtName":{"type":"string"},"isoCode":{"type":"string"},"status":{"type":"boolean"}}},"FacilityOwnershipDTO":{"type":"object","properties":{"label":{"type":"string"},"value":{"type":"string"}}},"FacilityTypeDTO":{"type":"object","properties":{"id":{"$ref":"#/components/schemas/IdDTO"},"facilityType":{"type":"string"},"facilityTypeNdhm":{"type":"string"},"opd":{"type":"string"},"ipd":{"type":"string"},"dayCare":{"type":"string"},"other":{"type":"string"},"activeYN":{"type":"string"},"createdBy":{"type":"string"},"createdDate":{"type":"string"},"lastUpdatedUser":{"type":"string"},"lastUpdatedDate":{"type":"string"},"linkToForm":{"type":"string"},"facilityCode":{"type":"string"},"facilityCodeUfid":{"type":"string"},"facilityOrder":{"type":"integer","format":"int32"}}},"HprFacilitySuggestionRequestDTO":{"type":"object","properties":{"name":{"type":"string"},"address":{"type":"string"},"state":{"$ref":"#/components/schemas/States"},"district":{"$ref":"#/components/schemas/Districts"},"pincode":{"type":"integer","format":"int64"},"contactNo":{"type":"integer","format":"int64"},"email":{"pattern":"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$\n","type":"string"},"contactName":{"type":"string"},"status":{"type":"string","enum":["pending","approved","rejected"]},"createdBy":{"type":"integer","format":"int64"},"updatedBy":{"type":"integer","format":"int64"},"facilityId":{"type":"integer","format":"int64"},"hprProfileId":{"type":"integer","format":"int64"},"facilityName":{"type":"string"},"facilityOwnership":{"$ref":"#/components/schemas/FacilityOwnershipDTO"},"systemMedicine":{"type":"array","items":{"$ref":"#/components/schemas/SystemMedicineDTO"}},"facilityType":{"$ref":"#/components/schemas/FacilityTypeDTO"},"department":{"type":"string"},"designation":{"type":"string"},"ministry":{"$ref":"#/components/schemas/MinistryResponseDTO"},"psuName":{"type":"string"}}},"IdDTO":{"type":"object","properties":{"sno":{"type":"integer","format":"int32"},"systemmedicine":{"type":"string"}}},"MinistryResponseDTO":{"type":"object","properties":{"ministry":{"type":"string"}}},"States":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"isoCode":{"type":"string"},"status":{"type":"boolean"},"countryId":{"type":"integer","format":"int32"},"visibleStatus":{"type":"boolean"},"position":{"type":"boolean"},"councilLabel":{"type":"string"},"systemOfMedicine":{"type":"boolean"}}},"SystemMedicineDTO":{"type":"object","properties":{"id":{"type":"string"},"lastUpdateDate":{"type":"string"},"dropOrder":{"type":"integer","format":"int32"},"creationDate":{"type":"string"},"activeYN":{"type":"string"},"createdBy":{"type":"string"},"lastUpdatedUser":{"type":"string"},"nhrrMedicineCode":{"type":"string"},"value":{"type":"string"},"type":{"type":"string"}}},"HprFacilitySuggestionResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"address":{"type":"string"},"state":{"$ref":"#/components/schemas/States"},"district":{"$ref":"#/components/schemas/Districts"},"pincode":{"type":"integer","format":"int64"},"contactNo":{"type":"integer","format":"int64"},"email":{"type":"string"},"contactName":{"type":"string"},"status":{"type":"string","enum":["pending","approved","rejected"]},"createdBy":{"type":"integer","format":"int64"},"updatedBy":{"type":"integer","format":"int64"},"createdAt":{"type":"string","format":"date-time"},"updatedAt":{"type":"string","format":"date-time"},"facilityId":{"type":"integer","format":"int64"},"hprProfileId":{"type":"integer","format":"int64"},"facilityName":{"type":"string"},"facilityOwnership":{"type":"string"},"systemMedicine":{"type":"array","items":{"type":"string"}},"facilityType":{"type":"string"},"department":{"type":"string"},"designation":{"type":"string"},"ministry":{"$ref":"#/components/schemas/MinistryResponseDTO"},"psuName":{"type":"string"}}},"TokenRequestDTO":{"type":"object","properties":{"txnId":{"type":"string"},"issueToken":{"type":"string"},"token":{"type":"string"}}},"TokenResponseDTO":{"type":"object","properties":{"hbi":{"type":"boolean"},"docid":{"type":"string"},"status":{"type":"string"},"siteUrl":{"type":"string"},"token":{"type":"string"}}},"LoginDTO":{"type":"object","properties":{"username":{"type":"string"},"password":{"type":"string"},"resend":{"type":"boolean"}}},"LoginResponseDTO":{"type":"object","properties":{"token":{"type":"string"},"ncToken":{"type":"string"}}},"FacilitiesByHprIdRequest":{"type":"object","properties":{"hprId":{"type":"string"},"source":{"type":"string"}}},"FacilityDeclaredByHprIdResponseDTO":{"type":"object","properties":{"totalNoOfFacilities":{"type":"integer","format":"int32"},"facilities":{"type":"array","items":{"$ref":"#/components/schemas/FacilityDetailsResponseDTO"}}}},"FacilityDetailsResponseDTO":{"type":"object","properties":{"facilityId":{"type":"string"},"facilityName":{"type":"string"},"faciltyAddress":{"type":"string"},"department":{"type":"string"},"designation":{"type":"string"},"state":{"type":"string"},"district":{"type":"string"},"isCurrent":{"type":"boolean"}}},"FacilityByHprIdResponse":{"type":"object","properties":{"message":{"type":"string"},"numberOfFacilities":{"type":"integer","format":"int32"},"numberOfPages":{"type":"integer","format":"int32"},"facilities":{"type":"array","items":{"$ref":"#/components/schemas/SearchFacilityByHprIdResponseDTO"}}}},"SearchFacilityByHprIdResponseDTO":{"type":"object","properties":{"facilityId":{"type":"string"},"facilityName":{"type":"string"},"district":{"type":"string"},"state":{"type":"string"}}},"FacilityRequestDTO":{"type":"object","properties":{"facilityId":{"type":"string"},"page":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"HprProfileFacilityResponseDTO":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"name":{"type":"string"},"gender":{"type":"string"},"hprType":{"type":"string","enum":["doctor","nurse","facility_manager","asha","paharmacist","anganwadi","administrator","paramedical","pharmacist"]},"councilVerified":{"type":"boolean"}}},"DocumentDTO":{"type":"object","properties":{"document_id":{"type":"integer","format":"int64"},"document_type":{"type":"string"},"fileType":{"type":"string"},"data":{"type":"array","items":{"type":"string","format":"byte"}}}},"UploadDocumentDTO":{"type":"object","properties":{"hpr_token":{"type":"string"},"document":{"type":"array","items":{"$ref":"#/components/schemas/DocumentDTO"}}}},"UploadDocumentMessage":{"type":"object","properties":{"status":{"type":"string"},"msg":{"type":"string"}}},"UploadDocumentResponseDTO":{"type":"object","properties":{"profilePhoto":{"$ref":"#/components/schemas/UploadDocumentMessage"},"degreeCertificate":{"$ref":"#/components/schemas/UploadDocumentMessage"},"registrationCertificate":{"$ref":"#/components/schemas/UploadDocumentMessage"},"proofOfWorkCertificate":{"$ref":"#/components/schemas/UploadDocumentMessage"}}},"CoursesRequestDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"systemOfMedicineId":{"type":"integer","format":"int32"},"visibleStatus":{"type":"boolean"},"status":{"type":"boolean"},"sortOrder":{"type":"boolean"},"courseCategory":{"type":"string","enum":["basic","additional"]},"systemOfMedicine":{"type":"string"},"hprType":{"type":"string","enum":["doctor","nurse","facility_manager","asha","paharmacist","anganwadi","administrator","paramedical","pharmacist"]},"qualificationCount":{"type":"integer","format":"int32"},"international":{"type":"boolean"},"createdBy":{"type":"integer","format":"int64"},"acronym":{"type":"string"},"priority":{"type":"string"}}},"AadhaarGenerateOTPResponseDTO":{"type":"object","properties":{"status":{"type":"string"},"txnId":{"type":"string"}}},"EmailOTPVerificationRequestDTO":{"type":"object","properties":{"hpr_token":{"type":"string"},"hpr_id":{"type":"string"},"officialEmail":{"type":"string"},"emailOtp":{"type":"integer","format":"int32"}}},"EmailOTPVerificationResponseDTO":{"type":"object","properties":{"status":{"type":"string"},"msg":{"type":"string"}}},"CertificateDTO":{"type":"object","properties":{"fileType":{"type":"string"},"data":{"type":"string"}}},"CommunicationAddressDTO":{"type":"object","properties":{"isCommunicationAddressAsPerKYC":{"type":"string"},"address":{"type":"string"},"name":{"type":"string"},"country":{"type":"string"},"state":{"type":"string"},"district":{"type":"string"},"subDistrict":{"type":"string"},"city":{"type":"string"},"pincode":{"type":"string"}}},"ContactInformationDTO":{"type":"object","properties":{"publicMobileNumber":{"type":"string"},"publicMobileNumberCode":{"type":"string"},"publicMobileNumberStatus":{"type":"string"},"landLineNumber":{"type":"string"},"landLineNumberCode":{"type":"string"},"publicEmail":{"type":"string"},"publicEmailStatus":{"type":"string"}}},"CurrentWorkDetailsDTO":{"type":"object","properties":{"facilityDeclarationData":{"$ref":"#/components/schemas/FacilityDeclarationDataDTO"},"currentlyWorking":{"type":"string"},"purposeOfWork":{"type":"string"},"chooseWorkStatus":{"type":"string"},"reasonForNotWorking":{"type":"string"},"certificateAttachment":{"type":"string"}}},"FacilityDeclarationDataDTO":{"type":"object","properties":{"ministry":{"$ref":"#/components/schemas/MinistryResponseDTO"},"facilityId":{"type":"string"},"facilityName":{"type":"string"},"facilityAddress":{"type":"string"},"facilityPincode":{"type":"string"},"state":{"type":"string"},"district":{"type":"string"},"facilityType":{"type":"string"},"facilityDepartment":{"type":"string"},"facilityDesignation":{"type":"string"},"areYouWorkingForPsu":{"type":"string"},"psuName":{"type":"string"}}},"HealthProfessionalDto":{"type":"object","properties":{"practitioner":{"$ref":"#/components/schemas/PractitionerDTO"},"hprToken":{"type":"string"}}},"PersonalInformationDTO":{"type":"object","properties":{"fname":{"type":"string"},"mname":{"type":"string"},"salutation":{"type":"string"},"firstName":{"type":"string"},"middleName":{"type":"string"},"lastName":{"type":"string"},"fatherName":{"type":"string"},"motherName":{"type":"string"},"spouseName":{"type":"string"},"nationality":{"type":"string"},"placeOfBirthState":{"type":"string"},"district":{"type":"string"},"subDistrict":{"type":"string"},"city":{"type":"string"},"languagesSpoken":{"type":"string"},"dateOfBirth":{"type":"string","format":"date-time"},"category":{"type":"string"},"gender":{"type":"string"}}},"PractitionerDTO":{"type":"object","properties":{"personalInformation":{"$ref":"#/components/schemas/PersonalInformationDTO"},"communicationAddress":{"$ref":"#/components/schemas/CommunicationAddressDTO"},"contactInformation":{"$ref":"#/components/schemas/ContactInformationDTO"},"registrationAcademic":{"$ref":"#/components/schemas/RegistrationAcademicDTO"},"specialities":{"type":"array","items":{"$ref":"#/components/schemas/SpecialitiesDTO"}},"currentWorkDetails":{"$ref":"#/components/schemas/CurrentWorkDetailsDTO"},"apiClientId":{"type":"string"},"profilePhoto":{"type":"string"},"healthProfessionalType":{"type":"string"},"officialMobileCode":{"type":"string"},"officialMobile":{"type":"string"},"officialMobileStatus":{"type":"string"},"officialEmail":{"type":"string"},"officialEmailStatus":{"type":"string"},"visibleProfilePicture":{"type":"string"},"profileVisibleToPublic":{"type":"string"},"addressAsPerKYC":{"type":"string"}}},"QualificationsDTO":{"type":"object","properties":{"nameOfDegreeOrDiplomaObtained":{"type":"string"},"country":{"type":"string"},"state":{"type":"string"},"college":{"type":"string"},"university":{"type":"string"},"monthOfAwardingDegreeDiploma":{"type":"string"},"yearOfAwardingDegreeDiploma":{"type":"string"},"degreeCertificate":{"$ref":"#/components/schemas/CertificateDTO"},"isNameDifferentInCertificate":{"type":"string"},"proofOfNameChangeCertificate":{"type":"string"}}},"RegistrationAcademicDTO":{"type":"object","properties":{"category":{"type":"string"},"registrationData":{"type":"array","items":{"$ref":"#/components/schemas/RegistrationDataDTO"}}}},"RegistrationDataDTO":{"type":"object","properties":{"qualifications":{"type":"array","items":{"$ref":"#/components/schemas/QualificationsDTO"}},"registeredWithCouncil":{"type":"string"},"registrationNumber":{"type":"string"},"registrationDate":{"type":"string"},"registrationCertificate":{"$ref":"#/components/schemas/CertificateDTO"},"isNameDifferentInCertificate":{"type":"string"},"proofOfNameChangeCertificate":{"type":"string"},"categoryId":{"type":"string"},"isPermanentOrRenewable":{"type":"string"},"renewableDueDate":{"type":"string"}}},"SpecialitiesDTO":{"type":"object","properties":{"speciality":{"type":"string"},"subSpecialities":{"type":"string"}}},"HealthProfessionalResponseDto":{"type":"object","properties":{"referenceNumber":{"type":"string"},"status":{"type":"string"},"message":{"type":"string"},"error":{"type":"object","additionalProperties":{"type":"object","additionalProperties":{"type":"string"}}},"hprId":{"type":"string"}}},"EmailAuthRequestDto":{"type":"object","properties":{"emailAddress":{"type":"string"},"otp_type":{"type":"string"}}},"EmailAuthResponseDto":{"type":"object","properties":{"msg":{"type":"string"},"status":{"type":"string"}}},"AadhaarGenerateOTPRequestDTO":{"required":["hpr_token","officialMobile"],"type":"object","properties":{"hpr_token":{"type":"string"},"officialMobile":{"type":"string"}}},"FetchPracticionerDTO":{"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"contactNumber":{"type":"string"},"state":{"type":"string"},"registrationNumber":{"type":"string"},"stateCouncilName":{"type":"string"}}},"FetchPracticionerRequestDTO":{"type":"object","properties":{"practitioner":{"$ref":"#/components/schemas/FetchPracticionerDTO"}}},"FetchProfessionalResponseDTO":{"type":"object","properties":{"message":{"type":"string"},"practitioners":{"type":"object"}}},"FetchRequestDTO":{"type":"object","properties":{"hprid":{"type":"string"}}},"DegreeCertificateDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"courseName":{"type":"string"},"qualificationYear":{"type":"string"},"data":{"type":"array","items":{"type":"string","format":"byte"}}}},"DocumentListDTO":{"type":"object","properties":{"profileDetails":{"$ref":"#/components/schemas/ProfileDetailsDTO"},"registrationDetails":{"type":"array","items":{"$ref":"#/components/schemas/RegistrationDetailsDTO"}},"qualificationDetails":{"type":"array","items":{"$ref":"#/components/schemas/QualificationDetailsDTO"}},"qualification":{"type":"array","items":{"$ref":"#/components/schemas/QualificationDetailsDTO"}},"internationalDoctorQualificationDetails":{"type":"array","items":{"$ref":"#/components/schemas/InternationalDoctorQualificationDetailsDTO"}}}},"FetchDocumentResponseDTO":{"type":"object","properties":{"documentList":{"$ref":"#/components/schemas/DocumentListDTO"},"message":{"type":"string"},"Message":{"type":"string"}}},"HprProfilePhotoDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"data":{"type":"array","items":{"type":"string","format":"byte"}}}},"InternationalDoctorQualificationDetailsDTO":{"type":"object","properties":{"degreeCertificate":{"$ref":"#/components/schemas/DegreeCertificateDTO"},"proofOfNameChangeQualCertificate":{"$ref":"#/components/schemas/DegreeCertificateDTO"}}},"ProfileDetailsDTO":{"type":"object","properties":{"profilePhoto":{"$ref":"#/components/schemas/HprProfilePhotoDTO"},"proofOfWorkCertificate":{"$ref":"#/components/schemas/HprProfilePhotoDTO"}}},"QualificationDetailsDTO":{"type":"object","properties":{"degreeCertificate":{"$ref":"#/components/schemas/DegreeCertificateDTO"},"proofOfNameChangeQualCertificate":{"$ref":"#/components/schemas/DegreeCertificateDTO"}}},"RegistrationCertificateDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"systemOfMedicide":{"type":"string"},"data":{"type":"array","items":{"type":"string","format":"byte"}}}},"RegistrationDetailsDTO":{"type":"object","properties":{"registrationCertificate":{"$ref":"#/components/schemas/RegistrationCertificateDTO"},"proofOfNameChangeRegCertificate":{"$ref":"#/components/schemas/RegistrationCertificateDTO"}}},"SendVerifyOtpRequestDto":{"type":"object","properties":{"mobile":{"type":"string"},"txnId":{"type":"string"},"otp":{"type":"string"},"hpid":{"type":"string"}}},"MobileLinkedHpIdDto":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"name":{"type":"string"},"hprId":{"type":"string"},"categoryId":{"type":"integer","format":"int32"},"subCategoryId":{"type":"integer","format":"int32"}}},"SendVerifyOtpResponseDto":{"type":"object","properties":{"txnId":{"type":"string"},"mobileLinkedHpIdDTO":{"type":"array","items":{"$ref":"#/components/schemas/MobileLinkedHpIdDto"}},"mobileNumber":{"type":"string"}}},"AadhaarAuthRequestDTO":{"type":"object","properties":{"idType":{"type":"string"},"domainName":{"type":"string"},"authMethod":{"type":"string"},"hprId":{"type":"string"}}},"AadhaarAuthResponseDTO":{"type":"object","properties":{"transactionId":{"type":"string","format":"uuid"},"mobileNumber":{"type":"string"}}},"AadhaarAuthVerifyRequestDTO":{"type":"object","properties":{"otp":{"type":"string"},"txnId":{"type":"string","format":"uuid"}}},"AadhaarAuthVerifyResponseDTO":{"type":"object","properties":{"token":{"type":"string"},"expiresIn":{"type":"integer","format":"int32"},"refreshToken":{"type":"string"},"refreshExpiresIn":{"type":"integer","format":"int32"}}},"LoginViaPasswordRequestDto":{"type":"object","properties":{"idType":{"type":"string"},"domainName":{"type":"string"},"hprId":{"type":"string"},"password":{"type":"string"}}},"LoginViaPasswordResponseDto":{"type":"object","properties":{"token":{"type":"string"},"expiresIn":{"type":"integer","format":"int64"},"refreshToken":{"type":"string"},"refreshExpiresIn":{"type":"integer","format":"int64"}}},"AadharGenerateLinkRequest":{"type":"object","properties":{"scopes":{"type":"array","items":{"type":"string"}},"source":{"type":"string"}}},"AadharGenerateLinkResponse":{"type":"object","properties":{"status":{"type":"string"},"txnId":{"type":"string"},"url":{"type":"string"}}},"ForgetUserEntityResponseDTO":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"name":{"type":"string"},"authMethods":{"type":"array","items":{"type":"string","enum":["AADHAAR_OTP","MOBILE_OTP","PASSWORD","DEMOGRAPHICS","AADHAAR_BIO","EMAIL_OTP","MOBILE_OTP_RESET_PASSWROD","FACE_AUTH"]}},"hprId":{"type":"string"},"categoryId":{"type":"string"},"subCategoryId":{"type":"string"}}},"UserEntityResponseDTO":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"name":{"type":"string"},"hprId":{"type":"string"},"categoryName":{"type":"string"},"categorySubName":{"type":"string"}}},"UserProfileResponseDto":{"type":"object","properties":{"hprIdNumber":{"type":"string"},"hprId":{"type":"string"},"mobile":{"type":"string"},"firstName":{"type":"string"},"middleName":{"type":"string"},"lastName":{"type":"string"},"name":{"type":"string"},"yearOfBirth":{"type":"string"},"dayOfBirth":{"type":"string"},"monthOfBirth":{"type":"string"},"gender":{"type":"string"},"email":{"type":"string"},"profilePhoto":{"type":"string"},"stateCode":{"type":"string"},"districtCode":{"type":"string"},"subDistrictCode":{"type":"string"},"villageCode":{"type":"string"},"townCode":{"type":"string"},"wardCode":{"type":"string"},"pincode":{"type":"string"},"address":{"type":"string"},"kycPhoto":{"type":"string"},"stateName":{"type":"string"},"districtName":{"type":"string"},"subdistrictName":{"type":"string"},"villageName":{"type":"string"},"townName":{"type":"string"},"wardName":{"type":"string"},"authMethods":{"type":"array","items":{"type":"string","enum":["AADHAAR_OTP","MOBILE_OTP","PASSWORD","DEMOGRAPHICS","AADHAAR_BIO","EMAIL_OTP","MOBILE_OTP_RESET_PASSWROD","FACE_AUTH"]}},"kycVerified":{"type":"boolean"},"verificationStatus":{"type":"string"},"categoryId":{"type":"integer","format":"int32"},"categoryName":{"type":"string"},"categorySubId":{"type":"integer","format":"int32"},"categorySubName":{"type":"string"},"emailVerified":{"type":"boolean"},"role":{"type":"integer","format":"int32"},"new":{"type":"boolean"}}},"ProfileResponseDTO":{"type":"object","properties":{"pdf":{"type":"array","items":{"type":"string","format":"byte"}}}},"HpSubCategoriesDTO":{"type":"object","properties":{"code":{"type":"string","example":"1"},"Modern Medicine":{"type":"string","example":"1"}}},"HpCategoriesDTO":{"type":"object","properties":{"code":{"type":"integer","format":"int32","example":1},"name":{"type":"string","example":"Doctor"},"subCategories":{"type":"array","items":{"$ref":"#/components/schemas/HpSubCategoriesDTO"}},"districts":{"type":"array","writeOnly":true,"items":{"$ref":"#/components/schemas/HpSubCategoriesDTO"}}}},"CollegeResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"status":{"type":"boolean"},"visibleStatus":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"},"systemOfMedicineId":{"type":"integer","format":"int64"},"stateId":{"type":"integer","format":"int64"},"courseId":{"type":"integer","format":"int64"},"stateName":{"type":"string"},"systemOfMedicineName":{"type":"string"},"deleted":{"type":"boolean"},"courseName":{"type":"string"}}},"UniversityResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"status":{"type":"boolean"},"visibleStatus":{"type":"boolean"},"collegeId":{"type":"integer","format":"int64"},"collegeName":{"type":"string"},"deleted":{"type":"boolean"},"college":{"$ref":"#/components/schemas/CollegeResponseDTO"}}},"MedicalSystemResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"medicalSystem":{"type":"string"},"code":{"type":"string"},"position":{"type":"integer","format":"int32"},"excludeStates":{"type":"string"},"hprType":{"type":"string"},"councilMandatory":{"type":"integer","format":"int32"}}},"SubDistrictsResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"districtCode":{"type":"integer","format":"int32"},"subDistrictName":{"type":"string"},"isoCode":{"type":"string"},"status":{"type":"boolean"}}},"StatesResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"isoCode":{"type":"string"},"status":{"type":"boolean"},"countryId":{"type":"integer","format":"int32"},"visibleStatus":{"type":"boolean"},"isSystemOfMedicine":{"type":"boolean"},"position":{"type":"boolean"},"councilLabel":{"type":"string"}}},"NurseCouncilsResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"status":{"type":"boolean"},"visibleStatus":{"type":"boolean"},"position":{"type":"integer","format":"int32"},"stateId":{"type":"integer","format":"int32"}}},"MedicalCouncilResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"stateId":{"type":"string"},"systemOfMedicineId":{"type":"integer","format":"int32"},"position":{"type":"integer","format":"int32"},"status":{"type":"boolean"}}},"PiLanguagesResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"name":{"type":"string"},"culture":{"type":"string"},"status":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"},"modifiedAt":{"type":"string","format":"date-time"}}},"DistrictsResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"stateId":{"type":"integer","format":"int64"},"districtName":{"type":"string"},"isoCode":{"type":"string"},"status":{"type":"boolean"}}},"CountriesResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int32"},"alpha_2_code":{"type":"string"},"alpha_3_code":{"type":"string"},"enShortName":{"type":"string"},"nationality":{"type":"string"}}},"AffiliatedBoardResponseDTO":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"status":{"type":"boolean"},"visibleStatus":{"type":"boolean"},"stateId":{"type":"integer","format":"int32"},"stateName":{"type":"string"},"courseId":{"type":"integer","format":"int32"},"courseName":{"type":"string"},"councilBoard":{"type":"boolean"},"nationalBoard":{"type":"boolean"}}},"AffiliatedBoard":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"status":{"type":"boolean"},"visibleStatus":{"type":"boolean"},"stateId":{"type":"integer","format":"int32"},"courseId":{"type":"integer","format":"int32"},"councilBoard":{"type":"boolean"},"nationalBoard":{"type":"boolean"}}},"PublicCertificateRequestDto":{"type":"object","properties":{"mobile":{"type":"string"}}}},"securitySchemes":{"BearerAuth":{"type":"http","scheme":"bearer","bearerFormat":"JWT"}}}}
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Health Professional Registry APIs" },
+  "servers": [{ "url": "https://apihspsbx.abdm.gov.in/v4/int" }],
+  "security": [{ "BearerAuth": [] }],
+  "paths": {
+    "/aadhaar/generateLink": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "generateAadhaarLink",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AadharGenerateLinkRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/AadharGenerateLinkResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/aadhaar/isAuthenticated": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "isAadhaarAuthenticated",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AadhaarGetTransactionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": { "description": "OK", "content": { "*/*": { "schema": { "type": "boolean" } } } }
+        }
+      }
+    },
+    "/v2/registration/aadhaar/verifyOTP": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "verifyOtp",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AadhaarGetTransactionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/AadharVerifyResponsePayload" } }
+            }
+          }
+        }
+      }
+    },
+    "/v2/registration/aadhaar/demographicAuthViaMobile": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "demographicAuthViaMobile",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HPRIDGenerateMobileOTPResponseDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/MobileDemographicAuthResponseModel" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/registration/aadhaar/checkHpIdAccountExist": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "accountExist",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AccountExistPayload" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/AccountExistResponsePayload" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/registration/aadhaar/hpid/suggestion": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "getSuggesstion",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HpIdSuggestionRequst" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": { "*/*": { "schema": { "type": "array", "items": { "type": "string" } } } }
+          }
+        }
+      }
+    },
+    "/v1/registration/aadhaar/generateMobileOTP": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "generateMobileOtp",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HPRIDGenerateMobileOTPRequestDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/HPRIDGenerateMobileOTPResponseDTO" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/registration/aadhaar/verifyMobileOTP": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "verifyMobileOTP",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HPRIDVerifyMobileOTPRequestDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/HPRIDVerifyMobileOTPResponseDTO" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/registration/aadhaar/createHprIdWithPreVerified": {
+      "post": {
+        "tags": ["Registration API's Collection Via Aadhaar"],
+        "operationId": "createHprIdV2",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAccountWithPreVerifiedAadhaar" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CreateAccountJwtResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/doctors/register-professional-new": {
+      "post": {
+        "tags": ["Enrollment"],
+        "operationId": "registerProfesstional",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HealthProfessionalDto" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/HealthProfessionalResponseDto" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/doctors/update-professional-new": {
+      "post": {
+        "tags": ["Enrollment"],
+        "operationId": "updateProfesstional",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HealthProfessionalDto" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/HealthProfessionalResponseDto" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/doctors/fetch-documents-list": {
+      "post": {
+        "tags": ["Enrollment"],
+        "operationId": "fetchDocuments",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/FetchRequestDTO" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/FetchDocumentResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/uploads/upload-document": {
+      "post": {
+        "tags": ["Enrollment"],
+        "operationId": "uploadDocuments",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/UploadDocumentDTO" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/UploadDocumentResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/doctors/fetch-professional-info": {
+      "post": {
+        "tags": ["Enrollment"],
+        "operationId": "getProfessionalInfo",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FetchPracticionerRequestDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/FetchProfessionalResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/affiliated-board": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllAffiliatedBoard",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AffiliatedBoardResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/affiliated-board/states/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAffiliatedBoardByStateId",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AffiliatedBoard" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/affiliated-board/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAffiliatedBoardById",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/AffiliatedBoardResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/colleges/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getCollegeByState",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CollegeResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/colleges/{stateId}/{medicineId}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getCollegeByStateAndMedicineId",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stateId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          { "name": "medicineId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CollegeResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/countries": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllCountries",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CountriesResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/countries/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getCountriesById",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CountriesResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/courses": {
+      "post": {
+        "tags": ["Utility"],
+        "operationId": "listCourses",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CoursesRequestDTO" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CoursesRequestDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/district": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllDistricts",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/DistrictsResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/district/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getDistrictsByState",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/DistrictsResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/languages": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "listGovernmentHealthProgrammes",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PiLanguagesResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/languages/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getPiLanguagesById",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/PiLanguagesResponseDTO" } }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/medical-councils": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllMedicalCouncil",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MedicalCouncilResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/medical-councils/name": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getMedicalCouncilBySystemOfMedicineName",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "medicineName",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MedicalCouncilResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/nurse-councils": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllNurseCouncils",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/NurseCouncilsResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/states": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllStates",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/StatesResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/states/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getStatus",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "pattern": "^[0-9]{2}$", "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": { "*/*": { "schema": { "$ref": "#/components/schemas/StatesResponseDTO" } } }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/sub-districts": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllSubDistricts",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubDistrictsResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/sub-districts/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllSubDistricts_1",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubDistrictsResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/system-of-medicines": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getAllMedicalSystem",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MedicalSystemResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/universites": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "listAllUniversity",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/UniversityResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apis/v1/masters/universites/{id}": {
+      "get": {
+        "tags": ["Utility"],
+        "operationId": "getUniversityByCollege",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/UniversityResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fetchProfessionalFacility": {
+      "post": {
+        "tags": ["hpr"],
+        "operationId": "fetchProfessionalFacility",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/FacilityRequestDTO" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/HprProfileFacilityResponseDTO" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getFacilityCreatedByHprId": {
+      "post": {
+        "tags": ["Utility"],
+        "operationId": "getFacilitiesCreatedByHprId",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FacilitiesByHprIdRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/FacilityByHprIdResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/getFacilityDeclaredByHprId": {
+      "post": {
+        "tags": ["Utility"],
+        "operationId": "getFacilitiesDeclaredByHprId",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FacilitiesByHprIdRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/FacilityDeclaredByHprIdResponseDTO" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hprFacilitySuggestions": {
+      "post": {
+        "tags": ["hpr"],
+        "operationId": "createFacilitySuggestion",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/HprFacilitySuggestionRequestDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/HprFacilitySuggestionResponseDTO" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hprWorkDetails/status": {
+      "put": {
+        "tags": ["Utility"],
+        "operationId": "updateStatus",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorkStatusUpdateRequestDTO" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": { "description": "OK", "content": { "*/*": { "schema": { "type": "string" } } } }
+        }
+      }
+    },
+    "/relinkOrDelinkProfessionalFromFacility": {
+      "post": {
+        "tags": ["Utility"],
+        "operationId": "linkDelinkExistingFacility",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RelinkDelinkExistingFacilityRequest" }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": { "*/*": { "schema": { "type": "string" } } }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/RelinkDelinkExistingFacilityResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WorkStatusUpdateRequestDTO": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "facilityId": { "type": "string" },
+          "professionalHprId": { "type": "string" },
+          "managerHprId": { "type": "string" },
+          "isHpr": { "type": "boolean" }
+        }
+      },
+      "AadhaarGetTransactionRequest": {
+        "type": "object",
+        "properties": { "txnId": { "type": "string" } }
+      },
+      "AadharVerifyResponsePayload": {
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string" },
+          "mobileNumber": { "type": "string" },
+          "photo": { "type": "string" },
+          "gender": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "pincode": { "type": "string" },
+          "birthdate": { "type": "string" },
+          "careOf": { "type": "string" },
+          "house": { "type": "string" },
+          "street": { "type": "string" },
+          "landmark": { "type": "string" },
+          "locality": { "type": "string" },
+          "villageTownCity": { "type": "string" },
+          "subDist": { "type": "string" },
+          "district": { "type": "string" },
+          "state": { "type": "string" },
+          "postOffice": { "type": "string" },
+          "address": { "type": "string" }
+        }
+      },
+      "HPRIDGenerateMobileOTPResponseDTO": {
+        "type": "object",
+        "properties": { "txnId": { "type": "string" }, "mobileNumber": { "type": "string" } }
+      },
+      "MobileDemographicAuthResponseModel": {
+        "type": "object",
+        "properties": { "verified": { "type": "boolean" } }
+      },
+      "CreateAccountWithPreVerifiedAadhaar": {
+        "required": ["email", "txnId"],
+        "type": "object",
+        "properties": {
+          "idType": { "type": "string", "example": "hpr_id" },
+          "domainName": { "type": "string", "example": "@hpr.abdm" },
+          "email": {
+            "type": "string",
+            "description": "Email Address of the user.",
+            "example": "user@abdm.com"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First Name of the user).",
+            "example": "Ayushman"
+          },
+          "middleName": {
+            "type": "string",
+            "description": "Middle name of the user ",
+            "example": "Bharat"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the user ",
+            "example": "Mission"
+          },
+          "password": {
+            "type": "string",
+            "description": "Passwords for authentication",
+            "example": "Ayushman@143"
+          },
+          "profilePhoto": {
+            "type": "string",
+            "description": "Profile photo of the user (Uploaded by the user).",
+            "example": "<BASE64 ENCODED STRING>"
+          },
+          "txnId": {
+            "type": "string",
+            "description": "Transaction ID",
+            "format": "uuid",
+            "example": "c3b0c27d-e19d-4244-b8bb-3fa19285054a"
+          },
+          "hprId": {
+            "type": "string",
+            "description": "Healthcare Professional ID Alias.",
+            "example": "user@hpr.abdm"
+          },
+          "sourceType": { "type": "string", "enum": ["DRIVING_LICENSE", "AADHAAR"] },
+          "hpCategoryCode": { "type": "integer", "format": "int32", "example": 1 },
+          "hpSubCategoryCode": { "type": "integer", "format": "int32", "example": 1 },
+          "clientId": { "type": "string", "example": "V4" },
+          "stateCode": { "type": "string" },
+          "districtCode": { "type": "string" },
+          "council": { "type": "boolean" },
+          "role": { "type": "integer", "format": "int32" }
+        }
+      },
+      "CreateAccountJwtResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "hprIdNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "gender": { "type": "string" },
+          "yearOfBirth": { "type": "string" },
+          "monthOfBirth": { "type": "string" },
+          "dayOfBirth": { "type": "string" },
+          "firstName": { "type": "string" },
+          "hprId": { "type": "string" },
+          "lastName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "stateCode": { "type": "string" },
+          "districtCode": { "type": "string" },
+          "subDistrictCode": { "type": "string" },
+          "subDistrictName": { "type": "string" },
+          "stateName": { "type": "string" },
+          "districtName": { "type": "string" },
+          "email": { "type": "string" },
+          "kycPhoto": { "type": "string" },
+          "mobile": { "type": "string" },
+          "categoryId": { "type": "integer", "format": "int32" },
+          "subCategoryId": { "type": "integer", "format": "int32" },
+          "role": { "type": "integer", "format": "int32" },
+          "authMethods": {
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "AADHAAR_OTP",
+                "MOBILE_OTP",
+                "PASSWORD",
+                "DEMOGRAPHICS",
+                "AADHAAR_BIO",
+                "EMAIL_OTP",
+                "MOBILE_OTP_RESET_PASSWROD",
+                "FACE_AUTH"
+              ]
+            }
+          },
+          "new": { "type": "boolean" }
+        }
+      },
+      "VerifyOtpRequest": {
+        "type": "object",
+        "properties": { "txnId": { "type": "string" }, "otp": { "type": "string" } }
+      },
+      "VerifyDoctorOtpResponse": {
+        "type": "object",
+        "properties": { "message": { "type": "string" }, "verified": { "type": "boolean" } }
+      },
+      "SendOtpIfDoctorVerifiedRequest": {
+        "type": "object",
+        "properties": { "hprId": { "type": "string" }, "mobileNumber": { "type": "string" } }
+      },
+      "SendOtpIfDoctorVerifiedResponse": {
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string" },
+          "message": { "type": "string" },
+          "mobileNumber": { "type": "string" }
+        }
+      },
+      "HPRIDVerifyMobileOTPRequestDTO": {
+        "type": "object",
+        "properties": { "otp": { "type": "string" }, "txnId": { "type": "string" } }
+      },
+      "HPRIDVerifyMobileOTPResponseDTO": {
+        "type": "object",
+        "properties": { "txnId": { "type": "string" }, "mobileNumber": { "type": "string" } }
+      },
+      "HpIdSuggestionRequst": {
+        "required": ["txnId"],
+        "type": "object",
+        "properties": {
+          "txnId": {
+            "type": "string",
+            "description": "Based on UUID",
+            "example": "a825f76b-0696-40f3-864c-5a3a5b389a83"
+          }
+        }
+      },
+      "HPRIDGenerateMobileOTPRequestDTO": {
+        "type": "object",
+        "properties": { "mobile": { "type": "string" }, "txnId": { "type": "string" } }
+      },
+      "AccountExistPayload": {
+        "type": "object",
+        "properties": { "txnId": { "type": "string" }, "preverifiedCheck": { "type": "boolean" } }
+      },
+      "AccountExistResponsePayload": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "hprIdNumber": { "type": "string" },
+          "categoryId": { "type": "integer", "format": "int32" },
+          "categoryName": { "type": "string" },
+          "subCategoryId": { "type": "integer", "format": "int32" },
+          "categorySubName": { "type": "string" },
+          "txnId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "gender": { "type": "string" },
+          "yearOfBirth": { "type": "string" },
+          "monthOfBirth": { "type": "string" },
+          "dayOfBirth": { "type": "string" },
+          "firstName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "stateCode": { "type": "string" },
+          "districtCode": { "type": "string" },
+          "stateName": { "type": "string" },
+          "districtName": { "type": "string" },
+          "address": { "type": "string" },
+          "pincode": { "type": "string" },
+          "profilePhoto": { "type": "string" },
+          "mobile": { "type": "string" },
+          "hprId": { "type": "string" },
+          "new": { "type": "boolean" }
+        }
+      },
+      "RetriveHprIdMobilePayLoad": {
+        "required": ["firstName", "gender", "name", "otp", "txnId", "yearOfBirth"],
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "gender": { "pattern": "^(M|F|O|U)$", "type": "string" },
+          "yearOfBirth": { "pattern": "^(\\d{4})$", "type": "string" },
+          "monthOfBirth": { "pattern": "^(0?[1-9]|1[012])$", "type": "string" },
+          "dayOfBirth": { "pattern": "^(0?[1-9]|[12][0-9]|3[01])$", "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "otp": { "type": "string" }
+        }
+      },
+      "RetrieveHprIdPayloadResponse": {
+        "type": "object",
+        "properties": {
+          "hprId": { "type": "string" },
+          "hprIdNumber": { "type": "string" },
+          "token": { "type": "string" }
+        }
+      },
+      "SendOtpRequest": {
+        "type": "object",
+        "properties": {
+          "mobileNumber": { "type": "string" },
+          "email": { "type": "string" },
+          "type": { "type": "string" },
+          "hpid": { "type": "string" }
+        }
+      },
+      "SendOtpResponse": {
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string" },
+          "msg": { "type": "string" },
+          "mobileNumber": { "type": "string" }
+        }
+      },
+      "AadhaarVerifyOtpRequestDto": {
+        "type": "object",
+        "properties": {
+          "aadhaarNumber": { "type": "string" },
+          "otp": { "type": "string" },
+          "faceAuthPid": { "type": "string" },
+          "aadhaarLogType": { "type": "string" },
+          "transactionId": { "type": "string" },
+          "txnId": { "type": "string" }
+        }
+      },
+      "AuthRequestDto": {
+        "type": "object",
+        "properties": {
+          "authType": {
+            "type": "string",
+            "enum": ["AADHAAR_OTP", "USERNAME_PASSWORD", "MOBILE_OTP"]
+          },
+          "hprId": { "type": "string" },
+          "password": { "type": "string" },
+          "aadhaar": { "type": "string" },
+          "mobileNumber": { "type": "string" },
+          "txnId": { "type": "string", "format": "uuid" },
+          "otp": { "type": "string" },
+          "resend": { "type": "boolean" },
+          "aadhaarVerifyOtpRequestDto": {
+            "$ref": "#/components/schemas/AadhaarVerifyOtpRequestDto"
+          }
+        }
+      },
+      "UserDTO": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "hprId": { "type": "string" },
+          "mobile": { "type": "string" },
+          "firstName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "name": { "type": "string" },
+          "yearOfBirth": { "type": "string" },
+          "dayOfBirth": { "type": "string" },
+          "monthOfBirth": { "type": "string" },
+          "gender": { "type": "string" },
+          "email": { "type": "string" },
+          "profilePhoto": { "type": "string" },
+          "stateCode": { "type": "string" },
+          "districtCode": { "type": "string" },
+          "subDistrictCode": { "type": "string" },
+          "villageCode": { "type": "string" },
+          "townCode": { "type": "string" },
+          "wardCode": { "type": "string" },
+          "pinCode": { "type": "string" },
+          "address": { "type": "string" },
+          "kycPhoto": { "type": "string" },
+          "stateName": { "type": "string" },
+          "districtName": { "type": "string" },
+          "subdistrictName": { "type": "string" },
+          "villageName": { "type": "string" },
+          "townName": { "type": "string" },
+          "wardName": { "type": "string" },
+          "authMethods": {
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "AADHAAR_OTP",
+                "MOBILE_OTP",
+                "PASSWORD",
+                "DEMOGRAPHICS",
+                "AADHAAR_BIO",
+                "EMAIL_OTP",
+                "MOBILE_OTP_RESET_PASSWROD",
+                "FACE_AUTH"
+              ]
+            }
+          },
+          "kycVerified": { "type": "boolean" },
+          "verificationType": { "type": "string" },
+          "verificationStatus": { "type": "string" },
+          "categoryId": { "type": "integer", "format": "int32" },
+          "categoryName": { "type": "string" },
+          "categorySubId": { "type": "integer", "format": "int32" },
+          "categorySubName": { "type": "string" },
+          "token": { "type": "string" },
+          "hprIdCategories": { "type": "array", "items": { "type": "integer", "format": "int32" } },
+          "fileEntityProfileId": { "type": "integer", "format": "int64" },
+          "fileEntityKycId": { "type": "integer", "format": "int64" },
+          "role": { "type": "integer", "format": "int32" },
+          "hprProfileId": { "type": "integer", "format": "int64" },
+          "new": { "type": "boolean" },
+          "emailVerified": { "type": "boolean" },
+          "xmluidexist": { "type": "boolean" }
+        }
+      },
+      "TxnResponse": {
+        "type": "object",
+        "properties": {
+          "txnId": {
+            "type": "string",
+            "description": "Based on UUID",
+            "format": "uuid",
+            "example": "a825f76b-0696-40f3-864c-5a3a5b389a83"
+          },
+          "mobileNumber": { "type": "string", "example": "******2125" },
+          "msg": { "type": "string" },
+          "verified": { "type": "boolean" }
+        }
+      },
+      "RelinkDelinkExistingFacilityRequest": {
+        "type": "object",
+        "properties": {
+          "hprId": { "type": "string" },
+          "facilityId": { "type": "string" },
+          "action": { "type": "string" }
+        }
+      },
+      "RelinkDelinkExistingFacilityResponse": {
+        "type": "object",
+        "properties": {
+          "facilityId": { "type": "string" },
+          "hprId": { "type": "string" },
+          "status": { "type": "string" },
+          "message": { "type": "string" },
+          "errorStatus": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "UpdateAccountWebRequest": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "First Name of the user).",
+            "example": "Ayushman"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the user ",
+            "example": "Mission"
+          },
+          "middleName": {
+            "type": "string",
+            "description": "Middle name of the user ",
+            "example": "Bharat"
+          },
+          "hprId": {
+            "type": "string",
+            "description": "Healthcare Professional ID Alias.",
+            "example": "user@hpr.abdm"
+          },
+          "password": {
+            "type": "string",
+            "description": "User Authentication password.",
+            "example": "Abdm@143"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email Address of the user.",
+            "example": "user@abdm.com"
+          },
+          "profilePhoto": {
+            "type": "string",
+            "description": "Profile photo of the user (Uploaded by the user).",
+            "example": "<BASE64 ENCODED STRING>"
+          },
+          "stateCode": {
+            "type": "string",
+            "description": "State Code of the user (LGD).",
+            "example": "7"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "District Code of the user (LGD).",
+            "example": "71"
+          },
+          "subdistrictCode": {
+            "type": "string",
+            "description": "Sub District Code of the user (LGD).",
+            "example": "1"
+          },
+          "villageCode": { "type": "string", "description": "Village Code of the user (LGD)." },
+          "townCode": { "type": "string", "description": "Town Code of the user (LGD)." },
+          "wardCode": { "type": "string", "description": "Ward Code of the user (LGD)." },
+          "pincode": {
+            "type": "integer",
+            "description": "Pincode of the user.",
+            "format": "int32",
+            "example": 110001
+          },
+          "address": {
+            "type": "string",
+            "description": "Address of the user.",
+            "example": "9th Floor, Tower-l, Jeevan Bharati Building, Connaught Place, New Delhi - 110001"
+          },
+          "yearOfBirth": {
+            "type": "string",
+            "description": "Year of birth of the user.",
+            "example": "2021"
+          },
+          "monthOfBirth": {
+            "type": "string",
+            "description": "Month of birth of the user.",
+            "example": "8"
+          },
+          "dayOfBirth": {
+            "type": "string",
+            "description": "Day of birth of the user.",
+            "example": "15"
+          },
+          "hpCategoryCode": { "type": "string", "example": "1" },
+          "hpSubCategoryCode": { "type": "string", "example": "1" },
+          "txnId": { "type": "string", "format": "uuid" },
+          "role": { "type": "string" },
+          "consentToDelete": { "type": "boolean" }
+        }
+      },
+      "HidOtpWebRequestPaylaod": {
+        "required": ["newPassword", "otp", "txnId"],
+        "type": "object",
+        "properties": {
+          "newPassword": { "type": "string", "description": "Encrypted new Password." },
+          "otp": { "type": "string", "description": "Encrypted OTP." },
+          "txnId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "PasswordChangeDTO": { "type": "object", "properties": { "message": { "type": "string" } } },
+      "ValidateAaddhaarDemographicMobileResponseDTO": {
+        "type": "object",
+        "properties": { "verified": { "type": "boolean" }, "txnId": { "type": "string" } }
+      },
+      "HidChangePasswordRequestPayload": {
+        "required": ["newPassword"],
+        "type": "object",
+        "properties": {
+          "oldPassword": { "type": "string" },
+          "newPassword": { "type": "string" },
+          "txnId": { "type": "string" },
+          "hprID": { "type": "string" },
+          "otp": { "type": "string" }
+        }
+      },
+      "CategoryRequest": {
+        "required": ["hprId"],
+        "type": "object",
+        "properties": {
+          "hprId": { "type": "string" },
+          "categories": { "type": "object", "additionalProperties": { "type": "string" } }
+        }
+      },
+      "Districts": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "stateId": { "type": "integer", "format": "int64" },
+          "districtName": { "type": "string" },
+          "isoCode": { "type": "string" },
+          "status": { "type": "boolean" }
+        }
+      },
+      "FacilityOwnershipDTO": {
+        "type": "object",
+        "properties": { "label": { "type": "string" }, "value": { "type": "string" } }
+      },
+      "FacilityTypeDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/components/schemas/IdDTO" },
+          "facilityType": { "type": "string" },
+          "facilityTypeNdhm": { "type": "string" },
+          "opd": { "type": "string" },
+          "ipd": { "type": "string" },
+          "dayCare": { "type": "string" },
+          "other": { "type": "string" },
+          "activeYN": { "type": "string" },
+          "createdBy": { "type": "string" },
+          "createdDate": { "type": "string" },
+          "lastUpdatedUser": { "type": "string" },
+          "lastUpdatedDate": { "type": "string" },
+          "linkToForm": { "type": "string" },
+          "facilityCode": { "type": "string" },
+          "facilityCodeUfid": { "type": "string" },
+          "facilityOrder": { "type": "integer", "format": "int32" }
+        }
+      },
+      "HprFacilitySuggestionRequestDTO": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "state": { "$ref": "#/components/schemas/States" },
+          "district": { "$ref": "#/components/schemas/Districts" },
+          "pincode": { "type": "integer", "format": "int64" },
+          "contactNo": { "type": "integer", "format": "int64" },
+          "email": {
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$\n",
+            "type": "string"
+          },
+          "contactName": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+          "createdBy": { "type": "integer", "format": "int64" },
+          "updatedBy": { "type": "integer", "format": "int64" },
+          "facilityId": { "type": "integer", "format": "int64" },
+          "hprProfileId": { "type": "integer", "format": "int64" },
+          "facilityName": { "type": "string" },
+          "facilityOwnership": { "$ref": "#/components/schemas/FacilityOwnershipDTO" },
+          "systemMedicine": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SystemMedicineDTO" }
+          },
+          "facilityType": { "$ref": "#/components/schemas/FacilityTypeDTO" },
+          "department": { "type": "string" },
+          "designation": { "type": "string" },
+          "ministry": { "$ref": "#/components/schemas/MinistryResponseDTO" },
+          "psuName": { "type": "string" }
+        }
+      },
+      "IdDTO": {
+        "type": "object",
+        "properties": {
+          "sno": { "type": "integer", "format": "int32" },
+          "systemmedicine": { "type": "string" }
+        }
+      },
+      "MinistryResponseDTO": {
+        "type": "object",
+        "properties": { "ministry": { "type": "string" } }
+      },
+      "States": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "name": { "type": "string" },
+          "isoCode": { "type": "string" },
+          "status": { "type": "boolean" },
+          "countryId": { "type": "integer", "format": "int32" },
+          "visibleStatus": { "type": "boolean" },
+          "position": { "type": "boolean" },
+          "councilLabel": { "type": "string" },
+          "systemOfMedicine": { "type": "boolean" }
+        }
+      },
+      "SystemMedicineDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "lastUpdateDate": { "type": "string" },
+          "dropOrder": { "type": "integer", "format": "int32" },
+          "creationDate": { "type": "string" },
+          "activeYN": { "type": "string" },
+          "createdBy": { "type": "string" },
+          "lastUpdatedUser": { "type": "string" },
+          "nhrrMedicineCode": { "type": "string" },
+          "value": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "HprFacilitySuggestionResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "state": { "$ref": "#/components/schemas/States" },
+          "district": { "$ref": "#/components/schemas/Districts" },
+          "pincode": { "type": "integer", "format": "int64" },
+          "contactNo": { "type": "integer", "format": "int64" },
+          "email": { "type": "string" },
+          "contactName": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+          "createdBy": { "type": "integer", "format": "int64" },
+          "updatedBy": { "type": "integer", "format": "int64" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "facilityId": { "type": "integer", "format": "int64" },
+          "hprProfileId": { "type": "integer", "format": "int64" },
+          "facilityName": { "type": "string" },
+          "facilityOwnership": { "type": "string" },
+          "systemMedicine": { "type": "array", "items": { "type": "string" } },
+          "facilityType": { "type": "string" },
+          "department": { "type": "string" },
+          "designation": { "type": "string" },
+          "ministry": { "$ref": "#/components/schemas/MinistryResponseDTO" },
+          "psuName": { "type": "string" }
+        }
+      },
+      "TokenRequestDTO": {
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string" },
+          "issueToken": { "type": "string" },
+          "token": { "type": "string" }
+        }
+      },
+      "TokenResponseDTO": {
+        "type": "object",
+        "properties": {
+          "hbi": { "type": "boolean" },
+          "docid": { "type": "string" },
+          "status": { "type": "string" },
+          "siteUrl": { "type": "string" },
+          "token": { "type": "string" }
+        }
+      },
+      "LoginDTO": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" },
+          "resend": { "type": "boolean" }
+        }
+      },
+      "LoginResponseDTO": {
+        "type": "object",
+        "properties": { "token": { "type": "string" }, "ncToken": { "type": "string" } }
+      },
+      "FacilitiesByHprIdRequest": {
+        "type": "object",
+        "properties": { "hprId": { "type": "string" }, "source": { "type": "string" } }
+      },
+      "FacilityDeclaredByHprIdResponseDTO": {
+        "type": "object",
+        "properties": {
+          "totalNoOfFacilities": { "type": "integer", "format": "int32" },
+          "facilities": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FacilityDetailsResponseDTO" }
+          }
+        }
+      },
+      "FacilityDetailsResponseDTO": {
+        "type": "object",
+        "properties": {
+          "facilityId": { "type": "string" },
+          "facilityName": { "type": "string" },
+          "faciltyAddress": { "type": "string" },
+          "department": { "type": "string" },
+          "designation": { "type": "string" },
+          "state": { "type": "string" },
+          "district": { "type": "string" },
+          "isCurrent": { "type": "boolean" }
+        }
+      },
+      "FacilityByHprIdResponse": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "numberOfFacilities": { "type": "integer", "format": "int32" },
+          "numberOfPages": { "type": "integer", "format": "int32" },
+          "facilities": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SearchFacilityByHprIdResponseDTO" }
+          }
+        }
+      },
+      "SearchFacilityByHprIdResponseDTO": {
+        "type": "object",
+        "properties": {
+          "facilityId": { "type": "string" },
+          "facilityName": { "type": "string" },
+          "district": { "type": "string" },
+          "state": { "type": "string" }
+        }
+      },
+      "FacilityRequestDTO": {
+        "type": "object",
+        "properties": {
+          "facilityId": { "type": "string" },
+          "page": { "type": "integer", "format": "int32" },
+          "size": { "type": "integer", "format": "int32" }
+        }
+      },
+      "HprProfileFacilityResponseDTO": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "gender": { "type": "string" },
+          "hprType": {
+            "type": "string",
+            "enum": [
+              "doctor",
+              "nurse",
+              "facility_manager",
+              "asha",
+              "paharmacist",
+              "anganwadi",
+              "administrator",
+              "paramedical",
+              "pharmacist"
+            ]
+          },
+          "councilVerified": { "type": "boolean" }
+        }
+      },
+      "DocumentDTO": {
+        "type": "object",
+        "properties": {
+          "document_id": { "type": "integer", "format": "int64" },
+          "document_type": { "type": "string" },
+          "fileType": { "type": "string" },
+          "data": { "type": "array", "items": { "type": "string", "format": "byte" } }
+        }
+      },
+      "UploadDocumentDTO": {
+        "type": "object",
+        "properties": {
+          "hpr_token": { "type": "string" },
+          "document": { "type": "array", "items": { "$ref": "#/components/schemas/DocumentDTO" } }
+        }
+      },
+      "UploadDocumentMessage": {
+        "type": "object",
+        "properties": { "status": { "type": "string" }, "msg": { "type": "string" } }
+      },
+      "UploadDocumentResponseDTO": {
+        "type": "object",
+        "properties": {
+          "profilePhoto": { "$ref": "#/components/schemas/UploadDocumentMessage" },
+          "degreeCertificate": { "$ref": "#/components/schemas/UploadDocumentMessage" },
+          "registrationCertificate": { "$ref": "#/components/schemas/UploadDocumentMessage" },
+          "proofOfWorkCertificate": { "$ref": "#/components/schemas/UploadDocumentMessage" }
+        }
+      },
+      "CoursesRequestDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "systemOfMedicineId": { "type": "integer", "format": "int32" },
+          "visibleStatus": { "type": "boolean" },
+          "status": { "type": "boolean" },
+          "sortOrder": { "type": "boolean" },
+          "courseCategory": { "type": "string", "enum": ["basic", "additional"] },
+          "systemOfMedicine": { "type": "string" },
+          "hprType": {
+            "type": "string",
+            "enum": [
+              "doctor",
+              "nurse",
+              "facility_manager",
+              "asha",
+              "paharmacist",
+              "anganwadi",
+              "administrator",
+              "paramedical",
+              "pharmacist"
+            ]
+          },
+          "qualificationCount": { "type": "integer", "format": "int32" },
+          "international": { "type": "boolean" },
+          "createdBy": { "type": "integer", "format": "int64" },
+          "acronym": { "type": "string" },
+          "priority": { "type": "string" }
+        }
+      },
+      "AadhaarGenerateOTPResponseDTO": {
+        "type": "object",
+        "properties": { "status": { "type": "string" }, "txnId": { "type": "string" } }
+      },
+      "EmailOTPVerificationRequestDTO": {
+        "type": "object",
+        "properties": {
+          "hpr_token": { "type": "string" },
+          "hpr_id": { "type": "string" },
+          "officialEmail": { "type": "string" },
+          "emailOtp": { "type": "integer", "format": "int32" }
+        }
+      },
+      "EmailOTPVerificationResponseDTO": {
+        "type": "object",
+        "properties": { "status": { "type": "string" }, "msg": { "type": "string" } }
+      },
+      "CertificateDTO": {
+        "type": "object",
+        "properties": { "fileType": { "type": "string" }, "data": { "type": "string" } }
+      },
+      "CommunicationAddressDTO": {
+        "type": "object",
+        "properties": {
+          "isCommunicationAddressAsPerKYC": { "type": "string" },
+          "address": { "type": "string" },
+          "name": { "type": "string" },
+          "country": { "type": "string" },
+          "state": { "type": "string" },
+          "district": { "type": "string" },
+          "subDistrict": { "type": "string" },
+          "city": { "type": "string" },
+          "pincode": { "type": "string" }
+        }
+      },
+      "ContactInformationDTO": {
+        "type": "object",
+        "properties": {
+          "publicMobileNumber": { "type": "string" },
+          "publicMobileNumberCode": { "type": "string" },
+          "publicMobileNumberStatus": { "type": "string" },
+          "landLineNumber": { "type": "string" },
+          "landLineNumberCode": { "type": "string" },
+          "publicEmail": { "type": "string" },
+          "publicEmailStatus": { "type": "string" }
+        }
+      },
+      "CurrentWorkDetailsDTO": {
+        "type": "object",
+        "properties": {
+          "facilityDeclarationData": { "$ref": "#/components/schemas/FacilityDeclarationDataDTO" },
+          "currentlyWorking": { "type": "string" },
+          "purposeOfWork": { "type": "string" },
+          "chooseWorkStatus": { "type": "string" },
+          "reasonForNotWorking": { "type": "string" },
+          "certificateAttachment": { "type": "string" }
+        }
+      },
+      "FacilityDeclarationDataDTO": {
+        "type": "object",
+        "properties": {
+          "ministry": { "$ref": "#/components/schemas/MinistryResponseDTO" },
+          "facilityId": { "type": "string" },
+          "facilityName": { "type": "string" },
+          "facilityAddress": { "type": "string" },
+          "facilityPincode": { "type": "string" },
+          "state": { "type": "string" },
+          "district": { "type": "string" },
+          "facilityType": { "type": "string" },
+          "facilityDepartment": { "type": "string" },
+          "facilityDesignation": { "type": "string" },
+          "areYouWorkingForPsu": { "type": "string" },
+          "psuName": { "type": "string" }
+        }
+      },
+      "HealthProfessionalDto": {
+        "type": "object",
+        "properties": {
+          "practitioner": { "$ref": "#/components/schemas/PractitionerDTO" },
+          "hprToken": { "type": "string" }
+        }
+      },
+      "PersonalInformationDTO": {
+        "type": "object",
+        "properties": {
+          "fname": { "type": "string" },
+          "mname": { "type": "string" },
+          "salutation": { "type": "string" },
+          "firstName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "fatherName": { "type": "string" },
+          "motherName": { "type": "string" },
+          "spouseName": { "type": "string" },
+          "nationality": { "type": "string" },
+          "placeOfBirthState": { "type": "string" },
+          "district": { "type": "string" },
+          "subDistrict": { "type": "string" },
+          "city": { "type": "string" },
+          "languagesSpoken": { "type": "string" },
+          "dateOfBirth": { "type": "string", "format": "date-time" },
+          "category": { "type": "string" },
+          "gender": { "type": "string" }
+        }
+      },
+      "PractitionerDTO": {
+        "type": "object",
+        "properties": {
+          "personalInformation": { "$ref": "#/components/schemas/PersonalInformationDTO" },
+          "communicationAddress": { "$ref": "#/components/schemas/CommunicationAddressDTO" },
+          "contactInformation": { "$ref": "#/components/schemas/ContactInformationDTO" },
+          "registrationAcademic": { "$ref": "#/components/schemas/RegistrationAcademicDTO" },
+          "specialities": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SpecialitiesDTO" }
+          },
+          "currentWorkDetails": { "$ref": "#/components/schemas/CurrentWorkDetailsDTO" },
+          "apiClientId": { "type": "string" },
+          "profilePhoto": { "type": "string" },
+          "healthProfessionalType": { "type": "string" },
+          "officialMobileCode": { "type": "string" },
+          "officialMobile": { "type": "string" },
+          "officialMobileStatus": { "type": "string" },
+          "officialEmail": { "type": "string" },
+          "officialEmailStatus": { "type": "string" },
+          "visibleProfilePicture": { "type": "string" },
+          "profileVisibleToPublic": { "type": "string" },
+          "addressAsPerKYC": { "type": "string" }
+        }
+      },
+      "QualificationsDTO": {
+        "type": "object",
+        "properties": {
+          "nameOfDegreeOrDiplomaObtained": { "type": "string" },
+          "country": { "type": "string" },
+          "state": { "type": "string" },
+          "college": { "type": "string" },
+          "university": { "type": "string" },
+          "monthOfAwardingDegreeDiploma": { "type": "string" },
+          "yearOfAwardingDegreeDiploma": { "type": "string" },
+          "degreeCertificate": { "$ref": "#/components/schemas/CertificateDTO" },
+          "isNameDifferentInCertificate": { "type": "string" },
+          "proofOfNameChangeCertificate": { "type": "string" }
+        }
+      },
+      "RegistrationAcademicDTO": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string" },
+          "registrationData": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RegistrationDataDTO" }
+          }
+        }
+      },
+      "RegistrationDataDTO": {
+        "type": "object",
+        "properties": {
+          "qualifications": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/QualificationsDTO" }
+          },
+          "registeredWithCouncil": { "type": "string" },
+          "registrationNumber": { "type": "string" },
+          "registrationDate": { "type": "string" },
+          "registrationCertificate": { "$ref": "#/components/schemas/CertificateDTO" },
+          "isNameDifferentInCertificate": { "type": "string" },
+          "proofOfNameChangeCertificate": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "isPermanentOrRenewable": { "type": "string" },
+          "renewableDueDate": { "type": "string" }
+        }
+      },
+      "SpecialitiesDTO": {
+        "type": "object",
+        "properties": {
+          "speciality": { "type": "string" },
+          "subSpecialities": { "type": "string" }
+        }
+      },
+      "HealthProfessionalResponseDto": {
+        "type": "object",
+        "properties": {
+          "referenceNumber": { "type": "string" },
+          "status": { "type": "string" },
+          "message": { "type": "string" },
+          "error": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          },
+          "hprId": { "type": "string" }
+        }
+      },
+      "EmailAuthRequestDto": {
+        "type": "object",
+        "properties": { "emailAddress": { "type": "string" }, "otp_type": { "type": "string" } }
+      },
+      "EmailAuthResponseDto": {
+        "type": "object",
+        "properties": { "msg": { "type": "string" }, "status": { "type": "string" } }
+      },
+      "AadhaarGenerateOTPRequestDTO": {
+        "required": ["hpr_token", "officialMobile"],
+        "type": "object",
+        "properties": { "hpr_token": { "type": "string" }, "officialMobile": { "type": "string" } }
+      },
+      "FetchPracticionerDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "contactNumber": { "type": "string" },
+          "state": { "type": "string" },
+          "registrationNumber": { "type": "string" },
+          "stateCouncilName": { "type": "string" }
+        }
+      },
+      "FetchPracticionerRequestDTO": {
+        "type": "object",
+        "properties": { "practitioner": { "$ref": "#/components/schemas/FetchPracticionerDTO" } }
+      },
+      "FetchProfessionalResponseDTO": {
+        "type": "object",
+        "properties": { "message": { "type": "string" }, "practitioners": { "type": "object" } }
+      },
+      "FetchRequestDTO": { "type": "object", "properties": { "hprid": { "type": "string" } } },
+      "DegreeCertificateDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "courseName": { "type": "string" },
+          "qualificationYear": { "type": "string" },
+          "data": { "type": "array", "items": { "type": "string", "format": "byte" } }
+        }
+      },
+      "DocumentListDTO": {
+        "type": "object",
+        "properties": {
+          "profileDetails": { "$ref": "#/components/schemas/ProfileDetailsDTO" },
+          "registrationDetails": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RegistrationDetailsDTO" }
+          },
+          "qualificationDetails": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/QualificationDetailsDTO" }
+          },
+          "qualification": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/QualificationDetailsDTO" }
+          },
+          "internationalDoctorQualificationDetails": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/InternationalDoctorQualificationDetailsDTO" }
+          }
+        }
+      },
+      "FetchDocumentResponseDTO": {
+        "type": "object",
+        "properties": {
+          "documentList": { "$ref": "#/components/schemas/DocumentListDTO" },
+          "message": { "type": "string" },
+          "Message": { "type": "string" }
+        }
+      },
+      "HprProfilePhotoDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "data": { "type": "array", "items": { "type": "string", "format": "byte" } }
+        }
+      },
+      "InternationalDoctorQualificationDetailsDTO": {
+        "type": "object",
+        "properties": {
+          "degreeCertificate": { "$ref": "#/components/schemas/DegreeCertificateDTO" },
+          "proofOfNameChangeQualCertificate": {
+            "$ref": "#/components/schemas/DegreeCertificateDTO"
+          }
+        }
+      },
+      "ProfileDetailsDTO": {
+        "type": "object",
+        "properties": {
+          "profilePhoto": { "$ref": "#/components/schemas/HprProfilePhotoDTO" },
+          "proofOfWorkCertificate": { "$ref": "#/components/schemas/HprProfilePhotoDTO" }
+        }
+      },
+      "QualificationDetailsDTO": {
+        "type": "object",
+        "properties": {
+          "degreeCertificate": { "$ref": "#/components/schemas/DegreeCertificateDTO" },
+          "proofOfNameChangeQualCertificate": {
+            "$ref": "#/components/schemas/DegreeCertificateDTO"
+          }
+        }
+      },
+      "RegistrationCertificateDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "systemOfMedicide": { "type": "string" },
+          "data": { "type": "array", "items": { "type": "string", "format": "byte" } }
+        }
+      },
+      "RegistrationDetailsDTO": {
+        "type": "object",
+        "properties": {
+          "registrationCertificate": { "$ref": "#/components/schemas/RegistrationCertificateDTO" },
+          "proofOfNameChangeRegCertificate": {
+            "$ref": "#/components/schemas/RegistrationCertificateDTO"
+          }
+        }
+      },
+      "SendVerifyOtpRequestDto": {
+        "type": "object",
+        "properties": {
+          "mobile": { "type": "string" },
+          "txnId": { "type": "string" },
+          "otp": { "type": "string" },
+          "hpid": { "type": "string" }
+        }
+      },
+      "MobileLinkedHpIdDto": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "hprId": { "type": "string" },
+          "categoryId": { "type": "integer", "format": "int32" },
+          "subCategoryId": { "type": "integer", "format": "int32" }
+        }
+      },
+      "SendVerifyOtpResponseDto": {
+        "type": "object",
+        "properties": {
+          "txnId": { "type": "string" },
+          "mobileLinkedHpIdDTO": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MobileLinkedHpIdDto" }
+          },
+          "mobileNumber": { "type": "string" }
+        }
+      },
+      "AadhaarAuthRequestDTO": {
+        "type": "object",
+        "properties": {
+          "idType": { "type": "string" },
+          "domainName": { "type": "string" },
+          "authMethod": { "type": "string" },
+          "hprId": { "type": "string" }
+        }
+      },
+      "AadhaarAuthResponseDTO": {
+        "type": "object",
+        "properties": {
+          "transactionId": { "type": "string", "format": "uuid" },
+          "mobileNumber": { "type": "string" }
+        }
+      },
+      "AadhaarAuthVerifyRequestDTO": {
+        "type": "object",
+        "properties": {
+          "otp": { "type": "string" },
+          "txnId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "AadhaarAuthVerifyResponseDTO": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "expiresIn": { "type": "integer", "format": "int32" },
+          "refreshToken": { "type": "string" },
+          "refreshExpiresIn": { "type": "integer", "format": "int32" }
+        }
+      },
+      "LoginViaPasswordRequestDto": {
+        "type": "object",
+        "properties": {
+          "idType": { "type": "string" },
+          "domainName": { "type": "string" },
+          "hprId": { "type": "string" },
+          "password": { "type": "string" }
+        }
+      },
+      "LoginViaPasswordResponseDto": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "expiresIn": { "type": "integer", "format": "int64" },
+          "refreshToken": { "type": "string" },
+          "refreshExpiresIn": { "type": "integer", "format": "int64" }
+        }
+      },
+      "AadharGenerateLinkRequest": {
+        "type": "object",
+        "properties": {
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "source": { "type": "string" }
+        }
+      },
+      "AadharGenerateLinkResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "txnId": { "type": "string" },
+          "url": { "type": "string" }
+        }
+      },
+      "ForgetUserEntityResponseDTO": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "authMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "AADHAAR_OTP",
+                "MOBILE_OTP",
+                "PASSWORD",
+                "DEMOGRAPHICS",
+                "AADHAAR_BIO",
+                "EMAIL_OTP",
+                "MOBILE_OTP_RESET_PASSWROD",
+                "FACE_AUTH"
+              ]
+            }
+          },
+          "hprId": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "subCategoryId": { "type": "string" }
+        }
+      },
+      "UserEntityResponseDTO": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "hprId": { "type": "string" },
+          "categoryName": { "type": "string" },
+          "categorySubName": { "type": "string" }
+        }
+      },
+      "UserProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "hprIdNumber": { "type": "string" },
+          "hprId": { "type": "string" },
+          "mobile": { "type": "string" },
+          "firstName": { "type": "string" },
+          "middleName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "name": { "type": "string" },
+          "yearOfBirth": { "type": "string" },
+          "dayOfBirth": { "type": "string" },
+          "monthOfBirth": { "type": "string" },
+          "gender": { "type": "string" },
+          "email": { "type": "string" },
+          "profilePhoto": { "type": "string" },
+          "stateCode": { "type": "string" },
+          "districtCode": { "type": "string" },
+          "subDistrictCode": { "type": "string" },
+          "villageCode": { "type": "string" },
+          "townCode": { "type": "string" },
+          "wardCode": { "type": "string" },
+          "pincode": { "type": "string" },
+          "address": { "type": "string" },
+          "kycPhoto": { "type": "string" },
+          "stateName": { "type": "string" },
+          "districtName": { "type": "string" },
+          "subdistrictName": { "type": "string" },
+          "villageName": { "type": "string" },
+          "townName": { "type": "string" },
+          "wardName": { "type": "string" },
+          "authMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "AADHAAR_OTP",
+                "MOBILE_OTP",
+                "PASSWORD",
+                "DEMOGRAPHICS",
+                "AADHAAR_BIO",
+                "EMAIL_OTP",
+                "MOBILE_OTP_RESET_PASSWROD",
+                "FACE_AUTH"
+              ]
+            }
+          },
+          "kycVerified": { "type": "boolean" },
+          "verificationStatus": { "type": "string" },
+          "categoryId": { "type": "integer", "format": "int32" },
+          "categoryName": { "type": "string" },
+          "categorySubId": { "type": "integer", "format": "int32" },
+          "categorySubName": { "type": "string" },
+          "emailVerified": { "type": "boolean" },
+          "role": { "type": "integer", "format": "int32" },
+          "new": { "type": "boolean" }
+        }
+      },
+      "ProfileResponseDTO": {
+        "type": "object",
+        "properties": {
+          "pdf": { "type": "array", "items": { "type": "string", "format": "byte" } }
+        }
+      },
+      "HpSubCategoriesDTO": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "example": "1" },
+          "Modern Medicine": { "type": "string", "example": "1" }
+        }
+      },
+      "HpCategoriesDTO": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "format": "int32", "example": 1 },
+          "name": { "type": "string", "example": "Doctor" },
+          "subCategories": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HpSubCategoriesDTO" }
+          },
+          "districts": {
+            "type": "array",
+            "writeOnly": true,
+            "items": { "$ref": "#/components/schemas/HpSubCategoriesDTO" }
+          }
+        }
+      },
+      "CollegeResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "name": { "type": "string" },
+          "status": { "type": "boolean" },
+          "visibleStatus": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "systemOfMedicineId": { "type": "integer", "format": "int64" },
+          "stateId": { "type": "integer", "format": "int64" },
+          "courseId": { "type": "integer", "format": "int64" },
+          "stateName": { "type": "string" },
+          "systemOfMedicineName": { "type": "string" },
+          "deleted": { "type": "boolean" },
+          "courseName": { "type": "string" }
+        }
+      },
+      "UniversityResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "status": { "type": "boolean" },
+          "visibleStatus": { "type": "boolean" },
+          "collegeId": { "type": "integer", "format": "int64" },
+          "collegeName": { "type": "string" },
+          "deleted": { "type": "boolean" },
+          "college": { "$ref": "#/components/schemas/CollegeResponseDTO" }
+        }
+      },
+      "MedicalSystemResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "medicalSystem": { "type": "string" },
+          "code": { "type": "string" },
+          "position": { "type": "integer", "format": "int32" },
+          "excludeStates": { "type": "string" },
+          "hprType": { "type": "string" },
+          "councilMandatory": { "type": "integer", "format": "int32" }
+        }
+      },
+      "SubDistrictsResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "districtCode": { "type": "integer", "format": "int32" },
+          "subDistrictName": { "type": "string" },
+          "isoCode": { "type": "string" },
+          "status": { "type": "boolean" }
+        }
+      },
+      "StatesResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "isoCode": { "type": "string" },
+          "status": { "type": "boolean" },
+          "countryId": { "type": "integer", "format": "int32" },
+          "visibleStatus": { "type": "boolean" },
+          "isSystemOfMedicine": { "type": "boolean" },
+          "position": { "type": "boolean" },
+          "councilLabel": { "type": "string" }
+        }
+      },
+      "NurseCouncilsResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "status": { "type": "boolean" },
+          "visibleStatus": { "type": "boolean" },
+          "position": { "type": "integer", "format": "int32" },
+          "stateId": { "type": "integer", "format": "int32" }
+        }
+      },
+      "MedicalCouncilResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "stateId": { "type": "string" },
+          "systemOfMedicineId": { "type": "integer", "format": "int32" },
+          "position": { "type": "integer", "format": "int32" },
+          "status": { "type": "boolean" }
+        }
+      },
+      "PiLanguagesResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "name": { "type": "string" },
+          "culture": { "type": "string" },
+          "status": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "modifiedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DistrictsResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "stateId": { "type": "integer", "format": "int64" },
+          "districtName": { "type": "string" },
+          "isoCode": { "type": "string" },
+          "status": { "type": "boolean" }
+        }
+      },
+      "CountriesResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int32" },
+          "alpha_2_code": { "type": "string" },
+          "alpha_3_code": { "type": "string" },
+          "enShortName": { "type": "string" },
+          "nationality": { "type": "string" }
+        }
+      },
+      "AffiliatedBoardResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "name": { "type": "string" },
+          "status": { "type": "boolean" },
+          "visibleStatus": { "type": "boolean" },
+          "stateId": { "type": "integer", "format": "int32" },
+          "stateName": { "type": "string" },
+          "courseId": { "type": "integer", "format": "int32" },
+          "courseName": { "type": "string" },
+          "councilBoard": { "type": "boolean" },
+          "nationalBoard": { "type": "boolean" }
+        }
+      },
+      "AffiliatedBoard": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "name": { "type": "string" },
+          "status": { "type": "boolean" },
+          "visibleStatus": { "type": "boolean" },
+          "stateId": { "type": "integer", "format": "int32" },
+          "courseId": { "type": "integer", "format": "int32" },
+          "councilBoard": { "type": "boolean" },
+          "nationalBoard": { "type": "boolean" }
+        }
+      },
+      "PublicCertificateRequestDto": {
+        "type": "object",
+        "properties": { "mobile": { "type": "string" } }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

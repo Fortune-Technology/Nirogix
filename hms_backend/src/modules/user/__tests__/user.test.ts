@@ -58,7 +58,9 @@ afterAll(async () => {
 });
 
 describe('org-admin / user + branch management', () => {
-  test('create a user with a role; it appears in the list with effective permissions', async ({ skip }) => {
+  test('create a user with a role; it appears in the list with effective permissions', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const { userId, tempPassword } = await createUser(tenantId, {
       email: 'nurse@a2test.example',
@@ -85,10 +87,16 @@ describe('org-admin / user + branch management', () => {
     await setOverride(tenantId, { userId, permission: PERMISSIONS.PATIENT_VIEW, effect: 'DENY' });
     const detail = await getUserDetail(tenantId, userId);
     expect(detail?.permissions).not.toContain(PERMISSIONS.PATIENT_VIEW);
-    expect(detail?.overrides.some((o) => o.permission === PERMISSIONS.PATIENT_VIEW && o.effect === 'DENY')).toBe(true);
+    expect(
+      detail?.overrides.some(
+        (o) => o.permission === PERMISSIONS.PATIENT_VIEW && o.effect === 'DENY',
+      ),
+    ).toBe(true);
   });
 
-  test('removing a role strips its permissions; suspending a user updates status', async ({ skip }) => {
+  test('removing a role strips its permissions; suspending a user updates status', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const { userId } = await createUser(tenantId, {
       email: 'temp@a2test.example',

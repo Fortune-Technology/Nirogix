@@ -10,7 +10,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const forbidden = { description: 'Missing platform.branding.platform.manage (super-admin only)', ...json(ErrorResponseSchema) };
+const forbidden = {
+  description: 'Missing platform.branding.platform.manage (super-admin only)',
+  ...json(ErrorResponseSchema),
+};
 const multipart = { content: { 'multipart/form-data': { schema: PlatformBrandingUploadBody } } };
 const params = z.object({ scope: ScopeParam });
 
@@ -19,8 +22,10 @@ registry.registerPath({
   path: '/api/v1/public/branding/{scope}',
   operationId: 'getPublicBranding',
   tags: ['Config'],
-  summary: 'Get platform branding for a surface (public — feeds the marketing site + Portal default)',
-  description: 'Resolved tokens + logo/favicon URLs for the "marketing" or "hms" scope. No auth. Empty tokens mean "use the built-in defaults".',
+  summary:
+    'Get platform branding for a surface (public — feeds the marketing site + Portal default)',
+  description:
+    'Resolved tokens + logo/favicon URLs for the "marketing" or "hms" scope. No auth. Empty tokens mean "use the built-in defaults".',
   request: { params },
   responses: {
     200: { description: 'Platform branding', ...json(PlatformBrandingSchema) },
@@ -52,7 +57,11 @@ registry.registerPath({
   summary: 'Reset a scope to the default token palette (super-admin)',
   security: [{ bearerAuth: [] }],
   request: { params },
-  responses: { 200: { description: 'Reset platform branding', ...json(PlatformBrandingSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Reset platform branding', ...json(PlatformBrandingSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -64,7 +73,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params, body: multipart },
   responses: {
-    201: { description: 'Platform branding with the new logo URL', ...json(PlatformBrandingSchema) },
+    201: {
+      description: 'Platform branding with the new logo URL',
+      ...json(PlatformBrandingSchema),
+    },
     401: notAuthed,
     403: forbidden,
     413: { description: 'File too large', ...json(ErrorResponseSchema) },
@@ -81,7 +93,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params, body: multipart },
   responses: {
-    201: { description: 'Platform branding with the new favicon URL', ...json(PlatformBrandingSchema) },
+    201: {
+      description: 'Platform branding with the new favicon URL',
+      ...json(PlatformBrandingSchema),
+    },
     401: notAuthed,
     403: forbidden,
     413: { description: 'File too large', ...json(ErrorResponseSchema) },

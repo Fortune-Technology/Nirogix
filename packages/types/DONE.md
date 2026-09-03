@@ -10,7 +10,7 @@ Append-only implementation log. Newest at the bottom.
 
 **Added:** `ApiError` (canonical error envelope), `Paginated<T>` (pagination envelope), `AuthUser`/`LoginRequest`/`LoginResponse`/`RefreshResponse`/`MeResponse`, `MyPermissionsResponse`/`Role`, `Provider`/`Specialty`, `AuditEntry`.
 
-**Decisions:** Hand-authored contracts (not generated) kept in lock-step with the backend controllers — when a controller's response shape changes, the matching type here changes in the same PR. Types only, no runtime code; permission *strings* live in `@hms/permissions`.
+**Decisions:** Hand-authored contracts (not generated) kept in lock-step with the backend controllers — when a controller's response shape changes, the matching type here changes in the same PR. Types only, no runtime code; permission _strings_ live in `@hms/permissions`.
 
 **Testing status:** `typecheck` green; cross-checked implicitly by `hms_frontend`'s typecheck/build (the API client and pages consume these types).
 
@@ -44,7 +44,7 @@ Append-only implementation log. Newest at the bottom.
 
 **What:** The package now builds — `tsconfig.build.json` emits CommonJS + declarations to `dist/`, and `main`/`types`/`exports` point there instead of at raw `src/index.ts`. A `dev` watch script keeps `dist/` fresh under root `npm run dev`.
 
-**Why:** Same failure shape as `@hms/permissions` — a plain-Node consumer resolving `main` to raw TypeScript cannot boot. The backend does not import this package *today*, but it is the declared backend/frontend contract package, so both halves of the recurrence path close together (ADR-075). If the backend ever imports it, it must also be added to `hms_backend`'s `dependencies`.
+**Why:** Same failure shape as `@hms/permissions` — a plain-Node consumer resolving `main` to raw TypeScript cannot boot. The backend does not import this package _today_, but it is the declared backend/frontend contract package, so both halves of the recurrence path close together (ADR-075). If the backend ever imports it, it must also be added to `hms_backend`'s `dependencies`.
 
 **Testing status:** builds clean; full-repo typecheck 13/13; Portal production build green against the `dist/` entry.
 

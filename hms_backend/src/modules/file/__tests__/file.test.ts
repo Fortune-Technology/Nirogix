@@ -32,7 +32,10 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['File Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'File Test',
+        CODE,
+      ])
     ).rows[0].id;
     ready = true;
   } catch (err) {

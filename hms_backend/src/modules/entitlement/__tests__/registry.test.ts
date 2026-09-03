@@ -65,10 +65,29 @@ describe('module & capability registry integrity', () => {
   });
 
   test('the live modules are BUILT and the unshipped ones are AVAILABLE', () => {
-    for (const key of ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm']) {
+    for (const key of [
+      'patient',
+      'appointment',
+      'opd',
+      'emr',
+      'pharmacy',
+      'laboratory',
+      'billing',
+      'abdm',
+    ]) {
       expect(isModuleBuilt(key)).toBe(true);
     }
-    for (const key of ['radiology', 'ipd', 'nursing', 'emergency', 'ot', 'cssd', 'blood_bank', 'insurance', 'inventory']) {
+    for (const key of [
+      'radiology',
+      'ipd',
+      'nursing',
+      'emergency',
+      'ot',
+      'cssd',
+      'blood_bank',
+      'insurance',
+      'inventory',
+    ]) {
       expect(isModuleBuilt(key)).toBe(false);
     }
   });
@@ -87,7 +106,19 @@ describe('module & capability registry integrity', () => {
     // the full map rather than the original seventeen-module entitlement list.
     expect(MODULE_REGISTRY.length).toBeGreaterThanOrEqual(40);
     expect(ALL_CAPABILITIES.length).toBeGreaterThanOrEqual(200);
-    for (const category of ['CORE', 'CLINIC', 'HOSPITAL', 'BILLING', 'ADD_ON', 'SPECIALTY', 'CLINICAL', 'PATIENT_ENGAGEMENT', 'REPORTING', 'AI', 'PLATFORM']) {
+    for (const category of [
+      'CORE',
+      'CLINIC',
+      'HOSPITAL',
+      'BILLING',
+      'ADD_ON',
+      'SPECIALTY',
+      'CLINICAL',
+      'PATIENT_ENGAGEMENT',
+      'REPORTING',
+      'AI',
+      'PLATFORM',
+    ]) {
       expect(MODULE_REGISTRY.some((m) => m.category === category)).toBe(true);
     }
   });
@@ -95,8 +126,23 @@ describe('module & capability registry integrity', () => {
   test('the seventeen pre-existing module keys survive unchanged', () => {
     // Changing one of these would change what an existing tenant can be granted.
     for (const key of [
-      'patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'radiology', 'billing',
-      'inventory', 'ipd', 'nursing', 'emergency', 'ot', 'cssd', 'blood_bank', 'insurance', 'abdm',
+      'patient',
+      'appointment',
+      'opd',
+      'emr',
+      'pharmacy',
+      'laboratory',
+      'radiology',
+      'billing',
+      'inventory',
+      'ipd',
+      'nursing',
+      'emergency',
+      'ot',
+      'cssd',
+      'blood_bank',
+      'insurance',
+      'abdm',
     ]) {
       expect(REGISTRY_MODULE_KEYS.has(key)).toBe(true);
     }
@@ -110,10 +156,26 @@ describe('module & capability registry integrity', () => {
 });
 
 describe('deny-by-exception resolver', () => {
-  const active = { status: 'ACTIVE', effectiveFrom: new Date(Date.now() - 1000), effectiveUntil: null };
-  const disabled = { status: 'DISABLED', effectiveFrom: new Date(Date.now() - 1000), effectiveUntil: null };
-  const expired = { status: 'ACTIVE', effectiveFrom: new Date(Date.now() - 2000), effectiveUntil: new Date(Date.now() - 1000) };
-  const future = { status: 'ACTIVE', effectiveFrom: new Date(Date.now() + 60_000), effectiveUntil: null };
+  const active = {
+    status: 'ACTIVE',
+    effectiveFrom: new Date(Date.now() - 1000),
+    effectiveUntil: null,
+  };
+  const disabled = {
+    status: 'DISABLED',
+    effectiveFrom: new Date(Date.now() - 1000),
+    effectiveUntil: null,
+  };
+  const expired = {
+    status: 'ACTIVE',
+    effectiveFrom: new Date(Date.now() - 2000),
+    effectiveUntil: new Date(Date.now() - 1000),
+  };
+  const future = {
+    status: 'ACTIVE',
+    effectiveFrom: new Date(Date.now() + 60_000),
+    effectiveUntil: null,
+  };
 
   test('module not entitled → capability off regardless of any row', () => {
     expect(resolveCapabilityEnabled(false, undefined)).toBe(false);

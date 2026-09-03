@@ -96,7 +96,10 @@ export async function exportProfessionals(tenantId: string): Promise<BulkRow[]> 
     .filter((r) => {
       const enrolment = byProvider.get(r.providerId);
       // Already has an id — nothing to submit, and submitting anyway risks a duplicate identity.
-      return !(enrolment?.hprId && (enrolment.status === 'registered' || enrolment.status === 'already_registered'));
+      return !(
+        enrolment?.hprId &&
+        (enrolment.status === 'registered' || enrolment.status === 'already_registered')
+      );
     })
     .map((r) => {
       const enrolment = byProvider.get(r.providerId);
@@ -175,7 +178,11 @@ export async function importProfessionalResults(
     const identifier = registrationNumber || fullName || `row ${lineNumber}`;
 
     if (!hprId) {
-      outcome.unmatched.push({ row: lineNumber, identifier, reason: 'The portal issued no HPR id for this row' });
+      outcome.unmatched.push({
+        row: lineNumber,
+        identifier,
+        reason: 'The portal issued no HPR id for this row',
+      });
       continue;
     }
 
@@ -190,7 +197,11 @@ export async function importProfessionalResults(
     }
 
     if (candidates.length === 0) {
-      outcome.unmatched.push({ row: lineNumber, identifier, reason: 'No active staff member matches this row' });
+      outcome.unmatched.push({
+        row: lineNumber,
+        identifier,
+        reason: 'No active staff member matches this row',
+      });
       continue;
     }
     if (candidates.length > 1) {
@@ -239,7 +250,10 @@ export async function importProfessionalResults(
     },
   });
   if (outcome.ambiguous.length > 0) {
-    logger.warn({ tenantId, ambiguous: outcome.ambiguous.length }, 'HPR bulk import skipped ambiguous rows');
+    logger.warn(
+      { tenantId, ambiguous: outcome.ambiguous.length },
+      'HPR bulk import skipped ambiguous rows',
+    );
   }
   return outcome;
 }
@@ -267,13 +281,21 @@ export async function importFacilityResults(
     const identifier = facilityName || `row ${lineNumber}`;
 
     if (!facilityId) {
-      outcome.unmatched.push({ row: lineNumber, identifier, reason: 'The portal issued no facility id for this row' });
+      outcome.unmatched.push({
+        row: lineNumber,
+        identifier,
+        reason: 'The portal issued no facility id for this row',
+      });
       continue;
     }
 
     const candidates = registrations.filter((r) => norm(r.facilityName) === norm(facilityName));
     if (candidates.length === 0) {
-      outcome.unmatched.push({ row: lineNumber, identifier, reason: 'No facility registration matches this name' });
+      outcome.unmatched.push({
+        row: lineNumber,
+        identifier,
+        reason: 'No facility registration matches this name',
+      });
       continue;
     }
     if (candidates.length > 1) {
@@ -312,7 +334,10 @@ export async function importFacilityResults(
 /** Branch names, so an export can say which facility a row belongs to. */
 export async function branchNames(tenantId: string): Promise<Map<string, string>> {
   const rows = await runWithTenant(tenantId, (tx) =>
-    tx.select({ id: branches.id, name: branches.name }).from(branches).where(eq(branches.tenantId, tenantId)),
+    tx
+      .select({ id: branches.id, name: branches.name })
+      .from(branches)
+      .where(eq(branches.tenantId, tenantId)),
   );
   return new Map(rows.map((r) => [r.id, r.name]));
 }

@@ -57,7 +57,8 @@ function genderMatches(ours?: string | null, theirs?: string): boolean {
 }
 
 /** A patient's full name, as one comparable string. */
-const fullName = (p: Patient): string => normalise([p.firstName, p.lastName].filter(Boolean).join(' '));
+const fullName = (p: Patient): string =>
+  normalise([p.firstName, p.lastName].filter(Boolean).join(' '));
 
 /**
  * Finds the one patient a discovery request refers to, or nobody.
@@ -66,7 +67,10 @@ const fullName = (p: Patient): string => normalise([p.firstName, p.lastName].fil
  * and looking for demographic agreement after it would only introduce ways to reject a match ABDM
  * has already proved.
  */
-export async function discoverPatient(tenantId: string, request: DiscoveryRequest): Promise<DiscoveryResult> {
+export async function discoverPatient(
+  tenantId: string,
+  request: DiscoveryRequest,
+): Promise<DiscoveryResult> {
   // 1. Verified ABHA address — conclusive.
   if (request.abhaAddress) {
     const byAbha = await runWithTenant(tenantId, (tx) =>
@@ -87,7 +91,11 @@ export async function discoverPatient(tenantId: string, request: DiscoveryReques
     }
     if (byAbha.length > 1) {
       // Two charts claiming one national identity is a data problem here, not a reason to pick one.
-      return { matchedBy: [], careContexts: [], reason: 'More than one chart holds that ABHA address' };
+      return {
+        matchedBy: [],
+        careContexts: [],
+        reason: 'More than one chart holds that ABHA address',
+      };
     }
   }
 
@@ -110,13 +118,17 @@ export async function discoverPatient(tenantId: string, request: DiscoveryReques
         .limit(10),
     );
 
-    const matches = candidates.filter((p) => fullName(p) === name && genderMatches(p.gender, request.gender));
+    const matches = candidates.filter(
+      (p) => fullName(p) === name && genderMatches(p.gender, request.gender),
+    );
 
     // A self-declared registration number cannot create a match, but it CAN choose between
     // demographic candidates the patient has additionally identified — which is exactly the
     // "weaker signal" role ABDM describes for it.
     if (matches.length > 1 && request.medicalRecordNumber) {
-      const byMr = matches.filter((p) => normalise(p.uhid) === normalise(request.medicalRecordNumber));
+      const byMr = matches.filter(
+        (p) => normalise(p.uhid) === normalise(request.medicalRecordNumber),
+      );
       if (byMr.length === 1) {
         return withContexts(tenantId, byMr[0]!, ['MOBILE', 'NAME', 'YEAR_OF_BIRTH', 'MR']);
       }
@@ -129,7 +141,11 @@ export async function discoverPatient(tenantId: string, request: DiscoveryReques
     }
     if (matches.length > 1) {
       // Twins on a shared family mobile are real. Guessing between them is a disclosure.
-      return { matchedBy: [], careContexts: [], reason: 'More than one chart matches those details' };
+      return {
+        matchedBy: [],
+        careContexts: [],
+        reason: 'More than one chart matches those details',
+      };
     }
   }
 
@@ -143,12 +159,18 @@ export async function discoverPatient(tenantId: string, request: DiscoveryReques
  * bookkeeping, not a record the patient can ask for. And only the label and reference travel: the
  * response carries no clinical information, by the same rule that governs linking (ADR-087).
  */
-async function withContexts(tenantId: string, patient: Patient, matchedBy: MatchedBy[]): Promise<DiscoveryResult> {
+async function withContexts(
+  tenantId: string,
+  patient: Patient,
+  matchedBy: MatchedBy[],
+): Promise<DiscoveryResult> {
   const careContexts = await runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(abdmCareContexts)
-      .where(and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patient.id))),
+      .where(
+        and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patient.id)),
+      ),
   );
   return { patient, matchedBy, careContexts };
 }

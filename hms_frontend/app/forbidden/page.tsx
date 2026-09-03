@@ -1,4 +1,4 @@
-import { Forbidden } from "../../components/Forbidden";
+import { Forbidden } from '../../components/Forbidden';
 
 // Standalone 403 route for direct hits / redirects.
 export default function ForbiddenPage() {

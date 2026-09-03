@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { PageHeader, cn } from "@hms/ui";
+import type { ReactNode } from 'react';
+import { PageHeader, cn } from '@hms/ui';
 
 /**
  * The one dashboard layout (ADR-044). Every role's dashboard — hospital admin,
@@ -38,12 +38,14 @@ export function DashboardShell({
       <PageHeader
         title={title}
         description={context}
-        actions={controls || actions ? (
-          <>
-            {controls}
-            {actions}
-          </>
-        ) : undefined}
+        actions={
+          controls || actions ? (
+            <>
+              {controls}
+              {actions}
+            </>
+          ) : undefined
+        }
       />
       {children}
     </div>
@@ -52,7 +54,9 @@ export function DashboardShell({
 
 /** KPI row. Four across on a wide screen, two on a tablet, one on a phone. */
 export function KpiGrid({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
+  return (
+    <div className={cn('grid gap-4 sm:grid-cols-2 xl:grid-cols-4', className)}>{children}</div>
+  );
 }
 
 /**
@@ -60,11 +64,11 @@ export function KpiGrid({ children, className }: { children: ReactNode; classNam
  * larger share (a chart beside a list), `even` splits it in two, `thirds` in three.
  */
 export function DashboardRow({
-  split = "even",
+  split = 'even',
   children,
   className,
 }: {
-  split?: "wide" | "even" | "thirds";
+  split?: 'wide' | 'even' | 'thirds';
   children: ReactNode;
   className?: string;
 }) {
@@ -74,12 +78,12 @@ export function DashboardRow({
   // split. `[&>*]:min-w-0` lets the panels shrink to their track so their charts
   // (already `min-width:0`) reflow instead of overflowing.
   const cols =
-    split === "wide"
-      ? "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
-      : split === "thirds"
-        ? "lg:grid-cols-3"
-        : "xl:grid-cols-2";
-  return <div className={cn("grid gap-4 [&>*]:min-w-0", cols, className)}>{children}</div>;
+    split === 'wide'
+      ? 'xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]'
+      : split === 'thirds'
+        ? 'lg:grid-cols-3'
+        : 'xl:grid-cols-2';
+  return <div className={cn('grid gap-4 [&>*]:min-w-0', cols, className)}>{children}</div>;
 }
 
 /** A labelled row inside a panel — "Pending labs · 4", a provider's load, a stock line. */
@@ -88,13 +92,13 @@ export function PanelRow({
   title,
   meta,
   value,
-  tone = "default",
+  tone = 'default',
 }: {
   icon?: ReactNode;
   title: ReactNode;
   meta?: ReactNode;
   value?: ReactNode;
-  tone?: "default" | "warning" | "danger";
+  tone?: 'default' | 'warning' | 'danger';
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0 last:pb-0">
@@ -102,8 +106,12 @@ export function PanelRow({
         {icon ? (
           <span
             className={cn(
-              "inline-flex shrink-0",
-              tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-fg-subtle",
+              'inline-flex shrink-0',
+              tone === 'danger'
+                ? 'text-danger'
+                : tone === 'warning'
+                  ? 'text-warning'
+                  : 'text-fg-subtle',
             )}
           >
             {icon}
@@ -123,7 +131,20 @@ export function PanelRow({
  * The name to greet someone by. "Dr. Ananya Sharma" is Ananya, not "Dr." — an
  * honorific as a first name reads like a bug, and in a hospital most staff have one.
  */
-const HONORIFICS = new Set(["dr", "dr.", "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "prof", "prof.", "shri", "smt"]);
+const HONORIFICS = new Set([
+  'dr',
+  'dr.',
+  'mr',
+  'mr.',
+  'mrs',
+  'mrs.',
+  'ms',
+  'ms.',
+  'prof',
+  'prof.',
+  'shri',
+  'smt',
+]);
 
 export function firstName(fullName?: string): string | null {
   if (!fullName) return null;

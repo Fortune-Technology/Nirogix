@@ -17,7 +17,7 @@
 /** Anything the helpers accept: a Date, an ISO string, or an epoch in milliseconds. */
 export type DateInput = Date | string | number | null | undefined;
 
-const PLACEHOLDER = "—";
+const PLACEHOLDER = '—';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -41,9 +41,9 @@ function fromParts(year: number, month: number, day: number): Date | null {
  * otherwise a date-only value can display as the previous day west of UTC.
  */
 export function parseDate(value: DateInput): Date | null {
-  if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined || value === '') return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? null : d;
   }
@@ -79,13 +79,11 @@ export function formatDate(value: DateInput, fallback = PLACEHOLDER): string {
  * the numerals — the AM/PM badge in schedules and pickers (ADR-046).
  * `{ time: "02:05", meridiem: "PM" }`.
  */
-export function formatTimeParts(
-  value: DateInput,
-): { time: string; meridiem: "AM" | "PM" } | null {
+export function formatTimeParts(value: DateInput): { time: string; meridiem: 'AM' | 'PM' } | null {
   const d = parseDate(value);
   if (!d) return null;
   const hours24 = d.getHours();
-  const meridiem = hours24 < 12 ? "AM" : "PM";
+  const meridiem = hours24 < 12 ? 'AM' : 'PM';
   // 00:xx is 12 AM and 12:xx is 12 PM — the two cases a naive `% 12` gets wrong.
   const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
   return { time: `${pad(hours12)}:${pad(d.getMinutes())}`, meridiem };
@@ -116,8 +114,29 @@ export function toApiTime(value: DateInput): string | null {
  * The weekday name, for a context line that also carries a real date
  * ("Sunday · 16/08/2026"). Never a substitute for the date itself.
  */
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+const WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 export function formatWeekday(value: DateInput, fallback = PLACEHOLDER): string {
   const d = parseDate(value);
@@ -185,7 +204,9 @@ export function isSameDay(a: DateInput, b: DateInput): boolean {
   const db = parseDate(b);
   if (!da || !db) return false;
   return (
-    da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate()
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
   );
 }
 
@@ -275,24 +296,24 @@ export interface DateRange {
 
 /** The named periods the shared filter offers. `custom` is resolved by the caller. */
 export type DateRangePreset =
-  | "today"
-  | "yesterday"
-  | "last7Days"
-  | "last30Days"
-  | "last90Days"
-  | "thisWeek"
-  | "lastWeek"
-  | "thisMonth"
-  | "lastMonth"
-  | "last3Months"
-  | "last6Months"
-  | "last12Months"
-  | "last24Months"
-  | "thisFinancialYear"
-  | "lastFinancialYear"
-  | "thisYear"
-  | "lastYear"
-  | "custom";
+  | 'today'
+  | 'yesterday'
+  | 'last7Days'
+  | 'last30Days'
+  | 'last90Days'
+  | 'thisWeek'
+  | 'lastWeek'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'last3Months'
+  | 'last6Months'
+  | 'last12Months'
+  | 'last24Months'
+  | 'thisFinancialYear'
+  | 'lastFinancialYear'
+  | 'thisYear'
+  | 'lastYear'
+  | 'custom';
 
 /**
  * Resolves a preset to an inclusive ISO `{ start, end }`. Rolling day/month windows
@@ -303,7 +324,7 @@ export function resolveDateRange(
   preset: DateRangePreset,
   opts: { today?: DateInput; fyStartMonth?: number } = {},
 ): DateRange | null {
-  if (preset === "custom") return null;
+  if (preset === 'custom') return null;
   const today = parseDate(opts.today) ?? new Date();
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const fy = opts.fyStartMonth ?? FINANCIAL_YEAR_START_MONTH;
@@ -316,50 +337,50 @@ export function resolveDateRange(
   const lastMonths = (n: number) => range(startOfMonth(addMonths(t, -(n - 1))!)!, t);
 
   switch (preset) {
-    case "today":
+    case 'today':
       return range(t, t);
-    case "yesterday": {
+    case 'yesterday': {
       const y = addDays(t, -1)!;
       return range(y, y);
     }
-    case "last7Days":
+    case 'last7Days':
       return lastDays(7);
-    case "last30Days":
+    case 'last30Days':
       return lastDays(30);
-    case "last90Days":
+    case 'last90Days':
       return lastDays(90);
-    case "thisWeek":
+    case 'thisWeek':
       return range(startOfWeek(t)!, t);
-    case "lastWeek": {
+    case 'lastWeek': {
       const prevStart = addDays(startOfWeek(t)!, -7)!;
       return range(prevStart, addDays(prevStart, 6)!);
     }
-    case "thisMonth":
+    case 'thisMonth':
       return range(startOfMonth(t)!, t);
-    case "lastMonth": {
+    case 'lastMonth': {
       const prev = addMonths(t, -1)!;
       return range(startOfMonth(prev)!, endOfMonth(prev)!);
     }
-    case "last3Months":
+    case 'last3Months':
       return lastMonths(3);
-    case "last6Months":
+    case 'last6Months':
       return lastMonths(6);
-    case "last12Months":
+    case 'last12Months':
       return lastMonths(12);
-    case "last24Months":
+    case 'last24Months':
       return lastMonths(24);
-    case "thisFinancialYear": {
+    case 'thisFinancialYear': {
       const cur = financialYearRange(t, fy)!;
       return { start: cur.start, end: iso(t) };
     }
-    case "lastFinancialYear": {
+    case 'lastFinancialYear': {
       const cur = financialYearRange(t, fy)!;
       const prevAnchor = addDays(parseDate(cur.start)!, -1)!; // a day inside the prior FY
       return financialYearRange(prevAnchor, fy)!;
     }
-    case "thisYear":
+    case 'thisYear':
       return range(new Date(t.getFullYear(), 0, 1), t);
-    case "lastYear":
+    case 'lastYear':
       return range(new Date(t.getFullYear() - 1, 0, 1), new Date(t.getFullYear() - 1, 11, 31));
   }
 }

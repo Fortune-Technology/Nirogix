@@ -1,6 +1,15 @@
-import { PERMISSIONS } from "@hms/permissions";
-import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarCheck, LayoutDashboard, LifeBuoy, Mail, Palette, ScrollText, UserCircle } from "lucide-react";
+import { PERMISSIONS } from '@hms/permissions';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Building2,
+  CalendarCheck,
+  LayoutDashboard,
+  LifeBuoy,
+  Mail,
+  Palette,
+  ScrollText,
+  UserCircle,
+} from 'lucide-react';
 
 /**
  * Platform administration navigation (ADR-037, ADR-051).
@@ -31,39 +40,56 @@ export interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
+    label: 'Overview',
     items: [
-      { label: "Dashboard", href: "/dashboard", perm: null, icon: LayoutDashboard },
+      { label: 'Dashboard', href: '/dashboard', perm: null, icon: LayoutDashboard },
       // A daily companion to the dashboard, built from the audit trail — the only
       // thing the platform records per-day. Shares the audit permission.
-      { label: "EOD report", href: "/eod", perm: PERMISSIONS.AUDIT_VIEW, icon: CalendarCheck },
+      { label: 'EOD report', href: '/eod', perm: PERMISSIONS.AUDIT_VIEW, icon: CalendarCheck },
     ],
   },
   {
-    label: "Customers",
-    items: [{ label: "Hospitals", href: "/tenants", perm: PERMISSIONS.TENANTS_MANAGE, icon: Building2 }],
-  },
-  {
-    label: "Support",
+    label: 'Customers',
     items: [
-      { label: "Support sessions", href: "/support", perm: PERMISSIONS.PLATFORM_SUPPORT_IMPERSONATE, icon: LifeBuoy },
+      { label: 'Hospitals', href: '/tenants', perm: PERMISSIONS.TENANTS_MANAGE, icon: Building2 },
     ],
   },
   {
-    label: "Platform",
+    label: 'Support',
     items: [
-      { label: "Branding", href: "/branding", perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE, icon: Palette },
+      {
+        label: 'Support sessions',
+        href: '/support',
+        perm: PERMISSIONS.PLATFORM_SUPPORT_IMPERSONATE,
+        icon: LifeBuoy,
+      },
+    ],
+  },
+  {
+    label: 'Platform',
+    items: [
+      {
+        label: 'Branding',
+        href: '/branding',
+        perm: PERMISSIONS.PLATFORM_BRANDING_MANAGE,
+        icon: Palette,
+      },
       // Read-only preview of the platform's email templates, rendered from sample data.
-      { label: "Email templates", href: "/email-templates", perm: PERMISSIONS.TENANTS_MANAGE, icon: Mail },
-      { label: "Security & audit", href: "/audit", perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
+      {
+        label: 'Email templates',
+        href: '/email-templates',
+        perm: PERMISSIONS.TENANTS_MANAGE,
+        icon: Mail,
+      },
+      { label: 'Security & audit', href: '/audit', perm: PERMISSIONS.AUDIT_VIEW, icon: ScrollText },
     ],
   },
   {
-    label: "Account",
+    label: 'Account',
     items: [
       // Any authenticated operator: their own account + password change (the same
       // /auth/change-password the Portal uses; the user id comes from the token).
-      { label: "My profile", href: "/profile", perm: null, icon: UserCircle },
+      { label: 'My profile', href: '/profile', perm: null, icon: UserCircle },
     ],
   },
 ];
@@ -72,7 +98,8 @@ export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 /** Groups whose every item is denied disappear, so a heading never sits above nothing. */
 export function navGroupsFor(can: (perm: string) => boolean): NavGroup[] {
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.perm === null || can(i.perm)) })).filter(
-    (g) => g.items.length > 0,
-  );
+  return NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => i.perm === null || can(i.perm)),
+  })).filter((g) => g.items.length > 0);
 }

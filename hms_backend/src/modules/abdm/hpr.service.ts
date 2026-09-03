@@ -50,7 +50,10 @@ const ALLOWED: Record<string, readonly string[]> = {
 const TXN_TTL_MS = 30 * 60_000;
 
 /** The enrolment state for one clinician — the screen's whole content. */
-export async function getEnrolment(tenantId: string, providerId: string): Promise<AbdmStaffHpr | null> {
+export async function getEnrolment(
+  tenantId: string,
+  providerId: string,
+): Promise<AbdmStaffHpr | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
       .select()
@@ -106,16 +109,24 @@ export async function startEnrolment(
     source: 'Nirogix HMS',
   });
   const txnId = started.txnId;
-  if (!txnId) throw new AppError(502, 'ABDM_HPR_NO_TXN', 'The registry accepted the request but returned no transaction');
+  if (!txnId)
+    throw new AppError(
+      502,
+      'ABDM_HPR_NO_TXN',
+      'The registry accepted the request but returned no transaction',
+    );
 
   // Does this person already hold an HPR id? Asked before we create a second national identity for
   // a real human being.
   let alreadyRegistered = false;
   try {
-    const exists = await registryPost<{ hprIdNumber?: string; hprId?: string }>(HPR_PATHS.checkAccountExists, {
-      txnId,
-      preverifiedCheck: true,
-    });
+    const exists = await registryPost<{ hprIdNumber?: string; hprId?: string }>(
+      HPR_PATHS.checkAccountExists,
+      {
+        txnId,
+        preverifiedCheck: true,
+      },
+    );
     alreadyRegistered = Boolean(exists.hprIdNumber ?? exists.hprId);
     if (alreadyRegistered) {
       await upsert(tenantId, input.providerId, {
@@ -155,7 +166,11 @@ export async function startEnrolment(
     metadata: { category: input.category, alreadyRegistered },
   });
 
-  return { txnId, status: alreadyRegistered ? 'already_registered' : 'otp_sent', alreadyRegistered };
+  return {
+    txnId,
+    status: alreadyRegistered ? 'already_registered' : 'otp_sent',
+    alreadyRegistered,
+  };
 }
 
 /** Step 2 — the Aadhaar OTP. */
@@ -171,12 +186,23 @@ export async function verifyAadhaarOtp(
 }
 
 /** Step 3 — a mobile number, which may or may not be the one on the Aadhaar. */
-export async function sendMobileOtp(tenantId: string, providerId: string, mobile: string): Promise<void> {
+export async function sendMobileOtp(
+  tenantId: string,
+  providerId: string,
+  mobile: string,
+): Promise<void> {
   const row = await requireLiveTransaction(tenantId, providerId);
-  await registryPost(HPR_PATHS.generateMobileOtp, { txnId: row.txnId, mobile: mobile.replace(/\D/g, '').slice(-10) });
+  await registryPost(HPR_PATHS.generateMobileOtp, {
+    txnId: row.txnId,
+    mobile: mobile.replace(/\D/g, '').slice(-10),
+  });
 }
 
-export async function verifyMobileOtp(tenantId: string, providerId: string, otp: string): Promise<AbdmStaffHpr> {
+export async function verifyMobileOtp(
+  tenantId: string,
+  providerId: string,
+  otp: string,
+): Promise<AbdmStaffHpr> {
   const row = await requireLiveTransaction(tenantId, providerId);
   await registryPost(HPR_PATHS.verifyMobileOtp, { txnId: row.txnId, otp });
   return transition(tenantId, providerId, 'mobile_verified');
@@ -205,16 +231,24 @@ export async function completeEnrolment(
   const row = await requireLiveTransaction(tenantId, input.providerId);
   assertTransition(row.status, 'registered');
 
-  const created = await registryPost<{ hprIdNumber?: string; hprId?: string; token?: string }>(HPR_PATHS.createHprId, {
-    txnId: row.txnId,
-    email: input.email,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    idType: 'hpr_id',
-    domainName: '@hpr.abdm',
-  });
+  const created = await registryPost<{ hprIdNumber?: string; hprId?: string; token?: string }>(
+    HPR_PATHS.createHprId,
+    {
+      txnId: row.txnId,
+      email: input.email,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      idType: 'hpr_id',
+      domainName: '@hpr.abdm',
+    },
+  );
   const hprId = created.hprIdNumber ?? created.hprId;
-  if (!hprId) throw new AppError(502, 'ABDM_HPR_NO_ID', 'The registry completed the account but returned no HPR id');
+  if (!hprId)
+    throw new AppError(
+      502,
+      'ABDM_HPR_NO_ID',
+      'The registry completed the account but returned no HPR id',
+    );
 
   await registryPost(HPR_PATHS.registerProfessional, {
     hprToken: created.token,
@@ -265,20 +299,31 @@ export async function completeEnrolment(
  * already on file may be what a hospital's own records key on, and silently replacing it is not
  * this feature's business.
  */
-async function adoptRegistrationNumber(tenantId: string, providerId: string, registrationNumber: string): Promise<void> {
+async function adoptRegistrationNumber(
+  tenantId: string,
+  providerId: string,
+  registrationNumber: string,
+): Promise<void> {
   await runWithTenant(tenantId, async (tx) => {
     const rows = await tx.select().from(providers).where(eq(providers.id, providerId)).limit(1);
     const current = rows[0]?.registrationNumber?.trim();
     if (current) return;
-    await tx.update(providers).set({ registrationNumber, updatedAt: new Date() }).where(eq(providers.id, providerId));
-    logger.info({ tenantId, providerId }, 'Adopted the HPR-verified registration number onto the provider');
+    await tx
+      .update(providers)
+      .set({ registrationNumber, updatedAt: new Date() })
+      .where(eq(providers.id, providerId));
+    logger.info(
+      { tenantId, providerId },
+      'Adopted the HPR-verified registration number onto the provider',
+    );
   });
 }
 
 /** The current profile as HPR holds it — used to show a staff member what the registry says. */
 export async function syncProfile(tenantId: string, providerId: string): Promise<AbdmStaffHpr> {
   const row = await getEnrolment(tenantId, providerId);
-  if (!row?.hprId) throw new AppError(404, 'ABDM_HPR_NOT_ENROLLED', 'This staff member has no HPR id yet');
+  if (!row?.hprId)
+    throw new AppError(404, 'ABDM_HPR_NOT_ENROLLED', 'This staff member has no HPR id yet');
   await registryPost(HPR_PATHS.fetchProfessional, { hprId: row.hprId });
   return upsert(tenantId, providerId, { lastSyncedAt: new Date() });
 }
@@ -296,16 +341,25 @@ export async function hprMasterData(kind: keyof typeof HPR_MASTER_PATHS) {
  */
 async function requireLiveTransaction(tenantId: string, providerId: string): Promise<AbdmStaffHpr> {
   const row = await getEnrolment(tenantId, providerId);
-  if (!row?.txnId) throw new AppError(409, 'ABDM_HPR_NO_TRANSACTION', 'Start the enrolment before verifying');
+  if (!row?.txnId)
+    throw new AppError(409, 'ABDM_HPR_NO_TRANSACTION', 'Start the enrolment before verifying');
   if (row.txnStartedAt && Date.now() - row.txnStartedAt.getTime() > TXN_TTL_MS) {
-    throw new AppError(410, 'ABDM_HPR_TRANSACTION_EXPIRED', 'This enrolment has expired. Please start again.');
+    throw new AppError(
+      410,
+      'ABDM_HPR_TRANSACTION_EXPIRED',
+      'This enrolment has expired. Please start again.',
+    );
   }
   return row;
 }
 
 function assertTransition(from: string, to: string): void {
   if (!(ALLOWED[from] ?? []).includes(to)) {
-    throw new AppError(409, 'ABDM_HPR_BAD_TRANSITION', `An enrolment at "${from}" cannot become "${to}"`);
+    throw new AppError(
+      409,
+      'ABDM_HPR_BAD_TRANSITION',
+      `An enrolment at "${from}" cannot become "${to}"`,
+    );
   }
 }
 

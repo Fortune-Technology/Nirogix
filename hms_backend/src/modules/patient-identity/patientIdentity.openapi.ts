@@ -87,7 +87,10 @@ registry.registerPath({
     'Active links only, and only for a verified identity. This is the one query that legitimately spans tenants, and it returns nothing but the caller’s own links.',
   security: [{ bearerAuth: [] }],
   responses: {
-    200: { description: 'Hospitals', ...json(z.object({ hospitals: z.array(PatientHospitalSchema) })) },
+    200: {
+      description: 'Hospitals',
+      ...json(z.object({ hospitals: z.array(PatientHospitalSchema) })),
+    },
     401: notAuthed,
   },
 });
@@ -140,7 +143,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: tenantParam },
   responses: {
-    200: { description: 'Reports', ...json(z.object({ reports: z.array(PatientLabReportSchema) })) },
+    200: {
+      description: 'Reports',
+      ...json(z.object({ reports: z.array(PatientLabReportSchema) })),
+    },
     401: notAuthed,
     403: noAccess,
   },
@@ -157,11 +163,17 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }), body: json(GrantPortalAccessBody) },
   responses: {
-    201: { description: 'Linked', ...json(z.object({ identityId: z.string(), linkId: z.string() })) },
+    201: {
+      description: 'Linked',
+      ...json(z.object({ identityId: z.string(), linkId: z.string() })),
+    },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },
     403: { description: 'Missing patient.record.create', ...json(ErrorResponseSchema) },
     404: { description: 'Patient not found', ...json(ErrorResponseSchema) },
-    409: { description: 'That record is already linked to a different portal account', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'That record is already linked to a different portal account',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 

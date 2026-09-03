@@ -2,4 +2,4 @@
 // per environment (local / staging / production) via NEXT_PUBLIC_PORTAL_LOGIN_URL,
 // never hard-coded.
 export const PORTAL_LOGIN_URL =
-  process.env.NEXT_PUBLIC_PORTAL_LOGIN_URL ?? "http://localhost:3001/login";
+  process.env.NEXT_PUBLIC_PORTAL_LOGIN_URL ?? 'http://localhost:3001/login';

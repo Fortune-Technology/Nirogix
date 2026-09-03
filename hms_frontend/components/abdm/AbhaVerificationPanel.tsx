@@ -1,14 +1,32 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { Alert, Badge, Button, Card, emptyLabel, Field, PhoneField, Spinner } from "@hms/ui";
-import { formatDate } from "@hms/utils";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AbdmCapabilities, AbdmPendingShare, AbhaIdentifierType, AbhaPrefill, AbhaVerificationResult } from "@hms/types";
-import * as api from "../../lib/api";
-import { useQrDataUrl } from "../../lib/useQrDataUrl";
-import { Can } from "../Can";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Combobox,
+  emptyLabel,
+  Field,
+  PhoneField,
+  Select,
+  Spinner,
+} from '@hms/ui';
+import { formatDate } from '@hms/utils';
+import { PERMISSIONS } from '@hms/permissions';
+import type {
+  AbdmCapabilities,
+  AbdmPendingShare,
+  AbhaIdentifierType,
+  AbhaOtpSystem,
+  AbhaPrefill,
+  AbhaVerificationResult,
+} from '@hms/types';
+import * as api from '../../lib/api';
+import { useQrDataUrl } from '../../lib/useQrDataUrl';
+import { Can } from '../Can';
 
 /**
  * The ABHA address policy, quoted from NHA's M1 workbook (`CRT_ABHA_112`).
@@ -20,18 +38,18 @@ import { Can } from "../Can";
  * break three times before guessing it. Keep the two in step.
  */
 const ABHA_ADDRESS_POLICY =
-  "Between 8 and 18 characters. Letters and numbers, with at most one dot and one underscore, and neither at the start nor the end.";
+  'Between 8 and 18 characters. Letters and numbers, with at most one dot and one underscore, and neither at the start nor the end.';
 
 /** Applies the policy to the part before any `@`, so ABDM's own qualified suggestions still pass. */
 function abhaAddressError(value: string): string | undefined {
-  const local = (value.split("@")[0] ?? "").trim();
-  if (local.length < 8) return "At least 8 characters.";
-  if (local.length > 18) return "At most 18 characters.";
+  const local = (value.split('@')[0] ?? '').trim();
+  if (local.length < 8) return 'At least 8 characters.';
+  if (local.length > 18) return 'At most 18 characters.';
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$/.test(local)) {
-    return "Letters and numbers only, and it must start and end with one.";
+    return 'Letters and numbers only, and it must start and end with one.';
   }
-  if ((local.match(/\./g) ?? []).length > 1) return "At most one dot.";
-  if ((local.match(/_/g) ?? []).length > 1) return "At most one underscore.";
+  if ((local.match(/\./g) ?? []).length > 1) return 'At most one dot.';
+  if ((local.match(/_/g) ?? []).length > 1) return 'At most one underscore.';
   return undefined;
 }
 
@@ -53,7 +71,7 @@ function abhaAddressError(value: string): string | undefined {
  * NHA maintenance, a patient with no Aadhaar) that a registration desk cannot depend on it.
  */
 
-type Mode = "scan" | "aadhaar" | "verify";
+type Mode = 'scan' | 'aadhaar' | 'verify';
 
 export interface AbhaVerificationPanelProps {
   /** Called when the operator accepts a verified profile for the form. */
@@ -62,11 +80,25 @@ export interface AbhaVerificationPanelProps {
 }
 
 const IDENTIFIER_LABELS: Record<AbhaIdentifierType, string> = {
-  abha_number: "ABHA number",
-  abha_address: "ABHA address",
-  mobile: "Mobile number",
-  aadhaar: "Aadhaar number",
+  abha_number: 'ABHA number',
+  abha_address: 'ABHA address',
+  mobile: 'Mobile number',
+  aadhaar: 'Aadhaar number',
 };
+
+/**
+ * Where the OTP is sent from, for the identifiers that accept a choice.
+ *
+ * NHA asks for both routes on both identifiers — `VRFY_ABHA_101`/`_102` go to UIDAI and
+ * `_201`/`_202` to the mobile on the ABHA — so the operator has to be able to pick. A mobile or
+ * an Aadhaar number has only one sensible route and the control is not shown for them.
+ */
+const OTP_SYSTEM_LABELS: Record<AbhaOtpSystem, string> = {
+  abdm: 'OTP on the ABHA-linked mobile',
+  aadhaar: 'OTP on the Aadhaar-linked mobile',
+};
+
+const CHOOSES_OTP_SYSTEM: AbhaIdentifierType[] = ['abha_number', 'abha_address'];
 
 /**
  * Everything ABDM has said about this person so far, the newest answer winning per field
@@ -79,7 +111,7 @@ function mergePrefill(known: AbhaPrefill, incoming: AbhaPrefill): AbhaPrefill {
   const merged: Record<string, unknown> = { ...known };
   for (const [key, value] of Object.entries(incoming)) {
     if (value === null || value === undefined) continue;
-    if (typeof value === "string" && value.trim() === "") continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
     merged[key] = value;
   }
   return merged as AbhaPrefill;
@@ -88,7 +120,7 @@ function mergePrefill(known: AbhaPrefill, incoming: AbhaPrefill): AbhaPrefill {
 export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificationPanelProps) {
   const [capabilities, setCapabilities] = useState<AbdmCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<Mode>("scan");
+  const [mode, setMode] = useState<Mode>('scan');
   const [result, setResult] = useState<AbhaVerificationResult | null>(null);
   /**
    * The same value, readable synchronously. `handleVerified` has to merge the incoming step onto
@@ -109,7 +141,7 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
         setCapabilities(c);
         // Scan and Share leads only when it can actually work. Offering a QR the hospital has
         // not registered would be a control that silently does nothing.
-        setMode(c.scanShareEnabled ? "scan" : "verify");
+        setMode(c.scanShareEnabled ? 'scan' : 'verify');
       })
       .catch(() => undefined)
       .finally(() => alive && setLoading(false));
@@ -149,7 +181,7 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
         : r;
       latest.current = merged;
       setResult(merged);
-      if (merged.match.outcome === "new" && merged.prefill.abhaNumber) accept(merged);
+      if (merged.match.outcome === 'new' && merged.prefill.abhaNumber) accept(merged);
     },
     [accept],
   );
@@ -171,30 +203,35 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
     <Card header="ABHA (ABDM)">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
-          Verify the patient&apos;s ABHA to fill this form. Every field stays editable, and you can ignore this and type the
-          form as usual.
+          Verify the patient&apos;s ABHA to fill this form. Every field stays editable, and you can
+          ignore this and type the form as usual.
         </p>
-        {capabilities.provider === "mock" && (
+        {capabilities.provider === 'mock' && (
           <Alert tone="neutral">
-            <strong>Test mode.</strong> No ABDM calls are made and no real ABHA is created. The OTP is <code>123456</code>.
+            <strong>Test mode.</strong> No ABDM calls are made and no real ABHA is created. The OTP
+            is <code>123456</code>.
           </Alert>
         )}
         {!capabilities.encryptionConfigured && (
           <Alert tone="danger">
-            Encryption is not configured on the server, so ABDM tokens cannot be stored. Verification still works; linking for
-            future record sharing does not.
+            Encryption is not configured on the server, so ABDM tokens cannot be stored.
+            Verification still works; linking for future record sharing does not.
           </Alert>
         )}
 
         <nav className="flex flex-wrap gap-2" aria-label="ABHA verification method">
-          <ModeTab active={mode === "scan"} onClick={() => setMode("scan")} disabled={!capabilities.scanShareEnabled}>
+          <ModeTab
+            active={mode === 'scan'}
+            onClick={() => setMode('scan')}
+            disabled={!capabilities.scanShareEnabled}
+          >
             Scan &amp; Share
             <Badge tone="brand">Fastest</Badge>
           </ModeTab>
-          <ModeTab active={mode === "verify"} onClick={() => setMode("verify")}>
+          <ModeTab active={mode === 'verify'} onClick={() => setMode('verify')}>
             Patient has an ABHA
           </ModeTab>
-          <ModeTab active={mode === "aadhaar"} onClick={() => setMode("aadhaar")}>
+          <ModeTab active={mode === 'aadhaar'} onClick={() => setMode('aadhaar')}>
             Create a new ABHA
           </ModeTab>
         </nav>
@@ -216,9 +253,9 @@ export function AbhaVerificationPanel({ onUseDetails, branchId }: AbhaVerificati
               setApplied(false);
             }}
           />
-        ) : mode === "scan" ? (
+        ) : mode === 'scan' ? (
           <ScanAndShare capabilities={capabilities} onPicked={handleVerified} onError={setError} />
-        ) : mode === "verify" ? (
+        ) : mode === 'verify' ? (
           <VerifyExisting branchId={branchId} onVerified={handleVerified} onError={setError} />
         ) : (
           <CreateWithAadhaar branchId={branchId} onVerified={handleVerified} onError={setError} />
@@ -245,13 +282,15 @@ function ModeTab({
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}
-      title={disabled ? "This hospital has not registered a facility QR with ABDM yet" : undefined}
+      title={disabled ? 'This hospital has not registered a facility QR with ABDM yet' : undefined}
       className={[
-        "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-        active ? "border-brand bg-brand-subtle text-fg" : "border-border text-fg-muted hover:text-fg",
-        disabled ? "cursor-not-allowed opacity-50" : "",
-      ].join(" ")}
+        'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        active
+          ? 'border-brand bg-brand-subtle text-fg'
+          : 'border-border text-fg-muted hover:text-fg',
+        disabled ? 'cursor-not-allowed opacity-50' : '',
+      ].join(' ')}
     >
       {children}
     </button>
@@ -259,7 +298,13 @@ function ModeTab({
 }
 
 /** The consent gate. The API refuses without it, and this is where the operator records it. */
-function ConsentCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ConsentCheckbox({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex items-start gap-2 text-sm text-fg-muted">
       <input
@@ -270,9 +315,82 @@ function ConsentCheckbox({ checked, onChange }: { checked: boolean; onChange: (v
         aria-describedby="abha-consent-text"
       />
       <span id="abha-consent-text">
-        The patient has been told their details will be verified with ABDM, and consents. Required before any OTP is sent.
+        The patient has been told their details will be verified with ABDM, and consents. Required
+        before any OTP is sent.
       </span>
     </label>
+  );
+}
+
+/**
+ * The Resend OTP control, shared by every flow that sends one.
+ *
+ * NHA states the same rule on the creation case and on every verification case: *"System may
+ * activate the Resend OTP button maximum 2 times after 60 seconds"* (`CRT_ABHA_106`,
+ * `VRFY_ABHA_305`, `_405`). It is a **button** the assessor presses, so a throttle that exists only
+ * in the service satisfies none of them — which is what was here before: the endpoint was built and
+ * nothing on any screen called it.
+ *
+ * The countdown is UX. The limit and the sixty seconds are re-checked server-side on the
+ * transaction, so a reloaded page cannot spend a patient’s daily UIDAI allowance.
+ */
+function ResendOtpButton({
+  transactionId,
+  payload,
+  onSent,
+  onError,
+}: {
+  transactionId: string;
+  /** What this flow must re-supply — only a masked hint is stored server-side. */
+  payload: { aadhaar?: string; mobile?: string; identifier?: string };
+  onSent: (r: { mobileHint?: string; devOtp?: string }) => void;
+  onError: (m: string | null) => void;
+}) {
+  const MAX_RESENDS = 2;
+  const WAIT_SECONDS = 60;
+  const [used, setUsed] = useState(0);
+  const [waiting, setWaiting] = useState(WAIT_SECONDS);
+  const [busy, setBusy] = useState(false);
+
+  // One interval for the life of the control; the transaction id changing restarts the wait.
+  useEffect(() => {
+    setWaiting(WAIT_SECONDS);
+    const id = setInterval(() => setWaiting((w) => (w > 0 ? w - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [transactionId, used]);
+
+  if (used >= MAX_RESENDS) {
+    return (
+      <p className="text-sm text-fg-muted">
+        The code has been resent twice. Start again to send a new one.
+      </p>
+    );
+  }
+
+  async function resend() {
+    setBusy(true);
+    onError(null);
+    try {
+      const res = await api.resendAbdmOtp({ transactionId, ...payload });
+      setUsed((n) => n + 1);
+      onSent({ mobileHint: res.mobileHint, devOtp: res.devOtp });
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not resend the OTP.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      loading={busy}
+      disabled={waiting > 0}
+      onClick={() => void resend()}
+    >
+      {waiting > 0 ? `Resend OTP in ${waiting}s` : 'Resend OTP'}
+    </Button>
   );
 }
 
@@ -314,7 +432,7 @@ function ScanAndShare({
     try {
       onPicked(await api.getAbdmVerification(share.transactionId));
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not load that profile.");
+      onError(err instanceof Error ? err.message : 'Could not load that profile.');
     } finally {
       setBusy(null);
     }
@@ -325,32 +443,40 @@ function ScanAndShare({
       <div className="flex flex-col items-center gap-2">
         {qr ? (
           // eslint-disable-next-line @next/next/no-img-element -- a data URL generated in the browser
-          <img src={qr} alt="Scan this code with your ABHA app to share your profile" className="h-48 w-48 rounded-md border border-border bg-white p-2" />
+          <img
+            src={qr}
+            alt="Scan this code with your ABHA app to share your profile"
+            className="h-48 w-48 rounded-md border border-border bg-white p-2"
+          />
         ) : (
           <div className="flex h-48 w-48 items-center justify-center rounded-md border border-dashed border-border text-sm text-fg-muted">
             No facility QR configured
           </div>
         )}
         <p className="max-w-48 text-center text-xs text-fg-muted">
-          {capabilities.facilityName ?? "This hospital"} — ask the patient to scan this in their ABHA app.
+          {capabilities.facilityName ?? 'This hospital'} — ask the patient to scan this in their
+          ABHA app.
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-fg">Shared just now</h3>
         {shares.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nothing yet. Profiles appear here within a few seconds of the patient scanning.</p>
+          <p className="text-sm text-fg-muted">
+            Nothing yet. Profiles appear here within a few seconds of the patient scanning.
+          </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {shares.map((s) => (
               <li key={s.transactionId} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
                   <span className="font-medium text-fg">
-                    {[s.prefill.firstName, s.prefill.lastName].filter(Boolean).join(" ") || "Unnamed"}
+                    {[s.prefill.firstName, s.prefill.lastName].filter(Boolean).join(' ') ||
+                      'Unnamed'}
                   </span>
                   <p className="text-xs text-fg-muted">
-                    {s.abhaAddress ?? s.abhaNumber ?? "no ABHA identifier"}
-                    {s.matchOutcome === "returning" ? " · already registered here" : ""}
+                    {s.abhaAddress ?? s.abhaNumber ?? 'no ABHA identifier'}
+                    {s.matchOutcome === 'returning' ? ' · already registered here' : ''}
                   </p>
                 </div>
                 <Button size="sm" loading={busy === s.transactionId} onClick={() => void use(s)}>
@@ -375,12 +501,17 @@ function VerifyExisting({
   onVerified: (r: AbhaVerificationResult) => void;
   onError: (m: string | null) => void;
 }) {
-  const [identifierType, setIdentifierType] = useState<AbhaIdentifierType>("abha_number");
-  const [identifier, setIdentifier] = useState("");
+  const [identifierType, setIdentifierType] = useState<AbhaIdentifierType>('abha_number');
+  const [otpSystem, setOtpSystem] = useState<AbhaOtpSystem>('abdm');
+  const [identifier, setIdentifier] = useState('');
   const [consent, setConsent] = useState(false);
-  const [sent, setSent] = useState<{ transactionId: string; mobileHint?: string; devOtp?: string } | null>(null);
-  const [otp, setOtp] = useState("");
-  const [accounts, setAccounts] = useState<AbhaVerificationResult["accounts"]>(undefined);
+  const [sent, setSent] = useState<{
+    transactionId: string;
+    mobileHint?: string;
+    devOtp?: string;
+  } | null>(null);
+  const [otp, setOtp] = useState('');
+  const [accounts, setAccounts] = useState<AbhaVerificationResult['accounts']>(undefined);
   const [txnId, setTxnId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -388,12 +519,19 @@ function VerifyExisting({
     setBusy(true);
     onError(null);
     try {
-      const res = await api.startAbhaVerification({ identifierType, identifier, consentGiven: true, branchId });
+      const res = await api.startAbhaVerification({
+        identifierType,
+        identifier,
+        consentGiven: true,
+        branchId,
+        // Only sent where there is a real choice; elsewhere the server picks the one route.
+        otpSystem: CHOOSES_OTP_SYSTEM.includes(identifierType) ? otpSystem : undefined,
+      });
       setSent(res);
       setTxnId(res.transactionId);
-      setOtp(res.devOtp ?? "");
+      setOtp(res.devOtp ?? '');
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not send the OTP.");
+      onError(err instanceof Error ? err.message : 'Could not send the OTP.');
     } finally {
       setBusy(false);
     }
@@ -408,7 +546,7 @@ function VerifyExisting({
       if (res.accounts?.length) setAccounts(res.accounts);
       else onVerified(res);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not verify the OTP.");
+      onError(err instanceof Error ? err.message : 'Could not verify the OTP.');
     } finally {
       setBusy(false);
     }
@@ -420,7 +558,7 @@ function VerifyExisting({
     try {
       onVerified(await api.selectAbhaAccount({ transactionId: txnId, abhaNumber }));
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not load that ABHA.");
+      onError(err instanceof Error ? err.message : 'Could not load that ABHA.');
     } finally {
       setBusy(false);
     }
@@ -429,12 +567,16 @@ function VerifyExisting({
   if (accounts?.length) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-fg-muted">Several ABHA accounts use this identifier. Ask the patient which one is theirs.</p>
+        <p className="text-sm text-fg-muted">
+          Several ABHA accounts use this identifier. Ask the patient which one is theirs.
+        </p>
         <ul className="flex flex-col divide-y divide-border">
           {accounts.map((a) => (
             <li key={a.abhaNumber} className="flex items-center justify-between gap-3 py-2">
               <div>
-                <span className="font-medium text-fg">{a.name ?? a.abhaAddress ?? a.abhaNumber}</span>
+                <span className="font-medium text-fg">
+                  {a.name ?? a.abhaAddress ?? a.abhaNumber}
+                </span>
                 <p className="font-mono text-xs text-fg-muted">{a.abhaNumber}</p>
               </div>
               <Button size="sm" loading={busy} onClick={() => void choose(a.abhaNumber)}>
@@ -450,35 +592,50 @@ function VerifyExisting({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="hms-field">
-          <span className="hms-label">Verify using</span>
-          <select
-            className="hms-input"
-            value={identifierType}
-            onChange={(e) => setIdentifierType(e.target.value as AbhaIdentifierType)}
-            disabled={Boolean(sent)}
-          >
-            {(Object.keys(IDENTIFIER_LABELS) as AbhaIdentifierType[]).map((k) => (
-              <option key={k} value={k}>
-                {IDENTIFIER_LABELS[k]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Verify using"
+          value={identifierType}
+          onChange={(v) => v && setIdentifierType(v as AbhaIdentifierType)}
+          disabled={Boolean(sent)}
+          options={(Object.keys(IDENTIFIER_LABELS) as AbhaIdentifierType[]).map((k) => ({
+            value: k,
+            label: IDENTIFIER_LABELS[k],
+          }))}
+        />
         <Field
           label={IDENTIFIER_LABELS[identifierType]}
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           disabled={Boolean(sent)}
-          hint={identifierType === "abha_address" ? "For example, ramesh.kumar@abdm" : undefined}
+          hint={identifierType === 'abha_address' ? 'For example, ramesh.kumar@abdm' : undefined}
         />
       </div>
+
+      {CHOOSES_OTP_SYSTEM.includes(identifierType) ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Send the OTP to"
+            value={otpSystem}
+            onChange={(v) => v && setOtpSystem(v as AbhaOtpSystem)}
+            disabled={Boolean(sent)}
+            options={(Object.keys(OTP_SYSTEM_LABELS) as AbhaOtpSystem[]).map((k) => ({
+              value: k,
+              label: OTP_SYSTEM_LABELS[k],
+            }))}
+          />
+        </div>
+      ) : null}
 
       {!sent ? (
         <>
           <ConsentCheckbox checked={consent} onChange={setConsent} />
           <div>
-            <Button type="button" loading={busy} disabled={!consent || identifier.trim().length < 3} onClick={() => void sendOtp()}>
+            <Button
+              type="button"
+              loading={busy}
+              disabled={!consent || identifier.trim().length < 3}
+              onClick={() => void sendOtp()}
+            >
               Send OTP
             </Button>
           </div>
@@ -496,9 +653,28 @@ function VerifyExisting({
             />
           </div>
           <div className="flex gap-2">
-            <Button type="button" loading={busy} disabled={otp.length < 4} onClick={() => void verify()}>
+            <Button
+              type="button"
+              loading={busy}
+              disabled={otp.length < 4}
+              onClick={() => void verify()}
+            >
               Verify
             </Button>
+            <ResendOtpButton
+              transactionId={sent.transactionId}
+              // The identifier is re-supplied because the transaction holds only a masked hint.
+              payload={{ identifier }}
+              onSent={(r) => {
+                setSent({
+                  transactionId: sent.transactionId,
+                  mobileHint: r.mobileHint ?? sent.mobileHint,
+                  devOtp: r.devOtp,
+                });
+                setOtp(r.devOtp ?? '');
+              }}
+              onError={onError}
+            />
             <Button type="button" variant="ghost" onClick={() => setSent(null)}>
               Start again
             </Button>
@@ -519,32 +695,40 @@ function CreateWithAadhaar({
   onVerified: (r: AbhaVerificationResult) => void;
   onError: (m: string | null) => void;
 }) {
-  const [aadhaar, setAadhaar] = useState("");
+  const [aadhaar, setAadhaar] = useState('');
   const [consent, setConsent] = useState(false);
-  const [mobile, setMobile] = useState("");
-  const [sent, setSent] = useState<{ transactionId: string; mobileHint?: string; devOtp?: string } | null>(null);
-  const [otp, setOtp] = useState("");
+  const [mobile, setMobile] = useState('');
+  const [sent, setSent] = useState<{
+    transactionId: string;
+    mobileHint?: string;
+    devOtp?: string;
+  } | null>(null);
+  const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState<"aadhaar" | "otp" | "mobileOtp" | "address">("aadhaar");
+  const [step, setStep] = useState<'aadhaar' | 'otp' | 'mobileOtp' | 'address'>('aadhaar');
   const [pending, setPending] = useState<AbhaVerificationResult | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [chosenAddress, setChosenAddress] = useState("");
+  const [chosenAddress, setChosenAddress] = useState('');
 
-  const aadhaarDigits = useMemo(() => aadhaar.replace(/\D/g, ""), [aadhaar]);
+  const aadhaarDigits = useMemo(() => aadhaar.replace(/\D/g, ''), [aadhaar]);
 
   async function sendOtp() {
     setBusy(true);
     onError(null);
     try {
-      const res = await api.startAbhaAadhaarOtp({ aadhaar: aadhaarDigits, consentGiven: true, branchId });
+      const res = await api.startAbhaAadhaarOtp({
+        aadhaar: aadhaarDigits,
+        consentGiven: true,
+        branchId,
+      });
       setSent(res);
-      setOtp(res.devOtp ?? "");
-      setStep("otp");
+      setOtp(res.devOtp ?? '');
+      setStep('otp');
       // The Aadhaar number is not needed again — the transaction carries the rest of the flow —
       // so it is cleared from the browser as soon as it has been sent.
-      setAadhaar("");
+      setAadhaar('');
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not send the OTP.");
+      onError(err instanceof Error ? err.message : 'Could not send the OTP.');
     } finally {
       setBusy(false);
     }
@@ -558,7 +742,7 @@ function CreateWithAadhaar({
       const res = await api.verifyAbhaAadhaarOtp({
         transactionId: sent.transactionId,
         otp,
-        mobile: mobile.replace(/\D/g, "") || undefined,
+        mobile: mobile.replace(/\D/g, '') || undefined,
       });
 
       if (!res.requiresMobileVerification) {
@@ -580,20 +764,20 @@ function CreateWithAadhaar({
       try {
         const otpRes = await api.requestAbhaMobileOtp({
           transactionId: res.transactionId,
-          mobile: mobile.replace(/\D/g, ""),
+          mobile: mobile.replace(/\D/g, ''),
         });
         setSent(otpRes);
-        setOtp(otpRes.devOtp ?? "");
-        setStep("mobileOtp");
+        setOtp(otpRes.devOtp ?? '');
+        setStep('mobileOtp');
       } catch (err) {
         onError(
           err instanceof Error
             ? `The details below are verified and filled in. Confirming the mobile number failed: ${err.message}`
-            : "The details below are verified and filled in, but the mobile number could not be confirmed.",
+            : 'The details below are verified and filled in, but the mobile number could not be confirmed.',
         );
       }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not verify the OTP.");
+      onError(err instanceof Error ? err.message : 'Could not verify the OTP.');
     } finally {
       setBusy(false);
     }
@@ -606,7 +790,7 @@ function CreateWithAadhaar({
     try {
       await afterProfile(await api.verifyAbhaMobileOtp({ transactionId: sent.transactionId, otp }));
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not verify the mobile OTP.");
+      onError(err instanceof Error ? err.message : 'Could not verify the mobile OTP.');
     } finally {
       setBusy(false);
     }
@@ -616,11 +800,11 @@ function CreateWithAadhaar({
   async function afterProfile(res: AbhaVerificationResult) {
     if (res.requiresAbhaAddress) {
       setPending(res);
-      setStep("address");
+      setStep('address');
       try {
         const { suggestions: list } = await api.suggestAbhaAddresses(res.transactionId);
         setSuggestions(list);
-        setChosenAddress(list[0] ?? "");
+        setChosenAddress(list[0] ?? '');
       } catch {
         // Suggestions are a convenience; the operator can type an address instead.
         setSuggestions([]);
@@ -635,40 +819,42 @@ function CreateWithAadhaar({
     setBusy(true);
     onError(null);
     try {
-      const created = await api.createAbhaAddress({ transactionId: pending.transactionId, abhaAddress: chosenAddress });
+      const created = await api.createAbhaAddress({
+        transactionId: pending.transactionId,
+        abhaAddress: chosenAddress,
+      });
       onVerified({ ...pending, prefill: { ...pending.prefill, abhaAddress: created.abhaAddress } });
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not create that ABHA address.");
+      onError(err instanceof Error ? err.message : 'Could not create that ABHA address.');
     } finally {
       setBusy(false);
     }
   }
 
-  if (step === "address" && pending) {
+  if (step === 'address' && pending) {
     const addressError = abhaAddressError(chosenAddress);
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
-          The ABHA was created. Choose the address the patient will use to sign in to their own health records.
+          The ABHA was created. Choose the address the patient will use to sign in to their own
+          health records.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="hms-field">
-            <span className="hms-label">Suggested addresses</span>
-            <select className="hms-input" value={chosenAddress} onChange={(e) => setChosenAddress(e.target.value)}>
-              {suggestions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-              {suggestions.length === 0 && <option value="">No suggestions available</option>}
-            </select>
-            {/* The registry offers three or more; saying how many arrived is honest when it offers fewer. */}
-            <span className="hms-hint">
-              {suggestions.length > 0
+          {/* The hint has always said "pick one, or type your own"; the control underneath it
+              was a native select, which cannot be typed into. This is what the copy promised. */}
+          <Combobox
+            label="Suggested addresses"
+            value={chosenAddress}
+            onChange={(text) => setChosenAddress(text)}
+            options={suggestions.map((s) => ({ value: s, label: s }))}
+            placeholder="ramesh.kumar@abdm"
+            emptyMessage="No suggestion matches — what you have typed will be used."
+            hint={
+              suggestions.length > 0
                 ? `${suggestions.length} available from ABDM. Pick one, or type your own.`
-                : "ABDM returned no suggestions. Type an address instead."}
-            </span>
-          </label>
+                : 'ABDM returned no suggestions. Type an address instead.'
+            }
+          />
           {/* CRT_ABHA_112 requires the policy to be printed beside this field, not merely enforced. */}
           <Field
             label="Or type one"
@@ -679,7 +865,12 @@ function CreateWithAadhaar({
           />
         </div>
         <div className="flex gap-2">
-          <Button type="button" loading={busy} disabled={Boolean(addressError)} onClick={() => void claimAddress()}>
+          <Button
+            type="button"
+            loading={busy}
+            disabled={Boolean(addressError)}
+            onClick={() => void claimAddress()}
+          >
             Create ABHA address
           </Button>
           <Button type="button" variant="ghost" onClick={() => onVerified(pending)}>
@@ -692,7 +883,7 @@ function CreateWithAadhaar({
 
   return (
     <div className="flex flex-col gap-4">
-      {step === "aadhaar" && (
+      {step === 'aadhaar' && (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -712,18 +903,23 @@ function CreateWithAadhaar({
           </div>
           <ConsentCheckbox checked={consent} onChange={setConsent} />
           <div>
-            <Button type="button" loading={busy} disabled={!consent || aadhaarDigits.length !== 12} onClick={() => void sendOtp()}>
+            <Button
+              type="button"
+              loading={busy}
+              disabled={!consent || aadhaarDigits.length !== 12}
+              onClick={() => void sendOtp()}
+            >
               Send OTP
             </Button>
           </div>
         </>
       )}
 
-      {(step === "otp" || step === "mobileOtp") && sent && (
+      {(step === 'otp' || step === 'mobileOtp') && sent && (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
-              label={step === "mobileOtp" ? "OTP sent to the new mobile" : "OTP"}
+              label={step === 'mobileOtp' ? 'OTP sent to the new mobile' : 'OTP'}
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               inputMode="numeric"
@@ -736,11 +932,37 @@ function CreateWithAadhaar({
               type="button"
               loading={busy}
               disabled={otp.length < 4}
-              onClick={() => void (step === "mobileOtp" ? verifyMobile() : verify())}
+              onClick={() => void (step === 'mobileOtp' ? verifyMobile() : verify())}
             >
               Verify
             </Button>
-            <Button type="button" variant="ghost" onClick={() => { setSent(null); setStep("aadhaar"); }}>
+            <ResendOtpButton
+              transactionId={sent.transactionId}
+              // The Aadhaar step re-supplies the Aadhaar; the mobile step re-supplies the mobile.
+              // Neither is stored here, so neither can be recovered from the transaction.
+              payload={
+                step === 'mobileOtp'
+                  ? { mobile: mobile.replace(/[^0-9]/g, '') }
+                  : { aadhaar: aadhaar.replace(/[^0-9]/g, '') }
+              }
+              onSent={(r) => {
+                setSent({
+                  transactionId: sent.transactionId,
+                  mobileHint: r.mobileHint ?? sent.mobileHint,
+                  devOtp: r.devOtp,
+                });
+                setOtp(r.devOtp ?? '');
+              }}
+              onError={onError}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSent(null);
+                setStep('aadhaar');
+              }}
+            >
               Start again
             </Button>
           </div>
@@ -771,14 +993,14 @@ function VerifiedProfile({
   onDismiss: () => void;
 }) {
   const { prefill, match } = result;
-  const name = [prefill.firstName, prefill.lastName].filter(Boolean).join(" ") || "Unnamed";
+  const name = [prefill.firstName, prefill.lastName].filter(Boolean).join(' ') || 'Unnamed';
   // What ABDM did not send, the operator still has to ask for. Naming it beats leaving them to
   // discover an empty required field after they have already told the patient they are done.
   const missing = [
-    !prefill.firstName && "name",
-    !prefill.gender && "gender",
-    !prefill.dateOfBirth && "date of birth",
-    !prefill.phone && "phone",
+    !prefill.firstName && 'name',
+    !prefill.gender && 'gender',
+    !prefill.dateOfBirth && 'date of birth',
+    !prefill.phone && 'phone',
   ].filter(Boolean) as string[];
 
   return (
@@ -787,33 +1009,40 @@ function VerifiedProfile({
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-fg">{name}</span>
           {result.isNewAbha && <Badge tone="success">New ABHA created</Badge>}
-          {match.outcome === "returning" && <Badge tone="warning">Already registered here</Badge>}
+          {match.outcome === 'returning' && <Badge tone="warning">Already registered here</Badge>}
         </div>
         <p className="mt-1 text-sm text-fg-muted">
-          {prefill.gender ?? emptyLabel("unspecified")} · {prefill.dateOfBirth ? formatDate(prefill.dateOfBirth) : "DOB unknown"} · {prefill.phone ?? "no phone"}
+          {prefill.gender ?? emptyLabel('unspecified')} ·{' '}
+          {prefill.dateOfBirth ? formatDate(prefill.dateOfBirth) : 'DOB unknown'} ·{' '}
+          {prefill.phone ?? 'no phone'}
         </p>
         <p className="mt-1 font-mono text-xs text-fg-muted">
-          {prefill.abhaNumber ?? "no ABHA number"}
-          {prefill.abhaAddress ? ` · ${prefill.abhaAddress}` : ""}
+          {prefill.abhaNumber ?? 'no ABHA number'}
+          {prefill.abhaAddress ? ` · ${prefill.abhaAddress}` : ''}
         </p>
       </div>
 
       {match.candidates.length > 0 && (
         <div className="flex flex-col gap-2">
-          <Alert tone={match.outcome === "returning" ? "danger" : "neutral"}>
-            {match.outcome === "returning"
-              ? "This ABHA is already on a chart at this hospital. Open it instead of registering a second one."
-              : "These charts look similar. Check with the patient before registering a new one."}
+          <Alert tone={match.outcome === 'returning' ? 'danger' : 'neutral'}>
+            {match.outcome === 'returning'
+              ? 'This ABHA is already on a chart at this hospital. Open it instead of registering a second one.'
+              : 'These charts look similar. Check with the patient before registering a new one.'}
           </Alert>
           <ul className="flex flex-col divide-y divide-border text-sm">
             {match.candidates.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
-                  <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                  <span className="font-medium text-fg">
+                    {[c.firstName, c.lastName].filter(Boolean).join(' ')}
+                  </span>
                   <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
                   <p className="text-xs text-fg-muted">
-                    {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"} ·{" "}
-                    {c.reason === "exact_abha" ? "same ABHA number" : "same name, gender and birth year"}
+                    {c.phone ?? 'no phone'} ·{' '}
+                    {c.dateOfBirth ? formatDate(c.dateOfBirth) : 'DOB unknown'} ·{' '}
+                    {c.reason === 'exact_abha'
+                      ? 'same ABHA number'
+                      : 'same name, gender and birth year'}
                   </p>
                 </div>
                 <Link href={`/patients/${c.id}`}>
@@ -832,10 +1061,10 @@ function VerifiedProfile({
       {applied ? (
         <div className="flex flex-col gap-2">
           <Alert tone="success">
-            Details filled into the form below.{" "}
+            Details filled into the form below.{' '}
             {missing.length > 0
-              ? `ABDM did not provide ${missing.join(", ")} — add ${missing.length > 1 ? "those" : "that"}, then press Register patient.`
-              : "Check them with the patient and press Register patient."}
+              ? `ABDM did not provide ${missing.join(', ')} — add ${missing.length > 1 ? 'those' : 'that'}, then press Register patient.`
+              : 'Check them with the patient and press Register patient.'}
           </Alert>
           <div>
             <Button type="button" variant="ghost" onClick={onDismiss}>
@@ -846,7 +1075,7 @@ function VerifiedProfile({
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={() => onAccept(result)}>
-            {match.outcome === "new" ? "Use these details" : "Register as a new patient anyway"}
+            {match.outcome === 'new' ? 'Use these details' : 'Register as a new patient anyway'}
           </Button>
           <Button type="button" variant="ghost" onClick={onDismiss}>
             Discard
@@ -875,9 +1104,9 @@ function CorrectAtAbdm({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastName, setLastName] = useState(result.prefill.lastName ?? "");
-  const [address, setAddress] = useState(result.prefill.addressLine ?? "");
-  const [pincode, setPincode] = useState(result.prefill.pincode ?? "");
+  const [lastName, setLastName] = useState(result.prefill.lastName ?? '');
+  const [address, setAddress] = useState(result.prefill.addressLine ?? '');
+  const [pincode, setPincode] = useState(result.prefill.pincode ?? '');
 
   async function save() {
     setSaving(true);
@@ -888,14 +1117,14 @@ function CorrectAtAbdm({
       onUpdated(
         await api.updateAbhaProfile({
           transactionId: result.transactionId,
-          lastName: lastName !== (result.prefill.lastName ?? "") ? lastName : undefined,
-          address: address !== (result.prefill.addressLine ?? "") ? address : undefined,
-          pincode: pincode !== (result.prefill.pincode ?? "") ? pincode : undefined,
+          lastName: lastName !== (result.prefill.lastName ?? '') ? lastName : undefined,
+          address: address !== (result.prefill.addressLine ?? '') ? address : undefined,
+          pincode: pincode !== (result.prefill.pincode ?? '') ? pincode : undefined,
         }),
       );
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ABDM did not accept the change.");
+      setError(err instanceof Error ? err.message : 'ABDM did not accept the change.');
     } finally {
       setSaving(false);
     }
@@ -914,13 +1143,19 @@ function CorrectAtAbdm({
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border p-3">
       <p className="text-sm text-fg-muted">
-        This changes the patient&apos;s record <strong className="font-medium text-fg">at ABDM</strong>, not just here.
-        To fix only this hospital&apos;s copy, edit the registration form below instead.
+        This changes the patient&apos;s record{' '}
+        <strong className="font-medium text-fg">at ABDM</strong>, not just here. To fix only this
+        hospital&apos;s copy, edit the registration form below instead.
       </p>
       {error && <Alert tone="danger">{error}</Alert>}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-        <Field label="PIN code" value={pincode} onChange={(e) => setPincode(e.target.value)} inputMode="numeric" />
+        <Field
+          label="PIN code"
+          value={pincode}
+          onChange={(e) => setPincode(e.target.value)}
+          inputMode="numeric"
+        />
         <Field label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
       <div className="flex gap-2">

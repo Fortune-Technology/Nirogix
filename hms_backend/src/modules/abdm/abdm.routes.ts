@@ -52,7 +52,13 @@ const mod = requireModule('abdm');
 // appends its own fixed path to the registered bridge URL, so it cannot sit under `/api/v1`.
 
 // --- What the registration screen may offer ---------------------------------------------------
-abdmRouter.get('/abdm/capabilities', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_VERIFY), asyncHandler(c.capabilities));
+abdmRouter.get(
+  '/abdm/capabilities',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_VERIFY),
+  asyncHandler(c.capabilities),
+);
 
 // --- Flow 1: create an ABHA with Aadhaar OTP --------------------------------------------------
 abdmRouter.post(
@@ -145,7 +151,13 @@ abdmRouter.post(
 );
 
 // --- Flow 2: what the desk sees from Scan and Share -------------------------------------------
-abdmRouter.get('/abdm/pending-shares', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_VERIFY), asyncHandler(c.pendingShares));
+abdmRouter.get(
+  '/abdm/pending-shares',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_VERIFY),
+  asyncHandler(c.pendingShares),
+);
 
 // --- Transaction lifecycle --------------------------------------------------------------------
 abdmRouter.get(
@@ -188,7 +200,13 @@ abdmRouter.post(
 );
 
 // --- Facility configuration (org_admin) -------------------------------------------------------
-abdmRouter.get('/abdm/facility', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_FACILITY_VIEW), asyncHandler(c.getFacility));
+abdmRouter.get(
+  '/abdm/facility',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_FACILITY_VIEW),
+  asyncHandler(c.getFacility),
+);
 abdmRouter.put(
   '/abdm/facility',
   requireAuth,
@@ -346,19 +364,92 @@ abdmRouter.get(
 // organisational act, and the Aadhaar handling alone puts it beyond ordinary staff management.
 const registryManage = requirePermission(PERMISSIONS.ABDM_REGISTRY_MANAGE);
 
-abdmRouter.get('/abdm/registry/professionals', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.listHprEnrolments));
-abdmRouter.post('/abdm/registry/professional/start', requireAuth, mod, registryManage, validate({ body: HprStartBody }), asyncHandler(c.startHprEnrolment));
-abdmRouter.post('/abdm/registry/professional/aadhaar-otp', requireAuth, mod, registryManage, validate({ body: HprOtpBody }), asyncHandler(c.verifyHprAadhaarOtp));
-abdmRouter.post('/abdm/registry/professional/mobile-otp/send', requireAuth, mod, registryManage, validate({ body: HprMobileBody }), asyncHandler(c.sendHprMobileOtp));
-abdmRouter.post('/abdm/registry/professional/mobile-otp/verify', requireAuth, mod, registryManage, validate({ body: HprOtpBody }), asyncHandler(c.verifyHprMobileOtp));
-abdmRouter.post('/abdm/registry/professional/complete', requireAuth, mod, registryManage, validate({ body: HprCompleteBody }), asyncHandler(c.completeHprEnrolment));
-abdmRouter.get('/abdm/registry/hpr-master/:kind', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.hprMasterData));
+abdmRouter.get(
+  '/abdm/registry/professionals',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.listHprEnrolments),
+);
+abdmRouter.post(
+  '/abdm/registry/professional/start',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: HprStartBody }),
+  asyncHandler(c.startHprEnrolment),
+);
+abdmRouter.post(
+  '/abdm/registry/professional/aadhaar-otp',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: HprOtpBody }),
+  asyncHandler(c.verifyHprAadhaarOtp),
+);
+abdmRouter.post(
+  '/abdm/registry/professional/mobile-otp/send',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: HprMobileBody }),
+  asyncHandler(c.sendHprMobileOtp),
+);
+abdmRouter.post(
+  '/abdm/registry/professional/mobile-otp/verify',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: HprOtpBody }),
+  asyncHandler(c.verifyHprMobileOtp),
+);
+abdmRouter.post(
+  '/abdm/registry/professional/complete',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: HprCompleteBody }),
+  asyncHandler(c.completeHprEnrolment),
+);
+abdmRouter.get(
+  '/abdm/registry/hpr-master/:kind',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.hprMasterData),
+);
 
 // --- Milestone 4: bulk onboarding (ADR-098) ---------------------------------------------------
-abdmRouter.get('/abdm/registry/bulk/professionals', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.exportBulkProfessionals));
-abdmRouter.get('/abdm/registry/bulk/facilities', requireAuth, mod, requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW), asyncHandler(c.exportBulkFacilities));
-abdmRouter.post('/abdm/registry/bulk/professionals', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkProfessionals));
-abdmRouter.post('/abdm/registry/bulk/facilities', requireAuth, mod, registryManage, validate({ body: BulkImportBody }), asyncHandler(c.importBulkFacilities));
+abdmRouter.get(
+  '/abdm/registry/bulk/professionals',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.exportBulkProfessionals),
+);
+abdmRouter.get(
+  '/abdm/registry/bulk/facilities',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.ABDM_REGISTRY_VIEW),
+  asyncHandler(c.exportBulkFacilities),
+);
+abdmRouter.post(
+  '/abdm/registry/bulk/professionals',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: BulkImportBody }),
+  asyncHandler(c.importBulkProfessionals),
+);
+abdmRouter.post(
+  '/abdm/registry/bulk/facilities',
+  requireAuth,
+  mod,
+  registryManage,
+  validate({ body: BulkImportBody }),
+  asyncHandler(c.importBulkFacilities),
+);
 
 // The consents other providers hold over this hospital's records (ADR-100). Read-only, and behind
 // the facility-view permission: it is hospital configuration, not a clinical screen.

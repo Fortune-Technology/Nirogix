@@ -1,17 +1,29 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Check, X } from "lucide-react";
-import { actionsColumn, Alert, Button, DataTable, Dialog, EmptyValue, TableAction, TableActions, type Column, valueLabel, ValueOrEmpty } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { DuplicatePatientCandidate, RegistrationRequestItem } from "@hms/types";
-import { formatDate, formatDateTime } from "@hms/utils";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { useCan } from "../../../../lib/auth";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Check, X } from 'lucide-react';
+import {
+  actionsColumn,
+  Alert,
+  Button,
+  DataTable,
+  Dialog,
+  EmptyValue,
+  TableAction,
+  TableActions,
+  type Column,
+  valueLabel,
+  ValueOrEmpty,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { DuplicatePatientCandidate, RegistrationRequestItem } from '@hms/types';
+import { formatDate, formatDateTime } from '@hms/utils';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { useCan } from '../../../../lib/auth';
 
 /**
  * The self-registration review queue (ADR-056).
@@ -29,7 +41,7 @@ import { useCan } from "../../../../lib/auth";
  */
 
 function name(r: RegistrationRequestItem): string {
-  return [r.firstName, r.lastName].filter(Boolean).join(" ");
+  return [r.firstName, r.lastName].filter(Boolean).join(' ');
 }
 
 function columns(
@@ -40,53 +52,54 @@ function columns(
 ): Array<Column<RegistrationRequestItem>> {
   return [
     {
-      key: "name",
-      header: "Name",
+      key: 'name',
+      header: 'Name',
       sortable: true,
       hideable: false,
       accessor: name,
       cell: (r) => <span className="font-medium text-fg">{name(r)}</span>,
     },
-    { key: "phone", header: "Phone", accessor: (r) => r.phone, cell: (r) => r.phone },
+    { key: 'phone', header: 'Phone', accessor: (r) => r.phone, cell: (r) => r.phone },
     {
-      key: "gender",
-      header: "Gender",
+      key: 'gender',
+      header: 'Gender',
       filterable: true,
-      accessor: (r) => valueLabel(r.gender, "unspecified"),
+      accessor: (r) => valueLabel(r.gender, 'unspecified'),
       cell: (r) => <ValueOrEmpty value={r.gender} reason="unspecified" />,
     },
     {
-      key: "dateOfBirth",
-      header: "Date of birth",
-      accessor: (r) => r.dateOfBirth ?? "",
-      cell: (r) => (r.dateOfBirth ? formatDate(r.dateOfBirth) : <EmptyValue reason="unspecified" />),
+      key: 'dateOfBirth',
+      header: 'Date of birth',
+      accessor: (r) => r.dateOfBirth ?? '',
+      cell: (r) =>
+        r.dateOfBirth ? formatDate(r.dateOfBirth) : <EmptyValue reason="unspecified" />,
     },
     {
-      key: "email",
-      header: "Email",
-      accessor: (r) => valueLabel(r.email, "unspecified"),
+      key: 'email',
+      header: 'Email',
+      accessor: (r) => valueLabel(r.email, 'unspecified'),
       cell: (r) => <ValueOrEmpty value={r.email} reason="unspecified" />,
     },
     {
-      key: "city",
-      header: "City",
+      key: 'city',
+      header: 'City',
       filterable: true,
-      accessor: (r) => valueLabel(r.city, "unspecified"),
+      accessor: (r) => valueLabel(r.city, 'unspecified'),
       cell: (r) => <ValueOrEmpty value={r.city} reason="unspecified" />,
     },
     {
-      key: "note",
-      header: "Their note",
+      key: 'note',
+      header: 'Their note',
       // A free-text note the patient wrote; it can run long, so it is off by default
       // to keep the review queue scannable — the reviewer restores it from the Columns
       // menu (ADR-063: a hidden-by-default column must state why).
       defaultHidden: true,
-      accessor: (r) => r.note ?? "",
+      accessor: (r) => r.note ?? '',
       cell: (r) => <ValueOrEmpty value={r.note} reason="none" className="text-fg-muted" />,
     },
     {
-      key: "createdAt",
-      header: "Submitted",
+      key: 'createdAt',
+      header: 'Submitted',
       sortable: true,
       accessor: (r) => r.createdAt,
       cell: (r) => formatDateTime(r.createdAt),
@@ -101,8 +114,8 @@ function columns(
           confirm={{
             title: `Register ${name(r)}?`,
             description:
-              "This creates a patient record with the details they submitted, and issues a UHID. Check for an existing record for this person first. You can edit anything they got wrong afterwards.",
-            confirmLabel: "Register patient",
+              'This creates a patient record with the details they submitted, and issues a UHID. Check for an existing record for this person first. You can edit anything they got wrong afterwards.',
+            confirmLabel: 'Register patient',
           }}
           onSelect={() => onApprove(r)}
         />
@@ -114,8 +127,9 @@ function columns(
           loading={busyId === r.id}
           confirm={{
             title: `Reject ${name(r)}'s request?`,
-            description: "No patient record is created. The request is kept, marked rejected, so it can be accounted for later.",
-            confirmLabel: "Reject",
+            description:
+              'No patient record is created. The request is kept, marked rejected, so it can be accounted for later.',
+            confirmLabel: 'Reject',
           }}
           onSelect={() => onReject(r)}
         />
@@ -135,10 +149,10 @@ function ReviewQueue() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await api.listRegistrationRequests("pending"));
+      setRows(await api.listRegistrationRequests('pending'));
       setError(null);
     } catch {
-      setError("Could not load registration requests.");
+      setError('Could not load registration requests.');
     } finally {
       setLoading(false);
     }
@@ -149,9 +163,15 @@ function ReviewQueue() {
   }, [load]);
 
   // A DUPLICATE_PATIENT 409 on approval: the person very likely already has a chart.
-  const [dupFor, setDupFor] = useState<{ request: RegistrationRequestItem; candidates: DuplicatePatientCandidate[] } | null>(null);
+  const [dupFor, setDupFor] = useState<{
+    request: RegistrationRequestItem;
+    candidates: DuplicatePatientCandidate[];
+  } | null>(null);
 
-  async function approve(r: RegistrationRequestItem, opts: { allowDuplicate?: boolean; existingPatientId?: string } = {}) {
+  async function approve(
+    r: RegistrationRequestItem,
+    opts: { allowDuplicate?: boolean; existingPatientId?: string } = {},
+  ) {
     setBusyId(r.id);
     try {
       const { patientId } = await api.approveRegistrationRequest(r.id, opts);
@@ -159,7 +179,7 @@ function ReviewQueue() {
       // something the patient typed on a phone.
       router.push(`/patients/${patientId}`);
     } catch (err) {
-      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+      if (err instanceof api.ApiRequestError && err.code === 'DUPLICATE_PATIENT') {
         const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
         setDupFor({ request: r, candidates: details?.candidates ?? [] });
       }
@@ -185,15 +205,15 @@ function ReviewQueue() {
     <>
       <PageHeader
         title="Registration requests"
-        description={loading ? "Loading…" : `${rows.length} waiting for review`}
+        description={loading ? 'Loading…' : `${rows.length} waiting for review`}
       />
 
       <Alert>
-        These people filled in your hospital&apos;s registration form, from the QR code or link. They are{" "}
-        <strong className="font-medium">not patients yet</strong>.{" "}
+        These people filled in your hospital&apos;s registration form, from the QR code or link.
+        They are <strong className="font-medium">not patients yet</strong>.{' '}
         {canReview
-          ? "Check the details, look for an existing record, then register them."
-          : "Your front desk reviews each one and completes the registration."}
+          ? 'Check the details, look for an existing record, then register them.'
+          : 'Your front desk reviews each one and completes the registration.'}
       </Alert>
 
       <DataTable
@@ -240,10 +260,13 @@ function ReviewQueue() {
           {(dupFor?.candidates ?? []).map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                <span className="font-medium text-fg">
+                  {[c.firstName, c.lastName].filter(Boolean).join(' ')}
+                </span>
                 <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
                 <p className="text-xs text-fg-muted">
-                  {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"}
+                  {c.phone ?? 'no phone'} ·{' '}
+                  {c.dateOfBirth ? formatDate(c.dateOfBirth) : 'DOB unknown'}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

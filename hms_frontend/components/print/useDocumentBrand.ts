@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import type { DocumentBrand } from "@hms/ui";
-import * as api from "../../lib/api";
+import { useEffect, useState } from 'react';
+import type { DocumentBrand } from '@hms/ui';
+import * as api from '../../lib/api';
 
 /**
  * The branding a printed document wears (ADR-047).

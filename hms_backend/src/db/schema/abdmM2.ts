@@ -1,4 +1,14 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, index, unique, integer } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  jsonb,
+  index,
+  unique,
+  integer,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { patients } from './patients';
@@ -61,7 +71,10 @@ export const abdmCareContexts = pgTable(
     /** Human-readable and deliberately non-clinical — see the file header. */
     displayLabel: varchar('display_label', { length: 200 }).notNull(),
     /** Prescription | DiagnosticReport | OPConsultation | Invoice | ImmunizationRecord | … */
-    hiTypes: text('hi_types').array().notNull().default(sql`ARRAY[]::text[]`),
+    hiTypes: text('hi_types')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     /** Snapshot of the address it was linked to — the patient's ABHA may change later. */
     abhaAddress: varchar('abha_address', { length: 80 }),
     /** pending | linked | failed | not_linkable */
@@ -74,7 +87,10 @@ export const abdmCareContexts = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantRefUnique: unique('abdm_care_contexts_tenant_ref_unique').on(t.tenantId, t.referenceNumber),
+    tenantRefUnique: unique('abdm_care_contexts_tenant_ref_unique').on(
+      t.tenantId,
+      t.referenceNumber,
+    ),
     byPatient: index('abdm_care_contexts_patient_idx').on(t.tenantId, t.patientId),
     byStatus: index('abdm_care_contexts_status_idx').on(t.tenantId, t.status),
     byVisit: index('abdm_care_contexts_visit_idx').on(t.tenantId, t.visitId),
@@ -112,7 +128,10 @@ export const abdmConsents = pgTable(
     purposeCode: varchar('purpose_code', { length: 32 }),
     purposeText: varchar('purpose_text', { length: 200 }),
     /** Only these record types may be shared under this consent. */
-    hiTypes: text('hi_types').array().notNull().default(sql`ARRAY[]::text[]`),
+    hiTypes: text('hi_types')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     accessMode: varchar('access_mode', { length: 16 }),
     /** The clinical date window the patient agreed to — NOT the consent's own validity. */
     dateRangeFrom: timestamp('date_range_from', { withTimezone: true }),
@@ -207,7 +226,10 @@ export const abdmLinkRequests = pgTable(
       .references(() => patients.id, { onDelete: 'restrict' }),
     abhaAddress: varchar('abha_address', { length: 80 }),
     /** Exactly the contexts the patient asked for — never everything we hold. */
-    careContextRefs: text('care_context_refs').array().notNull().default(sql`ARRAY[]::text[]`),
+    careContextRefs: text('care_context_refs')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     /** sms | email. The number is ours to choose; ABDM's verified one is not necessarily ours. */
     channel: varchar('channel', { length: 10 }).notNull().default('sms'),
     destination: varchar('destination', { length: 255 }).notNull(),
@@ -221,7 +243,10 @@ export const abdmLinkRequests = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantRefUnique: unique('abdm_link_requests_tenant_ref_unique').on(t.tenantId, t.referenceNumber),
+    tenantRefUnique: unique('abdm_link_requests_tenant_ref_unique').on(
+      t.tenantId,
+      t.referenceNumber,
+    ),
     byTxn: index('abdm_link_requests_txn_idx').on(t.tenantId, t.transactionId),
   }),
 );
@@ -254,7 +279,10 @@ export const abdmDataTransfers = pgTable(
     dataPushUrl: varchar('data_push_url', { length: 500 }).notNull(),
     hiuPublicKey: text('hiu_public_key'),
     hiuNonce: varchar('hiu_nonce', { length: 200 }),
-    careContextRefs: text('care_context_refs').array().notNull().default(sql`ARRAY[]::text[]`),
+    careContextRefs: text('care_context_refs')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     dateRangeFrom: timestamp('date_range_from', { withTimezone: true }),
     dateRangeTo: timestamp('date_range_to', { withTimezone: true }),
     /** received | acknowledged | transferred | refused | failed */
@@ -269,7 +297,10 @@ export const abdmDataTransfers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantTxnUnique: unique('abdm_data_transfers_tenant_txn_unique').on(t.tenantId, t.transactionId),
+    tenantTxnUnique: unique('abdm_data_transfers_tenant_txn_unique').on(
+      t.tenantId,
+      t.transactionId,
+    ),
     byStatus: index('abdm_data_transfers_status_idx').on(t.tenantId, t.status),
   }),
 );

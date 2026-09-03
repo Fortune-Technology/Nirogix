@@ -56,9 +56,7 @@
         "tenants_code_unique": {
           "name": "tenants_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -122,12 +120,8 @@
           "name": "branches_tenant_id_tenants_id_fk",
           "tableFrom": "branches",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -137,10 +131,7 @@
         "branches_tenant_code_unique": {
           "name": "branches_tenant_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "code"
-          ]
+          "columns": ["tenant_id", "code"]
         }
       },
       "policies": {},
@@ -242,12 +233,8 @@
           "name": "users_tenant_id_tenants_id_fk",
           "tableFrom": "users",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -257,10 +244,7 @@
         "users_tenant_email_unique": {
           "name": "users_tenant_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "email"
-          ]
+          "columns": ["tenant_id", "email"]
         }
       },
       "policies": {},
@@ -353,12 +337,8 @@
           "name": "sessions_tenant_id_tenants_id_fk",
           "tableFrom": "sessions",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -366,12 +346,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -379,12 +355,8 @@
           "name": "sessions_impersonated_by_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "impersonated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["impersonated_by"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -462,12 +434,8 @@
           "name": "role_permissions_tenant_id_tenants_id_fk",
           "tableFrom": "role_permissions",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -475,12 +443,8 @@
           "name": "role_permissions_role_id_roles_id_fk",
           "tableFrom": "role_permissions",
           "tableTo": "roles",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -490,10 +454,7 @@
         "role_permissions_unique": {
           "name": "role_permissions_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "role_id",
-            "permission_key"
-          ]
+          "columns": ["role_id", "permission_key"]
         }
       },
       "policies": {},
@@ -563,12 +524,8 @@
           "name": "roles_tenant_id_tenants_id_fk",
           "tableFrom": "roles",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -578,10 +535,7 @@
         "roles_tenant_key_unique": {
           "name": "roles_tenant_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "key"
-          ]
+          "columns": ["tenant_id", "key"]
         }
       },
       "policies": {},
@@ -674,12 +628,8 @@
           "name": "user_permission_overrides_tenant_id_tenants_id_fk",
           "tableFrom": "user_permission_overrides",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -687,12 +637,8 @@
           "name": "user_permission_overrides_user_id_users_id_fk",
           "tableFrom": "user_permission_overrides",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -746,12 +692,8 @@
           "name": "user_roles_tenant_id_tenants_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -759,12 +701,8 @@
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -772,12 +710,8 @@
           "name": "user_roles_role_id_roles_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "roles",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -787,10 +721,7 @@
         "user_roles_unique": {
           "name": "user_roles_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "role_id"
-          ]
+          "columns": ["user_id", "role_id"]
         }
       },
       "policies": {},
@@ -903,12 +834,8 @@
           "name": "tenant_entitlements_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_entitlements",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -916,12 +843,8 @@
           "name": "tenant_entitlements_branch_id_branches_id_fk",
           "tableFrom": "tenant_entitlements",
           "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["branch_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1036,12 +959,8 @@
           "name": "audit_log_tenant_id_tenants_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1144,12 +1063,8 @@
           "name": "notification_log_tenant_id_tenants_id_fk",
           "tableFrom": "notification_log",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1236,12 +1151,8 @@
           "name": "notification_templates_tenant_id_tenants_id_fk",
           "tableFrom": "notification_templates",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1251,12 +1162,7 @@
         "notification_templates_unique": {
           "name": "notification_templates_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "key",
-            "channel",
-            "locale"
-          ]
+          "columns": ["tenant_id", "key", "channel", "locale"]
         }
       },
       "policies": {},
@@ -1357,12 +1263,8 @@
           "name": "file_metadata_tenant_id_tenants_id_fk",
           "tableFrom": "file_metadata",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1468,12 +1370,8 @@
           "name": "practitioner_roles_tenant_id_tenants_id_fk",
           "tableFrom": "practitioner_roles",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1481,12 +1379,8 @@
           "name": "practitioner_roles_provider_id_providers_id_fk",
           "tableFrom": "practitioner_roles",
           "tableTo": "providers",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1494,12 +1388,8 @@
           "name": "practitioner_roles_branch_id_branches_id_fk",
           "tableFrom": "practitioner_roles",
           "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["branch_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1507,12 +1397,8 @@
           "name": "practitioner_roles_department_id_departments_id_fk",
           "tableFrom": "practitioner_roles",
           "tableTo": "departments",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["department_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1522,11 +1408,7 @@
         "practitioner_roles_unique": {
           "name": "practitioner_roles_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "provider_id",
-            "specialty_code",
-            "branch_id"
-          ]
+          "columns": ["provider_id", "specialty_code", "branch_id"]
         }
       },
       "policies": {},
@@ -1615,12 +1497,8 @@
           "name": "provider_schedules_tenant_id_tenants_id_fk",
           "tableFrom": "provider_schedules",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1628,12 +1506,8 @@
           "name": "provider_schedules_provider_id_providers_id_fk",
           "tableFrom": "provider_schedules",
           "tableTo": "providers",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1641,12 +1515,8 @@
           "name": "provider_schedules_branch_id_branches_id_fk",
           "tableFrom": "provider_schedules",
           "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["branch_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1750,12 +1620,8 @@
           "name": "providers_tenant_id_tenants_id_fk",
           "tableFrom": "providers",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1763,12 +1629,8 @@
           "name": "providers_user_id_users_id_fk",
           "tableFrom": "providers",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1886,12 +1748,8 @@
           "name": "specialty_form_templates_tenant_id_tenants_id_fk",
           "tableFrom": "specialty_form_templates",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1901,10 +1759,7 @@
         "specialty_form_templates_unique": {
           "name": "specialty_form_templates_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "key"
-          ]
+          "columns": ["tenant_id", "key"]
         }
       },
       "policies": {},
@@ -1992,12 +1847,8 @@
           "name": "departments_tenant_id_tenants_id_fk",
           "tableFrom": "departments",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2005,12 +1856,8 @@
           "name": "departments_branch_id_branches_id_fk",
           "tableFrom": "departments",
           "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["branch_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2018,12 +1865,8 @@
           "name": "departments_head_provider_id_providers_id_fk",
           "tableFrom": "departments",
           "tableTo": "providers",
-          "columnsFrom": [
-            "head_provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["head_provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2033,10 +1876,7 @@
         "departments_tenant_code_unique": {
           "name": "departments_tenant_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "code"
-          ]
+          "columns": ["tenant_id", "code"]
         }
       },
       "policies": {},
@@ -2124,12 +1964,8 @@
           "name": "tenant_branding_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_branding",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2290,12 +2126,8 @@
           "name": "appointment_requests_tenant_id_tenants_id_fk",
           "tableFrom": "appointment_requests",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2503,12 +2335,8 @@
           "name": "organization_profile_tenant_id_tenants_id_fk",
           "tableFrom": "organization_profile",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2518,23 +2346,17 @@
         "organization_profile_tenant_unique": {
           "name": "organization_profile_tenant_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id"
-          ]
+          "columns": ["tenant_id"]
         },
         "organization_profile_reg_token_unique": {
           "name": "organization_profile_reg_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "self_registration_token"
-          ]
+          "columns": ["self_registration_token"]
         },
         "organization_profile_booking_token_unique": {
           "name": "organization_profile_booking_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "online_booking_token"
-          ]
+          "columns": ["online_booking_token"]
         }
       },
       "policies": {},
@@ -2679,12 +2501,8 @@
           "name": "registration_requests_tenant_id_tenants_id_fk",
           "tableFrom": "registration_requests",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2761,9 +2579,7 @@
         "platform_branding_scope_unique": {
           "name": "platform_branding_scope_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "scope"
-          ]
+          "columns": ["scope"]
         }
       },
       "policies": {},
@@ -2947,12 +2763,8 @@
           "name": "patients_tenant_id_tenants_id_fk",
           "tableFrom": "patients",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2962,10 +2774,7 @@
         "patients_tenant_uhid_unique": {
           "name": "patients_tenant_uhid_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "uhid"
-          ]
+          "columns": ["tenant_id", "uhid"]
         }
       },
       "policies": {},
@@ -3048,16 +2857,12 @@
         "patient_identity_mobile_unique": {
           "name": "patient_identity_mobile_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mobile"
-          ]
+          "columns": ["mobile"]
         },
         "patient_identity_email_unique": {
           "name": "patient_identity_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -3149,12 +2954,8 @@
           "name": "patient_identity_link_tenant_id_tenants_id_fk",
           "tableFrom": "patient_identity_link",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3162,12 +2963,8 @@
           "name": "patient_identity_link_identity_id_patient_identity_id_fk",
           "tableFrom": "patient_identity_link",
           "tableTo": "patient_identity",
-          "columnsFrom": [
-            "identity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["identity_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3175,12 +2972,8 @@
           "name": "patient_identity_link_patient_id_patients_id_fk",
           "tableFrom": "patient_identity_link",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3190,10 +2983,7 @@
         "patient_identity_link_patient_unique": {
           "name": "patient_identity_link_patient_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "patient_id"
-          ]
+          "columns": ["tenant_id", "patient_id"]
         }
       },
       "policies": {},
@@ -3277,12 +3067,8 @@
           "name": "patient_sessions_identity_id_patient_identity_id_fk",
           "tableFrom": "patient_sessions",
           "tableTo": "patient_identity",
-          "columnsFrom": [
-            "identity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["identity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3377,12 +3163,8 @@
           "name": "patient_verification_identity_id_patient_identity_id_fk",
           "tableFrom": "patient_verification",
           "tableTo": "patient_identity",
-          "columnsFrom": [
-            "identity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["identity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3493,12 +3275,8 @@
           "name": "appointments_tenant_id_tenants_id_fk",
           "tableFrom": "appointments",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3506,12 +3284,8 @@
           "name": "appointments_patient_id_patients_id_fk",
           "tableFrom": "appointments",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3519,12 +3293,8 @@
           "name": "appointments_provider_id_providers_id_fk",
           "tableFrom": "appointments",
           "tableTo": "providers",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3679,12 +3449,8 @@
           "name": "visits_tenant_id_tenants_id_fk",
           "tableFrom": "visits",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3692,12 +3458,8 @@
           "name": "visits_patient_id_patients_id_fk",
           "tableFrom": "visits",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3705,12 +3467,8 @@
           "name": "visits_provider_id_providers_id_fk",
           "tableFrom": "visits",
           "tableTo": "providers",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3718,12 +3476,8 @@
           "name": "visits_appointment_id_appointments_id_fk",
           "tableFrom": "visits",
           "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["appointment_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3731,12 +3485,8 @@
           "name": "visits_department_id_departments_id_fk",
           "tableFrom": "visits",
           "tableTo": "departments",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["department_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3746,10 +3496,7 @@
         "visits_tenant_number_unique": {
           "name": "visits_tenant_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "visit_number"
-          ]
+          "columns": ["tenant_id", "visit_number"]
         }
       },
       "policies": {},
@@ -3850,12 +3597,8 @@
           "name": "invoice_line_items_tenant_id_tenants_id_fk",
           "tableFrom": "invoice_line_items",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -3863,12 +3606,8 @@
           "name": "invoice_line_items_invoice_id_invoices_id_fk",
           "tableFrom": "invoice_line_items",
           "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invoice_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3878,11 +3617,7 @@
         "invoice_line_source_unique": {
           "name": "invoice_line_source_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "source_module",
-            "source_ref"
-          ]
+          "columns": ["tenant_id", "source_module", "source_ref"]
         }
       },
       "policies": {},
@@ -4012,12 +3747,8 @@
           "name": "invoices_tenant_id_tenants_id_fk",
           "tableFrom": "invoices",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4025,12 +3756,8 @@
           "name": "invoices_patient_id_patients_id_fk",
           "tableFrom": "invoices",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4040,10 +3767,7 @@
         "invoices_tenant_number_unique": {
           "name": "invoices_tenant_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "invoice_number"
-          ]
+          "columns": ["tenant_id", "invoice_number"]
         }
       },
       "policies": {},
@@ -4131,12 +3855,8 @@
           "name": "payments_tenant_id_tenants_id_fk",
           "tableFrom": "payments",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4144,12 +3864,8 @@
           "name": "payments_invoice_id_invoices_id_fk",
           "tableFrom": "payments",
           "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invoice_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4159,10 +3875,7 @@
         "payments_tenant_idem_unique": {
           "name": "payments_tenant_idem_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "idempotency_key"
-          ]
+          "columns": ["tenant_id", "idempotency_key"]
         }
       },
       "policies": {},
@@ -4231,12 +3944,8 @@
           "name": "diagnoses_tenant_id_tenants_id_fk",
           "tableFrom": "diagnoses",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4244,12 +3953,8 @@
           "name": "diagnoses_encounter_id_encounters_id_fk",
           "tableFrom": "diagnoses",
           "tableTo": "encounters",
-          "columnsFrom": [
-            "encounter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["encounter_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4420,12 +4125,8 @@
           "name": "encounters_tenant_id_tenants_id_fk",
           "tableFrom": "encounters",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4433,12 +4134,8 @@
           "name": "encounters_visit_id_visits_id_fk",
           "tableFrom": "encounters",
           "tableTo": "visits",
-          "columnsFrom": [
-            "visit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["visit_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4446,12 +4143,8 @@
           "name": "encounters_patient_id_patients_id_fk",
           "tableFrom": "encounters",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4459,12 +4152,8 @@
           "name": "encounters_provider_id_providers_id_fk",
           "tableFrom": "encounters",
           "tableTo": "providers",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4474,10 +4163,7 @@
         "encounters_tenant_visit_unique": {
           "name": "encounters_tenant_visit_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "visit_id"
-          ]
+          "columns": ["tenant_id", "visit_id"]
         }
       },
       "policies": {},
@@ -4577,12 +4263,8 @@
           "name": "lab_orders_tenant_id_tenants_id_fk",
           "tableFrom": "lab_orders",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4590,12 +4272,8 @@
           "name": "lab_orders_encounter_id_encounters_id_fk",
           "tableFrom": "lab_orders",
           "tableTo": "encounters",
-          "columnsFrom": [
-            "encounter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["encounter_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4603,12 +4281,8 @@
           "name": "lab_orders_patient_id_patients_id_fk",
           "tableFrom": "lab_orders",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4723,12 +4397,8 @@
           "name": "prescriptions_tenant_id_tenants_id_fk",
           "tableFrom": "prescriptions",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4736,12 +4406,8 @@
           "name": "prescriptions_encounter_id_encounters_id_fk",
           "tableFrom": "prescriptions",
           "tableTo": "encounters",
-          "columnsFrom": [
-            "encounter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["encounter_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4749,12 +4415,8 @@
           "name": "prescriptions_patient_id_patients_id_fk",
           "tableFrom": "prescriptions",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4850,12 +4512,8 @@
           "name": "dispenses_tenant_id_tenants_id_fk",
           "tableFrom": "dispenses",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4863,12 +4521,8 @@
           "name": "dispenses_patient_id_patients_id_fk",
           "tableFrom": "dispenses",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4876,12 +4530,8 @@
           "name": "dispenses_drug_id_drugs_id_fk",
           "tableFrom": "dispenses",
           "tableTo": "drugs",
-          "columnsFrom": [
-            "drug_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["drug_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4967,12 +4617,8 @@
           "name": "drug_batches_tenant_id_tenants_id_fk",
           "tableFrom": "drug_batches",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4980,12 +4626,8 @@
           "name": "drug_batches_drug_id_drugs_id_fk",
           "tableFrom": "drug_batches",
           "tableTo": "drugs",
-          "columnsFrom": [
-            "drug_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["drug_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4993,12 +4635,8 @@
           "name": "drug_batches_supplier_id_suppliers_id_fk",
           "tableFrom": "drug_batches",
           "tableTo": "suppliers",
-          "columnsFrom": [
-            "supplier_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["supplier_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5112,12 +4750,8 @@
           "name": "drugs_tenant_id_tenants_id_fk",
           "tableFrom": "drugs",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5189,12 +4823,8 @@
           "name": "stock_adjustments_tenant_id_tenants_id_fk",
           "tableFrom": "stock_adjustments",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5202,12 +4832,8 @@
           "name": "stock_adjustments_drug_id_drugs_id_fk",
           "tableFrom": "stock_adjustments",
           "tableTo": "drugs",
-          "columnsFrom": [
-            "drug_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["drug_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5215,12 +4841,8 @@
           "name": "stock_adjustments_batch_id_drug_batches_id_fk",
           "tableFrom": "stock_adjustments",
           "tableTo": "drug_batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["batch_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5306,12 +4928,8 @@
           "name": "suppliers_tenant_id_tenants_id_fk",
           "tableFrom": "suppliers",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5433,12 +5051,8 @@
           "name": "lab_results_tenant_id_tenants_id_fk",
           "tableFrom": "lab_results",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5446,12 +5060,8 @@
           "name": "lab_results_lab_order_id_lab_orders_id_fk",
           "tableFrom": "lab_results",
           "tableTo": "lab_orders",
-          "columnsFrom": [
-            "lab_order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5461,10 +5071,7 @@
         "lab_results_tenant_order_unique": {
           "name": "lab_results_tenant_order_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "lab_order_id"
-          ]
+          "columns": ["tenant_id", "lab_order_id"]
         }
       },
       "policies": {},
@@ -5572,12 +5179,8 @@
           "name": "lab_tests_tenant_id_tenants_id_fk",
           "tableFrom": "lab_tests",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5676,12 +5279,8 @@
           "name": "services_tenant_id_tenants_id_fk",
           "tableFrom": "services",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5689,12 +5288,8 @@
           "name": "services_department_id_departments_id_fk",
           "tableFrom": "services",
           "tableTo": "departments",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["department_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5704,10 +5299,7 @@
         "services_tenant_code_unique": {
           "name": "services_tenant_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "code"
-          ]
+          "columns": ["tenant_id", "code"]
         }
       },
       "policies": {},
@@ -5834,12 +5426,8 @@
           "name": "referrals_tenant_id_tenants_id_fk",
           "tableFrom": "referrals",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5847,12 +5435,8 @@
           "name": "referrals_visit_id_visits_id_fk",
           "tableFrom": "referrals",
           "tableTo": "visits",
-          "columnsFrom": [
-            "visit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["visit_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5860,12 +5444,8 @@
           "name": "referrals_patient_id_patients_id_fk",
           "tableFrom": "referrals",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5873,12 +5453,8 @@
           "name": "referrals_from_provider_id_providers_id_fk",
           "tableFrom": "referrals",
           "tableTo": "providers",
-          "columnsFrom": [
-            "from_provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["from_provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5886,12 +5462,8 @@
           "name": "referrals_to_department_id_departments_id_fk",
           "tableFrom": "referrals",
           "tableTo": "departments",
-          "columnsFrom": [
-            "to_department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["to_department_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5899,12 +5471,8 @@
           "name": "referrals_to_provider_id_providers_id_fk",
           "tableFrom": "referrals",
           "tableTo": "providers",
-          "columnsFrom": [
-            "to_provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["to_provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5987,10 +5555,7 @@
         "reference_catalog_category_code_unique": {
           "name": "reference_catalog_category_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "category",
-            "code"
-          ]
+          "columns": ["category", "code"]
         }
       },
       "policies": {},
@@ -6067,12 +5632,8 @@
           "name": "tenant_reference_items_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_reference_items",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -6082,11 +5643,7 @@
         "tenant_reference_items_unique": {
           "name": "tenant_reference_items_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "category",
-            "code"
-          ]
+          "columns": ["tenant_id", "category", "code"]
         }
       },
       "policies": {},
@@ -6173,12 +5730,8 @@
           "name": "patient_immunizations_tenant_id_tenants_id_fk",
           "tableFrom": "patient_immunizations",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -6186,12 +5739,8 @@
           "name": "patient_immunizations_patient_id_patients_id_fk",
           "tableFrom": "patient_immunizations",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -6199,12 +5748,8 @@
           "name": "patient_immunizations_recorded_by_user_id_users_id_fk",
           "tableFrom": "patient_immunizations",
           "tableTo": "users",
-          "columnsFrom": [
-            "recorded_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recorded_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6284,12 +5829,8 @@
           "name": "branch_item_availability_tenant_id_tenants_id_fk",
           "tableFrom": "branch_item_availability",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -6297,12 +5838,8 @@
           "name": "branch_item_availability_branch_id_branches_id_fk",
           "tableFrom": "branch_item_availability",
           "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["branch_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6312,12 +5849,7 @@
         "branch_item_availability_unique": {
           "name": "branch_item_availability_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "branch_id",
-            "item_type",
-            "item_ref"
-          ]
+          "columns": ["tenant_id", "branch_id", "item_type", "item_ref"]
         }
       },
       "policies": {},
@@ -6401,12 +5933,8 @@
           "name": "password_reset_tokens_tenant_id_tenants_id_fk",
           "tableFrom": "password_reset_tokens",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -6414,12 +5942,8 @@
           "name": "password_reset_tokens_user_id_users_id_fk",
           "tableFrom": "password_reset_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6505,12 +6029,8 @@
           "name": "abdm_facility_config_tenant_id_tenants_id_fk",
           "tableFrom": "abdm_facility_config",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -6520,10 +6040,7 @@
         "abdm_facility_config_tenant_branch_unique": {
           "name": "abdm_facility_config_tenant_branch_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "branch_id"
-          ]
+          "columns": ["tenant_id", "branch_id"]
         }
       },
       "policies": {},
@@ -6741,12 +6258,8 @@
           "name": "abdm_transactions_tenant_id_tenants_id_fk",
           "tableFrom": "abdm_transactions",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -6754,12 +6267,8 @@
           "name": "abdm_transactions_patient_id_patients_id_fk",
           "tableFrom": "abdm_transactions",
           "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["patient_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -6775,10 +6284,7 @@
     "public.platform_branding_scope": {
       "name": "platform_branding_scope",
       "schema": "public",
-      "values": [
-        "marketing",
-        "hms"
-      ]
+      "values": ["marketing", "hms"]
     }
   },
   "schemas": {},

@@ -27,7 +27,9 @@ for (const surface of SURFACES) {
       const errors = collectConsoleErrors(page);
       const response = await page.goto(surface.url, { waitUntil: 'domcontentloaded' });
 
-      expect(response?.status(), `${surface.name} responded ${response?.status()}`).toBeLessThan(400);
+      expect(response?.status(), `${surface.name} responded ${response?.status()}`).toBeLessThan(
+        400,
+      );
 
       // Every app sets its own <title> (ADR-061); a shared or empty one is a regression.
       const title = await page.title();
@@ -45,20 +47,28 @@ for (const surface of SURFACES) {
 
     test(`is ${surface.indexable ? 'indexable' : 'noindex'}`, async ({ page }) => {
       await page.goto(surface.url, { waitUntil: 'domcontentloaded' });
-      const robots = await page.locator('meta[name="robots"]').first().getAttribute('content').catch(() => null);
+      const robots = await page
+        .locator('meta[name="robots"]')
+        .first()
+        .getAttribute('content')
+        .catch(() => null);
 
       if (surface.indexable) {
         expect(robots ?? '').not.toMatch(/noindex/i);
       } else {
         // The four product apps must never be indexed — patient and staff surfaces above all.
-        expect(robots ?? '', `${surface.name} is missing a noindex robots meta`).toMatch(/noindex/i);
+        expect(robots ?? '', `${surface.name} is missing a noindex robots meta`).toMatch(
+          /noindex/i,
+        );
       }
     });
   });
 }
 
 test.describe('protected routes', () => {
-  test('the Portal sends an unauthenticated visitor to sign-in, not to a dashboard', async ({ page }) => {
+  test('the Portal sends an unauthenticated visitor to sign-in, not to a dashboard', async ({
+    page,
+  }) => {
     await page.goto(`${APPS.PORTAL}/dashboard`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/login/);
   });

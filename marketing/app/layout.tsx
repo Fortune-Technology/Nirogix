@@ -1,25 +1,25 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "@hms/ui/styles.css";
-import "./globals.css";
-import { BackToTop, LottiePreloader, SmoothScroll } from "@hms/ui";
-import { ThemeProvider } from "../lib/theme";
-import { getMarketingBrandingStyle } from "../lib/branding";
-import { SiteHeader } from "../components/site/SiteHeader";
-import { SiteFooter } from "../components/site/SiteFooter";
-import { MarketingMobileNav } from "../components/site/MobileNav";
-import { SITE } from "../lib/site";
-import { JsonLd } from "../components/site/JsonLd";
-import { SITE_URL, organizationJsonLd } from "../lib/seo";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import '@hms/ui/styles.css';
+import './globals.css';
+import { BackToTop, LottiePreloader, SmoothScroll } from '@hms/ui';
+import { ThemeProvider } from '../lib/theme';
+import { getMarketingBrandingStyle } from '../lib/branding';
+import { SiteHeader } from '../components/site/SiteHeader';
+import { SiteFooter } from '../components/site/SiteFooter';
+import { MarketingMobileNav } from '../components/site/MobileNav';
+import { SITE } from '../lib/site';
+import { JsonLd } from '../components/site/JsonLd';
+import { SITE_URL, organizationJsonLd } from '../lib/seo';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 // Defaults only. Every route sets its own unique title/description/canonical via
@@ -33,27 +33,27 @@ export const metadata: Metadata = {
   description: SITE.description,
   applicationName: SITE.name,
   keywords: [
-    "hospital management system",
-    "HMS",
-    "clinic software India",
-    "EMR",
-    "multi-tenant HMS",
-    "pharmacy management",
-    "laboratory information system",
-    "hospital billing",
-    "ABDM",
+    'hospital management system',
+    'HMS',
+    'clinic software India',
+    'EMR',
+    'multi-tenant HMS',
+    'pharmacy management',
+    'laboratory information system',
+    'hospital billing',
+    'ABDM',
   ],
   authors: [{ name: SITE.legalName }],
   openGraph: {
-    type: "website",
+    type: 'website',
     siteName: SITE.name,
     title: `${SITE.name}: modular hospital management system for India`,
     description: SITE.description,
-    locale: "en_IN",
+    locale: 'en_IN',
     url: SITE_URL,
   },
   twitter: {
-    card: "summary_large_image",
+    card: 'summary_large_image',
     title: `${SITE.name}: modular hospital management system for India`,
     description: SITE.description,
   },

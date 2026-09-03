@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { X } from "lucide-react";
-import { cn } from "../cn";
-import { useScrollLock } from "../useScrollLock";
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { cn } from '../cn';
+import { useScrollLock } from '../useScrollLock';
 
 export interface DialogProps {
   open: boolean;
@@ -16,12 +16,12 @@ export interface DialogProps {
   /** The footer's actions. Omit for a dialog the user only reads. */
   footer?: ReactNode;
   /** `sm` for a confirmation, `md` for a short form, `lg` for a record with sections. */
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg';
   /** An icon beside the title, and the tone of its tint. */
   icon?: ReactNode;
-  tone?: "default" | "danger";
+  tone?: 'default' | 'danger';
   /** `alertdialog` for a decision the user must make before continuing. */
-  role?: "dialog" | "alertdialog";
+  role?: 'dialog' | 'alertdialog';
   /** Hides the × — use for a dialog that must be answered rather than dismissed. */
   hideClose?: boolean;
   /** While true, Esc and the backdrop stop closing: a save is in flight. */
@@ -50,10 +50,10 @@ export function Dialog({
   title,
   description,
   footer,
-  size = "md",
+  size = 'md',
   icon,
-  tone = "default",
-  role = "dialog",
+  tone = 'default',
+  role = 'dialog',
   hideClose = false,
   busy = false,
   children,
@@ -89,7 +89,8 @@ export function Dialog({
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     /** Everything tabbable in the panel, in DOM order — the Tab trap's universe. */
-    const focusables = () => Array.from(panelRef.current?.querySelectorAll<HTMLElement>(SELECTOR) ?? []);
+    const focusables = () =>
+      Array.from(panelRef.current?.querySelectorAll<HTMLElement>(SELECTOR) ?? []);
 
     // Focus the first control in the BODY, not the first in the panel. The close × sits
     // in the header and therefore comes first in DOM order, so focusing "the first
@@ -101,12 +102,12 @@ export function Dialog({
     target?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (!latest.current.busy) latest.current.onClose();
         return;
       }
-      if (e.key !== "Tab") return;
+      if (e.key !== 'Tab') return;
       const items = focusables();
       const first = items[0];
       const last = items[items.length - 1];
@@ -120,14 +121,14 @@ export function Dialog({
       }
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener('keydown', onKeyDown);
       opener.current?.focus?.();
     };
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
@@ -142,12 +143,15 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className={cn("hms-dialog", `hms-dialog--${size}`)}
+        className={cn('hms-dialog', `hms-dialog--${size}`)}
         data-lenis-prevent
       >
         <div className="hms-dialog__head">
           {icon ? (
-            <span className={cn("hms-dialog__icon", tone === "danger" && "hms-dialog__icon--danger")} aria-hidden>
+            <span
+              className={cn('hms-dialog__icon', tone === 'danger' && 'hms-dialog__icon--danger')}
+              aria-hidden
+            >
               {icon}
             </span>
           ) : null}

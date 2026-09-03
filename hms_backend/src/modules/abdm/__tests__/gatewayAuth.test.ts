@@ -17,7 +17,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const KID = 'test-signing-key';
-const jwks = { keys: [{ ...publicKey.export({ format: 'jwk' }), kid: KID, use: 'sig', alg: 'RS256' }] };
+const jwks = {
+  keys: [{ ...publicKey.export({ format: 'jwk' }), kid: KID, use: 'sig', alg: 'RS256' }],
+};
 
 /** A second, unrelated key — for the token that is signed by the wrong hand. */
 const other = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -57,7 +59,11 @@ const sign = (payload: object, opts: jwt.SignOptions = {}) =>
 
 /** Minimal express doubles — enough to see which way the middleware went. */
 function run(authorization?: string) {
-  const req = { path: '/api/v3/hip/patient/share', headers: {}, header: (n: string) => (n.toLowerCase() === 'authorization' ? authorization : undefined) };
+  const req = {
+    path: '/api/v3/hip/patient/share',
+    headers: {},
+    header: (n: string) => (n.toLowerCase() === 'authorization' ? authorization : undefined),
+  };
   let status = 0;
   let body: unknown;
   let passed = false;
@@ -109,7 +115,11 @@ describe('everything else is refused', () => {
   });
 
   test('a token signed by somebody else’s key — the forgery this exists to stop', async () => {
-    const forged = jwt.sign({ sub: 'attacker' }, other.privateKey, { algorithm: 'RS256', keyid: KID, expiresIn: '5m' });
+    const forged = jwt.sign({ sub: 'attacker' }, other.privateKey, {
+      algorithm: 'RS256',
+      keyid: KID,
+      expiresIn: '5m',
+    });
     const out = await run(`Bearer ${forged}`);
     expect(out.passed).toBe(false);
     expect(out.status).toBe(401);
@@ -127,7 +137,11 @@ describe('everything else is refused', () => {
   });
 
   test('a token whose kid we have no key for', async () => {
-    const unknown = jwt.sign({ sub: 'x' }, privateKey, { algorithm: 'RS256', keyid: 'no-such-kid', expiresIn: '5m' });
+    const unknown = jwt.sign({ sub: 'x' }, privateKey, {
+      algorithm: 'RS256',
+      keyid: 'no-such-kid',
+      expiresIn: '5m',
+    });
     expect((await run(`Bearer ${unknown}`)).status).toBe(401);
   });
 
@@ -145,7 +159,11 @@ describe('the modes', () => {
 
   test('log also allows a token that fails verification', async () => {
     mode = 'log';
-    const forged = jwt.sign({ sub: 'attacker' }, other.privateKey, { algorithm: 'RS256', keyid: KID, expiresIn: '5m' });
+    const forged = jwt.sign({ sub: 'attacker' }, other.privateKey, {
+      algorithm: 'RS256',
+      keyid: KID,
+      expiresIn: '5m',
+    });
     expect((await run(`Bearer ${forged}`)).passed).toBe(true);
   });
 
@@ -175,13 +193,20 @@ describe('verifyGatewayToken directly', () => {
 
   test('a JWKS that cannot be reached is a refusal, not a pass', async () => {
     resetGatewayJwksCache();
-    vi.stubGlobal('fetch', async () => ({ ok: false, status: 503, json: async () => ({}) }) as unknown as Response);
+    vi.stubGlobal(
+      'fetch',
+      async () => ({ ok: false, status: 503, json: async () => ({}) }) as unknown as Response,
+    );
     await expect(verifyGatewayToken(sign({ sub: 'x' }))).rejects.toThrow();
   });
 
   test('a JWKS with no usable signing key is a refusal', async () => {
     resetGatewayJwksCache();
-    vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => ({ keys: [] }) }) as unknown as Response);
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        ({ ok: true, status: 200, json: async () => ({ keys: [] }) }) as unknown as Response,
+    );
     await expect(verifyGatewayToken(sign({ sub: 'x' }))).rejects.toThrow(/no usable signing key/i);
   });
 });

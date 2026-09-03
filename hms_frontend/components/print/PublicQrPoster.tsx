@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { PrintDocument, PrintNote, PrintSection, PrintToolbar, Spinner } from "@hms/ui";
-import * as api from "../../lib/api";
-import { useDocumentBrand } from "./useDocumentBrand";
-import type { PublicAccessSettings } from "../settings/PublicAccessPanel";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { PrintDocument, PrintNote, PrintSection, PrintToolbar, Spinner } from '@hms/ui';
+import * as api from '../../lib/api';
+import { useDocumentBrand } from './useDocumentBrand';
+import type { PublicAccessSettings } from '../settings/PublicAccessPanel';
 
 /**
  * One poster document for every token-fronted public surface (ADR-047, ADR-056,
@@ -15,7 +15,7 @@ import type { PublicAccessSettings } from "../settings/PublicAccessPanel";
  * supplies only its words.
  */
 
-type Brand = ReturnType<typeof useDocumentBrand>["brand"];
+type Brand = ReturnType<typeof useDocumentBrand>['brand'];
 
 export interface PublicQrPosterProps {
   /** Document title, e.g. "Patient registration". */
@@ -44,7 +44,9 @@ export function PublicQrPoster(props: PublicQrPosterProps) {
     props
       .load()
       .then(setSettings)
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not load these settings."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not load these settings.'),
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- props.load is a module-level fn
   }, [props.load]);
 

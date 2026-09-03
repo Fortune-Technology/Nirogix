@@ -18,7 +18,11 @@ const KEYS = Object.keys(EMAIL_TEMPLATES) as EmailTemplateKey[];
 describe('email layout', () => {
   test('renders a branded, self-contained HTML document', () => {
     const { html, text } = renderEmail(
-      { heading: 'Hello', paragraphs: ['A line.'], button: { label: 'Go', url: 'https://x.example' } },
+      {
+        heading: 'Hello',
+        paragraphs: ['A line.'],
+        button: { label: 'Go', url: 'https://x.example' },
+      },
       { brandColor: '#123456', brandColorFg: '#ffffff', orgName: 'Acme Hospital' },
     );
     expect(html).toContain('<!doctype html>');
@@ -54,7 +58,9 @@ describe('email templates catalogue', () => {
     expect(html.length).toBeGreaterThan(500);
     // The heading appears in the <title> (HTML-escaped there too, so compare escaped forms).
     expect(text.length).toBeGreaterThan(0);
-    expect(text).toContain(EMAIL_TEMPLATES[key].build(EMAIL_TEMPLATES[key].sample as never).heading);
+    expect(text).toContain(
+      EMAIL_TEMPLATES[key].build(EMAIL_TEMPLATES[key].sample as never).heading,
+    );
   });
 
   test('renderEmailTemplate applies the given brand', () => {

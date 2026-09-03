@@ -52,14 +52,26 @@ export async function getProvider(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateProvider(req: Request, res: Response): Promise<void> {
-  const p = await svc.updateProvider(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId);
+  const p = await svc.updateProvider(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body,
+    req.auth!.userId,
+  );
   const withRoles = await svc.getProviderWithRoles(req.auth!.tenantId, p.id);
-  const specialtiesList = (withRoles?.roles ?? []).filter((r) => r.isActive).map((r) => r.specialtyCode);
+  const specialtiesList = (withRoles?.roles ?? [])
+    .filter((r) => r.isActive)
+    .map((r) => r.specialtyCode);
   res.json(toProvider({ ...p, specialties: specialtiesList }));
 }
 
 export async function assignSpecialty(req: Request, res: Response): Promise<void> {
-  const role = await svc.assignSpecialty(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId);
+  const role = await svc.assignSpecialty(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body,
+    req.auth!.userId,
+  );
   if (!role) throw Errors.notFound('Provider not found');
   res.status(201).json({
     id: role.id,
@@ -72,12 +84,35 @@ export async function assignSpecialty(req: Request, res: Response): Promise<void
 
 export async function listSchedules(req: Request, res: Response): Promise<void> {
   const rows = await svc.listSchedules(req.auth!.tenantId, req.params.id!);
-  res.json({ windows: rows.map((w) => ({ id: w.id, weekday: w.weekday, startTime: w.startTime, endTime: w.endTime, slotMinutes: w.slotMinutes, branchId: w.branchId })) });
+  res.json({
+    windows: rows.map((w) => ({
+      id: w.id,
+      weekday: w.weekday,
+      startTime: w.startTime,
+      endTime: w.endTime,
+      slotMinutes: w.slotMinutes,
+      branchId: w.branchId,
+    })),
+  });
 }
 
 export async function setSchedules(req: Request, res: Response): Promise<void> {
-  const rows = await svc.setSchedules(req.auth!.tenantId, req.params.id!, req.body.windows, req.auth!.userId);
-  res.json({ windows: rows.map((w) => ({ id: w.id, weekday: w.weekday, startTime: w.startTime, endTime: w.endTime, slotMinutes: w.slotMinutes, branchId: w.branchId })) });
+  const rows = await svc.setSchedules(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body.windows,
+    req.auth!.userId,
+  );
+  res.json({
+    windows: rows.map((w) => ({
+      id: w.id,
+      weekday: w.weekday,
+      startTime: w.startTime,
+      endTime: w.endTime,
+      slotMinutes: w.slotMinutes,
+      branchId: w.branchId,
+    })),
+  });
 }
 
 export async function listFreeSlots(req: Request, res: Response): Promise<void> {

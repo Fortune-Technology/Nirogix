@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Plus } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -14,14 +14,14 @@ import {
   actionsColumn,
   EditAction,
   type Column,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Branch } from "@hms/types";
-import * as api from "../../../lib/api";
-import { RequirePermission, Can } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { useCan } from "../../../lib/auth";
-import { EditRecordDialog, type EditField } from "../../../components/EditRecordDialog";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Branch } from '@hms/types';
+import * as api from '../../../lib/api';
+import { RequirePermission, Can } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { useCan } from '../../../lib/auth';
+import { EditRecordDialog, type EditField } from '../../../components/EditRecordDialog';
 
 /**
  * `code` is deliberately absent: it identifies the branch in URLs, exports and any
@@ -29,7 +29,12 @@ import { EditRecordDialog, type EditField } from "../../../components/EditRecord
  * a code is a migration, not a correction.
  */
 const BRANCH_FIELDS: Array<EditField<Branch>> = [
-  { key: "name", label: "Branch name", required: true, hint: "What staff see in pickers and on documents." },
+  {
+    key: 'name',
+    label: 'Branch name',
+    required: true,
+    hint: 'What staff see in pickers and on documents.',
+  },
 ];
 
 function BranchesTable() {
@@ -44,15 +49,15 @@ function BranchesTable() {
   const [editing, setEditing] = useState<Branch | null>(null);
 
   const [showForm, setShowForm] = useState(false);
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setRows(await api.listBranches());
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load branches.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load branches.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +73,7 @@ function BranchesTable() {
       await action();
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Action failed.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Action failed.');
     } finally {
       setBusy(false);
     }
@@ -79,24 +84,39 @@ function BranchesTable() {
     setFormError(null);
     try {
       await api.createBranch({ code: code.trim().toUpperCase(), name: name.trim() });
-      setCode("");
-      setName("");
+      setCode('');
+      setName('');
       setShowForm(false);
       await load();
     } catch (e) {
-      setFormError(e instanceof api.ApiRequestError ? e.message : "Could not create branch.");
+      setFormError(e instanceof api.ApiRequestError ? e.message : 'Could not create branch.');
     }
   }
 
   const columns: Array<Column<Branch>> = [
-    { key: "code", header: "Code", hideable: false, accessor: (b) => b.code, cell: (b) => <span className="font-medium text-fg">{b.code}</span> },
-    { key: "name", header: "Name", accessor: (b) => b.name, cell: (b) => <span className="text-fg">{b.name}</span> },
     {
-      key: "status",
-      header: "Status",
+      key: 'code',
+      header: 'Code',
+      hideable: false,
+      accessor: (b) => b.code,
+      cell: (b) => <span className="font-medium text-fg">{b.code}</span>,
+    },
+    {
+      key: 'name',
+      header: 'Name',
+      accessor: (b) => b.name,
+      cell: (b) => <span className="text-fg">{b.name}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
       filterable: true,
-      accessor: (b) => (b.isActive ? "active" : "inactive"),
-      cell: (b) => <Badge tone={b.isActive ? "success" : "neutral"}>{b.isActive ? "active" : "inactive"}</Badge>,
+      accessor: (b) => (b.isActive ? 'active' : 'inactive'),
+      cell: (b) => (
+        <Badge tone={b.isActive ? 'success' : 'neutral'}>
+          {b.isActive ? 'active' : 'inactive'}
+        </Badge>
+      ),
     },
     actionsColumn<Branch>((b) => (
       <TableActions label={`Actions for ${b.name}`}>
@@ -111,8 +131,9 @@ function BranchesTable() {
             b.isActive
               ? {
                   title: `Deactivate ${b.name}?`,
-                  description: "Staff will no longer be able to work in this branch until it is activated again.",
-                  confirmLabel: "Deactivate",
+                  description:
+                    'Staff will no longer be able to work in this branch until it is activated again.',
+                  confirmLabel: 'Deactivate',
                 }
               : undefined
           }
@@ -129,7 +150,15 @@ function BranchesTable() {
         description="Your organization's locations."
         actions={
           <Can perm={PERMISSIONS.BRANCHES_MANAGE}>
-            <Button onClick={() => setShowForm((v) => !v)}>{showForm ? "Close" : <><Plus size={16} strokeWidth={2} /> New branch</>}</Button>
+            <Button onClick={() => setShowForm((v) => !v)}>
+              {showForm ? (
+                'Close'
+              ) : (
+                <>
+                  <Plus size={16} strokeWidth={2} /> New branch
+                </>
+              )}
+            </Button>
           </Can>
         }
       />
@@ -140,8 +169,20 @@ function BranchesTable() {
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             {formError && <Alert tone="danger">{formError}</Alert>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Code" placeholder="HQ" value={code} onChange={(e) => setCode(e.target.value)} required />
-              <Field label="Name" placeholder="Head Office" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Field
+                label="Code"
+                placeholder="HQ"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+              <Field
+                label="Name"
+                placeholder="Head Office"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
             <div>
               <Button type="submit">Create branch</Button>

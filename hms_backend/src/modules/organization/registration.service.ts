@@ -42,7 +42,9 @@ export type PublicRegistrationContext = {
  * a single row by an indexed unique token and returns **only** what a public form may show
  * — a name and a city. No identifiers, no configuration, no contact details.
  */
-export async function resolveRegistrationToken(token: string): Promise<{ tenantId: string; ctx: PublicRegistrationContext }> {
+export async function resolveRegistrationToken(
+  token: string,
+): Promise<{ tenantId: string; ctx: PublicRegistrationContext }> {
   if (!token || token.length < 16) throw Errors.notFound('That registration link is not valid');
 
   const rows = await db
@@ -62,7 +64,8 @@ export async function resolveRegistrationToken(token: string): Promise<{ tenantI
   const row = rows[0];
   // A retired token, a disabled hospital and a typo all fail identically — the response
   // must not tell an unauthenticated caller which hospitals exist.
-  if (!row || row.tenantStatus !== 'active') throw Errors.notFound('That registration link is not valid');
+  if (!row || row.tenantStatus !== 'active')
+    throw Errors.notFound('That registration link is not valid');
 
   return {
     tenantId: row.tenantId,
@@ -135,7 +138,9 @@ export async function listRegistrationRequests(tenantId: string, status = 'pendi
     tx
       .select()
       .from(registrationRequests)
-      .where(and(eq(registrationRequests.tenantId, tenantId), eq(registrationRequests.status, status)))
+      .where(
+        and(eq(registrationRequests.tenantId, tenantId), eq(registrationRequests.status, status)),
+      )
       .orderBy(desc(registrationRequests.createdAt)),
   );
 }
@@ -158,7 +163,9 @@ export async function approveRegistrationRequest(
     tx
       .select()
       .from(registrationRequests)
-      .where(and(eq(registrationRequests.tenantId, tenantId), eq(registrationRequests.id, requestId)))
+      .where(
+        and(eq(registrationRequests.tenantId, tenantId), eq(registrationRequests.id, requestId)),
+      )
       .limit(1),
   );
   const req = rows[0];
@@ -266,7 +273,11 @@ export async function getRegistrationSettings(tenantId: string): Promise<Registr
       .limit(1),
   );
   const pending = await listRegistrationRequests(tenantId, 'pending');
-  return { enabled: rows[0]?.enabled ?? false, token: rows[0]?.token ?? null, pendingCount: pending.length };
+  return {
+    enabled: rows[0]?.enabled ?? false,
+    token: rows[0]?.token ?? null,
+    pendingCount: pending.length,
+  };
 }
 
 /**
@@ -293,7 +304,11 @@ export async function setSelfRegistration(
     if (existing[0]) {
       await tx
         .update(organizationProfile)
-        .set({ selfRegistrationEnabled: enabled, selfRegistrationToken: token, updatedAt: new Date() })
+        .set({
+          selfRegistrationEnabled: enabled,
+          selfRegistrationToken: token,
+          updatedAt: new Date(),
+        })
         .where(eq(organizationProfile.tenantId, tenantId));
     } else {
       await tx

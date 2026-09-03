@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Alert, Badge, Field, Select, Skeleton, Textarea } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { formatDate } from "@hms/utils";
-import type { PatientCase } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+import { useEffect, useState } from 'react';
+import { Alert, Badge, Field, Select, Skeleton, Textarea } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { formatDate } from '@hms/utils';
+import type { PatientCase } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * How this visit relates to a course of treatment (ADR-116).
@@ -25,17 +25,17 @@ import { useCan } from "../../lib/auth";
  */
 
 export type CaseChoice =
-  | { kind: "none" }
+  | { kind: 'none' }
   /**
    * The chosen case's own type travels with the choice (ADR-121) so the check-in form can quote
    * the right fee without fetching the case again. It is **not** sent back to the server — the
    * server prices from the case row, because a client-stated case type would be a price the
    * client chose.
    */
-  | { kind: "existing"; caseId: string; caseType: string | null }
-  | { kind: "new"; title: string; notes: string; caseType: string };
+  | { kind: 'existing'; caseId: string; caseType: string | null }
+  | { kind: 'new'; title: string; notes: string; caseType: string };
 
-export const NO_CASE: CaseChoice = { kind: "none" };
+export const NO_CASE: CaseChoice = { kind: 'none' };
 
 export interface CasePickerProps {
   patientId: string | null;
@@ -76,7 +76,7 @@ export function CasePicker({
     let cancelled = false;
     setLoading(true);
     api
-      .listCases({ patientId, status: "open" })
+      .listCases({ patientId, status: 'open' })
       .then((cases) => {
         if (cancelled) return;
         setOpenCases(cases);
@@ -93,35 +93,47 @@ export function CasePicker({
   // Preselect the most recent open case for a follow-up — which is what a follow-up almost always
   // is — but only when the user has not already answered.
   useEffect(() => {
-    if (!preferExisting || value.kind !== "none") return;
+    if (!preferExisting || value.kind !== 'none') return;
     const latest = openCases?.[0];
-    if (latest) onChange({ kind: "existing", caseId: latest.id, caseType: latest.caseType });
+    if (latest) onChange({ kind: 'existing', caseId: latest.id, caseType: latest.caseType });
   }, [preferExisting, openCases, value.kind, onChange]);
 
   if (!canView) return null;
 
   if (!patientId) {
-    return <p className="text-sm text-fg-muted">Choose a patient first to see what they are being treated for.</p>;
+    return (
+      <p className="text-sm text-fg-muted">
+        Choose a patient first to see what they are being treated for.
+      </p>
+    );
   }
 
   if (loading && openCases === null) return <Skeleton className="h-20" />;
 
   const cases = openCases ?? [];
   const options = [
-    { value: "none", label: "Not part of a case", description: "A one-off consultation" },
+    { value: 'none', label: 'Not part of a case', description: 'A one-off consultation' },
     ...cases.map((c) => ({
       value: c.id,
       label: c.title,
       description: `${c.caseNumber} · opened ${formatDate(c.openedAt)}${
-        c.visitCount > 0 ? ` · ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}` : ""
+        c.visitCount > 0 ? ` · ${c.visitCount} visit${c.visitCount === 1 ? '' : 's'}` : ''
       }`,
       meta: c.providerName ?? c.departmentName ?? undefined,
-      keywords: `${c.caseNumber} ${c.departmentName ?? ""} ${c.providerName ?? ""}`,
+      keywords: `${c.caseNumber} ${c.departmentName ?? ''} ${c.providerName ?? ''}`,
     })),
-    ...(canManage ? [{ value: "new", label: "Start a new case", description: "This will take more than one visit" }] : []),
+    ...(canManage
+      ? [
+          {
+            value: 'new',
+            label: 'Start a new case',
+            description: 'This will take more than one visit',
+          },
+        ]
+      : []),
   ];
 
-  const selected = value.kind === "existing" ? value.caseId : value.kind;
+  const selected = value.kind === 'existing' ? value.caseId : value.kind;
 
   return (
     <div className="flex flex-col gap-4">
@@ -129,10 +141,10 @@ export function CasePicker({
           second one being opened for the same thing. */}
       {cases.length > 0 && (
         <Alert tone="neutral">
-          This patient has {cases.length} open {cases.length === 1 ? "case" : "cases"}:{" "}
+          This patient has {cases.length} open {cases.length === 1 ? 'case' : 'cases'}:{' '}
           {cases.map((c, i) => (
             <span key={c.id}>
-              {i > 0 && ", "}
+              {i > 0 && ', '}
               <Badge tone="brand">{c.caseNumber}</Badge> {c.title}
             </span>
           ))}
@@ -144,27 +156,33 @@ export function CasePicker({
         label="Treatment case"
         value={selected}
         onChange={(v) => {
-          if (v === "none" || v === "") onChange({ kind: "none" });
-          else if (v === "new") onChange({ kind: "new", title: "", notes: "", caseType: "" });
-          else onChange({ kind: "existing", caseId: v, caseType: cases.find((c) => c.id === v)?.caseType ?? null });
+          if (v === 'none' || v === '') onChange({ kind: 'none' });
+          else if (v === 'new') onChange({ kind: 'new', title: '', notes: '', caseType: '' });
+          else
+            onChange({
+              kind: 'existing',
+              caseId: v,
+              caseType: cases.find((c) => c.id === v)?.caseType ?? null,
+            });
         }}
         options={options}
         searchable={cases.length > 5}
         disabled={disabled}
         hint={
           cases.length === 0
-            ? "Nothing is currently open for this patient."
-            : "Pick the case this visit belongs to, or leave it as a one-off."
+            ? 'Nothing is currently open for this patient.'
+            : 'Pick the case this visit belongs to, or leave it as a one-off.'
         }
       />
 
-      {value.kind === "existing" && value.caseType && (
+      {value.kind === 'existing' && value.caseType && (
         <p className="text-sm text-fg-muted">
-          This is a <Badge tone="brand">{value.caseType}</Badge> case, and that is what prices this visit.
+          This is a <Badge tone="brand">{value.caseType}</Badge> case, and that is what prices this
+          visit.
         </p>
       )}
 
-      {value.kind === "new" && (
+      {value.kind === 'new' && (
         <div className="flex flex-col gap-4 rounded-token border border-border p-4">
           <Field
             label="What is this case for?"

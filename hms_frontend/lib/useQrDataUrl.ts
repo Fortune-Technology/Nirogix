@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import QRCode from "qrcode";
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 
 /**
  * Renders any payload to a QR data URL (ADR-029 — the drawing happens once, in one place).
@@ -20,9 +20,9 @@ import QRCode from "qrcode";
  */
 export function useQrDataUrl(
   value: string | null,
-  options: { ink?: string; size?: number; errorCorrectionLevel?: "L" | "M" | "Q" | "H" } = {},
+  options: { ink?: string; size?: number; errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H' } = {},
 ): string | null {
-  const { ink = "#111111", size = 512, errorCorrectionLevel = "H" } = options;
+  const { ink = '#111111', size = 512, errorCorrectionLevel = 'H' } = options;
   const [qr, setQr] = useState<{ value: string; data: string } | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function useQrDataUrl(
       width: size,
       margin: 2,
       errorCorrectionLevel,
-      color: { dark: ink, light: "#ffffff" },
+      color: { dark: ink, light: '#ffffff' },
     })
       .then((data) => {
         if (alive) setQr({ value, data });

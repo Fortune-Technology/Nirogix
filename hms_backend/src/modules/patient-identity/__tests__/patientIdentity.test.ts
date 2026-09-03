@@ -3,7 +3,12 @@ import { pool } from '../../../db/client';
 import { seedPermissionCatalog } from '../../rbac/rbac.service';
 import { onboardTenant } from '../../admin/admin.service';
 import { createPatient } from '../../patient/patient.service';
-import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from '../../auth/tokens';
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+} from '../../auth/tokens';
 import {
   linkPatientToIdentity,
   listMyHospitals,
@@ -66,7 +71,11 @@ async function cleanupOne(code: string): Promise<void> {
  * exactly that way.
  */
 async function cleanupIdentities(): Promise<void> {
-  const ids = (await pool.query('SELECT id FROM patient_identity WHERE mobile = ANY($1)', [[MOBILE, '+919000000000', '+919111111111']])).rows.map((r) => r.id);
+  const ids = (
+    await pool.query('SELECT id FROM patient_identity WHERE mobile = ANY($1)', [
+      [MOBILE, '+919000000000', '+919111111111'],
+    ])
+  ).rows.map((r) => r.id);
   if (ids.length === 0) return;
   await pool.query('DELETE FROM patient_verification WHERE identity_id = ANY($1)', [ids]);
   await pool.query('DELETE FROM patient_identity_link WHERE identity_id = ANY($1)', [ids]);
@@ -92,13 +101,23 @@ beforeAll(async () => {
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@pidtesta.example'])).rows[0].id;
-    adminB = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@pidtestb.example'])).rows[0].id;
+    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@pidtesta.example']))
+      .rows[0].id;
+    adminB = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@pidtestb.example']))
+      .rows[0].id;
     patientA = (
-      await createPatient(tenantA, { firstName: 'Asha', lastName: 'Rao', gender: 'female', phone: '9820011234' }, adminA)
+      await createPatient(
+        tenantA,
+        { firstName: 'Asha', lastName: 'Rao', gender: 'female', phone: '9820011234' },
+        adminA,
+      )
     ).id;
     patientB = (
-      await createPatient(tenantB, { firstName: 'Asha', lastName: 'Rao', gender: 'female', phone: '9820011234' }, adminB)
+      await createPatient(
+        tenantB,
+        { firstName: 'Asha', lastName: 'Rao', gender: 'female', phone: '9820011234' },
+        adminB,
+      )
     ).id;
     ready = true;
   } catch (err) {
@@ -127,7 +146,12 @@ describe('contact normalisation', () => {
 describe('patient identity links', () => {
   test('the hospital creates the link, and it is audited', async ({ skip }) => {
     if (!ready) return skip();
-    const { identityId } = await linkPatientToIdentity(tenantA, patientA, { mobile: MOBILE }, adminA);
+    const { identityId } = await linkPatientToIdentity(
+      tenantA,
+      patientA,
+      { mobile: MOBILE },
+      adminA,
+    );
     expect(identityId).toBeTruthy();
     const { rows } = await pool.query(
       "SELECT severity FROM audit_log WHERE tenant_id = $1 AND action = 'patient.portal.link' LIMIT 1",
@@ -161,24 +185,42 @@ describe('patient identity links', () => {
 
   test('an unverified identity is offered no hospitals', async ({ skip }) => {
     if (!ready) return skip();
-    const { identityId } = await linkPatientToIdentity(tenantA, patientA, { mobile: MOBILE }, adminA);
+    const { identityId } = await linkPatientToIdentity(
+      tenantA,
+      patientA,
+      { mobile: MOBILE },
+      adminA,
+    );
     // Links exist, but the contact has never been proven — access must not follow.
     expect(await listMyHospitals(identityId)).toEqual([]);
   });
 
   test('a verified identity sees exactly its own hospitals', async ({ skip }) => {
     if (!ready) return skip();
-    const { identityId } = await linkPatientToIdentity(tenantA, patientA, { mobile: MOBILE }, adminA);
-    await pool.query('UPDATE patient_identity SET verified_at = now(), activated_at = now() WHERE id = $1', [
-      identityId,
-    ]);
+    const { identityId } = await linkPatientToIdentity(
+      tenantA,
+      patientA,
+      { mobile: MOBILE },
+      adminA,
+    );
+    await pool.query(
+      'UPDATE patient_identity SET verified_at = now(), activated_at = now() WHERE id = $1',
+      [identityId],
+    );
     const hospitals = await listMyHospitals(identityId);
     expect(hospitals.map((h) => h.tenantId).sort()).toEqual([tenantA, tenantB].sort());
   });
 
-  test('tenant access is resolved from the link, and revocation takes effect at once', async ({ skip }) => {
+  test('tenant access is resolved from the link, and revocation takes effect at once', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const { identityId } = await linkPatientToIdentity(tenantA, patientA, { mobile: MOBILE }, adminA);
+    const { identityId } = await linkPatientToIdentity(
+      tenantA,
+      patientA,
+      { mobile: MOBILE },
+      adminA,
+    );
     await pool.query('UPDATE patient_identity SET verified_at = now() WHERE id = $1', [identityId]);
 
     const access = await resolvePatientAccess(identityId, tenantA);
@@ -194,7 +236,9 @@ describe('patient identity links', () => {
   test('an identity has no access to a hospital it was never linked to', async ({ skip }) => {
     if (!ready) return skip();
     const orphan = (
-      await pool.query("INSERT INTO patient_identity (mobile, verified_at) VALUES ('+919111111111', now()) RETURNING id")
+      await pool.query(
+        "INSERT INTO patient_identity (mobile, verified_at) VALUES ('+919111111111', now()) RETURNING id",
+      )
     ).rows[0].id;
     await expect(resolvePatientAccess(orphan, tenantA)).rejects.toThrow(/do not have access/i);
     await pool.query('DELETE FROM patient_identity WHERE id = $1', [orphan]);
@@ -221,10 +265,14 @@ describe('refresh-token rotation', () => {
   });
 
   test('a patient refresh token is marked as one', () => {
-    const claims = verifyRefreshToken(signRefreshToken({ sub: 'i', tid: '', sid: 's', pt: 'patient' }));
+    const claims = verifyRefreshToken(
+      signRefreshToken({ sub: 'i', tid: '', sid: 's', pt: 'patient' }),
+    );
     expect(claims.pt).toBe('patient');
     // A staff refresh token carries no marker, and the patient refresh route refuses it.
-    expect(verifyRefreshToken(signRefreshToken({ sub: 'u', tid: 't', sid: 's' })).pt).toBeUndefined();
+    expect(
+      verifyRefreshToken(signRefreshToken({ sub: 'u', tid: 't', sid: 's' })).pt,
+    ).toBeUndefined();
   });
 });
 
@@ -239,7 +287,9 @@ describe('patient principal', () => {
   });
 
   test('a staff token carries no patient marker', () => {
-    const claims = verifyAccessToken(signAccessToken({ sub: 'u-1', tid: 't-1', roles: ['doctor'] }));
+    const claims = verifyAccessToken(
+      signAccessToken({ sub: 'u-1', tid: 't-1', roles: ['doctor'] }),
+    );
     expect(claims.pt).toBeUndefined();
   });
 });

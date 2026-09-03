@@ -31,7 +31,10 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['Ent Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'Ent Test',
+        CODE,
+      ])
     ).rows[0].id;
     ready = true;
   } catch (err) {
@@ -63,7 +66,9 @@ describe('module entitlements', () => {
     expect(await isModuleEntitled(tenantId, 'ot')).toBe(true);
   });
 
-  test('suspending a module removes entitlement (status + dates evaluated together)', async ({ skip }) => {
+  test('suspending a module removes entitlement (status + dates evaluated together)', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await setModuleStatus(tenantId, 'patient', 'SUSPENDED');
     expect(await isModuleEntitled(tenantId, 'patient')).toBe(false);
@@ -99,7 +104,10 @@ describe('a grant is effective immediately (clock skew)', () => {
     if (!ready) return skip();
 
     for (let i = 0; i < 25; i += 1) {
-      await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'emr']);
+      await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [
+        tenantId,
+        'emr',
+      ]);
       await grantModule(tenantId, 'emr');
       // No await of a timer, no re-read delay: the next line is the one that used to fail.
       expect(await isModuleEntitled(tenantId, 'emr')).toBe(true);
@@ -112,10 +120,10 @@ describe('a grant is effective immediately (clock skew)', () => {
     // `appointment` hard-depends on `patient`. This is the exact sequence onboardTenant runs, and
     // the exact one that failed: the dependency check must see a grant made microseconds earlier.
     for (let i = 0; i < 15; i += 1) {
-      await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = ANY($2)', [
-        tenantId,
-        ['patient', 'appointment'],
-      ]);
+      await pool.query(
+        'DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = ANY($2)',
+        [tenantId, ['patient', 'appointment']],
+      );
       await grantModule(tenantId, 'patient');
       await expect(grantModule(tenantId, 'appointment')).resolves.not.toThrow();
     }
@@ -124,7 +132,10 @@ describe('a grant is effective immediately (clock skew)', () => {
   test('a genuinely future start date is still not effective', async ({ skip }) => {
     if (!ready) return skip();
     // The fix must not turn the window off. A start date an hour out is not "now".
-    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'billing']);
+    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [
+      tenantId,
+      'billing',
+    ]);
     await grantModule(tenantId, 'billing');
     await pool.query(
       "UPDATE tenant_entitlements SET effective_from = now() + interval '1 hour' WHERE tenant_id = $1 AND module = $2",
@@ -136,7 +147,10 @@ describe('a grant is effective immediately (clock skew)', () => {
 
   test('an expiry in the past is not effective', async ({ skip }) => {
     if (!ready) return skip();
-    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [tenantId, 'pharmacy']);
+    await pool.query('DELETE FROM tenant_entitlements WHERE tenant_id = $1 AND module = $2', [
+      tenantId,
+      'pharmacy',
+    ]);
     await grantModule(tenantId, 'pharmacy');
     await pool.query(
       "UPDATE tenant_entitlements SET effective_until = now() - interval '1 minute' WHERE tenant_id = $1 AND module = $2",

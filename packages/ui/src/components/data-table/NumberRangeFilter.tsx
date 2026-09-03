@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { X } from "lucide-react";
-import { cn } from "../../cn";
+import { X } from 'lucide-react';
+import { cn } from '../../cn';
 
 export interface NumberRangeValue {
   /** Lower bound, or null when the end is open. Units are the caller's (e.g. rupees). */
@@ -31,18 +31,25 @@ export interface NumberRangeFilterProps {
  * and converts to paise at the API boundary. An empty field is `null` (open end),
  * and selecting one end bounds the other so an inverted range cannot be entered.
  */
-export function NumberRangeFilter({ label, value, onChange, min = 0, step, className }: NumberRangeFilterProps) {
+export function NumberRangeFilter({
+  label,
+  value,
+  onChange,
+  min = 0,
+  step,
+  className,
+}: NumberRangeFilterProps) {
   const active = value.min !== null || value.max !== null;
 
   const parse = (raw: string): number | null => {
     const trimmed = raw.trim();
-    if (trimmed === "") return null;
+    if (trimmed === '') return null;
     const n = Number(trimmed);
     return Number.isFinite(n) ? n : null;
   };
 
   return (
-    <div className={cn("hms-rangefilter", className)} role="group" aria-label={label}>
+    <div className={cn('hms-rangefilter', className)} role="group" aria-label={label}>
       <span className="hms-rangefilter__label">{label}</span>
       <input
         type="number"
@@ -50,7 +57,7 @@ export function NumberRangeFilter({ label, value, onChange, min = 0, step, class
         className="hms-input hms-rangefilter__num"
         placeholder="Min"
         aria-label={`${label} minimum`}
-        value={value.min ?? ""}
+        value={value.min ?? ''}
         min={min}
         max={value.max ?? undefined}
         step={step}
@@ -65,7 +72,7 @@ export function NumberRangeFilter({ label, value, onChange, min = 0, step, class
         className="hms-input hms-rangefilter__num"
         placeholder="Max"
         aria-label={`${label} maximum`}
-        value={value.max ?? ""}
+        value={value.max ?? ''}
         min={value.min ?? min}
         step={step}
         onChange={(e) => onChange({ ...value, max: parse(e.target.value) })}

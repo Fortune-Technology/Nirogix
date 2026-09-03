@@ -1,11 +1,19 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import { Popover } from "@base-ui/react/popover";
-import { CalendarRange, ChevronDown } from "lucide-react";
-import { formatDateRange, parseDate, resolveDateRange, toApiDate, todayApiDate, type DateRange, type DateRangePreset } from "@hms/utils";
-import { cn } from "../cn";
-import { Calendar } from "./datetime/Calendar";
+import { useMemo, useState } from 'react';
+import { Popover } from '@base-ui/react/popover';
+import { CalendarRange, ChevronDown } from 'lucide-react';
+import {
+  formatDateRange,
+  parseDate,
+  resolveDateRange,
+  toApiDate,
+  todayApiDate,
+  type DateRange,
+  type DateRangePreset,
+} from '@hms/utils';
+import { cn } from '../cn';
+import { Calendar } from './datetime/Calendar';
 
 /** The current selection: which preset, plus the inclusive ISO range it resolves to. */
 export interface PeriodValue {
@@ -26,7 +34,7 @@ export interface PeriodFilterProps {
   /** Short prefix on the trigger, e.g. "Period" → "Period: Last 30 days". */
   label?: string;
   /** Which edge the panel aligns to. */
-  align?: "start" | "end";
+  align?: 'start' | 'end';
   /** Latest selectable day for a custom range (default today) — the platform has no future data. */
   maxDate?: string;
   disabled?: boolean;
@@ -34,57 +42,66 @@ export interface PeriodFilterProps {
 }
 
 const PRESET_META: Record<DateRangePreset, { label: string; group: string }> = {
-  today: { label: "Today", group: "Quick select" },
-  yesterday: { label: "Yesterday", group: "Quick select" },
-  thisWeek: { label: "This week", group: "Quick select" },
-  lastWeek: { label: "Last week", group: "Quick select" },
-  thisMonth: { label: "This month", group: "Quick select" },
-  lastMonth: { label: "Last month", group: "Quick select" },
-  last7Days: { label: "Last 7 days", group: "Rolling" },
-  last30Days: { label: "Last 30 days", group: "Rolling" },
-  last90Days: { label: "Last 90 days", group: "Rolling" },
-  last3Months: { label: "Last 3 months", group: "Months" },
-  last6Months: { label: "Last 6 months", group: "Months" },
-  last12Months: { label: "Last 12 months", group: "Months" },
-  last24Months: { label: "Last 24 months", group: "Months" },
-  thisFinancialYear: { label: "This financial year", group: "Financial year" },
-  lastFinancialYear: { label: "Last financial year", group: "Financial year" },
-  thisYear: { label: "This year", group: "Calendar year" },
-  lastYear: { label: "Last year", group: "Calendar year" },
-  custom: { label: "Custom range", group: "Custom" },
+  today: { label: 'Today', group: 'Quick select' },
+  yesterday: { label: 'Yesterday', group: 'Quick select' },
+  thisWeek: { label: 'This week', group: 'Quick select' },
+  lastWeek: { label: 'Last week', group: 'Quick select' },
+  thisMonth: { label: 'This month', group: 'Quick select' },
+  lastMonth: { label: 'Last month', group: 'Quick select' },
+  last7Days: { label: 'Last 7 days', group: 'Rolling' },
+  last30Days: { label: 'Last 30 days', group: 'Rolling' },
+  last90Days: { label: 'Last 90 days', group: 'Rolling' },
+  last3Months: { label: 'Last 3 months', group: 'Months' },
+  last6Months: { label: 'Last 6 months', group: 'Months' },
+  last12Months: { label: 'Last 12 months', group: 'Months' },
+  last24Months: { label: 'Last 24 months', group: 'Months' },
+  thisFinancialYear: { label: 'This financial year', group: 'Financial year' },
+  lastFinancialYear: { label: 'Last financial year', group: 'Financial year' },
+  thisYear: { label: 'This year', group: 'Calendar year' },
+  lastYear: { label: 'Last year', group: 'Calendar year' },
+  custom: { label: 'Custom range', group: 'Custom' },
 };
 
-const GROUP_ORDER = ["Quick select", "Rolling", "Months", "Financial year", "Calendar year", "Custom"] as const;
+const GROUP_ORDER = [
+  'Quick select',
+  'Rolling',
+  'Months',
+  'Financial year',
+  'Calendar year',
+  'Custom',
+] as const;
 
 const DEFAULT_PRESETS: DateRangePreset[] = [
-  "today",
-  "yesterday",
-  "thisWeek",
-  "thisMonth",
-  "lastMonth",
-  "last7Days",
-  "last30Days",
-  "last90Days",
-  "last3Months",
-  "last6Months",
-  "last12Months",
-  "last24Months",
-  "thisFinancialYear",
-  "lastFinancialYear",
-  "thisYear",
-  "lastYear",
-  "custom",
+  'today',
+  'yesterday',
+  'thisWeek',
+  'thisMonth',
+  'lastMonth',
+  'last7Days',
+  'last30Days',
+  'last90Days',
+  'last3Months',
+  'last6Months',
+  'last12Months',
+  'last24Months',
+  'thisFinancialYear',
+  'lastFinancialYear',
+  'thisYear',
+  'lastYear',
+  'custom',
 ];
 
 /** Build a `PeriodValue` from a preset — the easy way to seed a page's default. */
-export function makePeriod(preset: Exclude<DateRangePreset, "custom">): PeriodValue {
+export function makePeriod(preset: Exclude<DateRangePreset, 'custom'>): PeriodValue {
   const r = resolveDateRange(preset)!;
   return { preset, start: r.start, end: r.end };
 }
 
 /** The label shown on the trigger for the current value. */
 function triggerLabel(value: PeriodValue): string {
-  return value.preset === "custom" ? formatDateRange(value.start, value.end) : PRESET_META[value.preset].label;
+  return value.preset === 'custom'
+    ? formatDateRange(value.start, value.end)
+    : PRESET_META[value.preset].label;
 }
 
 /**
@@ -103,13 +120,13 @@ export function PeriodFilter({
   onChange,
   presets = DEFAULT_PRESETS,
   label,
-  align = "start",
+  align = 'start',
   maxDate,
   disabled,
   className,
 }: PeriodFilterProps) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<"presets" | "custom">("presets");
+  const [view, setView] = useState<'presets' | 'custom'>('presets');
   // Draft custom range while the calendar is open; committed only on Apply.
   const [draft, setDraft] = useState<{ from?: Date; to?: Date }>({});
 
@@ -125,11 +142,11 @@ export function PeriodFilter({
   }, [presets]);
 
   function pickPreset(preset: DateRangePreset) {
-    if (preset === "custom") {
+    if (preset === 'custom') {
       const from = parseDate(value.start) ?? undefined;
       const to = parseDate(value.end) ?? undefined;
       setDraft({ from, to });
-      setView("custom");
+      setView('custom');
       return;
     }
     const r = resolveDateRange(preset) as DateRange;
@@ -139,13 +156,13 @@ export function PeriodFilter({
 
   function applyCustom() {
     if (!draft.from || !draft.to) return;
-    onChange({ preset: "custom", start: toApiDate(draft.from)!, end: toApiDate(draft.to)! });
+    onChange({ preset: 'custom', start: toApiDate(draft.from)!, end: toApiDate(draft.to)! });
     setOpen(false);
   }
 
   function onOpenChange(next: boolean) {
     setOpen(next);
-    if (next) setView(value.preset === "custom" ? "custom" : "presets");
+    if (next) setView(value.preset === 'custom' ? 'custom' : 'presets');
   }
 
   return (
@@ -153,7 +170,7 @@ export function PeriodFilter({
       <Popover.Trigger
         type="button"
         disabled={disabled}
-        className={cn("hms-period__trigger", className)}
+        className={cn('hms-period__trigger', className)}
       >
         <CalendarRange size={15} strokeWidth={1.75} aria-hidden />
         <span className="hms-period__trigger-label">
@@ -165,7 +182,7 @@ export function PeriodFilter({
       <Popover.Portal>
         <Popover.Positioner className="hms-popover-positioner" sideOffset={6} align={align}>
           <Popover.Popup className="hms-popover hms-period__panel" data-lenis-prevent>
-            {view === "presets" ? (
+            {view === 'presets' ? (
               <div className="hms-period__presets" role="listbox" aria-label="Date range presets">
                 {groups.map((g) => (
                   <div key={g.group} className="hms-period__group">
@@ -176,7 +193,10 @@ export function PeriodFilter({
                         type="button"
                         role="option"
                         aria-selected={value.preset === p}
-                        className={cn("hms-period__item", value.preset === p && "hms-period__item--active")}
+                        className={cn(
+                          'hms-period__item',
+                          value.preset === p && 'hms-period__item--active',
+                        )}
                         onClick={() => pickPreset(p)}
                       >
                         {PRESET_META[p].label}
@@ -198,10 +218,19 @@ export function PeriodFilter({
                 />
                 <div className="hms-period__custom-footer">
                   <span className="hms-period__custom-range">
-                    {draft.from ? formatDateRange(toApiDate(draft.from), draft.to ? toApiDate(draft.to) : null) : "Pick a start and end date"}
+                    {draft.from
+                      ? formatDateRange(
+                          toApiDate(draft.from),
+                          draft.to ? toApiDate(draft.to) : null,
+                        )
+                      : 'Pick a start and end date'}
                   </span>
                   <div className="hms-period__custom-actions">
-                    <button type="button" className="hms-btn hms-btn--ghost hms-btn--sm" onClick={() => setView("presets")}>
+                    <button
+                      type="button"
+                      className="hms-btn hms-btn--ghost hms-btn--sm"
+                      onClick={() => setView('presets')}
+                    >
                       Back
                     </button>
                     <button

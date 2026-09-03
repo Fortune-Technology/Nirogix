@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 import { createDepartment } from '../../department/department.service';
@@ -51,12 +59,20 @@ beforeAll(async () => {
     })
   ).id;
   departmentId = (
-    await createDepartment(tenant.tenantId, { code: 'CARD', name: 'Cardiology' }, sessions.org_admin!.userId)
+    await createDepartment(
+      tenant.tenantId,
+      { code: 'CARD', name: 'Cardiology' },
+      sessions.org_admin!.userId,
+    )
   ).id;
 
-  const created = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Imran', lastName: 'Sheikh', gender: 'male', dateOfBirth: '1990-06-04', phone: '9812345688' });
+  const created = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Imran',
+    lastName: 'Sheikh',
+    gender: 'male',
+    dateOfBirth: '1990-06-04',
+    phone: '9812345688',
+  });
   patientId = created.body.id;
 }, 180_000);
 
@@ -64,7 +80,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -94,14 +112,22 @@ function tomorrowAt(hour: number): string {
 }
 
 const LONG_COMPLAINT =
-  'Chest pain since three days, worse on exertion, no breathlessness, no radiation to the arm. '.repeat(12);
+  'Chest pain since three days, worse on exertion, no breathlessness, no radiation to the arm. '.repeat(
+    12,
+  );
 
 describe('the same answers are accepted by both timings', () => {
   test('a future booking keeps the department the desk chose', async ({ skip }) => {
     if (!ready) return skip();
     const res = await authed(sessions.receptionist!)
       .post('/api/v1/appointments')
-      .send({ patientId, providerId, departmentId, scheduledAt: tomorrowAt(10), reason: 'Chest pain' });
+      .send({
+        patientId,
+        providerId,
+        departmentId,
+        scheduledAt: tomorrowAt(10),
+        reason: 'Chest pain',
+      });
     expect(res.status).toBe(201);
 
     const list = await authed(sessions.receptionist!).get('/api/v1/appointments');
@@ -172,11 +198,17 @@ describe('how the patient arrived', () => {
     expect(res.body.arrivalType).toBe('follow_up');
   });
 
-  test("a booked follow-up is still a follow-up when the patient arrives", async ({ skip }) => {
+  test('a booked follow-up is still a follow-up when the patient arrives', async ({ skip }) => {
     if (!ready) return skip();
     const booked = await authed(sessions.receptionist!)
       .post('/api/v1/appointments')
-      .send({ patientId, providerId, departmentId, scheduledAt: tomorrowAt(16), arrivalType: 'follow_up' });
+      .send({
+        patientId,
+        providerId,
+        departmentId,
+        scheduledAt: tomorrowAt(16),
+        arrivalType: 'follow_up',
+      });
     expect(booked.status).toBe(201);
 
     await clearLiveVisits();
@@ -213,9 +245,12 @@ describe('how the patient arrived', () => {
     const visit = await authed(sessions.receptionist!)
       .post('/api/v1/visits/check-in')
       .send({ patientId, providerId });
-    const referral = await authed(sessions.doctor!)
-      .post('/api/v1/referrals')
-      .send({ visitId: visit.body.id, patientId, toDepartmentId: departmentId, reason: 'Cardiology opinion' });
+    const referral = await authed(sessions.doctor!).post('/api/v1/referrals').send({
+      visitId: visit.body.id,
+      patientId,
+      toDepartmentId: departmentId,
+      reason: 'Cardiology opinion',
+    });
     expect(referral.status).toBe(201);
 
     await clearLiveVisits();

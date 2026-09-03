@@ -49,7 +49,11 @@ async function findDuplicateCandidates(
       eq(patients.phone, phone),
       data.dateOfBirth ? or(sameName, eq(patients.dateOfBirth, data.dateOfBirth)) : sameName,
     ];
-    return tx.select().from(patients).where(and(...conds)).limit(5);
+    return tx
+      .select()
+      .from(patients)
+      .where(and(...conds))
+      .limit(5);
   });
 }
 
@@ -83,7 +87,8 @@ export async function createPatient(
     // Serialize UHID allocation per tenant; the unique-conflict retry loop stays as the backstop.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:uhid`}))`);
     const existing = Number(
-      (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId)))[0]?.c ?? 0,
+      (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId)))[0]
+        ?.c ?? 0,
     );
     for (let i = 1; i <= 8; i++) {
       const uhid = `UHID-${String(existing + i).padStart(6, '0')}`;
@@ -176,8 +181,10 @@ export async function listPatients(
     if (opts.city?.length) conds.push(inArray(patients.city, opts.city));
     // Registration date range (inclusive of the whole `to` day). The DateRangeFilter
     // sends ISO calendar dates; timestamps are compared against day bounds.
-    if (opts.registeredFrom) conds.push(gte(patients.createdAt, new Date(`${opts.registeredFrom}T00:00:00.000Z`)));
-    if (opts.registeredTo) conds.push(lte(patients.createdAt, new Date(`${opts.registeredTo}T23:59:59.999Z`)));
+    if (opts.registeredFrom)
+      conds.push(gte(patients.createdAt, new Date(`${opts.registeredFrom}T00:00:00.000Z`)));
+    if (opts.registeredTo)
+      conds.push(lte(patients.createdAt, new Date(`${opts.registeredTo}T23:59:59.999Z`)));
     const where = and(...conds);
     const rows = await tx
       .select()
@@ -186,9 +193,7 @@ export async function listPatients(
       .orderBy(desc(patients.createdAt))
       .limit(opts.pageSize)
       .offset((opts.page - 1) * opts.pageSize);
-    const total = Number(
-      (await tx.select({ c: count() }).from(patients).where(where))[0]?.c ?? 0,
-    );
+    const total = Number((await tx.select({ c: count() }).from(patients).where(where))[0]?.c ?? 0);
     return { rows, total };
   });
 }
@@ -202,12 +207,26 @@ export async function updatePatient(
   // Only set provided keys (map camelCase → columns); ignore undefined.
   const set: Record<string, unknown> = { updatedAt: new Date() };
   const fields: Array<keyof PatientInput | 'status'> = [
-    'firstName', 'lastName', 'gender', 'dateOfBirth', 'phone', 'email', 'bloodGroup',
-    'addressLine', 'city', 'state', 'pincode', 'abhaNumber', 'emergencyContactName',
-    'emergencyContactPhone', 'branchId', 'status',
+    'firstName',
+    'lastName',
+    'gender',
+    'dateOfBirth',
+    'phone',
+    'email',
+    'bloodGroup',
+    'addressLine',
+    'city',
+    'state',
+    'pincode',
+    'abhaNumber',
+    'emergencyContactName',
+    'emergencyContactPhone',
+    'branchId',
+    'status',
   ];
   for (const f of fields) {
-    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+    if ((patch as Record<string, unknown>)[f] !== undefined)
+      set[f] = (patch as Record<string, unknown>)[f];
   }
   // Editing the ABHA number by hand un-verifies it (ADR-084). Only a completed ABDM flow may set
   // `abhaVerifiedAt`, so a number that was proved and has since been retyped must stop claiming to
@@ -242,7 +261,9 @@ export async function updatePatient(
 // Count for the dashboard tiles (tenant-scoped).
 export async function countPatients(tenantId: string): Promise<number> {
   return runWithTenant(tenantId, async (tx) => {
-    const c = (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId)))[0];
+    const c = (
+      await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, tenantId))
+    )[0];
     return Number(c?.c ?? 0);
   });
 }

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Badge, Button, Dialog } from "@hms/ui";
-import { Search } from "lucide-react";
-import { getCatalog, type CatalogCategory, type CatalogItem } from "../../lib/api";
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Badge, Button, Dialog } from '@hms/ui';
+import { Search } from 'lucide-react';
+import { getCatalog, type CatalogCategory, type CatalogItem } from '../../lib/api';
 
 // Reusable picker for the system master-data catalogue (ADR-072). Searchable list of predefined
 // items (and this hospital's custom ones, where the category supports them), tagged System/Custom.
@@ -13,9 +13,10 @@ import { getCatalog, type CatalogCategory, type CatalogItem } from "../../lib/ap
 /** A short one-line summary of an item's attributes for the second row of a card. */
 function attrSummary(item: CatalogItem): string {
   const a = item.attributes ?? {};
-  const parts = [a.sampleType, a.form, a.strength, a.unit, a.schedule, a.specialtyCode]
-    .filter((v): v is string => typeof v === "string" && v.length > 0);
-  return parts.join(" · ");
+  const parts = [a.sampleType, a.form, a.strength, a.unit, a.schedule, a.specialtyCode].filter(
+    (v): v is string => typeof v === 'string' && v.length > 0,
+  );
+  return parts.join(' · ');
 }
 
 export function CatalogPicker({
@@ -27,7 +28,7 @@ export function CatalogPicker({
   onPick: (item: CatalogItem) => void;
   footer?: ReactNode;
 }) {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState('');
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const reqId = useRef(0);
@@ -50,7 +51,11 @@ export function CatalogPicker({
   return (
     <div className="flex flex-col gap-3">
       <div className="relative">
-        <Search size={15} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+        <Search
+          size={15}
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+        />
         <input
           type="search"
           autoFocus
@@ -65,7 +70,9 @@ export function CatalogPicker({
       <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
         {loading && <li className="px-3 py-6 text-center text-sm text-fg-subtle">Loading…</li>}
         {!loading && items.length === 0 && (
-          <li className="px-3 py-6 text-center text-sm text-fg-subtle">No matches in the catalogue.</li>
+          <li className="px-3 py-6 text-center text-sm text-fg-subtle">
+            No matches in the catalogue.
+          </li>
         )}
         {items.map((item) => {
           const summary = attrSummary(item);
@@ -78,9 +85,11 @@ export function CatalogPicker({
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-fg">{item.name}</span>
-                  {summary && <span className="block truncate text-xs text-fg-subtle">{summary}</span>}
+                  {summary && (
+                    <span className="block truncate text-xs text-fg-subtle">{summary}</span>
+                  )}
                 </span>
-                {item.source === "custom" && <Badge tone="brand">Custom</Badge>}
+                {item.source === 'custom' && <Badge tone="brand">Custom</Badge>}
               </button>
             </li>
           );
@@ -102,10 +111,10 @@ export function CatalogPickerButton({
   title,
   description,
   onPick,
-  label = "Choose from catalogue",
+  label = 'Choose from catalogue',
   footer,
   disabled,
-  variant = "secondary",
+  variant = 'secondary',
 }: {
   category: CatalogCategory;
   title: string;
@@ -114,13 +123,19 @@ export function CatalogPickerButton({
   label?: string;
   footer?: (close: () => void) => ReactNode;
   disabled?: boolean;
-  variant?: "secondary" | "ghost";
+  variant?: 'secondary' | 'ghost';
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return (
     <>
-      <Button type="button" variant={variant} size="sm" onClick={() => setOpen(true)} disabled={disabled}>
+      <Button
+        type="button"
+        variant={variant}
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+      >
         {label}
       </Button>
       <Dialog open={open} onClose={close} title={title} description={description} size="md">

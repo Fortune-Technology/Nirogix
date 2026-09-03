@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { parseDate, toApiDate, toApiTime } from "@hms/utils";
-import { cn } from "../../cn";
-import { DateField } from "./DateField";
-import { TimeField } from "./TimeField";
+import { parseDate, toApiDate, toApiTime } from '@hms/utils';
+import { cn } from '../../cn';
+import { DateField } from './DateField';
+import { TimeField } from './TimeField';
 
 export interface DateTimeFieldProps {
   label?: string;
@@ -47,7 +47,7 @@ export function DateTimeField({
   /** Rebuilds the instant from its parts; incomplete input clears the value. */
   function emit(nextDate: string | null, nextTime: string | null) {
     if (!nextDate) return onChange(null);
-    const [h, m] = (nextTime ?? "00:00").split(":");
+    const [h, m] = (nextTime ?? '00:00').split(':');
     const d = parseDate(nextDate);
     if (!d) return onChange(null);
     d.setHours(Number(h ?? 0), Number(m ?? 0), 0, 0);
@@ -55,7 +55,7 @@ export function DateTimeField({
   }
 
   return (
-    <div className={cn("hms-field", className)}>
+    <div className={cn('hms-field', className)}>
       {label ? (
         <span className="hms-label">
           {label}

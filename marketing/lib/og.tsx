@@ -10,16 +10,16 @@
 // (surface-ink, accent, ink-inverse, ink-subtle). Update them together with the
 // design system, never independently.
 
-import { ImageResponse } from "next/og";
-import { SITE } from "./site";
+import { ImageResponse } from 'next/og';
+import { SITE } from './site';
 
-const INK = "#0e1f26"; // DESIGN.md — surface ink
-const ACCENT = "#0e7490"; // DESIGN.md — deep-teal accent
-const ON_INK = "#ffffff"; // DESIGN.md — ink inverse
-const MUTED = "#9aa8ac"; // DESIGN.md — ink faint
+const INK = '#0e1f26'; // DESIGN.md — surface ink
+const ACCENT = '#0e7490'; // DESIGN.md — deep-teal accent
+const ON_INK = '#ffffff'; // DESIGN.md — ink inverse
+const MUTED = '#9aa8ac'; // DESIGN.md — ink faint
 
 export const OG_SIZE = { width: 1200, height: 630 };
-export const OG_CONTENT_TYPE = "image/png";
+export const OG_CONTENT_TYPE = 'image/png';
 
 /**
  * Renders the card: eyebrow (section), the page's own headline, and the wordmark.
@@ -27,55 +27,55 @@ export const OG_CONTENT_TYPE = "image/png";
  */
 export function ogImage({ title, eyebrow }: { title: string; eyebrow?: string }) {
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        background: INK,
+        padding: '72px 80px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* The Nirogix mark — same geometry as `BrandMark` in @hms/ui, drawn inline
+              because Satori resolves no CSS custom properties (see the note above). */}
+        <svg width={44} height={44} viewBox="0 0 32 32">
+          <rect width="32" height="32" rx="8" fill={ACCENT} />
+          <path d="M9 23V9h3.4l7.2 9.4V9H23v14h-3.4l-7.2-9.4V23H9Z" fill={ON_INK} />
+        </svg>
+        <div style={{ display: 'flex', fontSize: 30, fontWeight: 600, color: ON_INK }}>
+          {SITE.name}
+        </div>
+        {eyebrow ? (
+          <div style={{ display: 'flex', fontSize: 22, color: MUTED, letterSpacing: 1 }}>
+            {`· ${eyebrow.toUpperCase()}`}
+          </div>
+        ) : null}
+      </div>
+
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: INK,
-          padding: "72px 80px",
+          display: 'flex',
+          fontSize: title.length > 46 ? 62 : 74,
+          fontWeight: 600,
+          lineHeight: 1.1,
+          letterSpacing: -2,
+          color: ON_INK,
+          maxWidth: 980,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {/* The Nirogix mark — same geometry as `BrandMark` in @hms/ui, drawn inline
-              because Satori resolves no CSS custom properties (see the note above). */}
-          <svg width={44} height={44} viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="8" fill={ACCENT} />
-            <path d="M9 23V9h3.4l7.2 9.4V9H23v14h-3.4l-7.2-9.4V23H9Z" fill={ON_INK} />
-          </svg>
-          <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: ON_INK }}>{SITE.name}</div>
-          {eyebrow ? (
-            <div style={{ display: "flex", fontSize: 22, color: MUTED, letterSpacing: 1 }}>
-              {`· ${eyebrow.toUpperCase()}`}
-            </div>
-          ) : null}
-        </div>
+        {title}
+      </div>
 
-        <div
-          style={{
-            display: "flex",
-            fontSize: title.length > 46 ? 62 : 74,
-            fontWeight: 600,
-            lineHeight: 1.1,
-            letterSpacing: -2,
-            color: ON_INK,
-            maxWidth: 980,
-          }}
-        >
-          {title}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ width: 96, height: 5, borderRadius: 999, background: ACCENT }} />
-          <div style={{ display: "flex", fontSize: 26, color: MUTED }}>
-            Multi-tenant hospital management, built for India
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ width: 96, height: 5, borderRadius: 999, background: ACCENT }} />
+        <div style={{ display: 'flex', fontSize: 26, color: MUTED }}>
+          Multi-tenant hospital management, built for India
         </div>
       </div>
-    ),
+    </div>,
     OG_SIZE,
   );
 }

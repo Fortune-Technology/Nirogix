@@ -15,16 +15,16 @@
  * A module moves to `built` in the same change that ships it — never ahead of it.
  */
 
-export type Availability = "built" | "planned";
+export type Availability = 'built' | 'planned';
 
 export const AVAILABILITY: Record<Availability, { label: string; note: string }> = {
   built: {
-    label: "Built",
-    note: "Implemented in the product and in verification ahead of the first release.",
+    label: 'Built',
+    note: 'Implemented in the product and in verification ahead of the first release.',
   },
   planned: {
-    label: "Planned",
-    note: "Specified in our product plan and scheduled for a later phase. Not built yet.",
+    label: 'Planned',
+    note: 'Specified in our product plan and scheduled for a later phase. Not built yet.',
   },
 };
 
@@ -33,4 +33,4 @@ export const AVAILABILITY: Record<Availability, { label: string; note: string }>
  * breadth is never mistaken for availability.
  */
 export const RELEASE_NOTE =
-  "The clinic-core modules are built and in verification ahead of our first release. Everything marked Planned is scheduled scope from our product plan, not something you can use today.";
+  'The clinic-core modules are built and in verification ahead of our first release. Everything marked Planned is scheduled scope from our product plan, not something you can use today.';

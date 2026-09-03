@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import type { InputHTMLAttributes, ReactNode } from "react";
-import { useId, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
-import { cn } from "../cn";
+import type { InputHTMLAttributes, ReactNode } from 'react';
+import { useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { cn } from '../cn';
 
-export interface PasswordFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface PasswordFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: ReactNode;
   error?: string;
   /** Guidance under the input — matches `Field`, so the two behave the same way. */
@@ -35,8 +35,8 @@ export function PasswordField({ label, error, hint, className, id, ...rest }: Pa
       <div className="hms-password">
         <input
           id={inputId}
-          type={visible ? "text" : "password"}
-          className={cn("hms-input", className)}
+          type={visible ? 'text' : 'password'}
+          className={cn('hms-input', className)}
           aria-invalid={!!error}
           aria-describedby={hasMessage ? messageId : undefined}
           {...rest}
@@ -45,7 +45,7 @@ export function PasswordField({ label, error, hint, className, id, ...rest }: Pa
           type="button"
           className="hms-password__toggle"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? "Hide password" : "Show password"}
+          aria-label={visible ? 'Hide password' : 'Show password'}
           aria-pressed={visible}
           tabIndex={-1}
         >

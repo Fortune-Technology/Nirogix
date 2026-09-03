@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { CheckCircle2, Info, Loader2, OctagonX, TriangleAlert, X } from "lucide-react";
-import type { ToastVariant } from "../toast";
+import { CheckCircle2, Info, Loader2, OctagonX, TriangleAlert, X } from 'lucide-react';
+import type { ToastVariant } from '../toast';
 
 /**
  * What a toast actually shows (ADR-057).
@@ -28,7 +28,12 @@ export function ToastIcon({ variant }: { variant: ToastVariant }) {
   const Icon = ICON[variant];
   return (
     <span className={`hms-toast__icon hms-toast__icon--${variant}`}>
-      <Icon size={18} strokeWidth={2} className={variant === "loading" ? "hms-toast__spin" : undefined} aria-hidden />
+      <Icon
+        size={18}
+        strokeWidth={2}
+        className={variant === 'loading' ? 'hms-toast__spin' : undefined}
+        aria-hidden
+      />
     </span>
   );
 }
@@ -51,7 +56,11 @@ export function ToastBody({
         {description ? <p className="hms-toast__desc">{description}</p> : null}
       </div>
       {action ? (
-        <button type="button" className="hms-btn hms-btn--secondary hms-btn--sm hms-toast__action" onClick={action.onClick}>
+        <button
+          type="button"
+          className="hms-btn hms-btn--secondary hms-btn--sm hms-toast__action"
+          onClick={action.onClick}
+        >
           {action.label}
         </button>
       ) : null}
@@ -60,9 +69,18 @@ export function ToastBody({
 }
 
 /** The close control, in the design system's own affordance rather than the library's. */
-export function ToastCloseButton({ closeToast }: { closeToast?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+export function ToastCloseButton({
+  closeToast,
+}: {
+  closeToast?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
   return (
-    <button type="button" className="hms-toast__close" aria-label="Dismiss notification" onClick={closeToast}>
+    <button
+      type="button"
+      className="hms-toast__close"
+      aria-label="Dismiss notification"
+      onClick={closeToast}
+    >
       <X size={15} strokeWidth={2} aria-hidden />
     </button>
   );

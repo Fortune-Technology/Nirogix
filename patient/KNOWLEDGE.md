@@ -43,8 +43,7 @@ lib/
 
 Sessions are stored in their own `patient_sessions` table, rotate on every refresh, and are revoked server-side on sign-out. Signing in on a second device does **not** end the first session — a patient may reasonably use a phone and a laptop.
 
-The signed-in layout distinguishes *restoring* from *signed out*, and redirects only on the latter; redirecting during the restore attempt would bounce every reload to sign-in.
-
+The signed-in layout distinguishes _restoring_ from _signed out_, and redirects only on the latter; redirecting during the restore attempt would bounce every reload to sign-in.
 
 ## Browser security headers (ADR-082)
 

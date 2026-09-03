@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, boolean, integer, timestamp, unique, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  integer,
+  timestamp,
+  unique,
+  index,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 
@@ -109,7 +118,9 @@ export const organizationProfile = pgTable(
     // unique platform-wide and indexed — it is the lookup key on an unauthenticated route.
     regTokenUnique: unique('organization_profile_reg_token_unique').on(t.selfRegistrationToken),
     // Same rule for the public booking token.
-    bookingTokenUnique: unique('organization_profile_booking_token_unique').on(t.onlineBookingToken),
+    bookingTokenUnique: unique('organization_profile_booking_token_unique').on(
+      t.onlineBookingToken,
+    ),
     // Same rule again: the public check-in endpoint resolves a tenant FROM this token.
     checkinTokenUnique: unique('organization_profile_checkin_token_unique').on(t.selfCheckinToken),
   }),
@@ -158,7 +169,9 @@ export const registrationRequests = pgTable(
     submittedIp: varchar('submitted_ip', { length: 64 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => ({ byTenantStatus: index('registration_requests_tenant_status_idx').on(t.tenantId, t.status) }),
+  (t) => ({
+    byTenantStatus: index('registration_requests_tenant_status_idx').on(t.tenantId, t.status),
+  }),
 );
 
 export type RegistrationRequest = typeof registrationRequests.$inferSelect;
@@ -202,7 +215,9 @@ export const appointmentRequests = pgTable(
     submittedIp: varchar('submitted_ip', { length: 64 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => ({ byTenantStatus: index('appointment_requests_tenant_status_idx').on(t.tenantId, t.status) }),
+  (t) => ({
+    byTenantStatus: index('appointment_requests_tenant_status_idx').on(t.tenantId, t.status),
+  }),
 );
 
 export type AppointmentRequest = typeof appointmentRequests.$inferSelect;

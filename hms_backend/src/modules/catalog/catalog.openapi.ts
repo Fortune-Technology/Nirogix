@@ -21,7 +21,7 @@ registry.registerPath({
   path: '/api/v1/catalog/{category}',
   operationId: 'listCatalog',
   tags: ['Catalog'],
-  summary: 'System master data for a category, merged with this hospital\'s custom items (ADR-072)',
+  summary: "System master data for a category, merged with this hospital's custom items (ADR-072)",
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({ category: CatalogCategoryEnum }),
@@ -46,7 +46,10 @@ registry.registerPath({
     201: { description: 'Created custom item', ...json(CatalogItemSchema) },
     401: notAuthed,
     403: forbidden,
-    409: { description: 'A custom item with that name already exists', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'A custom item with that name already exists',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
@@ -58,9 +61,14 @@ registry.registerPath({
   tags: ['Catalog'],
   summary: 'Per-hospital availability overrides for a branch (ADR-073)',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum.optional() }) },
+  request: {
+    query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum.optional() }),
+  },
   responses: {
-    200: { description: 'Override rows (only the items overridden for this branch)', ...json(AvailabilityOverrideListSchema) },
+    200: {
+      description: 'Override rows (only the items overridden for this branch)',
+      ...json(AvailabilityOverrideListSchema),
+    },
     401: notAuthed,
     403: forbidden,
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
@@ -72,7 +80,8 @@ registry.registerPath({
   path: '/api/v1/branch-availability/items',
   operationId: 'listBranchAvailabilityItems',
   tags: ['Catalog'],
-  summary: "The org's items of a type with their availability at a branch (config screen — ADR-073)",
+  summary:
+    "The org's items of a type with their availability at a branch (config screen — ADR-073)",
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum }) },
   responses: {
@@ -95,6 +104,9 @@ registry.registerPath({
     200: { description: 'The saved override', ...json(AvailabilityOverrideSchema) },
     401: notAuthed,
     403: forbidden,
-    422: { description: 'Validation error / branch not in your organization', ...json(ErrorResponseSchema) },
+    422: {
+      description: 'Validation error / branch not in your organization',
+      ...json(ErrorResponseSchema),
+    },
   },
 });

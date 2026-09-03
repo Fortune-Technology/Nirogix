@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { cn } from "../cn";
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { cn } from '../cn';
 
 /**
  * The 10-digit local part of an Indian mobile from any input — typed, or pasted as
@@ -11,7 +11,7 @@ import { cn } from "../cn";
  * ten digits rather than being accepted twice.
  */
 export function localIndianMobile(value: string): string {
-  const digits = (value ?? "").replace(/\D/g, "");
+  const digits = (value ?? '').replace(/\D/g, '');
   // A leading country code or trunk prefix only makes sense once the number is
   // already long enough to have a 10-digit tail; keep the last ten either way.
   if (digits.length > 10) return digits.slice(-10);
@@ -21,7 +21,7 @@ export function localIndianMobile(value: string): string {
 /** The canonical stored/API form `+91XXXXXXXXXX`, or `""` when the local part is not a valid 10-digit mobile. */
 export function canonicalIndianMobile(value: string): string {
   const local = localIndianMobile(value);
-  return /^[6-9]\d{9}$/.test(local) ? `+91${local}` : "";
+  return /^[6-9]\d{9}$/.test(local) ? `+91${local}` : '';
 }
 
 export interface PhoneFieldProps {
@@ -80,13 +80,13 @@ export function PhoneField({
   function apply(raw: string) {
     const next = localIndianMobile(raw);
     setLocal(next);
-    const canonical = next.length === 10 ? canonicalIndianMobile(next) : "";
+    const canonical = next.length === 10 ? canonicalIndianMobile(next) : '';
     last.current = canonical;
     onChange(canonical);
   }
 
-  const incomplete = local.length > 0 && canonicalIndianMobile(local) === "";
-  const shownError = error ?? (incomplete ? "Enter a 10-digit Indian mobile number." : undefined);
+  const incomplete = local.length > 0 && canonicalIndianMobile(local) === '';
+  const shownError = error ?? (incomplete ? 'Enter a 10-digit Indian mobile number.' : undefined);
   const hasMessage = Boolean(shownError || hint);
 
   return (
@@ -98,9 +98,9 @@ export function PhoneField({
       ) : null}
       <div
         className={cn(
-          "hms-phonefield",
-          disabled && "hms-phonefield--disabled",
-          shownError && "hms-phonefield--error",
+          'hms-phonefield',
+          disabled && 'hms-phonefield--disabled',
+          shownError && 'hms-phonefield--error',
           className,
         )}
       >
@@ -123,7 +123,7 @@ export function PhoneField({
           onPaste={(e) => {
             // Take the pasted text ourselves so a pasted "+91…"/"91…" cannot double the code.
             e.preventDefault();
-            apply(e.clipboardData.getData("text"));
+            apply(e.clipboardData.getData('text'));
           }}
         />
       </div>

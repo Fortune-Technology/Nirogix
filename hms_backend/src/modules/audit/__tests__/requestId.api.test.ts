@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, authed, cleanupTenant, dbReady, login, makeTenant, type TestTenant } from '../../../test-api';
+import {
+  api,
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { resolveRequestId } from '../../../http/requestContext';
 
@@ -53,7 +61,9 @@ describe('request correlation id', () => {
     expect(resolveRequestId({ nope: true })).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  test('the id on the response is the id stored on the audit row for that request', async ({ skip }) => {
+  test('the id on the response is the id stored on the audit row for that request', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const session = await login(CODE, tenant.adminEmail);
     const res = await authed(session)

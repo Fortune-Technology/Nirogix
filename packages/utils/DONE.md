@@ -20,7 +20,7 @@ Append-only implementation log. Newest at the bottom.
 
 **Added — `src/date.ts`:** `formatDate` (`15/08/2026`), `formatDateTime` (`15/08/2026 14:05`), `formatTime` (24-hour), `formatDateRange` (collapses same-day, handles open ends), `parseDate` (Date / ISO / epoch / `YYYY-MM-DD` read as a **local** calendar date / `DD/MM/YYYY` round-trip), `isValidDate`, `compareDates` (comparator, invalid sorts last), `isSameDay`, `toApiDate` / `toApiDateTime` (ISO-8601 for transport), `todayApiDate`, `addDays`. Missing values render an em dash, never "Invalid Date". No date library — the arithmetic is deterministic and dependency-free.
 
-**Why:** ten Portal screens formatted with bare `toLocaleDateString()` / `toLocaleString()`, which renders in the *viewer's* machine locale — `08/15/2026` on a US-configured browser. On a clinical record `08/09/2026` is genuinely ambiguous.
+**Why:** ten Portal screens formatted with bare `toLocaleDateString()` / `toLocaleString()`, which renders in the _viewer's_ machine locale — `08/15/2026` on a US-configured browser. On a clinical record `08/09/2026` is genuinely ambiguous.
 
 **Testing status:** `typecheck` green across the monorepo; verified in the running Portal (patients' "Registered" column renders `14/08/2026`).
 

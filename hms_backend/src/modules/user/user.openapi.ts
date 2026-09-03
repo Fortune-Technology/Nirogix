@@ -25,7 +25,11 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'List users in the tenant (with role keys)',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Users', ...json(UsersResponseSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Users', ...json(UsersResponseSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -53,7 +57,12 @@ registry.registerPath({
   summary: 'Get a user with roles, effective permissions and overrides',
   security: [{ bearerAuth: [] }],
   request: idParam,
-  responses: { 200: { description: 'User', ...json(UserDetailSchema) }, 401: notAuthed, 403: forbidden, 404: notFound },
+  responses: {
+    200: { description: 'User', ...json(UserDetailSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: notFound,
+  },
 });
 
 registry.registerPath({
@@ -64,7 +73,13 @@ registry.registerPath({
   summary: "Update a user's status or name",
   security: [{ bearerAuth: [] }],
   request: { ...idParam, body: json(UpdateUserBody) },
-  responses: { 200: { description: 'Updated', ...json(AckSchema) }, 401: notAuthed, 403: forbidden, 404: notFound, 422: invalid },
+  responses: {
+    200: { description: 'Updated', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: notFound,
+    422: invalid,
+  },
 });
 
 registry.registerPath({
@@ -75,7 +90,12 @@ registry.registerPath({
   summary: 'Assign a role to a user',
   security: [{ bearerAuth: [] }],
   request: { ...idParam, body: json(AssignRoleBody) },
-  responses: { 201: { description: 'Assigned', ...json(AckSchema) }, 401: notAuthed, 403: forbidden, 422: invalid },
+  responses: {
+    201: { description: 'Assigned', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: invalid,
+  },
 });
 
 registry.registerPath({
@@ -86,7 +106,11 @@ registry.registerPath({
   summary: 'Remove a role from a user',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid(), roleKey: z.string() }) },
-  responses: { 200: { description: 'Removed', ...json(AckSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Removed', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -97,7 +121,12 @@ registry.registerPath({
   summary: 'Add a permission override (GRANT/DENY, optionally time-bound). DENY always wins.',
   security: [{ bearerAuth: [] }],
   request: { ...idParam, body: json(SetOverrideBody) },
-  responses: { 201: { description: 'Added', ...json(AckSchema) }, 401: notAuthed, 403: forbidden, 422: invalid },
+  responses: {
+    201: { description: 'Added', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: invalid,
+  },
 });
 
 registry.registerPath({
@@ -108,5 +137,9 @@ registry.registerPath({
   summary: 'Revoke a permission override (soft — never deleted)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid(), overrideId: z.string().uuid() }) },
-  responses: { 200: { description: 'Revoked', ...json(AckSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Revoked', ...json(AckSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });

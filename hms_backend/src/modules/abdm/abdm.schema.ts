@@ -74,6 +74,16 @@ export const StartVerificationBody = z.object({
   identifier: z.string().min(3).max(80),
   consentGiven,
   branchId: z.string().uuid().optional(),
+  /**
+   * Where the OTP comes from — UIDAI (`aadhaar`) or the ABHA-linked mobile (`abdm`).
+   *
+   * An ABHA number and an ABHA address each have to be demonstrable BOTH ways: NHA's M1 workbook
+   * makes `VRFY_ABHA_101`/`_102` the Aadhaar-OTP routes and `VRFY_ABHA_201`/`_202` the mobile ones,
+   * all four mandatory. Omitted, it stays the mobile route, which is what every existing caller
+   * already gets. An identifier that supports only one system rejects the other by name rather
+   * than by silently substituting it.
+   */
+  otpSystem: z.enum(['aadhaar', 'abdm']).optional(),
 });
 
 export const SelectAccountBody = z.object({
@@ -117,10 +127,14 @@ export const AbhaAddressValue = z
     if (local.length < 8) return fail('An ABHA address is at least 8 characters.');
     if (local.length > 18) return fail('An ABHA address is at most 18 characters.');
     if (!/^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$/.test(local)) {
-      return fail('An ABHA address uses letters, numbers, dot and underscore, and must start and end with a letter or number.');
+      return fail(
+        'An ABHA address uses letters, numbers, dot and underscore, and must start and end with a letter or number.',
+      );
     }
-    if ((local.match(/\./g) ?? []).length > 1) return fail('An ABHA address may contain at most one dot.');
-    if ((local.match(/_/g) ?? []).length > 1) return fail('An ABHA address may contain at most one underscore.');
+    if ((local.match(/\./g) ?? []).length > 1)
+      return fail('An ABHA address may contain at most one dot.');
+    if ((local.match(/_/g) ?? []).length > 1)
+      return fail('An ABHA address may contain at most one underscore.');
   });
 
 export const CreateAbhaAddressBody = z.object({
@@ -149,7 +163,10 @@ export const UpdateAbhaProfileBody = z.object({
     .regex(/^\d{2}-\d{2}-\d{4}$/, 'Use DD-MM-YYYY')
     .optional(),
   address: z.string().max(300).optional(),
-  pincode: z.string().regex(/^\d{6}$/, 'Enter a 6-digit PIN code').optional(),
+  pincode: z
+    .string()
+    .regex(/^\d{6}$/, 'Enter a 6-digit PIN code')
+    .optional(),
 });
 
 export const LinkPatientBody = z.object({
@@ -235,7 +252,13 @@ export const OnLinkCareContextBody = z
   .object({
     abhaAddress: z.string().min(3).max(80).optional(),
     status: z.string().optional(),
-    error: z.object({ code: z.union([z.string(), z.number()]).optional(), message: z.string().optional() }).passthrough().optional(),
+    error: z
+      .object({
+        code: z.union([z.string(), z.number()]).optional(),
+        message: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
     response: z.object({ requestId: z.string() }).passthrough().optional(),
   })
   .passthrough();
@@ -247,7 +270,9 @@ export const OnLinkCareContextBody = z
  * typed. Keeping them apart in the type is what stops the matcher treating a self-declared hospital
  * number as proof.
  */
-const Identifier = z.object({ type: z.string(), value: z.union([z.string(), z.number()]) }).passthrough();
+const Identifier = z
+  .object({ type: z.string(), value: z.union([z.string(), z.number()]) })
+  .passthrough();
 
 export const DiscoverBody = z
   .object({
@@ -282,7 +307,9 @@ export const LinkInitBody = z
 export const LinkConfirmBody = z
   .object({
     requestId: z.string().optional(),
-    confirmation: z.object({ linkRefNumber: z.string(), token: z.string().min(4).max(12) }).passthrough(),
+    confirmation: z
+      .object({ linkRefNumber: z.string(), token: z.string().min(4).max(12) })
+      .passthrough(),
   })
   .passthrough();
 
@@ -308,8 +335,13 @@ export const HealthInformationRequestBody = z
           })
           .passthrough()
           .optional(),
-        dateRange: z.object({ from: z.string().optional(), to: z.string().optional() }).passthrough().optional(),
-        careContexts: z.array(z.object({ careContextReference: z.string() }).passthrough()).optional(),
+        dateRange: z
+          .object({ from: z.string().optional(), to: z.string().optional() })
+          .passthrough()
+          .optional(),
+        careContexts: z
+          .array(z.object({ careContextReference: z.string() }).passthrough())
+          .optional(),
       })
       .passthrough(),
   })
@@ -353,7 +385,10 @@ export const HiuOnFetchBody = z
             patient: z.object({ id: z.string() }).passthrough(),
             hip: z.object({ id: z.string().optional() }).passthrough().optional(),
             hiu: z.object({ id: z.string().optional() }).passthrough().optional(),
-            purpose: z.object({ code: z.string().optional(), text: z.string().optional() }).passthrough().optional(),
+            purpose: z
+              .object({ code: z.string().optional(), text: z.string().optional() })
+              .passthrough()
+              .optional(),
             hiTypes: z.array(z.string()).optional(),
             careContexts: z.array(z.object({}).passthrough()).optional(),
             permission: z.object({}).passthrough().optional(),
@@ -404,7 +439,11 @@ export const HipConsentNotifyBody = z
             hiu: z.object({ id: z.string() }).passthrough().optional(),
             consentManager: z.object({ id: z.string() }).passthrough().optional(),
             purpose: z
-              .object({ text: z.string().optional(), code: z.string().optional(), refUri: z.string().optional() })
+              .object({
+                text: z.string().optional(),
+                code: z.string().optional(),
+                refUri: z.string().optional(),
+              })
               .passthrough()
               .optional(),
             hiTypes: z.array(z.string()).optional(),
@@ -457,6 +496,78 @@ export const HiuConsentNotifyBody = z
  * reject an unfamiliar field would discard a patient's history over a formatting difference. The
  * integrity guarantee is the checksum after decryption, not this shape.
  */
+/**
+ * HIE-CM's acknowledgement of an outbound notify — the same shape for both M2 acknowledgements.
+ *
+ * NHA spells the correlating field two different ways across the two sections: `resp` for the SMS
+ * acknowledgement (§4.3.9) and `response` for the care-context one (§4.3.7), while the status
+ * itself is a bare `status` in the first and an `acknowledgement.status` in the second. Both are
+ * accepted rather than one being picked, because guessing wrong here fails silently: a callback we
+ * reject with a 422 is one NHA records as undelivered.
+ */
+export const GatewayAcknowledgementBody = z
+  .object({
+    requestId: z.string().optional(),
+    timestamp: z.string().optional(),
+    status: z.string().optional(),
+    acknowledgement: z.object({ status: z.string().optional() }).passthrough().optional(),
+    error: z
+      .object({ code: z.string().optional(), message: z.string().optional() })
+      .passthrough()
+      .nullish(),
+    /** The request id of the call being acknowledged. `resp` in §4.3.9, `response` in §4.3.7. */
+    resp: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+    response: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/**
+ * The answer to a consent-request status poll (M3 — "Consent request on-status").
+ *
+ * The synchronous `200` from `consent/v3/request/status` carries no status; it arrives here.
+ */
+export const HiuOnConsentStatusBody = z
+  .object({
+    consentRequest: z
+      .object({
+        id: z.string().optional(),
+        status: z.string().optional(),
+        consentArtefacts: z.array(z.object({ id: z.string().optional() }).passthrough()).optional(),
+      })
+      .passthrough()
+      .optional(),
+    error: z
+      .object({ code: z.string().optional(), message: z.string().optional() })
+      .passthrough()
+      .nullish(),
+    response: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+/**
+ * The answer to our request for records — and the only place the transaction id is ever stated.
+ *
+ * `data-flow/v3/health-information/request` takes no transaction id: the consent manager assigns
+ * one and returns it here. Every subsequent push from the HIP is keyed on it, so a transfer that
+ * never receives this callback can never be matched to its delivery.
+ */
+export const HiuOnDataRequestBody = z
+  .object({
+    hiRequest: z
+      .object({
+        transactionId: z.string().optional(),
+        sessionStatus: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    error: z
+      .object({ code: z.string().optional(), message: z.string().optional() })
+      .passthrough()
+      .nullish(),
+    response: z.object({ requestId: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
 export const HiuDataPushBody = z
   .object({
     transactionId: z.string().min(1),
@@ -532,7 +643,10 @@ export const FacilityRegistryDraftBody = z.object({
     addressLine1: z.string().max(200).optional(),
     addressLine2: z.string().max(200).optional(),
     // HFR-019: exactly six digits.
-    pincode: z.string().regex(/^\d{6}$/, 'A pincode is six digits').optional(),
+    pincode: z
+      .string()
+      .regex(/^\d{6}$/, 'A pincode is six digits')
+      .optional(),
     // HFR-011/012: real numbers, and within India's actual bounds rather than merely parseable.
     latitude: z.coerce.number().min(-90).max(90).transform(String).optional(),
     longitude: z.coerce.number().min(-180).max(180).transform(String).optional(),
@@ -544,13 +658,22 @@ export const FacilityRegistryDraftBody = z.object({
     // number" under Landline and "a valid landline number ranging between 6-8 digits" under Mobile.
     // Implemented the way the fields actually mean, because validating a mobile as a landline would
     // reject every real number typed into it.
-    facilityContactNumber: z.string().regex(/^\d{10}$/, 'A mobile number is ten digits').optional(),
-    facilityLandlineNumber: z.string().regex(/^\d{6,8}$/, 'A landline number is six to eight digits').optional(),
+    facilityContactNumber: z
+      .string()
+      .regex(/^\d{10}$/, 'A mobile number is ten digits')
+      .optional(),
+    facilityLandlineNumber: z
+      .string()
+      .regex(/^\d{6,8}$/, 'A landline number is six to eight digits')
+      .optional(),
     facilityStdCode: z.string().max(8).optional(),
     websiteLink: z.string().url().optional(),
   }),
   // HFR-020/021 — working days by master code, hours as a range or 24*7.
-  timings: z.array(z.object({ workingDays: z.string(), openingHours: z.string() })).max(7).optional(),
+  timings: z
+    .array(z.object({ workingDays: z.string(), openingHours: z.string() }))
+    .max(7)
+    .optional(),
 
   /**
    * HFR-047…049 — specialities hang off a system of medicine, not off the facility.
@@ -645,7 +768,10 @@ export const FacilitySearchQuery = z.object({
   stateLGDCode: z.string().max(16).optional(),
   districtLGDCode: z.string().max(16).optional(),
   subDistrictLGDCode: z.string().max(16).optional(),
-  pincode: z.string().regex(/^\d{6}$/, 'PIN code must be 6 digits').optional(),
+  pincode: z
+    .string()
+    .regex(/^\d{6}$/, 'PIN code must be 6 digits')
+    .optional(),
   page: z.coerce.number().int().min(1).max(500).optional(),
   resultsPerPage: z.coerce.number().int().min(10).max(50).optional(),
 });
@@ -701,8 +827,21 @@ export const BulkImportBody = z.object({
  */
 export const ResendOtpBody = z.object({
   transactionId: z.string().uuid(),
-  aadhaar: z.string().regex(/^\d{12}$/).optional(),
+  aadhaar: z
+    .string()
+    .regex(/^\d{12}$/)
+    .optional(),
   mobile: z.string().min(10).max(15).optional(),
+  /**
+   * The identifier a VERIFICATION resend re-sends to — an ABHA number, ABHA address, mobile or
+   * Aadhaar, matching the transaction it belongs to.
+   *
+   * Re-supplied rather than remembered for the same reason the Aadhaar is (`aadhaar` above): the
+   * transaction stores a MASKED hint and nothing else, so there is no raw identifier here to
+   * resend to. NHA requires the resend on every verification route (`VRFY_ABHA_305`, `_405`), and
+   * a flow that has no way to resend fails a mandatory case whatever the button does.
+   */
+  identifier: z.string().min(3).max(80).optional(),
 });
 
 export const TransactionParams = z.object({ transactionId: z.string().uuid() });
@@ -754,7 +893,13 @@ export const VerificationResultSchema = z
     requiresMobileVerification: z.boolean().optional(),
     requiresAbhaAddress: z.boolean().optional(),
     accounts: z
-      .array(z.object({ abhaNumber: z.string(), abhaAddress: z.string().optional(), name: z.string().optional() }))
+      .array(
+        z.object({
+          abhaNumber: z.string(),
+          abhaAddress: z.string().optional(),
+          name: z.string().optional(),
+        }),
+      )
       .optional(),
   })
   .openapi('AbhaVerificationResult');
@@ -766,6 +911,11 @@ export const OtpSentSchema = z
     mobileHint: z.string().optional(),
     /** Sandbox/mock only — the OTP is returned in-band because no SMS is sent. */
     devOtp: z.string().optional(),
+    /**
+     * What the registry says this ABHA address supports, from `phr/web/login/abha/search`.
+     * Present only on an ABHA-address verification; the profile family has no equivalent call.
+     */
+    authMethods: z.array(z.string()).optional(),
   })
   .openapi('AbdmOtpSent');
 
@@ -795,7 +945,9 @@ export const PendingShareSchema = z
   .openapi('AbdmPendingShare');
 
 export const PendingShareListSchema = z.array(PendingShareSchema).openapi('AbdmPendingShareList');
-export const AbhaAddressSuggestionsSchema = z.object({ suggestions: z.array(z.string()) }).openapi('AbhaAddressSuggestions');
+export const AbhaAddressSuggestionsSchema = z
+  .object({ suggestions: z.array(z.string()) })
+  .openapi('AbhaAddressSuggestions');
 
 export const FacilityConfigSchema = z
   .object({

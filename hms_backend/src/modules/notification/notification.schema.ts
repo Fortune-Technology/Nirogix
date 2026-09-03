@@ -34,6 +34,4 @@ export const NotificationListResponseSchema = z
   .object({ data: z.array(NotificationEntrySchema), page: PageMetaSchema })
   .openapi('NotificationListResponse');
 
-export const QueuedResponseSchema = z
-  .object({ queued: z.literal(true) })
-  .openapi('QueuedResponse');
+export const QueuedResponseSchema = z.object({ queued: z.literal(true) }).openapi('QueuedResponse');

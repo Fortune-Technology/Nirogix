@@ -44,7 +44,10 @@ import { discoverPatient } from '../modules/abdm/discovery.service';
 import { buildDocumentBundle } from '../modules/abdm/fhir/fhirBuilder';
 import { clearRecordedHipCalls, recordedHipCalls } from '../modules/abdm/hipGateway';
 import { storeLinkToken } from '../modules/abdm/linkToken.service';
-import { performTransfer, receiveHealthInformationRequest } from '../modules/abdm/dataTransfer.service';
+import {
+  performTransfer,
+  receiveHealthInformationRequest,
+} from '../modules/abdm/dataTransfer.service';
 
 const CODE = 'ZZM2CHECK';
 const HIP_ID = 'IN0710-M2CHECK';
@@ -96,7 +99,8 @@ function showLastCall(fragment: string): void {
   }
   note(`→ POST ${call.path}`);
   if (VERBOSE) {
-    for (const line of JSON.stringify(call.body, null, 2).split('\n').slice(0, 30)) note(`   ${line}`);
+    for (const line of JSON.stringify(call.body, null, 2).split('\n').slice(0, 30))
+      note(`   ${line}`);
   }
 }
 
@@ -110,12 +114,16 @@ async function main(): Promise<void> {
   // M2 has no screens, so this script is the only way to see it work — but it writes fictional
   // patients, which is exactly what must never happen anywhere real.
   if ((process.env.NODE_ENV ?? 'development') !== 'development') {
-    bad(`NODE_ENV is "${process.env.NODE_ENV}". This writes test patients and only runs in development.`);
+    bad(
+      `NODE_ENV is "${process.env.NODE_ENV}". This writes test patients and only runs in development.`,
+    );
     process.exit(1);
   }
   if (process.env.ABDM_PROVIDER === 'gateway') {
     bad('ABDM_PROVIDER=gateway would send these fictional records to the real ABDM sandbox.');
-    note('Set ABDM_PROVIDER=mock. The gateway client then records each call instead of sending it,');
+    note(
+      'Set ABDM_PROVIDER=mock. The gateway client then records each call instead of sending it,',
+    );
     note('which is what lets this print the exact payloads.');
     process.exit(1);
   }
@@ -236,16 +244,28 @@ async function run(tenantId: string): Promise<void> {
   } catch {
     refused = true;
   }
-  check(refused, 'a clinical label is refused at the source, not sanitised', 'a clinical label was ACCEPTED — the guard is broken');
+  check(
+    refused,
+    'a clinical label is refused at the source, not sanitised',
+    'a clinical label was ACCEPTED — the guard is broken',
+  );
 
   // --- 4. The FHIR document ---------------------------------------------------------------
   step(4, 'The FHIR document built from those rows (ADR-088)');
   const bundle = await buildDocumentBundle(tenantId, { visitId, hiType: 'OPConsultation' });
   const types = bundle.entry.map((e) => e.resource.resourceType);
-  check(types[0] === 'Composition', 'Composition is first, as an ABDM document bundle requires', `first resource is ${types[0]}, not Composition`);
+  check(
+    types[0] === 'Composition',
+    'Composition is first, as an ABDM document bundle requires',
+    `first resource is ${types[0]}, not Composition`,
+  );
   ok(`${bundle.entry.length} resources: ${[...new Set(types)].join(', ')}`);
   const asText = JSON.stringify(bundle);
-  check(asText.includes('J20.9'), 'the ICD-10 code survived into the bundle', 'the diagnosis code is missing from the bundle');
+  check(
+    asText.includes('J20.9'),
+    'the ICD-10 code survived into the bundle',
+    'the diagnosis code is missing from the bundle',
+  );
 
   // --- 5. Linking -------------------------------------------------------------------------
   //
@@ -269,30 +289,60 @@ async function run(tenantId: string): Promise<void> {
   // "about six months", and believing that instead of the claim means a link dying mid-flight.
   const token = jwtExpiringInDays(180);
   const delivered = await storeLinkToken({ abhaAddress: 'm2check@sbx', token, hipId: HIP_ID });
-  check(delivered, 'link token delivered by the webhook and stored ENCRYPTED', 'the delivered token was rejected');
-  const tokenRow = await pool.query('SELECT token_enc FROM abdm_link_tokens WHERE abha_address = $1', ['m2check@sbx']);
   check(
-    String(tokenRow.rows[0]?.token_enc ?? '').startsWith('v1.') && !String(tokenRow.rows[0]?.token_enc).includes(token),
+    delivered,
+    'link token delivered by the webhook and stored ENCRYPTED',
+    'the delivered token was rejected',
+  );
+  const tokenRow = await pool.query(
+    'SELECT token_enc FROM abdm_link_tokens WHERE abha_address = $1',
+    ['m2check@sbx'],
+  );
+  check(
+    String(tokenRow.rows[0]?.token_enc ?? '').startsWith('v1.') &&
+      !String(tokenRow.rows[0]?.token_enc).includes(token),
     'the token is unreadable at rest — it is standing permission to write to a national record',
     'the link token was stored in a readable form',
   );
 
   const linked = await linking.linkPendingForPatient(tenantId, patient.id);
-  check(linked.linked === 1, 'one care context linked', `expected 1 link, got ${linked.linked}${linked.reason ? ` (${linked.reason})` : ''}`);
+  check(
+    linked.linked === 1,
+    'one care context linked',
+    `expected 1 link, got ${linked.linked}${linked.reason ? ` (${linked.reason})` : ''}`,
+  );
   showLastCall('link');
-  note('One call per PATIENT, not per record — a visit producing four records is one notification.');
+  note(
+    'One call per PATIENT, not per record — a visit producing four records is one notification.',
+  );
 
   // --- 6. Discovery -----------------------------------------------------------------------
   step(6, 'Discovery — the patient searching for their own records (ADR-090)');
   const byAbha = await discoverPatient(tenantId, { abhaAddress: 'm2check@sbx' });
-  check(byAbha.patient?.id === patient.id, 'a verified ABHA address matches, conclusively', 'the ABHA address did not match the patient');
+  check(
+    byAbha.patient?.id === patient.id,
+    'a verified ABHA address matches, conclusively',
+    'the ABHA address did not match the patient',
+  );
 
   const weak = await discoverPatient(tenantId, { mobile: '9700009999' });
-  check(!weak.patient, 'a mobile number ALONE does not match — as it must not', 'a bare mobile number matched a patient, which is a disclosure risk');
+  check(
+    !weak.patient,
+    'a mobile number ALONE does not match — as it must not',
+    'a bare mobile number matched a patient, which is a disclosure risk',
+  );
   note('Demographics need mobile AND name AND year of birth together. Ambiguity means nobody.');
 
-  const wrongName = await discoverPatient(tenantId, { mobile: '9700009999', name: 'Someone Else', yearOfBirth: 1990 });
-  check(!wrongName.patient, 'right mobile, wrong name → no match', 'a mismatched name still matched');
+  const wrongName = await discoverPatient(tenantId, {
+    mobile: '9700009999',
+    name: 'Someone Else',
+    yearOfBirth: 1990,
+  });
+  check(
+    !wrongName.patient,
+    'right mobile, wrong name → no match',
+    'a mismatched name still matched',
+  );
 
   // --- 7. Consent -------------------------------------------------------------------------
   step(7, 'A consent artefact arriving from the consent manager (ADR-087)');
@@ -309,7 +359,11 @@ async function run(tenantId: string): Promise<void> {
     grantedAt: new Date().toISOString(),
     careContexts: [{ careContextReference: reference }],
   });
-  check(stored?.tenantId === tenantId, 'stored against the right hospital, resolved from the facility id', 'the consent did not resolve to this hospital');
+  check(
+    stored?.tenantId === tenantId,
+    'stored against the right hospital, resolved from the facility id',
+    'the consent did not resolve to this hospital',
+  );
 
   // --- 8. The transfer --------------------------------------------------------------------
   step(8, 'A consented request for those records (ADR-091)');
@@ -328,29 +382,49 @@ async function run(tenantId: string): Promise<void> {
   });
   check(accepted.accepted, 'request accepted and acknowledged', 'the request was not accepted');
   showLastCall('on-request');
-  note('Acknowledged BEFORE any record is built — NHA allows twenty minutes, but not a held connection.');
+  note(
+    'Acknowledged BEFORE any record is built — NHA allows twenty minutes, but not a held connection.',
+  );
 
-  const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2', [
-    tenantId,
-    'm2check-txn-1',
-  ]);
+  const row = await pool.query(
+    'SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2',
+    [tenantId, 'm2check-txn-1'],
+  );
   const sent = await performTransfer(tenantId, row.rows[0].id);
-  check(sent.sent === 1, 'one encrypted entry sent to the HIU', `expected 1 entry, got ${sent.sent}${sent.reason ? ` (${sent.reason})` : ''}`);
+  check(
+    sent.sent === 1,
+    'one encrypted entry sent to the HIU',
+    `expected 1 entry, got ${sent.sent}${sent.reason ? ` (${sent.reason})` : ''}`,
+  );
 
   const push = [...recordedHipCalls()].reverse().find((c) => c.path === PUSH_URL);
   const body = push?.body as
-    | { entries: Array<{ content: string; checksum: string }>; keyMaterial: { curve: string }; pageNumber: number }
+    | {
+        entries: Array<{ content: string; checksum: string }>;
+        keyMaterial: { curve: string };
+        pageNumber: number;
+      }
     | undefined;
   if (body) {
-    check(Boolean(body.entries[0]?.checksum), 'each entry carries a checksum of the plaintext', 'an entry has no checksum');
-    check(body.keyMaterial?.curve === 'Curve25519', 'key material names Curve25519, as ABDM expects', 'the key material is not Curve25519');
+    check(
+      Boolean(body.entries[0]?.checksum),
+      'each entry carries a checksum of the plaintext',
+      'an entry has no checksum',
+    );
+    check(
+      body.keyMaterial?.curve === 'Curve25519',
+      'key material names Curve25519, as ABDM expects',
+      'the key material is not Curve25519',
+    );
     const content = Buffer.from(body.entries[0]!.content, 'base64').toString('utf8');
     check(
       content.startsWith('MOCK-NOT-ENCRYPTED:'),
       'mock mode marks the payload as NOT encrypted, so it can never be mistaken for real ciphertext',
       'the mock payload is not marked — that marker is what stops a test envelope reaching a real HIU',
     );
-    note('In gateway mode this is Fidelius ciphertext. There is no third option — no plaintext path.');
+    note(
+      'In gateway mode this is Fidelius ciphertext. There is no third option — no plaintext path.',
+    );
   } else {
     bad('nothing was pushed to the HIU');
   }
@@ -359,11 +433,21 @@ async function run(tenantId: string): Promise<void> {
   // --- 9. The refusals, which matter more than the happy path -----------------------------
   step(9, 'Revoking the consent — the check that matters most');
   await consent.revokeConsent(HIP_ID, CONSENT_ID);
-  const stillThere = await pool.query('SELECT id FROM abdm_consents WHERE consent_id = $1', [CONSENT_ID]);
-  check(stillThere.rowCount === 0, 'the consent artefact is DELETED, not flagged', 'the artefact still exists after revocation');
+  const stillThere = await pool.query('SELECT id FROM abdm_consents WHERE consent_id = $1', [
+    CONSENT_ID,
+  ]);
+  check(
+    stillThere.rowCount === 0,
+    'the consent artefact is DELETED, not flagged',
+    'the artefact still exists after revocation',
+  );
 
   const records = await pool.query('SELECT id FROM encounters WHERE tenant_id = $1', [tenantId]);
-  check((records.rowCount ?? 0) > 0, 'the clinical record is untouched — the consent expired, not the care', 'clinical records were deleted with the consent, which is wrong');
+  check(
+    (records.rowCount ?? 0) > 0,
+    'the clinical record is untouched — the consent expired, not the care',
+    'clinical records were deleted with the consent, which is wrong',
+  );
 
   clearRecordedHipCalls();
   const afterRevoke = await receiveHealthInformationRequest({
@@ -377,19 +461,27 @@ async function run(tenantId: string): Promise<void> {
     careContextRefs: [reference],
   });
   if (afterRevoke.accepted) {
-    const row2 = await pool.query('SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2', [
-      tenantId,
-      'm2check-txn-2',
-    ]);
+    const row2 = await pool.query(
+      'SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2',
+      [tenantId, 'm2check-txn-2'],
+    );
     const blocked = await performTransfer(tenantId, row2.rows[0].id);
-    check(blocked.sent === 0, `nothing sent after revocation — "${blocked.reason}"`, `${blocked.sent} entries were sent AFTER the consent was revoked`);
+    check(
+      blocked.sent === 0,
+      `nothing sent after revocation — "${blocked.reason}"`,
+      `${blocked.sent} entries were sent AFTER the consent was revoked`,
+    );
     check(
       recordedHipCalls().every((c) => c.path !== PUSH_URL),
       'no data reached the HIU URL at all',
       'something was pushed to the HIU after revocation',
     );
     const notified = [...recordedHipCalls()].reverse().find((c) => c.path.includes('notify'));
-    check(Boolean(notified), 'the gateway was told the flow errored, rather than left waiting', 'the refusal was silent — the HIU would wait forever');
+    check(
+      Boolean(notified),
+      'the gateway was told the flow errored, rather than left waiting',
+      'the refusal was silent — the HIU would wait forever',
+    );
   }
 
   step(10, 'An unknown facility');
@@ -401,7 +493,11 @@ async function run(tenantId: string): Promise<void> {
     dataPushUrl: PUSH_URL,
     careContextRefs: [reference],
   });
-  check(!unknown.accepted && recordedHipCalls().length === 0, 'dropped silently, nothing written, nothing answered', 'a request for an unregistered facility was accepted');
+  check(
+    !unknown.accepted && recordedHipCalls().length === 0,
+    'dropped silently, nothing written, nothing answered',
+    'a request for an unregistered facility was accepted',
+  );
 
   void context;
 }

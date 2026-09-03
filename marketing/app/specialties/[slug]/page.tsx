@@ -1,19 +1,19 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "../../../components/site/PageHeader";
-import { CtaSection } from "../../../components/site/CtaSection";
-import { Button } from "../../../components/ui/Button";
-import { Container, SectionHeading } from "../../../components/ui/primitives";
-import { JsonLd } from "../../../components/site/JsonLd";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
+import { PageHeader } from '../../../components/site/PageHeader';
+import { CtaSection } from '../../../components/site/CtaSection';
+import { Button } from '../../../components/ui/Button';
+import { Container, SectionHeading } from '../../../components/ui/primitives';
+import { JsonLd } from '../../../components/site/JsonLd';
 import {
   SpecializationFeatureList,
   SpecializationGrid,
   SpecializationModules,
-} from "../../../components/specialties";
-import { FEATURED_SPECIALTIES, SPECIALTY_PROMISE, specialtyBySlug } from "../../../lib/specialties";
-import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from "../../../lib/seo";
+} from '../../../components/specialties';
+import { FEATURED_SPECIALTIES, SPECIALTY_PROMISE, specialtyBySlug } from '../../../lib/specialties';
+import { breadcrumbJsonLd, pageMetadata, softwareApplicationJsonLd } from '../../../lib/seo';
 
 /**
  * A page per *featured* specialty only — those with genuinely differentiated
@@ -25,14 +25,18 @@ export function generateStaticParams() {
   return FEATURED_SPECIALTIES.map((s) => ({ slug: s.slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const { slug } = await params;
   const specialty = specialtyBySlug(slug);
-  if (!specialty) return { title: "Specialty not found", robots: { index: false, follow: true } };
+  if (!specialty) return { title: 'Specialty not found', robots: { index: false, follow: true } };
   return pageMetadata({
     path: `/specialties/${slug}`,
     title: `Hospital Management Software for ${specialty.name}`,
-    description: `${specialty.summary} See how Nirogix supports ${specialty.name.toLowerCase()} through configurable patient records, appointments, consultations, ${specialty.modules?.includes("Laboratory") ? "diagnostics, " : ""}billing and reporting.`,
+    description: `${specialty.summary} See how Nirogix supports ${specialty.name.toLowerCase()} through configurable patient records, appointments, consultations, ${specialty.modules?.includes('Laboratory') ? 'diagnostics, ' : ''}billing and reporting.`,
   });
 }
 
@@ -54,8 +58,8 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
       />
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: "Home", path: "/" },
-          { name: "Specialties", path: "/specialties" },
+          { name: 'Home', path: '/' },
+          { name: 'Specialties', path: '/specialties' },
           { name: specialty.name, path: `/specialties/${specialty.slug}` },
         ])}
       />
@@ -80,9 +84,15 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
         <section className="bg-canvas">
           <Container className="py-20 sm:py-24">
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-              <SpecializationFeatureList title="What makes this specialty operationally hard" items={specialty.challenges} />
+              <SpecializationFeatureList
+                title="What makes this specialty operationally hard"
+                items={specialty.challenges}
+              />
               {specialty.support ? (
-                <SpecializationFeatureList title="How the platform supports it" items={specialty.support} />
+                <SpecializationFeatureList
+                  title="How the platform supports it"
+                  items={specialty.support}
+                />
               ) : null}
             </div>
           </Container>
@@ -119,7 +129,9 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
             <div className="mt-8">
               <SpecializationModules modules={specialty.configuration} />
             </div>
-            <p className="mt-10 max-w-3xl text-sm leading-relaxed text-ink-subtle">{SPECIALTY_PROMISE.disclaimer}</p>
+            <p className="mt-10 max-w-3xl text-sm leading-relaxed text-ink-subtle">
+              {SPECIALTY_PROMISE.disclaimer}
+            </p>
           </Container>
         </section>
       ) : null}

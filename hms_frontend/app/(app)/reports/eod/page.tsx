@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -14,15 +14,15 @@ import {
   type Column,
   valueLabel,
   ValueOrEmpty,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { CollectionsReport, OpdRegisterRow, PendingLabRow } from "@hms/types";
-import { formatDate, formatDateTime } from "@hms/utils";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { formatPaise } from "../../../../lib/money";
-import { downloadCsv } from "../../../../lib/csv";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { CollectionsReport, OpdRegisterRow, PendingLabRow } from '@hms/types';
+import { formatDate, formatDateTime } from '@hms/utils';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { formatPaise } from '../../../../lib/money';
+import { downloadCsv } from '../../../../lib/csv';
 
 /**
  * The hospital's end-of-day report (requirement #2). A single day's operating
@@ -58,7 +58,9 @@ function EodReport() {
       setCollections(c);
       setPending(p);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load the end-of-day report.");
+      setError(
+        e instanceof api.ApiRequestError ? e.message : 'Failed to load the end-of-day report.',
+      );
     } finally {
       setLoading(false);
     }
@@ -68,13 +70,18 @@ function EodReport() {
     void load(day);
   }, [day, load]);
 
-  const completed = opd.filter((r) => r.status === "completed").length;
+  const completed = opd.filter((r) => r.status === 'completed').length;
 
   const opdCols: Array<Column<OpdRegisterRow>> = [
-    { key: "token", header: "Token", accessor: (r) => r.tokenNumber, cell: (r) => `#${r.tokenNumber}` },
     {
-      key: "patient",
-      header: "Patient",
+      key: 'token',
+      header: 'Token',
+      accessor: (r) => r.tokenNumber,
+      cell: (r) => `#${r.tokenNumber}`,
+    },
+    {
+      key: 'patient',
+      header: 'Patient',
       hideable: false,
       accessor: (r) => `${r.patientName} ${r.patientUhid}`,
       cell: (r) => (
@@ -84,22 +91,24 @@ function EodReport() {
       ),
     },
     {
-      key: "provider",
-      header: "Provider",
+      key: 'provider',
+      header: 'Provider',
       filterable: true,
-      accessor: (r) => valueLabel(r.providerName, "unassigned"),
+      accessor: (r) => valueLabel(r.providerName, 'unassigned'),
       cell: (r) => <ValueOrEmpty value={r.providerName} reason="unassigned" />,
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       filterable: true,
       accessor: (r) => r.status,
-      cell: (r) => <Badge tone={r.status === "completed" ? "success" : "neutral"}>{r.status}</Badge>,
+      cell: (r) => (
+        <Badge tone={r.status === 'completed' ? 'success' : 'neutral'}>{r.status}</Badge>
+      ),
     },
     {
-      key: "invoice",
-      header: "Invoice",
+      key: 'invoice',
+      header: 'Invoice',
       accessor: (r) => r.invoiceTotalPaise ?? 0,
       cell: (r) =>
         r.invoiceNumber ? (
@@ -110,11 +119,17 @@ function EodReport() {
     },
   ];
 
-  const collectionCols: Array<Column<CollectionsReport["rows"][number]>> = [
-    { key: "when", header: "When", hideable: false, accessor: (r) => r.collectedAt, cell: (r) => formatDateTime(r.collectedAt) },
+  const collectionCols: Array<Column<CollectionsReport['rows'][number]>> = [
     {
-      key: "patient",
-      header: "Patient",
+      key: 'when',
+      header: 'When',
+      hideable: false,
+      accessor: (r) => r.collectedAt,
+      cell: (r) => formatDateTime(r.collectedAt),
+    },
+    {
+      key: 'patient',
+      header: 'Patient',
       accessor: (r) => `${r.patientName} ${r.patientUhid}`,
       cell: (r) => (
         <span>
@@ -122,22 +137,38 @@ function EodReport() {
         </span>
       ),
     },
-    { key: "invoice", header: "Invoice", accessor: (r) => r.invoiceNumber, cell: (r) => <span className="font-mono text-xs">{r.invoiceNumber}</span> },
-    { key: "method", header: "Method", filterable: true, accessor: (r) => r.method.toUpperCase(), cell: (r) => r.method.toUpperCase() },
-    { key: "amount", header: "Amount", accessor: (r) => r.amountPaise, cell: (r) => formatPaise(r.amountPaise) },
+    {
+      key: 'invoice',
+      header: 'Invoice',
+      accessor: (r) => r.invoiceNumber,
+      cell: (r) => <span className="font-mono text-xs">{r.invoiceNumber}</span>,
+    },
+    {
+      key: 'method',
+      header: 'Method',
+      filterable: true,
+      accessor: (r) => r.method.toUpperCase(),
+      cell: (r) => r.method.toUpperCase(),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      accessor: (r) => r.amountPaise,
+      cell: (r) => formatPaise(r.amountPaise),
+    },
   ];
 
   function exportCsv() {
     downloadCsv(
       `eod-visits_${day}.csv`,
-      ["Token", "Patient", "UHID", "Provider", "Status", "Invoice", "Total (₹)"],
+      ['Token', 'Patient', 'UHID', 'Provider', 'Status', 'Invoice', 'Total (₹)'],
       opd.map((r) => [
         r.tokenNumber,
         r.patientName,
         r.patientUhid,
-        r.providerName ?? "",
+        r.providerName ?? '',
         r.status,
-        r.invoiceNumber ?? "",
+        r.invoiceNumber ?? '',
         (r.invoiceTotalPaise ?? 0) / 100,
       ]),
     );
@@ -150,7 +181,12 @@ function EodReport() {
         description={`A single day's visits, collections and what is still pending. ${formatDate(day)}.`}
         actions={
           <div className="flex flex-wrap items-end gap-2">
-            <DateField label="Day" value={day || null} max={today} onChange={(v) => setDay(v ?? today)} />
+            <DateField
+              label="Day"
+              value={day || null}
+              max={today}
+              onChange={(v) => setDay(v ?? today)}
+            />
             <Button variant="secondary" onClick={exportCsv}>
               <Download size={16} strokeWidth={2} /> Export CSV
             </Button>
@@ -161,8 +197,20 @@ function EodReport() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Visits" value={loading ? null : opd.length} hint={`${completed} completed`} />
-        <StatCard label="Collected" value={loading || !collections ? null : formatPaise(collections.totalPaise)} hint={collections ? `${collections.count} payment${collections.count === 1 ? "" : "s"}` : undefined} />
+        <StatCard
+          label="Visits"
+          value={loading ? null : opd.length}
+          hint={`${completed} completed`}
+        />
+        <StatCard
+          label="Collected"
+          value={loading || !collections ? null : formatPaise(collections.totalPaise)}
+          hint={
+            collections
+              ? `${collections.count} payment${collections.count === 1 ? '' : 's'}`
+              : undefined
+          }
+        />
         <StatCard label="Payments" value={loading || !collections ? null : collections.count} />
         <StatCard
           label="Labs still pending"

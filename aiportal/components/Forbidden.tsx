@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Button, Card } from "@hms/ui";
+import Link from 'next/link';
+import { Button, Card } from '@hms/ui';
 
 // The standard 403 panel for the admin console. The copy and the return link are
 // this app's own; the guard logic is shared (@hms/client, ADR-054).
@@ -11,8 +11,8 @@ export function Forbidden() {
           <span className="hms-badge hms-badge--danger">403 · Forbidden</span>
           <h1 className="text-lg font-semibold text-fg">You don&apos;t have AI Portal access</h1>
           <p className="text-sm text-fg-muted">
-            Access to the AI Portal is granted per person and is not part of any role. If you need it, ask
-            the platform owner to grant it to your account.
+            Access to the AI Portal is granted per person and is not part of any role. If you need
+            it, ask the platform owner to grant it to your account.
           </p>
           <Link href="/login">
             <Button variant="secondary">Back to sign in</Button>

@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../test-api';
 
 /**
  * Tenant isolation through the API (testcases.md §2 TEN-*, manual guide §12).
@@ -73,7 +81,9 @@ describe('cross-tenant reads', () => {
     expect(body).not.toContain('+919000000202');
   });
 
-  test('fetching the other tenant’s patient by id is refused, in both directions', async ({ skip }) => {
+  test('fetching the other tenant’s patient by id is refused, in both directions', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const aReadsB = await authed(sessionA).get(`/api/v1/patients/${patientB}`);
     const bReadsA = await authed(sessionB).get(`/api/v1/patients/${patientA}`);
@@ -85,7 +95,9 @@ describe('cross-tenant reads', () => {
     expect(JSON.stringify(bReadsA.body)).not.toContain('Anita');
   });
 
-  test('each tenant can still read its own patient — isolation is not a blanket denial', async ({ skip }) => {
+  test('each tenant can still read its own patient — isolation is not a blanket denial', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const own = await authed(sessionA).get(`/api/v1/patients/${patientA}`);
     expect(own.status).toBe(200);
@@ -94,7 +106,9 @@ describe('cross-tenant reads', () => {
 });
 
 describe('cross-tenant writes', () => {
-  test('updating the other tenant’s patient does not succeed and does not mutate it', async ({ skip }) => {
+  test('updating the other tenant’s patient does not succeed and does not mutate it', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const attempt = await authed(sessionA)
       .patch(`/api/v1/patients/${patientB}`)
@@ -109,7 +123,9 @@ describe('cross-tenant writes', () => {
 });
 
 describe('token scope', () => {
-  test('a tenant’s token carries its own tenant — the client cannot ask for another', async ({ skip }) => {
+  test('a tenant’s token carries its own tenant — the client cannot ask for another', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // Even when the caller *states* the other tenant, the session decides.
     const res = await authed(sessionA)

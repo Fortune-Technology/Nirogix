@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Package } from "lucide-react";
-import { Alert, Button, Card, emptyLabel, Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { PendingPrescription, Drug } from "@hms/types";
-import * as api from "../../../lib/api";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { formatPaise } from "../../../lib/money";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Package } from 'lucide-react';
+import { Alert, Button, Card, emptyLabel, Select, Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { PendingPrescription, Drug } from '@hms/types';
+import * as api from '../../../lib/api';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { formatPaise } from '../../../lib/money';
 
 function firstWord(s: string): string {
-  return s.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  return s.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
 }
 
 function DispenseCard({
@@ -33,15 +33,15 @@ function DispenseCard({
     (rx.drugId ? drugs.find((d) => d.id === rx.drugId) : undefined) ??
     drugs.find((d) => firstWord(d.name) === firstWord(rx.drugName)) ??
     drugs[0];
-  const [drugId, setDrugId] = useState(matched?.id ?? "");
-  const [qty, setQty] = useState("1");
+  const [drugId, setDrugId] = useState(matched?.id ?? '');
+  const [qty, setQty] = useState('1');
   const [busy, setBusy] = useState(false);
   const drug = drugs.find((d) => d.id === drugId);
 
   async function dispense() {
     const quantity = Number(qty);
-    if (!drugId) return onError("Select a drug to dispense.");
-    if (!Number.isInteger(quantity) || quantity <= 0) return onError("Enter a valid quantity.");
+    if (!drugId) return onError('Select a drug to dispense.');
+    if (!Number.isInteger(quantity) || quantity <= 0) return onError('Enter a valid quantity.');
     setBusy(true);
     try {
       await api.dispense({ prescriptionId: rx.id, drugId, quantity });
@@ -59,34 +59,52 @@ function DispenseCard({
         <div>
           <div className="font-medium text-fg">{rx.drugName}</div>
           <div className="mt-0.5 text-sm text-fg-muted">
-            {[rx.dose, rx.frequency, rx.duration].filter(Boolean).join(" · ") || emptyLabel("unspecified")}
+            {[rx.dose, rx.frequency, rx.duration].filter(Boolean).join(' · ') ||
+              emptyLabel('unspecified')}
           </div>
           <div className="mt-1 text-xs text-fg-subtle">
             {rx.patientName} · <span className="font-mono">{rx.patientUhid}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="hms-field">
-            <span className="hms-label">Drug (stock)</span>
-            <select className="hms-input min-w-[13rem]" value={drugId} onChange={(e) => setDrugId(e.target.value)}>
-              <option value="">Select…</option>
-              {drugs.map((d) => (
-                <option key={d.id} value={d.id} disabled={d.onHand <= 0}>
-                  {d.name} ({d.onHand} in stock, {formatPaise(d.unitPricePaise)})
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* The drug master is a large searchable list, so it is the shared Select (ADR-029)
+              rather than a native one: stock and price read as their own column instead of being
+              buried in a line the browser truncates. An out-of-stock drug stays visible and
+              unselectable — a dispenser needs to see that it exists and cannot be given. */}
+          <Select
+            label="Drug (stock)"
+            className="min-w-[13rem]"
+            value={drugId}
+            onChange={setDrugId}
+            options={drugs.map((d) => ({
+              value: d.id,
+              label: d.name,
+              description: d.onHand <= 0 ? 'Out of stock' : undefined,
+              meta: `${d.onHand} · ${formatPaise(d.unitPricePaise)}`,
+              disabled: d.onHand <= 0,
+            }))}
+            placeholder="Select…"
+            emptyMessage="No drugs in the master."
+            clearable
+          />
           <label className="hms-field">
             <span className="hms-label">Qty</span>
-            <input className="hms-input w-20" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+            <input
+              className="hms-input w-20"
+              type="number"
+              min={1}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+            />
           </label>
           <Button onClick={dispense} loading={busy} disabled={!drug || drug.onHand <= 0}>
             Dispense
           </Button>
         </div>
       </div>
-      {drug && drug.onHand <= 0 && <p className="mt-2 text-xs text-danger">Out of stock. Receive stock first.</p>}
+      {drug && drug.onHand <= 0 && (
+        <p className="mt-2 text-xs text-danger">Out of stock. Receive stock first.</p>
+      )}
     </Card>
   );
 }
@@ -105,7 +123,7 @@ function Worklist() {
       setDrugs(dr);
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load the worklist.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load the worklist.');
     } finally {
       setLoading(false);
     }
@@ -136,7 +154,9 @@ function Worklist() {
         </div>
       ) : rows.length === 0 ? (
         <Card>
-          <p className="text-sm text-fg-muted">No pending prescriptions. Signed consultations queue here.</p>
+          <p className="text-sm text-fg-muted">
+            No pending prescriptions. Signed consultations queue here.
+          </p>
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
@@ -145,7 +165,10 @@ function Worklist() {
               key={rx.id}
               rx={rx}
               drugs={drugs}
-              onDone={() => { setError(null); void load(); }}
+              onDone={() => {
+                setError(null);
+                void load();
+              }}
               onError={setError}
             />
           ))}

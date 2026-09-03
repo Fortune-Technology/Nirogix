@@ -21,7 +21,12 @@ brandingRouter.put(
   validate({ body: UpdateBrandingBody }),
   asyncHandler(c.update),
 );
-brandingRouter.delete('/branding', requireAuth, requirePermission(PERMISSIONS.BRANDING_MANAGE), asyncHandler(c.reset));
+brandingRouter.delete(
+  '/branding',
+  requireAuth,
+  requirePermission(PERMISSIONS.BRANDING_MANAGE),
+  asyncHandler(c.reset),
+);
 
 brandingRouter.post(
   '/branding/logo',

@@ -23,7 +23,10 @@ export async function signIn(page: Page, role: RoleKey): Promise<void> {
 export async function signOut(page: Page): Promise<void> {
   const menu = page.getByRole('button', { name: /account|profile|menu/i }).first();
   if (await menu.isVisible().catch(() => false)) await menu.click();
-  await page.getByRole('menuitem', { name: /sign out|log out/i }).first().click();
+  await page
+    .getByRole('menuitem', { name: /sign out|log out/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
 }
 

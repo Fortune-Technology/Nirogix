@@ -135,7 +135,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.1 — Patient Management — `§9 · Size: M`
 
-*Depends on: Phase 0 only*
+_Depends on: Phase 0 only_
 
 **Backend**
 
@@ -155,7 +155,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.2 — Appointment Management — `§10 · Size: M`
 
-*Depends on: 1.1 Patient Management*
+_Depends on: 1.1 Patient Management_
 
 **Backend**
 
@@ -175,7 +175,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.3 — OPD & Check-in + Billing Core — `§11, §24 (core) · Size: L`
 
-*Depends on: 1.2 Appointment Management*
+_Depends on: 1.2 Appointment Management_
 
 **Backend**
 
@@ -195,7 +195,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.4 — Clinical Workflow / EMR — `§12 · Size: L`
 
-*Depends on: 1.3 OPD & Check-in (needs an active visit context)*
+_Depends on: 1.3 OPD & Check-in (needs an active visit context)_
 
 **Backend**
 
@@ -219,7 +219,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.5 — Pharmacy Management (MVP subset) — `§22 · Size: M`
 
-*Depends on: 1.4 EMR (prescriptions), 1.3 Billing Core*
+_Depends on: 1.4 EMR (prescriptions), 1.3 Billing Core_
 
 **Backend**
 
@@ -239,7 +239,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.6 — Laboratory Management (MVP subset) — `§14 · Size: M`
 
-*Depends on: 1.4 EMR (orders), 1.3 Billing Core*
+_Depends on: 1.4 EMR (orders), 1.3 Billing Core_
 
 **Backend**
 
@@ -259,7 +259,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 #### 1.7 — Basic Reports — `§53 (MVP subset) · Size: S`
 
-*Depends on: 1.1 – 1.6 (aggregates their data)*
+_Depends on: 1.1 – 1.6 (aggregates their data)_
 
 **Backend**
 
@@ -275,7 +275,7 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 ### Specialty & Module Experience Spine — foundational — `ADR-083 · Size: M`
 
-*Depends on: Platform Administration Surface (operator onboarding) + the existing module-entitlement engine. Config infrastructure only — no new clinical screens — so it parallelizes with the MVP-expansion modules and does not sit on the clinical critical path.*
+_Depends on: Platform Administration Surface (operator onboarding) + the existing module-entitlement engine. Config infrastructure only — no new clinical screens — so it parallelizes with the MVP-expansion modules and does not sit on the clinical critical path._
 
 **Goal:** make the platform feel like a purpose-built application per specialty — the sidebar, dashboard, quick actions, forms, reports and settings a doctor sees match `{ tenant enabled modules ∩ provider specialty ∩ user permissions }` — while the enforced boundary stays exactly the module-entitlement + RBAC chain. Turns "add a specialty" into configuration, not a core rewrite.
 
@@ -300,43 +300,43 @@ Not a customer-facing module — the one-time investment every later milestone d
 
 ### Phase 2 — Small Hospital / Nursing Home Edition
 
-| Module | Depends on | Rationale |
-|---|---|---|
-| Admission (IPD) Management — §16 | Patient, Billing Core | Adds bed/ward as a new invoice line-item type, same pattern as Pharmacy/Lab |
-| Nursing Module — §13 | IPD | Bedside charting needs an admission to chart against |
-| Inventory, Stores & Procurement — §23 | Pharmacy (MVP) | Deepens the MVP's manual stock-adjustment into a full indent→PO→GRN cycle |
-| Radiology, Imaging & PACS/RIS — §15 | EMR, Billing Core | Same data-model pattern as Laboratory — reuses most of its UI |
-| Insurance, TPA & Govt. Schemes — §25 | Billing Core | Needed once mid-size hospital customers with cashless patients arrive |
-| Financial Management — §26 | Billing Core, Inventory | P&L reporting needs both revenue and cost data flowing |
-| Emergency Department — §17 | Patient, Billing Core | Optional — only if target customers run a casualty department |
+| Module                                | Depends on              | Rationale                                                                   |
+| ------------------------------------- | ----------------------- | --------------------------------------------------------------------------- |
+| Admission (IPD) Management — §16      | Patient, Billing Core   | Adds bed/ward as a new invoice line-item type, same pattern as Pharmacy/Lab |
+| Nursing Module — §13                  | IPD                     | Bedside charting needs an admission to chart against                        |
+| Inventory, Stores & Procurement — §23 | Pharmacy (MVP)          | Deepens the MVP's manual stock-adjustment into a full indent→PO→GRN cycle   |
+| Radiology, Imaging & PACS/RIS — §15   | EMR, Billing Core       | Same data-model pattern as Laboratory — reuses most of its UI               |
+| Insurance, TPA & Govt. Schemes — §25  | Billing Core            | Needed once mid-size hospital customers with cashless patients arrive       |
+| Financial Management — §26            | Billing Core, Inventory | P&L reporting needs both revenue and cost data flowing                      |
+| Emergency Department — §17            | Patient, Billing Core   | Optional — only if target customers run a casualty department               |
 
 ### Phase 3 — Compliance & Interoperability
 
-| Module | Depends on | Rationale |
-|---|---|---|
-| ABDM Integration (M1 first, M2/M3 after) — §36 | Patient Management | **M1 built 25/08/2026 (ADR-084)**, sandbox-verified; going live is NHA certification, not development. M2/M3 (HIP/HIU) still needs legal/compliance review before build starts |
-| Formal DPDP/Security hardening, VAPT — §55 | All prior phases | Formalized ahead of any customer-driven compliance audit, not built from scratch here — the architecture already assumes this from Phase 0 |
-| Full Reports & BI suite — §53 | All transactional modules | The 300+ report catalog only makes sense once the underlying modules exist |
-| CRM & Patient Engagement — §33 | Patient, Notification service | Recall/preventive-care campaigns reuse the Phase 0 notification engine |
-| Notification Engine — depth — §49 | Phase 0 skeleton | WhatsApp Business API and broadcast campaigns added on top of the existing Email/SMS skeleton |
-| Portals & Mobile Apps — depth — §6 | Portal (web) | Dedicated native apps only if the web Portal proves insufficient for a given role |
+| Module                                         | Depends on                    | Rationale                                                                                                                                                                      |
+| ---------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ABDM Integration (M1 first, M2/M3 after) — §36 | Patient Management            | **M1 built 25/08/2026 (ADR-084)**, sandbox-verified; going live is NHA certification, not development. M2/M3 (HIP/HIU) still needs legal/compliance review before build starts |
+| Formal DPDP/Security hardening, VAPT — §55     | All prior phases              | Formalized ahead of any customer-driven compliance audit, not built from scratch here — the architecture already assumes this from Phase 0                                     |
+| Full Reports & BI suite — §53                  | All transactional modules     | The 300+ report catalog only makes sense once the underlying modules exist                                                                                                     |
+| CRM & Patient Engagement — §33                 | Patient, Notification service | Recall/preventive-care campaigns reuse the Phase 0 notification engine                                                                                                         |
+| Notification Engine — depth — §49              | Phase 0 skeleton              | WhatsApp Business API and broadcast campaigns added on top of the existing Email/SMS skeleton                                                                                  |
+| Portals & Mobile Apps — depth — §6             | Portal (web)                  | Dedicated native apps only if the web Portal proves insufficient for a given role                                                                                              |
 
 ### Phase 4 — Hospital-Grade / Enterprise Expansion
 
 Build opportunistically — ideally pre-sold to a specific customer before committing engineering time, since sequencing here is driven by demand more than technical dependency.
 
-| Module | Depends on | Note |
-|---|---|---|
-| Operation Theatre — §18 | IPD | — |
-| CSSD — §19 | OT | — |
-| Blood Bank — §20 | Patient, Billing Core | Largely independent of the clinical modules above it |
-| Specialty Clinical Modules — §21 | EMR, Specialty & Module Experience Spine (ADR-083) | Each (odontogram, antenatal/obstetric, growth tracking, psychiatric assessment, …) is an independent module that plugs into the spine as configuration — build only the specific specialty a paying customer needs, not all at once. The spine is what keeps this a data + one-module change rather than a core rewrite. |
-| Ambulance & Fleet — §29 | Patient | Sequence by customer demand |
-| Biomedical Equipment & Asset Mgmt — §30 | — | Sequence by customer demand |
-| Biomedical Waste Management — §31 | — | Sequence by customer demand |
-| Housekeeping & Laundry — §28 | IPD (ward context) | Sequence by customer demand |
-| Dietary & Kitchen — §27 | IPD | Sequence by customer demand |
-| HR, Payroll & Doctor Scheduling — §32 | — | Significant statutory-compliance lift (PF/ESIC/TDS) — confirm hospital customers actually want this from you, not their existing HR software, before committing time |
+| Module                                  | Depends on                                         | Note                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Operation Theatre — §18                 | IPD                                                | —                                                                                                                                                                                                                                                                                                                        |
+| CSSD — §19                              | OT                                                 | —                                                                                                                                                                                                                                                                                                                        |
+| Blood Bank — §20                        | Patient, Billing Core                              | Largely independent of the clinical modules above it                                                                                                                                                                                                                                                                     |
+| Specialty Clinical Modules — §21        | EMR, Specialty & Module Experience Spine (ADR-083) | Each (odontogram, antenatal/obstetric, growth tracking, psychiatric assessment, …) is an independent module that plugs into the spine as configuration — build only the specific specialty a paying customer needs, not all at once. The spine is what keeps this a data + one-module change rather than a core rewrite. |
+| Ambulance & Fleet — §29                 | Patient                                            | Sequence by customer demand                                                                                                                                                                                                                                                                                              |
+| Biomedical Equipment & Asset Mgmt — §30 | —                                                  | Sequence by customer demand                                                                                                                                                                                                                                                                                              |
+| Biomedical Waste Management — §31       | —                                                  | Sequence by customer demand                                                                                                                                                                                                                                                                                              |
+| Housekeeping & Laundry — §28            | IPD (ward context)                                 | Sequence by customer demand                                                                                                                                                                                                                                                                                              |
+| Dietary & Kitchen — §27                 | IPD                                                | Sequence by customer demand                                                                                                                                                                                                                                                                                              |
+| HR, Payroll & Doctor Scheduling — §32   | —                                                  | Significant statutory-compliance lift (PF/ESIC/TDS) — confirm hospital customers actually want this from you, not their existing HR software, before committing time                                                                                                                                                     |
 
 ### Postponed / Build-as-Sold
 
@@ -353,15 +353,15 @@ Not assigned to a fixed phase — build only when a specific customer or require
 
 The critical path through the MVP, and how later phases attach to it.
 
-| Chain | Notes |
-|---|---|
-| Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports | The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists |
-| Patient + Billing Core → IPD → Nursing | Phase 2 branch |
-| IPD → OT → CSSD | Phase 4 branch, gated behind IPD |
-| Patient → Blood Bank | Mostly independent — can be pulled forward if a customer needs it early |
-| Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns | One shared service, reused by every later module — never rebuilt |
-| Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management | Every future revenue-generating module extends this same engine with a new line-item type |
-| Module Entitlement Engine (Phase 0) → Specialty & Module Experience Spine (ADR-083) → Specialty Clinical Modules (Phase 4, §21) | The spine turns the existing enforced entitlement boundary into a per-specialty *experience*; each greenfield specialty feature then attaches as one configured module, never a core branch |
+| Chain                                                                                                                           | Notes                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports                                        | The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists                                                                                                       |
+| Patient + Billing Core → IPD → Nursing                                                                                          | Phase 2 branch                                                                                                                                                                              |
+| IPD → OT → CSSD                                                                                                                 | Phase 4 branch, gated behind IPD                                                                                                                                                            |
+| Patient → Blood Bank                                                                                                            | Mostly independent — can be pulled forward if a customer needs it early                                                                                                                     |
+| Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns                                        | One shared service, reused by every later module — never rebuilt                                                                                                                            |
+| Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management                                                    | Every future revenue-generating module extends this same engine with a new line-item type                                                                                                   |
+| Module Entitlement Engine (Phase 0) → Specialty & Module Experience Spine (ADR-083) → Specialty Clinical Modules (Phase 4, §21) | The spine turns the existing enforced entitlement boundary into a per-specialty _experience_; each greenfield specialty feature then attaches as one configured module, never a core branch |
 
 ### Definition of Done
 
@@ -383,4 +383,5 @@ A milestone's **Definition of Done** also always includes, on top of its own tes
 - No open P0/P1 defects
 
 ---
-*Development Phases & Roadmap — v1.0 — Takoriya Technology LLP — August 2026*
+
+_Development Phases & Roadmap — v1.0 — Takoriya Technology LLP — August 2026_

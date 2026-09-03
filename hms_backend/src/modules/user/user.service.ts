@@ -87,7 +87,13 @@ export async function createUser(
     const row = (
       await tx
         .insert(users)
-        .values({ tenantId, email: input.email, passwordHash, fullName: input.fullName, status: 'active' })
+        .values({
+          tenantId,
+          email: input.email,
+          passwordHash,
+          fullName: input.fullName,
+          status: 'active',
+        })
         .returning()
     )[0]!;
     return row.id;
@@ -106,8 +112,13 @@ export async function createUser(
   // Best-effort: a mail problem must never fail user creation.
   try {
     const orgName =
-      (await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0]?.name ??
-      'Nirogix';
+      (
+        await db
+          .select({ name: tenants.name })
+          .from(tenants)
+          .where(eq(tenants.id, tenantId))
+          .limit(1)
+      )[0]?.name ?? 'Nirogix';
     const setupUrl = await issuePasswordSetupLink(tenantId, userId, 'portal');
     await sendAppEmail({
       tenantId,

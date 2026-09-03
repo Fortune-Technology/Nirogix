@@ -15,7 +15,9 @@ import { patientCases } from './cases';
 export const visits = pgTable(
   'visits',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -24,7 +26,9 @@ export const visits = pgTable(
       .notNull()
       .references(() => patients.id, { onDelete: 'restrict' }),
     providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'restrict' }), // nullable — walk-in may not have a doctor assigned yet
-    appointmentId: uuid('appointment_id').references(() => appointments.id, { onDelete: 'set null' }), // nullable — walk-ins have no appointment
+    appointmentId: uuid('appointment_id').references(() => appointments.id, {
+      onDelete: 'set null',
+    }), // nullable — walk-ins have no appointment
     invoiceId: uuid('invoice_id'), // soft link to the consultation-fee invoice
     /**
      * What the fee schedule said this consultation costs (ADR-117), kept even when the desk

@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, integer, bigint, boolean, timestamp, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  bigint,
+  boolean,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { departments } from './departments';

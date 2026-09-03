@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   emptyLabel,
   PrintDocument,
@@ -13,14 +13,14 @@ import {
   PrintToolbar,
   PrintTotals,
   Spinner,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Invoice } from "@hms/types";
-import { formatDate, formatDateTime } from "@hms/utils";
-import * as api from "../../../../../lib/api";
-import { RequirePermission } from "../../../../../components/Can";
-import { useDocumentBrand } from "../../../../../components/print/useDocumentBrand";
-import { formatPaise } from "../../../../../lib/money";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Invoice } from '@hms/types';
+import { formatDate, formatDateTime } from '@hms/utils';
+import * as api from '../../../../../lib/api';
+import { RequirePermission } from '../../../../../components/Can';
+import { useDocumentBrand } from '../../../../../components/print/useDocumentBrand';
+import { formatPaise } from '../../../../../lib/money';
 
 /**
  * The invoice document (ADR-047) — a hospital-branded bill, not a printout of the
@@ -38,7 +38,9 @@ function InvoiceDocument({ id }: { id: string }) {
     api
       .getInvoice(id)
       .then(setInv)
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not load the invoice."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not load the invoice.'),
+      );
   }, [id]);
 
   if (error) return <p className="mx-auto max-w-2xl text-center text-sm text-danger">{error}</p>;
@@ -51,7 +53,7 @@ function InvoiceDocument({ id }: { id: string }) {
   }
 
   const balance = Math.max(0, inv.totalPaise - inv.amountPaidPaise);
-  const isPaid = balance === 0 && inv.status !== "void";
+  const isPaid = balance === 0 && inv.status !== 'void';
 
   return (
     <>
@@ -59,7 +61,7 @@ function InvoiceDocument({ id }: { id: string }) {
 
       <PrintDocument
         brand={brand}
-        title={inv.status === "void" ? "Invoice (void)" : "Tax invoice"}
+        title={inv.status === 'void' ? 'Invoice (void)' : 'Tax invoice'}
         reference={
           <>
             <div>
@@ -71,10 +73,10 @@ function InvoiceDocument({ id }: { id: string }) {
         meta={
           <PrintFields
             fields={[
-              { label: "Patient", value: inv.patientName },
-              { label: "UHID", value: inv.patientUhid },
-              { label: "Invoice date", value: formatDateTime(inv.createdAt) },
-              { label: "Status", value: inv.status.replace("_", " ") },
+              { label: 'Patient', value: inv.patientName },
+              { label: 'UHID', value: inv.patientUhid },
+              { label: 'Invoice date', value: formatDateTime(inv.createdAt) },
+              { label: 'Status', value: inv.status.replace('_', ' ') },
             ]}
           />
         }
@@ -83,27 +85,34 @@ function InvoiceDocument({ id }: { id: string }) {
           <PrintTable
             columns={[
               {
-                key: "item",
-                header: "Description",
-                cell: (li: Invoice["lineItems"][number]) => (
+                key: 'item',
+                header: 'Description',
+                cell: (li: Invoice['lineItems'][number]) => (
                   <>
                     {li.description}
-                    <div style={{ fontSize: "8.5pt", color: "var(--doc-muted)" }}>{li.itemType}</div>
+                    <div style={{ fontSize: '8.5pt', color: 'var(--doc-muted)' }}>
+                      {li.itemType}
+                    </div>
                   </>
                 ),
               },
-              { key: "qty", header: "Qty", align: "right", cell: (li) => String(li.quantity) },
+              { key: 'qty', header: 'Qty', align: 'right', cell: (li) => String(li.quantity) },
               {
-                key: "unit",
-                header: "Unit price",
-                align: "right",
+                key: 'unit',
+                header: 'Unit price',
+                align: 'right',
                 cell: (li) => formatPaise(li.unitPricePaise, inv.currency),
               },
-              { key: "tax", header: "Tax", align: "right", cell: (li) => formatPaise(li.taxPaise, inv.currency) },
               {
-                key: "amount",
-                header: "Amount",
-                align: "right",
+                key: 'tax',
+                header: 'Tax',
+                align: 'right',
+                cell: (li) => formatPaise(li.taxPaise, inv.currency),
+              },
+              {
+                key: 'amount',
+                header: 'Amount',
+                align: 'right',
                 cell: (li) => formatPaise(li.lineTotalPaise, inv.currency),
               },
             ]}
@@ -114,11 +123,11 @@ function InvoiceDocument({ id }: { id: string }) {
 
           <PrintTotals
             lines={[
-              { label: "Subtotal", value: formatPaise(inv.subtotalPaise, inv.currency) },
-              { label: "Tax", value: formatPaise(inv.taxPaise, inv.currency) },
-              { label: "Total", value: formatPaise(inv.totalPaise, inv.currency), strong: true },
-              { label: "Paid", value: formatPaise(inv.amountPaidPaise, inv.currency) },
-              { label: "Balance due", value: formatPaise(balance, inv.currency) },
+              { label: 'Subtotal', value: formatPaise(inv.subtotalPaise, inv.currency) },
+              { label: 'Tax', value: formatPaise(inv.taxPaise, inv.currency) },
+              { label: 'Total', value: formatPaise(inv.totalPaise, inv.currency), strong: true },
+              { label: 'Paid', value: formatPaise(inv.amountPaidPaise, inv.currency) },
+              { label: 'Balance due', value: formatPaise(balance, inv.currency) },
             ]}
           />
         </PrintSection>
@@ -127,14 +136,22 @@ function InvoiceDocument({ id }: { id: string }) {
           <PrintSection title="Payments received">
             <PrintTable
               columns={[
-                { key: "when", header: "Date", cell: (p: Invoice["payments"][number]) => formatDateTime(p.collectedAt) },
-                { key: "method", header: "Method", cell: (p) => p.method },
-                // Cash has no transaction reference to print.
-                { key: "ref", header: "Reference", cell: (p) => p.reference ?? emptyLabel("notApplicable") },
                 {
-                  key: "amount",
-                  header: "Amount",
-                  align: "right",
+                  key: 'when',
+                  header: 'Date',
+                  cell: (p: Invoice['payments'][number]) => formatDateTime(p.collectedAt),
+                },
+                { key: 'method', header: 'Method', cell: (p) => p.method },
+                // Cash has no transaction reference to print.
+                {
+                  key: 'ref',
+                  header: 'Reference',
+                  cell: (p) => p.reference ?? emptyLabel('notApplicable'),
+                },
+                {
+                  key: 'amount',
+                  header: 'Amount',
+                  align: 'right',
                   cell: (p) => formatPaise(p.amountPaise, inv.currency),
                 },
               ]}
@@ -157,8 +174,11 @@ function InvoiceDocument({ id }: { id: string }) {
         <PrintSignatures
           brand={brand}
           signatures={[
-            { label: "Patient / attendant" },
-            { label: "For " + (brand.organizationName ?? "the hospital"), useDefaultSignatory: true },
+            { label: 'Patient / attendant' },
+            {
+              label: 'For ' + (brand.organizationName ?? 'the hospital'),
+              useDefaultSignatory: true,
+            },
           ]}
         />
       </PrintDocument>

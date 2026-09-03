@@ -17,7 +17,14 @@ async function cleanup(): Promise<void> {
   await pool.query('DELETE FROM notification_log WHERE tenant_id = $1', [t.id]);
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
-  for (const table of ['user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users']) {
+  for (const table of [
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
+  ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);

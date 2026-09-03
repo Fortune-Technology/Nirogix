@@ -52,7 +52,9 @@ export type PublicCheckinContext = {
  * Uniform-failure token resolution, identical in contract to registration and booking: a typo, a
  * retired token and a suspended hospital all produce the same 404.
  */
-export async function resolveCheckinToken(token: string): Promise<{ tenantId: string; ctx: PublicCheckinContext }> {
+export async function resolveCheckinToken(
+  token: string,
+): Promise<{ tenantId: string; ctx: PublicCheckinContext }> {
   if (!token || token.length < 16) throw Errors.notFound('That check-in link is not valid');
 
   const rows = await db
@@ -70,7 +72,8 @@ export async function resolveCheckinToken(token: string): Promise<{ tenantId: st
     .limit(1);
 
   const row = rows[0];
-  if (!row || row.tenantStatus !== 'active') throw Errors.notFound('That check-in link is not valid');
+  if (!row || row.tenantStatus !== 'active')
+    throw Errors.notFound('That check-in link is not valid');
 
   return {
     tenantId: row.tenantId,
@@ -236,7 +239,9 @@ export async function listArrivals(
 
     // A visit may already exist — the desk checked them in by hand while they were queuing at the
     // kiosk. Saying so turns a confusing double entry into an obvious one-click dismissal.
-    const appointmentIds = rows.map((r) => r.r.appointmentId).filter((id): id is string => Boolean(id));
+    const appointmentIds = rows
+      .map((r) => r.r.appointmentId)
+      .filter((id): id is string => Boolean(id));
     const checkedIn = new Set<string>();
     if (appointmentIds.length > 0) {
       const existing = await tx
@@ -280,14 +285,18 @@ export async function confirmArrival(
   input: { version: number; canOverrideFee?: boolean },
   actorUserId?: string,
 ): Promise<SelfCheckinRequestDto> {
-  const row = await runWithTenant(tenantId, async (tx) =>
-    (
-      await tx
-        .select()
-        .from(selfCheckinRequests)
-        .where(and(eq(selfCheckinRequests.tenantId, tenantId), eq(selfCheckinRequests.id, requestId)))
-        .limit(1)
-    )[0],
+  const row = await runWithTenant(
+    tenantId,
+    async (tx) =>
+      (
+        await tx
+          .select()
+          .from(selfCheckinRequests)
+          .where(
+            and(eq(selfCheckinRequests.tenantId, tenantId), eq(selfCheckinRequests.id, requestId)),
+          )
+          .limit(1)
+      )[0],
   );
   if (!row) throw Errors.notFound('That arrival is not on the board');
   if (row.status !== 'pending') throw Errors.conflict('That arrival has already been dealt with');
@@ -300,7 +309,11 @@ export async function confirmArrival(
 
   const visit = await checkIn(
     tenantId,
-    { patientId: row.patientId, appointmentId: row.appointmentId, canOverrideFee: input.canOverrideFee },
+    {
+      patientId: row.patientId,
+      appointmentId: row.appointmentId,
+      canOverrideFee: input.canOverrideFee,
+    },
     actorUserId,
   );
 
@@ -323,7 +336,8 @@ export async function confirmArrival(
         ),
       )
       .returning({ id: selfCheckinRequests.id });
-    if (!bumped[0]) throw Errors.conflict('That arrival was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('That arrival was changed by someone else. Reload and try again');
   });
 
   await writeAudit({
@@ -366,7 +380,8 @@ export async function dismissArrival(
         ),
       )
       .returning({ id: selfCheckinRequests.id });
-    if (!bumped[0]) throw Errors.conflict('That arrival has already been dealt with, or was changed elsewhere');
+    if (!bumped[0])
+      throw Errors.conflict('That arrival has already been dealt with, or was changed elsewhere');
   });
 
   await writeAudit({
@@ -432,7 +447,11 @@ export async function getSettings(tenantId: string): Promise<SelfCheckinSettings
 }
 
 /** Turning it on mints a token if there is none — a switch with no link behind it does nothing. */
-export async function setEnabled(tenantId: string, enabled: boolean, actorUserId?: string): Promise<SelfCheckinSettings> {
+export async function setEnabled(
+  tenantId: string,
+  enabled: boolean,
+  actorUserId?: string,
+): Promise<SelfCheckinSettings> {
   await ensureProfile(tenantId);
   await runWithTenant(tenantId, async (tx) => {
     const current = (
@@ -466,7 +485,10 @@ export async function setEnabled(tenantId: string, enabled: boolean, actorUserId
  * Mints a new token, which is the only way to retire a poster that has been photographed, altered
  * or put up somewhere it should not be. The old link stops working immediately.
  */
-export async function regenerateToken(tenantId: string, actorUserId?: string): Promise<SelfCheckinSettings> {
+export async function regenerateToken(
+  tenantId: string,
+  actorUserId?: string,
+): Promise<SelfCheckinSettings> {
   await ensureProfile(tenantId);
   await runWithTenant(tenantId, (tx) =>
     tx

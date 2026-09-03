@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { ArrowUpRight, LogOut, ShieldAlert } from "lucide-react";
-import { Button, Card } from "@hms/ui";
-import { useAuth } from "../lib/auth";
-import { MARKETING_URL, PORTAL_URL } from "../lib/links";
+import { ArrowUpRight, LogOut, ShieldAlert } from 'lucide-react';
+import { Button, Card } from '@hms/ui';
+import { useAuth } from '../lib/auth';
+import { MARKETING_URL, PORTAL_URL } from '../lib/links';
 
 /**
  * Signed in, but not authorised for the AI Portal.
@@ -31,8 +31,9 @@ export function AccessRestricted({ onSignOut }: { onSignOut: () => void }) {
         </span>
         <h1 className="text-lg font-semibold text-fg">AI Portal access restricted</h1>
         <p className="text-sm text-fg-muted">
-          Your account is not authorised to use Nirogix AI tools. Access to the AI Portal is granted to individual
-          accounts rather than to a role, so having an administrator account does not include it.
+          Your account is not authorised to use Nirogix AI tools. Access to the AI Portal is granted
+          to individual accounts rather than to a role, so having an administrator account does not
+          include it.
         </p>
         {user?.email ? (
           <p className="text-sm text-fg-subtle">
@@ -40,13 +41,16 @@ export function AccessRestricted({ onSignOut }: { onSignOut: () => void }) {
           </p>
         ) : null}
         <p className="text-sm text-fg-muted">
-          If you believe you should have access, ask your hospital administrator or the Nirogix platform administrator
-          to grant it to this account.
+          If you believe you should have access, ask your hospital administrator or the Nirogix
+          platform administrator to grant it to this account.
         </p>
       </div>
 
       <div className="mt-6 flex flex-col gap-2">
-        <a href={`${PORTAL_URL}/dashboard`} className="hms-btn hms-btn--primary w-full justify-center">
+        <a
+          href={`${PORTAL_URL}/dashboard`}
+          className="hms-btn hms-btn--primary w-full justify-center"
+        >
           Return to Nirogix Portal
           <ArrowUpRight size={16} strokeWidth={2} aria-hidden />
         </a>

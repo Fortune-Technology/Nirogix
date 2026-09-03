@@ -43,13 +43,17 @@ describe('TAGGING_UNIQUEPATIENTID_UNIQUEABHANUMBER — one ABHA, one chart', () 
   test('a second active chart cannot claim the same ABHA number', async ({ skip }) => {
     if (!ready) return skip();
     const first = await createPatient(tenantId, { firstName: 'Original', phone: '9700010001' });
-    await pool.query("UPDATE patients SET abha_number = '91-1111-2222-3333' WHERE id = $1", [first.id]);
+    await pool.query("UPDATE patients SET abha_number = '91-1111-2222-3333' WHERE id = $1", [
+      first.id,
+    ]);
 
     const second = await createPatient(tenantId, { firstName: 'Impostor', phone: '9700010002' });
     // Two charts claiming one national identity make linking and discovery unpredictable for a
     // real person — which is exactly why the case is mandatory.
     await expect(
-      pool.query("UPDATE patients SET abha_number = '91-1111-2222-3333' WHERE id = $1", [second.id]),
+      pool.query("UPDATE patients SET abha_number = '91-1111-2222-3333' WHERE id = $1", [
+        second.id,
+      ]),
     ).rejects.toThrow(/unique|duplicate/i);
   });
 
@@ -75,10 +79,18 @@ describe('TAGGING_UNIQUEPATIENTID_UNIQUEABHANUMBER — one ABHA, one chart', () 
   test('an inactive chart does not block re-registration', async ({ skip }) => {
     if (!ready) return skip();
     const old = await createPatient(tenantId, { firstName: 'Merged Away', phone: '9700010006' });
-    await pool.query("UPDATE patients SET abha_number = '91-4444-5555-6666', status = 'inactive' WHERE id = $1", [old.id]);
-    const fresh = await createPatient(tenantId, { firstName: 'Re-registered', phone: '9700010007' });
+    await pool.query(
+      "UPDATE patients SET abha_number = '91-4444-5555-6666', status = 'inactive' WHERE id = $1",
+      [old.id],
+    );
+    const fresh = await createPatient(tenantId, {
+      firstName: 'Re-registered',
+      phone: '9700010007',
+    });
     // A soft-deleted chart must not permanently burn an ABHA number.
-    await pool.query("UPDATE patients SET abha_number = '91-4444-5555-6666' WHERE id = $1", [fresh.id]);
+    await pool.query("UPDATE patients SET abha_number = '91-4444-5555-6666' WHERE id = $1", [
+      fresh.id,
+    ]);
     const row = await pool.query('SELECT abha_number FROM patients WHERE id = $1', [fresh.id]);
     expect(row.rows[0].abha_number).toBe('91-4444-5555-6666');
   });
@@ -86,7 +98,10 @@ describe('TAGGING_UNIQUEPATIENTID_UNIQUEABHANUMBER — one ABHA, one chart', () 
 
 describe('CRT_ABHA_106 — resend OTP, at most twice, sixty seconds apart', () => {
   async function startedTransaction(): Promise<string> {
-    const started = await svc.startAadhaarEnrolment(tenantId, { aadhaar: '111122223333', consentGiven: true });
+    const started = await svc.startAadhaarEnrolment(tenantId, {
+      aadhaar: '111122223333',
+      consentGiven: true,
+    });
     return started.transactionId;
   }
 
@@ -102,9 +117,10 @@ describe('CRT_ABHA_106 — resend OTP, at most twice, sixty seconds apart', () =
     if (!ready) return skip();
     const transactionId = await startedTransaction();
     const age = (seconds: number) =>
-      pool.query(`UPDATE abdm_transactions SET last_otp_at = now() - interval '${seconds} seconds' WHERE id = $1`, [
-        transactionId,
-      ]);
+      pool.query(
+        `UPDATE abdm_transactions SET last_otp_at = now() - interval '${seconds} seconds' WHERE id = $1`,
+        [transactionId],
+      );
 
     await age(90);
     const first = await svc.resendOtp(tenantId, { transactionId, aadhaar: '111122223333' });
@@ -117,15 +133,18 @@ describe('CRT_ABHA_106 — resend OTP, at most twice, sixty seconds apart', () =
     await age(90);
     // UIDAI caps how many OTPs a number receives in a day; the third resend would spend somebody's
     // allowance for a verification that is clearly not working.
-    await expect(svc.resendOtp(tenantId, { transactionId, aadhaar: '111122223333' })).rejects.toThrow(
-      /three times|start the verification again/i,
-    );
+    await expect(
+      svc.resendOtp(tenantId, { transactionId, aadhaar: '111122223333' }),
+    ).rejects.toThrow(/three times|start the verification again/i);
   });
 
   test('the limit lives on the transaction, not the browser', async ({ skip }) => {
     if (!ready) return skip();
     const transactionId = await startedTransaction();
-    const row = await pool.query('SELECT otp_sends, last_otp_at FROM abdm_transactions WHERE id = $1', [transactionId]);
+    const row = await pool.query(
+      'SELECT otp_sends, last_otp_at FROM abdm_transactions WHERE id = $1',
+      [transactionId],
+    );
     // A reloaded page or a second tab cannot reset this.
     expect(row.rows[0].otp_sends).toBe(1);
     expect(row.rows[0].last_otp_at).toBeTruthy();
@@ -134,11 +153,14 @@ describe('CRT_ABHA_106 — resend OTP, at most twice, sixty seconds apart', () =
   test('resending without an identifier is refused rather than guessed', async ({ skip }) => {
     if (!ready) return skip();
     const transactionId = await startedTransaction();
-    await pool.query("UPDATE abdm_transactions SET last_otp_at = now() - interval '90 seconds' WHERE id = $1", [
-      transactionId,
-    ]);
+    await pool.query(
+      "UPDATE abdm_transactions SET last_otp_at = now() - interval '90 seconds' WHERE id = $1",
+      [transactionId],
+    );
     // We never stored the Aadhaar, so there is nothing to replay — and that is the point.
-    await expect(svc.resendOtp(tenantId, { transactionId })).rejects.toThrow(/Re-enter the Aadhaar or mobile/i);
+    await expect(svc.resendOtp(tenantId, { transactionId })).rejects.toThrow(
+      /Re-enter the Aadhaar or mobile/i,
+    );
   });
 
   test('the audit records the attempt, never the identifier', async ({ skip }) => {
@@ -196,7 +218,9 @@ describe('HIP_INIT_GRANT / REVOKE / EXPIRE_CONSENT — "seen in HMIS"', () => {
 
     const history = await consent.consentHistory(tenantId);
     // "Expired" and "revoked" are different incidents and an assessor must be able to tell them apart.
-    expect(history.some((h) => h.consentId === 'seen-expire-1' && h.event === 'expired')).toBe(true);
+    expect(history.some((h) => h.consentId === 'seen-expire-1' && h.event === 'expired')).toBe(
+      true,
+    );
   });
 
   test('the history carries no clinical content', async ({ skip }) => {
@@ -209,7 +233,11 @@ describe('HIP_INIT_GRANT / REVOKE / EXPIRE_CONSENT — "seen in HMIS"', () => {
 describe('HIU_FLOW_101 — find a patient by ABHA, and say whether it is usable', () => {
   test('a verified ABHA address is found and ready', async ({ skip }) => {
     if (!ready) return skip();
-    const p = await createPatient(tenantId, { firstName: 'Lookup', lastName: 'Ready', phone: '9700020001' });
+    const p = await createPatient(tenantId, {
+      firstName: 'Lookup',
+      lastName: 'Ready',
+      phone: '9700020001',
+    });
     await pool.query(
       "UPDATE patients SET abha_address = 'lookup.ready@sbx', abha_number = '91-7777-8888-9999', abha_verified_at = now() WHERE id = $1",
       [p.id],
@@ -230,7 +258,11 @@ describe('HIU_FLOW_101 — find a patient by ABHA, and say whether it is usable'
 
   test('an unverified ABHA is found but named as unusable', async ({ skip }) => {
     if (!ready) return skip();
-    const p = await createPatient(tenantId, { firstName: 'Typed', lastName: 'Only', phone: '9700020002' });
+    const p = await createPatient(tenantId, {
+      firstName: 'Typed',
+      lastName: 'Only',
+      phone: '9700020002',
+    });
     await pool.query("UPDATE patients SET abha_address = 'typed.only@sbx' WHERE id = $1", [p.id]);
 
     const result = await findPatientByAbha(tenantId, 'typed.only@sbx');
@@ -270,7 +302,8 @@ describe('HIU_FLOW_101 — find a patient by ABHA, and say whether it is usable'
  * Pure validation — no database, no gateway — so these run everywhere.
  */
 describe('CRT_ABHA_112 — the ABHA address policy is enforced at the API', () => {
-  const ok = (v: string) => CreateAbhaAddressBody.safeParse({ transactionId: TXN, abhaAddress: v }).success;
+  const ok = (v: string) =>
+    CreateAbhaAddressBody.safeParse({ transactionId: TXN, abhaAddress: v }).success;
   const TXN = '00000000-0000-4000-8000-000000000000';
 
   test('accepts an address that follows the policy', () => {

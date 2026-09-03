@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { cn } from "../../cn";
-import { compact, domain, type Series } from "./geometry";
+import { useState } from 'react';
+import { cn } from '../../cn';
+import { compact, domain, type Series } from './geometry';
 
 export interface BarChartProps {
   /** One or more series. Multiple series stack, so a period reads as one total. */
@@ -36,7 +36,7 @@ export function BarChart({
   labels,
   height = 200,
   format = compact,
-  emptyMessage = "No data yet.",
+  emptyMessage = 'No data yet.',
   className,
   ariaLabel,
   animate = true,
@@ -51,29 +51,31 @@ export function BarChart({
   const d = domain(totals);
   // Changes only when the data does; used as the `.hms-bars` key so the grow-in
   // replays on a filter switch but not on hover or an identical re-render.
-  const animKey = animate ? `${points}|${series.map((s) => s.values.join(",")).join(";")}` : undefined;
+  const animKey = animate
+    ? `${points}|${series.map((s) => s.values.join(',')).join(';')}`
+    : undefined;
 
   if (!hasData) {
     return (
-      <div className={cn("hms-chart hms-chart--empty", className)} style={{ height }}>
+      <div className={cn('hms-chart hms-chart--empty', className)} style={{ height }}>
         <span className="hms-chart__empty">{emptyMessage}</span>
       </div>
     );
   }
 
   return (
-    <div className={cn("hms-chart", className)}>
+    <div className={cn('hms-chart', className)}>
       <div
         key={animKey}
-        className={cn("hms-bars", animate && "hms-bars--animate")}
+        className={cn('hms-bars', animate && 'hms-bars--animate')}
         style={{ height }}
         role="img"
-        aria-label={ariaLabel ?? `${series.map((s) => s.label).join(", ")} by period`}
+        aria-label={ariaLabel ?? `${series.map((s) => s.label).join(', ')} by period`}
       >
         {labels.map((label, i) => (
           <div
             key={label}
-            className={cn("hms-bars__col", hover === i && "hms-bars__col--on")}
+            className={cn('hms-bars__col', hover === i && 'hms-bars__col--on')}
             onPointerEnter={() => setHover(i)}
             onPointerLeave={() => setHover(null)}
           >
@@ -94,7 +96,11 @@ export function BarChart({
                 <span className="hms-chart__tooltip-title">{label}</span>
                 {series.map((s) => (
                   <span key={s.key} className="hms-chart__tooltip-row">
-                    <span className="hms-chart__swatch" style={{ background: s.color }} aria-hidden />
+                    <span
+                      className="hms-chart__swatch"
+                      style={{ background: s.color }}
+                      aria-hidden
+                    />
                     {s.label}
                     <strong>{format(s.values[i] ?? 0)}</strong>
                   </span>

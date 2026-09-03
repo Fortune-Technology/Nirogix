@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import * as api from "../../lib/api";
+import { useEffect, useRef, useState } from 'react';
+import { Select } from '@hms/ui';
+import * as api from '../../lib/api';
 
 /**
  * A dropdown whose options come from the national registry (ADR-096, HFR-014…038).
@@ -52,19 +53,19 @@ export function RegistryMasterSelect({
   kind,
   type,
   filters,
-  parentHint = "Choose the field above first",
+  parentHint = 'Choose the field above first',
   value,
   onChange,
   required,
   disabled,
   hint,
-  placeholder = "Select…",
+  placeholder = 'Select…',
   id,
 }: RegistryMasterSelectProps) {
   const [options, setOptions] = useState<api.AbdmMasterOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const fieldId = id ?? `master-${kind}-${type ?? "all"}`;
+  const fieldId = id ?? `master-${kind}-${type ?? 'all'}`;
 
   /**
    * Which filters this list cannot be read without, taken from the published HFR contract.
@@ -73,13 +74,15 @@ export function RegistryMasterSelect({
    * nothing, so the dropdown is simply empty and the form gives no clue which field above it is
    * responsible. Naming the dependency here is what lets the picker say so.
    */
-  const REQUIRED: Partial<Record<api.AbdmFacilityMasterKind, Array<keyof api.AbdmFacilityMasterParams>>> = {
-    districts: ["code"],
-    subDistricts: ["code"],
-    facilityType: ["ownershipCode", "systemOfMedicineCode"],
-    facilitySubType: ["facilityTypeCode"],
-    ownerSubtype: ["ownershipCode", "ownerSubtypeCode"],
-    specialities: ["systemOfMedicineCode"],
+  const REQUIRED: Partial<
+    Record<api.AbdmFacilityMasterKind, Array<keyof api.AbdmFacilityMasterParams>>
+  > = {
+    districts: ['code'],
+    subDistricts: ['code'],
+    facilityType: ['ownershipCode', 'systemOfMedicineCode'],
+    facilitySubType: ['facilityTypeCode'],
+    ownerSubtype: ['ownershipCode', 'ownerSubtypeCode'],
+    specialities: ['systemOfMedicineCode'],
   };
 
   const requiredFilters = REQUIRED[kind] ?? [];
@@ -96,8 +99,12 @@ export function RegistryMasterSelect({
     // A change of scope invalidates the selection: pick Karnataka, choose a district, switch to
     // Kerala — the old district code is now wrong but would still be submitted. Cleared, not
     // merely re-fetched. The `undefined` check keeps a reopened draft's saved value on first render.
-    if (requiredFilters.length > 0 && previousFilters.current !== undefined && previousFilters.current !== filterKey) {
-      onChange("");
+    if (
+      requiredFilters.length > 0 &&
+      previousFilters.current !== undefined &&
+      previousFilters.current !== filterKey
+    ) {
+      onChange('');
     }
     previousFilters.current = filterKey;
     // `onChange` is intentionally excluded: a parent-supplied inline arrow changes identity every
@@ -136,40 +143,50 @@ export function RegistryMasterSelect({
   // A saved code whose list has not arrived is still the answer — render it rather than lose it.
   const valueMissingFromList = value && !options.some((o) => o.code === value);
 
+  const message = failed
+    ? 'The registry did not return this list. Try again shortly — do not submit with it blank.'
+    : blockedByParent
+      ? parentHint
+      : !loading && options.length === 0
+        ? 'The registry returned no options for this list.'
+        : (hint ?? '');
+
   return (
-    <div className="hms-field">
-      <label className="hms-label" htmlFor={fieldId}>
-        {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
-        {required ? <span className="hms-visually-hidden"> (required)</span> : null}
-      </label>
-      <select
-        id={fieldId}
-        className="hms-input"
-        value={value}
-        required={required}
-        disabled={disabled || blockedByParent || loading}
-        aria-invalid={failed || undefined}
-        aria-describedby={`${fieldId}-msg`}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">{loading ? "Loading…" : placeholder}</option>
-        {valueMissingFromList ? <option value={value}>{value}</option> : null}
-        {options.map((o) => (
-          <option key={o.code} value={o.code}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <span id={`${fieldId}-msg`} className={failed ? "hms-field__error" : "hms-field__hint"}>
-        {failed
-          ? "The registry did not return this list. Try again shortly — do not submit with it blank."
-          : blockedByParent
-            ? parentHint
-            : !loading && options.length === 0
-              ? "The registry returned no options for this list."
-              : (hint ?? "")}
-      </span>
-    </div>
+    <Select
+      id={fieldId}
+      label={label}
+      required={required}
+      value={value}
+      onChange={onChange}
+      // The saved code leads the list when its label has not arrived: `Select` shows the
+      // placeholder for a value it cannot find, which would read as "nothing is selected"
+      // over a form that does in fact hold an answer.
+      options={[
+        ...(valueMissingFromList
+          ? [
+              {
+                value,
+                label: value,
+                description: 'Saved earlier; the registry list is still loading',
+              },
+            ]
+          : []),
+        ...options.map((o) => ({
+          value: o.code,
+          label: o.label,
+          description: o.code,
+          keywords: o.code,
+        })),
+      ]}
+      disabled={disabled || blockedByParent}
+      loading={loading}
+      placeholder={loading ? 'Loading…' : placeholder}
+      // A registry list that came back empty is not the same as one that failed, and neither is
+      // the same as a search matching nothing — the message under the field says which.
+      emptyMessage={failed ? 'The registry did not answer.' : 'No option matches.'}
+      error={failed ? message : undefined}
+      hint={failed ? undefined : message}
+      clearable={!required}
+    />
   );
 }

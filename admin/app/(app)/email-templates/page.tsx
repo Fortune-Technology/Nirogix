@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mail } from "lucide-react";
-import { Badge, Button, Card, Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import * as api from "../../../lib/api";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Mail } from 'lucide-react';
+import { Badge, Button, Card, Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import * as api from '../../../lib/api';
 
 // Read-only preview of the platform's central email catalogue (backend
 // notification/email/email-templates.ts). Every template renders from its own realistic sample
@@ -14,12 +14,12 @@ import * as api from "../../../lib/api";
 // action that would send it. No tenant data is ever involved.
 
 const CATEGORY_LABELS: Record<string, string> = {
-  auth: "Authentication",
-  onboarding: "Onboarding",
-  appointment: "Appointments",
-  billing: "Billing",
-  laboratory: "Laboratory",
-  patient: "Patient",
+  auth: 'Authentication',
+  onboarding: 'Onboarding',
+  appointment: 'Appointments',
+  billing: 'Billing',
+  laboratory: 'Laboratory',
+  patient: 'Patient',
 };
 
 function EmailTemplates() {
@@ -40,7 +40,9 @@ function EmailTemplates() {
       setListError(null);
       setSelected((prev) => prev ?? rows[0]?.key ?? null);
     } catch (e) {
-      setListError(e instanceof api.ApiRequestError ? e.message : "Failed to load email templates.");
+      setListError(
+        e instanceof api.ApiRequestError ? e.message : 'Failed to load email templates.',
+      );
     } finally {
       setLoadingList(false);
     }
@@ -61,7 +63,10 @@ function EmailTemplates() {
         if (!cancelled) setPreview(p);
       })
       .catch((e) => {
-        if (!cancelled) setPreviewError(e instanceof api.ApiRequestError ? e.message : "Failed to render the template.");
+        if (!cancelled)
+          setPreviewError(
+            e instanceof api.ApiRequestError ? e.message : 'Failed to render the template.',
+          );
       })
       .finally(() => {
         if (!cancelled) setLoadingPreview(false);
@@ -119,14 +124,23 @@ function EmailTemplates() {
                           onClick={() => setSelected(t.key)}
                           aria-current={active}
                           className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                            active ? "bg-brand-subtle text-fg" : "text-fg-muted hover:bg-surface-muted hover:text-fg"
+                            active
+                              ? 'bg-brand-subtle text-fg'
+                              : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            <Mail size={14} strokeWidth={1.75} aria-hidden className={active ? "text-brand" : ""} />
+                            <Mail
+                              size={14}
+                              strokeWidth={1.75}
+                              aria-hidden
+                              className={active ? 'text-brand' : ''}
+                            />
                             <span className="font-medium">{t.name}</span>
                           </span>
-                          <span className="mt-0.5 block text-xs text-fg-subtle">{t.description}</span>
+                          <span className="mt-0.5 block text-xs text-fg-subtle">
+                            {t.description}
+                          </span>
                         </button>
                       </li>
                     );
@@ -140,8 +154,10 @@ function EmailTemplates() {
           <Card
             header={
               <span className="flex flex-wrap items-center gap-2">
-                {current ? current.name : "Preview"}
-                {current ? <Badge>{CATEGORY_LABELS[current.category] ?? current.category}</Badge> : null}
+                {current ? current.name : 'Preview'}
+                {current ? (
+                  <Badge>{CATEGORY_LABELS[current.category] ?? current.category}</Badge>
+                ) : null}
               </span>
             }
           >

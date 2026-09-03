@@ -9,6 +9,8 @@ import { entitlementRouter } from '../../modules/entitlement/entitlement.routes'
 import { auditRouter } from '../../modules/audit/audit.routes';
 import { notificationRouter } from '../../modules/notification/notification.routes';
 import { fileRouter } from '../../modules/file/file.routes';
+import { signatureRouter } from '../../modules/signature/signature.routes';
+import { importRouter } from '../../modules/import/import.routes';
 import { providerRouter } from '../../modules/provider/provider.routes';
 import { brandingRouter } from '../../modules/branding/branding.routes';
 import { organizationRouter } from '../../modules/organization/organization.routes';
@@ -46,6 +48,8 @@ apiV1.use(entitlementRouter);
 apiV1.use(auditRouter);
 apiV1.use(notificationRouter);
 apiV1.use(fileRouter);
+apiV1.use(signatureRouter);
+apiV1.use(importRouter);
 apiV1.use(providerRouter);
 apiV1.use(brandingRouter);
 apiV1.use(organizationRouter);

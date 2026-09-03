@@ -6,7 +6,13 @@ import { requireCapability } from '../../http/requireCapability';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
-import { CreateInvoiceBody, RecordPaymentBody, AddInvoiceLineBody, CreateServiceBody, UpdateServiceBody } from './billing.schema';
+import {
+  CreateInvoiceBody,
+  RecordPaymentBody,
+  AddInvoiceLineBody,
+  CreateServiceBody,
+  UpdateServiceBody,
+} from './billing.schema';
 import { CreateFeeRuleBody, UpdateFeeRuleBody } from './feeRules.schema';
 import * as c from './billing.controller';
 
@@ -18,8 +24,20 @@ const mod = requireModule('billing');
 // Billing while switching this feature off. Deny-by-exception, so it is on by default.
 const servicesCap = requireCapability('billing', CAPABILITIES.BILLING_SERVICES);
 
-billingRouter.get('/invoices', requireAuth, mod, requirePermission(PERMISSIONS.BILLING_VIEW), asyncHandler(c.listInvoices));
-billingRouter.get('/invoices/:id', requireAuth, mod, requirePermission(PERMISSIONS.BILLING_VIEW), asyncHandler(c.getInvoice));
+billingRouter.get(
+  '/invoices',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.BILLING_VIEW),
+  asyncHandler(c.listInvoices),
+);
+billingRouter.get(
+  '/invoices/:id',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.BILLING_VIEW),
+  asyncHandler(c.getInvoice),
+);
 billingRouter.post(
   '/invoices',
   requireAuth,
@@ -48,7 +66,14 @@ billingRouter.post(
 
 // Services & packages catalogue (ADR-067, E-3) — hospital configuration billing consumes.
 // Gated by the `billing.services` capability (ADR-085) after the module gate, before permissions.
-billingRouter.get('/services', requireAuth, mod, servicesCap, requirePermission(PERMISSIONS.BILLING_SERVICES_VIEW), asyncHandler(c.listServices));
+billingRouter.get(
+  '/services',
+  requireAuth,
+  mod,
+  servicesCap,
+  requirePermission(PERMISSIONS.BILLING_SERVICES_VIEW),
+  asyncHandler(c.listServices),
+);
 billingRouter.post(
   '/services',
   requireAuth,

@@ -13,6 +13,7 @@ import * as hfr from './hfr.service';
 import * as hpr from './hpr.service';
 import * as bulk from './registryBulk.service';
 import * as consent from './consent.service';
+import * as linking from './linking.service';
 import { recordLinkCallback } from './linking.service';
 import type { AbdmProfile } from './providers/types';
 
@@ -28,7 +29,9 @@ export async function capabilities(req: Request, res: Response): Promise<void> {
 // --- Flow 1: create an ABHA with Aadhaar OTP --------------------------------------------------
 
 export async function startAadhaar(req: Request, res: Response): Promise<void> {
-  res.status(202).json(await svc.startAadhaarEnrolment(req.auth!.tenantId, req.body, req.auth!.userId));
+  res
+    .status(202)
+    .json(await svc.startAadhaarEnrolment(req.auth!.tenantId, req.body, req.auth!.userId));
 }
 
 export async function verifyAadhaar(req: Request, res: Response): Promise<void> {
@@ -44,7 +47,9 @@ export async function verifyMobileOtp(req: Request, res: Response): Promise<void
 }
 
 export async function suggestAddresses(req: Request, res: Response): Promise<void> {
-  res.json({ suggestions: await svc.suggestAbhaAddresses(req.auth!.tenantId, req.params.transactionId!) });
+  res.json({
+    suggestions: await svc.suggestAbhaAddresses(req.auth!.tenantId, req.params.transactionId!),
+  });
 }
 
 export async function createAddress(req: Request, res: Response): Promise<void> {
@@ -115,7 +120,8 @@ export async function profileShareCallback(req: Request, res: Response): Promise
  * absent rather than parsed into a wrong date.
  */
 function normaliseSharedProfile(raw: Record<string, unknown> & { name?: string }): AbdmProfile {
-  const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined);
+  const str = (v: unknown): string | undefined =>
+    typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
   const num = (v: unknown): string | undefined => {
     const t = typeof v === 'number' ? String(v) : str(v);
     return t && /^\d+$/.test(t) ? t : undefined;
@@ -127,7 +133,9 @@ function normaliseSharedProfile(raw: Record<string, unknown> & { name?: string }
   const day = num(raw.dayOfBirth);
   // A year alone is enough to be useful (it drives the demographic match); a masked day or month
   // falls back to the first, and the operator sees and corrects it in the review step.
-  const dateOfBirth = year ? `${year}-${(month ?? '1').padStart(2, '0')}-${(day ?? '1').padStart(2, '0')}` : undefined;
+  const dateOfBirth = year
+    ? `${year}-${(month ?? '1').padStart(2, '0')}-${(day ?? '1').padStart(2, '0')}`
+    : undefined;
 
   const profile: AbdmProfile = {
     abhaNumber: typeof raw.abhaNumber === 'number' ? String(raw.abhaNumber) : str(raw.abhaNumber),
@@ -178,7 +186,12 @@ export async function onLinkCareContext(req: Request, res: Response): Promise<vo
   const body = req.body as { abhaAddress?: string; status?: string; error?: { message?: string } };
   const hipId = req.header('X-HIP-ID') ?? '';
   if (hipId && body.abhaAddress) {
-    await recordLinkCallback({ hipId, abhaAddress: body.abhaAddress, status: body.status, error: body.error?.message });
+    await recordLinkCallback({
+      hipId,
+      abhaAddress: body.abhaAddress,
+      status: body.status,
+      error: body.error?.message,
+    });
   }
   res.status(202).json({ accepted: true });
 }
@@ -224,7 +237,8 @@ export async function discoverCareContexts(req: Request, res: Response): Promise
         name: body.patient.name,
         gender: body.patient.gender,
         yearOfBirth: body.patient.yearOfBirth ? Number(body.patient.yearOfBirth) : undefined,
-        medicalRecordNumber: String(pick(body.patient.unverifiedIdentifiers, 'MR') ?? '') || undefined,
+        medicalRecordNumber:
+          String(pick(body.patient.unverifiedIdentifiers, 'MR') ?? '') || undefined,
       },
     })
     .catch((err: unknown) => logger.error({ err }, 'ABDM discovery response failed'));
@@ -252,7 +266,10 @@ export async function initCareContextLink(req: Request, res: Response): Promise<
 }
 
 export async function confirmCareContextLink(req: Request, res: Response): Promise<void> {
-  const body = req.body as { requestId?: string; confirmation: { linkRefNumber: string; token: string } };
+  const body = req.body as {
+    requestId?: string;
+    confirmation: { linkRefNumber: string; token: string };
+  };
   const hipId = req.header('X-HIP-ID') ?? '';
   res.status(202).json({ accepted: true });
 
@@ -315,8 +332,13 @@ export async function linkPatient(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateProfile(req: Request, res: Response): Promise<void> {
-  const { transactionId, ...patch } = req.body as { transactionId: string } & Record<string, unknown>;
-  res.json(await svc.updateAbhaProfile(req.auth!.tenantId, { transactionId, patch }, req.auth!.userId));
+  const { transactionId, ...patch } = req.body as { transactionId: string } & Record<
+    string,
+    unknown
+  >;
+  res.json(
+    await svc.updateAbhaProfile(req.auth!.tenantId, { transactionId, patch }, req.auth!.userId),
+  );
 }
 
 export async function getVerification(req: Request, res: Response): Promise<void> {
@@ -344,11 +366,17 @@ function toFacility(row: Awaited<ReturnType<typeof svc.getFacilityConfig>>) {
 }
 
 export async function getFacility(req: Request, res: Response): Promise<void> {
-  res.json(toFacility(await svc.getFacilityConfig(req.auth!.tenantId, (req.query.branchId as string) ?? null)));
+  res.json(
+    toFacility(
+      await svc.getFacilityConfig(req.auth!.tenantId, (req.query.branchId as string) ?? null),
+    ),
+  );
 }
 
 export async function putFacility(req: Request, res: Response): Promise<void> {
-  res.json(toFacility(await svc.upsertFacilityConfig(req.auth!.tenantId, req.body, req.auth!.userId)));
+  res.json(
+    toFacility(await svc.upsertFacilityConfig(req.auth!.tenantId, req.body, req.auth!.userId)),
+  );
 }
 
 // --- Milestone 3: reading a patient's history from other hospitals (ADR-092) -----------------
@@ -402,7 +430,10 @@ export async function hiuOnInit(req: Request, res: Response): Promise<void> {
   const body = req.body as { consentRequest: { id: string }; response?: { requestId?: string } };
   res.status(202).json({ accepted: true });
   await hiu
-    .recordConsentRequestId({ requestId: body.response?.requestId, consentRequestId: body.consentRequest.id })
+    .recordConsentRequestId({
+      requestId: body.response?.requestId,
+      consentRequestId: body.consentRequest.id,
+    })
     .catch((err: unknown) => logger.error({ err }, 'Could not record an ABDM consent request id'));
 }
 
@@ -550,7 +581,9 @@ export async function hiuConsentNotify(req: Request, res: Response): Promise<voi
   for (const consentId of ids) {
     await hiu
       .handleConsentNotification({ consentId, status: body.notification.status })
-      .catch((err: unknown) => logger.error({ err, consentId }, 'Could not act on an ABDM consent notification'));
+      .catch((err: unknown) =>
+        logger.error({ err, consentId }, 'Could not act on an ABDM consent notification'),
+      );
   }
 }
 
@@ -559,6 +592,68 @@ export async function fetchExternalRecords(req: Request, res: Response): Promise
   const results = await hiuTransfer.requestAllRecords(req.auth!.tenantId, req.params.patientId!);
   // 202: the records arrive later, on a push. Saying 200 would imply they are already here.
   res.status(202).json({ requested: results.length, transfers: results });
+}
+
+/**
+ * HIE-CM's answer to a consent-request status poll (ADR-140).
+ *
+ * The poll itself answers `200` carrying nothing; this is where the status actually arrives, so
+ * without this route a request sat in "waiting for the patient" forever whatever the patient did.
+ */
+export async function hiuOnConsentStatus(req: Request, res: Response): Promise<void> {
+  const body = req.body as Parameters<typeof hiu.recordConsentStatusAck>[0];
+  res.status(200).json({ accepted: true });
+  await hiu
+    .recordConsentStatusAck(body)
+    .catch((err: unknown) => logger.error({ err }, 'Could not record a consent status callback'));
+}
+
+/**
+ * HIE-CM's answer to our request for records — and the only statement of the transaction id.
+ *
+ * Answered before the work, like every other callback here. The work itself is one update, but the
+ * consequence of missing it is total: a HIP pushes under ABDM's transaction id, and a transfer
+ * still keyed on our placeholder matches nothing and is discarded as unrecognised.
+ */
+export async function hiuOnDataRequest(req: Request, res: Response): Promise<void> {
+  const body = req.body as Parameters<typeof hiuTransfer.recordDataRequestAck>[0];
+  res.status(202).json({ accepted: true });
+  await hiuTransfer
+    .recordDataRequestAck(body)
+    .catch((err: unknown) =>
+      logger.error({ err }, 'Could not record a data-request acknowledgement'),
+    );
+}
+
+/**
+ * HIE-CM acknowledging a care-context update notify (M2 §4.3.7).
+ *
+ * Recorded rather than acted on: the notify has already gone, and this says whether it landed.
+ */
+export async function careContextOnNotify(req: Request, res: Response): Promise<void> {
+  const body = req.body as linking.GatewayAcknowledgement;
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+  await linking
+    .recordNotifyAcknowledgement('care_context', hipId, body)
+    .catch((err: unknown) =>
+      logger.error({ err }, 'Could not record a care-context acknowledgement'),
+    );
+}
+
+/**
+ * HIE-CM acknowledging the deep-link SMS (M2 §4.3.9).
+ *
+ * `HIP_INIT_NOTIFY_HIECM` is mandatory and this is its other half: without it we could say we had
+ * asked ABDM to text the patient and never say whether ABDM did.
+ */
+export async function smsOnNotify(req: Request, res: Response): Promise<void> {
+  const body = req.body as linking.GatewayAcknowledgement;
+  const hipId = req.header('X-HIP-ID') ?? '';
+  res.status(202).json({ accepted: true });
+  await linking
+    .recordNotifyAcknowledgement('sms', hipId, body)
+    .catch((err: unknown) => logger.error({ err }, 'Could not record an SMS acknowledgement'));
 }
 
 /**
@@ -584,7 +679,10 @@ export async function hiuDataPush(req: Request, res: Response): Promise<void> {
 export async function externalHistoryTimeline(req: Request, res: Response): Promise<void> {
   const tenantId = req.auth!.tenantId;
   const patientId = req.params.patientId!;
-  const hiTypes = typeof req.query.hiTypes === 'string' ? req.query.hiTypes.split(',').filter(Boolean) : undefined;
+  const hiTypes =
+    typeof req.query.hiTypes === 'string'
+      ? req.query.hiTypes.split(',').filter(Boolean)
+      : undefined;
   const sourceHipId = typeof req.query.sourceHipId === 'string' ? req.query.sourceHipId : undefined;
 
   const [entries, summary] = await Promise.all([
@@ -603,14 +701,22 @@ export async function listFacilityRegistrations(req: Request, res: Response): Pr
 
 /** Saves the form without sending anything to HFR — registration is a long, resumable process. */
 export async function saveFacilityRegistration(req: Request, res: Response): Promise<void> {
-  const saved = await hfr.saveDraft(req.auth!.tenantId, req.auth!.userId ?? null, req.body as hfr.FacilityDraft);
+  const saved = await hfr.saveDraft(
+    req.auth!.tenantId,
+    req.auth!.userId ?? null,
+    req.body as hfr.FacilityDraft,
+  );
   res.json(saved);
 }
 
 /** Sends it. Answers with `submitted`, never `verified` — a human verifier decides that. */
 export async function submitFacilityRegistration(req: Request, res: Response): Promise<void> {
   const body = req.body as { branchId?: string | null };
-  const submitted = await hfr.submitRegistration(req.auth!.tenantId, req.auth!.userId ?? null, body.branchId ?? null);
+  const submitted = await hfr.submitRegistration(
+    req.auth!.tenantId,
+    req.auth!.userId ?? null,
+    body.branchId ?? null,
+  );
   res.status(202).json(submitted);
 }
 
@@ -622,7 +728,11 @@ export async function submitFacilityRegistration(req: Request, res: Response): P
  * that route leaves room for.
  */
 export async function updateFacilityRegistration(req: Request, res: Response): Promise<void> {
-  const updated = await hfr.updateRegistration(req.auth!.tenantId, req.auth!.userId ?? null, req.body as hfr.FacilityDraft);
+  const updated = await hfr.updateRegistration(
+    req.auth!.tenantId,
+    req.auth!.userId ?? null,
+    req.body as hfr.FacilityDraft,
+  );
   res.status(202).json(updated);
 }
 
@@ -639,7 +749,12 @@ export async function searchFacilityRegistry(req: Request, res: Response): Promi
 
 /** Records the verifier's decision, and adopts the issued facility id as our hipId. */
 export async function recordFacilityVerification(req: Request, res: Response): Promise<void> {
-  const body = req.body as { branchId?: string | null; status: 'under_review' | 'verified' | 'rejected'; facilityId?: string; message?: string };
+  const body = req.body as {
+    branchId?: string | null;
+    status: 'under_review' | 'verified' | 'rejected';
+    facilityId?: string;
+    message?: string;
+  };
   res.json(await hfr.recordVerification(req.auth!.tenantId, body));
 }
 
@@ -659,14 +774,22 @@ export async function facilityRegistryMasterData(req: Request, res: Response): P
   const kind = req.params.kind as hfr.FacilityMasterKind;
   // An allowlist rather than a passthrough: `kind` indexes a path table, so an unchecked value is a
   // way to aim our authenticated registry client at any path in it.
-  if (!allowed.includes(kind)) throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
+  if (!allowed.includes(kind))
+    throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
 
   // `code` scopes an LGD list to its parent and `type` selects which list `get-master-data`
   // returns; the rest are the named filters HFR's POST lists require in their body. Allowlisted
   // by name rather than forwarding `req.query` wholesale, so a caller cannot inject a field into
   // a request we make with our own registry credentials.
   const query: Record<string, string> = {};
-  for (const key of ['code', 'type', 'ownershipCode', 'systemOfMedicineCode', 'facilityTypeCode', 'ownerSubtypeCode']) {
+  for (const key of [
+    'code',
+    'type',
+    'ownershipCode',
+    'systemOfMedicineCode',
+    'facilityTypeCode',
+    'ownerSubtypeCode',
+  ]) {
     const v = req.query[key];
     if (typeof v === 'string' && v !== '') query[key] = v;
   }
@@ -684,10 +807,16 @@ export async function listHprEnrolments(req: Request, res: Response): Promise<vo
  * holds an HPR id. The Aadhaar is never echoed back and never stored.
  */
 export async function startHprEnrolment(req: Request, res: Response): Promise<void> {
-  const body = req.body as { providerId: string; aadhaar: string; category: hpr.ProfessionalCategory };
+  const body = req.body as {
+    providerId: string;
+    aadhaar: string;
+    category: hpr.ProfessionalCategory;
+  };
   const started = await hpr.startEnrolment(req.auth!.tenantId, req.auth!.userId ?? null, body);
   // The transaction id is ABDM's, not a secret, but nothing derived from the Aadhaar goes back.
-  res.status(202).json({ status: started.status, alreadyRegistered: started.alreadyRegistered ?? false });
+  res
+    .status(202)
+    .json({ status: started.status, alreadyRegistered: started.alreadyRegistered ?? false });
 }
 
 export async function verifyHprAadhaarOtp(req: Request, res: Response): Promise<void> {
@@ -713,9 +842,21 @@ export async function completeHprEnrolment(req: Request, res: Response): Promise
 }
 
 export async function hprMasterData(req: Request, res: Response): Promise<void> {
-  const allowed = ['states', 'districts', 'subDistricts', 'countries', 'languages', 'systemsOfMedicine', 'medicalCouncils', 'nurseCouncils', 'universities', 'courses'];
+  const allowed = [
+    'states',
+    'districts',
+    'subDistricts',
+    'countries',
+    'languages',
+    'systemsOfMedicine',
+    'medicalCouncils',
+    'nurseCouncils',
+    'universities',
+    'courses',
+  ];
   const kind = req.params.kind as string;
-  if (!allowed.includes(kind)) throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
+  if (!allowed.includes(kind))
+    throw new AppError(404, 'ABDM_MASTER_UNKNOWN', 'No such reference list');
   res.json(await hpr.hprMasterData(kind as never));
 }
 
@@ -737,12 +878,16 @@ export async function exportBulkFacilities(req: Request, res: Response): Promise
 /** Attaches issued HPR ids to the right clinicians; ambiguity is reported, never guessed. */
 export async function importBulkProfessionals(req: Request, res: Response): Promise<void> {
   const body = req.body as { rows: Record<string, string>[] };
-  res.json(await bulk.importProfessionalResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows));
+  res.json(
+    await bulk.importProfessionalResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows),
+  );
 }
 
 export async function importBulkFacilities(req: Request, res: Response): Promise<void> {
   const body = req.body as { rows: Record<string, string>[] };
-  res.json(await bulk.importFacilityResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows));
+  res.json(
+    await bulk.importFacilityResults(req.auth!.tenantId, req.auth!.userId ?? null, body.rows),
+  );
 }
 
 // --- Consents this hospital holds (ADR-100) ---------------------------------------------------
@@ -777,7 +922,12 @@ export async function listHeldConsents(req: Request, res: Response): Promise<voi
 
 /** Resends the OTP for a verification in flight, throttled server-side (ADR-100). */
 export async function resendOtp(req: Request, res: Response): Promise<void> {
-  const body = req.body as { transactionId: string; aadhaar?: string; mobile?: string };
+  const body = req.body as {
+    transactionId: string;
+    aadhaar?: string;
+    mobile?: string;
+    identifier?: string;
+  };
   res.status(202).json(await svc.resendOtp(req.auth!.tenantId, body, req.auth!.userId));
 }
 
@@ -789,6 +939,7 @@ export async function resendOtp(req: Request, res: Response): Promise<void> {
  */
 export async function lookupAbha(req: Request, res: Response): Promise<void> {
   const identifier = String(req.query.identifier ?? '').trim();
-  if (identifier.length < 3) throw new AppError(422, 'ABDM_IDENTIFIER_REQUIRED', 'Enter an ABHA number or address');
+  if (identifier.length < 3)
+    throw new AppError(422, 'ABDM_IDENTIFIER_REQUIRED', 'Enter an ABHA number or address');
   res.json(await hiu.findPatientByAbha(req.auth!.tenantId, identifier));
 }

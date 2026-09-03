@@ -59,14 +59,18 @@ const PLATFORM_NAME = process.env.BOOTSTRAP_PLATFORM_NAME?.trim() || 'Nirogix';
  * hospitals (ADR-022), so it has no modules, no branches and no clinical data.
  */
 async function ensurePlatformOrg(): Promise<string> {
-  const existing = (await db.select().from(tenants).where(eq(tenants.code, PLATFORM_CODE)).limit(1))[0];
+  const existing = (
+    await db.select().from(tenants).where(eq(tenants.code, PLATFORM_CODE)).limit(1)
+  )[0];
   if (existing) {
     // eslint-disable-next-line no-console
     console.log(`  platform org ${PLATFORM_CODE} already exists`);
     await provisionTenantRbac(existing.id);
     return existing.id;
   }
-  const created = (await db.insert(tenants).values({ code: PLATFORM_CODE, name: PLATFORM_NAME }).returning())[0]!;
+  const created = (
+    await db.insert(tenants).values({ code: PLATFORM_CODE, name: PLATFORM_NAME }).returning()
+  )[0]!;
   await provisionTenantRbac(created.id);
   // eslint-disable-next-line no-console
   console.log(`  created platform org ${PLATFORM_CODE}`);
@@ -81,7 +85,9 @@ async function ensurePlatformOrg(): Promise<string> {
 async function ensureBootstrapAdmin(platformTenantId: string): Promise<void> {
   if (!BOOTSTRAP_EMAIL) {
     // eslint-disable-next-line no-console
-    console.log('  no BOOTSTRAP_ADMIN_EMAIL set — skipping operator account (this is fine on a re-run)');
+    console.log(
+      '  no BOOTSTRAP_ADMIN_EMAIL set — skipping operator account (this is fine on a re-run)',
+    );
     return;
   }
 
@@ -153,7 +159,9 @@ async function main(): Promise<void> {
   await ensureBootstrapAdmin(platformTenantId);
 
   // eslint-disable-next-line no-console
-  console.log('\nDone. Bootstrap configuration only — no hospitals, patients or appointments were created.');
+  console.log(
+    '\nDone. Bootstrap configuration only — no hospitals, patients or appointments were created.',
+  );
 
   await pool.end();
   process.exit(0);

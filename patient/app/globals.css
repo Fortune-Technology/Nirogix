@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 /* Compile the Tailwind classes inside @hms/ui too — some shared components
  * (the charts) use them, and node_modules is not scanned by default. */

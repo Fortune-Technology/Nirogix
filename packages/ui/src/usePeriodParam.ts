@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useState } from "react";
-import { resolveDateRange, type DateRangePreset } from "@hms/utils";
-import { makePeriod, type PeriodValue } from "./components/PeriodFilter";
+import { useCallback, useState } from 'react';
+import { resolveDateRange, type DateRangePreset } from '@hms/utils';
+import { makePeriod, type PeriodValue } from './components/PeriodFilter';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -13,14 +13,15 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
  * ISO dates (`?range=custom&rangeFrom=…&rangeTo=…`). Client-only.
  */
 function readPeriodFromUrl(key: string): PeriodValue | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null;
   const p = new URLSearchParams(window.location.search);
   const preset = p.get(key) as DateRangePreset | null;
   if (!preset) return null;
-  if (preset === "custom") {
+  if (preset === 'custom') {
     const from = p.get(`${key}From`);
     const to = p.get(`${key}To`);
-    if (from && to && ISO.test(from) && ISO.test(to) && to >= from) return { preset: "custom", start: from, end: to };
+    if (from && to && ISO.test(from) && ISO.test(to) && to >= from)
+      return { preset: 'custom', start: from, end: to };
     return null;
   }
   const r = resolveDateRange(preset);
@@ -39,18 +40,20 @@ function readPeriodFromUrl(key: string): PeriodValue | null {
  * the first render with no default-then-correct flash.
  */
 export function usePeriodParam(
-  defaultPreset: Exclude<DateRangePreset, "custom">,
-  key = "range",
+  defaultPreset: Exclude<DateRangePreset, 'custom'>,
+  key = 'range',
 ): [PeriodValue, (next: PeriodValue) => void] {
-  const [value, setValue] = useState<PeriodValue>(() => readPeriodFromUrl(key) ?? makePeriod(defaultPreset));
+  const [value, setValue] = useState<PeriodValue>(
+    () => readPeriodFromUrl(key) ?? makePeriod(defaultPreset),
+  );
 
   const set = useCallback(
     (next: PeriodValue) => {
       setValue(next);
-      if (typeof window === "undefined") return;
+      if (typeof window === 'undefined') return;
       const p = new URLSearchParams(window.location.search);
       p.set(key, next.preset);
-      if (next.preset === "custom") {
+      if (next.preset === 'custom') {
         p.set(`${key}From`, next.start);
         p.set(`${key}To`, next.end);
       } else {
@@ -59,7 +62,7 @@ export function usePeriodParam(
       }
       const qs = p.toString();
       const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-      window.history.replaceState(window.history.state, "", url);
+      window.history.replaceState(window.history.state, '', url);
     },
     [key],
   );

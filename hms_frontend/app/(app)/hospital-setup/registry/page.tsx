@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
-import Link from "next/link";
-import { Alert, Badge, Button, Card, DateDisplay, EmptyState, Spinner, toast } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { Building2, Download, IdCard, Search, Upload } from "lucide-react";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { useCan } from "../../../../lib/auth";
-import { downloadCsv } from "../../../../lib/csv";
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
+import Link from 'next/link';
+import { Alert, Badge, Button, Card, DateDisplay, EmptyState, Spinner, toast } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { Building2, Download, IdCard, Search, Upload } from 'lucide-react';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { useCan } from '../../../../lib/auth';
+import { downloadCsv } from '../../../../lib/csv';
 
 /**
  * The national registries — HFR and HPR (ADR-096…ADR-098).
@@ -29,20 +29,26 @@ import { downloadCsv } from "../../../../lib/csv";
  *   person's record.
  */
 
-const FACILITY_STATUS: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger" }> = {
-  draft: { label: "Not submitted", tone: "neutral" },
-  submitted: { label: "Awaiting verification", tone: "warning" },
-  under_review: { label: "Under review", tone: "warning" },
-  verified: { label: "Verified", tone: "success" },
-  rejected: { label: "Rejected", tone: "danger" },
+const FACILITY_STATUS: Record<
+  string,
+  { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' }
+> = {
+  draft: { label: 'Not submitted', tone: 'neutral' },
+  submitted: { label: 'Awaiting verification', tone: 'warning' },
+  under_review: { label: 'Under review', tone: 'warning' },
+  verified: { label: 'Verified', tone: 'success' },
+  rejected: { label: 'Rejected', tone: 'danger' },
 };
 
-const HPR_STATUS: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger" }> = {
-  not_started: { label: "Not started", tone: "neutral" },
-  aadhaar_verified: { label: "Aadhaar verified", tone: "warning" },
-  mobile_verified: { label: "Mobile verified", tone: "warning" },
-  registered: { label: "Registered", tone: "success" },
-  already_registered: { label: "Already had an HPR ID", tone: "success" },
+const HPR_STATUS: Record<
+  string,
+  { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' }
+> = {
+  not_started: { label: 'Not started', tone: 'neutral' },
+  aadhaar_verified: { label: 'Aadhaar verified', tone: 'warning' },
+  mobile_verified: { label: 'Mobile verified', tone: 'warning' },
+  registered: { label: 'Registered', tone: 'success' },
+  already_registered: { label: 'Already had an HPR ID', tone: 'success' },
 };
 
 export default function RegistryPage() {
@@ -74,32 +80,32 @@ function Registry() {
     void load();
   }, [load]);
 
-  async function exportRoster(kind: "professionals" | "facilities") {
+  async function exportRoster(kind: 'professionals' | 'facilities') {
     try {
       const data = await api.exportAbdmBulk(kind);
       if (data.rows.length === 0) {
         toast.info(
-          kind === "professionals"
-            ? "Every active staff member already holds an HPR ID."
-            : "Every facility already has a Facility ID.",
+          kind === 'professionals'
+            ? 'Every active staff member already holds an HPR ID.'
+            : 'Every facility already has a Facility ID.',
         );
         return;
       }
       downloadCsv(
         `abdm-${kind}.csv`,
         data.columns,
-        data.rows.map((row) => data.columns.map((c) => row[c] ?? "")),
+        data.rows.map((row) => data.columns.map((c) => row[c] ?? '')),
       );
     } catch {
       /* the shared client raised the backend's own message */
     }
   }
 
-  async function importResults(kind: "professionals" | "facilities", file: File) {
+  async function importResults(kind: 'professionals' | 'facilities', file: File) {
     const text = await file.text();
     const rows = parseCsv(text);
     if (rows.length === 0) {
-      toast.error("That file has no data rows.");
+      toast.error('That file has no data rows.');
       return;
     }
     try {
@@ -126,8 +132,9 @@ function Registry() {
   return (
     <div className="space-y-6">
       <Alert>
-        These are India&rsquo;s national registries for hospitals and clinicians. Nothing here shares a patient&rsquo;s
-        health record &mdash; it lists this hospital and its staff so that ABDM knows who we are.
+        These are India&rsquo;s national registries for hospitals and clinicians. Nothing here
+        shares a patient&rsquo;s health record &mdash; it lists this hospital and its staff so that
+        ABDM knows who we are.
       </Alert>
 
       {/* --- Facilities ------------------------------------------------------------------- */}
@@ -151,7 +158,7 @@ function Registry() {
               {canManage && (
                 <Link href="/hospital-setup/registry/facility">
                   <Button variant="secondary">
-                    {facilities.length === 0 ? "Register this hospital" : "Open registration form"}
+                    {facilities.length === 0 ? 'Register this hospital' : 'Open registration form'}
                   </Button>
                 </Link>
               )}
@@ -167,7 +174,10 @@ function Registry() {
         ) : (
           <ul className="space-y-2">
             {facilities.map((f) => {
-              const status = FACILITY_STATUS[f.status] ?? { label: f.status, tone: "neutral" as const };
+              const status = FACILITY_STATUS[f.status] ?? {
+                label: f.status,
+                tone: 'neutral' as const,
+              };
               return (
                 <li key={f.id} className="rounded-md border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -179,8 +189,8 @@ function Registry() {
                       <>Facility ID {f.facilityId}</>
                     ) : f.submittedAt ? (
                       <>
-                        Submitted <DateDisplay value={f.submittedAt} /> &mdash; a verifier at ABDM still has to
-                        approve it. No Facility ID is issued until they do.
+                        Submitted <DateDisplay value={f.submittedAt} /> &mdash; a verifier at ABDM
+                        still has to approve it. No Facility ID is issued until they do.
                       </>
                     ) : (
                       <>Saved but not submitted.</>
@@ -223,12 +233,17 @@ function Registry() {
         ) : (
           <ul className="space-y-2">
             {enrolments.map((e) => {
-              const status = HPR_STATUS[e.status] ?? { label: e.status, tone: "neutral" as const };
+              const status = HPR_STATUS[e.status] ?? { label: e.status, tone: 'neutral' as const };
               return (
-                <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                <li
+                  key={e.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                >
                   <span className="text-sm text-fg">
-                    {e.hprId ?? "No HPR ID yet"}
-                    {e.registrationCouncil && <span className="text-fg-muted"> &middot; {e.registrationCouncil}</span>}
+                    {e.hprId ?? 'No HPR ID yet'}
+                    {e.registrationCouncil && (
+                      <span className="text-fg-muted"> &middot; {e.registrationCouncil}</span>
+                    )}
                   </span>
                   <Badge tone={status.tone}>{status.label}</Badge>
                 </li>
@@ -242,43 +257,51 @@ function Registry() {
       {canManage && (
         <Card header="Onboarding many at once">
           <p className="text-sm text-fg-muted">
-            ABDM has no bulk API &mdash; the upload happens on their own portal. Download the list here so nobody
-            re-types it, upload it at ABDM, then bring their results file back so the issued IDs land against the
-            right records instead of being matched by eye.
+            ABDM has no bulk API &mdash; the upload happens on their own portal. Download the list
+            here so nobody re-types it, upload it at ABDM, then bring their results file back so the
+            issued IDs land against the right records instead of being matched by eye.
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => void exportRoster("professionals")}>
+            <Button variant="secondary" onClick={() => void exportRoster('professionals')}>
               <Download className="size-4" aria-hidden />
               Export staff
             </Button>
-            <Button variant="secondary" onClick={() => void exportRoster("facilities")}>
+            <Button variant="secondary" onClick={() => void exportRoster('facilities')}>
               <Download className="size-4" aria-hidden />
               Export facilities
             </Button>
-            <ImportButton label="Import staff results" onFile={(f) => void importResults("professionals", f)} />
-            <ImportButton label="Import facility results" onFile={(f) => void importResults("facilities", f)} />
+            <ImportButton
+              label="Import staff results"
+              onFile={(f) => void importResults('professionals', f)}
+            />
+            <ImportButton
+              label="Import facility results"
+              onFile={(f) => void importResults('facilities', f)}
+            />
           </div>
 
           {outcome && (
             <div className="mt-4 space-y-2">
               <p className="text-sm text-fg">
-                <strong>{outcome.matched}</strong> row{outcome.matched === 1 ? "" : "s"} matched and updated.
+                <strong>{outcome.matched}</strong> row{outcome.matched === 1 ? '' : 's'} matched and
+                updated.
               </p>
 
               {outcome.ambiguous.length > 0 && (
                 <Alert tone="danger">
                   <p className="font-medium">
-                    {outcome.ambiguous.length} row{outcome.ambiguous.length === 1 ? "" : "s"} matched more than one
-                    person and {outcome.ambiguous.length === 1 ? "was" : "were"} skipped.
+                    {outcome.ambiguous.length} row{outcome.ambiguous.length === 1 ? '' : 's'}{' '}
+                    matched more than one person and{' '}
+                    {outcome.ambiguous.length === 1 ? 'was' : 'were'} skipped.
                   </p>
                   {/* Named rather than counted: guessing would put one person's national ID on
                       another person's record, so a human has to decide. */}
                   <ul className="mt-1 text-sm">
                     {outcome.ambiguous.map((a) => (
                       <li key={a.row}>
-                        Row {a.row}: &ldquo;{a.identifier}&rdquo; matches {a.candidates} staff members. Add a
-                        registration number to tell them apart.
+                        Row {a.row}: &ldquo;{a.identifier}&rdquo; matches {a.candidates} staff
+                        members. Add a registration number to tell them apart.
                       </li>
                     ))}
                   </ul>
@@ -288,7 +311,8 @@ function Registry() {
               {outcome.unmatched.length > 0 && (
                 <Alert>
                   <p className="font-medium">
-                    {outcome.unmatched.length} row{outcome.unmatched.length === 1 ? "" : "s"} could not be matched.
+                    {outcome.unmatched.length} row{outcome.unmatched.length === 1 ? '' : 's'} could
+                    not be matched.
                   </p>
                   <ul className="mt-1 text-sm">
                     {outcome.unmatched.slice(0, 10).map((u) => (
@@ -296,7 +320,9 @@ function Registry() {
                         Row {u.row}: &ldquo;{u.identifier}&rdquo; &mdash; {u.reason}.
                       </li>
                     ))}
-                    {outcome.unmatched.length > 10 && <li>&hellip; and {outcome.unmatched.length - 10} more.</li>}
+                    {outcome.unmatched.length > 10 && (
+                      <li>&hellip; and {outcome.unmatched.length - 10} more.</li>
+                    )}
                   </ul>
                 </Alert>
               )}
@@ -314,7 +340,7 @@ function ImportButton({ label, onFile }: { label: string; onFile: (file: File) =
     const file = e.target.files?.[0];
     if (file) onFile(file);
     // Reset, so choosing the same corrected file twice still fires.
-    e.target.value = "";
+    e.target.value = '';
   }
   return (
     <label className="hms-button hms-button--secondary cursor-pointer">
@@ -336,7 +362,7 @@ function ImportButton({ label, onFile }: { label: string; onFile: (file: File) =
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
-  let cell = "";
+  let cell = '';
   let quoted = false;
 
   for (let i = 0; i < text.length; i += 1) {
@@ -353,24 +379,24 @@ function parseCsv(text: string): Record<string, string>[] {
       continue;
     }
     if (ch === '"') quoted = true;
-    else if (ch === ",") {
+    else if (ch === ',') {
       row.push(cell);
-      cell = "";
-    } else if (ch === "\n") {
+      cell = '';
+    } else if (ch === '\n') {
       row.push(cell);
       rows.push(row);
       row = [];
-      cell = "";
-    } else if (ch !== "\r") cell += ch;
+      cell = '';
+    } else if (ch !== '\r') cell += ch;
   }
   if (cell || row.length > 0) {
     row.push(cell);
     rows.push(row);
   }
 
-  const [header, ...body] = rows.filter((r) => r.some((c) => c.trim() !== ""));
+  const [header, ...body] = rows.filter((r) => r.some((c) => c.trim() !== ''));
   if (!header) return [];
   // The BOM Excel writes would otherwise become part of the first column's name.
-  const columns = header.map((h) => h.replace(/^﻿/, "").trim());
-  return body.map((r) => Object.fromEntries(columns.map((c, i) => [c, (r[i] ?? "").trim()])));
+  const columns = header.map((h) => h.replace(/^﻿/, '').trim());
+  return body.map((r) => Object.fromEntries(columns.map((c, i) => [c, (r[i] ?? '').trim()])));
 }

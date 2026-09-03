@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, jsonb, pgTable, text, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { patients } from './patients';
 import { providers } from './providers';
@@ -49,14 +59,21 @@ export const abdmHiuConsentRequests = pgTable(
      * the request, so it is captured at request time rather than joined later — a doctor who leaves
      * the hospital must not change what the patient was shown.
      */
-    requesterProviderId: uuid('requester_provider_id').references(() => providers.id, { onDelete: 'set null' }),
+    requesterProviderId: uuid('requester_provider_id').references(() => providers.id, {
+      onDelete: 'set null',
+    }),
     requesterName: varchar('requester_name', { length: 200 }).notNull(),
-    requesterRegistrationNumber: varchar('requester_registration_number', { length: 100 }).notNull(),
+    requesterRegistrationNumber: varchar('requester_registration_number', {
+      length: 100,
+    }).notNull(),
 
     /** ABDM's id for the request, which arrives asynchronously on `on-init`. */
     consentRequestId: varchar('consent_request_id', { length: 64 }),
 
-    hiTypes: text('hi_types').array().notNull().default(sql`ARRAY[]::text[]`),
+    hiTypes: text('hi_types')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     /** CAREMGT for a doctor-initiated clinical pull. See ADR-092 for why only that one, for now. */
     purposeCode: varchar('purpose_code', { length: 32 }).notNull().default('CAREMGT'),
     dateRangeFrom: timestamp('date_range_from', { withTimezone: true }),
@@ -74,7 +91,10 @@ export const abdmHiuConsentRequests = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantRequestUnique: unique('abdm_hiu_requests_tenant_request_unique').on(t.tenantId, t.consentRequestId),
+    tenantRequestUnique: unique('abdm_hiu_requests_tenant_request_unique').on(
+      t.tenantId,
+      t.consentRequestId,
+    ),
     patientIdx: index('abdm_hiu_requests_patient_idx').on(t.tenantId, t.patientId),
     statusIdx: index('abdm_hiu_requests_status_idx').on(t.status),
   }),
@@ -111,7 +131,10 @@ export const abdmHiuConsents = pgTable(
 
     purposeCode: varchar('purpose_code', { length: 32 }),
     purposeText: varchar('purpose_text', { length: 200 }),
-    hiTypes: text('hi_types').array().notNull().default(sql`ARRAY[]::text[]`),
+    hiTypes: text('hi_types')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     /** `{ patientReference, careContextReference }` pairs, exactly as the artefact named them. */
     careContexts: jsonb('care_contexts'),
     accessMode: varchar('access_mode', { length: 16 }),
@@ -134,7 +157,10 @@ export const abdmHiuConsents = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantConsentUnique: unique('abdm_hiu_consents_tenant_consent_unique').on(t.tenantId, t.consentId),
+    tenantConsentUnique: unique('abdm_hiu_consents_tenant_consent_unique').on(
+      t.tenantId,
+      t.consentId,
+    ),
     requestIdx: index('abdm_hiu_consents_request_idx').on(t.requestId),
     eraseIdx: index('abdm_hiu_consents_erase_idx').on(t.dataEraseAt),
   }),
@@ -237,7 +263,10 @@ export const abdmHiuDataTransfers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantTransactionUnique: unique('abdm_hiu_transfers_tenant_txn_unique').on(t.tenantId, t.transactionId),
+    tenantTransactionUnique: unique('abdm_hiu_transfers_tenant_txn_unique').on(
+      t.tenantId,
+      t.transactionId,
+    ),
     consentIdx: index('abdm_hiu_transfers_consent_idx').on(t.consentId),
   }),
 );

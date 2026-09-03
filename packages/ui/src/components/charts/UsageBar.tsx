@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { cn } from "../../cn";
+import { cn } from '../../cn';
 
 export interface UsageBarProps {
   label: string;
@@ -21,7 +21,7 @@ export interface UsageBarProps {
 export function UsageBar({ label, value, total, caption, color, className }: UsageBarProps) {
   const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
   return (
-    <div className={cn("hms-usage", className)}>
+    <div className={cn('hms-usage', className)}>
       <div className="hms-usage__head">
         <span className="hms-usage__label">{label}</span>
         <span className="hms-usage__value">{caption ?? `${value} / ${total}`}</span>
@@ -36,7 +36,7 @@ export function UsageBar({ label, value, total, caption, color, className }: Usa
       >
         <div
           className="hms-usage__fill"
-          style={{ width: `${pct}%`, background: color ?? "var(--hms-brand)" }}
+          style={{ width: `${pct}%`, background: color ?? 'var(--hms-brand)' }}
         />
       </div>
     </div>

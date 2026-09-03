@@ -1,8 +1,18 @@
-"use client";
+'use client';
 
-import { useId, useRef, useState, type ReactNode } from "react";
-import { cn } from "../../cn";
-import { areaPath, compact, domain, linePath, nearestIndex, tickIndices, xAt, yAt, type Series } from "./geometry";
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { cn } from '../../cn';
+import {
+  areaPath,
+  compact,
+  domain,
+  linePath,
+  nearestIndex,
+  tickIndices,
+  xAt,
+  yAt,
+  type Series,
+} from './geometry';
 
 export interface AreaChartProps {
   series: Series[];
@@ -47,7 +57,7 @@ export function AreaChart({
   height = 220,
   format = compact,
   grid = true,
-  emptyMessage = "No data yet.",
+  emptyMessage = 'No data yet.',
   className,
   ariaLabel,
   animate = true,
@@ -63,11 +73,11 @@ export function AreaChart({
   const ticks = tickIndices(points);
   // Changes only when the data does; keys the series group so the draw-in replays on
   // a filter switch, while a hover (cursor state) leaves it untouched.
-  const animKey = series.map((s) => s.values.join(",")).join(";");
+  const animKey = series.map((s) => s.values.join(',')).join(';');
 
   if (!hasData) {
     return (
-      <div className={cn("hms-chart hms-chart--empty", className)} style={{ height }}>
+      <div className={cn('hms-chart hms-chart--empty', className)} style={{ height }}>
         <span className="hms-chart__empty">{emptyMessage}</span>
       </div>
     );
@@ -80,7 +90,7 @@ export function AreaChart({
   }
 
   return (
-    <div className={cn("hms-chart", animate && "hms-chart--animate", className)}>
+    <div className={cn('hms-chart', animate && 'hms-chart--animate', className)}>
       <div
         ref={plotRef}
         className="hms-chart__plot"
@@ -92,7 +102,7 @@ export function AreaChart({
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           role="img"
-          aria-label={ariaLabel ?? `${series.map((s) => s.label).join(", ")} over time`}
+          aria-label={ariaLabel ?? `${series.map((s) => s.label).join(', ')} over time`}
           className="hms-chart__svg"
         >
           <defs>
@@ -106,7 +116,15 @@ export function AreaChart({
 
           {grid &&
             [0, 25, 50, 75, 100].map((y) => (
-              <line key={y} x1="0" y1={y} x2="100" y2={y} className="hms-chart__grid" vectorEffect="non-scaling-stroke" />
+              <line
+                key={y}
+                x1="0"
+                y1={y}
+                x2="100"
+                y2={y}
+                className="hms-chart__grid"
+                vectorEffect="non-scaling-stroke"
+              />
             ))}
 
           {series.map((s, i) => (

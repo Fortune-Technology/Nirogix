@@ -34,7 +34,9 @@ export const referrals = pgTable(
     patientId: uuid('patient_id')
       .notNull()
       .references(() => patients.id, { onDelete: 'restrict' }),
-    fromProviderId: uuid('from_provider_id').references(() => providers.id, { onDelete: 'set null' }),
+    fromProviderId: uuid('from_provider_id').references(() => providers.id, {
+      onDelete: 'set null',
+    }),
     toDepartmentId: uuid('to_department_id')
       .notNull()
       .references(() => departments.id, { onDelete: 'restrict' }),

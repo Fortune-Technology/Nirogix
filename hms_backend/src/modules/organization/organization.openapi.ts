@@ -43,7 +43,10 @@ registry.registerPath({
   description:
     'RLS-scoped to the caller’s tenant. `contactLines` is the same data pre-formatted in the order a printed document header uses; `isComplete` is true once the fields an invoice header needs are present.',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Organization profile', ...json(OrganizationProfileSchema) }, 401: notAuthed },
+  responses: {
+    200: { description: 'Organization profile', ...json(OrganizationProfileSchema) },
+    401: notAuthed,
+  },
 });
 
 registry.registerPath({
@@ -155,7 +158,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ status: z.string().optional() }) },
   responses: {
-    200: { description: 'Requests', ...json(z.object({ requests: z.array(RegistrationRequestSchema) })) },
+    200: {
+      description: 'Requests',
+      ...json(z.object({ requests: z.array(RegistrationRequestSchema) })),
+    },
     401: notAuthed,
     403: { description: 'Missing patient.record.view', ...json(ErrorResponseSchema) },
   },
@@ -172,11 +178,17 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: idParam, body: json(ApproveRegistrationBody) },
   responses: {
-    200: { description: 'Created (or linked) patient', ...json(z.object({ patientId: z.string() })) },
+    200: {
+      description: 'Created (or linked) patient',
+      ...json(z.object({ patientId: z.string() })),
+    },
     401: notAuthed,
     403: { description: 'Missing patient.record.create', ...json(ErrorResponseSchema) },
     404: { description: 'Request not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Already reviewed, or DUPLICATE_PATIENT with matching charts', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Already reviewed, or DUPLICATE_PATIENT with matching charts',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -188,7 +200,11 @@ registry.registerPath({
   summary: 'Reject a self-registration request',
   security: [{ bearerAuth: [] }],
   request: { params: idParam, body: json(RejectRegistrationBody) },
-  responses: { 204: { description: 'Rejected' }, 401: notAuthed, 403: { description: 'Missing patient.record.create', ...json(ErrorResponseSchema) } },
+  responses: {
+    204: { description: 'Rejected' },
+    401: notAuthed,
+    403: { description: 'Missing patient.record.create', ...json(ErrorResponseSchema) },
+  },
 });
 
 registry.registerPath({
@@ -249,7 +265,10 @@ registry.registerPath({
     'Unauthenticated, sign-in-tier rate limit. Unknown, retired and disabled tokens fail identically so the endpoint cannot enumerate hospitals.',
   request: { params: z.object({ token: z.string() }) },
   responses: {
-    200: { description: 'Hospital name, departments and doctors for the form', ...json(PublicBookingContextSchema) },
+    200: {
+      description: 'Hospital name, departments and doctors for the form',
+      ...json(PublicBookingContextSchema),
+    },
     404: { description: 'Not a valid booking link', ...json(ErrorResponseSchema) },
   },
 });
@@ -262,7 +281,10 @@ registry.registerPath({
   summary: 'Public: submit an appointment REQUEST (never an appointment)',
   request: { params: z.object({ token: z.string() }), body: json(SubmitBookingBody) },
   responses: {
-    202: { description: 'Received — the desk confirms the slot', ...json(z.object({ message: z.string() })) },
+    202: {
+      description: 'Received — the desk confirms the slot',
+      ...json(z.object({ message: z.string() })),
+    },
     404: { description: 'Not a valid booking link', ...json(ErrorResponseSchema) },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
@@ -294,11 +316,17 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }), body: json(ApproveBookingBody) },
   responses: {
-    200: { description: 'Appointment + patient ids', ...json(z.object({ appointmentId: z.string(), patientId: z.string() })) },
+    200: {
+      description: 'Appointment + patient ids',
+      ...json(z.object({ appointmentId: z.string(), patientId: z.string() })),
+    },
     401: notAuthed,
     403: { description: 'Missing appointment.booking.create', ...json(ErrorResponseSchema) },
     404: { description: 'Request not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Already reviewed / DUPLICATE_PATIENT / slot taken / outside the roster', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Already reviewed / DUPLICATE_PATIENT / slot taken / outside the roster',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
@@ -379,7 +407,10 @@ registry.registerPath({
     'hospital are indistinguishable: all three answer 404 with the same message.',
   request: { params: z.object({ token: z.string() }) },
   responses: {
-    200: { description: 'Hospital name and whether self check-in is on', ...json(PublicCheckinContextSchema) },
+    200: {
+      description: 'Hospital name and whether self check-in is on',
+      ...json(PublicCheckinContextSchema),
+    },
     404: { description: 'Not a valid link', ...json(ErrorResponseSchema) },
     429: { description: 'Rate limited at the sign-in tier', ...json(ErrorResponseSchema) },
   },
@@ -419,7 +450,9 @@ registry.registerPath({
     '`alreadyCheckedIn` flags an appointment a colleague checked in by hand while the patient was ' +
     'queuing at the kiosk.',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ status: z.enum(['pending', 'confirmed', 'dismissed']).optional() }) },
+  request: {
+    query: z.object({ status: z.enum(['pending', 'confirmed', 'dismissed']).optional() }),
+  },
   responses: {
     200: { description: 'Arrivals', ...json(SelfCheckinRequestListSchema) },
     401: { description: 'Not authenticated', ...json(ErrorResponseSchema) },

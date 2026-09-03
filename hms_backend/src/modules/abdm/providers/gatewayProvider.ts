@@ -1,6 +1,6 @@
 import { env } from '../../../config/env';
 import { logger } from '../../../config/logger';
-import { ABHA_PATHS, ABDM_HEADERS } from '../abdm.constants';
+import { ABHA_PATHS, ABDM_HEADERS, ABDM_SCOPES } from '../abdm.constants';
 import { baseHeaders, getAccessToken, invalidateAccessToken } from '../abdm.session';
 import {
   AbdmGatewayError,
@@ -12,6 +12,7 @@ import {
   type AbdmProfilePatch,
   type AbdmProvider,
   type AbdmTokens,
+  type PhrAuthMethods,
 } from './types';
 
 /**
@@ -86,7 +87,8 @@ function toTokens(raw: Json): AbdmTokens {
   return {
     xToken: str(pick(t, 'token', 'xToken', 'accessToken')),
     refreshToken: str(pick(t, 'refreshToken')),
-    linkingToken: str(pick(raw, 'linkToken', 'linkingToken')) ?? str(pick(t, 'linkToken', 'linkingToken')),
+    linkingToken:
+      str(pick(raw, 'linkToken', 'linkingToken')) ?? str(pick(t, 'linkToken', 'linkingToken')),
   };
 }
 
@@ -112,12 +114,15 @@ export function parseAbdmError(text: string, status: number): { code?: string; m
 
   const firstOf = (value: unknown): { code?: string; message?: string } => {
     const entry = (Array.isArray(value) ? value[0] : value) as Json | undefined;
-    return entry ? { code: str(pick(entry, 'code', 'errorCode')), message: str(pick(entry, 'message')) } : {};
+    return entry
+      ? { code: str(pick(entry, 'code', 'errorCode')), message: str(pick(entry, 'message')) }
+      : {};
   };
 
   const nested = firstOf(pick(parsed, 'details', 'errors', 'error'));
   const code = str(pick(parsed, 'code', 'errorCode')) ?? nested.code;
-  const message = str(pick(parsed, 'message')) ?? nested.message ?? fieldKeyedMessage(parsed) ?? fallback;
+  const message =
+    str(pick(parsed, 'message')) ?? nested.message ?? fieldKeyedMessage(parsed) ?? fallback;
   return { code, message };
 }
 
@@ -130,7 +135,15 @@ export function parseAbdmError(text: string, status: number): { code?: string; m
  * is never mistaken for an explanation.
  */
 function fieldKeyedMessage(parsed: Json): string | undefined {
-  const bookkeeping = new Set(['timestamp', 'code', 'errorCode', 'status', 'path', 'traceId', 'requestId']);
+  const bookkeeping = new Set([
+    'timestamp',
+    'code',
+    'errorCode',
+    'status',
+    'path',
+    'traceId',
+    'requestId',
+  ]);
   for (const [key, value] of Object.entries(parsed)) {
     if (bookkeeping.has(key)) continue;
     const text = str(value);
@@ -162,7 +175,14 @@ export class AbdmGatewayProvider implements AbdmProvider {
    */
   private async call<T>(
     path: string,
-    init: { method: 'GET' | 'POST' | 'PATCH'; body?: unknown; hipId?: string; xToken?: string; tToken?: string; raw?: boolean },
+    init: {
+      method: 'GET' | 'POST' | 'PATCH';
+      body?: unknown;
+      hipId?: string;
+      xToken?: string;
+      tToken?: string;
+      raw?: boolean;
+    },
     retryOn401 = true,
   ): Promise<T> {
     const accessToken = await getAccessToken();
@@ -189,13 +209,19 @@ export class AbdmGatewayProvider implements AbdmProvider {
       // thing worse than an unhelpful message on screen is not being able to find out what they
       // actually said. The logger scrubs Aadhaar-shaped values on the way out (ADR-084), so this
       // is safe even though the body can echo the request back.
-      logger.error({ path, status: res.status, abdmCode: code, body: text.slice(0, 2000) }, 'ABDM rejected a request');
+      logger.error(
+        { path, status: res.status, abdmCode: code, body: text.slice(0, 2000) },
+        'ABDM rejected a request',
+      );
       throw new AbdmGatewayError(res.status, code, message);
     }
 
     if (init.raw) {
       const buffer = Buffer.from(await res.arrayBuffer());
-      return { contentType: res.headers.get('content-type') ?? 'application/octet-stream', data: buffer } as T;
+      return {
+        contentType: res.headers.get('content-type') ?? 'application/octet-stream',
+        data: buffer,
+      } as T;
     }
     return (await res.json()) as T;
   }
@@ -203,11 +229,15 @@ export class AbdmGatewayProvider implements AbdmProvider {
   async getPublicCertificate(): Promise<string> {
     const data = await this.call<Json>(ABHA_PATHS.publicCertificate, { method: 'GET' });
     const pem = str(pick(data, 'publicKey', 'certificate', 'key'));
-    if (!pem) throw new AbdmGatewayError(502, 'ABDM_NO_CERTIFICATE', 'ABDM returned no public certificate');
+    if (!pem)
+      throw new AbdmGatewayError(502, 'ABDM_NO_CERTIFICATE', 'ABDM returned no public certificate');
     return pem;
   }
 
-  async enrolRequestOtp(input: { encryptedAadhaar: string; hipId?: string }): Promise<AbdmOtpResult> {
+  async enrolRequestOtp(input: {
+    encryptedAadhaar: string;
+    hipId?: string;
+  }): Promise<AbdmOtpResult> {
     const data = await this.call<Json>(ABHA_PATHS.enrolRequestOtp, {
       method: 'POST',
       hipId: input.hipId,
@@ -225,14 +255,24 @@ export class AbdmGatewayProvider implements AbdmProvider {
     };
   }
 
-  async enrolByAadhaar(input: { txnId: string; encryptedOtp: string; mobile?: string; hipId?: string }): Promise<AbdmEnrolResult> {
+  async enrolByAadhaar(input: {
+    txnId: string;
+    encryptedOtp: string;
+    mobile?: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult> {
     const data = await this.call<Json>(ABHA_PATHS.enrolByAadhaar, {
       method: 'POST',
       hipId: input.hipId,
       body: {
         authData: {
           authMethods: ['otp'],
-          otp: { timeStamp: new Date().toISOString(), txnId: input.txnId, otpValue: input.encryptedOtp, mobile: input.mobile },
+          otp: {
+            timeStamp: new Date().toISOString(),
+            txnId: input.txnId,
+            otpValue: input.encryptedOtp,
+            mobile: input.mobile,
+          },
         },
         consent: { code: 'abha-enrollment', version: '1.4' },
       },
@@ -248,11 +288,17 @@ export class AbdmGatewayProvider implements AbdmProvider {
       // response that simply does not carry this field — which is most of them — was recorded as
       // "the mobile does NOT match", and the desk was sent to a second OTP every single time
       // (ADR-131). Absent must stay absent; the service decides what to do with not knowing.
-      mobileMatchesAadhaar: asOptionalBoolean(pick((profileRaw ?? {}) as Json, 'mobileMatchesAadhaar')),
+      mobileMatchesAadhaar: asOptionalBoolean(
+        pick((profileRaw ?? {}) as Json, 'mobileMatchesAadhaar'),
+      ),
     };
   }
 
-  async enrolMobileRequestOtp(input: { txnId: string; encryptedMobile: string; hipId?: string }): Promise<AbdmOtpResult> {
+  async enrolMobileRequestOtp(input: {
+    txnId: string;
+    encryptedMobile: string;
+    hipId?: string;
+  }): Promise<AbdmOtpResult> {
     const data = await this.call<Json>(ABHA_PATHS.enrolRequestOtp, {
       method: 'POST',
       hipId: input.hipId,
@@ -264,16 +310,30 @@ export class AbdmGatewayProvider implements AbdmProvider {
         otpSystem: 'abdm',
       },
     });
-    return { txnId: String(pick(data, 'txnId') ?? input.txnId), mobileHint: str(pick(data, 'message')) };
+    return {
+      txnId: String(pick(data, 'txnId') ?? input.txnId),
+      mobileHint: str(pick(data, 'message')),
+    };
   }
 
-  async enrolMobileVerifyOtp(input: { txnId: string; encryptedOtp: string; hipId?: string }): Promise<AbdmEnrolResult> {
+  async enrolMobileVerifyOtp(input: {
+    txnId: string;
+    encryptedOtp: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult> {
     const data = await this.call<Json>(ABHA_PATHS.enrolAuthByAbdm, {
       method: 'POST',
       hipId: input.hipId,
       body: {
         scope: ['abha-enrol', 'mobile-verify'],
-        authData: { authMethods: ['otp'], otp: { txnId: input.txnId, otpValue: input.encryptedOtp, timeStamp: new Date().toISOString() } },
+        authData: {
+          authMethods: ['otp'],
+          otp: {
+            txnId: input.txnId,
+            otpValue: input.encryptedOtp,
+            timeStamp: new Date().toISOString(),
+          },
+        },
       },
     });
     return {
@@ -291,23 +351,35 @@ export class AbdmGatewayProvider implements AbdmProvider {
     headers[ABDM_HEADERS.authorization] = `Bearer ${accessToken}`;
     headers[ABDM_HEADERS.transactionId] = input.txnId;
 
-    const res = await fetch(`${env.ABDM_ABHA_BASE_URL}${ABHA_PATHS.abhaAddressSuggestion}`, { method: 'GET', headers });
+    const res = await fetch(`${env.ABDM_ABHA_BASE_URL}${ABHA_PATHS.abhaAddressSuggestion}`, {
+      method: 'GET',
+      headers,
+    });
     if (!res.ok) {
-      throw new AbdmGatewayError(res.status, 'ABDM_SUGGESTION_FAILED', 'Could not fetch ABHA address suggestions');
+      throw new AbdmGatewayError(
+        res.status,
+        'ABDM_SUGGESTION_FAILED',
+        'Could not fetch ABHA address suggestions',
+      );
     }
     const data = (await res.json()) as Json;
     const list = pick(data, 'abhaAddressList', 'phrAddress', 'suggestions');
     return Array.isArray(list) ? list.filter((v): v is string => typeof v === 'string') : [];
   }
 
-  async createAbhaAddress(input: { txnId: string; abhaAddress: string; hipId?: string }): Promise<{ abhaAddress: string; tokens: AbdmTokens }> {
+  async createAbhaAddress(input: {
+    txnId: string;
+    abhaAddress: string;
+    hipId?: string;
+  }): Promise<{ abhaAddress: string; tokens: AbdmTokens }> {
     const data = await this.call<Json>(ABHA_PATHS.abhaAddressCreate, {
       method: 'POST',
       hipId: input.hipId,
       body: { txnId: input.txnId, abhaAddress: input.abhaAddress, preferred: 1 },
     });
     return {
-      abhaAddress: str(pick(data, 'preferredAbhaAddress', 'abhaAddress', 'healthId')) ?? input.abhaAddress,
+      abhaAddress:
+        str(pick(data, 'preferredAbhaAddress', 'abhaAddress', 'healthId')) ?? input.abhaAddress,
       tokens: toTokens(data),
     };
   }
@@ -321,7 +393,8 @@ export class AbdmGatewayProvider implements AbdmProvider {
     hipId?: string;
   }): Promise<AbdmOtpResult> {
     // An ABHA address is verified through the PHR web-login family, not the profile-login one.
-    const path = input.family === 'phr' ? ABHA_PATHS.phrLoginRequestOtp : ABHA_PATHS.loginRequestOtp;
+    const path =
+      input.family === 'phr' ? ABHA_PATHS.phrLoginRequestOtp : ABHA_PATHS.loginRequestOtp;
     const data = await this.call<Json>(path, {
       method: 'POST',
       hipId: input.hipId,
@@ -350,7 +423,10 @@ export class AbdmGatewayProvider implements AbdmProvider {
         // BOTH scopes, exactly as the request/otp call sent them. A single-element array is
         // accepted by nothing: the collection pairs `abha-login` with the verify method every time.
         scope: input.scope,
-        authData: { authMethods: ['otp'], otp: { txnId: input.txnId, otpValue: input.encryptedOtp } },
+        authData: {
+          authMethods: ['otp'],
+          otp: { txnId: input.txnId, otpValue: input.encryptedOtp },
+        },
       },
     });
     const accountsRaw = pick(data, 'accounts', 'ABHAProfile');
@@ -367,10 +443,34 @@ export class AbdmGatewayProvider implements AbdmProvider {
         })
       : [];
     const single = !Array.isArray(accountsRaw) && accountsRaw ? toProfile(accountsRaw) : undefined;
-    return { txnId: String(pick(data, 'txnId') ?? input.txnId), tokens: toTokens(data), accounts, profile: single };
+    return {
+      txnId: String(pick(data, 'txnId') ?? input.txnId),
+      tokens: toTokens(data),
+      accounts,
+      profile: single,
+    };
   }
 
-  async loginVerifyUser(input: { txnId: string; abhaNumber: string; token: string; hipId?: string }): Promise<AbdmEnrolResult> {
+  async phrSearchAuthMethods(input: {
+    encryptedAbhaAddress: string;
+    hipId?: string;
+  }): Promise<PhrAuthMethods> {
+    const data = await this.call<Json>(ABHA_PATHS.phrLoginSearch, {
+      method: 'POST',
+      hipId: input.hipId,
+      body: { abhaAddress: input.encryptedAbhaAddress, scope: [ABDM_SCOPES.abhaAddressLogin] },
+    });
+    const raw = pick(data, 'authMethods', 'authMethod', 'authTypes');
+    const methods = Array.isArray(raw) ? raw.map((m) => String(m).toUpperCase()) : [];
+    return { txnId: str(pick(data, 'txnId')), authMethods: methods };
+  }
+
+  async loginVerifyUser(input: {
+    txnId: string;
+    abhaNumber: string;
+    token: string;
+    hipId?: string;
+  }): Promise<AbdmEnrolResult> {
     const data = await this.call<Json>(ABHA_PATHS.loginVerifyUser, {
       method: 'POST',
       hipId: input.hipId,
@@ -387,12 +487,28 @@ export class AbdmGatewayProvider implements AbdmProvider {
     };
   }
 
-  async getProfile(input: { xToken: string; hipId?: string }): Promise<AbdmProfile> {
-    const data = await this.call<Json>(ABHA_PATHS.profileAccount, { method: 'GET', hipId: input.hipId, xToken: input.xToken });
+  async getProfile(input: {
+    xToken: string;
+    hipId?: string;
+    family?: 'profile' | 'phr';
+  }): Promise<AbdmProfile> {
+    // A PHR-family token is only accepted by the PHR family's own profile path. Reading an
+    // ABHA-address verification from `/v3/profile/account` answers 401, which reads like a
+    // credential fault and is really a wrong-endpoint one.
+    const path = input.family === 'phr' ? ABHA_PATHS.phrProfile : ABHA_PATHS.profileAccount;
+    const data = await this.call<Json>(path, {
+      method: 'GET',
+      hipId: input.hipId,
+      xToken: input.xToken,
+    });
     return toProfile(data);
   }
 
-  async updateProfile(input: { xToken: string; patch: AbdmProfilePatch; hipId?: string }): Promise<AbdmProfile> {
+  async updateProfile(input: {
+    xToken: string;
+    patch: AbdmProfilePatch;
+    hipId?: string;
+  }): Promise<AbdmProfile> {
     // Only the keys the caller actually set, under ABDM's own field names. `dob` rather than
     // `dateOfBirth`, and the name split into its three parts, because that is what their profile
     // record holds — sending our vocabulary would be rejected field by field.
@@ -416,10 +532,24 @@ export class AbdmGatewayProvider implements AbdmProvider {
     // Some responses echo the updated profile, some acknowledge only. Falling back to a fresh read
     // means the caller always gets the profile as ABDM now holds it, not as we hoped it would.
     const echoed = toProfile(pick(data, 'ABHAProfile', 'abhaProfile', 'profile') ?? data);
-    return echoed.abhaNumber || echoed.firstName ? echoed : this.getProfile({ xToken: input.xToken, hipId: input.hipId });
+    return echoed.abhaNumber || echoed.firstName
+      ? echoed
+      : this.getProfile({ xToken: input.xToken, hipId: input.hipId });
   }
 
-  async getAbhaCard(input: { xToken: string; hipId?: string }): Promise<AbdmCard> {
-    return this.call<AbdmCard>(ABHA_PATHS.abhaCard, { method: 'GET', hipId: input.hipId, xToken: input.xToken, raw: true });
+  async getAbhaCard(input: {
+    xToken: string;
+    hipId?: string;
+    family?: 'profile' | 'phr';
+  }): Promise<AbdmCard> {
+    // Same rule as `getProfile`: the ABHA card of an address-verified holder is served by the
+    // PHR family (`/v3/phr/web/login/profile/abha/phr-card`), and only to its own token.
+    const path = input.family === 'phr' ? ABHA_PATHS.phrCard : ABHA_PATHS.abhaCard;
+    return this.call<AbdmCard>(path, {
+      method: 'GET',
+      hipId: input.hipId,
+      xToken: input.xToken,
+      raw: true,
+    });
   }
 }

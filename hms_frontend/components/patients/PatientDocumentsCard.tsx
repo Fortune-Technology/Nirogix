@@ -1,13 +1,24 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Paperclip } from "lucide-react";
-import { Alert, Badge, Button, Card, Dialog, emptyLabel, Field, Select, Skeleton, Textarea } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { DOCUMENT_TYPES, type DocumentType, type PatientDocument } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Paperclip } from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  emptyLabel,
+  Field,
+  Select,
+  Skeleton,
+  Textarea,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { DOCUMENT_TYPES, type DocumentType, type PatientDocument } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * A patient's documents (ADR-119) — referral letters, prior reports, insurance, identity.
@@ -22,18 +33,18 @@ import { useCan } from "../../lib/auth";
  */
 
 const TYPE_LABEL: Record<string, string> = {
-  referral_letter: "Referral letter",
-  prior_report: "Prior report",
-  insurance: "Insurance",
-  id_proof: "Identity",
-  consent_form: "Consent form",
-  other: "Other",
+  referral_letter: 'Referral letter',
+  prior_report: 'Prior report',
+  insurance: 'Insurance',
+  id_proof: 'Identity',
+  consent_form: 'Consent form',
+  other: 'Other',
 };
 
 const TYPE_OPTIONS = DOCUMENT_TYPES.map((t) => ({ value: t, label: TYPE_LABEL[t] ?? t }));
 
 function humanSize(bytes: number): string {
-  if (bytes <= 0) return emptyLabel("notAvailable");
+  if (bytes <= 0) return emptyLabel('notAvailable');
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -57,20 +68,20 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<DocumentType>("referral_letter");
-  const [note, setNote] = useState("");
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<DocumentType>('referral_letter');
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [archiving, setArchiving] = useState<PatientDocument | null>(null);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
     try {
       setDocs(await api.listPatientDocuments(patientId, { includeArchived: showArchived }));
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load documents.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not load documents.');
       setDocs([]);
     }
   }, [patientId, showArchived]);
@@ -93,12 +104,12 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
         caseId: caseId ?? undefined,
       });
       setPending(null);
-      setTitle("");
-      setNote("");
-      if (fileRef.current) fileRef.current.value = "";
+      setTitle('');
+      setNote('');
+      if (fileRef.current) fileRef.current.value = '';
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not attach the document.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not attach the document.');
     } finally {
       setSaving(false);
     }
@@ -110,7 +121,7 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
     try {
       await api.archivePatientDocument(patientId, archiving.id, archiving.version, reason.trim());
       setArchiving(null);
-      setReason("");
+      setReason('');
       await load();
     } finally {
       setSaving(false);
@@ -121,15 +132,17 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
   async function open(doc: PatientDocument) {
     try {
       const url = await api.getFileDownloadUrl(doc.fileId);
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      setError("That file could not be opened.");
+      setError('That file could not be opened.');
     }
   }
 
   return (
     <>
-      <Card header={`Documents${docs ? ` (${docs.filter((d) => d.status === "active").length})` : ""}`}>
+      <Card
+        header={`Documents${docs ? ` (${docs.filter((d) => d.status === 'active').length})` : ''}`}
+      >
         {error && <Alert tone="danger">{error}</Alert>}
 
         {!docs ? (
@@ -157,13 +170,13 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
                     {d.uploadedByName && !dense && ` · ${d.uploadedByName}`}
                   </p>
                   {d.note && <p className="mt-0.5 text-xs text-fg-subtle">{d.note}</p>}
-                  {d.status === "archived" && d.archiveReason && (
+                  {d.status === 'archived' && d.archiveReason && (
                     <p className="mt-0.5 text-xs text-fg-subtle">Archived: {d.archiveReason}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {d.status === "archived" && <Badge tone="neutral">Archived</Badge>}
-                  {canUpload && d.status === "active" && (
+                  {d.status === 'archived' && <Badge tone="neutral">Archived</Badge>}
+                  {canUpload && d.status === 'active' && (
                     <Button size="sm" variant="ghost" type="button" onClick={() => setArchiving(d)}>
                       Archive
                     </Button>
@@ -176,7 +189,11 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-fg-muted">
-            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
             Show archived
           </label>
         </div>
@@ -192,7 +209,7 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
                 const f = e.target.files?.[0] ?? null;
                 setPending(f);
                 // The filename is a better default title than nothing, and the user can change it.
-                if (f && !title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ""));
+                if (f && !title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ''));
               }}
             />
             {pending && (
@@ -204,7 +221,12 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
                   options={TYPE_OPTIONS}
                   searchable={false}
                 />
-                <Field label="Title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+                <Field
+                  label="Title"
+                  value={title}
+                  maxLength={200}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
                 {!dense && (
                   <Textarea
                     label="Note"
@@ -226,8 +248,8 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
                     disabled={saving}
                     onClick={() => {
                       setPending(null);
-                      setTitle("");
-                      if (fileRef.current) fileRef.current.value = "";
+                      setTitle('');
+                      if (fileRef.current) fileRef.current.value = '';
                     }}
                   >
                     Cancel
@@ -247,10 +269,20 @@ export function PatientDocumentsCard({ patientId, caseId, dense }: PatientDocume
         busy={saving}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setArchiving(null)} disabled={saving}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setArchiving(null)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="button" loading={saving} onClick={() => void archive()} disabled={!reason.trim()}>
+            <Button
+              type="button"
+              loading={saving}
+              onClick={() => void archive()}
+              disabled={!reason.trim()}
+            >
               Archive
             </Button>
           </>

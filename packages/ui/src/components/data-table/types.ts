@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 /**
  * The Standard DataTable's column contract (ADR-029).
@@ -43,7 +43,7 @@ export interface Column<Row> {
 
 export interface SortState {
   key: string;
-  dir: "asc" | "desc";
+  dir: 'asc' | 'desc';
 }
 
 /**

@@ -1,10 +1,17 @@
 import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
-import { RecordImmunizationBody, ImmunizationSchema, ImmunizationListSchema } from './immunization.schema';
+import {
+  RecordImmunizationBody,
+  ImmunizationSchema,
+  ImmunizationListSchema,
+} from './immunization.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the patient module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the patient module',
+  ...json(ErrorResponseSchema),
+};
 
 registry.registerPath({
   method: 'get',
@@ -14,7 +21,11 @@ registry.registerPath({
   summary: "A patient's recorded immunisations (ADR-072)",
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ patientId: z.string().uuid() }) },
-  responses: { 200: { description: 'Immunisations', ...json(ImmunizationListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Immunisations', ...json(ImmunizationListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -24,7 +35,10 @@ registry.registerPath({
   tags: ['Patients'],
   summary: 'Record a vaccination (from the catalogue or a custom vaccine)',
   security: [{ bearerAuth: [] }],
-  request: { params: z.object({ patientId: z.string().uuid() }), body: json(RecordImmunizationBody) },
+  request: {
+    params: z.object({ patientId: z.string().uuid() }),
+    body: json(RecordImmunizationBody),
+  },
   responses: {
     201: { description: 'Recorded immunisation', ...json(ImmunizationSchema) },
     401: notAuthed,

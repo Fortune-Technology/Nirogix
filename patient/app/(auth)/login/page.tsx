@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { Alert, BrandMark, Button, Card, Field, PhoneField } from "@hms/ui";
-import * as api from "../../../lib/api";
-import { useSession } from "../../../lib/session";
+import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { Alert, BrandMark, Button, Card, Field, PhoneField } from '@hms/ui';
+import * as api from '../../../lib/api';
+import { useSession } from '../../../lib/session';
 
 /**
  * Patient sign-in (ADR-052).
@@ -22,19 +22,19 @@ export default function PatientLoginPage() {
   const router = useRouter();
   const { signedIn, signIn } = useSession();
 
-  const [step, setStep] = useState<"contact" | "code">("contact");
-  const [channel, setChannel] = useState<"mobile" | "email">("mobile");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [step, setStep] = useState<'contact' | 'code'>('contact');
+  const [channel, setChannel] = useState<'mobile' | 'email'>('mobile');
+  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (signedIn) router.replace("/");
+    if (signedIn) router.replace('/');
   }, [signedIn, router]);
 
-  const contact = channel === "mobile" ? { mobile: mobile.trim() } : { email: email.trim() };
+  const contact = channel === 'mobile' ? { mobile: mobile.trim() } : { email: email.trim() };
 
   async function sendCode(e: FormEvent) {
     e.preventDefault();
@@ -43,9 +43,11 @@ export default function PatientLoginPage() {
     try {
       await api.requestCode(contact);
       // Always advance. Whether a code was really sent is deliberately not revealed.
-      setStep("code");
+      setStep('code');
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "Could not send a code just now.");
+      setError(
+        err instanceof api.ApiRequestError ? err.message : 'Could not send a code just now.',
+      );
     } finally {
       setBusy(false);
     }
@@ -57,9 +59,9 @@ export default function PatientLoginPage() {
     setBusy(true);
     try {
       signIn(await api.verifyCode(contact, code.trim()));
-      router.replace("/");
+      router.replace('/');
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "That code is not valid.");
+      setError(err instanceof api.ApiRequestError ? err.message : 'That code is not valid.');
     } finally {
       setBusy(false);
     }
@@ -71,38 +73,38 @@ export default function PatientLoginPage() {
         <BrandMark size={40} />
         <h1 className="text-lg font-semibold text-fg">Your health records</h1>
         <p className="text-sm text-fg-muted">
-          {step === "contact"
-            ? "Sign in with the mobile number or email your hospital has on file."
-            : "Enter the 6-digit code we sent you."}
+          {step === 'contact'
+            ? 'Sign in with the mobile number or email your hospital has on file.'
+            : 'Enter the 6-digit code we sent you.'}
         </p>
       </div>
 
-      {step === "contact" ? (
+      {step === 'contact' ? (
         <form className="flex flex-col gap-4" onSubmit={sendCode}>
           {error && <Alert tone="danger">{error}</Alert>}
 
           <div className="flex gap-2" role="group" aria-label="How would you like the code sent?">
             <Button
               type="button"
-              variant={channel === "mobile" ? "primary" : "secondary"}
+              variant={channel === 'mobile' ? 'primary' : 'secondary'}
               size="sm"
               className="flex-1"
-              onClick={() => setChannel("mobile")}
+              onClick={() => setChannel('mobile')}
             >
               Mobile
             </Button>
             <Button
               type="button"
-              variant={channel === "email" ? "primary" : "secondary"}
+              variant={channel === 'email' ? 'primary' : 'secondary'}
               size="sm"
               className="flex-1"
-              onClick={() => setChannel("email")}
+              onClick={() => setChannel('email')}
             >
               Email
             </Button>
           </div>
 
-          {channel === "mobile" ? (
+          {channel === 'mobile' ? (
             <PhoneField
               label="Mobile number"
               value={mobile}
@@ -146,8 +148,8 @@ export default function PatientLoginPage() {
             type="button"
             variant="secondary"
             onClick={() => {
-              setStep("contact");
-              setCode("");
+              setStep('contact');
+              setCode('');
               setError(null);
             }}
           >
@@ -157,8 +159,8 @@ export default function PatientLoginPage() {
       )}
 
       <p className="mt-5 border-t border-border pt-4 text-center text-xs text-fg-subtle">
-        There is no sign-up here. Your hospital gives you access when it registers you. If you cannot sign in, ask
-        the hospital to check the mobile number or email on your file.
+        There is no sign-up here. Your hospital gives you access when it registers you. If you
+        cannot sign in, ask the hospital to check the mobile number or email on your file.
       </p>
     </Card>
   );

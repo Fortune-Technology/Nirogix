@@ -15,7 +15,11 @@ registry.registerPath({
   summary: 'OPD register — visits in a date range',
   security: [{ bearerAuth: [] }],
   request: { query: dateRange },
-  responses: { 200: { description: 'OPD register rows', ...json(OpdRegisterSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'OPD register rows', ...json(OpdRegisterSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -26,7 +30,11 @@ registry.registerPath({
   summary: 'Daily collections / revenue — payments in a date range, by method and day',
   security: [{ bearerAuth: [] }],
   request: { query: dateRange },
-  responses: { 200: { description: 'Collections report', ...json(CollectionsReportSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Collections report', ...json(CollectionsReportSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -36,5 +44,9 @@ registry.registerPath({
   tags: ['Reports'],
   summary: 'Pending lab results — orders not yet resulted',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Pending lab orders', ...json(PendingLabsSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Pending lab orders', ...json(PendingLabsSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });

@@ -32,7 +32,8 @@ const CM_ID = process.env.ABDM_CM_ID ?? 'sbx';
  * with `??` would treat an empty string as configured and produce a 401 from NHA instead of a
  * clear "you have not filled this in".
  */
-const notBlank = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v.trim() : undefined);
+const notBlank = (v: string | undefined): string | undefined =>
+  v && v.trim() !== '' ? v.trim() : undefined;
 
 const CLIENT_ID = notBlank(process.env.ABDM_CLIENT_ID);
 const CLIENT_SECRET = notBlank(process.env.ABDM_CLIENT_SECRET);
@@ -55,20 +56,27 @@ const note = (m: string) => console.log(`    ${m}`);
  */
 export function explainFailure(res: Response, body: string): void {
   const server = res.headers.get('server') ?? '';
-  const viaCdn = /cloudfront|akamai|cloudflare|fastly/i.test(`${server} ${res.headers.get('via') ?? ''}`);
-  const looksLikeHtml = /^\s*<(!doctype|html)/i.test(body) || /request blocked|could not be satisfied/i.test(body);
+  const viaCdn = /cloudfront|akamai|cloudflare|fastly/i.test(
+    `${server} ${res.headers.get('via') ?? ''}`,
+  );
+  const looksLikeHtml =
+    /^\s*<(!doctype|html)/i.test(body) || /request blocked|could not be satisfied/i.test(body);
 
   if (res.status === 403 && (viaCdn || looksLikeHtml)) {
     console.log('');
     bad('This is a NETWORK-level block, not a credential problem.');
-    note(`The response is HTML from a CDN${server ? ` (server: ${server})` : ''}, so it never reached ABDM.`);
+    note(
+      `The response is HTML from a CDN${server ? ` (server: ${server})` : ''}, so it never reached ABDM.`,
+    );
     note('NHA’s sandbox is known to refuse foreign and hosting-provider IP ranges; a host outside');
     note('India will be blocked before any request of ours is evaluated.');
     note('');
     note('Confirm in one line — this needs no credentials and should also return 403:');
     note(`  curl -sS -o /dev/null -w '%{http_code}\n' ${GATEWAY}`);
     note('');
-    note('If it does, no change to .env, code or credentials will help. The host has to reach ABDM.');
+    note(
+      'If it does, no change to .env, code or credentials will help. The host has to reach ABDM.',
+    );
     console.log('');
     return;
   }
@@ -109,7 +117,9 @@ async function main(): Promise<void> {
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
     bad('ABDM_CLIENT_ID / ABDM_CLIENT_SECRET are empty or unset — nothing to check.');
-    console.log('    Fill them in hms_backend/.env (gitignored; the keys are already there, blank).');
+    console.log(
+      '    Fill them in hms_backend/.env (gitignored; the keys are already there, blank).',
+    );
     console.log('    They come from the bridge NHA created for you, not from the portal login.\n');
     process.exit(1);
   }
@@ -127,7 +137,11 @@ async function main(): Promise<void> {
         TIMESTAMP: new Date().toISOString(),
         'X-CM-ID': CM_ID,
       },
-      body: JSON.stringify({ clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' }),
+      body: JSON.stringify({
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        grantType: 'client_credentials',
+      }),
     });
     const text = await res.text();
     if (!res.ok) {
@@ -137,7 +151,11 @@ async function main(): Promise<void> {
       explainFailure(res, text);
       process.exit(1);
     }
-    const data = JSON.parse(text) as { accessToken?: string; expiresIn?: number; tokenType?: string };
+    const data = JSON.parse(text) as {
+      accessToken?: string;
+      expiresIn?: number;
+      tokenType?: string;
+    };
     if (!data.accessToken) {
       bad('200 OK but no accessToken in the response — the contract has changed.');
       process.exit(1);
@@ -166,7 +184,9 @@ async function main(): Promise<void> {
     if (!res.ok) {
       bad(`HTTP ${res.status}`);
       console.log(`    ${text.slice(0, 300)}`);
-      console.log('\n    The session works but the ABHA host refused — check ABDM_ABHA_BASE_URL.\n');
+      console.log(
+        '\n    The session works but the ABHA host refused — check ABDM_ABHA_BASE_URL.\n',
+      );
       process.exit(1);
     }
     const key = (JSON.parse(text) as Record<string, string>).publicKey ?? text;
@@ -188,6 +208,21 @@ async function main(): Promise<void> {
   // No OTP is sent (the number belongs to nobody) and no personal data is involved.
   if (process.argv.includes('--probe')) {
     await probeEnrolment(accessToken);
+  }
+
+  // --- 4. Optional ABHA-address probe -----------------------------------------------------
+  //
+  // `--phr` asks the PHR web-login family whether it is there, using an ABHA address that
+  // belongs to nobody. Verifying an ABHA **address** is two mandatory M1 cases (VRFY_ABHA_102,
+  // _202) and it does NOT go through `/v3/profile/login/*` at all — it has its own search, its
+  // own verify, its own profile path and its own card path. A wrong path there fails at NHA
+  // during functional testing with a 404 that reads like a missing feature, so the paths are
+  // worth confirming rather than assuming.
+  //
+  // The search reports which auth methods an address supports. It sends no OTP, writes nothing,
+  // and the address it asks about is not a real one.
+  if (process.argv.includes('--phr')) {
+    await probeAbhaAddress(accessToken);
   }
 
   // Advice, only when it is actually advice. Telling someone to "set ABDM_PROVIDER=gateway" when
@@ -258,7 +293,9 @@ async function probeEnrolment(accessToken: string): Promise<void> {
   // Structurally valid, belongs to nobody. If NHA decrypts our ciphertext they will say something
   // about the ACCOUNT; if they cannot, they will say the value itself is invalid.
   const aadhaar = withVerhoeffCheckDigit('99999999999');
-  console.log(`    probing with a checksum-valid, unassigned test Aadhaar (ends ${aadhaar.slice(-4)})`);
+  console.log(
+    `    probing with a checksum-valid, unassigned test Aadhaar (ends ${aadhaar.slice(-4)})`,
+  );
 
   const paddings = [
     { name: 'RSA/ECB/PKCS1Padding', options: { key: pem, padding: constants.RSA_PKCS1_PADDING } },
@@ -303,7 +340,76 @@ async function probeEnrolment(accessToken: string): Promise<void> {
     console.log(`      HTTP ${res.status}  ${body}`);
   }
 
-  console.log('\n    A DIFFERENT message from one padding is the answer: that is the one NHA can read.');
+  console.log(
+    '\n    A DIFFERENT message from one padding is the answer: that is the one NHA can read.',
+  );
+}
+
+/**
+ * Does the PHR web-login family answer, and on the paths we hold?
+ *
+ * Three calls, in the order NHA’s workbook lists them for VRFY_ABHA_102 and _202: search the
+ * address for its auth methods, then the profile and card paths that a token from this family is
+ * the only thing accepted by. The address is fabricated, so the expected answer is a clean
+ * "no such account" — which is exactly the point. **A 404 on the ROUTE and a 4xx about the
+ * ACCOUNT look nothing alike**, and only the second one proves the path is right.
+ *
+ * Sends no OTP, creates nothing, and names nobody real.
+ */
+async function probeAbhaAddress(accessToken: string): Promise<void> {
+  const { encryptForAbdm } = await import('../modules/abdm/abdm.crypto');
+  const { AbdmGatewayProvider } = await import('../modules/abdm/providers/gatewayProvider');
+
+  console.log('\n4. ABHA-address probe \u2014 is the PHR web-login family where we think it is?');
+
+  const provider = new AbdmGatewayProvider();
+  const address = 'nirogix.probe.unassigned@sbx';
+  console.log(`    probing with an unassigned ABHA address (${address})`);
+
+  const encrypted = await encryptForAbdm(provider, address);
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${accessToken}`,
+    'REQUEST-ID': randomUUID(),
+    TIMESTAMP: new Date().toISOString(),
+    'X-CM-ID': CM_ID,
+  };
+
+  const calls: Array<{ name: string; path: string; method: string; body?: unknown }> = [
+    {
+      name: 'search auth methods',
+      path: '/v3/phr/web/login/abha/search',
+      method: 'POST',
+      body: { abhaAddress: encrypted, scope: ['abha-address-login'] },
+    },
+    { name: 'ABHA-address profile', path: '/v3/phr/web/login/profile/abha-profile', method: 'GET' },
+    { name: 'ABHA-address card', path: '/v3/phr/web/login/profile/abha/phr-card', method: 'GET' },
+  ];
+
+  for (const call of calls) {
+    const url = `${ABHA}${call.path}`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: call.method,
+        headers,
+        body: call.body ? JSON.stringify(call.body) : undefined,
+      });
+    } catch (err) {
+      bad(`${call.name}: could not reach ${call.path} \u2014 ${(err as Error).message}`);
+      continue;
+    }
+    const body = (await res.text()).slice(0, 240);
+    console.log(`\n    ${call.name}  ${call.method} ${call.path}`);
+    console.log(`      HTTP ${res.status}  ${body}`);
+    // 404 with an HTML body is "no such route"; anything that talks about the ACCOUNT, or asks
+    // for a token we deliberately did not send, means the route is right.
+    if (res.status === 404 && /^\s*<(!doctype|html)/i.test(body))
+      bad('that path does not exist at NHA');
+  }
+
+  console.log('\n    A reply ABOUT THE ACCOUNT (or about a missing token) confirms the path.');
+  console.log('    An HTML 404 means the path is wrong and VRFY_ABHA_102/_202 cannot pass.');
 }
 
 /**

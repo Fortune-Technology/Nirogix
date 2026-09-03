@@ -176,12 +176,28 @@ export const HIP_GATEWAY_PATHS = {
 export const HIP_CALLBACK_PATHS = {
   onGenerateToken: '/api/v3/hip/token/on-generate-token',
   onLinkCareContext: '/api/v3/link/on_carecontext',
+  /**
+   * HIE-CM's acknowledgement of `link/context/notify` (M2 document §4.3.7).
+   *
+   * Every outbound call in this protocol is answered on a callback, not on its own connection.
+   * Without this one the notify is fire-and-forget: a PHR app that never learns there are new
+   * records looks identical to one we never told about them.
+   */
+  contextOnNotify: '/api/v3/links/context/on-notify',
+  /**
+   * HIE-CM's acknowledgement of the deep-link SMS (M2 document §4.3.9).
+   *
+   * `HIP_INIT_NOTIFY_HIECM` is mandatory, and this is the one branch where a patient's phone
+   * number leaves this system. Not serving it meant we could say we had asked ABDM to text them
+   * and never say whether it happened.
+   */
+  smsOnNotify: '/api/v3/patients/sms/on-notify',
 } as const;
 
 /**
  * Discovery and user-initiated linking — the patient finding their own records (ADR-090).
  *
- * The half ABDM calls US on. **Confirmed against the official M2 documentation** (§5.3.2 and the
+ * The half ABDM calls US on. **Confirmed against the official M2 documentation** (§4.3 and the
  * user-initiated-linking section), which spells each one out as `{callback_url}` plus the path
  * below. They were previously inferred from the Scan-and-Share convention and carried a warning
  * here; the convention turned out to be exactly right. A wrong inbound path fails silently — the
@@ -234,6 +250,11 @@ export const HIP_DATA_REQUEST_PATH = '/api/v3/hip/health-information/request';
 /**
  * Milestone 3 — being a Health Information USER (ADR-092).
  *
+ * Every path here is now CONFIRMED against NHA's own M3 document (03/09/2026, ADR-140), including
+ * the two that were missing entirely — `on-status` and `on-data-request`. The four inbound paths
+ * carried an "unverified" warning for weeks; the document says they were right, and says what was
+ * absent.
+ *
  * The mirror image of M2: instead of answering requests for our records, we ask a patient for
  * permission to read the history other hospitals hold. Every path here is confirmed — the outbound
  * ones against the official M3 Postman collection (`HIU APIs`), the inbound ones against the M3
@@ -255,11 +276,27 @@ export const HIU_CONSENT_PATHS = {
 /** POST — ask a HIP to send the records. Answers by pushing to our `dataPushUrl`. */
 export const HIU_DATA_REQUEST_PATH = '/api/hiecm/data-flow/v3/health-information/request';
 
-/** Where ABDM calls US as an HIU. Confirmed against the M3 documentation. */
+/** Where ABDM calls US as an HIU. Every path confirmed against the M3 document (ADR-140). */
 export const HIU_CALLBACK_PATHS = {
   onInit: '/api/v3/hiu/consent/request/on-init',
   onFetch: '/api/v3/hiu/consent/on-fetch',
   onNotify: '/api/v3/hiu/consent/request/notify',
+  /**
+   * The answer to `consent/v3/request/status` (M3 document, "Consent request on-status").
+   *
+   * That call answers `200` with nothing useful in it — the status itself arrives here. A poller
+   * that reads the synchronous body is therefore a poller that never sees a change.
+   */
+  onConsentStatus: '/api/v3/hiu/consent/request/on-status',
+  /**
+   * The answer to `data-flow/v3/health-information/request`, and the ONLY place the transaction id
+   * exists (M3 document).
+   *
+   * The request body carries no transaction id — the consent manager assigns one and returns it
+   * here, and the HIP then pushes records under it. An HIU that invents its own has nothing to
+   * match a real delivery against, and every push is dropped as unrecognised.
+   */
+  onDataRequest: '/api/v3/hiu/health-information/on-request',
   /** Our `dataPushUrl`: where a HIP delivers the encrypted records. */
   dataPush: '/api-hiu/data/notification',
 } as const;

@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 import { createDrug, receiveStock } from '../../pharmacy/pharmacy.service';
@@ -62,7 +70,13 @@ beforeAll(async () => {
   await cleanupTenant(CODE);
   tenant = await makeTenant(CODE, 'Critical Path Hospital');
 
-  for (const role of ['receptionist', 'doctor', 'cashier', 'pharmacist', 'lab_technician'] as const) {
+  for (const role of [
+    'receptionist',
+    'doctor',
+    'cashier',
+    'pharmacist',
+    'lab_technician',
+  ] as const) {
     sessions[role] = await login(CODE, tenant.users[role]!);
   }
 
@@ -76,18 +90,24 @@ beforeAll(async () => {
       userId: sessions.doctor!.userId,
     })
   ).id;
-  drugId = (await createDrug(tenant.tenantId, { name: 'Amoxicillin 500 mg', unit: 'capsule', unitPricePaise: DRUG_PRICE_PAISE }))!.id;
-  await receiveStock(tenant.tenantId, drugId, { batchNo: 'CP-1', expiryDate: '2027-06-30', quantity: 100 });
-  labTestId = (
-    await createLabTest(tenant.tenantId, {
-      name: 'Haemoglobin',
-      code: 'HB',
-      unit: 'g/dL',
-      refLow: '12',
-      refHigh: '17',
-      pricePaise: LAB_PRICE_PAISE,
-    })
-  )!.id;
+  drugId = (await createDrug(tenant.tenantId, {
+    name: 'Amoxicillin 500 mg',
+    unit: 'capsule',
+    unitPricePaise: DRUG_PRICE_PAISE,
+  }))!.id;
+  await receiveStock(tenant.tenantId, drugId, {
+    batchNo: 'CP-1',
+    expiryDate: '2027-06-30',
+    quantity: 100,
+  });
+  labTestId = (await createLabTest(tenant.tenantId, {
+    name: 'Haemoglobin',
+    code: 'HB',
+    unit: 'g/dL',
+    refLow: '12',
+    refHigh: '17',
+    pricePaise: LAB_PRICE_PAISE,
+  }))!.id;
 }, 180_000);
 
 /**
@@ -102,7 +122,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -118,18 +140,18 @@ afterAll(async () => {
 });
 
 describe('1 — the receptionist registers the patient', () => {
-  test('a new chart is created with a UHID, and reads back as the same person', async ({ skip }) => {
+  test('a new chart is created with a UHID, and reads back as the same person', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const created = await authed(sessions.receptionist!)
-      .post('/api/v1/patients')
-      .send({
-        firstName: 'Sunita',
-        lastName: 'Rao',
-        gender: 'female',
-        dateOfBirth: '1987-04-12',
-        phone: '9812345670',
-        city: 'Pune',
-      });
+    const created = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+      firstName: 'Sunita',
+      lastName: 'Rao',
+      gender: 'female',
+      dateOfBirth: '1987-04-12',
+      phone: '9812345670',
+      city: 'Pune',
+    });
     expect(created.status).toBe(201);
     expect(created.body.uhid).toBeTruthy();
     expect(created.body.status).toBe('active');
@@ -146,7 +168,9 @@ describe('1 — the receptionist registers the patient', () => {
 });
 
 describe('2 — the receptionist checks the patient in against the doctor', () => {
-  test('a visit, a queue token and a draft consultation invoice all appear at once', async ({ skip }) => {
+  test('a visit, a queue token and a draft consultation invoice all appear at once', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await authed(sessions.receptionist!)
       .post('/api/v1/visits/check-in')
@@ -170,7 +194,9 @@ describe('2 — the receptionist checks the patient in against the doctor', () =
     invoiceId = res.body.invoice.id;
   });
 
-  test('the front desk can reach the bill check-in raised, but not open an arbitrary one', async ({ skip }) => {
+  test('the front desk can reach the bill check-in raised, but not open an arbitrary one', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const onVisit = await authed(sessions.receptionist!).get(`/api/v1/visits/${visitId}`);
     expect(onVisit.status).toBe(200);
@@ -187,7 +213,10 @@ describe('2 — the receptionist checks the patient in against the doctor', () =
     // Reception collects against what the workflow generated, it does not invent charges.
     const invented = await authed(sessions.receptionist!)
       .post('/api/v1/invoices')
-      .send({ patientId, lines: [{ description: 'Miscellaneous', unitPricePaise: 50_000, quantity: 1 }] });
+      .send({
+        patientId,
+        lines: [{ description: 'Miscellaneous', unitPricePaise: 50_000, quantity: 1 }],
+      });
     expect(invented.status).toBe(403);
     expect(invented.body.error.code).toBe('FORBIDDEN');
   });
@@ -205,14 +234,18 @@ describe('2 — the receptionist checks the patient in against the doctor', () =
 });
 
 describe('3 — the consultation cannot start while the fee is outstanding', () => {
-  test('the doctor is refused at both entry points, and no chart is created behind the refusal', async ({ skip }) => {
+  test('the doctor is refused at both entry points, and no chart is created behind the refusal', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const opened = await authed(sessions.doctor!).post('/api/v1/encounters/open').send({ visitId });
     expect(opened.status).toBe(409);
     expect(opened.body.error.code).toBe('CONFLICT');
     expect(opened.body.error.message).toMatch(/unpaid/i);
 
-    const advanced = await authed(sessions.doctor!).patch(`/api/v1/visits/${visitId}/status`).send({ status: 'in_consultation' });
+    const advanced = await authed(sessions.doctor!)
+      .patch(`/api/v1/visits/${visitId}/status`)
+      .send({ status: 'in_consultation' });
     expect(advanced.status).toBe(409);
     expect(advanced.body.error.message).toMatch(/unpaid/i);
 
@@ -225,11 +258,17 @@ describe('3 — the consultation cannot start while the fee is outstanding', () 
 });
 
 describe('4 — the cashier collects the consultation fee', () => {
-  test('a pharmacist cannot take the money, and the attempt leaves the balance untouched', async ({ skip }) => {
+  test('a pharmacist cannot take the money, and the attempt leaves the balance untouched', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const attempt = await authed(sessions.pharmacist!)
       .post(`/api/v1/invoices/${invoiceId}/payments`)
-      .send({ amountPaise: FEE_PAISE, method: 'cash', idempotencyKey: 'cp-pharmacist-should-fail' });
+      .send({
+        amountPaise: FEE_PAISE,
+        method: 'cash',
+        idempotencyKey: 'cp-pharmacist-should-fail',
+      });
     expect(attempt.status).toBe(403);
     expect(attempt.body.error.code).toBe('FORBIDDEN');
 
@@ -239,7 +278,9 @@ describe('4 — the cashier collects the consultation fee', () => {
     expect(invoice.body.balancePaise).toBe(FEE_PAISE);
   });
 
-  test('cash settles the invoice: status paid, balance zero, the payment on the ledger', async ({ skip }) => {
+  test('cash settles the invoice: status paid, balance zero, the payment on the ledger', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const paid = await authed(sessions.cashier!)
       .post(`/api/v1/invoices/${invoiceId}/payments`)
@@ -264,9 +305,13 @@ describe('4 — the cashier collects the consultation fee', () => {
 });
 
 describe('5 — the doctor consults', () => {
-  test('the paid visit advances and the encounter opens as a draft on the right patient', async ({ skip }) => {
+  test('the paid visit advances and the encounter opens as a draft on the right patient', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const advanced = await authed(sessions.doctor!).patch(`/api/v1/visits/${visitId}/status`).send({ status: 'in_consultation' });
+    const advanced = await authed(sessions.doctor!)
+      .patch(`/api/v1/visits/${visitId}/status`)
+      .send({ status: 'in_consultation' });
     expect(advanced.status).toBe(200);
     expect(advanced.body.status).toBe('in_consultation');
 
@@ -280,7 +325,9 @@ describe('5 — the doctor consults', () => {
     encounterVersion = opened.body.version;
   });
 
-  test('SOAP, vitals, a prescription and a lab order save together — masters snapshot server-side', async ({ skip }) => {
+  test('SOAP, vitals, a prescription and a lab order save together — masters snapshot server-side', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const saved = await authed(sessions.doctor!)
       .put(`/api/v1/encounters/${encounterId}`)
@@ -291,11 +338,26 @@ describe('5 — the doctor consults', () => {
         objective: 'Febrile, chest clear, no organomegaly.',
         assessment: 'Undifferentiated febrile illness; rule out anaemia.',
         plan: 'Antibiotic course, haemoglobin today, review in 48 hours.',
-        vitals: { systolic: 118, diastolic: 76, pulse: 96, spo2: 98, tempC: 38.4, weightKg: 62.5, heightCm: 158 },
+        vitals: {
+          systolic: 118,
+          diastolic: 76,
+          pulse: 96,
+          spo2: 98,
+          tempC: 38.4,
+          weightKg: 62.5,
+          heightCm: 158,
+        },
         diagnoses: [{ icd10Code: 'R50.9', icd10Term: 'Fever, unspecified', isPrimary: true }],
         // The client sends a deliberately wrong display name for both master-linked rows.
         prescriptions: [
-          { drugId, drugName: 'whatever the client typed', dose: '500 mg', frequency: '1-0-1', duration: '5 days', route: 'oral' },
+          {
+            drugId,
+            drugName: 'whatever the client typed',
+            dose: '500 mg',
+            frequency: '1-0-1',
+            duration: '5 days',
+            route: 'oral',
+          },
         ],
         labOrders: [{ testId: labTestId, testName: 'typed by hand', priority: 'urgent' }],
       });
@@ -328,7 +390,9 @@ describe('5 — the doctor consults', () => {
     labOrderId = saved.body.labOrders[0].id;
   });
 
-  test('an unsigned prescription is invisible to the pharmacy and cannot be dispensed', async ({ skip }) => {
+  test('an unsigned prescription is invisible to the pharmacy and cannot be dispensed', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const pending = await authed(sessions.pharmacist!).get('/api/v1/prescriptions/pending');
     expect(pending.status).toBe(200);
@@ -346,7 +410,9 @@ describe('5 — the doctor consults', () => {
 describe('6 — the doctor signs, and the chart locks', () => {
   test('a receptionist cannot sign a chart, and the encounter stays a draft', async ({ skip }) => {
     if (!ready) return skip();
-    const attempt = await authed(sessions.receptionist!).post(`/api/v1/encounters/${encounterId}/sign`);
+    const attempt = await authed(sessions.receptionist!).post(
+      `/api/v1/encounters/${encounterId}/sign`,
+    );
     expect(attempt.status).toBe(403);
     expect(attempt.body.error.code).toBe('FORBIDDEN');
 
@@ -355,7 +421,9 @@ describe('6 — the doctor signs, and the chart locks', () => {
     expect(chart.body.signedAt).toBeNull();
   });
 
-  test('signing locks the encounter, completes the visit, and refuses every further edit', async ({ skip }) => {
+  test('signing locks the encounter, completes the visit, and refuses every further edit', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const signed = await authed(sessions.doctor!).post(`/api/v1/encounters/${encounterId}/sign`);
     expect(signed.status).toBe(200);
@@ -368,9 +436,13 @@ describe('6 — the doctor signs, and the chart locks', () => {
     expect(visit.body.completedAt).toBeTruthy();
 
     // A later save is refused — and the note it tried to overwrite is unchanged.
-    const edit = await authed(sessions.doctor!)
-      .put(`/api/v1/encounters/${encounterId}`)
-      .send({ version: encounterVersion, chiefComplaint: 'rewritten after signing', diagnoses: [], prescriptions: [], labOrders: [] });
+    const edit = await authed(sessions.doctor!).put(`/api/v1/encounters/${encounterId}`).send({
+      version: encounterVersion,
+      chiefComplaint: 'rewritten after signing',
+      diagnoses: [],
+      prescriptions: [],
+      labOrders: [],
+    });
     expect(edit.status).toBe(409);
     expect(edit.body.error.message).toMatch(/signed/i);
 
@@ -384,7 +456,9 @@ describe('6 — the doctor signs, and the chart locks', () => {
 describe('7 — the pharmacist dispenses', () => {
   test('a cashier cannot dispense, and the stock does not move', async ({ skip }) => {
     if (!ready) return skip();
-    const attempt = await authed(sessions.cashier!).post('/api/v1/dispense').send({ prescriptionId, drugId, quantity: DISPENSE_QTY });
+    const attempt = await authed(sessions.cashier!)
+      .post('/api/v1/dispense')
+      .send({ prescriptionId, drugId, quantity: DISPENSE_QTY });
     expect(attempt.status).toBe(403);
     expect(attempt.body.error.code).toBe('FORBIDDEN');
 
@@ -392,7 +466,9 @@ describe('7 — the pharmacist dispenses', () => {
     expect(drugs.body.find((d: { id: string }) => d.id === drugId).onHand).toBe(100);
   });
 
-  test('exactly that prescription is waiting, dispenses once, draws down stock and bills the visit', async ({ skip }) => {
+  test('exactly that prescription is waiting, dispenses once, draws down stock and bills the visit', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const pending = await authed(sessions.pharmacist!).get('/api/v1/prescriptions/pending');
     expect(pending.status).toBe(200);
@@ -405,7 +481,9 @@ describe('7 — the pharmacist dispenses', () => {
     expect(waiting.patientUhid).toBe(patientUhid);
     expect(waiting.visitId).toBe(visitId);
 
-    const before = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find((d: { id: string }) => d.id === drugId).onHand;
+    const before = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find(
+      (d: { id: string }) => d.id === drugId,
+    ).onHand;
 
     const dispensed = await authed(sessions.pharmacist!)
       .post('/api/v1/dispense')
@@ -415,7 +493,9 @@ describe('7 — the pharmacist dispenses', () => {
     expect(dispensed.body.totalPaise).toBe(PHARMACY_PAISE);
     expect(dispensed.body.invoiceId).toBe(invoiceId); // billed back onto the visit's own invoice
 
-    const after = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find((d: { id: string }) => d.id === drugId).onHand;
+    const after = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find(
+      (d: { id: string }) => d.id === drugId,
+    ).onHand;
     expect(before - after).toBe(DISPENSE_QTY);
 
     // Dispensed, so it leaves the worklist — the queue is state, not a to-do list.
@@ -423,10 +503,14 @@ describe('7 — the pharmacist dispenses', () => {
     expect(afterPending.body.length).toBe(0);
   });
 
-  test('the pharmacy charge lands on the consultation invoice, and a second dispense is refused', async ({ skip }) => {
+  test('the pharmacy charge lands on the consultation invoice, and a second dispense is refused', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const invoice = await authed(sessions.cashier!).get(`/api/v1/invoices/${invoiceId}`);
-    const pharmacyLines = invoice.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'pharmacy');
+    const pharmacyLines = invoice.body.lineItems.filter(
+      (l: { itemType: string }) => l.itemType === 'pharmacy',
+    );
     expect(pharmacyLines.length).toBe(1);
     expect(pharmacyLines[0].quantity).toBe(DISPENSE_QTY);
     expect(pharmacyLines[0].lineTotalPaise).toBe(PHARMACY_PAISE);
@@ -436,21 +520,30 @@ describe('7 — the pharmacist dispenses', () => {
     expect(invoice.body.balancePaise).toBe(PHARMACY_PAISE);
     expect(invoice.body.status).toBe('partially_paid');
 
-    const again = await authed(sessions.pharmacist!).post('/api/v1/dispense').send({ prescriptionId, drugId, quantity: 1 });
+    const again = await authed(sessions.pharmacist!)
+      .post('/api/v1/dispense')
+      .send({ prescriptionId, drugId, quantity: 1 });
     expect(again.status).toBe(409);
     expect(again.body.error.message).toMatch(/already been dispensed/i);
 
     // The refused retry billed nothing and took no further stock.
     const afterRetry = await authed(sessions.cashier!).get(`/api/v1/invoices/${invoiceId}`);
-    expect(afterRetry.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'pharmacy').length).toBe(1);
+    expect(
+      afterRetry.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'pharmacy')
+        .length,
+    ).toBe(1);
     expect(afterRetry.body.totalPaise).toBe(FEE_PAISE + PHARMACY_PAISE);
-    const onHand = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find((d: { id: string }) => d.id === drugId).onHand;
+    const onHand = (await authed(sessions.pharmacist!).get('/api/v1/drugs')).body.find(
+      (d: { id: string }) => d.id === drugId,
+    ).onHand;
     expect(onHand).toBe(100 - DISPENSE_QTY);
   });
 });
 
 describe('8 — the lab technician collects and results', () => {
-  test('the doctor may read the order but not collect the sample, and the order stays ordered', async ({ skip }) => {
+  test('the doctor may read the order but not collect the sample, and the order stays ordered', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const read = await authed(sessions.doctor!).get(`/api/v1/lab-orders/${labOrderId}`);
     expect(read.status).toBe(200);
@@ -460,11 +553,15 @@ describe('8 — the lab technician collects and results', () => {
     expect(attempt.status).toBe(403);
     expect(attempt.body.error.code).toBe('FORBIDDEN');
 
-    const afterwards = await authed(sessions.lab_technician!).get(`/api/v1/lab-orders/${labOrderId}`);
+    const afterwards = await authed(sessions.lab_technician!).get(
+      `/api/v1/lab-orders/${labOrderId}`,
+    );
     expect(afterwards.body.status).toBe('ordered');
   });
 
-  test('the order is on the technician’s worklist, and collection bills the test once', async ({ skip }) => {
+  test('the order is on the technician’s worklist, and collection bills the test once', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const worklist = await authed(sessions.lab_technician!).get('/api/v1/lab-orders');
     expect(worklist.status).toBe(200);
@@ -475,25 +572,35 @@ describe('8 — the lab technician collects and results', () => {
     expect(worklist.body[0].visitId).toBe(visitId);
     expect(worklist.body[0].result).toBeNull();
 
-    const collected = await authed(sessions.lab_technician!).post(`/api/v1/lab-orders/${labOrderId}/collect`);
+    const collected = await authed(sessions.lab_technician!).post(
+      `/api/v1/lab-orders/${labOrderId}/collect`,
+    );
     expect(collected.status).toBe(200);
     expect(collected.body.status).toBe('collected');
 
     // Priced at collection from the test master, so the counter can settle before testing.
     const invoice = await authed(sessions.cashier!).get(`/api/v1/invoices/${invoiceId}`);
-    const labLines = invoice.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'lab');
+    const labLines = invoice.body.lineItems.filter(
+      (l: { itemType: string }) => l.itemType === 'lab',
+    );
     expect(labLines.length).toBe(1);
     expect(labLines[0].lineTotalPaise).toBe(LAB_PRICE_PAISE);
     expect(labLines[0].description).toContain('Haemoglobin');
     expect(invoice.body.totalPaise).toBe(FEE_PAISE + PHARMACY_PAISE + LAB_PRICE_PAISE);
 
-    const twice = await authed(sessions.lab_technician!).post(`/api/v1/lab-orders/${labOrderId}/collect`);
+    const twice = await authed(sessions.lab_technician!).post(
+      `/api/v1/lab-orders/${labOrderId}/collect`,
+    );
     expect(twice.status).toBe(409);
   });
 
-  test('the result is entered, flagged against the master’s reference range, and billed only once', async ({ skip }) => {
+  test('the result is entered, flagged against the master’s reference range, and billed only once', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const resulted = await authed(sessions.lab_technician!).post(`/api/v1/lab-orders/${labOrderId}/result`).send({ value: '9.4' });
+    const resulted = await authed(sessions.lab_technician!)
+      .post(`/api/v1/lab-orders/${labOrderId}/result`)
+      .send({ value: '9.4' });
     expect(resulted.status).toBe(200);
     expect(resulted.body.status).toBe('resulted');
     expect(resulted.body.result.value).toBe('9.4');
@@ -504,13 +611,17 @@ describe('8 — the lab technician collects and results', () => {
     expect(resulted.body.result.verifiedAt).toBeNull(); // entering is not verifying
 
     const invoice = await authed(sessions.cashier!).get(`/api/v1/invoices/${invoiceId}`);
-    expect(invoice.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'lab').length).toBe(1);
+    expect(
+      invoice.body.lineItems.filter((l: { itemType: string }) => l.itemType === 'lab').length,
+    ).toBe(1);
     expect(invoice.body.totalPaise).toBe(FEE_PAISE + PHARMACY_PAISE + LAB_PRICE_PAISE);
   });
 });
 
 describe('9 — everything the encounter produced hangs off the same patient and visit', () => {
-  test('encounter, prescription, lab order and invoice all point at the one patient and the one visit', async ({ skip }) => {
+  test('encounter, prescription, lab order and invoice all point at the one patient and the one visit', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const encounter = await authed(sessions.doctor!).get(`/api/v1/encounters/${encounterId}`);
     expect(encounter.body.patientId).toBe(patientId);
@@ -535,7 +646,9 @@ describe('9 — everything the encounter produced hangs off the same patient and
     expect(visit.body.patientId).toBe(patientId);
   });
 
-  test('the visit is one bill, not three: every charge is on the same invoice', async ({ skip }) => {
+  test('the visit is one bill, not three: every charge is on the same invoice', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const list = await authed(sessions.cashier!).get(`/api/v1/invoices?patientId=${patientId}`);
     expect(list.status).toBe(200);
@@ -544,7 +657,11 @@ describe('9 — everything the encounter produced hangs off the same patient and
     for (const row of list.body.data) expect(row.patientId).toBe(patientId);
 
     const invoice = await authed(sessions.cashier!).get(`/api/v1/invoices/${invoiceId}`);
-    expect(invoice.body.lineItems.map((l: { itemType: string }) => l.itemType).sort()).toEqual(['consultation', 'lab', 'pharmacy']);
+    expect(invoice.body.lineItems.map((l: { itemType: string }) => l.itemType).sort()).toEqual([
+      'consultation',
+      'lab',
+      'pharmacy',
+    ]);
   });
 
   test('the signed consultation is now the patient’s clinical history', async ({ skip }) => {
@@ -561,12 +678,19 @@ describe('9 — everything the encounter produced hangs off the same patient and
     expect(history.body[0].signedAt).toBeTruthy();
   });
 
-  test('the cashier settles the remaining pharmacy and lab charges and the visit closes at zero', async ({ skip }) => {
+  test('the cashier settles the remaining pharmacy and lab charges and the visit closes at zero', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const due = PHARMACY_PAISE + LAB_PRICE_PAISE;
     const settled = await authed(sessions.cashier!)
       .post(`/api/v1/invoices/${invoiceId}/payments`)
-      .send({ amountPaise: due, method: 'upi', reference: 'UPI-CP-0001', idempotencyKey: 'cp-final-settlement' });
+      .send({
+        amountPaise: due,
+        method: 'upi',
+        reference: 'UPI-CP-0001',
+        idempotencyKey: 'cp-final-settlement',
+      });
     expect(settled.status).toBe(201);
     expect(settled.body.status).toBe('paid');
     expect(settled.body.balancePaise).toBe(0);

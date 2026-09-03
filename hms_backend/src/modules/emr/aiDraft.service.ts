@@ -49,7 +49,10 @@ export async function draftPrescription(
 ): Promise<{ prescriptions: DraftedPrescription[]; note: string | null }> {
   if (!aiDraftEnabled()) throw Errors.notFound('AI drafting is not enabled on this deployment');
   if (!input.chiefComplaint?.trim() && input.diagnoses.length === 0) {
-    throw Errors.validation(undefined, 'Enter a chief complaint or a diagnosis first. The draft needs clinical context');
+    throw Errors.validation(
+      undefined,
+      'Enter a chief complaint or a diagnosis first. The draft needs clinical context',
+    );
   }
 
   const formulary = await listDrugs(tenantId);
@@ -96,7 +99,11 @@ export async function draftPrescription(
     const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
     raw = data.content?.find((c) => c.type === 'text')?.text ?? '';
   } catch {
-    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft service is unavailable. Write the prescription by hand');
+    throw new AppError(
+      502,
+      'AI_UNAVAILABLE',
+      'The AI draft service is unavailable. Write the prescription by hand',
+    );
   } finally {
     clearTimeout(timer);
   }
@@ -105,22 +112,29 @@ export async function draftPrescription(
   try {
     parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
   } catch {
-    throw new AppError(502, 'AI_UNAVAILABLE', 'The AI draft could not be read. Write the prescription by hand');
+    throw new AppError(
+      502,
+      'AI_UNAVAILABLE',
+      'The AI draft could not be read. Write the prescription by hand',
+    );
   }
 
   const byName = new Map(formulary.map((d) => [d.name.toLowerCase(), d.id]));
-  const prescriptions: DraftedPrescription[] = (parsed.prescriptions ?? []).slice(0, 5).map((p) => {
-    const drugName = String(p.drugName ?? '').slice(0, 200);
-    return {
-      drugName,
-      dose: p.dose ? String(p.dose).slice(0, 80) : null,
-      frequency: p.frequency ? String(p.frequency).slice(0, 80) : null,
-      duration: p.duration ? String(p.duration).slice(0, 80) : null,
-      route: p.route ? String(p.route).slice(0, 40) : null,
-      instructions: p.instructions ? String(p.instructions).slice(0, 500) : null,
-      drugId: byName.get(drugName.toLowerCase()) ?? null,
-    };
-  }).filter((p) => p.drugName.trim().length > 0);
+  const prescriptions: DraftedPrescription[] = (parsed.prescriptions ?? [])
+    .slice(0, 5)
+    .map((p) => {
+      const drugName = String(p.drugName ?? '').slice(0, 200);
+      return {
+        drugName,
+        dose: p.dose ? String(p.dose).slice(0, 80) : null,
+        frequency: p.frequency ? String(p.frequency).slice(0, 80) : null,
+        duration: p.duration ? String(p.duration).slice(0, 80) : null,
+        route: p.route ? String(p.route).slice(0, 40) : null,
+        instructions: p.instructions ? String(p.instructions).slice(0, 500) : null,
+        drugId: byName.get(drugName.toLowerCase()) ?? null,
+      };
+    })
+    .filter((p) => p.drugName.trim().length > 0);
 
   await writeAudit({
     tenantId,
@@ -130,5 +144,8 @@ export async function draftPrescription(
     metadata: { items: prescriptions.length, model: env.AI_DRAFT_MODEL },
   });
 
-  return { prescriptions, note: typeof parsed.note === 'string' && parsed.note.trim() ? parsed.note.trim() : null };
+  return {
+    prescriptions,
+    note: typeof parsed.note === 'string' && parsed.note.trim() ? parsed.note.trim() : null,
+  };
 }

@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { Alert, Badge, Button, Card, EmptyState, Field, PageHeader, Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { ArrowLeft, Search } from "lucide-react";
-import * as api from "../../../../../../lib/api";
-import { RequirePermission } from "../../../../../../components/Can";
-import { RegistryMasterSelect } from "../../../../../../components/abdm/RegistryMasterSelect";
+import { useState } from 'react';
+import Link from 'next/link';
+import { Alert, Badge, Button, Card, EmptyState, Field, PageHeader, Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { ArrowLeft, Search } from 'lucide-react';
+import * as api from '../../../../../../lib/api';
+import { RequirePermission } from '../../../../../../components/Can';
+import { RegistryMasterSelect } from '../../../../../../components/abdm/RegistryMasterSelect';
 
 /**
  * Searching the Health Facility Registry (ADR-096; HFR-064…072).
@@ -45,13 +45,13 @@ type Filters = {
 };
 
 const EMPTY: Filters = {
-  facilityName: "",
-  facilityId: "",
-  stateLGDCode: "",
-  districtLGDCode: "",
-  subDistrictLGDCode: "",
-  pincode: "",
-  ownershipCode: "",
+  facilityName: '',
+  facilityId: '',
+  stateLGDCode: '',
+  districtLGDCode: '',
+  subDistrictLGDCode: '',
+  pincode: '',
+  ownershipCode: '',
 };
 
 const PER_PAGE = 10;
@@ -75,31 +75,33 @@ function FacilitySearch() {
       const next = { ...f, [key]: value };
       // The LGD lists are a chain: a district code from Karnataka is meaningless once the state is
       // Kerala, and sending it would filter the search down to nothing for no visible reason.
-      if (key === "stateLGDCode") {
-        next.districtLGDCode = "";
-        next.subDistrictLGDCode = "";
+      if (key === 'stateLGDCode') {
+        next.districtLGDCode = '';
+        next.subDistrictLGDCode = '';
       }
-      if (key === "districtLGDCode") next.subDistrictLGDCode = "";
+      if (key === 'districtLGDCode') next.subDistrictLGDCode = '';
       return next;
     });
   }
 
   // HFR's two legal shapes, mirrored here so the button explains itself before a request is made.
-  const byId = filters.facilityId.trim() !== "";
+  const byId = filters.facilityId.trim() !== '';
   const missing = byId
     ? []
-    : (["ownershipCode", "stateLGDCode", "facilityName"] as const).filter((k) => filters[k].trim() === "");
+    : (['ownershipCode', 'stateLGDCode', 'facilityName'] as const).filter(
+        (k) => filters[k].trim() === '',
+      );
   const canSearch = byId || missing.length === 0;
 
   async function run(page: number) {
     if (!canSearch) {
       setError(
-        "HFR needs ownership, state and facility name together — or a Facility ID on its own. Anything less is refused by the registry.",
+        'HFR needs ownership, state and facility name together — or a Facility ID on its own. Anything less is refused by the registry.',
       );
       return;
     }
     if (!byId && filters.pincode.trim() && !/^\d{6}$/.test(filters.pincode.trim())) {
-      setError("A PIN code is six digits.");
+      setError('A PIN code is six digits.');
       return;
     }
     setError(null);
@@ -137,10 +139,10 @@ function FacilitySearch() {
       />
 
       <Alert>
-        One building should hold one Facility ID. If this hospital is already in the registry &mdash; registered by a
-        previous owner, a parent trust, or a state programme &mdash; claim that entry instead of creating a second one.
-        The Facility ID is what the rest of ABDM identifies you by, and two of them for one hospital breaks record
-        linking for real patients.
+        One building should hold one Facility ID. If this hospital is already in the registry
+        &mdash; registered by a previous owner, a parent trust, or a state programme &mdash; claim
+        that entry instead of creating a second one. The Facility ID is what the rest of ABDM
+        identifies you by, and two of them for one hospital breaks record linking for real patients.
       </Alert>
 
       <Card header="What are you looking for?">
@@ -158,16 +160,17 @@ function FacilitySearch() {
             value={filters.facilityId}
             placeholder="IN0710…"
             hint="If you have one, this is the whole search — HFR ignores every other field."
-            onChange={(e) => set("facilityId", e.target.value)}
+            onChange={(e) => set('facilityId', e.target.value)}
           />
 
           <fieldset className="space-y-4 rounded-md border border-border p-4" disabled={byId}>
             <legend className="px-1 text-sm font-medium text-fg">
-              Or search by name {byId && <span className="text-fg-muted">— not used with a Facility ID</span>}
+              Or search by name{' '}
+              {byId && <span className="text-fg-muted">— not used with a Facility ID</span>}
             </legend>
             <p className="text-xs text-fg-muted">
-              HFR requires all three of these together. Fewer is refused by the registry, not answered with more
-              results.
+              HFR requires all three of these together. Fewer is refused by the registry, not
+              answered with more results.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -175,9 +178,9 @@ function FacilitySearch() {
                 label="Facility name *"
                 value={filters.facilityName}
                 placeholder="Part of the name is enough"
-                error={missing.includes("facilityName") && error ? "Required." : undefined}
+                error={missing.includes('facilityName') && error ? 'Required.' : undefined}
                 hint="Matched loosely, so a partial name works."
-                onChange={(e) => set("facilityName", e.target.value)}
+                onChange={(e) => set('facilityName', e.target.value)}
               />
               <RegistryMasterSelect
                 label="Ownership *"
@@ -185,8 +188,12 @@ function FacilitySearch() {
                 type="OWNER"
                 value={filters.ownershipCode}
                 disabled={byId}
-                hint={missing.includes("ownershipCode") && error ? "Required." : "Government, private or public-private."}
-                onChange={(v) => set("ownershipCode", v)}
+                hint={
+                  missing.includes('ownershipCode') && error
+                    ? 'Required.'
+                    : 'Government, private or public-private.'
+                }
+                onChange={(v) => set('ownershipCode', v)}
               />
             </div>
 
@@ -196,8 +203,8 @@ function FacilitySearch() {
                 kind="states"
                 value={filters.stateLGDCode}
                 disabled={byId}
-                hint={missing.includes("stateLGDCode") && error ? "Required." : undefined}
-                onChange={(v) => set("stateLGDCode", v)}
+                hint={missing.includes('stateLGDCode') && error ? 'Required.' : undefined}
+                onChange={(v) => set('stateLGDCode', v)}
               />
               <RegistryMasterSelect
                 label="District"
@@ -206,7 +213,7 @@ function FacilitySearch() {
                 parentHint="Choose a state first"
                 value={filters.districtLGDCode}
                 disabled={byId}
-                onChange={(v) => set("districtLGDCode", v)}
+                onChange={(v) => set('districtLGDCode', v)}
               />
               <RegistryMasterSelect
                 label="Sub-district"
@@ -215,7 +222,7 @@ function FacilitySearch() {
                 parentHint="Choose a district first"
                 value={filters.subDistrictLGDCode}
                 disabled={byId}
-                onChange={(v) => set("subDistrictLGDCode", v)}
+                onChange={(v) => set('subDistrictLGDCode', v)}
               />
               <Field
                 label="PIN code"
@@ -223,7 +230,7 @@ function FacilitySearch() {
                 inputMode="numeric"
                 maxLength={6}
                 placeholder="560038"
-                onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => set('pincode', e.target.value.replace(/\D/g, ''))}
               />
             </div>
           </fieldset>
@@ -233,7 +240,7 @@ function FacilitySearch() {
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={searching || !canSearch}>
               <Search className="size-4" aria-hidden />
-              {searching ? "Searching…" : "Search the registry"}
+              {searching ? 'Searching…' : 'Search the registry'}
             </Button>
             <Button type="button" variant="secondary" onClick={reset} disabled={searching}>
               Clear
@@ -281,7 +288,7 @@ function Results({
       header={
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span>
-            {result.total} {result.total === 1 ? "facility" : "facilities"} found
+            {result.total} {result.total === 1 ? 'facility' : 'facilities'} found
           </span>
           {result.pages > 1 && (
             <span className="text-xs font-normal text-fg-muted">
@@ -307,12 +314,12 @@ function Results({
             <p className="mt-2 text-xs text-fg-muted">
               {[f.address, f.subDistrictName, f.districtName, f.stateName, f.pincode]
                 .filter(Boolean)
-                .join(", ") || "No address recorded in the registry."}
+                .join(', ') || 'No address recorded in the registry.'}
             </p>
 
             {(f.facilityType || f.ownership || f.systemOfMedicine) && (
               <p className="mt-1 text-xs text-fg-muted">
-                {[f.facilityType, f.ownership, f.systemOfMedicine].filter(Boolean).join(" · ")}
+                {[f.facilityType, f.ownership, f.systemOfMedicine].filter(Boolean).join(' · ')}
               </p>
             )}
           </li>
@@ -339,8 +346,8 @@ function Results({
       )}
 
       <p className="mt-4 text-xs text-fg-muted">
-        A match here is somebody&rsquo;s registry entry, not automatically yours. Confirm the building before claiming
-        the Facility ID &mdash; there is no undo at the registry.
+        A match here is somebody&rsquo;s registry entry, not automatically yours. Confirm the
+        building before claiming the Facility ID &mdash; there is no undo at the registry.
       </p>
     </Card>
   );

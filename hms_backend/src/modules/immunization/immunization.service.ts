@@ -34,7 +34,12 @@ export async function listImmunizations(tenantId: string, patientId: string) {
     const rows = await tx
       .select()
       .from(patientImmunizations)
-      .where(and(eq(patientImmunizations.tenantId, tenantId), eq(patientImmunizations.patientId, patientId)))
+      .where(
+        and(
+          eq(patientImmunizations.tenantId, tenantId),
+          eq(patientImmunizations.patientId, patientId),
+        ),
+      )
       .orderBy(desc(patientImmunizations.dateGiven), desc(patientImmunizations.createdAt));
     return rows.map(toDto);
   });

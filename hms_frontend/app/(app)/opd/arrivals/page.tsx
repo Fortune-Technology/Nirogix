@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Check, X } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Check, X } from 'lucide-react';
 import {
   actionsColumn,
   Alert,
@@ -17,14 +17,14 @@ import {
   Textarea,
   type Column,
   valueLabel,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { formatTime } from "@hms/utils";
-import type { SelfCheckinRequest } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { useCan } from "../../../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { formatTime } from '@hms/utils';
+import type { SelfCheckinRequest } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { useCan } from '../../../../lib/auth';
 
 /**
  * The arrivals board (ADR-118) — patients who have told the hospital they are here.
@@ -47,15 +47,15 @@ function ArrivalsBoard() {
   const [busy, setBusy] = useState(false);
 
   const [dismissing, setDismissing] = useState<SelfCheckinRequest | null>(null);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await api.listArrivals("pending"));
+      setRows(await api.listArrivals('pending'));
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load the arrivals board.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not load the arrivals board.');
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ function ArrivalsBoard() {
       await api.confirmArrival(row.id, row.version);
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not check the patient in.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not check the patient in.');
       await load();
     } finally {
       setBusy(false);
@@ -84,7 +84,7 @@ function ArrivalsBoard() {
     try {
       await api.dismissArrival(dismissing.id, dismissing.version, reason.trim());
       setDismissing(null);
-      setReason("");
+      setReason('');
       await load();
     } finally {
       setBusy(false);
@@ -93,8 +93,8 @@ function ArrivalsBoard() {
 
   const columns: Array<Column<SelfCheckinRequest>> = [
     {
-      key: "patient",
-      header: "Who",
+      key: 'patient',
+      header: 'Who',
       hideable: false,
       accessor: (r) => r.patientName ?? r.claimedPhone,
       cell: (r) =>
@@ -111,10 +111,10 @@ function ArrivalsBoard() {
         ),
     },
     {
-      key: "appointment",
-      header: "Appointment",
+      key: 'appointment',
+      header: 'Appointment',
       filterable: true,
-      accessor: (r) => valueLabel(r.providerName, "unassigned"),
+      accessor: (r) => valueLabel(r.providerName, 'unassigned'),
       cell: (r) =>
         r.appointmentId ? (
           <div className="flex flex-col">
@@ -129,15 +129,18 @@ function ArrivalsBoard() {
         ),
     },
     {
-      key: "since",
-      header: "Arrived",
+      key: 'since',
+      header: 'Arrived',
       accessor: (r) => r.announcedAt,
-      cell: (r) => <span className="whitespace-nowrap text-fg-muted">{formatTime(r.announcedAt)}</span>,
+      cell: (r) => (
+        <span className="whitespace-nowrap text-fg-muted">{formatTime(r.announcedAt)}</span>
+      ),
     },
     {
-      key: "state",
-      header: "State",
-      accessor: (r) => (r.alreadyCheckedIn ? "Already checked in" : r.patientId ? "Ready" : "Needs a human"),
+      key: 'state',
+      header: 'State',
+      accessor: (r) =>
+        r.alreadyCheckedIn ? 'Already checked in' : r.patientId ? 'Ready' : 'Needs a human',
       cell: (r) =>
         r.alreadyCheckedIn ? (
           <Badge tone="neutral">Already checked in</Badge>
@@ -163,7 +166,7 @@ function ArrivalsBoard() {
           permitted={canCheckIn}
           onSelect={() => {
             setDismissing(r);
-            setReason(r.alreadyCheckedIn ? "Already checked in at the desk" : "");
+            setReason(r.alreadyCheckedIn ? 'Already checked in at the desk' : '');
           }}
         />
       </TableActions>
@@ -179,12 +182,12 @@ function ArrivalsBoard() {
 
       {rows.some((r) => !r.patientId) && (
         <Alert tone="neutral">
-          An arrival marked <strong className="font-medium text-fg">Needs a human</strong> could not be matched to
-          an appointment today — the number may be different from the one on their record, or they may have no
-          appointment. Find them, then check them in from the{" "}
+          An arrival marked <strong className="font-medium text-fg">Needs a human</strong> could not
+          be matched to an appointment today — the number may be different from the one on their
+          record, or they may have no appointment. Find them, then check them in from the{' '}
           <Link href="/opd/check-in" className="text-brand hover:underline">
             check-in screen
-          </Link>{" "}
+          </Link>{' '}
           where you can search.
         </Alert>
       )}
@@ -215,10 +218,20 @@ function ArrivalsBoard() {
         busy={busy}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setDismissing(null)} disabled={busy}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setDismissing(null)}
+              disabled={busy}
+            >
               Cancel
             </Button>
-            <Button type="button" loading={busy} onClick={() => void dismiss()} disabled={!reason.trim()}>
+            <Button
+              type="button"
+              loading={busy}
+              onClick={() => void dismiss()}
+              disabled={!reason.trim()}
+            >
               Clear it
             </Button>
           </>

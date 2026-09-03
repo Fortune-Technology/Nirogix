@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Badge, Card, DateDisplay, Skeleton } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AbdmConsentStatus } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Badge, Card, DateDisplay, Skeleton } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { AbdmConsentStatus } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * Whether anything is outstanding on this patient's national health records (ADR-120).
@@ -67,10 +67,10 @@ export function ConsentStatusCard({ patientId }: { patientId: string }) {
           </p>
         ) : nothingEverAsked ? (
           <p className="text-fg-muted">
-            Nothing has been requested.{" "}
+            Nothing has been requested.{' '}
             {canRequest
-              ? "You can ask this patient for access from their record."
-              : "A doctor can ask this patient for access — the request carries their name and registration number."}
+              ? 'You can ask this patient for access from their record.'
+              : 'A doctor can ask this patient for access — the request carries their name and registration number.'}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -78,7 +78,7 @@ export function ConsentStatusCard({ patientId }: { patientId: string }) {
               <li className="flex items-center gap-2">
                 <Badge tone="warning">Waiting for the patient</Badge>
                 <span className="text-fg-muted">
-                  {status.awaitingPatient} request{status.awaitingPatient === 1 ? "" : "s"} — they
+                  {status.awaitingPatient} request{status.awaitingPatient === 1 ? '' : 's'} — they
                   approve in their own ABHA app.
                 </span>
               </li>
@@ -104,7 +104,9 @@ export function ConsentStatusCard({ patientId }: { patientId: string }) {
               <li className="flex items-center gap-2">
                 <Badge tone="neutral">Consent has lapsed</Badge>
                 <span className="text-fg-muted">
-                  {canRequest ? "Ask again from the record if it is still needed." : "A doctor can ask again."}
+                  {canRequest
+                    ? 'Ask again from the record if it is still needed.'
+                    : 'A doctor can ask again.'}
                 </span>
               </li>
             )}
@@ -119,10 +121,10 @@ export function ConsentStatusCard({ patientId }: { patientId: string }) {
 
         {/* The card never shows the records themselves; whoever may read them does it here. */}
         <p className="text-xs text-fg-subtle">
-          Consent status only — no records are shown here.{" "}
+          Consent status only — no records are shown here.{' '}
           <Link href={`/patients/${patientId}`} className="text-brand hover:underline">
             Open the record
-          </Link>{" "}
+          </Link>{' '}
           to see the full history.
         </p>
       </div>

@@ -17,15 +17,27 @@ import { renderEmail, type EmailBrand, type EmailContent, PLATFORM_BRAND } from 
 const PORTAL = env.PORTAL_URL.replace(/\/$/, '');
 const PATIENT = env.PATIENT_URL.replace(/\/$/, '');
 
-export type EmailCategory = 'auth' | 'onboarding' | 'appointment' | 'billing' | 'laboratory' | 'patient';
+export type EmailCategory =
+  'auth' | 'onboarding' | 'appointment' | 'billing' | 'laboratory' | 'patient';
 
 /** The typed payload each template needs. Dates/money arrive pre-formatted (DD/MM/YYYY, ₹) — the
  *  caller formats with the platform's rules so a template never touches a date/number library. */
 export interface EmailTemplateDataMap {
   auth_password_reset: { userName: string; orgName: string; resetUrl: string };
   auth_password_changed: { userName: string; orgName: string };
-  onboarding_admin_welcome: { userName: string; orgName: string; setupUrl: string; loginUrl: string };
-  staff_welcome: { userName: string; orgName: string; roleName: string; setupUrl: string; loginUrl: string };
+  onboarding_admin_welcome: {
+    userName: string;
+    orgName: string;
+    setupUrl: string;
+    loginUrl: string;
+  };
+  staff_welcome: {
+    userName: string;
+    orgName: string;
+    roleName: string;
+    setupUrl: string;
+    loginUrl: string;
+  };
   appointment_confirmed: {
     patientName: string;
     orgName: string;
@@ -89,7 +101,11 @@ export const EMAIL_TEMPLATES: Registry = {
       footerNote:
         "If you didn't request this, you can safely ignore this email — your password stays unchanged.",
     }),
-    sample: { userName: 'Asha Menon', orgName: 'City Care Hospital', resetUrl: `${PORTAL}/reset-password?token=sample` },
+    sample: {
+      userName: 'Asha Menon',
+      orgName: 'City Care Hospital',
+      resetUrl: `${PORTAL}/reset-password?token=sample`,
+    },
   },
 
   auth_password_changed: {
@@ -107,7 +123,7 @@ export const EMAIL_TEMPLATES: Registry = {
         'If this was you, no further action is needed.',
       ],
       footerNote:
-        "If you did NOT change your password, contact your administrator immediately — your account may be at risk.",
+        'If you did NOT change your password, contact your administrator immediately — your account may be at risk.',
     }),
     sample: { userName: 'Asha Menon', orgName: 'City Care Hospital' },
   },
@@ -127,8 +143,11 @@ export const EMAIL_TEMPLATES: Registry = {
         'Set your password using the button below, then sign in to invite your team and configure your hospital.',
       ],
       button: { label: 'Set your password', url: d.setupUrl },
-      outro: [`The link expires in 7 days. After that, use "Forgot password" at ${d.loginUrl} to set it.`],
-      footerNote: 'You are receiving this because your hospital was onboarded to Nirogix by a platform operator.',
+      outro: [
+        `The link expires in 7 days. After that, use "Forgot password" at ${d.loginUrl} to set it.`,
+      ],
+      footerNote:
+        'You are receiving this because your hospital was onboarded to Nirogix by a platform operator.',
     }),
     sample: {
       userName: 'Dr. Rao',
@@ -153,7 +172,9 @@ export const EMAIL_TEMPLATES: Registry = {
         'Set your password using the button below, then sign in to get started.',
       ],
       button: { label: 'Set your password', url: d.setupUrl },
-      outro: [`The link expires in 7 days. After that, use "Forgot password" at ${d.loginUrl} to set it.`],
+      outro: [
+        `The link expires in 7 days. After that, use "Forgot password" at ${d.loginUrl} to set it.`,
+      ],
       footerNote: `If you weren't expecting this, you can ignore this email or contact ${d.orgName}.`,
     }),
     sample: {
@@ -196,7 +217,8 @@ export const EMAIL_TEMPLATES: Registry = {
     key: 'appointment_cancelled',
     name: 'Appointment cancelled',
     category: 'appointment',
-    description: 'Sent to the patient (when an email is on file) after an appointment is cancelled.',
+    description:
+      'Sent to the patient (when an email is on file) after an appointment is cancelled.',
     subject: (d) => `Appointment cancelled — ${d.orgName}`,
     build: (d) => ({
       preheader: `Your appointment with ${d.providerName} has been cancelled.`,
@@ -237,7 +259,9 @@ export const EMAIL_TEMPLATES: Registry = {
         { label: 'Date', value: d.whenText },
       ],
       button: d.portalUrl ? { label: 'View invoice', url: d.portalUrl } : undefined,
-      outro: ['This is a confirmation of payment. For a formal tax invoice, contact the hospital billing desk.'],
+      outro: [
+        'This is a confirmation of payment. For a formal tax invoice, contact the hospital billing desk.',
+      ],
     }),
     sample: {
       patientName: 'Ravi Sharma',
@@ -279,7 +303,8 @@ export const EMAIL_TEMPLATES: Registry = {
     key: 'patient_welcome',
     name: 'Patient welcome',
     category: 'patient',
-    description: 'Sent to a patient (when an email is provided) when their record is first created.',
+    description:
+      'Sent to a patient (when an email is provided) when their record is first created.',
     subject: (d) => `Welcome to ${d.orgName}`,
     build: (d) => ({
       preheader: `Your patient record has been created. UHID ${d.uhid}.`,
@@ -334,12 +359,17 @@ export function listEmailTemplates(): EmailTemplateSummary[] {
 }
 
 /** Render a template from its own sample data — the preview + the render tests use this. */
-export function renderEmailTemplateSample(
-  key: EmailTemplateKey,
-): { subject: string; html: string; text: string } {
+export function renderEmailTemplateSample(key: EmailTemplateKey): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   const def = EMAIL_TEMPLATES[key];
   // Sample emails brand from the sample org name so the preview shows a realistic tenant look.
-  const orgName = 'orgName' in def.sample ? String((def.sample as { orgName?: string }).orgName ?? 'Nirogix') : 'Nirogix';
+  const orgName =
+    'orgName' in def.sample
+      ? String((def.sample as { orgName?: string }).orgName ?? 'Nirogix')
+      : 'Nirogix';
   const brand: EmailBrand = { ...PLATFORM_BRAND, orgName };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return renderEmailTemplate(key, def.sample as any, brand);

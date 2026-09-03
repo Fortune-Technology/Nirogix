@@ -69,7 +69,8 @@ beforeAll(async () => {
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@orgtesta.example'])).rows[0].id;
+    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@orgtesta.example']))
+      .rows[0].id;
     ready = true;
   } catch (err) {
     ready = false;
@@ -155,7 +156,9 @@ describe('organization profile', () => {
 // Letterhead image + page size (ADR-065). The image is a file id resolved to a URL on read,
 // exactly like the branding logo; page size rides the normal partial update.
 describe('letterhead image & page size', () => {
-  test('both default to null — the print layer falls back to the text header and A4', async ({ skip }) => {
+  test('both default to null — the print layer falls back to the text header and A4', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const p = await getOrganizationProfile(tenantB);
     expect(p.documentPageSize).toBeNull();
@@ -213,9 +216,13 @@ describe('letterhead image & page size', () => {
 describe('page-size validation', () => {
   test('accepts only the known sizes', () => {
     for (const size of ['A4', 'A5', 'LETTER', 'LEGAL']) {
-      expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: size }).success).toBe(true);
+      expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: size }).success).toBe(
+        true,
+      );
     }
-    expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: 'FOOLSCAP' }).success).toBe(false);
+    expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: 'FOOLSCAP' }).success).toBe(
+      false,
+    );
     expect(UpdateOrganizationProfileBody.safeParse({ documentPageSize: 'a4' }).success).toBe(false);
   });
 });
@@ -224,7 +231,9 @@ describe('contact lines', () => {
   test('omit what is not configured rather than printing an empty label', () => {
     expect(buildContactLines({ city: 'Surat', state: 'Gujarat' })).toEqual(['Surat, Gujarat']);
     expect(buildContactLines({})).toEqual([]);
-    expect(buildContactLines({ phone: '022 1234', email: 'a@b.example' })).toEqual(['Tel 022 1234 · a@b.example']);
+    expect(buildContactLines({ phone: '022 1234', email: 'a@b.example' })).toEqual([
+      'Tel 022 1234 · a@b.example',
+    ]);
   });
 });
 
@@ -253,12 +262,23 @@ describe('hospital setup status', () => {
     const s = await getSetupStatus(tenantA);
     const keys = s.steps.map((x) => x.key);
     expect(keys).toContain('departments');
-    for (const absent of ['sub_departments', 'procedures', 'services', 'packages', 'treatment_plans', 'wards', 'rooms', 'beds']) {
+    for (const absent of [
+      'sub_departments',
+      'procedures',
+      'services',
+      'packages',
+      'treatment_plans',
+      'wards',
+      'rooms',
+      'beds',
+    ]) {
       expect(keys).not.toContain(absent);
     }
   });
 
-  test('only reports a module step when the tenant is entitled to that module', async ({ skip }) => {
+  test('only reports a module step when the tenant is entitled to that module', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const s = await getSetupStatus(tenantA);
     const entitled = await listEntitledModules(tenantA);

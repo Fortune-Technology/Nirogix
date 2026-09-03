@@ -9,6 +9,7 @@ Append-only implementation log for the Nirogix AI Portal.
 **Why ship a door with no room behind it.** There is no AI capability in approved scope. Building the boundary first means that when one is scoped it arrives behind access control that already exists and has already been tested — rather than the usual order, where the capability ships and the controls follow.
 
 **What the boundary actually enforces:**
+
 - A **patient principal is refused by type** before any permission is read (ADR-052). Knowing the URL achieves nothing, and that holds even if a patient were later granted a permission by mistake.
 - **`ai.portal.access` is held by no role.** Only `super_admin`'s WILDCARD reaches it; anyone else needs it granted per person. Signing in successfully is not the same as getting in, and the 403 panel says so instead of showing an empty console.
 - **Entry is audited** at notice level, from the start rather than once there is something worth auditing.
@@ -27,7 +28,7 @@ Append-only implementation log for the Nirogix AI Portal.
 
 **Signed out** — a proper AI Portal landing: what it is, who it is for, the sign-in form, and a link back to the Portal and the public site. **No sign-up**, and the page says so rather than leaving someone hunting for a button. **No "forgot password" link either**: self-service reset is not built, and a link to a route that does not exist is worse than none, so the field states what actually happens — an administrator issues a new password.
 
-**Signed in but not authorised** — a dedicated *Access restricted* screen. It names the account they used (so they can tell whether they signed in with the wrong one), explains that AI access is granted **per account rather than by role** — which is why an administrator account does not include it — says who to ask, and offers **Return to Nirogix Portal** and **Sign out**.
+**Signed in but not authorised** — a dedicated _Access restricted_ screen. It names the account they used (so they can tell whether they signed in with the wrong one), explains that AI access is granted **per account rather than by role** — which is why an administrator account does not include it — says who to ask, and offers **Return to Nirogix Portal** and **Sign out**.
 
 **Signed in and authorised** — the landing screen that states no AI capability is enabled. Unchanged.
 
@@ -39,16 +40,15 @@ None of these is a security control, and the code says so: the backend refuses e
 
 **Testing status:** typecheck and `next build` clean. Verified live at `:3004/login` — heading, the authorised-users-only explanation, the form, the password hint, the no-sign-up notice, and both outbound links resolving to the configured Portal and marketing origins.
 
-
 ## 2026-08-16 — Access widened to every staff role (ADR-055)
 
 **What:** `ai.portal.access` moved from "no role by default, granted per person" to **held by every system role**. The AI Portal is for the whole hospital team plus platform operators — everyone except patients.
 
-**Why the original default was wrong in practice:** it made the portal unreachable for exactly the people it is for. Every seeded role landed on the *Access restricted* screen, and only `super_admin` got in, incidentally via WILDCARD. It also mis-placed the risk: what must never happen is a **patient** reaching AI tooling, and that is enforced by the principal-type check, not by this permission. The narrow key bought nothing against the real threat while guaranteeing a refusal on first use.
+**Why the original default was wrong in practice:** it made the portal unreachable for exactly the people it is for. Every seeded role landed on the _Access restricted_ screen, and only `super_admin` got in, incidentally via WILDCARD. It also mis-placed the risk: what must never happen is a **patient** reaching AI tooling, and that is enforced by the principal-type check, not by this permission. The narrow key bought nothing against the real threat while guaranteeing a refusal on first use.
 
 **Unchanged:** patients refused by type, entry audited, `capabilities` empty with a test asserting it stays empty, and a hospital can still DENY the key for one account.
 
-The *Access restricted* screen is still worth having — it now means a deliberate denial rather than the default, which is what a screen like that should mean.
+The _Access restricted_ screen is still worth having — it now means a deliberate denial rather than the default, which is what a screen like that should mean.
 
 **Testing status:** verified live — all seven hospital roles and the platform owner get **200**; a patient token gets **401** and no token gets **401**. 103 backend tests pass.
 
@@ -64,7 +64,7 @@ The *Access restricted* screen is still worth having — it now means a delibera
 
 **What:** the AI Portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
 order, every one live and uncommented, so copying the example gives a boot-ready file where only
-values change (CLAUDE.md → *Environment files*).
+values change (CLAUDE.md → _Environment files_).
 
 **Changed:** `.env.example` trimmed to 1–2 line comments with every key uncommented; the gitignored
 `.env` mirrors the same keys in the same order.

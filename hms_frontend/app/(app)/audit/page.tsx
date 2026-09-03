@@ -1,19 +1,27 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { Badge, DataTable, EmptyValue, type Column, type DataTableQuery, valueLabel, ValueOrEmpty } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AuditEntry } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Badge,
+  DataTable,
+  EmptyValue,
+  type Column,
+  type DataTableQuery,
+  valueLabel,
+  ValueOrEmpty,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { AuditEntry } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
 
-function statusTone(code: number | null): "success" | "warning" | "danger" | "neutral" {
-  if (code === null) return "neutral";
-  if (code >= 500) return "danger";
-  if (code >= 400) return "warning";
-  return "success";
+function statusTone(code: number | null): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (code === null) return 'neutral';
+  if (code >= 500) return 'danger';
+  if (code >= 400) return 'warning';
+  return 'success';
 }
 
 /**
@@ -23,31 +31,33 @@ function statusTone(code: number | null): "success" | "warning" | "danger" | "ne
  */
 const columns: Array<Column<AuditEntry>> = [
   {
-    key: "createdAt",
-    header: "When",
+    key: 'createdAt',
+    header: 'When',
     hideable: false,
     accessor: (r) => r.createdAt,
-    cell: (r) => <span className="whitespace-nowrap text-fg-muted">{formatDateTime(r.createdAt)}</span>,
+    cell: (r) => (
+      <span className="whitespace-nowrap text-fg-muted">{formatDateTime(r.createdAt)}</span>
+    ),
   },
   {
-    key: "action",
-    header: "Action",
+    key: 'action',
+    header: 'Action',
     accessor: (r) => r.action,
     cell: (r) => <span className="font-medium text-fg">{r.action}</span>,
   },
   // An entry about the session itself (a sign-in, a failed sign-in) is attached to no
   // resource. That is the shape of the event, not a missing field.
   {
-    key: "resource",
-    header: "Resource",
-    accessor: (r) => valueLabel(r.resourceType, "notApplicable"),
+    key: 'resource',
+    header: 'Resource',
+    accessor: (r) => valueLabel(r.resourceType, 'notApplicable'),
     cell: (r) => <ValueOrEmpty value={r.resourceType} reason="notApplicable" />,
   },
   {
-    key: "method",
-    header: "Request",
+    key: 'method',
+    header: 'Request',
     sortable: false,
-    accessor: (r) => (r.method ? `${r.method} ${r.path ?? ""}` : ""),
+    accessor: (r) => (r.method ? `${r.method} ${r.path ?? ''}` : ''),
     cell: (r) =>
       r.method ? (
         <span className="text-fg-muted">
@@ -59,25 +69,40 @@ const columns: Array<Column<AuditEntry>> = [
       ),
   },
   {
-    key: "severity",
-    header: "Severity",
+    key: 'severity',
+    header: 'Severity',
     filterable: true,
-    filterOptions: [{ value: "info" }, { value: "notice" }, { value: "warning" }, { value: "critical" }],
+    filterOptions: [
+      { value: 'info' },
+      { value: 'notice' },
+      { value: 'warning' },
+      { value: 'critical' },
+    ],
     accessor: (r) => r.severity,
     cell: (r) => <span className="text-fg-muted">{r.severity}</span>,
   },
   {
-    key: "statusCode",
-    header: "Status",
+    key: 'statusCode',
+    header: 'Status',
     accessor: (r) => r.statusCode,
     cell: (r) =>
-      r.statusCode === null ? <EmptyValue reason="notApplicable" /> : <Badge tone={statusTone(r.statusCode)}>{r.statusCode}</Badge>,
+      r.statusCode === null ? (
+        <EmptyValue reason="notApplicable" />
+      ) : (
+        <Badge tone={statusTone(r.statusCode)}>{r.statusCode}</Badge>
+      ),
   },
 ];
 
 function AuditTable() {
   const [rows, setRows] = useState<AuditEntry[]>([]);
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
+  const [query, setQuery] = useState<DataTableQuery>({
+    page: 1,
+    pageSize: 20,
+    search: '',
+    sort: [],
+    filters: {},
+  });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +116,7 @@ function AuditTable() {
         page: q.page,
         pageSize: q.pageSize,
         search: q.search || undefined,
-        severity: q.filters.severity?.length ? q.filters.severity.join(",") : undefined,
+        severity: q.filters.severity?.length ? q.filters.severity.join(',') : undefined,
         sortBy: q.sort[0]?.key,
         sortDir: q.sort[0]?.dir,
       });
@@ -99,7 +124,7 @@ function AuditTable() {
       setTotal(res.page.total);
       setError(null);
     } catch {
-      setError("Could not load the audit log.");
+      setError('Could not load the audit log.');
     } finally {
       setLoading(false);
     }
@@ -111,7 +136,10 @@ function AuditTable() {
 
   return (
     <>
-      <PageHeader title="Audit Log" description="Immutable, append-only record of security-relevant events." />
+      <PageHeader
+        title="Audit Log"
+        description="Immutable, append-only record of security-relevant events."
+      />
       <DataTable
         columns={columns}
         rows={rows}
@@ -120,7 +148,11 @@ function AuditTable() {
         error={error}
         onRetry={() => void load(query)}
         searchPlaceholder="Search action, path, or resource…"
-        emptyMessage={query.search || query.filters.severity?.length ? "No entries match this filter." : "No audit entries."}
+        emptyMessage={
+          query.search || query.filters.severity?.length
+            ? 'No entries match this filter.'
+            : 'No audit entries.'
+        }
         urlState
         server={{
           total,

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Plus } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -9,20 +9,22 @@ import {
   Card,
   DataTable,
   Field,
+  Select,
   TableActions,
   ToggleAction,
   actionsColumn,
   type Column,
   EditAction,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Branch, Department, Provider } from "@hms/types";
-import * as api from "../../../lib/api";
-import { RequirePermission, Can } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { CatalogPickerButton } from "../../../components/catalog/CatalogPicker";
-import { useCan } from "../../../lib/auth";
-import { EditRecordDialog, type EditField } from "../../../components/EditRecordDialog";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Branch, Department, Provider } from '@hms/types';
+import * as api from '../../../lib/api';
+import { RequirePermission, Can } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { BulkImportAction } from '../../../components/import/BulkImportDialog';
+import { CatalogPickerButton } from '../../../components/catalog/CatalogPicker';
+import { useCan } from '../../../lib/auth';
+import { EditRecordDialog, type EditField } from '../../../components/EditRecordDialog';
 
 /**
  * Departments (ADR-050) — the hospital's clinical organisation.
@@ -43,8 +45,13 @@ import { EditRecordDialog, type EditField } from "../../../components/EditRecord
  * (`@hms/ui` has no `Select` yet).
  */
 const DEPARTMENT_FIELDS: Array<EditField<Department>> = [
-  { key: "name", label: "Department name", required: true, hint: "What staff see at check-in and in pickers." },
-  { key: "description", label: "Description", hint: "Optional. A line of context for staff." },
+  {
+    key: 'name',
+    label: 'Department name',
+    required: true,
+    hint: 'What staff see at check-in and in pickers.',
+  },
+  { key: 'description', label: 'Description', hint: 'Optional. A line of context for staff.' },
 ];
 
 function DepartmentsTable() {
@@ -59,18 +66,18 @@ function DepartmentsTable() {
   const canManage = useCan(PERMISSIONS.DEPARTMENT_MANAGE);
 
   const [showForm, setShowForm] = useState(false);
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [branchId, setBranchId] = useState("");
-  const [headProviderId, setHeadProviderId] = useState("");
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [headProviderId, setHeadProviderId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setRows(await api.listDepartments());
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load departments.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load departments.');
     } finally {
       setLoading(false);
     }
@@ -84,8 +91,14 @@ function DepartmentsTable() {
   // The server refuses anything else, so the form never presents an invalid choice.
   useEffect(() => {
     if (!canManage) return;
-    api.listBranches().then(setBranches).catch(() => {});
-    api.listProviders().then(setProviders).catch(() => {});
+    api
+      .listBranches()
+      .then(setBranches)
+      .catch(() => {});
+    api
+      .listProviders()
+      .then(setProviders)
+      .catch(() => {});
   }, [canManage]);
 
   async function run(action: () => Promise<unknown>) {
@@ -94,7 +107,7 @@ function DepartmentsTable() {
       await action();
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Action failed.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Action failed.');
     } finally {
       setBusy(false);
     }
@@ -111,15 +124,17 @@ function DepartmentsTable() {
         branchId: branchId || null,
         headProviderId: headProviderId || null,
       });
-      setCode("");
-      setName("");
-      setDescription("");
-      setBranchId("");
-      setHeadProviderId("");
+      setCode('');
+      setName('');
+      setDescription('');
+      setBranchId('');
+      setHeadProviderId('');
       setShowForm(false);
       await load();
     } catch (e) {
-      setFormError(e instanceof api.ApiRequestError ? e.message : "Could not create the department.");
+      setFormError(
+        e instanceof api.ApiRequestError ? e.message : 'Could not create the department.',
+      );
     }
   }
 
@@ -132,33 +147,47 @@ function DepartmentsTable() {
 
   const columns: Array<Column<Department>> = [
     {
-      key: "code",
-      header: "Code",
+      key: 'code',
+      header: 'Code',
       hideable: false,
       accessor: (d) => d.code,
       cell: (d) => <span className="font-medium text-fg">{d.code}</span>,
     },
-    { key: "name", header: "Department", accessor: (d) => d.name, cell: (d) => <span className="text-fg">{d.name}</span> },
     {
-      key: "branch",
-      header: "Branch",
+      key: 'name',
+      header: 'Department',
+      accessor: (d) => d.name,
+      cell: (d) => <span className="text-fg">{d.name}</span>,
+    },
+    {
+      key: 'branch',
+      header: 'Branch',
       filterable: true,
-      accessor: (d) => d.branchName ?? "Organization-wide",
+      accessor: (d) => d.branchName ?? 'Organization-wide',
       cell: (d) => d.branchName ?? <span className="text-fg-subtle">Organization-wide</span>,
     },
     {
-      key: "head",
-      header: "Head of department",
-      accessor: (d) => d.headProviderName ?? "",
+      key: 'head',
+      header: 'Head of department',
+      accessor: (d) => d.headProviderName ?? '',
       cell: (d) => d.headProviderName ?? <span className="text-fg-subtle">Not assigned</span>,
     },
-    { key: "doctors", header: "Doctors", accessor: (d) => d.providerCount, cell: (d) => String(d.providerCount) },
     {
-      key: "status",
-      header: "Status",
+      key: 'doctors',
+      header: 'Doctors',
+      accessor: (d) => d.providerCount,
+      cell: (d) => String(d.providerCount),
+    },
+    {
+      key: 'status',
+      header: 'Status',
       filterable: true,
-      accessor: (d) => (d.isActive ? "active" : "inactive"),
-      cell: (d) => <Badge tone={d.isActive ? "success" : "neutral"}>{d.isActive ? "active" : "inactive"}</Badge>,
+      accessor: (d) => (d.isActive ? 'active' : 'inactive'),
+      cell: (d) => (
+        <Badge tone={d.isActive ? 'success' : 'neutral'}>
+          {d.isActive ? 'active' : 'inactive'}
+        </Badge>
+      ),
     },
     actionsColumn<Department>((d) => (
       <TableActions label={`Actions for ${d.name}`}>
@@ -175,9 +204,9 @@ function DepartmentsTable() {
                   title: `Deactivate ${d.name}?`,
                   description:
                     d.providerCount > 0
-                      ? `${d.providerCount} doctor${d.providerCount === 1 ? " is" : "s are"} assigned to it. Existing visits keep their department; new check-ins can no longer choose it.`
-                      : "New check-ins can no longer choose it. Existing visits keep their department.",
-                  confirmLabel: "Deactivate",
+                      ? `${d.providerCount} doctor${d.providerCount === 1 ? ' is' : 's are'} assigned to it. Existing visits keep their department; new check-ins can no longer choose it.`
+                      : 'New check-ins can no longer choose it. Existing visits keep their department.',
+                  confirmLabel: 'Deactivate',
                 }
               : undefined
           }
@@ -194,9 +223,10 @@ function DepartmentsTable() {
         description="The clinical departments your hospital runs. Doctors are assigned to them, and check-in routes by them."
         actions={
           <Can perm={PERMISSIONS.DEPARTMENT_MANAGE}>
+            <BulkImportAction moduleKey="departments" onImported={() => void load()} />
             <Button onClick={() => setShowForm((v) => !v)}>
               {showForm ? (
-                "Close"
+                'Close'
               ) : (
                 <>
                   <Plus size={16} strokeWidth={2} /> New department
@@ -213,7 +243,9 @@ function DepartmentsTable() {
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             {formError && <Alert tone="danger">{formError}</Alert>}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-fg-muted">Start from a common department, or fill it in yourself.</span>
+              <span className="text-sm text-fg-muted">
+                Start from a common department, or fill it in yourself.
+              </span>
               <CatalogPickerButton
                 category="department"
                 title="Common departments"
@@ -245,39 +277,28 @@ function DepartmentsTable() {
                   hint="Optional."
                 />
               </div>
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="dept-branch">
-                  Branch
-                </label>
-                <select id="dept-branch" className="hms-input" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-                  <option value="">Organization-wide</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <span className="hms-field__hint">Leave organization-wide unless only one branch runs it.</span>
-              </div>
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="dept-head">
-                  Head of department
-                </label>
-                <select
-                  id="dept-head"
-                  className="hms-input"
-                  value={headProviderId}
-                  onChange={(e) => setHeadProviderId(e.target.value)}
-                >
-                  <option value="">Not assigned</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.fullName}
-                    </option>
-                  ))}
-                </select>
-                <span className="hms-field__hint">Optional. Can be set later.</span>
-              </div>
+              <Select
+                id="dept-branch"
+                label="Branch"
+                value={branchId}
+                onChange={setBranchId}
+                options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                placeholder="Organization-wide"
+                hint="Leave organization-wide unless only one branch runs it."
+                emptyMessage="No branches defined."
+                clearable
+              />
+              <Select
+                id="dept-head"
+                label="Head of department"
+                value={headProviderId}
+                onChange={setHeadProviderId}
+                options={providers.map((p) => ({ value: p.id, label: p.fullName }))}
+                placeholder="Not assigned"
+                hint="Optional. Can be set later."
+                emptyMessage="No doctors on file."
+                clearable
+              />
             </div>
             <div>
               <Button type="submit">Create department</Button>

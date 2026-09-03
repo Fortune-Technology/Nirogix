@@ -193,7 +193,7 @@ Every business module is independently commercially sellable unless one of its e
 - **Hard dependency** — the module cannot technically operate without another entitled module
 - **Optional integration** — the module works independently but becomes more capable when another module is enabled
 
-Commercial independence is the default for every module in this Part. Technical independence is *not* universal — some modules are commercially sellable on their own but only technically activate once a hard dependency is already entitled. Example: **OT** can be purchased on its own, but will not activate for a tenant that has not also entitled **IPD**; **CSSD** likewise requires **OT**. By contrast, **Pharmacy** is both commercially and technically standalone, and simply gains deeper prescription integration if **EMR** is also entitled.
+Commercial independence is the default for every module in this Part. Technical independence is _not_ universal — some modules are commercially sellable on their own but only technically activate once a hard dependency is already entitled. Example: **OT** can be purchased on its own, but will not activate for a tenant that has not also entitled **IPD**; **CSSD** likewise requires **OT**. By contrast, **Pharmacy** is both commercially and technically standalone, and simply gains deeper prescription integration if **EMR** is also entitled.
 
 ### Hard Dependency
 
@@ -215,37 +215,37 @@ The Module Capability Matrix below applies this classification to every module i
 
 Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.
 
-| Module | Standalone | Hard Dependencies | Optional Integrations |
-|---|---|---|---|
-| Patient Management | Yes | None | Appointment, EMR, Billing |
-| Appointment Management | Yes | Patient Management | EMR, Notifications |
-| OPD & Check-in | Partial | Patient, Appointment | EMR, Billing |
-| Clinical Workflow (EMR) | Partial/No | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology |
-| Nursing | No | IPD | EMR |
-| Laboratory | Yes | None | Patient, EMR, Billing |
-| Radiology & Imaging | Yes | None | Patient, EMR, Billing, PACS (add-on) |
-| Admission (IPD) | Partial | Patient | Billing, Nursing, Insurance |
-| Emergency (ER) | Yes | Patient | EMR, Billing, IPD |
-| Operation Theatre (OT) | No | IPD | EMR, Billing, Inventory |
-| CSSD | No | OT | Inventory |
-| Blood Bank | Yes/Partial | None | Patient, Billing |
-| Specialty Clinical Modules | No | EMR | Billing |
-| Pharmacy | Yes | None | Patient, EMR, Billing, Inventory |
-| Inventory, Stores & Procurement | Yes | None | Pharmacy, OT, Billing |
-| Billing & Payments | Yes | None | Patient, Pharmacy, Lab, IPD |
-| Insurance, TPA & Govt. Schemes | No | Billing | Patient, IPD |
-| Financial Management | Partial | Billing | Inventory, HR |
-| Dietary & Kitchen | Yes | None | IPD (diet-chart linkage) |
-| Housekeeping & Laundry | Yes | None | IPD (ward/bed linkage) |
-| Ambulance & Fleet | Yes | None | Patient, ER, Billing |
-| Biomedical Equipment & Asset Mgmt | Yes | None | OT, Laboratory, Radiology |
-| Biomedical Waste Management | Yes | None | None required |
-| HR, Payroll & Doctor Scheduling | Yes | None | Appointment, Financial Management |
-| CRM & Patient Engagement | Yes | None | Patient, Appointment, Notifications |
+| Module                            | Standalone  | Hard Dependencies            | Optional Integrations                |
+| --------------------------------- | ----------- | ---------------------------- | ------------------------------------ |
+| Patient Management                | Yes         | None                         | Appointment, EMR, Billing            |
+| Appointment Management            | Yes         | Patient Management           | EMR, Notifications                   |
+| OPD & Check-in                    | Partial     | Patient, Appointment         | EMR, Billing                         |
+| Clinical Workflow (EMR)           | Partial/No  | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology             |
+| Nursing                           | No          | IPD                          | EMR                                  |
+| Laboratory                        | Yes         | None                         | Patient, EMR, Billing                |
+| Radiology & Imaging               | Yes         | None                         | Patient, EMR, Billing, PACS (add-on) |
+| Admission (IPD)                   | Partial     | Patient                      | Billing, Nursing, Insurance          |
+| Emergency (ER)                    | Yes         | Patient                      | EMR, Billing, IPD                    |
+| Operation Theatre (OT)            | No          | IPD                          | EMR, Billing, Inventory              |
+| CSSD                              | No          | OT                           | Inventory                            |
+| Blood Bank                        | Yes/Partial | None                         | Patient, Billing                     |
+| Specialty Clinical Modules        | No          | EMR                          | Billing                              |
+| Pharmacy                          | Yes         | None                         | Patient, EMR, Billing, Inventory     |
+| Inventory, Stores & Procurement   | Yes         | None                         | Pharmacy, OT, Billing                |
+| Billing & Payments                | Yes         | None                         | Patient, Pharmacy, Lab, IPD          |
+| Insurance, TPA & Govt. Schemes    | No          | Billing                      | Patient, IPD                         |
+| Financial Management              | Partial     | Billing                      | Inventory, HR                        |
+| Dietary & Kitchen                 | Yes         | None                         | IPD (diet-chart linkage)             |
+| Housekeeping & Laundry            | Yes         | None                         | IPD (ward/bed linkage)               |
+| Ambulance & Fleet                 | Yes         | None                         | Patient, ER, Billing                 |
+| Biomedical Equipment & Asset Mgmt | Yes         | None                         | OT, Laboratory, Radiology            |
+| Biomedical Waste Management       | Yes         | None                         | None required                        |
+| HR, Payroll & Doctor Scheduling   | Yes         | None                         | Appointment, Financial Management    |
+| CRM & Patient Engagement          | Yes         | None                         | Patient, Appointment, Notifications  |
 
 All 25 modules list **Platform Core** as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.
 
-"Standalone" in this matrix means *technically* standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
+"Standalone" in this matrix means _technically_ standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
 
 ### Patient Management
 
@@ -599,7 +599,7 @@ Unlimited users with enterprise-grade permission management.
 
 ### Feature Configuration
 
-Distinct from entitlement. Entitlement decides *whether* a tenant has a module; Feature Configuration decides *how* that module behaves for them — without a code branch per tenant.
+Distinct from entitlement. Entitlement decides _whether_ a tenant has a module; Feature Configuration decides _how_ that module behaves for them — without a code branch per tenant.
 
 > **Example:** Pharmacy = ENABLED (entitlement) → Batch Tracking = ON, Barcode = ON, Multi-Store = ON, Generic Substitution = OFF, Purchase Workflow = OFF (feature configuration)
 
@@ -693,19 +693,19 @@ Every regulatory statement in this document falls into exactly one of three cate
 
 Every regulatory area this platform touches, with its verification status tracked explicitly rather than assumed. Fields not yet confirmed are marked Pending verification rather than guessed.
 
-| Requirement | Area | Source | Verification Status | Owner | Last Verified | Notes |
-|---|---|---|---|---|---|---|
-| Data localization for general personal data | DPDP Act | Digital Personal Data Protection Act, 2023 | Pending verification | Pending verification | Pending verification | Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text |
-| Breach/incident reporting obligations | CERT-In directions | CERT-In cybersecurity directions | Pending verification | Pending verification | Pending verification | Referenced in Security & Compliance; specific timelines not independently verified |
-| Health record storage/localization for ABDM-integrated data | ABDM | Health Data Management Policy (ABDM) | Pending verification | Pending verification | Pending verification | Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI) |
-| Remote consultation requirements | Telemedicine Practice Guidelines | Telemedicine Practice Guidelines, 2020 | Pending verification | Pending verification | Pending verification | Applies to Telemedicine & Video Consultation, Part III |
-| Diagnostic technique restrictions (sex-determination) | PC-PNDT | Pre-Conception and Pre-Natal Diagnostic Techniques Act | Pending verification | Pending verification | Pending verification | Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology |
-| Segregation, handling, and disposal of clinical waste | Biomedical Waste | Bio-Medical Waste Management Rules, 2016 | Pending verification | Pending verification | Pending verification | Applies to Biomedical Waste Management, Part II |
-| Pharmacy licensing, storage, and dispensing rules | Drugs & Cosmetics Rules | Drugs and Cosmetics Act & Rules | Pending verification | Pending verification | Pending verification | Applies to Pharmacy Management, Part II |
-| Blood bank licensing and operational requirements | Blood Bank requirements | Drugs and Cosmetics Rules (Blood Bank provisions) | Pending verification | Pending verification | Pending verification | Applies to Blood Bank Management, Part II |
-| Tax invoicing, HSN/SAC, and filing requirements | GST | Goods and Services Tax Act | Pending verification | Pending verification | Pending verification | Applies to Billing & Payments and Financial Management, Part II |
-| Payment card data handling | PCI DSS | PCI Security Standards Council | Pending verification | Pending verification | Pending verification | Applies to the Payment Gateway add-on and Billing & Payments, Part II/III |
-| Medical device / software classification for AI-assisted features | CDSCO / SaMD | Central Drugs Standard Control Organisation | Pending verification | Pending verification | Pending verification | Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX |
+| Requirement                                                       | Area                             | Source                                                 | Verification Status  | Owner                | Last Verified        | Notes                                                                                                                                               |
+| ----------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------ | -------------------- | -------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data localization for general personal data                       | DPDP Act                         | Digital Personal Data Protection Act, 2023             | Pending verification | Pending verification | Pending verification | Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text                                   |
+| Breach/incident reporting obligations                             | CERT-In directions               | CERT-In cybersecurity directions                       | Pending verification | Pending verification | Pending verification | Referenced in Security & Compliance; specific timelines not independently verified                                                                  |
+| Health record storage/localization for ABDM-integrated data       | ABDM                             | Health Data Management Policy (ABDM)                   | Pending verification | Pending verification | Pending verification | Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI) |
+| Remote consultation requirements                                  | Telemedicine Practice Guidelines | Telemedicine Practice Guidelines, 2020                 | Pending verification | Pending verification | Pending verification | Applies to Telemedicine & Video Consultation, Part III                                                                                              |
+| Diagnostic technique restrictions (sex-determination)             | PC-PNDT                          | Pre-Conception and Pre-Natal Diagnostic Techniques Act | Pending verification | Pending verification | Pending verification | Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology                                                                          |
+| Segregation, handling, and disposal of clinical waste             | Biomedical Waste                 | Bio-Medical Waste Management Rules, 2016               | Pending verification | Pending verification | Pending verification | Applies to Biomedical Waste Management, Part II                                                                                                     |
+| Pharmacy licensing, storage, and dispensing rules                 | Drugs & Cosmetics Rules          | Drugs and Cosmetics Act & Rules                        | Pending verification | Pending verification | Pending verification | Applies to Pharmacy Management, Part II                                                                                                             |
+| Blood bank licensing and operational requirements                 | Blood Bank requirements          | Drugs and Cosmetics Rules (Blood Bank provisions)      | Pending verification | Pending verification | Pending verification | Applies to Blood Bank Management, Part II                                                                                                           |
+| Tax invoicing, HSN/SAC, and filing requirements                   | GST                              | Goods and Services Tax Act                             | Pending verification | Pending verification | Pending verification | Applies to Billing & Payments and Financial Management, Part II                                                                                     |
+| Payment card data handling                                        | PCI DSS                          | PCI Security Standards Council                         | Pending verification | Pending verification | Pending verification | Applies to the Payment Gateway add-on and Billing & Payments, Part II/III                                                                           |
+| Medical device / software classification for AI-assisted features | CDSCO / SaMD                     | Central Drugs Standard Control Organisation            | Pending verification | Pending verification | Pending verification | Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX                                                 |
 
 ## Acceptance Criteria
 
@@ -722,4 +722,5 @@ A module or milestone is accepted as functionally complete only when all of the 
 - The feature is demonstrable, by a non-developer, on the staging environment — not only provable by an engineer reading code.
 
 ---
-*Project Requirements Document — v1.0 — Takoriya Technology LLP — August 2026*
+
+_Project Requirements Document — v1.0 — Takoriya Technology LLP — August 2026_

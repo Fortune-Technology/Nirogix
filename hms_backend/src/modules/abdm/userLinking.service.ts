@@ -4,7 +4,12 @@ import { runWithTenant } from '../../db/tenantContext';
 import { abdmCareContexts, abdmLinkRequests, patients } from '../../db/schema';
 import { logger } from '../../config/logger';
 import { writeAudit } from '../audit/audit.service';
-import { OTP_TTL_MS, sendOtp, verifyOtp, type OtpStore } from '../notification/communication.service';
+import {
+  OTP_TTL_MS,
+  sendOtp,
+  verifyOtp,
+  type OtpStore,
+} from '../notification/communication.service';
 import { USER_LINKING_PATHS } from './abdm.constants';
 import { hipPost } from './hipGateway';
 import { handleDiscovery, type DiscoveryRequest } from './discovery.service';
@@ -51,7 +56,10 @@ export async function respondToDiscovery(input: {
           referenceNumber: result.patient.uhid,
           display: [result.patient.firstName, result.patient.lastName].filter(Boolean).join(' '),
           // The label and reference only — a discovery answer carries no clinical information.
-          careContexts: result.careContexts.map((c) => ({ referenceNumber: c.referenceNumber, display: c.displayLabel })),
+          careContexts: result.careContexts.map((c) => ({
+            referenceNumber: c.referenceNumber,
+            display: c.displayLabel,
+          })),
           count: result.careContexts.length,
           hiType: result.careContexts[0]?.hiTypes[0] ?? 'HealthDocumentRecord',
         },
@@ -103,13 +111,17 @@ export async function initUserLink(input: {
     tx
       .select()
       .from(abdmCareContexts)
-      .where(and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patient.id))),
+      .where(
+        and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, patient.id)),
+      ),
   );
   const permitted = owned.filter((c) => input.careContextRefs.includes(c.referenceNumber));
-  if (permitted.length === 0) return { refused: 'None of those care contexts belong to this patient' };
+  if (permitted.length === 0)
+    return { refused: 'None of those care contexts belong to this patient' };
 
   const destination = (patient.phone ?? '').replace(/\D/g, '').slice(-10);
-  if (!/^[6-9]\d{9}$/.test(destination)) return { refused: 'No mobile number on file to verify against' };
+  if (!/^[6-9]\d{9}$/.test(destination))
+    return { refused: 'No mobile number on file to verify against' };
 
   const referenceNumber = randomUUID();
   await runWithTenant(tenantId, (tx) =>
@@ -186,7 +198,12 @@ export async function confirmUserLink(input: {
     const rows = await tx
       .select()
       .from(abdmLinkRequests)
-      .where(and(eq(abdmLinkRequests.tenantId, tenantId), eq(abdmLinkRequests.referenceNumber, input.referenceNumber)))
+      .where(
+        and(
+          eq(abdmLinkRequests.tenantId, tenantId),
+          eq(abdmLinkRequests.referenceNumber, input.referenceNumber),
+        ),
+      )
       .limit(1);
     return rows[0] ?? null;
   });
@@ -223,12 +240,21 @@ export async function confirmUserLink(input: {
     tx
       .select()
       .from(abdmCareContexts)
-      .where(and(eq(abdmCareContexts.tenantId, tenantId), eq(abdmCareContexts.patientId, request.patientId))),
+      .where(
+        and(
+          eq(abdmCareContexts.tenantId, tenantId),
+          eq(abdmCareContexts.patientId, request.patientId),
+        ),
+      ),
   );
   const linked = contexts.filter((c) => request.careContextRefs.includes(c.referenceNumber));
 
   const patientRow = await runWithTenant(tenantId, async (tx) => {
-    const rows = await tx.select().from(patients).where(eq(patients.id, request.patientId)).limit(1);
+    const rows = await tx
+      .select()
+      .from(patients)
+      .where(eq(patients.id, request.patientId))
+      .limit(1);
     return rows[0] ?? null;
   });
 
@@ -239,7 +265,10 @@ export async function confirmUserLink(input: {
         {
           referenceNumber: patientRow?.uhid ?? request.patientId,
           display: [patientRow?.firstName, patientRow?.lastName].filter(Boolean).join(' '),
-          careContexts: linked.map((c) => ({ referenceNumber: c.referenceNumber, display: c.displayLabel })),
+          careContexts: linked.map((c) => ({
+            referenceNumber: c.referenceNumber,
+            display: c.displayLabel,
+          })),
           count: linked.length,
           hiType: linked[0]?.hiTypes[0] ?? '',
         },
@@ -252,7 +281,10 @@ export async function confirmUserLink(input: {
   // The patient linked these themselves, so they are linked — recorded through the same path as
   // HIP-initiated linking, which keeps one meaning for `status` however a context got there.
   for (const context of linked) {
-    await markLinkResult(tenantId, context.id, { linked: true, abhaAddress: request.abhaAddress ?? undefined });
+    await markLinkResult(tenantId, context.id, {
+      linked: true,
+      abhaAddress: request.abhaAddress ?? undefined,
+    });
   }
   await setRequestStatus(tenantId, input.referenceNumber, 'verified');
 
@@ -275,11 +307,17 @@ export async function confirmUserLink(input: {
  * link requests in flight from two apps, and a code issued for one must not verify the other.
  */
 function linkRequestOtpStore(tenantId: string, referenceNumber: string): OtpStore {
-  const where = and(eq(abdmLinkRequests.tenantId, tenantId), eq(abdmLinkRequests.referenceNumber, referenceNumber));
+  const where = and(
+    eq(abdmLinkRequests.tenantId, tenantId),
+    eq(abdmLinkRequests.referenceNumber, referenceNumber),
+  );
   return {
     async save({ codeHash, expiresAt }) {
       await runWithTenant(tenantId, (tx) =>
-        tx.update(abdmLinkRequests).set({ codeHash, expiresAt, attempts: 0, consumedAt: null, updatedAt: new Date() }).where(where),
+        tx
+          .update(abdmLinkRequests)
+          .set({ codeHash, expiresAt, attempts: 0, consumedAt: null, updatedAt: new Date() })
+          .where(where),
       );
     },
     async findActive() {
@@ -298,7 +336,10 @@ function linkRequestOtpStore(tenantId: string, referenceNumber: string): OtpStor
     },
     async consume() {
       await runWithTenant(tenantId, (tx) =>
-        tx.update(abdmLinkRequests).set({ consumedAt: new Date(), updatedAt: new Date() }).where(where),
+        tx
+          .update(abdmLinkRequests)
+          .set({ consumedAt: new Date(), updatedAt: new Date() })
+          .where(where),
       );
     },
     async recordFailedAttempt() {
@@ -312,12 +353,21 @@ function linkRequestOtpStore(tenantId: string, referenceNumber: string): OtpStor
   };
 }
 
-async function setRequestStatus(tenantId: string, referenceNumber: string, status: string): Promise<void> {
+async function setRequestStatus(
+  tenantId: string,
+  referenceNumber: string,
+  status: string,
+): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(abdmLinkRequests)
       .set({ status, updatedAt: new Date() })
-      .where(and(eq(abdmLinkRequests.tenantId, tenantId), eq(abdmLinkRequests.referenceNumber, referenceNumber))),
+      .where(
+        and(
+          eq(abdmLinkRequests.tenantId, tenantId),
+          eq(abdmLinkRequests.referenceNumber, referenceNumber),
+        ),
+      ),
   );
 }
 
@@ -325,6 +375,10 @@ async function setRequestStatus(tenantId: string, referenceNumber: string, statu
 async function tenantForHip(hipId: string): Promise<string | null> {
   const { db } = await import('../../db/client');
   const { abdmFacilityConfig } = await import('../../db/schema');
-  const rows = await db.select().from(abdmFacilityConfig).where(eq(abdmFacilityConfig.hipId, hipId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmFacilityConfig)
+    .where(eq(abdmFacilityConfig.hipId, hipId))
+    .limit(1);
   return rows[0]?.tenantId ?? null;
 }

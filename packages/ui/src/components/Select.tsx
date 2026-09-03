@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
 import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
-import { Check, ChevronDown, Search, X } from "lucide-react";
-import { cn } from "../cn";
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { cn } from '../cn';
+import { useAnchoredPanel } from './useAnchoredPanel';
 
 export interface SelectOption<V extends string = string> {
   value: V;
@@ -35,8 +35,8 @@ export interface SelectOption<V extends string = string> {
 export interface SelectProps<V extends string = string> {
   label?: ReactNode;
   /** The selected value, or `""` for nothing selected. Controlled. */
-  value: V | "";
-  onChange: (value: V | "") => void;
+  value: V | '';
+  onChange: (value: V | '') => void;
   options: readonly SelectOption<V>[];
   /** Shown in the trigger when nothing is selected. */
   placeholder?: string;
@@ -45,7 +45,7 @@ export interface SelectProps<V extends string = string> {
    * list is longer than `searchThreshold`, which is the case that actually needs it —
    * a five-item list is faster to read than to type into.
    */
-  searchable?: boolean | "auto";
+  searchable?: boolean | 'auto';
   searchThreshold?: number;
   /** Offer an explicit "clear" affordance. Pair with a placeholder that reads as a real state. */
   clearable?: boolean;
@@ -63,28 +63,19 @@ export interface SelectProps<V extends string = string> {
   emptyMessage?: string;
   /** Options are still loading; the panel says so instead of claiming the list is empty. */
   loading?: boolean;
-  "aria-label"?: string;
+  'aria-label'?: string;
 }
 
 const DEFAULT_SEARCH_THRESHOLD = 7;
-/** Room the panel wants below the trigger before it gives up and flips above it. */
-const PANEL_SPACE = 260;
 
 function matches(option: SelectOption, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const haystack = `${option.label} ${option.description ?? ""} ${option.keywords ?? ""}`.toLowerCase();
+  const haystack =
+    `${option.label} ${option.description ?? ''} ${option.keywords ?? ''}`.toLowerCase();
   // Every whitespace-separated term must appear, so "sharma cardio" finds a cardiologist
   // named Sharma without the user having to remember the order they are written in.
   return q.split(/\s+/).every((term) => haystack.includes(term));
-}
-
-interface PanelRect {
-  left: number;
-  width: number;
-  top: number | null;
-  bottom: number | null;
-  maxHeight: number;
 }
 
 /**
@@ -114,8 +105,8 @@ export function Select<V extends string = string>({
   value,
   onChange,
   options,
-  placeholder = "Select…",
-  searchable = "auto",
+  placeholder = 'Select…',
+  searchable = 'auto',
   searchThreshold = DEFAULT_SEARCH_THRESHOLD,
   clearable = false,
   disabled = false,
@@ -126,9 +117,9 @@ export function Select<V extends string = string>({
   name,
   className,
   triggerClassName,
-  emptyMessage = "No matches.",
+  emptyMessage = 'No matches.',
   loading = false,
-  "aria-label": ariaLabel,
+  'aria-label': ariaLabel,
 }: SelectProps<V>) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -137,16 +128,18 @@ export function Select<V extends string = string>({
   const hasMessage = Boolean(error || hint);
 
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [rect, setRect] = useState<PanelRect | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const showSearch = searchable === true || (searchable === "auto" && options.length > searchThreshold);
+  const { rect, measure, clear: clearRect } = useAnchoredPanel(triggerRef, open);
+
+  const showSearch =
+    searchable === true || (searchable === 'auto' && options.length > searchThreshold);
 
   const selected = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value]);
 
@@ -158,7 +151,10 @@ export function Select<V extends string = string>({
   // Group headings are rendered in first-appearance order, so the caller controls the
   // ordering by ordering the options — there is no second sort to keep in sync.
   const groups = useMemo(() => {
-    const out: Array<{ name: string | null; items: Array<{ option: SelectOption<V>; index: number }> }> = [];
+    const out: Array<{
+      name: string | null;
+      items: Array<{ option: SelectOption<V>; index: number }>;
+    }> = [];
     visible.forEach((option, index) => {
       const name = option.group ?? null;
       const last = out[out.length - 1];
@@ -168,31 +164,16 @@ export function Select<V extends string = string>({
     return out;
   }, [visible]);
 
-  const measure = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const gap = 4;
-    const spaceBelow = window.innerHeight - r.bottom - gap;
-    const spaceAbove = r.top - gap;
-    const up = spaceBelow < PANEL_SPACE && spaceAbove > spaceBelow;
-    setRect({
-      left: r.left,
-      width: r.width,
-      top: up ? null : r.bottom + gap,
-      bottom: up ? window.innerHeight - r.top + gap : null,
-      // Never taller than the room actually available, so the panel cannot run off-screen.
-      maxHeight: Math.max(140, Math.min(PANEL_SPACE + 60, up ? spaceAbove : spaceBelow) - 8),
-    });
-  }, []);
-
-  const close = useCallback((returnFocus = true) => {
-    setOpen(false);
-    setQuery("");
-    setActiveIndex(-1);
-    setRect(null);
-    if (returnFocus) triggerRef.current?.focus();
-  }, []);
+  const close = useCallback(
+    (returnFocus = true) => {
+      setOpen(false);
+      setQuery('');
+      setActiveIndex(-1);
+      clearRect();
+      if (returnFocus) triggerRef.current?.focus();
+    },
+    [clearRect],
+  );
 
   const commit = useCallback(
     (option: SelectOption<V>) => {
@@ -208,14 +189,15 @@ export function Select<V extends string = string>({
   const openPanel = useCallback(() => {
     if (disabled) return;
     measure();
-    setQuery("");
-    setActiveIndex(Math.max(0, options.findIndex((o) => o.value === value)));
+    setQuery('');
+    setActiveIndex(
+      Math.max(
+        0,
+        options.findIndex((o) => o.value === value),
+      ),
+    );
     setOpen(true);
   }, [disabled, measure, options, value]);
-
-  useLayoutEffect(() => {
-    if (open) measure();
-  }, [open, measure]);
 
   useEffect(() => {
     if (!open) return;
@@ -228,19 +210,6 @@ export function Select<V extends string = string>({
     if (open && activeIndex >= visible.length) setActiveIndex(visible.length - 1);
   }, [open, activeIndex, visible.length]);
 
-  // The panel lives in a portal, so it follows the trigger only if it is told to.
-  // Capture-phase catches scrolling in any ancestor, not just the window.
-  useEffect(() => {
-    if (!open) return;
-    const onScrollOrResize = () => measure();
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
-    return () => {
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
-  }, [open, measure]);
-
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
@@ -248,8 +217,8 @@ export function Select<V extends string = string>({
       if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       close(false);
     }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open, close]);
 
   // Keep the active option in view when the keyboard walks past the scroll edge.
@@ -257,7 +226,7 @@ export function Select<V extends string = string>({
     if (!open || activeIndex < 0) return;
     listRef.current
       ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: 'nearest' });
   }, [open, activeIndex]);
 
   function move(delta: number) {
@@ -273,31 +242,31 @@ export function Select<V extends string = string>({
 
   function onKeyDown(e: ReactKeyboardEvent) {
     if (!open) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openPanel();
       }
       return;
     }
     switch (e.key) {
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         e.stopPropagation();
         close();
         break;
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
         move(1);
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
         move(-1);
         break;
-      case "Home":
+      case 'Home':
         e.preventDefault();
         setActiveIndex(visible.findIndex((o) => !o.disabled));
         break;
-      case "End":
+      case 'End':
         e.preventDefault();
         for (let i = visible.length - 1; i >= 0; i--) {
           if (!visible[i]?.disabled) {
@@ -306,13 +275,13 @@ export function Select<V extends string = string>({
           }
         }
         break;
-      case "Enter": {
+      case 'Enter': {
         e.preventDefault();
         const option = visible[activeIndex];
         if (option) commit(option);
         break;
       }
-      case "Tab":
+      case 'Tab':
         close(false);
         break;
       default:
@@ -356,7 +325,7 @@ export function Select<V extends string = string>({
           ref={listRef}
           role="listbox"
           tabIndex={showSearch ? -1 : 0}
-          aria-label={typeof label === "string" ? label : ariaLabel}
+          aria-label={typeof label === 'string' ? label : ariaLabel}
           aria-activedescendant={activeIndex >= 0 ? `${fieldId}-opt-${activeIndex}` : undefined}
           className="hms-select__list"
           style={{ maxHeight: rect.maxHeight }}
@@ -367,8 +336,13 @@ export function Select<V extends string = string>({
           ) : visible.length === 0 ? (
             <p className="hms-select__empty">{emptyMessage}</p>
           ) : (
-            groups.map((group) => (
-              <div key={group.name ?? "__ungrouped"} role="group" aria-label={group.name ?? undefined}>
+            groups.map((group, groupIndex) => (
+              // Keyed by POSITION, not by name. A caller whose options are not sorted by group
+              // produces the same name in two non-adjacent runs — `platform … opd … platform` —
+              // and keying on the name gives React two siblings with one key. The symptom is not
+              // a warning anyone notices: the list renders stale and duplicated options and stops
+              // responding to the search. The heading is still the name; only the key differs.
+              <div key={`group-${groupIndex}`} role="group" aria-label={group.name ?? undefined}>
                 {group.name && <p className="hms-select__group">{group.name}</p>}
                 {group.items.map(({ option, index }) => (
                   <div
@@ -379,10 +353,10 @@ export function Select<V extends string = string>({
                     aria-selected={option.value === value}
                     aria-disabled={option.disabled || undefined}
                     className={cn(
-                      "hms-select__option",
-                      index === activeIndex && "hms-select__option--active",
-                      option.value === value && "hms-select__option--selected",
-                      option.disabled && "hms-select__option--disabled",
+                      'hms-select__option',
+                      index === activeIndex && 'hms-select__option--active',
+                      option.value === value && 'hms-select__option--selected',
+                      option.disabled && 'hms-select__option--disabled',
                     )}
                     onPointerMove={() => !option.disabled && setActiveIndex(index)}
                     onClick={() => commit(option)}
@@ -393,7 +367,9 @@ export function Select<V extends string = string>({
                     {option.icon ? <span className="hms-select__icon">{option.icon}</span> : null}
                     <span className="hms-select__option-text">
                       <span className="hms-select__option-label">{option.label}</span>
-                      {option.description && <span className="hms-select__option-desc">{option.description}</span>}
+                      {option.description && (
+                        <span className="hms-select__option-desc">{option.description}</span>
+                      )}
                     </span>
                     {option.meta ? <span className="hms-select__meta">{option.meta}</span> : null}
                   </div>
@@ -406,13 +382,13 @@ export function Select<V extends string = string>({
     ) : null;
 
   return (
-    <div className={cn("hms-field", className)}>
+    <div className={cn('hms-field', className)}>
       {label && (
         <label className="hms-label" htmlFor={fieldId}>
           {label}
           {required && (
             <span className="hms-select__required" aria-hidden>
-              {" "}
+              {' '}
               *
             </span>
           )}
@@ -433,9 +409,9 @@ export function Select<V extends string = string>({
           aria-describedby={hasMessage ? messageId : undefined}
           disabled={disabled}
           className={cn(
-            "hms-select__trigger",
-            error && "hms-select__trigger--error",
-            !selected && "hms-select__trigger--empty",
+            'hms-select__trigger',
+            error && 'hms-select__trigger--error',
+            !selected && 'hms-select__trigger--empty',
             triggerClassName,
           )}
           onClick={() => (open ? close() : openPanel())}
@@ -456,7 +432,7 @@ export function Select<V extends string = string>({
               className="hms-select__clear"
               onClick={(e) => {
                 e.stopPropagation();
-                onChange("");
+                onChange('');
               }}
             >
               <X size={14} strokeWidth={2} aria-hidden />
@@ -466,7 +442,7 @@ export function Select<V extends string = string>({
         </button>
         {name && <input type="hidden" name={name} value={value} />}
       </div>
-      {typeof document !== "undefined" && panel ? createPortal(panel, document.body) : null}
+      {typeof document !== 'undefined' && panel ? createPortal(panel, document.body) : null}
       {error ? (
         <span id={messageId} className="hms-field__error">
           {error}

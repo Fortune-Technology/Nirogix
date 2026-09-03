@@ -19,6 +19,10 @@ export { Textarea } from './components/Textarea';
 export type { TextareaFieldProps } from './components/Textarea';
 export { Select } from './components/Select';
 export type { SelectOption, SelectProps } from './components/Select';
+// `Select` = choose one of these. `Combobox` = choose one of these, or write your own —
+// the shape every clinical master picker has (ADR-029). Never `<input list>` + `<datalist>`.
+export { Combobox } from './components/Combobox';
+export type { ComboboxOption, ComboboxProps } from './components/Combobox';
 export { PasswordField } from './components/PasswordField';
 export type { PasswordFieldProps } from './components/PasswordField';
 export { Card } from './components/Card';
@@ -48,8 +52,20 @@ export {
   DateRangeFilter,
   NumberRangeFilter,
 } from './components/data-table';
-export type { Column, ColumnFilters, DataTableProps, DataTableQuery, ServerMode, SortState } from './components/data-table';
-export type { DateRangeValue, DateRangeFilterProps, NumberRangeValue, NumberRangeFilterProps } from './components/data-table';
+export type {
+  Column,
+  ColumnFilters,
+  DataTableProps,
+  DataTableQuery,
+  ServerMode,
+  SortState,
+} from './components/data-table';
+export type {
+  DateRangeValue,
+  DateRangeFilterProps,
+  NumberRangeValue,
+  NumberRangeFilterProps,
+} from './components/data-table';
 export { Menu, MenuItem, MenuCheckboxItem, MenuSeparator } from './components/Menu';
 export type { MenuProps, MenuItemProps } from './components/Menu';
 // The one Action-column system — every table's row actions (rules.md → Table Row Actions).
@@ -85,11 +101,23 @@ export { NumberInputGuard } from './components/NumberInputGuard';
 export { EmptyValue, ValueOrEmpty, emptyLabel, valueLabel } from './components/EmptyValue';
 export type { EmptyValueProps, ValueOrEmptyProps, EmptyReason } from './components/EmptyValue';
 export type { EmptyStateProps, ErrorStateProps, SkeletonProps } from './components/States';
-export { BottomNav, NavDrawer, NavDrawerItem, NavDrawerSection, BOTTOM_NAV_MAX_ITEMS } from './components/MobileNav';
+export {
+  BottomNav,
+  NavDrawer,
+  NavDrawerItem,
+  NavDrawerSection,
+  BOTTOM_NAV_MAX_ITEMS,
+} from './components/MobileNav';
 export type { BottomNavProps, NavDrawerProps, MobileNavItem } from './components/MobileNav';
 // Dashboard data visualisation — token-driven, dependency-free (ADR-043).
 export { AreaChart, BarChart, StatCard, UsageBar, ChartTable, compact } from './components/charts';
-export type { AreaChartProps, BarChartProps, StatCardProps, UsageBarProps, Series } from './components/charts';
+export type {
+  AreaChartProps,
+  BarChartProps,
+  StatCardProps,
+  UsageBarProps,
+  Series,
+} from './components/charts';
 // The document/print layer — print prints the document, not the application (ADR-047).
 export {
   PrintDocument,
@@ -101,13 +129,22 @@ export {
   PrintNote,
   PrintToolbar,
 } from './components/print';
-export type { PrintDocumentProps, DocumentBrand } from './components/print';
+export type { PrintDocumentProps, DocumentBrand, PrintSignatureLine } from './components/print';
 // Date & time ENTRY — the one date/time input set (ADR-048).
 export { Calendar, DateField, TimeField, DateTimeField } from './components/datetime';
-export type { CalendarProps, DateFieldProps, TimeFieldProps, DateTimeFieldProps } from './components/datetime';
+export type {
+  CalendarProps,
+  DateFieldProps,
+  TimeFieldProps,
+  DateTimeFieldProps,
+} from './components/datetime';
 // Date/time display — the one place a user-facing date or time is rendered (ADR-046).
 export { DateDisplay, TimeDisplay, DateTimeDisplay } from './components/DateTimeDisplay';
-export type { DateDisplayProps, TimeDisplayProps, DateTimeDisplayProps } from './components/DateTimeDisplay';
+export type {
+  DateDisplayProps,
+  TimeDisplayProps,
+  DateTimeDisplayProps,
+} from './components/DateTimeDisplay';
 export { BrandMark } from './components/BrandMark';
 export type { BrandMarkProps } from './components/BrandMark';
 export { HeaderUser } from './components/HeaderUser';

@@ -28,7 +28,10 @@ registry.registerPath({
   tags: ['Doctors'],
   summary: 'List the specialty catalog (reference data)',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Specialties', ...json(SpecialtiesResponseSchema) }, 401: notAuthed },
+  responses: {
+    200: { description: 'Specialties', ...json(SpecialtiesResponseSchema) },
+    401: notAuthed,
+  },
 });
 
 registry.registerPath({
@@ -100,7 +103,8 @@ registry.registerPath({
   operationId: 'assignSpecialty',
   tags: ['Doctors'],
   summary: 'Assign a specialty to a provider (FHIR PractitionerRole)',
-  description: 'Adding a specialty is a data change (a new PractitionerRole), never a schema change.',
+  description:
+    'Adding a specialty is a data change (a new PractitionerRole), never a schema change.',
   security: [{ bearerAuth: [] }],
   request: { ...idParam, body: json(AssignSpecialtyBody) },
   responses: {
@@ -120,7 +124,11 @@ registry.registerPath({
   summary: "The provider's weekly availability windows",
   security: [{ bearerAuth: [] }],
   request: idParam,
-  responses: { 200: { description: 'Roster', ...json(ScheduleListSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Roster', ...json(ScheduleListSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -147,9 +155,15 @@ registry.registerPath({
   tags: ['Doctors'],
   summary: 'Free bookable slots for one day, derived from the roster minus booked appointments',
   security: [{ bearerAuth: [] }],
-  request: { ...idParam, query: z.object({ date: z.string().openapi({ description: 'YYYY-MM-DD' }) }) },
+  request: {
+    ...idParam,
+    query: z.object({ date: z.string().openapi({ description: 'YYYY-MM-DD' }) }),
+  },
   responses: {
-    200: { description: 'Slots (hasRoster=false when the provider has no roster)', ...json(FreeSlotsSchema) },
+    200: {
+      description: 'Slots (hasRoster=false when the provider has no roster)',
+      ...json(FreeSlotsSchema),
+    },
     401: notAuthed,
     403: forbidden,
     422: { description: 'Bad date', ...json(ErrorResponseSchema) },

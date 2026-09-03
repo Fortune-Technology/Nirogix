@@ -94,9 +94,16 @@ beforeAll(async () => {
   await grantModule(tenantId, 'abdm');
   await upsertFacilityConfig(tenantId, { hipId: HIP_ID, facilityName: 'Timeline Test' });
 
-  const patient = await createPatient(tenantId, { firstName: 'Devi', lastName: 'Krishnan', phone: '9700008888' });
+  const patient = await createPatient(tenantId, {
+    firstName: 'Devi',
+    lastName: 'Krishnan',
+    phone: '9700008888',
+  });
   patientId = patient.id;
-  await pool.query("UPDATE patients SET abha_address = 'tl@sbx', abha_verified_at = now() WHERE id = $1", [patientId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'tl@sbx', abha_verified_at = now() WHERE id = $1",
+    [patientId],
+  );
 
   const doctor = await pool.query(
     `INSERT INTO providers (tenant_id, full_name, registration_number, is_active)
@@ -118,8 +125,19 @@ describe('reading a bundle', () => {
       asRecord({
         resourceType: 'Bundle',
         entry: [
-          { resource: { resourceType: 'Composition', type: { text: 'OP Consultation Document' }, date: '2026-03-04' } },
-          { resource: { resourceType: 'Condition', code: { coding: [{ code: 'J20.9', display: 'Acute bronchitis' }] } } },
+          {
+            resource: {
+              resourceType: 'Composition',
+              type: { text: 'OP Consultation Document' },
+              date: '2026-03-04',
+            },
+          },
+          {
+            resource: {
+              resourceType: 'Condition',
+              code: { coding: [{ code: 'J20.9', display: 'Acute bronchitis' }] },
+            },
+          },
           {
             resource: {
               resourceType: 'MedicationRequest',
@@ -139,9 +157,21 @@ describe('reading a bundle', () => {
     );
 
     expect(entry.title).toBe('OP Consultation Document');
-    expect(entry.details).toContainEqual({ group: 'Diagnoses', label: 'Diagnosis', value: 'Acute bronchitis' });
-    expect(entry.details).toContainEqual({ group: 'Medicines', label: 'Amoxicillin 500mg', value: 'Twice daily for 5 days' });
-    expect(entry.details).toContainEqual({ group: 'Findings', label: 'Body temperature', value: '38.2 Cel' });
+    expect(entry.details).toContainEqual({
+      group: 'Diagnoses',
+      label: 'Diagnosis',
+      value: 'Acute bronchitis',
+    });
+    expect(entry.details).toContainEqual({
+      group: 'Medicines',
+      label: 'Amoxicillin 500mg',
+      value: 'Twice daily for 5 days',
+    });
+    expect(entry.details).toContainEqual({
+      group: 'Findings',
+      label: 'Body temperature',
+      value: '38.2 Cel',
+    });
     expect(entry.hasAbnormalFinding).toBe(false);
   });
 
@@ -187,7 +217,12 @@ describe('reading a bundle', () => {
         entry: [{ resource: { resourceType: 'AllergyIntolerance', code: { text: 'Penicillin' } } }],
       }),
     );
-    expect(entry.details[0]).toEqual({ group: 'Allergies', label: 'Allergy', value: 'Penicillin', emphasis: 'abnormal' });
+    expect(entry.details[0]).toEqual({
+      group: 'Allergies',
+      label: 'Allergy',
+      value: 'Penicillin',
+      emphasis: 'abnormal',
+    });
   });
 
   test('an unfamiliar resource is skipped, never fatal', async ({ skip }) => {
@@ -211,7 +246,9 @@ describe('reading a bundle', () => {
 
   test('a bundle with no title falls back to a readable type', async ({ skip }) => {
     if (!ready) return skip();
-    const entry = toTimelineEntry(asRecord({ resourceType: 'Bundle', entry: [] }, { hiType: 'DischargeSummary' }));
+    const entry = toTimelineEntry(
+      asRecord({ resourceType: 'Bundle', entry: [] }, { hiType: 'DischargeSummary' }),
+    );
     expect(entry.title).toBe('Discharge summary');
   });
 
@@ -222,7 +259,12 @@ describe('reading a bundle', () => {
         resourceType: 'Bundle',
         entry: [
           { resource: { resourceType: 'Organization', name: 'City Hospital' } },
-          { resource: { resourceType: 'Practitioner', name: [{ given: ['Asha'], family: 'Menon' }] } },
+          {
+            resource: {
+              resourceType: 'Practitioner',
+              name: [{ given: ['Asha'], family: 'Menon' }],
+            },
+          },
         ],
       }),
     );
@@ -244,22 +286,38 @@ describe('the merged timeline', () => {
 
   test('a lapsed consent hides its records IMMEDIATELY, before any sweep', async ({ skip }) => {
     if (!ready) return skip();
-    await storeRecord({ consentId: 'tl-lapse', hipId: 'HOSP-LAPSE', date: '2026-06-01T00:00:00.000Z' });
-    expect((await patientTimeline(tenantId, patientId)).some((e) => e.sourceHipId === 'HOSP-LAPSE')).toBe(true);
+    await storeRecord({
+      consentId: 'tl-lapse',
+      hipId: 'HOSP-LAPSE',
+      date: '2026-06-01T00:00:00.000Z',
+    });
+    expect(
+      (await patientTimeline(tenantId, patientId)).some((e) => e.sourceHipId === 'HOSP-LAPSE'),
+    ).toBe(true);
 
     // The row is still on disk — the sweep has not run. It must already be invisible.
-    await pool.query("UPDATE abdm_hiu_consents SET data_erase_at = '2020-01-01' WHERE consent_id = $1", ['tl-lapse']);
-    const stillStored = await pool.query('SELECT count(*)::int AS n FROM abdm_hiu_records WHERE care_context_reference = $1', [
-      'cc-tl-lapse',
-    ]);
+    await pool.query(
+      "UPDATE abdm_hiu_consents SET data_erase_at = '2020-01-01' WHERE consent_id = $1",
+      ['tl-lapse'],
+    );
+    const stillStored = await pool.query(
+      'SELECT count(*)::int AS n FROM abdm_hiu_records WHERE care_context_reference = $1',
+      ['cc-tl-lapse'],
+    );
     expect(stillStored.rows[0].n).toBe(1);
 
-    expect((await patientTimeline(tenantId, patientId)).some((e) => e.sourceHipId === 'HOSP-LAPSE')).toBe(false);
+    expect(
+      (await patientTimeline(tenantId, patientId)).some((e) => e.sourceHipId === 'HOSP-LAPSE'),
+    ).toBe(false);
   });
 
   test('a revoked consent takes its records out of the feed', async ({ skip }) => {
     if (!ready) return skip();
-    await storeRecord({ consentId: 'tl-revoke', hipId: 'HOSP-REVOKE', date: '2026-07-01T00:00:00.000Z' });
+    await storeRecord({
+      consentId: 'tl-revoke',
+      hipId: 'HOSP-REVOKE',
+      date: '2026-07-01T00:00:00.000Z',
+    });
     await hiu.handleConsentNotification({ consentId: 'tl-revoke', status: 'REVOKED' });
 
     const timeline = await patientTimeline(tenantId, patientId);
@@ -285,7 +343,9 @@ describe('the merged timeline', () => {
     const bySource = await patientTimeline(tenantId, patientId, { sourceHipId: 'HOSP-B' });
     expect(bySource.every((e) => e.sourceHipId === 'HOSP-B')).toBe(true);
 
-    const byType = await patientTimeline(tenantId, patientId, { hiTypes: ['HealthDocumentRecord'] });
+    const byType = await patientTimeline(tenantId, patientId, {
+      hiTypes: ['HealthDocumentRecord'],
+    });
     expect(byType.every((e) => e.hiType === 'HealthDocumentRecord')).toBe(true);
   });
 
@@ -298,12 +358,23 @@ describe('the merged timeline', () => {
     expect(summary.latest).toBeTruthy();
     // Counts and provenance only — a generated "key findings" line would be a clinical claim this
     // code has no standing to make.
-    expect(Object.keys(summary)).toEqual(['total', 'sources', 'byType', 'abnormalCount', 'earliest', 'latest']);
+    expect(Object.keys(summary)).toEqual([
+      'total',
+      'sources',
+      'byType',
+      'abnormalCount',
+      'earliest',
+      'latest',
+    ]);
   });
 
   test('another patient sees none of it', async ({ skip }) => {
     if (!ready) return skip();
-    const other = await createPatient(tenantId, { firstName: 'Someone', lastName: 'Else', phone: '9700009111' });
+    const other = await createPatient(tenantId, {
+      firstName: 'Someone',
+      lastName: 'Else',
+      phone: '9700009111',
+    });
     expect(await patientTimeline(tenantId, other.id)).toHaveLength(0);
   });
 });

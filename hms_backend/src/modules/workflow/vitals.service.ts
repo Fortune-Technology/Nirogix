@@ -67,7 +67,10 @@ export interface VitalsRecordDto {
  * Storage is in exact integer units (tenths of a degree, grams); the API speaks the units a human
  * uses. The conversion lives here alone so a display bug cannot become a stored one.
  */
-export function vitalsRowToDto(row: PatientVitalsRow, recordedByName: string | null): VitalsRecordDto {
+export function vitalsRowToDto(
+  row: PatientVitalsRow,
+  recordedByName: string | null,
+): VitalsRecordDto {
   return {
     id: row.id,
     visitId: row.visitId,
@@ -120,7 +123,9 @@ const PARAM_LABELS: Record<VitalParameter, string> = {
  * into a kilogram field. A number that cannot be measured is a data-entry error, and storing it
  * puts a false reading in a chart.
  */
-const BOUNDS: Partial<Record<keyof VitalsInput, { min: number; max: number; label: string; unit: string }>> = {
+const BOUNDS: Partial<
+  Record<keyof VitalsInput, { min: number; max: number; label: string; unit: string }>
+> = {
   systolic: { min: 40, max: 300, label: 'Systolic', unit: 'mmHg' },
   diastolic: { min: 20, max: 200, label: 'Diastolic', unit: 'mmHg' },
   pulse: { min: 20, max: 300, label: 'Pulse', unit: 'bpm' },
@@ -133,7 +138,9 @@ const BOUNDS: Partial<Record<keyof VitalsInput, { min: number; max: number; labe
 };
 
 function validateReadings(input: VitalsInput): void {
-  for (const [field, bound] of Object.entries(BOUNDS) as Array<[keyof VitalsInput, NonNullable<(typeof BOUNDS)[keyof VitalsInput]>]>) {
+  for (const [field, bound] of Object.entries(BOUNDS) as Array<
+    [keyof VitalsInput, NonNullable<(typeof BOUNDS)[keyof VitalsInput]>]
+  >) {
     const value = input[field];
     if (value == null || typeof value !== 'number') continue;
     if (value < bound.min || value > bound.max) {
@@ -147,20 +154,28 @@ function validateReadings(input: VitalsInput): void {
   const hasSystolic = input.systolic != null;
   const hasDiastolic = input.diastolic != null;
   if (hasSystolic !== hasDiastolic) {
-    throw Errors.validation(undefined, 'Record both the systolic and the diastolic pressure, or neither');
+    throw Errors.validation(
+      undefined,
+      'Record both the systolic and the diastolic pressure, or neither',
+    );
   }
   if (hasSystolic && hasDiastolic && input.systolic! <= input.diastolic!) {
     throw Errors.validation(undefined, 'The systolic pressure must be higher than the diastolic');
   }
   // A sugar reading nobody can interpret is worse than no reading.
   if (input.bloodSugarMgDl != null && !input.bloodSugarType) {
-    throw Errors.validation(undefined, 'Say whether the blood sugar is fasting, post-prandial or random');
+    throw Errors.validation(
+      undefined,
+      'Say whether the blood sugar is fasting, post-prandial or random',
+    );
   }
 }
 
 /** True when the input carries at least one actual reading. */
 export function hasAnyReading(input: VitalsInput): boolean {
-  return Object.entries(input).some(([key, value]) => key !== 'notes' && key !== 'bloodSugarType' && value != null);
+  return Object.entries(input).some(
+    ([key, value]) => key !== 'notes' && key !== 'bloodSugarType' && value != null,
+  );
 }
 
 /**
@@ -168,7 +183,10 @@ export function hasAnyReading(input: VitalsInput): boolean {
  * "we always take these" — never as a general rule, because a doctor amending one reading mid
  * consultation must not be forced to re-enter the other five.
  */
-export function assertRequiredPresent(input: VitalsInput, required: readonly VitalParameter[]): void {
+export function assertRequiredPresent(
+  input: VitalsInput,
+  required: readonly VitalParameter[],
+): void {
   const missing = required.filter((param) =>
     PARAM_FIELDS[param].some((field) => input[field] == null),
   );
@@ -287,7 +305,10 @@ export async function listForVisit(tenantId: string, visitId: string): Promise<V
 }
 
 /** The most recent reading on a visit, which is what the consultation shows. */
-export async function latestForVisit(tenantId: string, visitId: string): Promise<VitalsRecordDto | null> {
+export async function latestForVisit(
+  tenantId: string,
+  visitId: string,
+): Promise<VitalsRecordDto | null> {
   const all = await listForVisit(tenantId, visitId);
   return all[0] ?? null;
 }
@@ -421,4 +442,3 @@ export async function recordCheckInVitals(
     metadata: { visitId: args.visitId, patientId: args.patientId, stage: 'check_in' },
   });
 }
-

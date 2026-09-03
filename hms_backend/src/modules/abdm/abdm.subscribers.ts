@@ -24,7 +24,11 @@ import { recordCareContextForVisit } from './careContext.service';
  */
 
 /** Records a care context, swallowing failure — a clinical action must never fail because of ABDM. */
-async function safely(tenantId: string, visitId: string, hiType: Parameters<typeof recordCareContextForVisit>[2]) {
+async function safely(
+  tenantId: string,
+  visitId: string,
+  hiType: Parameters<typeof recordCareContextForVisit>[2],
+) {
   try {
     // Hospitals that never bought ABDM should not accumulate care contexts they cannot use.
     if (!(await isModuleEntitled(tenantId, 'abdm'))) return;

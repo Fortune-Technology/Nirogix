@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Badge, Card, DateDisplay, DateTimeDisplay, EmptyState, Spinner } from "@hms/ui";
-import { FileCheck } from "lucide-react";
-import * as api from "../../lib/api";
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Badge, Card, DateDisplay, DateTimeDisplay, EmptyState, Spinner } from '@hms/ui';
+import { FileCheck } from 'lucide-react';
+import * as api from '../../lib/api';
 
 /**
  * Consents other providers hold over this hospital's records (ADR-100).
@@ -23,15 +23,21 @@ import * as api from "../../lib/api";
  *   claimed.
  */
 
-const EVENT_LABEL: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger" }> = {
-  granted: { label: "Granted", tone: "success" },
-  revoked: { label: "Revoked by patient", tone: "danger" },
-  expired: { label: "Expired", tone: "warning" },
-  erased: { label: "Erased on opt-out", tone: "warning" },
+const EVENT_LABEL: Record<
+  string,
+  { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' }
+> = {
+  granted: { label: 'Granted', tone: 'success' },
+  revoked: { label: 'Revoked by patient', tone: 'danger' },
+  expired: { label: 'Expired', tone: 'warning' },
+  erased: { label: 'Erased on opt-out', tone: 'warning' },
 };
 
 export function ConsentsCard() {
-  const [data, setData] = useState<{ consents: api.AbdmHeldConsent[]; history: api.AbdmConsentEvent[] } | null>(null);
+  const [data, setData] = useState<{
+    consents: api.AbdmHeldConsent[];
+    history: api.AbdmConsentEvent[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -65,16 +71,15 @@ export function ConsentsCard() {
             <FileCheck className="size-4 text-fg-muted" aria-hidden />
             Consents from other providers
           </span>
-          <Badge tone="neutral">
-            {consents.length} current
-          </Badge>
+          <Badge tone="neutral">{consents.length} current</Badge>
         </div>
       }
     >
       <Alert>
-        When a patient allows another hospital or clinic to read records held here, ABDM sends us a consent. These
-        are the permissions currently in force. Withdrawing one deletes it and the records shared under it &mdash;
-        that is why a withdrawn consent leaves this list and appears in the history below.
+        When a patient allows another hospital or clinic to read records held here, ABDM sends us a
+        consent. These are the permissions currently in force. Withdrawing one deletes it and the
+        records shared under it &mdash; that is why a withdrawn consent leaves this list and appears
+        in the history below.
       </Alert>
 
       {consents.length === 0 ? (
@@ -89,14 +94,15 @@ export function ConsentsCard() {
           {consents.map((c) => (
             <li key={c.consentId} className="rounded-md border border-border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium text-fg">{c.hiuId ?? "A requesting provider"}</span>
+                <span className="font-medium text-fg">{c.hiuId ?? 'A requesting provider'}</span>
                 <Badge tone="success">In force</Badge>
               </div>
               <p className="mt-1 text-xs text-fg-muted">
-                {c.hiTypes.join(", ") || "No record types named"}
+                {c.hiTypes.join(', ') || 'No record types named'}
                 {c.dataEraseAt && (
                   <>
-                    {" "}&middot; expires <DateDisplay value={c.dataEraseAt} />
+                    {' '}
+                    &middot; expires <DateDisplay value={c.dataEraseAt} />
                   </>
                 )}
               </p>
@@ -108,15 +114,15 @@ export function ConsentsCard() {
       <div className="mt-6">
         <h3 className="text-sm font-medium text-fg">What has happened</h3>
         <p className="mt-1 text-xs text-fg-muted">
-          Kept even after a consent is deleted, so there is always a record that one existed and how it ended. It
-          holds no clinical information.
+          Kept even after a consent is deleted, so there is always a record that one existed and how
+          it ended. It holds no clinical information.
         </p>
         {history.length === 0 ? (
           <p className="mt-3 text-sm text-fg-muted">Nothing yet.</p>
         ) : (
           <ol className="mt-3 space-y-1.5">
             {history.slice(0, 20).map((h, i) => {
-              const event = EVENT_LABEL[h.event] ?? { label: h.event, tone: "neutral" as const };
+              const event = EVENT_LABEL[h.event] ?? { label: h.event, tone: 'neutral' as const };
               return (
                 <li
                   key={`${h.consentId}-${h.event}-${i}`}
@@ -124,7 +130,7 @@ export function ConsentsCard() {
                 >
                   <span className="flex items-center gap-2">
                     <Badge tone={event.tone}>{event.label}</Badge>
-                    <span className="text-fg-muted">{h.hiuId ?? "requesting provider"}</span>
+                    <span className="text-fg-muted">{h.hiuId ?? 'requesting provider'}</span>
                   </span>
                   <span className="text-xs text-fg-muted">
                     <DateTimeDisplay value={h.recordedAt} />

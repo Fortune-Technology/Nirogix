@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { Suspense, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Alert, BrandMark, Button, Card, PasswordField } from "@hms/ui";
-import { resetPassword } from "../../../lib/api";
+import { Suspense, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Alert, BrandMark, Button, Card, PasswordField } from '@hms/ui';
+import { resetPassword } from '../../../lib/api';
 
 /**
  * Forgot-password step 2 for the operator console (ADR-081) — the destination of the
@@ -12,13 +12,13 @@ import { resetPassword } from "../../../lib/api";
  * every session was revoked server-side, so the only path onward is signing in again.
  */
 function errorMessage(err: unknown): string {
-  return err instanceof Error && err.message ? err.message : "Something went wrong. Try again.";
+  return err instanceof Error && err.message ? err.message : 'Something went wrong. Try again.';
 }
 
 function ResetPasswordForm() {
-  const token = useSearchParams().get("token") ?? "";
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const token = useSearchParams().get('token') ?? '';
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError(null);
     if (password !== confirm) {
-      setError("The two passwords do not match.");
+      setError('The two passwords do not match.');
       return;
     }
     setSubmitting(true);
@@ -44,7 +44,9 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="flex flex-col gap-4">
-        <Alert tone="danger">This reset link is incomplete. Open the link from the email again.</Alert>
+        <Alert tone="danger">
+          This reset link is incomplete. Open the link from the email again.
+        </Alert>
         <Link href="/forgot-password" className="text-sm font-medium text-brand hover:underline">
           Request a new link
         </Link>
@@ -102,7 +104,9 @@ export default function ResetPasswordPage() {
       <div className="mb-5 flex flex-col items-center gap-2 text-center">
         <BrandMark size={40} />
         <h1 className="text-lg font-semibold text-fg">Choose a new password</h1>
-        <p className="text-sm text-fg-muted">The link works once and expires 30 minutes after it was sent.</p>
+        <p className="text-sm text-fg-muted">
+          The link works once and expires 30 minutes after it was sent.
+        </p>
       </div>
       {/* useSearchParams needs a Suspense boundary in the App Router. */}
       <Suspense fallback={null}>

@@ -26,11 +26,11 @@ components/
 
 ## Three access states
 
-| State | Screen |
-|---|---|
-| Signed out | `(auth)/login` — the AI Portal landing: what it is, who it is for, the form, **no sign-up**, links back to the Portal and the public site |
-| Signed in, not authorised | `components/AccessRestricted` — names the account, explains access is per-account not per-role, offers *Return to Nirogix Portal* and *Sign out* |
-| Signed in, authorised | `(app)/page` — states that no AI capability is enabled |
+| State                     | Screen                                                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Signed out                | `(auth)/login` — the AI Portal landing: what it is, who it is for, the form, **no sign-up**, links back to the Portal and the public site        |
+| Signed in, not authorised | `components/AccessRestricted` — names the account, explains access is per-account not per-role, offers _Return to Nirogix Portal_ and _Sign out_ |
+| Signed in, authorised     | `(app)/page` — states that no AI capability is enabled                                                                                           |
 
 There is deliberately **no "forgot password" link**: self-service reset is not built, so the password field says an administrator issues a new one instead of linking to a route that does not exist.
 
@@ -39,7 +39,7 @@ Outbound links come from `lib/links.ts` (`NEXT_PUBLIC_PORTAL_URL`, `NEXT_PUBLIC_
 ## The boundary
 
 - **A patient can never sign in here.** The backend refuses a patient principal **by type**, before any permission is read (ADR-052) — so this holds even if a patient were later granted a permission by mistake. Frontend route guards are not the control and never will be.
-- **`ai.portal.access` is held by every staff role** (ADR-055). The portal is for the whole hospital team plus platform operators — everyone except patients. The key still exists so a hospital can **DENY** it for an individual, and an explicit deny beats the role grant; the *Access restricted* screen now means a deliberate denial rather than the default state.
+- **`ai.portal.access` is held by every staff role** (ADR-055). The portal is for the whole hospital team plus platform operators — everyone except patients. The key still exists so a hospital can **DENY** it for an individual, and an explicit deny beats the role grant; the _Access restricted_ screen now means a deliberate denial rather than the default state.
 - **Entry is audited** at notice level. A surface that would process clinical information needs "who opened it, and when" answerable from the start.
 - **The gate in `(app)/layout.tsx` is UX.** The single endpoint re-checks the permission server-side, so a user who somehow rendered the shell still gets nothing.
 
@@ -52,7 +52,6 @@ A backend test asserts the list stays empty. **If it fails, an AI capability has
 ## Domain
 
 `nirogix.ai` in production — a separate registrable domain, so its cookie scope is separate by construction rather than by configuration (ADR-051). **The domain is not registered yet** (`BACKLOG.md` F-6), so this portal is development-only regardless of what is built.
-
 
 ## Browser security headers (ADR-082)
 

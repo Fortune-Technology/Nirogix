@@ -6,7 +6,7 @@
  * The AI Portal needs them because a person who lands here and cannot get in must be
  * given somewhere to go, rather than a dead end.
  */
-const strip = (u: string) => u.replace(/\/$/, "");
+const strip = (u: string) => u.replace(/\/$/, '');
 
-export const PORTAL_URL = strip(process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001");
-export const MARKETING_URL = strip(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+export const PORTAL_URL = strip(process.env.NEXT_PUBLIC_PORTAL_URL ?? 'http://localhost:3001');
+export const MARKETING_URL = strip(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000');

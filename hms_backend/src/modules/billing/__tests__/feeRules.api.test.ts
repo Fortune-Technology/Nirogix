@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 import { createDepartment } from '../../department/department.service';
@@ -53,15 +61,26 @@ beforeAll(async () => {
     })
   ).id;
   otherProviderId = (
-    await createProvider(tenant.tenantId, { fullName: 'Dr. Vikram Bose', consultationFeePaise: 20000 })
+    await createProvider(tenant.tenantId, {
+      fullName: 'Dr. Vikram Bose',
+      consultationFeePaise: 20000,
+    })
   ).id;
   departmentId = (
-    await createDepartment(tenant.tenantId, { code: 'CARD', name: 'Cardiology' }, sessions.org_admin!.userId)
+    await createDepartment(
+      tenant.tenantId,
+      { code: 'CARD', name: 'Cardiology' },
+      sessions.org_admin!.userId,
+    )
   ).id;
 
-  const created = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Nikhil', lastName: 'Rao', gender: 'male', dateOfBirth: '1988-08-08', phone: '9812345655' });
+  const created = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Nikhil',
+    lastName: 'Rao',
+    gender: 'male',
+    dateOfBirth: '1988-08-08',
+    phone: '9812345655',
+  });
   patientId = created.body.id;
 }, 180_000);
 
@@ -69,7 +88,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -119,18 +140,25 @@ describe('a hospital with no rules', () => {
 describe('the resolution order', () => {
   test('a blanket follow-up rate applies to any doctor', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ arrivalType: 'follow_up', feePaise: 20000, label: 'Follow-up rate' })).status).toBe(201);
+    expect(
+      (await addRule({ arrivalType: 'follow_up', feePaise: 20000, label: 'Follow-up rate' }))
+        .status,
+    ).toBe(201);
 
     const res = await preview({ providerId, arrivalType: 'follow_up' });
     expect(res.body.feePaise).toBe(20000);
     expect(res.body.source).toBe('rule');
     // A first visit is untouched by a follow-up rule.
-    expect((await preview({ providerId, arrivalType: 'appointment' })).body.feePaise).toBe(PROVIDER_DEFAULT_PAISE);
+    expect((await preview({ providerId, arrivalType: 'appointment' })).body.feePaise).toBe(
+      PROVIDER_DEFAULT_PAISE,
+    );
   });
 
   test('a department rate beats a blanket visit-type rate', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ departmentId, feePaise: 60000, label: 'Cardiology' })).status).toBe(201);
+    expect((await addRule({ departmentId, feePaise: 60000, label: 'Cardiology' })).status).toBe(
+      201,
+    );
 
     // Department (2) outranks arrival type (1) — so a cardiology follow-up is ₹600, not ₹200.
     const res = await preview({ providerId, departmentId, arrivalType: 'follow_up' });
@@ -141,26 +169,39 @@ describe('the resolution order', () => {
 
   test('a named doctor beats their department', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ providerId, feePaise: 80000, label: 'Senior consultant' })).status).toBe(201);
+    expect(
+      (await addRule({ providerId, feePaise: 80000, label: 'Senior consultant' })).status,
+    ).toBe(201);
 
     // Doctor (4) outranks department (2).
     expect((await preview({ providerId, departmentId })).body.feePaise).toBe(80000);
     // Another doctor in the same department still gets the department rate.
-    expect((await preview({ providerId: otherProviderId, departmentId })).body.feePaise).toBe(60000);
+    expect((await preview({ providerId: otherProviderId, departmentId })).body.feePaise).toBe(
+      60000,
+    );
   });
 
   test('the most specific rule of all wins over every broader one', async ({ skip }) => {
     if (!ready) return skip();
     expect(
-      (await addRule({ providerId, departmentId, arrivalType: 'follow_up', feePaise: 30000, label: 'Her follow-ups' }))
-        .status,
+      (
+        await addRule({
+          providerId,
+          departmentId,
+          arrivalType: 'follow_up',
+          feePaise: 30000,
+          label: 'Her follow-ups',
+        })
+      ).status,
     ).toBe(201);
 
     const res = await preview({ providerId, departmentId, arrivalType: 'follow_up' });
     expect(res.body.feePaise).toBe(30000);
     expect(res.body.ruleLabel).toBe('Her follow-ups');
     // And the broader rules are all still intact for the cases they cover.
-    expect((await preview({ providerId, departmentId, arrivalType: 'appointment' })).body.feePaise).toBe(80000);
+    expect(
+      (await preview({ providerId, departmentId, arrivalType: 'appointment' })).body.feePaise,
+    ).toBe(80000);
   });
 
   test('a duplicate combination is refused rather than becoming a coin toss', async ({ skip }) => {
@@ -173,7 +214,9 @@ describe('the resolution order', () => {
   test('a retired rule stops applying but is not deleted', async ({ skip }) => {
     if (!ready) return skip();
     const rules = await authed(sessions.org_admin!).get('/api/v1/fee-rules');
-    const specific = rules.body.find((r: { ruleLabel?: string; label: string }) => r.label === 'Her follow-ups');
+    const specific = rules.body.find(
+      (r: { ruleLabel?: string; label: string }) => r.label === 'Her follow-ups',
+    );
 
     const retired = await authed(sessions.org_admin!)
       .patch(`/api/v1/fee-rules/${specific.id}`)
@@ -182,10 +225,14 @@ describe('the resolution order', () => {
     expect(retired.body.isActive).toBe(false);
 
     // It falls back to the next most specific rule that still applies.
-    expect((await preview({ providerId, departmentId, arrivalType: 'follow_up' })).body.feePaise).toBe(80000);
+    expect(
+      (await preview({ providerId, departmentId, arrivalType: 'follow_up' })).body.feePaise,
+    ).toBe(80000);
 
     // Still there — it explains every invoice it priced.
-    const withRetired = await authed(sessions.org_admin!).get('/api/v1/fee-rules?includeInactive=true');
+    const withRetired = await authed(sessions.org_admin!).get(
+      '/api/v1/fee-rules?includeInactive=true',
+    );
     expect(withRetired.body.some((r: { id: string }) => r.id === specific.id)).toBe(true);
     // And absent from the default list, which is the one the desk reads.
     const activeOnly = await authed(sessions.org_admin!).get('/api/v1/fee-rules');
@@ -266,15 +313,13 @@ describe('overriding the calculated fee', () => {
   test('a permitted override keeps both numbers and the reason', async ({ skip }) => {
     if (!ready) return skip();
     await clearLiveVisits();
-    const res = await authed(sessions.supervisor!)
-      .post('/api/v1/visits/check-in')
-      .send({
-        patientId,
-        providerId,
-        arrivalType: 'appointment',
-        consultationFeePaise: 10000,
-        feeOverrideReason: 'Staff concession approved by the medical director',
-      });
+    const res = await authed(sessions.supervisor!).post('/api/v1/visits/check-in').send({
+      patientId,
+      providerId,
+      arrivalType: 'appointment',
+      consultationFeePaise: 10000,
+      feeOverrideReason: 'Staff concession approved by the medical director',
+    });
     expect(res.status).toBe(201);
     // The invoice carries what was charged; the visit carries what should have been. The gap is the
     // override, and losing either half would make it unauditable.
@@ -305,7 +350,9 @@ describe('who may change the price list', () => {
   test('the front desk can read it but not write it', async ({ skip }) => {
     if (!ready) return skip();
     expect((await authed(sessions.receptionist!).get('/api/v1/fee-rules')).status).toBe(200);
-    expect((await authed(sessions.receptionist!).post('/api/v1/fee-rules').send({ feePaise: 1 })).status).toBe(403);
+    expect(
+      (await authed(sessions.receptionist!).post('/api/v1/fee-rules').send({ feePaise: 1 })).status,
+    ).toBe(403);
   });
 
   test('the doctor is not in the pricing business at all', async ({ skip }) => {

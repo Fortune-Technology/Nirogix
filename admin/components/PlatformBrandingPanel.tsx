@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
-import { Alert, Button, Card, Spinner } from "@hms/ui";
-import type { BrandingTokens, PlatformBrandingScope } from "@hms/types";
-import * as api from "../lib/api";
+import { useCallback, useEffect, useState } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { Alert, Button, Card, Spinner } from '@hms/ui';
+import type { BrandingTokens, PlatformBrandingScope } from '@hms/types';
+import * as api from '../lib/api';
 
 // The theme-safe brand family. Neutral surfaces (background/surface/foreground/border)
 // are theme-managed for Light/Dark legibility, so they are not exposed here.
 const FIELDS: { key: keyof BrandingTokens; label: string }[] = [
-  { key: "primary", label: "Primary" },
-  { key: "secondary", label: "Secondary" },
-  { key: "accent", label: "Accent" },
-  { key: "buttonBg", label: "Button background" },
-  { key: "buttonFg", label: "Button text" },
+  { key: 'primary', label: 'Primary' },
+  { key: 'secondary', label: 'Secondary' },
+  { key: 'accent', label: 'Accent' },
+  { key: 'buttonBg', label: 'Button background' },
+  { key: 'buttonFg', label: 'Button text' },
 ];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -32,7 +32,7 @@ export function PlatformBrandingPanel({
   const [tokens, setTokens] = useState<BrandingTokens>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,9 +70,9 @@ export function PlatformBrandingPanel({
     try {
       const b = await api.updatePlatformBranding(scope, clean);
       setTokens(b.tokens ?? {});
-      setMsg({ tone: "success", text: "Branding saved." });
+      setMsg({ tone: 'success', text: 'Branding saved.' });
     } catch (e) {
-      setMsg({ tone: "danger", text: (e as Error).message || "Save failed." });
+      setMsg({ tone: 'danger', text: (e as Error).message || 'Save failed.' });
     }
     setSaving(false);
   }
@@ -83,9 +83,9 @@ export function PlatformBrandingPanel({
     try {
       const b = await api.resetPlatformBranding(scope);
       setTokens(b.tokens ?? {});
-      setMsg({ tone: "success", text: "Reset to defaults." });
+      setMsg({ tone: 'success', text: 'Reset to defaults.' });
     } catch (e) {
-      setMsg({ tone: "danger", text: (e as Error).message || "Reset failed." });
+      setMsg({ tone: 'danger', text: (e as Error).message || 'Reset failed.' });
     }
     setSaving(false);
   }
@@ -109,7 +109,7 @@ export function PlatformBrandingPanel({
 
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             {FIELDS.map(({ key, label }) => {
-              const value = tokens[key] ?? "";
+              const value = tokens[key] ?? '';
               return (
                 <label key={key} className="flex items-center justify-between gap-3">
                   <span className="text-sm text-fg">{label}</span>
@@ -125,7 +125,7 @@ export function PlatformBrandingPanel({
                     <input
                       type="color"
                       aria-label={`${label} colour`}
-                      value={HEX.test(value) ? value : "#888888"}
+                      value={HEX.test(value) ? value : '#888888'}
                       onChange={(e) => setField(key, e.target.value)}
                       className="h-8 w-9 cursor-pointer rounded-token border border-border bg-surface p-0.5"
                     />
@@ -133,7 +133,7 @@ export function PlatformBrandingPanel({
                       <button
                         type="button"
                         title="Clear"
-                        onClick={() => setField(key, "")}
+                        onClick={() => setField(key, '')}
                         className="text-fg-subtle hover:text-fg"
                       >
                         <RotateCcw size={14} strokeWidth={2} />
@@ -157,8 +157,8 @@ export function PlatformBrandingPanel({
                   type="button"
                   className="rounded-token px-3 py-1.5 text-sm font-medium"
                   style={{
-                    background: tokens.buttonBg ?? tokens.primary ?? "var(--hms-brand)",
-                    color: tokens.buttonFg ?? "var(--hms-brand-fg)",
+                    background: tokens.buttonBg ?? tokens.primary ?? 'var(--hms-brand)',
+                    color: tokens.buttonFg ?? 'var(--hms-brand-fg)',
                   }}
                 >
                   Primary button
@@ -167,10 +167,10 @@ export function PlatformBrandingPanel({
                   className="rounded-full px-2.5 py-1 text-xs font-medium"
                   style={{
                     background:
-                      "color-mix(in srgb, " +
-                      (tokens.secondary ?? tokens.primary ?? "var(--hms-brand)") +
-                      " 14%, var(--hms-surface))",
-                    color: tokens.secondary ?? tokens.primary ?? "var(--hms-brand)",
+                      'color-mix(in srgb, ' +
+                      (tokens.secondary ?? tokens.primary ?? 'var(--hms-brand)') +
+                      ' 14%, var(--hms-surface))',
+                    color: tokens.secondary ?? tokens.primary ?? 'var(--hms-brand)',
                   }}
                 >
                   Secondary

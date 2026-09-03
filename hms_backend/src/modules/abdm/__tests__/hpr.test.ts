@@ -31,7 +31,9 @@ let tenantId = '';
 let providerId = '';
 
 /** Records what the service would have sent, so the payload itself can be inspected. */
-function stubRegistry(responses: Record<string, unknown>): { calls: Array<{ path: string; body: unknown }> } {
+function stubRegistry(responses: Record<string, unknown>): {
+  calls: Array<{ path: string; body: unknown }>;
+} {
   const calls: Array<{ path: string; body: unknown }> = [];
   vi.spyOn(registry, 'registryPost').mockImplementation(async (path: string, body: unknown) => {
     calls.push({ path, body });
@@ -42,8 +44,12 @@ function stubRegistry(responses: Record<string, unknown>): { calls: Array<{ path
 }
 
 const enrolmentRow = async () =>
-  (await pool.query('SELECT * FROM abdm_staff_hpr WHERE tenant_id = $1 AND provider_id = $2', [tenantId, providerId]))
-    .rows[0];
+  (
+    await pool.query('SELECT * FROM abdm_staff_hpr WHERE tenant_id = $1 AND provider_id = $2', [
+      tenantId,
+      providerId,
+    ])
+  ).rows[0];
 
 beforeAll(async () => {
   ready = await dbReady();
@@ -133,7 +139,9 @@ describe('never a second national identity', () => {
 
     // The dedup check runs BEFORE anything is created, and its answer is believed.
     expect(started.alreadyRegistered).toBe(true);
-    const row = await pool.query('SELECT status, hpr_id FROM abdm_staff_hpr WHERE tenant_id = $1', [fresh.tenantId]);
+    const row = await pool.query('SELECT status, hpr_id FROM abdm_staff_hpr WHERE tenant_id = $1', [
+      fresh.tenantId,
+    ]);
     expect(row.rows[0].status).toBe('already_registered');
     expect(row.rows[0].hpr_id).toBe('71-1234-5678-9012');
 
@@ -143,22 +151,29 @@ describe('never a second national identity', () => {
 
   test('a registered clinician cannot be enrolled again', async ({ skip }) => {
     if (!ready) return skip();
-    await pool.query("UPDATE abdm_staff_hpr SET status = 'registered' WHERE tenant_id = $1", [tenantId]);
+    await pool.query("UPDATE abdm_staff_hpr SET status = 'registered' WHERE tenant_id = $1", [
+      tenantId,
+    ]);
     await expect(
       hpr.startEnrolment(tenantId, null, { providerId, aadhaar: TEST_AADHAAR, category: 'doctor' }),
     ).rejects.toThrow(/already holds an HPR id/i);
-    await pool.query("UPDATE abdm_staff_hpr SET status = 'aadhaar_verified' WHERE tenant_id = $1", [tenantId]);
+    await pool.query("UPDATE abdm_staff_hpr SET status = 'aadhaar_verified' WHERE tenant_id = $1", [
+      tenantId,
+    ]);
   });
 });
 
 describe('the resumable chain', () => {
   test('an expired transaction is refused clearly, not three steps later', async ({ skip }) => {
     if (!ready) return skip();
-    await pool.query("UPDATE abdm_staff_hpr SET txn_started_at = now() - interval '2 hours' WHERE tenant_id = $1", [
+    await pool.query(
+      "UPDATE abdm_staff_hpr SET txn_started_at = now() - interval '2 hours' WHERE tenant_id = $1",
+      [tenantId],
+    );
+    await expect(hpr.sendMobileOtp(tenantId, providerId, '9822011122')).rejects.toThrow(/expired/i);
+    await pool.query('UPDATE abdm_staff_hpr SET txn_started_at = now() WHERE tenant_id = $1', [
       tenantId,
     ]);
-    await expect(hpr.sendMobileOtp(tenantId, providerId, '9822011122')).rejects.toThrow(/expired/i);
-    await pool.query('UPDATE abdm_staff_hpr SET txn_started_at = now() WHERE tenant_id = $1', [tenantId]);
   });
 
   test('verifying before starting is refused', async ({ skip }) => {
@@ -169,15 +184,17 @@ describe('the resumable chain', () => {
       `INSERT INTO providers (tenant_id, full_name, is_active) VALUES ($1,'Dr Not Started', true) RETURNING id`,
       [fresh.tenantId],
     );
-    await expect(hpr.verifyAadhaarOtp(fresh.tenantId, { providerId: doc.rows[0].id, otp: '123456' })).rejects.toThrow(
-      /Start the enrolment/i,
-    );
+    await expect(
+      hpr.verifyAadhaarOtp(fresh.tenantId, { providerId: doc.rows[0].id, otp: '123456' }),
+    ).rejects.toThrow(/Start the enrolment/i);
     await cleanupTenant(`${CODE}3`);
   });
 
   test('completing mints the id and registers the profile together', async ({ skip }) => {
     if (!ready) return skip();
-    await pool.query("UPDATE abdm_staff_hpr SET status = 'mobile_verified' WHERE tenant_id = $1", [tenantId]);
+    await pool.query("UPDATE abdm_staff_hpr SET status = 'mobile_verified' WHERE tenant_id = $1", [
+      tenantId,
+    ]);
     const { calls } = stubRegistry({
       createHprIdWithPreVerified: { hprIdNumber: '71-9999-8888-7777', token: 'hpr-token' },
       'register-professional-new': {},
@@ -195,7 +212,10 @@ describe('the resumable chain', () => {
     expect(done.status).toBe('registered');
     expect(done.hprId).toBe('71-9999-8888-7777');
     // Both calls, in order — an id with no council registration behind it is worse than none.
-    expect(calls.map((c) => c.path.split('/').pop())).toEqual(['createHprIdWithPreVerified', 'register-professional-new']);
+    expect(calls.map((c) => c.path.split('/').pop())).toEqual([
+      'createHprIdWithPreVerified',
+      'register-professional-new',
+    ]);
 
     // The spent transaction is dropped rather than left to invite a stale retry.
     expect((await enrolmentRow()).txn_id).toBeNull();
@@ -204,7 +224,9 @@ describe('the resumable chain', () => {
 
   test('the verified registration number fills a blank provider field', async ({ skip }) => {
     if (!ready) return skip();
-    const provider = await pool.query('SELECT registration_number FROM providers WHERE id = $1', [providerId]);
+    const provider = await pool.query('SELECT registration_number FROM providers WHERE id = $1', [
+      providerId,
+    ]);
     // M3's consent requests already need this, and the clinician just proved it to a registry.
     expect(provider.rows[0].registration_number).toBe('MMC-2014-11733');
   });
@@ -223,7 +245,10 @@ describe('the resumable chain', () => {
        VALUES ($1,$2,'mobile_verified','txn-x', now())`,
       [fresh.tenantId, doc.rows[0].id],
     );
-    stubRegistry({ createHprIdWithPreVerified: { hprIdNumber: '71-0000-0000-0001' }, 'register-professional-new': {} });
+    stubRegistry({
+      createHprIdWithPreVerified: { hprIdNumber: '71-0000-0000-0001' },
+      'register-professional-new': {},
+    });
 
     await hpr.completeEnrolment(fresh.tenantId, null, {
       providerId: doc.rows[0].id,
@@ -234,7 +259,9 @@ describe('the resumable chain', () => {
     });
 
     // A hospital's own records may key on the existing value; replacing it is not our business.
-    const after = await pool.query('SELECT registration_number FROM providers WHERE id = $1', [doc.rows[0].id]);
+    const after = await pool.query('SELECT registration_number FROM providers WHERE id = $1', [
+      doc.rows[0].id,
+    ]);
     expect(after.rows[0].registration_number).toBe('HOSPITAL-OWN-123');
 
     vi.restoreAllMocks();

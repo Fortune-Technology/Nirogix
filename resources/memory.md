@@ -44,21 +44,21 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 
 ### Glossary
 
-| Term | Meaning |
-|---|---|
-| Platform Core | Foundational capabilities every tenant gets by default; never sold as a line item |
-| Business Module | Independently sellable clinical/operational capability (see Module Capability Matrix) |
-| Add-On | Extends a module or connects an external system; little standalone value alone |
-| Feature Configuration | Same module, different behavior per tenant, no code branch |
-| Entitlement | Whether an *organization* has purchased/activated a module |
-| Permission | Whether a specific *user* can perform a specific action |
-| Hard Dependency | A module cannot technically activate without another entitled module |
-| Optional Integration | A module works alone, and gains capability if another module is present |
-| Commercial independence | A module can be purchased separately as its own line item |
-| Technical independence | A module can operate without another module being entitled (stricter than commercial independence) |
-| MVP 0 — Clinic Pilot | Patient → Appointment → OPD+Billing Core → EMR |
-| MVP 1 — Clinic Expansion | Pharmacy → Laboratory → Basic Reports |
-| Break-Glass | Reserved emergency-access architecture; not built for MVP, insertion point only |
+| Term                                 | Meaning                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Platform Core                        | Foundational capabilities every tenant gets by default; never sold as a line item                      |
+| Business Module                      | Independently sellable clinical/operational capability (see Module Capability Matrix)                  |
+| Add-On                               | Extends a module or connects an external system; little standalone value alone                         |
+| Feature Configuration                | Same module, different behavior per tenant, no code branch                                             |
+| Entitlement                          | Whether an _organization_ has purchased/activated a module                                             |
+| Permission                           | Whether a specific _user_ can perform a specific action                                                |
+| Hard Dependency                      | A module cannot technically activate without another entitled module                                   |
+| Optional Integration                 | A module works alone, and gains capability if another module is present                                |
+| Commercial independence              | A module can be purchased separately as its own line item                                              |
+| Technical independence               | A module can operate without another module being entitled (stricter than commercial independence)     |
+| MVP 0 — Clinic Pilot                 | Patient → Appointment → OPD+Billing Core → EMR                                                         |
+| MVP 1 — Clinic Expansion             | Pharmacy → Laboratory → Basic Reports                                                                  |
+| Break-Glass                          | Reserved emergency-access architecture; not built for MVP, insertion point only                        |
 | Financial Transaction Infrastructure | Platform Core primitives (invoice/payment/tax/receipt/ledger) underneath the Billing & Payments module |
 
 ## Architectural Invariants
@@ -70,7 +70,7 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 - **A raw Aadhaar number is never persisted, logged or echoed (ADR-084).** It exists in memory only for the length of one encrypt-and-send call; what survives is a masked hint (`XXXXXXXX1234`), enforced by the application, by a database CHECK constraint, and by an Aadhaar-shaped scrub at the log/error-tracker boundary. **Every ABDM token is encrypted at rest or discarded** — never written in the clear.
 - **ABDM verifies an identity; it never creates a clinical record (ADR-084).** Every verification ends at a prefill a human reviews, or at a link onto a chart that already exists. Only a completed ABDM flow may set `abha_verified_at`; a hand-typed ABHA number stays unverified for ever. An exact ABHA-number match is a returning patient; a demographic match is a candidate for a human to confirm, never an automatic merge.
 - **Specialty is a personalization key, never a security boundary (ADR-083).** The effective feature set for a user = **tenant enabled modules ∩ provider specialty module set ∩ user permissions** — an intersection: specialty narrows the view, it can never widen access. The enforced chain stays `authenticated → requireModule → requirePermission → business logic`; specialty is not an enforcement point. Specialty maps (as seeded data) to a required/recommended/optional module preset chosen at onboarding, which the organization may then override — a starting default, not a lock.
-- **A module has a capability tier, and both are runtime-checked entitlements, never a security bypass (ADR-085, extends ADR-083).** Effective features = tenant enabled modules ∩ tenant enabled capabilities ∩ provider specialty set ∩ user permissions; the enforced chain is `authenticated → requireModule → requireCapability → requirePermission → business logic`. A capability is *what the system supports*; a permission is *who may use it* — a hospital disabling a capability overrides every role that holds its permission. One canonical `Domain → Module → Capability` registry is shared backend + every frontend; **only a `BUILT` registry entry is ever entitled to a real screen/API or marked available in marketing (ADR-038)** — listing a module in the registry is not a claim it exists. The engine is the standard every new module is built to; existing modules are retrofitted onto it without rewrite; disabling a module or capability hides and protects it but never deletes historical records (invariant #6); and cross-module workflow runs through the shared single-owner entities + events/contracts, never a duplicated implementation (one Payment, invariant #8).
+- **A module has a capability tier, and both are runtime-checked entitlements, never a security bypass (ADR-085, extends ADR-083).** Effective features = tenant enabled modules ∩ tenant enabled capabilities ∩ provider specialty set ∩ user permissions; the enforced chain is `authenticated → requireModule → requireCapability → requirePermission → business logic`. A capability is _what the system supports_; a permission is _who may use it_ — a hospital disabling a capability overrides every role that holds its permission. One canonical `Domain → Module → Capability` registry is shared backend + every frontend; **only a `BUILT` registry entry is ever entitled to a real screen/API or marked available in marketing (ADR-038)** — listing a module in the registry is not a claim it exists. The engine is the standard every new module is built to; existing modules are retrofitted onto it without rewrite; disabling a module or capability hides and protects it but never deletes historical records (invariant #6); and cross-module workflow runs through the shared single-owner entities + events/contracts, never a duplicated implementation (one Payment, invariant #8).
 - Modular monolith for MVP. No microservices split happens without a recorded decision in DECISIONS.md.
 - Core clinical entities — Patient, Provider, Encounter, Diagnosis, Prescription, Invoice — stay strongly typed. Never modeled as EAV, even for specialty variation.
 - Entitlement and permission-override records are never physically deleted.
@@ -88,7 +88,7 @@ Persistent knowledge for AI-assisted development on this project. Read this befo
 
 ### Architecture Decision Records (from DECISIONS.md)
 
-A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording *why*, not *what* or *when*.
+A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording _why_, not _what_ or _when_.
 
 - **CLAUDE.md** — what the AI/developer must follow (conventions, standards)
 - **KNOWLEDGE.md** — how the system currently works
@@ -122,37 +122,37 @@ New architectural decisions of similar weight are appended here as they are made
 
 Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.
 
-| Module | Standalone | Hard Dependencies | Optional Integrations |
-|---|---|---|---|
-| Patient Management | Yes | None | Appointment, EMR, Billing |
-| Appointment Management | Yes | Patient Management | EMR, Notifications |
-| OPD & Check-in | Partial | Patient, Appointment | EMR, Billing |
-| Clinical Workflow (EMR) | Partial/No | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology |
-| Nursing | No | IPD | EMR |
-| Laboratory | Yes | None | Patient, EMR, Billing |
-| Radiology & Imaging | Yes | None | Patient, EMR, Billing, PACS (add-on) |
-| Admission (IPD) | Partial | Patient | Billing, Nursing, Insurance |
-| Emergency (ER) | Yes | Patient | EMR, Billing, IPD |
-| Operation Theatre (OT) | No | IPD | EMR, Billing, Inventory |
-| CSSD | No | OT | Inventory |
-| Blood Bank | Yes/Partial | None | Patient, Billing |
-| Specialty Clinical Modules | No | EMR | Billing |
-| Pharmacy | Yes | None | Patient, EMR, Billing, Inventory |
-| Inventory, Stores & Procurement | Yes | None | Pharmacy, OT, Billing |
-| Billing & Payments | Yes | None | Patient, Pharmacy, Lab, IPD |
-| Insurance, TPA & Govt. Schemes | No | Billing | Patient, IPD |
-| Financial Management | Partial | Billing | Inventory, HR |
-| Dietary & Kitchen | Yes | None | IPD (diet-chart linkage) |
-| Housekeeping & Laundry | Yes | None | IPD (ward/bed linkage) |
-| Ambulance & Fleet | Yes | None | Patient, ER, Billing |
-| Biomedical Equipment & Asset Mgmt | Yes | None | OT, Laboratory, Radiology |
-| Biomedical Waste Management | Yes | None | None required |
-| HR, Payroll & Doctor Scheduling | Yes | None | Appointment, Financial Management |
-| CRM & Patient Engagement | Yes | None | Patient, Appointment, Notifications |
+| Module                            | Standalone  | Hard Dependencies            | Optional Integrations                |
+| --------------------------------- | ----------- | ---------------------------- | ------------------------------------ |
+| Patient Management                | Yes         | None                         | Appointment, EMR, Billing            |
+| Appointment Management            | Yes         | Patient Management           | EMR, Notifications                   |
+| OPD & Check-in                    | Partial     | Patient, Appointment         | EMR, Billing                         |
+| Clinical Workflow (EMR)           | Partial/No  | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology             |
+| Nursing                           | No          | IPD                          | EMR                                  |
+| Laboratory                        | Yes         | None                         | Patient, EMR, Billing                |
+| Radiology & Imaging               | Yes         | None                         | Patient, EMR, Billing, PACS (add-on) |
+| Admission (IPD)                   | Partial     | Patient                      | Billing, Nursing, Insurance          |
+| Emergency (ER)                    | Yes         | Patient                      | EMR, Billing, IPD                    |
+| Operation Theatre (OT)            | No          | IPD                          | EMR, Billing, Inventory              |
+| CSSD                              | No          | OT                           | Inventory                            |
+| Blood Bank                        | Yes/Partial | None                         | Patient, Billing                     |
+| Specialty Clinical Modules        | No          | EMR                          | Billing                              |
+| Pharmacy                          | Yes         | None                         | Patient, EMR, Billing, Inventory     |
+| Inventory, Stores & Procurement   | Yes         | None                         | Pharmacy, OT, Billing                |
+| Billing & Payments                | Yes         | None                         | Patient, Pharmacy, Lab, IPD          |
+| Insurance, TPA & Govt. Schemes    | No          | Billing                      | Patient, IPD                         |
+| Financial Management              | Partial     | Billing                      | Inventory, HR                        |
+| Dietary & Kitchen                 | Yes         | None                         | IPD (diet-chart linkage)             |
+| Housekeeping & Laundry            | Yes         | None                         | IPD (ward/bed linkage)               |
+| Ambulance & Fleet                 | Yes         | None                         | Patient, ER, Billing                 |
+| Biomedical Equipment & Asset Mgmt | Yes         | None                         | OT, Laboratory, Radiology            |
+| Biomedical Waste Management       | Yes         | None                         | None required                        |
+| HR, Payroll & Doctor Scheduling   | Yes         | None                         | Appointment, Financial Management    |
+| CRM & Patient Engagement          | Yes         | None                         | Patient, Appointment, Notifications  |
 
 All 25 modules list **Platform Core** as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.
 
-"Standalone" in this matrix means *technically* standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
+"Standalone" in this matrix means _technically_ standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
 
 ## Resolved Issues & Lessons Learned
 
@@ -182,4 +182,5 @@ All 25 modules list **Platform Core** as an implicit prerequisite (omitted from 
 - Existing operational pattern to reuse for deployment: Ubuntu VPS + Nginx + PM2 (under a dedicated service user) + GitHub Actions self-hosted runner — already proven in production on other Takoriya/Fortune Technology projects (StoreVeu, Rapid Runner).
 
 ---
-*Project Memory / Knowledge Base — v1.0 — Takoriya Technology LLP — August 2026*
+
+_Project Memory / Knowledge Base — v1.0 — Takoriya Technology LLP — August 2026_

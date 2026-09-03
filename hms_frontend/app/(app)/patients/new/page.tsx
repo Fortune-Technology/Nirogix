@@ -1,32 +1,21 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  DateField,
-  Dialog,
-  Field,
-  PhoneField,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { formatDate, todayApiDate } from "@hms/utils";
-import type { CreatePatientRequest, DuplicatePatientCandidate } from "@hms/types";
-import type { AbhaPrefill } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { Can, RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { AbhaVerificationPanel } from "../../../../components/abdm/AbhaVerificationPanel";
-
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Alert, Badge, Button, Card, DateField, Dialog, Field, PhoneField, Select } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { BLOOD_GROUP_OPTIONS, formatDate, GENDER_OPTIONS, todayApiDate } from '@hms/utils';
+import type { CreatePatientRequest, DuplicatePatientCandidate } from '@hms/types';
+import type { AbhaPrefill } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { Can, RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { AbhaVerificationPanel } from '../../../../components/abdm/AbhaVerificationPanel';
 
 function RegisterForm() {
   const router = useRouter();
-  const [f, setF] = useState<CreatePatientRequest>({ firstName: "" });
+  const [f, setF] = useState<CreatePatientRequest>({ firstName: '' });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // The DUPLICATE_PATIENT 409: matching charts to review before anything is created.
@@ -43,7 +32,7 @@ function RegisterForm() {
   function buildBody(allowDuplicate?: boolean): CreatePatientRequest {
     // Drop empty strings so optional fields validate cleanly.
     const body = Object.fromEntries(
-      Object.entries(f).filter(([, v]) => v !== "" && v != null),
+      Object.entries(f).filter(([, v]) => v !== '' && v != null),
     ) as CreatePatientRequest;
     if (allowDuplicate) body.allowDuplicate = true;
     return body;
@@ -59,9 +48,9 @@ function RegisterForm() {
     setF((prev) => {
       const next = { ...prev };
       for (const [key, value] of Object.entries(prefill)) {
-        if (value == null || value === "") continue;
+        if (value == null || value === '') continue;
         const current = (next as Record<string, unknown>)[key];
-        if (current == null || current === "") (next as Record<string, unknown>)[key] = value;
+        if (current == null || current === '') (next as Record<string, unknown>)[key] = value;
       }
       return next;
     });
@@ -85,11 +74,13 @@ function RegisterForm() {
       }
       router.replace(`/patients/${created.id}`);
     } catch (err) {
-      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+      if (err instanceof api.ApiRequestError && err.code === 'DUPLICATE_PATIENT') {
         const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
         setDuplicates(details?.candidates ?? []);
       } else {
-        setError(err instanceof api.ApiRequestError ? err.message : "Could not register the patient.");
+        setError(
+          err instanceof api.ApiRequestError ? err.message : 'Could not register the patient.',
+        );
       }
       setSubmitting(false);
     }
@@ -102,7 +93,10 @@ function RegisterForm() {
 
   return (
     <>
-      <PageHeader title="Register patient" description="A UHID is assigned automatically on save." />
+      <PageHeader
+        title="Register patient"
+        description="A UHID is assigned automatically on save."
+      />
       {/* ABDM Milestone 1 (ADR-084): verify first, type second. Rendered only for staff who hold
           the permission; the API additionally refuses any hospital not entitled to the module, so
           this is UX, never the boundary. */}
@@ -117,65 +111,112 @@ function RegisterForm() {
 
         <Card header="Identity">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="First name" value={f.firstName} onChange={(e) => set("firstName", e.target.value)} required autoFocus />
-            <Field label="Last name" value={f.lastName ?? ""} onChange={(e) => set("lastName", e.target.value)} />
-            <label className="hms-field">
-              <span className="hms-label">Gender</span>
-              <select className="hms-input" value={f.gender ?? ""} onChange={(e) => set("gender", e.target.value)}>
-                <option value="">Not specified</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
+            <Field
+              label="First name"
+              value={f.firstName}
+              onChange={(e) => set('firstName', e.target.value)}
+              required
+              autoFocus
+            />
+            <Field
+              label="Last name"
+              value={f.lastName ?? ''}
+              onChange={(e) => set('lastName', e.target.value)}
+            />
+            <Select
+              label="Gender"
+              value={f.gender ?? ''}
+              onChange={(v) => set('gender', v)}
+              options={GENDER_OPTIONS}
+              placeholder="Not specified"
+              clearable
+            />
             <DateField
               label="Date of birth"
               value={f.dateOfBirth ?? null}
               max={todayApiDate()}
-              onChange={(v) => set("dateOfBirth", v ?? "")}
+              onChange={(v) => set('dateOfBirth', v ?? '')}
             />
-            <label className="hms-field">
-              <span className="hms-label">Blood group</span>
-              <select className="hms-input" value={f.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>
-                <option value="">Not recorded</option>
-                {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </label>
+            <Select
+              label="Blood group"
+              value={f.bloodGroup ?? ''}
+              onChange={(v) => set('bloodGroup', v)}
+              options={BLOOD_GROUP_OPTIONS}
+              placeholder="Not recorded"
+              clearable
+            />
             <Field
               label="ABHA number (optional)"
-              value={f.abhaNumber ?? ""}
+              value={f.abhaNumber ?? ''}
               onChange={(e) => {
                 // Typing over a verified number drops the verification with it: what follows is
                 // a hand-entered value, and the backend would un-verify it anyway (ADR-084).
                 if (abhaTxnId) setAbhaTxnId(null);
-                set("abhaNumber", e.target.value);
+                set('abhaNumber', e.target.value);
               }}
-              hint={abhaTxnId ? "Verified with ABDM — it will be linked when you register." : undefined}
+              hint={
+                abhaTxnId ? 'Verified with ABDM — it will be linked when you register.' : undefined
+              }
             />
           </div>
         </Card>
 
         <Card header="Contact">
           <div className="grid gap-4 sm:grid-cols-2">
-            <PhoneField label="Phone" value={f.phone ?? ""} onChange={(v) => set("phone", v)} />
-            <Field label="Email" type="email" value={f.email ?? ""} onChange={(e) => set("email", e.target.value)} />
-            <Field label="Address" value={f.addressLine ?? ""} onChange={(e) => set("addressLine", e.target.value)} />
-            <Field label="City" value={f.city ?? ""} onChange={(e) => set("city", e.target.value)} />
-            <Field label="State" value={f.state ?? ""} onChange={(e) => set("state", e.target.value)} />
-            <Field label="PIN code" value={f.pincode ?? ""} onChange={(e) => set("pincode", e.target.value)} />
+            <PhoneField label="Phone" value={f.phone ?? ''} onChange={(v) => set('phone', v)} />
+            <Field
+              label="Email"
+              type="email"
+              value={f.email ?? ''}
+              onChange={(e) => set('email', e.target.value)}
+            />
+            <Field
+              label="Address"
+              value={f.addressLine ?? ''}
+              onChange={(e) => set('addressLine', e.target.value)}
+            />
+            <Field
+              label="City"
+              value={f.city ?? ''}
+              onChange={(e) => set('city', e.target.value)}
+            />
+            <Field
+              label="State"
+              value={f.state ?? ''}
+              onChange={(e) => set('state', e.target.value)}
+            />
+            <Field
+              label="PIN code"
+              value={f.pincode ?? ''}
+              onChange={(e) => set('pincode', e.target.value)}
+            />
           </div>
         </Card>
 
         <Card header="Emergency contact">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name" value={f.emergencyContactName ?? ""} onChange={(e) => set("emergencyContactName", e.target.value)} />
-            <Field label="Phone" value={f.emergencyContactPhone ?? ""} onChange={(e) => set("emergencyContactPhone", e.target.value)} />
+            <Field
+              label="Name"
+              value={f.emergencyContactName ?? ''}
+              onChange={(e) => set('emergencyContactName', e.target.value)}
+            />
+            <Field
+              label="Phone"
+              value={f.emergencyContactPhone ?? ''}
+              onChange={(e) => set('emergencyContactPhone', e.target.value)}
+            />
           </div>
         </Card>
 
         <div className="flex items-center gap-3">
-          <Button type="submit" loading={submitting}>Register patient</Button>
-          <Link href="/patients"><Button variant="ghost" type="button">Cancel</Button></Link>
+          <Button type="submit" loading={submitting}>
+            Register patient
+          </Button>
+          <Link href="/patients">
+            <Button variant="ghost" type="button">
+              Cancel
+            </Button>
+          </Link>
         </div>
       </form>
 
@@ -211,11 +252,14 @@ function RegisterForm() {
           {(duplicates ?? []).map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                <span className="font-medium text-fg">
+                  {[c.firstName, c.lastName].filter(Boolean).join(' ')}
+                </span>
                 <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
                 <p className="text-xs text-fg-muted">
-                  {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"}
-                  {c.gender ? ` · ${c.gender}` : ""}
+                  {c.phone ?? 'no phone'} ·{' '}
+                  {c.dateOfBirth ? formatDate(c.dateOfBirth) : 'DOB unknown'}
+                  {c.gender ? ` · ${c.gender}` : ''}
                 </p>
               </div>
               <Link href={`/patients/${c.id}`}>
@@ -224,7 +268,9 @@ function RegisterForm() {
             </li>
           ))}
         </ul>
-        {(duplicates ?? []).length === 0 && <Badge tone="neutral">No candidate details available</Badge>}
+        {(duplicates ?? []).length === 0 && (
+          <Badge tone="neutral">No candidate details available</Badge>
+        )}
       </Dialog>
     </>
   );

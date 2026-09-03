@@ -54,9 +54,21 @@ export const PERMISSIONS = {
   // rule and an audit record rather than a third permission nobody would know to grant.
   CASE_VIEW: 'opd.case.view',
   CASE_MANAGE: 'opd.case.manage',
+  // A person's own electronic signature (ADR-137). ONE key, and it governs only your own: the
+  // endpoints act on the authenticated user and take no user id, so an administrator holding every
+  // permission in the system still cannot upload or replace a signature in a clinician's name.
+  // Held by every role that signs something — a clinician, a technician verifying a report, an
+  // authorised approver — because the alternative is a key per document type nobody would grant.
+  SIGNATURE_MANAGE: 'platform.signature.manage',
   // EMR
   EMR_VIEW: 'emr.encounter.view',
   EMR_WRITE: 'emr.encounter.write',
+  // Correcting a note that is already signed is NOT the same act as writing one (ADR-134). A
+  // signed consultation is the record the hospital stands behind; reopening it is deliberate,
+  // reason-bearing and separately grantable, so a hospital can let every doctor write freely
+  // while keeping the ability to reopen a closed record with whoever it chooses. The key is
+  // not a bypass: the amendment still records who, when, what changed and why.
+  EMR_AMEND: 'emr.encounter.amend',
   // Vitals are their own pair (ADR-113): they are recorded before a consultation exists, by
   // staff who must never be able to read or write a clinical note. Folding them into
   // `emr.encounter.*` would mean a hospital could not let its nurses take a blood pressure
@@ -205,8 +217,10 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   [PERMISSIONS.OPD_UPDATE]: 'Move a visit through the queue',
   [PERMISSIONS.CASE_VIEW]: 'View treatment cases',
   [PERMISSIONS.CASE_MANAGE]: 'Open and close treatment cases',
+  [PERMISSIONS.SIGNATURE_MANAGE]: 'Manage your own signature',
   [PERMISSIONS.EMR_VIEW]: 'Read the clinical record',
   [PERMISSIONS.EMR_WRITE]: 'Write the clinical record',
+  [PERMISSIONS.EMR_AMEND]: 'Amend a signed consultation',
   [PERMISSIONS.VITALS_VIEW]: 'View vitals',
   [PERMISSIONS.VITALS_RECORD]: 'Record vitals',
   [PERMISSIONS.PHARMACY_DISPENSE]: 'Dispense medicines',
@@ -289,7 +303,9 @@ export const OPERATOR_ONLY_PERMISSIONS: readonly PermissionKey[] = [
  * to consent (ADR-092, ADR-120). An administrator has no registration number to put there, so
  * this is not a preference a hospital can configure away.
  */
-export const CLINICIAN_ONLY_PERMISSIONS: readonly PermissionKey[] = [PERMISSIONS.ABDM_HISTORY_REQUEST];
+export const CLINICIAN_ONLY_PERMISSIONS: readonly PermissionKey[] = [
+  PERMISSIONS.ABDM_HISTORY_REQUEST,
+];
 
 // Catalog metadata (module per key) for the permissions table + admin UI.
 export function permissionModule(key: string): string {
@@ -318,7 +334,12 @@ const P = PERMISSIONS;
 // The reduced MVP role set (resources/phases.md → Phase 0). Seeded per tenant; tenants may
 // clone + customize these into their own roles without growing the count unboundedly.
 export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
-  { key: 'super_admin', name: 'Super Admin', description: 'Full platform access', permissions: [WILDCARD] },
+  {
+    key: 'super_admin',
+    name: 'Super Admin',
+    description: 'Full platform access',
+    permissions: [WILDCARD],
+  },
   {
     key: 'org_admin',
     /**
@@ -365,7 +386,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
      * the *intersection* of this list with what the hospital owns.
      */
     permissions: ALL_PERMISSIONS.filter(
-      (key) => !OPERATOR_ONLY_PERMISSIONS.includes(key) && !CLINICIAN_ONLY_PERMISSIONS.includes(key),
+      (key) =>
+        !OPERATOR_ONLY_PERMISSIONS.includes(key) && !CLINICIAN_ONLY_PERMISSIONS.includes(key),
     ),
   },
   {
@@ -373,8 +395,16 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: 'Branch Admin',
     description: 'Administers a branch',
     permissions: [
-      P.USERS_VIEW, P.BRANCHES_VIEW, P.DEPARTMENT_VIEW, P.PATIENT_VIEW, P.APPOINTMENT_VIEW,
-      P.OPD_VIEW, P.BILLING_VIEW, P.REPORTS_VIEW, P.IMMUNIZATION_VIEW, P.CASE_VIEW,
+      P.USERS_VIEW,
+      P.BRANCHES_VIEW,
+      P.DEPARTMENT_VIEW,
+      P.PATIENT_VIEW,
+      P.APPOINTMENT_VIEW,
+      P.OPD_VIEW,
+      P.BILLING_VIEW,
+      P.REPORTS_VIEW,
+      P.IMMUNIZATION_VIEW,
+      P.CASE_VIEW,
       // Reading how the hospital runs is not an administrative act (ADR-129): the patient chart's
       // cases block asks for the case-type vocabulary, and a role that may see cases must be able
       // to read the words they are described in. Changing it stays `platform.workflow.manage`.
@@ -387,23 +417,44 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: 'Doctor',
     description: 'Clinical provider',
     permissions: [
-      P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE,
-      P.OPD_VIEW, P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
+      P.PATIENT_VIEW,
+      P.PATIENT_CREATE,
+      P.PATIENT_UPDATE,
+      P.APPOINTMENT_VIEW,
+      P.APPOINTMENT_CREATE,
+      P.OPD_VIEW,
+      P.OPD_UPDATE, // doctor works the queue: advances a visit through consultation
       // A course of treatment is the clinician's to open, describe and declare finished.
-      P.CASE_VIEW, P.CASE_MANAGE,
-      P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
+      P.CASE_VIEW,
+      P.CASE_MANAGE,
+      P.EMR_VIEW,
+      P.EMR_WRITE,
+      P.LAB_ORDER_VIEW,
+      P.FILE_VIEW,
+      P.FILE_UPLOAD,
+      P.PROVIDER_VIEW,
+      // Their own signature, for the prescriptions and summaries they sign (ADR-137).
+      P.SIGNATURE_MANAGE,
+      // A clinician corrects their own signed note through the amendment trail (ADR-134) — the
+      // service still holds them to their OWN encounter, so this grants the act, not other
+      // people's records. A hospital that wants correction centralised revokes it from the role.
+      P.EMR_AMEND,
       // Where vitals are taken, when the fee is due, and this hospital's own consultation and case
       // vocabularies (ADR-113) — the consultation screen is built from them, so it must read them
       // (ADR-129). Read only; the schedule itself is the administrator's.
       P.WORKFLOW_CONFIG_VIEW,
       // Vitals recorded earlier in the workflow are part of the picture the doctor consults on,
       // and a clinician must always be able to re-take a reading they doubt.
-      P.VITALS_VIEW, P.VITALS_RECORD,
+      P.VITALS_VIEW,
+      P.VITALS_RECORD,
       P.DEPARTMENT_VIEW,
       // Record and review a patient's immunisations from the chart.
-      P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE,
+      P.IMMUNIZATION_VIEW,
+      P.IMMUNIZATION_MANAGE,
       // Refer the patient onward from the consultation, and see where a referral stands.
-      P.REFERRAL_VIEW, P.REFERRAL_CREATE, P.REFERRAL_UPDATE,
+      P.REFERRAL_VIEW,
+      P.REFERRAL_CREATE,
+      P.REFERRAL_UPDATE,
       // Read the drug master while prescribing — the formulary picker needs the list (and its
       // stock levels) even though dispensing stays with the pharmacist.
       P.PHARMACY_STOCK_VIEW,
@@ -411,7 +462,9 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // Doctor-only among clinical staff: the consent request carries THIS doctor's name and
       // registration number to the patient, and it commits the hospital to destroying the records
       // on revocation — not a decision that belongs at the front desk.
-      P.ABDM_HISTORY_REQUEST, P.ABDM_HISTORY_VIEW, P.ABDM_CONSENT_STATUS_VIEW,
+      P.ABDM_HISTORY_REQUEST,
+      P.ABDM_HISTORY_VIEW,
+      P.ABDM_CONSENT_STATUS_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -420,11 +473,17 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: 'Receptionist',
     description: 'Front desk',
     permissions: [
-      P.PATIENT_VIEW, P.PATIENT_CREATE, P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL,
-      P.OPD_VIEW, P.OPD_CHECKIN, // front desk checks patients in and works the queue board
+      P.PATIENT_VIEW,
+      P.PATIENT_CREATE,
+      P.APPOINTMENT_VIEW,
+      P.APPOINTMENT_CREATE,
+      P.APPOINTMENT_CANCEL,
+      P.OPD_VIEW,
+      P.OPD_CHECKIN, // front desk checks patients in and works the queue board
       // "Is this a new problem, or are they coming back about the fracture?" is a front-desk
       // question, asked at check-in, so the desk both reads and opens cases (ADR-116).
-      P.CASE_VIEW, P.CASE_MANAGE,
+      P.CASE_VIEW,
+      P.CASE_MANAGE,
       // Reads the price list to quote from it. Deliberately WITHOUT `billing.fee.override`: the
       // desk charges what the hospital decided, and a hospital that wants otherwise grants the
       // override key to whoever it trusts with it (ADR-117).
@@ -432,23 +491,28 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // Vitals at the desk, or in the vitals queue, where the hospital has configured either
       // (ADR-113). Holding this is not the same as being offered it: the mode decides whether
       // the fields appear at all, and the server checks the mode as well as the permission.
-      P.VITALS_VIEW, P.VITALS_RECORD,
+      P.VITALS_VIEW,
+      P.VITALS_RECORD,
       // ...and reading that mode is how the check-in form knows (ADR-129). Without it the desk's
       // own screen 403'd on load against the configuration that governs it.
       P.WORKFLOW_CONFIG_VIEW,
-      P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE, // front desk records routine vaccinations
+      P.IMMUNIZATION_VIEW,
+      P.IMMUNIZATION_MANAGE, // front desk records routine vaccinations
       P.REFERRAL_VIEW, // routes a referred patient to the right department at the desk
       P.PROVIDER_VIEW, // front desk sees the provider directory to book appointments
       P.DEPARTMENT_VIEW, // and the department it books into
-      P.FILE_VIEW, P.FILE_UPLOAD,
+      P.FILE_VIEW,
+      P.FILE_UPLOAD,
       // Check-in opens the consultation-fee invoice, so the desk must be able to see that
       // invoice and take the money for it. Without these the front desk raises a bill it
       // cannot then read or settle, which is a dead end rather than a boundary. Creating an
       // arbitrary invoice stays with the cashier: reception collects against what check-in
       // raised, and every payment is still recorded against the acting user.
-      P.BILLING_VIEW, P.BILLING_PAYMENT,
+      P.BILLING_VIEW,
+      P.BILLING_PAYMENT,
       // The front desk is where an ABHA is verified and attached to a chart (ADR-084).
-      P.ABDM_VERIFY, P.ABDM_LINK,
+      P.ABDM_VERIFY,
+      P.ABDM_LINK,
       // Whether a consent is outstanding, granted or lapsed — states and counts only, no records,
       // no source hospitals, no requesting clinician (ADR-120). The desk can then tell a waiting
       // patient what is happening without reading anybody's medical history.
@@ -460,7 +524,11 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'pharmacist',
     name: 'Pharmacist',
     description: 'Pharmacy dispensing',
-    permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PHARMACY_MANAGE, P.PATIENT_VIEW,
+    permissions: [
+      P.PHARMACY_DISPENSE,
+      P.PHARMACY_STOCK_VIEW,
+      P.PHARMACY_MANAGE,
+      P.PATIENT_VIEW,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -468,22 +536,37 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: 'lab_technician',
     name: 'Lab Technician',
     description: 'Laboratory',
-    permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_RESULT_VERIFY, P.LAB_MANAGE, P.PATIENT_VIEW,
+    permissions: [
+      P.LAB_ORDER_VIEW,
+      P.LAB_RESULT_ENTER,
+      P.LAB_RESULT_VERIFY,
+      P.LAB_MANAGE,
+      P.PATIENT_VIEW,
       P.AI_PORTAL_ACCESS,
+      // Their own signature: a verified report names the person who stands behind it (ADR-137).
+      P.SIGNATURE_MANAGE,
     ],
   },
   {
     key: 'cashier',
     name: 'Cashier',
     description: 'Billing counter',
-    permissions: [P.BILLING_VIEW, P.BILLING_CREATE, P.BILLING_PAYMENT, P.BILLING_SERVICES_VIEW,
-      P.OPD_VIEW, P.REPORTS_VIEW, P.PATIENT_VIEW, P.CASE_VIEW,
+    permissions: [
+      P.BILLING_VIEW,
+      P.BILLING_CREATE,
+      P.BILLING_PAYMENT,
+      P.BILLING_SERVICES_VIEW,
+      P.OPD_VIEW,
+      P.REPORTS_VIEW,
+      P.PATIENT_VIEW,
+      P.CASE_VIEW,
       // When the consultation fee is due is a workflow setting the billing counter reads to know
       // what it is looking at, and the chart's cases block needs the case-type words (ADR-129).
       P.WORKFLOW_CONFIG_VIEW,
       // The billing counter reads the price list, and can charge differently — it is the counter
       // a supervisor already stands at when a concession is agreed.
-      P.BILLING_FEE_RULES_VIEW, P.BILLING_FEE_OVERRIDE,
+      P.BILLING_FEE_RULES_VIEW,
+      P.BILLING_FEE_OVERRIDE,
       P.AI_PORTAL_ACCESS,
     ],
   },
@@ -635,10 +718,16 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
     defaultEnabled: true,
     permissions: [P.PATIENT_VIEW, P.PATIENT_CREATE, P.PATIENT_UPDATE],
     capabilities: [
-      cap('patient', 'registration', 'Patient Registration', 'BUILT', { permissions: [P.PATIENT_CREATE] }),
+      cap('patient', 'registration', 'Patient Registration', 'BUILT', {
+        permissions: [P.PATIENT_CREATE],
+      }),
       cap('patient', 'profile', 'Patient Profile', 'BUILT', { permissions: [P.PATIENT_VIEW] }),
-      cap('patient', 'documents', 'Documents', 'BUILT', { permissions: [P.FILE_VIEW, P.FILE_UPLOAD] }),
-      cap('patient', 'immunization', 'Immunisation Records', 'BUILT', { permissions: [P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE] }),
+      cap('patient', 'documents', 'Documents', 'BUILT', {
+        permissions: [P.FILE_VIEW, P.FILE_UPLOAD],
+      }),
+      cap('patient', 'immunization', 'Immunisation Records', 'BUILT', {
+        permissions: [P.IMMUNIZATION_VIEW, P.IMMUNIZATION_MANAGE],
+      }),
       cap('patient', 'medical_history', 'Medical History'),
       cap('patient', 'allergies', 'Allergies'),
       cap('patient', 'family_history', 'Family History'),
@@ -649,9 +738,15 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
     hardDependencies: ['patient'],
     permissions: [P.APPOINTMENT_VIEW, P.APPOINTMENT_CREATE, P.APPOINTMENT_CANCEL],
     capabilities: [
-      cap('appointment', 'booking', 'Appointment Booking', 'BUILT', { permissions: [P.APPOINTMENT_CREATE] }),
-      cap('appointment', 'doctor_schedule', 'Doctor Schedule / Roster', 'BUILT', { permissions: [P.PROVIDER_VIEW] }),
-      cap('appointment', 'cancellation', 'Cancellation', 'BUILT', { permissions: [P.APPOINTMENT_CANCEL] }),
+      cap('appointment', 'booking', 'Appointment Booking', 'BUILT', {
+        permissions: [P.APPOINTMENT_CREATE],
+      }),
+      cap('appointment', 'doctor_schedule', 'Doctor Schedule / Roster', 'BUILT', {
+        permissions: [P.PROVIDER_VIEW],
+      }),
+      cap('appointment', 'cancellation', 'Cancellation', 'BUILT', {
+        permissions: [P.APPOINTMENT_CANCEL],
+      }),
       cap('appointment', 'online_booking', 'Online Booking Requests', 'BUILT'),
       cap('appointment', 'reschedule', 'Rescheduling'),
       cap('appointment', 'followup', 'Follow-up Scheduling'),
@@ -660,7 +755,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
   mod('emr', 'Clinical Workflow (EMR)', 'CORE', 'BUILT', {
     defaultEnabled: true,
     hardDependencies: ['patient'],
-    permissions: [P.EMR_VIEW, P.EMR_WRITE],
+    permissions: [P.EMR_VIEW, P.EMR_WRITE, P.EMR_AMEND],
     capabilities: [
       cap('emr', 'consultation', 'Consultation', 'BUILT', { permissions: [P.EMR_WRITE] }),
       cap('emr', 'vitals', 'Vitals', 'BUILT', { permissions: [P.VITALS_VIEW, P.VITALS_RECORD] }),
@@ -669,6 +764,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       cap('emr', 'prescription', 'Prescription', 'BUILT'),
       cap('emr', 'investigations', 'Investigations / Orders', 'BUILT'),
       cap('emr', 'ai_assist', 'AI Clinical Drafting', 'BUILT', { permissions: [P.EMR_WRITE] }),
+      cap('emr', 'amendment', 'Signed-note Amendment', 'BUILT', { permissions: [P.EMR_AMEND] }),
       cap('emr', 'followup_plan', 'Follow-up Plan'),
     ],
   }),
@@ -701,7 +797,9 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       P.ABDM_REGISTRY_MANAGE,
     ],
     capabilities: [
-      cap('abdm', 'verification', 'ABHA Verification', 'BUILT', { permissions: [P.ABDM_VERIFY, P.ABDM_LINK] }),
+      cap('abdm', 'verification', 'ABHA Verification', 'BUILT', {
+        permissions: [P.ABDM_VERIFY, P.ABDM_LINK],
+      }),
       cap('abdm', 'facility', 'HFR Facility Configuration', 'BUILT', {
         permissions: [P.ABDM_FACILITY_VIEW, P.ABDM_FACILITY_MANAGE],
       }),
@@ -816,7 +914,9 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       cap('billing', 'opd_billing', 'OPD Billing', 'BUILT'),
       cap('billing', 'pharmacy_billing', 'Pharmacy Billing', 'BUILT'),
       cap('billing', 'lab_billing', 'Laboratory Billing', 'BUILT'),
-      cap('billing', 'financial_reports', 'Financial Reports', 'BUILT', { permissions: [P.REPORTS_VIEW] }),
+      cap('billing', 'financial_reports', 'Financial Reports', 'BUILT', {
+        permissions: [P.REPORTS_VIEW],
+      }),
       cap('billing', 'ipd_billing', 'IPD Billing'),
       cap('billing', 'procedure_billing', 'Procedure Billing'),
       cap('billing', 'ot_billing', 'OT Billing'),
@@ -843,7 +943,9 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
   mod('pharmacy', 'Pharmacy', 'ADD_ON', 'BUILT', {
     permissions: [P.PHARMACY_DISPENSE, P.PHARMACY_STOCK_VIEW, P.PHARMACY_MANAGE],
     capabilities: [
-      cap('pharmacy', 'drug_inventory', 'Drug Inventory', 'BUILT', { permissions: [P.PHARMACY_MANAGE] }),
+      cap('pharmacy', 'drug_inventory', 'Drug Inventory', 'BUILT', {
+        permissions: [P.PHARMACY_MANAGE],
+      }),
       cap('pharmacy', 'stock', 'Stock', 'BUILT', { permissions: [P.PHARMACY_STOCK_VIEW] }),
       cap('pharmacy', 'batch_expiry', 'Batch / Expiry', 'BUILT'),
       cap('pharmacy', 'dispensing', 'Dispensing', 'BUILT', { permissions: [P.PHARMACY_DISPENSE] }),
@@ -855,13 +957,17 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
     permissions: [P.LAB_ORDER_VIEW, P.LAB_RESULT_ENTER, P.LAB_RESULT_VERIFY, P.LAB_MANAGE],
     capabilities: [
       cap('laboratory', 'orders', 'Lab Orders', 'BUILT', { permissions: [P.LAB_ORDER_VIEW] }),
-      cap('laboratory', 'sample_collection', 'Sample Collection', 'BUILT', { permissions: [P.LAB_MANAGE] }),
+      cap('laboratory', 'sample_collection', 'Sample Collection', 'BUILT', {
+        permissions: [P.LAB_MANAGE],
+      }),
       cap('laboratory', 'processing', 'Processing', 'BUILT'),
       cap('laboratory', 'results', 'Results & Verification', 'BUILT', {
         permissions: [P.LAB_RESULT_ENTER, P.LAB_RESULT_VERIFY],
       }),
       cap('laboratory', 'reports', 'Lab Reports', 'BUILT'),
-      cap('laboratory', 'result_files', 'Lab Result Files', 'BUILT', { permissions: [P.LAB_RESULT_ENTER] }),
+      cap('laboratory', 'result_files', 'Lab Result Files', 'BUILT', {
+        permissions: [P.LAB_RESULT_ENTER],
+      }),
     ],
   }),
   mod('radiology', 'Radiology & Imaging', 'ADD_ON', 'AVAILABLE', {
@@ -1228,7 +1334,10 @@ export function capabilityDependents(keyOrModule: string): readonly CapabilityDe
 const PERMISSION_TO_MODULE: ReadonlyMap<string, string> = (() => {
   const index = new Map<string, string>();
   for (const m of MODULE_REGISTRY) {
-    for (const key of [...(m.permissions ?? []), ...m.capabilities.flatMap((c) => c.permissions ?? [])]) {
+    for (const key of [
+      ...(m.permissions ?? []),
+      ...m.capabilities.flatMap((c) => c.permissions ?? []),
+    ]) {
       if (!index.has(key)) index.set(key, m.key);
     }
   }

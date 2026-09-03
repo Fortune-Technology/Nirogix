@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { X } from "lucide-react";
-import { cn } from "../../cn";
-import { DateField } from "../datetime/DateField";
+import { X } from 'lucide-react';
+import { cn } from '../../cn';
+import { DateField } from '../datetime/DateField';
 
 export interface DateRangeValue {
   /** ISO calendar date (`YYYY-MM-DD`) or null when the end is open. */
@@ -32,7 +32,7 @@ export interface DateRangeFilterProps {
 export function DateRangeFilter({ label, value, onChange, className }: DateRangeFilterProps) {
   const active = Boolean(value.from || value.to);
   return (
-    <div className={cn("hms-rangefilter", className)} role="group" aria-label={label}>
+    <div className={cn('hms-rangefilter', className)} role="group" aria-label={label}>
       <span className="hms-rangefilter__label">{label}</span>
       <DateField
         value={value.from}

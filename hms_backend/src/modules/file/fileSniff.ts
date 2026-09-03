@@ -45,9 +45,7 @@ const SIGNATURES: Record<string, Signature[]> = {
     { offset: 0, bytes: [0x50, 0x4b, 0x05, 0x06] }, // empty archive
     { offset: 0, bytes: [0x50, 0x4b, 0x07, 0x08] }, // spanned archive
   ],
-  'application/msword': [
-    { offset: 0, bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] },
-  ],
+  'application/msword': [{ offset: 0, bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] }],
 };
 
 function matches(buf: Buffer, sig: Signature): boolean {

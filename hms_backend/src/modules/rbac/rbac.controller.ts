@@ -43,7 +43,12 @@ export async function explainAccess(req: Request, res: Response): Promise<void> 
   // shipped default. A role holding the wildcard grants everything, so it counts too.
   const holders = await runWithTenant(tenantId, (tx) =>
     tx
-      .select({ key: roles.key, name: roles.name, isSystem: roles.isSystem, permissionKey: rolePermissions.permissionKey })
+      .select({
+        key: roles.key,
+        name: roles.name,
+        isSystem: roles.isSystem,
+        permissionKey: rolePermissions.permissionKey,
+      })
       .from(roles)
       .innerJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
       .where(and(eq(roles.tenantId, tenantId))),
@@ -60,7 +65,9 @@ export async function explainAccess(req: Request, res: Response): Promise<void> 
   // permission would send them to ask for something that would change nothing.
   res.json({
     permission: { key: permission, label: permissionLabel(permission) },
-    module: moduleKey ? { key: moduleKey, name: moduleDef(moduleKey)?.name ?? moduleKey, enabled } : null,
+    module: moduleKey
+      ? { key: moduleKey, name: moduleDef(moduleKey)?.name ?? moduleKey, enabled }
+      : null,
     granted: granted && enabled,
     reason: !enabled ? 'module_not_enabled' : granted ? 'granted' : 'permission_missing',
     grantedByRoles,

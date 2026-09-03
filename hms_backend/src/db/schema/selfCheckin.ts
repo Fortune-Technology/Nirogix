@@ -26,7 +26,9 @@ import { visits } from './visits';
 export const selfCheckinRequests = pgTable(
   'self_checkin_requests',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -38,7 +40,9 @@ export const selfCheckinRequests = pgTable(
      * only stored successes would answer "does this number exist here?" through its own side
      * effects.
      */
-    appointmentId: uuid('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
+    appointmentId: uuid('appointment_id').references(() => appointments.id, {
+      onDelete: 'set null',
+    }),
     patientId: uuid('patient_id').references(() => patients.id, { onDelete: 'restrict' }),
 
     /**
@@ -53,7 +57,9 @@ export const selfCheckinRequests = pgTable(
     announcedAt: timestamp('announced_at', { withTimezone: true }).notNull().defaultNow(),
 
     /** Set when the desk turns the announcement into a real check-in. */
-    resultingVisitId: uuid('resulting_visit_id').references(() => visits.id, { onDelete: 'set null' }),
+    resultingVisitId: uuid('resulting_visit_id').references(() => visits.id, {
+      onDelete: 'set null',
+    }),
     confirmedBy: uuid('confirmed_by'),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     /** Why the desk dismissed it — "nobody came to the counter", "already checked in by hand". */

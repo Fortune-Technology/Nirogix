@@ -36,7 +36,9 @@ function fullName(first: string, last: string | null): string {
 
 /** Hospital name for the email body (the `tenants` table is platform-managed, no RLS). */
 async function orgNameOf(tenantId: string): Promise<string> {
-  const row = (await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0];
+  const row = (
+    await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  )[0];
   return row?.name ?? 'Nirogix';
 }
 
@@ -135,7 +137,13 @@ export function registerNotificationSubscribers(): void {
           .from(payments)
           .innerJoin(invoices, eq(invoices.id, payments.invoiceId))
           .innerJoin(patients, eq(patients.id, invoices.patientId))
-          .where(and(eq(payments.tenantId, tenantId), eq(payments.id, paymentId), eq(invoices.id, invoiceId)))
+          .where(
+            and(
+              eq(payments.tenantId, tenantId),
+              eq(payments.id, paymentId),
+              eq(invoices.id, invoiceId),
+            ),
+          )
           .limit(1),
       )
     )[0];
@@ -172,7 +180,13 @@ export function registerNotificationSubscribers(): void {
           .from(labOrders)
           .innerJoin(patients, eq(patients.id, labOrders.patientId))
           .leftJoin(labTests, eq(labTests.id, labOrders.testId))
-          .where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId), eq(patients.id, patientId)))
+          .where(
+            and(
+              eq(labOrders.tenantId, tenantId),
+              eq(labOrders.id, labOrderId),
+              eq(patients.id, patientId),
+            ),
+          )
           .limit(1),
       )
     )[0];
@@ -196,7 +210,12 @@ export function registerNotificationSubscribers(): void {
     const row = (
       await runWithTenant(tenantId, (tx) =>
         tx
-          .select({ email: patients.email, first: patients.firstName, last: patients.lastName, uhid: patients.uhid })
+          .select({
+            email: patients.email,
+            first: patients.firstName,
+            last: patients.lastName,
+            uhid: patients.uhid,
+          })
           .from(patients)
           .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
           .limit(1),

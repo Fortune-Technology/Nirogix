@@ -20,7 +20,11 @@ registry.registerPath({
       patientId: z.string().uuid().optional(),
     }),
   },
-  responses: { 200: { description: 'Referrals', ...json(ReferralListSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Referrals', ...json(ReferralListSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({

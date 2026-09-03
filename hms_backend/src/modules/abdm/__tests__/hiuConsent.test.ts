@@ -41,7 +41,10 @@ async function recordsFor(consentId: string): Promise<number> {
 }
 
 /** Creates a granted consent with one stored record, the way a completed pull would leave things. */
-async function grantWithRecord(consentId: string, over: { dataEraseAt?: string } = {}): Promise<string> {
+async function grantWithRecord(
+  consentId: string,
+  over: { dataEraseAt?: string } = {},
+): Promise<string> {
   const request = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
   await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', [
     `cr-${consentId}`,
@@ -78,13 +81,26 @@ beforeAll(async () => {
   await grantModule(tenantId, 'abdm');
   await upsertFacilityConfig(tenantId, { hipId: HIP_ID, facilityName: 'HIU Test Hospital' });
 
-  const patient = await createPatient(tenantId, { firstName: 'Rohan', lastName: 'Mehta', phone: '9700005555' });
+  const patient = await createPatient(tenantId, {
+    firstName: 'Rohan',
+    lastName: 'Mehta',
+    phone: '9700005555',
+  });
   patientId = patient.id;
-  await pool.query("UPDATE patients SET abha_address = 'hiu@sbx', abha_verified_at = now() WHERE id = $1", [patientId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'hiu@sbx', abha_verified_at = now() WHERE id = $1",
+    [patientId],
+  );
 
-  const unverified = await createPatient(tenantId, { firstName: 'Typed', lastName: 'Abha', phone: '9700006666' });
+  const unverified = await createPatient(tenantId, {
+    firstName: 'Typed',
+    lastName: 'Abha',
+    phone: '9700006666',
+  });
   unverifiedPatientId = unverified.id;
-  await pool.query("UPDATE patients SET abha_address = 'typed@sbx' WHERE id = $1", [unverifiedPatientId]);
+  await pool.query("UPDATE patients SET abha_address = 'typed@sbx' WHERE id = $1", [
+    unverifiedPatientId,
+  ]);
 
   const withReg = await pool.query(
     `INSERT INTO providers (tenant_id, full_name, registration_number, is_active)
@@ -113,8 +129,12 @@ describe('requesting consent', () => {
     const saved = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
 
     expect(saved.status).toBe('requested');
-    const body = recordedHipCalls().find((c) => c.path.includes('consent/v3/request/init'))?.body as {
-      consent: { requester: { name: string; identifier: { value: string } }; purpose: { code: string } };
+    const body = recordedHipCalls().find((c) => c.path.includes('consent/v3/request/init'))
+      ?.body as {
+      consent: {
+        requester: { name: string; identifier: { value: string } };
+        purpose: { code: string };
+      };
     };
     // This is what the patient reads in their app when deciding whether to grant.
     expect(body.consent.requester.name).toBe('Dr Anjali Verma');
@@ -126,9 +146,9 @@ describe('requesting consent', () => {
     if (!ready) return skip();
     // Refused rather than defaulted: an anonymous clinician asking for somebody's medical history
     // is not a request a patient can meaningfully judge.
-    await expect(hiu.requestPatientHistory(tenantId, null, { patientId, providerId: noRegProviderId })).rejects.toThrow(
-      /registration number/i,
-    );
+    await expect(
+      hiu.requestPatientHistory(tenantId, null, { patientId, providerId: noRegProviderId }),
+    ).rejects.toThrow(/registration number/i);
     expect(recordedHipCalls()).toHaveLength(0);
   });
 
@@ -154,7 +174,10 @@ describe('storing artefacts', () => {
   test('a granted artefact is stored against the request that caused it', async ({ skip }) => {
     if (!ready) return skip();
     const request = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
-    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', ['cr-1', request.id]);
+    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', [
+      'cr-1',
+      request.id,
+    ]);
 
     const consent = await hiu.storeConsentArtefact({
       consentId: 'hiu-consent-1',
@@ -167,7 +190,9 @@ describe('storing artefacts', () => {
     expect(consent?.requestId).toBe(request.id);
     expect(consent?.status).toBe('granted');
 
-    const after = await pool.query('SELECT status FROM abdm_hiu_consent_requests WHERE id = $1', [request.id]);
+    const after = await pool.query('SELECT status FROM abdm_hiu_consent_requests WHERE id = $1', [
+      request.id,
+    ]);
     expect(after.rows[0].status).toBe('granted');
   });
 
@@ -186,7 +211,10 @@ describe('storing artefacts', () => {
   test('one request can yield several artefacts, one per hospital', async ({ skip }) => {
     if (!ready) return skip();
     const request = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
-    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', ['cr-multi', request.id]);
+    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', [
+      'cr-multi',
+      request.id,
+    ]);
 
     for (const hipId of ['IN0710-A', 'IN0710-B', 'IN0710-C']) {
       await hiu.storeConsentArtefact({
@@ -198,7 +226,9 @@ describe('storing artefacts', () => {
         dataEraseAt: '2030-01-01T00:00:00.000Z',
       });
     }
-    const rows = await pool.query('SELECT hip_id FROM abdm_hiu_consents WHERE request_id = $1', [request.id]);
+    const rows = await pool.query('SELECT hip_id FROM abdm_hiu_consents WHERE request_id = $1', [
+      request.id,
+    ]);
     // They expire and are revoked individually, so they are tracked individually.
     expect(rows.rowCount).toBe(3);
   });
@@ -214,7 +244,9 @@ describe('HIU_FLOW_202 — revocation', () => {
 
     // The assessor's actual question. A hidden row is not a deleted row.
     expect(await recordsFor('hiu-revoke-1')).toBe(0);
-    const consent = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', ['hiu-revoke-1']);
+    const consent = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', [
+      'hiu-revoke-1',
+    ]);
     expect(consent.rowCount).toBe(0);
   });
 
@@ -226,7 +258,9 @@ describe('HIU_FLOW_202 — revocation', () => {
 
     const ack = recordedHipCalls().find((c) => c.path.includes('hiu/on-notify'));
     expect(ack).toBeTruthy();
-    expect((ack?.body as { acknowledgement: Array<{ status: string }> }).acknowledgement[0]!.status).toBe('ok');
+    expect(
+      (ack?.body as { acknowledgement: Array<{ status: string }> }).acknowledgement[0]!.status,
+    ).toBe('ok');
     // The acknowledgement asserts compliance, so it must not precede the deletion it asserts.
     expect(await recordsFor('hiu-revoke-2')).toBe(0);
   });
@@ -249,7 +283,10 @@ describe('HIU_FLOW_202 — revocation', () => {
 
   test('a revocation for a consent we never held is still acknowledged', async ({ skip }) => {
     if (!ready) return skip();
-    const result = await hiu.handleConsentNotification({ consentId: 'never-held', status: 'REVOKED' });
+    const result = await hiu.handleConsentNotification({
+      consentId: 'never-held',
+      status: 'REVOKED',
+    });
     expect(result.purged).toBe(false);
     expect(recordedHipCalls().some((c) => c.path.includes('hiu/on-notify'))).toBe(true);
   });
@@ -274,7 +311,9 @@ describe('HIU_FLOW_301 — expiry', () => {
     await sweepOnce();
 
     expect(await recordsFor('hiu-expired-2')).toBe(0);
-    const consent = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', ['hiu-expired-2']);
+    const consent = await pool.query('SELECT id FROM abdm_hiu_consents WHERE consent_id = $1', [
+      'hiu-expired-2',
+    ]);
     expect(consent.rowCount).toBe(0);
   });
 

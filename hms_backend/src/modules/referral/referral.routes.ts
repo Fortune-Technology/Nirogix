@@ -13,7 +13,13 @@ import * as c from './referral.controller';
 export const referralRouter = Router();
 const mod = requireModule('opd');
 
-referralRouter.get('/referrals', requireAuth, mod, requirePermission(PERMISSIONS.REFERRAL_VIEW), asyncHandler(c.listReferrals));
+referralRouter.get(
+  '/referrals',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.REFERRAL_VIEW),
+  asyncHandler(c.listReferrals),
+);
 referralRouter.post(
   '/referrals',
   requireAuth,

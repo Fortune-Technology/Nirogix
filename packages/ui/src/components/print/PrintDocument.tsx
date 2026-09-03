@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { formatDateTime } from "@hms/utils";
-import { cn } from "../../cn";
+import type { ReactNode } from 'react';
+import { formatDateTime } from '@hms/utils';
+import { cn } from '../../cn';
 
 /**
  * The document/print layer (ADR-047).
@@ -20,7 +20,7 @@ import { cn } from "../../cn";
  */
 
 /** The paper a document targets (ADR-065). Maps to a sheet width and a CSS `@page size`. */
-export type DocumentPageSize = "A4" | "A5" | "LETTER" | "LEGAL";
+export type DocumentPageSize = 'A4' | 'A5' | 'LETTER' | 'LEGAL';
 
 export interface DocumentBrand {
   /** The hospital's name. Falls back to the platform's when absent. */
@@ -50,10 +50,10 @@ export interface DocumentBrand {
 // Each size → the sheet width shown on screen and the keyword a print `@page size` uses.
 // A single reusable table, never an A4 special case: adding a size is one row here.
 const PAGE_GEOMETRY: Record<DocumentPageSize, { width: string; page: string }> = {
-  A4: { width: "210mm", page: "A4" },
-  A5: { width: "148mm", page: "A5" },
-  LETTER: { width: "216mm", page: "letter" },
-  LEGAL: { width: "216mm", page: "legal" },
+  A4: { width: '210mm', page: 'A4' },
+  A5: { width: '148mm', page: 'A5' },
+  LETTER: { width: '216mm', page: 'letter' },
+  LEGAL: { width: '216mm', page: 'legal' },
 };
 
 export interface PrintDocumentProps {
@@ -73,7 +73,7 @@ export interface PrintDocumentProps {
   children: ReactNode;
 }
 
-const DEFAULT_ORG = "Nirogix";
+const DEFAULT_ORG = 'Nirogix';
 
 export function PrintDocument({
   brand,
@@ -86,8 +86,8 @@ export function PrintDocument({
   children,
 }: PrintDocumentProps) {
   const org = brand.organizationName?.trim() || DEFAULT_ORG;
-  const accent = brand.accent || "var(--hms-brand)";
-  const size: DocumentPageSize = pageSize ?? brand.pageSize ?? "A4";
+  const accent = brand.accent || 'var(--hms-brand)';
+  const size: DocumentPageSize = pageSize ?? brand.pageSize ?? 'A4';
   const geometry = PAGE_GEOMETRY[size] ?? PAGE_GEOMETRY.A4;
   const hasLetterhead = Boolean(brand.letterheadImageUrl);
 
@@ -104,7 +104,7 @@ export function PrintDocument({
     <article
       className="hms-doc"
       data-page-size={size}
-      style={{ ["--doc-accent" as string]: accent, ["--doc-width" as string]: geometry.width }}
+      style={{ ['--doc-accent' as string]: accent, ['--doc-width' as string]: geometry.width }}
     >
       {/* Drive the printed sheet size. `@page` cannot be scoped by selector, so it is set
           here rather than in the shared stylesheet — this component is only ever rendered
@@ -153,7 +153,7 @@ export function PrintDocument({
             confidentiality statement, and neither should silence the other. */}
         {brand.footerLine ? <div className="hms-doc__letterfoot">{brand.footerLine}</div> : null}
         <div className="hms-doc__footer-row">
-          <div>{footerNote ?? "Confidential. Contains patient health information."}</div>
+          <div>{footerNote ?? 'Confidential. Contains patient health information.'}</div>
           {computerGenerated ? (
             <div className="hms-doc__generated">
               Computer-generated document · {formatDateTime(new Date())}
@@ -178,7 +178,9 @@ export function PrintSection({
   className?: string;
 }) {
   return (
-    <section className={cn("hms-doc__section", breakBefore && "hms-doc__section--break", className)}>
+    <section
+      className={cn('hms-doc__section', breakBefore && 'hms-doc__section--break', className)}
+    >
       {title ? <h2 className="hms-doc__section-title">{title}</h2> : null}
       {children}
     </section>
@@ -208,9 +210,14 @@ export function PrintTable<Row>({
   columns,
   rows,
   rowKey,
-  emptyMessage = "No items.",
+  emptyMessage = 'No items.',
 }: {
-  columns: Array<{ key: string; header: ReactNode; align?: "left" | "right"; cell: (row: Row) => ReactNode }>;
+  columns: Array<{
+    key: string;
+    header: ReactNode;
+    align?: 'left' | 'right';
+    cell: (row: Row) => ReactNode;
+  }>;
   rows: Row[];
   rowKey: (row: Row, index: number) => string;
   emptyMessage?: string;
@@ -221,7 +228,7 @@ export function PrintTable<Row>({
       <thead>
         <tr>
           {columns.map((c) => (
-            <th key={c.key} style={{ textAlign: c.align ?? "left" }}>
+            <th key={c.key} style={{ textAlign: c.align ?? 'left' }}>
               {c.header}
             </th>
           ))}
@@ -231,7 +238,7 @@ export function PrintTable<Row>({
         {rows.map((row, i) => (
           <tr key={rowKey(row, i)}>
             {columns.map((c) => (
-              <td key={c.key} style={{ textAlign: c.align ?? "left" }}>
+              <td key={c.key} style={{ textAlign: c.align ?? 'left' }}>
                 {c.cell(row)}
               </td>
             ))}
@@ -251,7 +258,7 @@ export function PrintTotals({
   return (
     <div className="hms-doc__totals">
       {lines.map((l, i) => (
-        <div key={i} className={cn("hms-doc__total", l.strong && "hms-doc__total--strong")}>
+        <div key={i} className={cn('hms-doc__total', l.strong && 'hms-doc__total--strong')}>
           <span>{l.label}</span>
           <span>{l.value}</span>
         </div>
@@ -268,11 +275,32 @@ export function PrintTotals({
  * patient's line beside the hospital's and printing the Medical Superintendent's name
  * over the patient's signature would be worse than printing nothing.
  */
+export interface PrintSignatureLine {
+  label: string;
+  name?: string;
+  useDefaultSignatory?: boolean;
+  /**
+   * The signer's uploaded signature image, printed above the line (ADR-137).
+   *
+   * **An image, not a cryptographic signature.** The caller passes the URL of the version that
+   * signed *this* document, resolved from what the record pinned at signing — never "the
+   * signer's current signature", which would silently change what an old document shows.
+   *
+   * Absent is the normal case and always safe: the line prints blank, exactly as it did before
+   * signatures existed, for a hospital that configures none and for every record signed before.
+   */
+  imageUrl?: string | null;
+  /** What the image is of, for a screen reader and for a failed image load. */
+  imageAlt?: string;
+  /** When it was signed. Printed under the name, because a signature without a date says less. */
+  signedAt?: ReactNode;
+}
+
 export function PrintSignatures({
   signatures,
   brand,
 }: {
-  signatures: Array<{ label: string; name?: string; useDefaultSignatory?: boolean }>;
+  signatures: PrintSignatureLine[];
   brand?: DocumentBrand;
 }) {
   return (
@@ -283,10 +311,20 @@ export function PrintSignatures({
         const designation = s.name ? null : (fallback?.signatoryDesignation ?? null);
         return (
           <div key={s.label} className="hms-doc__signature">
+            {/* Sits ABOVE the rule, in a fixed-height box: with an image the line is signed, and
+                without one the box still reserves its space so a page with one signed line and
+                one blank line does not step down the middle. */}
+            <div className="hms-doc__signature-mark">
+              {s.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={s.imageUrl} alt={s.imageAlt ?? `Signature of ${name ?? s.label}`} />
+              ) : null}
+            </div>
             <div className="hms-doc__signature-line" />
             <div className="hms-doc__signature-label">{s.label}</div>
             {name ? <div className="hms-doc__signature-name">{name}</div> : null}
             {designation ? <div className="hms-doc__signature-name">{designation}</div> : null}
+            {s.signedAt ? <div className="hms-doc__signature-meta">{s.signedAt}</div> : null}
           </div>
         );
       })}

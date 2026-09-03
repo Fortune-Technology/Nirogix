@@ -38,10 +38,20 @@ export const UpdatePatientBody = CreatePatientBody.partial()
 const csvFilter = z
   .string()
   .optional()
-  .transform((v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined));
+  .transform((v) =>
+    v
+      ? v
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
+  );
 
 /** An ISO calendar date (`YYYY-MM-DD`) from a DateRangeFilter end (ADR-046, ADR-063). */
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
 
 export const ListPatientsQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -86,6 +96,11 @@ export const PatientSchema = z
 export const PatientsPageSchema = z
   .object({
     data: z.array(PatientSchema),
-    page: z.object({ number: z.number(), size: z.number(), total: z.number(), totalPages: z.number() }),
+    page: z.object({
+      number: z.number(),
+      size: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
   })
   .openapi('PatientsPage');

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { UserPlus } from "lucide-react";
+import { useEffect, useState, type FormEvent } from 'react';
+import { UserPlus } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -12,12 +12,12 @@ import {
   PhoneField,
   Select,
   Spinner,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { formatDate, todayApiDate } from "@hms/utils";
-import type { CreatePatientRequest, DuplicatePatientCandidate, Patient } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { formatDate, todayApiDate } from '@hms/utils';
+import type { CreatePatientRequest, DuplicatePatientCandidate, Patient } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 export interface PatientPickerProps {
   value: Patient | null;
@@ -33,13 +33,13 @@ export interface PatientPickerProps {
 }
 
 const GENDERS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
 ];
 
 function fullName(p: { firstName: string; lastName?: string | null }): string {
-  return [p.firstName, p.lastName].filter(Boolean).join(" ");
+  return [p.firstName, p.lastName].filter(Boolean).join(' ');
 }
 
 /**
@@ -64,16 +64,21 @@ function fullName(p: { firstName: string; lastName?: string | null }): string {
  * Shared by check-in and appointment booking so both ask the question the same way
  * (ADR-029 — a pattern that appears twice gets extracted).
  */
-export function PatientPicker({ value, onChange, locked = false, placeholder }: PatientPickerProps) {
+export function PatientPicker({
+  value,
+  onChange,
+  locked = false,
+  placeholder,
+}: PatientPickerProps) {
   const canCreate = useCan(PERMISSIONS.PATIENT_CREATE);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [results, setResults] = useState<Patient[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<CreatePatientRequest>({ firstName: "" });
+  const [form, setForm] = useState<CreatePatientRequest>({ firstName: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicatePatientCandidate[] | null>(null);
@@ -110,9 +115,9 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
     const isPhone = /^[\d+\s-]{6,}$/.test(typed);
     const [first, ...rest] = typed.split(/\s+/);
     setForm({
-      firstName: isPhone ? "" : (first ?? ""),
-      lastName: isPhone ? undefined : rest.join(" ") || undefined,
-      phone: isPhone ? typed.replace(/\D/g, "").slice(-10) : undefined,
+      firstName: isPhone ? '' : (first ?? ''),
+      lastName: isPhone ? undefined : rest.join(' ') || undefined,
+      phone: isPhone ? typed.replace(/\D/g, '').slice(-10) : undefined,
     });
     setError(null);
     setDuplicates(null);
@@ -122,7 +127,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
   function selectAndClose(patient: Patient) {
     onChange(patient);
     setCreating(false);
-    setSearch("");
+    setSearch('');
     setResults([]);
     setSearched(false);
   }
@@ -133,16 +138,18 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
     try {
       // Drop empty strings so the optional fields validate cleanly server-side.
       const body = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== "" && v != null),
+        Object.entries(form).filter(([, v]) => v !== '' && v != null),
       ) as CreatePatientRequest;
       if (allowDuplicate) body.allowDuplicate = true;
       selectAndClose(await api.createPatient(body));
     } catch (err) {
-      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+      if (err instanceof api.ApiRequestError && err.code === 'DUPLICATE_PATIENT') {
         const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
         setDuplicates(details?.candidates ?? []);
       } else {
-        setError(err instanceof api.ApiRequestError ? err.message : "Could not register the patient.");
+        setError(
+          err instanceof api.ApiRequestError ? err.message : 'Could not register the patient.',
+        );
       }
     } finally {
       setSaving(false);
@@ -155,7 +162,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
     try {
       selectAndClose(await api.getPatient(id));
     } catch {
-      setError("Could not open that patient.");
+      setError('Could not open that patient.');
     } finally {
       setSaving(false);
     }
@@ -174,7 +181,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
             type="button"
             onClick={() => {
               onChange(null);
-              setSearch("");
+              setSearch('');
             }}
           >
             Change
@@ -189,7 +196,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
       <div>
         <Field
           label="Find the patient"
-          placeholder={placeholder ?? "Search by UHID, name, or phone…"}
+          placeholder={placeholder ?? 'Search by UHID, name, or phone…'}
           value={search}
           autoComplete="off"
           onChange={(e) => setSearch(e.target.value)}
@@ -250,16 +257,31 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
         footer={
           duplicates ? (
             <>
-              <Button variant="ghost" type="button" onClick={() => setDuplicates(null)} disabled={saving}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setDuplicates(null)}
+                disabled={saving}
+              >
                 Back to the form
               </Button>
-              <Button variant="secondary" type="button" loading={saving} onClick={() => void save(true)}>
+              <Button
+                variant="secondary"
+                type="button"
+                loading={saving}
+                onClick={() => void save(true)}
+              >
                 Register anyway
               </Button>
             </>
           ) : (
             <>
-              <Button variant="ghost" type="button" onClick={() => setCreating(false)} disabled={saving}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setCreating(false)}
+                disabled={saving}
+              >
                 Cancel
               </Button>
               <Button type="submit" form="patient-picker-create" loading={saving}>
@@ -273,7 +295,7 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
           <div className="flex flex-col gap-3">
             <Alert tone="neutral">
               {duplicates.length === 0
-                ? "A matching chart already exists."
+                ? 'A matching chart already exists.'
                 : "These charts look like the same person. Using an existing one keeps the patient's history together."}
             </Alert>
             <ul className="flex flex-col gap-2">
@@ -285,9 +307,9 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
                   <Badge tone="brand">{c.uhid}</Badge>
                   <span className="text-sm text-fg">{fullName(c)}</span>
                   <span className="text-xs text-fg-muted">
-                    {c.phone ?? "no phone"}
-                    {c.dateOfBirth ? ` · ${formatDate(c.dateOfBirth)}` : ""}
-                    {c.gender ? ` · ${c.gender}` : ""}
+                    {c.phone ?? 'no phone'}
+                    {c.dateOfBirth ? ` · ${formatDate(c.dateOfBirth)}` : ''}
+                    {c.gender ? ` · ${c.gender}` : ''}
                   </span>
                   <Button
                     className="ml-auto"
@@ -316,19 +338,19 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
               <Field
                 label="First name"
                 value={form.firstName}
-                onChange={(e) => set("firstName", e.target.value)}
+                onChange={(e) => set('firstName', e.target.value)}
                 required
                 autoFocus
               />
               <Field
                 label="Last name"
-                value={form.lastName ?? ""}
-                onChange={(e) => set("lastName", e.target.value)}
+                value={form.lastName ?? ''}
+                onChange={(e) => set('lastName', e.target.value)}
               />
               <Select
                 label="Gender"
-                value={form.gender ?? ""}
-                onChange={(v) => set("gender", v || null)}
+                value={form.gender ?? ''}
+                onChange={(v) => set('gender', v || null)}
                 options={GENDERS}
                 placeholder="Not stated"
                 clearable
@@ -337,9 +359,13 @@ export function PatientPicker({ value, onChange, locked = false, placeholder }: 
                 label="Date of birth"
                 value={form.dateOfBirth ?? null}
                 max={todayApiDate()}
-                onChange={(v) => set("dateOfBirth", v)}
+                onChange={(v) => set('dateOfBirth', v)}
               />
-              <PhoneField label="Phone" value={form.phone ?? ""} onChange={(v) => set("phone", v)} />
+              <PhoneField
+                label="Phone"
+                value={form.phone ?? ''}
+                onChange={(v) => set('phone', v)}
+              />
             </div>
             <p className="text-xs text-fg-subtle">A UHID is assigned automatically on save.</p>
           </form>

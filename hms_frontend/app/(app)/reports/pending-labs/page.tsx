@@ -1,6 +1,6 @@
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../../components/Can";
-import { ReportsView } from "../../../../components/reports/ReportsView";
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../../components/Can';
+import { ReportsView } from '../../../../components/reports/ReportsView';
 
 export default function PendingLabsReportPage() {
   return (

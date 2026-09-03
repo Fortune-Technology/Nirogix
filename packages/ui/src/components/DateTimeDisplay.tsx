@@ -1,5 +1,12 @@
-import { formatDate, formatDateTime, formatTimeParts, toApiDate, toApiDateTime, type DateInput } from "@hms/utils";
-import { cn } from "../cn";
+import {
+  formatDate,
+  formatDateTime,
+  formatTimeParts,
+  toApiDate,
+  toApiDateTime,
+  type DateInput,
+} from '@hms/utils';
+import { cn } from '../cn';
 
 /**
  * The user-facing date/time components (ADR-046). Every screen renders dates and
@@ -27,7 +34,7 @@ export function DateDisplay({ value, fallback, className }: DateDisplayProps) {
   const text = formatDate(value, fallback);
   if (!iso) return <span className={className}>{text}</span>;
   return (
-    <time dateTime={iso} className={cn("whitespace-nowrap", className)}>
+    <time dateTime={iso} className={cn('whitespace-nowrap', className)}>
       {text}
     </time>
   );
@@ -42,7 +49,7 @@ export interface TimeDisplayProps extends DateDisplayProps {
   badge?: boolean;
 }
 
-export function TimeDisplay({ value, fallback = "—", className, badge = false }: TimeDisplayProps) {
+export function TimeDisplay({ value, fallback = '—', className, badge = false }: TimeDisplayProps) {
   const parts = formatTimeParts(value);
   const iso = toApiDateTime(value);
   if (!parts) return <span className={className}>{fallback}</span>;
@@ -57,7 +64,7 @@ export function TimeDisplay({ value, fallback = "—", className, badge = false 
   );
 
   return (
-    <time dateTime={iso ?? undefined} className={cn("hms-time", className)}>
+    <time dateTime={iso ?? undefined} className={cn('hms-time', className)}>
       {body}
     </time>
   );
@@ -65,13 +72,18 @@ export function TimeDisplay({ value, fallback = "—", className, badge = false 
 
 export interface DateTimeDisplayProps extends TimeDisplayProps {}
 
-export function DateTimeDisplay({ value, fallback = "—", className, badge = false }: DateTimeDisplayProps) {
+export function DateTimeDisplay({
+  value,
+  fallback = '—',
+  className,
+  badge = false,
+}: DateTimeDisplayProps) {
   const iso = toApiDateTime(value);
   const parts = formatTimeParts(value);
   if (!parts || !iso) return <span className={className}>{fallback}</span>;
 
   return (
-    <time dateTime={iso} className={cn("hms-time", className)}>
+    <time dateTime={iso} className={cn('hms-time', className)}>
       {badge ? (
         <>
           {`${formatDate(value)}, ${parts.time}`}

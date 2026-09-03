@@ -1,6 +1,12 @@
 import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { abdmConsents, abdmFacilityConfig, auditLog, patients, type AbdmConsent } from '../../db/schema';
+import {
+  abdmConsents,
+  abdmFacilityConfig,
+  auditLog,
+  patients,
+  type AbdmConsent,
+} from '../../db/schema';
 import { logger } from '../../config/logger';
 import { writeAudit } from '../audit/audit.service';
 import { HIP_CONSENT_ON_NOTIFY_PATH } from './abdm.constants';
@@ -55,7 +61,11 @@ const toDate = (v?: string): Date | null => (v ? new Date(v) : null);
  */
 async function tenantForHip(hipId: string): Promise<string | null> {
   const { db } = await import('../../db/client');
-  const rows = await db.select().from(abdmFacilityConfig).where(eq(abdmFacilityConfig.hipId, hipId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmFacilityConfig)
+    .where(eq(abdmFacilityConfig.hipId, hipId))
+    .limit(1);
   return rows[0]?.tenantId ?? null;
 }
 
@@ -122,7 +132,12 @@ export async function recordConsentGrant(input: ConsentNotification): Promise<Ab
     resourceType: 'abdm_consent',
     resourceId: row.id,
     severity: 'notice',
-    metadata: { consentId: input.consentId, hiuId: input.hiuId, hiTypes: input.hiTypes, abhaAddress: input.abhaAddress },
+    metadata: {
+      consentId: input.consentId,
+      hiuId: input.hiuId,
+      hiTypes: input.hiTypes,
+      abhaAddress: input.abhaAddress,
+    },
   });
   return row;
 }
@@ -143,7 +158,11 @@ async function purgeConsent(
     const rows = await tx
       .delete(abdmConsents)
       .where(and(eq(abdmConsents.tenantId, tenantId), eq(abdmConsents.consentId, consentId)))
-      .returning({ id: abdmConsents.id, abhaAddress: abdmConsents.abhaAddress, hiuId: abdmConsents.hiuId });
+      .returning({
+        id: abdmConsents.id,
+        abhaAddress: abdmConsents.abhaAddress,
+        hiuId: abdmConsents.hiuId,
+      });
     return rows[0] ?? null;
   });
 
@@ -155,7 +174,12 @@ async function purgeConsent(
     resourceType: 'abdm_consent',
     resourceId: removed?.id ?? consentId,
     severity: 'notice',
-    metadata: { consentId, abhaAddress: removed?.abhaAddress, hiuId: removed?.hiuId, existed: Boolean(removed) },
+    metadata: {
+      consentId,
+      abhaAddress: removed?.abhaAddress,
+      hiuId: removed?.hiuId,
+      existed: Boolean(removed),
+    },
   });
   return Boolean(removed);
 }
@@ -175,7 +199,8 @@ export async function expireConsent(hipId: string, consentId: string): Promise<b
 }
 
 /** What a consent callback resolves to, once its status has been read. */
-export type ConsentNotificationOutcome = 'granted' | 'revoked' | 'expired' | 'ignored' | 'unknown_facility';
+export type ConsentNotificationOutcome =
+  'granted' | 'revoked' | 'expired' | 'ignored' | 'unknown_facility';
 
 /**
  * The consent callback ABDM sends a HIP (ADR-101, M2 §6.3.1).
@@ -224,7 +249,10 @@ export async function applyHipConsentNotification(input: {
 }): Promise<ConsentNotificationOutcome> {
   const consentId = input.consentId ?? input.detail?.consentId;
   if (!consentId) {
-    logger.warn({ hipId: input.hipId, status: input.status }, 'ABDM consent notification carried no consent id');
+    logger.warn(
+      { hipId: input.hipId, status: input.status },
+      'ABDM consent notification carried no consent id',
+    );
     return 'ignored';
   }
 
@@ -249,7 +277,10 @@ export async function applyHipConsentNotification(input: {
   }
 
   if (status !== 'GRANTED') {
-    logger.warn({ hipId: input.hipId, consentId, status }, 'Unrecognised ABDM consent status — nothing stored or deleted');
+    logger.warn(
+      { hipId: input.hipId, consentId, status },
+      'Unrecognised ABDM consent status — nothing stored or deleted',
+    );
     return 'ignored';
   }
 
@@ -257,7 +288,10 @@ export async function applyHipConsentNotification(input: {
   if (!abhaAddress) {
     // A grant with no patient cannot be honoured later: every transfer check matches on the ABHA
     // address. Storing it would create an artefact that silently never applies to anyone.
-    logger.warn({ hipId: input.hipId, consentId }, 'Granted consent carried no ABHA address — not stored');
+    logger.warn(
+      { hipId: input.hipId, consentId },
+      'Granted consent carried no ABHA address — not stored',
+    );
     return 'ignored';
   }
 
@@ -313,14 +347,19 @@ export async function acknowledgeHipConsentNotification(input: {
     response: { requestId: input.requestId },
   };
   if (!input.ok) {
-    body.error = { code: 'ABDM-1000', message: input.errorMessage ?? 'Could not apply the consent notification' };
+    body.error = {
+      code: 'ABDM-1000',
+      message: input.errorMessage ?? 'Could not apply the consent notification',
+    };
   }
 
   await hipPost(HIP_CONSENT_ON_NOTIFY_PATH, body, { hipId: input.hipId }).catch((err: unknown) => {
-    logger.error({ err, consentId: input.consentId }, 'Could not acknowledge an ABDM consent notification');
+    logger.error(
+      { err, consentId: input.consentId },
+      'Could not acknowledge an ABDM consent notification',
+    );
   });
 }
-
 
 /**
  * Proactive expiry — the sweep that does not wait to be told.
@@ -352,7 +391,10 @@ export async function purgeExpiredConsents(tenantId: string, now = new Date()): 
  * invariant #6 keeps it. What is deleted is the national identity attached to it and every
  * authorisation that flowed from it, which is precisely what opting out means.
  */
-export async function handleAbhaOptOut(hipId: string, abhaAddress: string): Promise<{ consents: number; patients: number }> {
+export async function handleAbhaOptOut(
+  hipId: string,
+  abhaAddress: string,
+): Promise<{ consents: number; patients: number }> {
   const tenantId = await tenantForHip(hipId);
   if (!tenantId) return { consents: 0, patients: 0 };
 
@@ -402,7 +444,14 @@ export type ConsentCheck = { allowed: boolean; reason?: string; consent?: AbdmCo
  */
 export async function checkConsentForTransfer(
   tenantId: string,
-  input: { consentId: string; hiuId?: string; hiTypes?: string[]; from?: Date; to?: Date; now?: Date },
+  input: {
+    consentId: string;
+    hiuId?: string;
+    hiTypes?: string[];
+    from?: Date;
+    to?: Date;
+    now?: Date;
+  },
 ): Promise<ConsentCheck> {
   const now = input.now ?? new Date();
   const consent = await runWithTenant(tenantId, async (tx) => {
@@ -416,7 +465,8 @@ export async function checkConsentForTransfer(
 
   // No artefact means revoked, expired, or never granted — all of which are "no".
   if (!consent) return { allowed: false, reason: 'No consent artefact is held for this request' };
-  if (consent.dataEraseAt && consent.dataEraseAt <= now) return { allowed: false, reason: 'The consent has expired', consent };
+  if (consent.dataEraseAt && consent.dataEraseAt <= now)
+    return { allowed: false, reason: 'The consent has expired', consent };
   if (input.hiuId && consent.hiuId && consent.hiuId !== input.hiuId) {
     return { allowed: false, reason: 'This consent was granted to a different requester', consent };
   }
@@ -424,15 +474,27 @@ export async function checkConsentForTransfer(
   const requested = input.hiTypes ?? [];
   const disallowed = requested.filter((t) => !consent.hiTypes.includes(t));
   if (disallowed.length > 0) {
-    return { allowed: false, reason: `The consent does not cover ${disallowed.join(', ')}`, consent };
+    return {
+      allowed: false,
+      reason: `The consent does not cover ${disallowed.join(', ')}`,
+      consent,
+    };
   }
 
   // The requested window must sit INSIDE what the patient agreed to, not merely overlap it.
   if (input.from && consent.dateRangeFrom && input.from < consent.dateRangeFrom) {
-    return { allowed: false, reason: 'The requested period starts before the consented range', consent };
+    return {
+      allowed: false,
+      reason: 'The requested period starts before the consented range',
+      consent,
+    };
   }
   if (input.to && consent.dateRangeTo && input.to > consent.dateRangeTo) {
-    return { allowed: false, reason: 'The requested period ends after the consented range', consent };
+    return {
+      allowed: false,
+      reason: 'The requested period ends after the consented range',
+      consent,
+    };
   }
 
   return { allowed: true, consent };
@@ -466,24 +528,34 @@ export async function listConsents(tenantId: string, abhaAddress?: string): Prom
  * only, and is never deleted (invariant #6). So a revoked consent disappears from the live list and
  * appears in the history beneath it, which is exactly what an assessor needs to watch happen.
  */
-export async function consentHistory(tenantId: string, limit = 100): Promise<Array<{
-  consentId: string;
-  event: 'granted' | 'revoked' | 'expired' | 'erased';
-  hipId?: string;
-  hiuId?: string;
-  hiTypes?: string[];
-  recordedAt: string;
-}>> {
+export async function consentHistory(
+  tenantId: string,
+  limit = 100,
+): Promise<
+  Array<{
+    consentId: string;
+    event: 'granted' | 'revoked' | 'expired' | 'erased';
+    hipId?: string;
+    hiuId?: string;
+    hiTypes?: string[];
+    recordedAt: string;
+  }>
+> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(auditLog)
-      .where(and(eq(auditLog.tenantId, tenantId), inArray(auditLog.action, [
-        'abdm.consent.granted',
-        'abdm.consent.revoked',
-        'abdm.consent.expired',
-        'abdm.consent.erased',
-      ])))
+      .where(
+        and(
+          eq(auditLog.tenantId, tenantId),
+          inArray(auditLog.action, [
+            'abdm.consent.granted',
+            'abdm.consent.revoked',
+            'abdm.consent.expired',
+            'abdm.consent.erased',
+          ]),
+        ),
+      )
       .orderBy(sql`${auditLog.createdAt} desc`)
       .limit(limit),
   );

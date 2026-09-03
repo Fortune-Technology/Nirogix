@@ -27,7 +27,13 @@ export type RevenuePoint = { period: string; billed: number; collected: number }
 export type CountPoint = { period: string; value: number };
 
 export type LowStockItem = { id: string; name: string; onHand: number; reorderLevel: number };
-export type ProviderLoad = { providerId: string; name: string; seen: number; inProgress: number; booked: number };
+export type ProviderLoad = {
+  providerId: string;
+  name: string;
+  seen: number;
+  inProgress: number;
+  booked: number;
+};
 
 export type DashboardOverview = {
   /** The clinical day this describes, `YYYY-MM-DD` in server time. */
@@ -76,7 +82,8 @@ function rangeWindow(from: string, to: string): { window: string[]; windowStart:
   const start = new Date(fy!, fm! - 1, fd!);
   const end = new Date(ty!, tm! - 1, td!);
   const keys: string[] = [];
-  for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) keys.push(dayKey(cur));
+  for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1))
+    keys.push(dayKey(cur));
   const capped = keys.length > 366 ? keys.slice(-366) : keys;
   const [sy, sm, sd] = (capped[0] ?? dayKey(start)).split('-').map(Number);
   return { window: capped, windowStart: new Date(sy!, sm! - 1, sd!) };
@@ -160,7 +167,11 @@ export async function getDashboardOverview(
 
     // Outstanding across every open invoice, not just the window.
     const openInvoices = await tx
-      .select({ total: invoices.totalPaise, paid: invoices.amountPaidPaise, status: invoices.status })
+      .select({
+        total: invoices.totalPaise,
+        paid: invoices.amountPaidPaise,
+        status: invoices.status,
+      })
       .from(invoices)
       .where(scope(invoices));
     const outstandingPaise = openInvoices
@@ -217,7 +228,13 @@ export async function getDashboardOverview(
       .where(scope(providers));
     const byProvider = new Map<string, ProviderLoad>();
     for (const p of providerRows) {
-      byProvider.set(p.id, { providerId: p.id, name: p.fullName, seen: 0, inProgress: 0, booked: 0 });
+      byProvider.set(p.id, {
+        providerId: p.id,
+        name: p.fullName,
+        seen: 0,
+        inProgress: 0,
+        booked: 0,
+      });
     }
     for (const v of todayVisits) {
       if (!v.providerId) continue;
@@ -243,7 +260,9 @@ export async function getDashboardOverview(
       outstandingPaise,
       pendingLabOrders: Number(pendingLabs?.c ?? 0),
       lowStock,
-      providerLoad: [...byProvider.values()].filter((p) => p.booked > 0).sort((a, b) => b.booked - a.booked),
+      providerLoad: [...byProvider.values()]
+        .filter((p) => p.booked > 0)
+        .sort((a, b) => b.booked - a.booked),
     };
   });
 }

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useEffect,
@@ -7,7 +7,7 @@ import {
   type CSSProperties,
   type ElementType,
   type ReactNode,
-} from "react";
+} from 'react';
 
 /**
  * Scroll-reveal wrapper. Adds a soft fade-up when the element enters the viewport
@@ -16,7 +16,7 @@ import {
  * visible, so this only ever adds motion, never removes content.
  */
 export function Reveal({
-  as: Tag = "div",
+  as: Tag = 'div',
   delay = 0,
   className,
   children,
@@ -32,7 +32,7 @@ export function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (typeof IntersectionObserver === "undefined") {
+    if (typeof IntersectionObserver === 'undefined') {
       setShown(true);
       return;
     }
@@ -46,7 +46,7 @@ export function Reveal({
           }
         }
       },
-      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+      { threshold: 0.15, rootMargin: '0px 0px -8% 0px' },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -56,8 +56,8 @@ export function Reveal({
     <Tag
       ref={ref}
       data-reveal=""
-      className={shown ? `${className ?? ""} is-in`.trim() : className}
-      style={delay ? ({ "--reveal-delay": `${delay}ms` } as CSSProperties) : undefined}
+      className={shown ? `${className ?? ''} is-in`.trim() : className}
+      style={delay ? ({ '--reveal-delay': `${delay}ms` } as CSSProperties) : undefined}
     >
       {children}
     </Tag>

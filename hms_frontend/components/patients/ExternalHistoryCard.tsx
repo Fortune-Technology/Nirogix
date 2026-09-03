@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -9,14 +9,15 @@ import {
   DateDisplay,
   DateTimeDisplay,
   EmptyState,
+  Select,
   Spinner,
   toast,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { AlertTriangle, Download, Hospital, RefreshCw } from "lucide-react";
-import type { Patient, Provider } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { AlertTriangle, Download, Hospital, RefreshCw } from 'lucide-react';
+import type { Patient, Provider } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * A patient's history from other hospitals (ADR-092…ADR-094).
@@ -41,31 +42,31 @@ const POLL_MS = 15_000;
 const POLL_CEILING_MS = 10 * 60_000;
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Sending",
-  requested: "Waiting for the patient",
-  granted: "Consent granted",
-  denied: "Patient declined",
-  expired: "Request expired",
-  failed: "Could not be sent",
+  pending: 'Sending',
+  requested: 'Waiting for the patient',
+  granted: 'Consent granted',
+  denied: 'Patient declined',
+  expired: 'Request expired',
+  failed: 'Could not be sent',
 };
 
-const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
-  pending: "neutral",
-  requested: "warning",
-  granted: "success",
-  denied: "danger",
-  expired: "neutral",
-  failed: "danger",
+const STATUS_TONE: Record<string, 'neutral' | 'success' | 'warning' | 'danger'> = {
+  pending: 'neutral',
+  requested: 'warning',
+  granted: 'success',
+  denied: 'danger',
+  expired: 'neutral',
+  failed: 'danger',
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  OPConsultation: "OP consultation",
-  Prescription: "Prescription",
-  DiagnosticReport: "Diagnostic report",
-  DischargeSummary: "Discharge summary",
-  ImmunizationRecord: "Immunisation record",
-  HealthDocumentRecord: "Health document",
-  WellnessRecord: "Wellness record",
+  OPConsultation: 'OP consultation',
+  Prescription: 'Prescription',
+  DiagnosticReport: 'Diagnostic report',
+  DischargeSummary: 'Discharge summary',
+  ImmunizationRecord: 'Immunisation record',
+  HealthDocumentRecord: 'Health document',
+  WellnessRecord: 'Wellness record',
 };
 
 export function ExternalHistoryCard({ patient }: { patient: Patient }) {
@@ -75,7 +76,7 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
   const [requests, setRequests] = useState<api.AbdmHistoryRequest[]>([]);
   const [timeline, setTimeline] = useState<api.AbdmTimeline | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [providerId, setProviderId] = useState("");
+  const [providerId, setProviderId] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const pollStartedAt = useRef<number | null>(null);
@@ -109,12 +110,15 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
         // patient reads when deciding, and the API refuses without one.
         const eligible = all.filter((p) => p.isActive && p.registrationNumber);
         setProviders(eligible);
-        setProviderId((current) => current || eligible[0]?.id || "");
+        setProviderId((current) => current || eligible[0]?.id || '');
       })
       .catch(() => {});
   }, [canRequest, providers.length]);
 
-  const waiting = useMemo(() => requests.some((r) => r.status === "requested" || r.status === "pending"), [requests]);
+  const waiting = useMemo(
+    () => requests.some((r) => r.status === 'requested' || r.status === 'pending'),
+    [requests],
+  );
 
   // Poll only while something is genuinely outstanding, and stop after a ceiling. A consent the
   // patient never opens must not leave a tab polling for the rest of the day.
@@ -131,14 +135,14 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
     return () => clearInterval(timer);
   }, [waiting, load]);
 
-  const granted = requests.filter((r) => r.status === "granted");
+  const granted = requests.filter((r) => r.status === 'granted');
 
   async function askForConsent() {
     if (!providerId) return;
     setBusy(true);
     try {
       await api.requestAbdmHistory({ patientId: patient.id, providerId });
-      toast.info("Consent requested. The patient decides in their own ABHA app.");
+      toast.info('Consent requested. The patient decides in their own ABHA app.');
       await load();
     } catch {
       // The shared client already raised the backend's own message (ADR-026/057).
@@ -154,8 +158,8 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
       // Honest about the asynchrony: the records arrive on a push, not on this response.
       toast.info(
         result.requested === 0
-          ? "No granted consent to fetch from yet."
-          : `Requested records from ${result.requested} hospital${result.requested === 1 ? "" : "s"}. They arrive shortly.`,
+          ? 'No granted consent to fetch from yet.'
+          : `Requested records from ${result.requested} hospital${result.requested === 1 ? '' : 's'}. They arrive shortly.`,
       );
       await load();
     } catch {
@@ -189,8 +193,9 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
           </span>
           {timeline && timeline.summary.total > 0 && (
             <Badge tone="neutral">
-              {timeline.summary.total} record{timeline.summary.total === 1 ? "" : "s"} from{" "}
-              {timeline.summary.sources.length} source{timeline.summary.sources.length === 1 ? "" : "s"}
+              {timeline.summary.total} record{timeline.summary.total === 1 ? '' : 's'} from{' '}
+              {timeline.summary.sources.length} source
+              {timeline.summary.sources.length === 1 ? '' : 's'}
             </Badge>
           )}
         </div>
@@ -202,8 +207,8 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
         </div>
       ) : !verified ? (
         <Alert>
-          This patient has no verified ABHA address, so their history at other hospitals cannot be requested. Verify
-          their ABHA first.
+          This patient has no verified ABHA address, so their history at other hospitals cannot be
+          requested. Verify their ABHA first.
         </Alert>
       ) : (
         <div className="space-y-4">
@@ -211,21 +216,23 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
           {canRequest && (
             <div className="flex flex-wrap items-end gap-2">
               {providers.length > 0 ? (
-                <label className="hms-field">
-                  <span className="hms-label">Requesting doctor</span>
-                  <select className="hms-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
-                    {providers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.fullName} ({p.registrationNumber})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="hms-hint">The patient sees this name and registration number</span>
-                </label>
+                <Select
+                  label="Requesting doctor"
+                  value={providerId}
+                  onChange={(v) => v && setProviderId(v)}
+                  options={providers.map((p) => ({
+                    value: p.id,
+                    label: p.fullName,
+                    description: p.registrationNumber ?? undefined,
+                    keywords: p.registrationNumber ?? undefined,
+                  }))}
+                  hint="The patient sees this name and registration number"
+                />
               ) : (
                 <Alert>
-                  No doctor on record has a medical registration number. ABDM requires one — the patient reads it when
-                  deciding whether to share their history. Add it on the doctor’s profile.
+                  No doctor on record has a medical registration number. ABDM requires one — the
+                  patient reads it when deciding whether to share their history. Add it on the
+                  doctor’s profile.
                 </Alert>
               )}
               {providers.length > 0 && (
@@ -251,18 +258,25 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
                 >
                   <span className="flex flex-wrap items-center gap-2 text-sm">
-                    <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
+                    <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </Badge>
                     <span className="text-fg-muted">
                       asked by {r.requesterName} on <DateDisplay value={r.createdAt} />
                     </span>
                   </span>
-                  {(r.status === "requested" || r.status === "pending") && (
-                    <Button variant="ghost" size="sm" onClick={() => void refresh(r.id)} disabled={busy}>
+                  {(r.status === 'requested' || r.status === 'pending') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void refresh(r.id)}
+                      disabled={busy}
+                    >
                       <RefreshCw className="size-4" aria-hidden />
                       Check now
                     </Button>
                   )}
-                  {r.status === "failed" && r.lastError && (
+                  {r.status === 'failed' && r.lastError && (
                     <span className="text-xs text-danger">{r.lastError}</span>
                   )}
                 </li>
@@ -284,8 +298,8 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
                   <AlertTriangle className="size-4 text-warning" aria-hidden />
                   <span>
                     {timeline.summary.abnormalCount} record
-                    {timeline.summary.abnormalCount === 1 ? " carries" : "s carry"} a finding the source hospital
-                    marked abnormal.
+                    {timeline.summary.abnormalCount === 1 ? ' carries' : 's carry'} a finding the
+                    source hospital marked abnormal.
                   </span>
                 </Alert>
               )}
@@ -295,8 +309,8 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
                 ))}
               </ol>
               <p className="text-xs text-fg-muted">
-                Held with the patient’s consent. These records disappear from this list the moment that consent is
-                withdrawn or expires, and our copy is deleted.
+                Held with the patient’s consent. These records disappear from this list the moment
+                that consent is withdrawn or expires, and our copy is deleted.
               </p>
             </div>
           ) : (
@@ -337,15 +351,23 @@ function TimelineItem({ entry }: { entry: api.AbdmTimelineEntry }) {
           {entry.hasAbnormalFinding && <Badge tone="warning">Abnormal finding</Badge>}
         </span>
         <span className="text-xs text-fg-muted">
-          {entry.date ? <DateDisplay value={entry.date} /> : <>Received <DateTimeDisplay value={entry.receivedAt} /></>}
+          {entry.date ? (
+            <DateDisplay value={entry.date} />
+          ) : (
+            <>
+              Received <DateTimeDisplay value={entry.receivedAt} />
+            </>
+          )}
         </span>
       </div>
 
       {/* The author and the facility id are often the same string when a source names itself as
           its own organisation; printing it twice looks like a rendering fault. */}
       <p className="mt-1 text-xs text-fg-muted">
-        {[entry.author, entry.sourceHipId].filter(Boolean).filter((v, i, all) => all.indexOf(v) === i).join(" · ") ||
-          "Another facility"}
+        {[entry.author, entry.sourceHipId]
+          .filter(Boolean)
+          .filter((v, i, all) => all.indexOf(v) === i)
+          .join(' · ') || 'Another facility'}
       </p>
 
       {Object.entries(groups).map(([group, details]) => (
@@ -354,8 +376,12 @@ function TimelineItem({ entry }: { entry: api.AbdmTimelineEntry }) {
           <ul className="mt-1 space-y-0.5">
             {details.map((detail, i) => (
               <li key={`${detail.label}-${i}`} className="text-sm text-fg">
-                <span className="text-fg-muted">{detail.label}:</span>{" "}
-                <span className={detail.emphasis === "abnormal" ? "font-medium text-warning" : undefined}>
+                <span className="text-fg-muted">{detail.label}:</span>{' '}
+                <span
+                  className={
+                    detail.emphasis === 'abnormal' ? 'font-medium text-warning' : undefined
+                  }
+                >
                   {detail.value}
                 </span>
               </li>

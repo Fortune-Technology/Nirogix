@@ -18,7 +18,9 @@ const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } })
 const idParam = { params: z.object({ id: z.string().uuid() }) };
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
 const forbidden = { description: 'Not a platform super-admin', ...json(ErrorResponseSchema) };
-const AckSchema = z.object({ tenant: z.string(), module: z.string(), status: z.string() }).openapi('ModuleAck');
+const AckSchema = z
+  .object({ tenant: z.string(), module: z.string(), status: z.string() })
+  .openapi('ModuleAck');
 const ModuleCatalogSchema = z
   .object({
     modules: z.array(
@@ -89,11 +91,21 @@ registry.registerPath({
       months: z.coerce.number().int().min(3).max(36).optional(),
       // An explicit inclusive window (used by the shared period filter's calendar presets).
       // Takes precedence over `months` when both `from` and `to` are valid and `to >= from`.
-      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      from: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      to: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
     }),
   },
-  responses: { 200: { description: 'Platform trends', ...json(PlatformTrendsSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Platform trends', ...json(PlatformTrendsSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -102,9 +114,14 @@ registry.registerPath({
   operationId: 'getPlatformStats',
   tags: ['Admin'],
   summary: 'Platform-wide statistics (aggregate-only, across all tenants)',
-  description: 'Super-admin only. Counts/metrics only — never another tenant\'s row-level data (ADR-023).',
+  description:
+    "Super-admin only. Counts/metrics only — never another tenant's row-level data (ADR-023).",
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Platform stats', ...json(PlatformStatsSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Platform stats', ...json(PlatformStatsSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -114,7 +131,11 @@ registry.registerPath({
   tags: ['Admin'],
   summary: 'List the module catalog (keys, names, hard dependencies) for onboarding',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Module catalog', ...json(ModuleCatalogSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Module catalog', ...json(ModuleCatalogSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -136,7 +157,8 @@ registry.registerPath({
   path: '/api/v1/admin/tenants',
   operationId: 'onboardTenant',
   tags: ['Admin'],
-  summary: 'Onboard a new tenant (create org → provision RBAC → grant modules → first org admin → branches)',
+  summary:
+    'Onboard a new tenant (create org → provision RBAC → grant modules → first org admin → branches)',
   description:
     'Operator-driven onboarding (ADR-020). Returns the first org-admin email and a one-time temporary password.',
   security: [{ bearerAuth: [] }],
@@ -239,7 +261,8 @@ registry.registerPath({
   path: '/api/v1/admin/tenants/{id}/capabilities',
   operationId: 'listTenantCapabilities',
   tags: ['Admin'],
-  summary: "List the capabilities of a tenant's entitled modules, with each one's enabled state (ADR-085)",
+  summary:
+    "List the capabilities of a tenant's entitled modules, with each one's enabled state (ADR-085)",
   description:
     'Super-admin only. Every declared capability of the tenant’s entitled modules; deny-by-exception, so a capability is enabled unless an override disables it. Modules with no capabilities contribute nothing.',
   security: [{ bearerAuth: [] }],
@@ -299,7 +322,11 @@ registry.registerPath({
   description:
     'Super-admin only. Every application email template with its category, description and rendered subject. Read-only; no tenant data is touched.',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Email templates', ...json(EmailTemplatesSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Email templates', ...json(EmailTemplatesSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -339,7 +366,11 @@ registry.registerPath({
           schema: z.object({
             tenantId: z.string().uuid(),
             userId: z.string().uuid(),
-            reason: z.string().min(10).max(300).openapi({ description: 'Recorded in the audit trail; required' }),
+            reason: z
+              .string()
+              .min(10)
+              .max(300)
+              .openapi({ description: 'Recorded in the audit trail; required' }),
             ticketRef: z.string().max(80).optional(),
           }),
         },
@@ -360,8 +391,17 @@ registry.registerPath({
         },
       },
     },
-    403: { description: 'Missing platform.support.impersonate, or the target is a platform operator', content: { 'application/json': { schema: ErrorResponseSchema } } },
-    404: { description: 'Tenant or user not found', content: { 'application/json': { schema: ErrorResponseSchema } } },
-    422: { description: 'Validation failed (reason too short, inactive tenant/user)', content: { 'application/json': { schema: ErrorResponseSchema } } },
+    403: {
+      description: 'Missing platform.support.impersonate, or the target is a platform operator',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: 'Tenant or user not found',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: 'Validation failed (reason too short, inactive tenant/user)',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
   },
 });

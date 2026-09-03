@@ -59,7 +59,14 @@ export interface FhirPatient extends FhirResourceBase {
   telecom?: Array<{ system: 'phone' | 'email'; value: string; use?: string }>;
   gender?: 'male' | 'female' | 'other' | 'unknown';
   birthDate?: string;
-  address?: Array<{ text?: string; line?: string[]; city?: string; state?: string; postalCode?: string; country?: string }>;
+  address?: Array<{
+    text?: string;
+    line?: string[];
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  }>;
 }
 
 export interface FhirPractitioner extends FhirResourceBase {
@@ -74,7 +81,13 @@ export interface FhirOrganization extends FhirResourceBase {
   identifier?: Identifier[];
   name?: string;
   telecom?: Array<{ system: 'phone' | 'email' | 'url'; value: string }>;
-  address?: Array<{ text?: string; city?: string; state?: string; postalCode?: string; country?: string }>;
+  address?: Array<{
+    text?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  }>;
 }
 
 export interface FhirEncounter extends FhirResourceBase {
@@ -158,7 +171,9 @@ export interface FhirDocumentReference extends FhirResourceBase {
   type?: CodeableConcept;
   subject: Reference;
   date?: string;
-  content: Array<{ attachment: { contentType?: string; url?: string; title?: string; creation?: string } }>;
+  content: Array<{
+    attachment: { contentType?: string; url?: string; title?: string; creation?: string };
+  }>;
 }
 
 export interface FhirInvoice extends FhirResourceBase {

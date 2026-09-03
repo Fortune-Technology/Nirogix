@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useId, useRef, useState } from "react";
-import { cn } from "../../cn";
+import { useEffect, useId, useRef, useState } from 'react';
+import { cn } from '../../cn';
 
 export interface TimeFieldProps {
   label?: string;
@@ -16,16 +16,16 @@ export interface TimeFieldProps {
   name?: string;
 }
 
-type Meridiem = "AM" | "PM";
+type Meridiem = 'AM' | 'PM';
 
 /** `14:05` → `{ hour: "02", minute: "05", meridiem: "PM" }`. */
 function split(value: string | null): { hour: string; minute: string; meridiem: Meridiem } {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(value ?? "");
-  if (!m) return { hour: "", minute: "", meridiem: "AM" };
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value ?? '');
+  if (!m) return { hour: '', minute: '', meridiem: 'AM' };
   const h24 = Number(m[1]);
-  const meridiem: Meridiem = h24 < 12 ? "AM" : "PM";
+  const meridiem: Meridiem = h24 < 12 ? 'AM' : 'PM';
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return { hour: String(h12).padStart(2, "0"), minute: m[2]!, meridiem };
+  return { hour: String(h12).padStart(2, '0'), minute: m[2]!, meridiem };
 }
 
 /** The inverse — only when every part is present and in range. */
@@ -34,8 +34,8 @@ function join(hour: string, minute: string, meridiem: Meridiem): string | null {
   const min = Number(minute);
   if (!hour || !minute || Number.isNaN(h) || Number.isNaN(min)) return null;
   if (h < 1 || h > 12 || min < 0 || min > 59) return null;
-  const h24 = meridiem === "AM" ? (h === 12 ? 0 : h) : h === 12 ? 12 : h + 12;
-  return `${String(h24).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  const h24 = meridiem === 'AM' ? (h === 12 ? 0 : h) : h === 12 ? 12 : h + 12;
+  return `${String(h24).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
 /**
@@ -82,7 +82,7 @@ export function TimeField({
   }
 
   return (
-    <div className={cn("hms-field", className)}>
+    <div className={cn('hms-field', className)}>
       {label ? (
         <span className="hms-label" id={`${id}-label`}>
           {label}
@@ -91,7 +91,11 @@ export function TimeField({
       ) : null}
 
       <div
-        className={cn("hms-timefield", disabled && "hms-timefield--disabled", error && "hms-timefield--error")}
+        className={cn(
+          'hms-timefield',
+          disabled && 'hms-timefield--disabled',
+          error && 'hms-timefield--error',
+        )}
         role="group"
         aria-labelledby={label ? `${id}-label` : undefined}
       >
@@ -106,11 +110,11 @@ export function TimeField({
           disabled={disabled}
           aria-label="Hour"
           onChange={(e) => {
-            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+            const v = e.target.value.replace(/\D/g, '').slice(0, 2);
             setHour(v);
             commit(v, minute, meridiem);
           }}
-          onBlur={() => hour && setHour(hour.padStart(2, "0"))}
+          onBlur={() => hour && setHour(hour.padStart(2, '0'))}
         />
         <span className="hms-timefield__sep" aria-hidden>
           :
@@ -125,21 +129,24 @@ export function TimeField({
           disabled={disabled}
           aria-label="Minute"
           onChange={(e) => {
-            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+            const v = e.target.value.replace(/\D/g, '').slice(0, 2);
             setMinute(v);
             commit(hour, v, meridiem);
           }}
-          onBlur={() => minute && setMinute(minute.padStart(2, "0"))}
+          onBlur={() => minute && setMinute(minute.padStart(2, '0'))}
         />
 
         <div className="hms-timefield__meridiem" role="group" aria-label="AM or PM">
-          {(["AM", "PM"] as const).map((m) => (
+          {(['AM', 'PM'] as const).map((m) => (
             <button
               key={m}
               type="button"
               disabled={disabled}
               aria-pressed={meridiem === m}
-              className={cn("hms-timefield__mer-btn", meridiem === m && "hms-timefield__mer-btn--on")}
+              className={cn(
+                'hms-timefield__mer-btn',
+                meridiem === m && 'hms-timefield__mer-btn--on',
+              )}
               onClick={() => {
                 setMeridiem(m);
                 commit(hour, minute, m);

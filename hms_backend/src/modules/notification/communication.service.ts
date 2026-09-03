@@ -32,11 +32,17 @@ export type OtpChannel = 'sms' | 'email';
 
 export interface OtpStore {
   /** Persist the hash. Storing the code itself would make a leaked table a live key. */
-  save(input: { destination: string; channel: OtpChannel; codeHash: string; expiresAt: Date }): Promise<void>;
+  save(input: {
+    destination: string;
+    channel: OtpChannel;
+    codeHash: string;
+    expiresAt: Date;
+  }): Promise<void>;
   /** The newest unconsumed hash for this destination, with its expiry and attempt count. */
-  findActive(
-    input: { destination: string; channel: OtpChannel },
-  ): Promise<{ id: string; codeHash: string; expiresAt: Date; attempts: number } | null>;
+  findActive(input: {
+    destination: string;
+    channel: OtpChannel;
+  }): Promise<{ id: string; codeHash: string; expiresAt: Date; attempts: number } | null>;
   /** Mark consumed. A code that verified once must never verify again. */
   consume(id: string): Promise<void>;
   /** Record a wrong guess, so brute force burns the code rather than only the clock. */
@@ -121,7 +127,10 @@ export async function verifyOtp(input: {
   code: string;
   store: OtpStore;
 }): Promise<boolean> {
-  const active = await input.store.findActive({ destination: input.destination, channel: input.channel });
+  const active = await input.store.findActive({
+    destination: input.destination,
+    channel: input.channel,
+  });
   if (!active) return false;
   if (active.expiresAt.getTime() < Date.now()) return false;
   if (active.attempts >= OTP_MAX_ATTEMPTS) return false;

@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { NumberInputGuard } from "@hms/ui";
-import { AuthProvider } from "@hms/client";
-import { ThemeProvider } from "../lib/theme";
-import { apiClient } from "../lib/api";
+import type { ReactNode } from 'react';
+import { NumberInputGuard } from '@hms/ui';
+import { AuthProvider } from '@hms/client';
+import { ThemeProvider } from '../lib/theme';
+import { apiClient } from '../lib/api';
 
 /**
  * Client context for the AI Portal.

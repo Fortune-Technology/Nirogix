@@ -1,9 +1,9 @@
-import { CLINIC_MODULES } from "../../../lib/site";
-import { OG_CONTENT_TYPE, OG_SIZE, ogImage } from "../../../lib/og";
+import { CLINIC_MODULES } from '../../../lib/site';
+import { OG_CONTENT_TYPE, OG_SIZE, ogImage } from '../../../lib/og';
 
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
-export const alt = "Nirogix module";
+export const alt = 'Nirogix module';
 
 const bySlug = Object.fromEntries(CLINIC_MODULES.map((m) => [m.slug, m]));
 
@@ -15,5 +15,5 @@ export function generateStaticParams() {
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const mod = bySlug[slug];
-  return ogImage({ title: mod?.name ?? "Modules", eyebrow: "Module" });
+  return ogImage({ title: mod?.name ?? 'Modules', eyebrow: 'Module' });
 }

@@ -105,11 +105,17 @@ describe('a consent granted', () => {
     expect(rows[0]!.purpose_code).toBe('CAREMGT');
     expect(rows[0]!.hi_types).toEqual(['OPConsultation', 'Prescription']);
     // The window is what every later transfer is filtered by; losing it would silently widen consent.
-    expect(new Date(rows[0]!.date_range_from as string).toISOString()).toBe('2026-01-01T00:00:00.000Z');
-    expect(new Date(rows[0]!.date_range_to as string).toISOString()).toBe('2026-12-31T00:00:00.000Z');
+    expect(new Date(rows[0]!.date_range_from as string).toISOString()).toBe(
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(new Date(rows[0]!.date_range_to as string).toISOString()).toBe(
+      '2026-12-31T00:00:00.000Z',
+    );
   });
 
-  test('a grant naming no patient is refused rather than stored against nobody', async ({ skip }) => {
+  test('a grant naming no patient is refused rather than stored against nobody', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const orphan = artefact('grant-orphan');
     orphan.detail.patient = { id: '' };
@@ -126,7 +132,9 @@ describe('a consent withdrawn', () => {
     await consent.applyHipConsentNotification(artefact('rev-1'));
     expect(await liveConsentIds()).toContain('rev-1');
 
-    expect(await consent.applyHipConsentNotification({ ...artefact('rev-1', 'REVOKED') })).toBe('revoked');
+    expect(await consent.applyHipConsentNotification({ ...artefact('rev-1', 'REVOKED') })).toBe(
+      'revoked',
+    );
     expect(await liveConsentIds()).not.toContain('rev-1');
     // NHA checks the row is gone. An artefact retained is an authorisation we might still act on.
     expect(await auditActions('rev-1')).toEqual(['abdm.consent.granted', 'abdm.consent.revoked']);
@@ -135,7 +143,9 @@ describe('a consent withdrawn', () => {
   test('EXPIRED is treated exactly like a revocation', async ({ skip }) => {
     if (!ready) return skip();
     await consent.applyHipConsentNotification(artefact('exp-1'));
-    expect(await consent.applyHipConsentNotification({ ...artefact('exp-1', 'EXPIRED') })).toBe('expired');
+    expect(await consent.applyHipConsentNotification({ ...artefact('exp-1', 'EXPIRED') })).toBe(
+      'expired',
+    );
     expect(await liveConsentIds()).not.toContain('exp-1');
     expect(await auditActions('exp-1')).toContain('abdm.consent.expired');
   });
@@ -145,13 +155,17 @@ describe('a consent withdrawn', () => {
     await consent.applyHipConsentNotification(artefact('rev-twice'));
     await consent.applyHipConsentNotification({ ...artefact('rev-twice', 'REVOKED') });
     // The gateway retries. A second revocation must be a no-op, never a failure that stalls it.
-    expect(await consent.applyHipConsentNotification({ ...artefact('rev-twice', 'REVOKED') })).toBe('revoked');
+    expect(await consent.applyHipConsentNotification({ ...artefact('rev-twice', 'REVOKED') })).toBe(
+      'revoked',
+    );
   });
 
   test('status is matched case-insensitively', async ({ skip }) => {
     if (!ready) return skip();
     await consent.applyHipConsentNotification(artefact('rev-case'));
-    expect(await consent.applyHipConsentNotification({ ...artefact('rev-case', 'revoked') })).toBe('revoked');
+    expect(await consent.applyHipConsentNotification({ ...artefact('rev-case', 'revoked') })).toBe(
+      'revoked',
+    );
     expect(await liveConsentIds()).not.toContain('rev-case');
   });
 });
@@ -160,7 +174,9 @@ describe('what it refuses to guess', () => {
   test('an unrecognised status neither stores nor deletes', async ({ skip }) => {
     if (!ready) return skip();
     await consent.applyHipConsentNotification(artefact('unknown-1'));
-    expect(await consent.applyHipConsentNotification({ ...artefact('unknown-1', 'PENDING') })).toBe('ignored');
+    expect(await consent.applyHipConsentNotification({ ...artefact('unknown-1', 'PENDING') })).toBe(
+      'ignored',
+    );
     // Inventing a revocation destroys permission the patient still wants; inventing a grant
     // fabricates permission they never gave. Doing nothing, loudly, is the only safe third option.
     expect(await liveConsentIds()).toContain('unknown-1');
@@ -168,7 +184,10 @@ describe('what it refuses to guess', () => {
 
   test('an unknown facility is dropped, not answered differently', async ({ skip }) => {
     if (!ready) return skip();
-    const outcome = await consent.applyHipConsentNotification({ ...artefact('stranger'), hipId: 'IN-NOT-OURS' });
+    const outcome = await consent.applyHipConsentNotification({
+      ...artefact('stranger'),
+      hipId: 'IN-NOT-OURS',
+    });
     // Same posture as every other gateway callback (ADR-056): this must not become a way to ask
     // which hospitals are on the platform.
     expect(outcome).toBe('unknown_facility');
@@ -184,7 +203,9 @@ describe('what it refuses to guess', () => {
 });
 
 describe('the acknowledgement sent back to ABDM', () => {
-  test('carries the inbound REQUEST-ID, which is what correlates the two halves', async ({ skip }) => {
+  test('carries the inbound REQUEST-ID, which is what correlates the two halves', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await consent.acknowledgeHipConsentNotification({
       requestId: 'req-abc-123',
@@ -195,14 +216,19 @@ describe('the acknowledgement sent back to ABDM', () => {
 
     const call = recordedHipCalls().find((c) => c.path === HIP_CONSENT_ON_NOTIFY_PATH);
     expect(call).toBeDefined();
-    const body = call!.body as { acknowledgement: { status: string; consentId: string }; response: { requestId: string } };
+    const body = call!.body as {
+      acknowledgement: { status: string; consentId: string };
+      response: { requestId: string };
+    };
     expect(body.acknowledgement).toEqual({ status: 'OK', consentId: 'ack-1' });
     // Not a body field — the header. Reading it from the payload would correlate nothing.
     expect(body.response.requestId).toBe('req-abc-123');
     expect(body).not.toHaveProperty('error');
   });
 
-  test('reports failure honestly rather than acknowledging work that did not happen', async ({ skip }) => {
+  test('reports failure honestly rather than acknowledging work that did not happen', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await consent.acknowledgeHipConsentNotification({
       requestId: 'req-fail',

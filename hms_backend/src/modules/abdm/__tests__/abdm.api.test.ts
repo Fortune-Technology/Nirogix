@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, authed, cleanupTenant, dbReady, login, makeTenant, type Session } from '../../../test-api';
+import {
+  api,
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+} from '../../../test-api';
 import { grantModule } from '../../entitlement/entitlement.service';
 import { env } from '../../../config/env';
 
@@ -58,7 +66,9 @@ describe('the authorization chain', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  test('a hospital without the module is refused before any permission is considered', async ({ skip }) => {
+  test('a hospital without the module is refused before any permission is considered', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await authed(unentitled).get(`${BASE}/abdm/capabilities`);
     expect(res.status).toBe(403);
@@ -81,14 +91,21 @@ describe('the authorization chain', () => {
     expect(res.body.scanShareEnabled).toBe(false); // no facility registered yet
   });
 
-  test('configuring the facility is an administrator action, not a counter one', async ({ skip }) => {
+  test('configuring the facility is an administrator action, not a counter one', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const refused = await authed(receptionist).put(`${BASE}/abdm/facility`).send({ hipId: 'HFR-NOPE' });
+    const refused = await authed(receptionist)
+      .put(`${BASE}/abdm/facility`)
+      .send({ hipId: 'HFR-NOPE' });
     expect(refused.status).toBe(403);
 
-    const allowed = await authed(orgAdmin)
-      .put(`${BASE}/abdm/facility`)
-      .send({ hipId: 'HFR-ABDMAPI-001', facilityName: 'API Test Hospital', qrContent: 'https://qr.example/abdmapi', scanShareEnabled: true });
+    const allowed = await authed(orgAdmin).put(`${BASE}/abdm/facility`).send({
+      hipId: 'HFR-ABDMAPI-001',
+      facilityName: 'API Test Hospital',
+      qrContent: 'https://qr.example/abdmapi',
+      scanShareEnabled: true,
+    });
     expect(allowed.status).toBe(200);
     expect(allowed.body.hipId).toBe('HFR-ABDMAPI-001');
   });
@@ -97,7 +114,9 @@ describe('the authorization chain', () => {
 describe('validation at the boundary', () => {
   test('consent is a required true, not an omittable flag', async ({ skip }) => {
     if (!ready) return skip();
-    const missing = await authed(receptionist).post(`${BASE}/abdm/enrolment/aadhaar/otp`).send({ aadhaar: '111122223333' });
+    const missing = await authed(receptionist)
+      .post(`${BASE}/abdm/enrolment/aadhaar/otp`)
+      .send({ aadhaar: '111122223333' });
     expect(missing.status).toBe(422);
 
     const explicitFalse = await authed(receptionist)
@@ -108,14 +127,18 @@ describe('validation at the boundary', () => {
 
   test('a malformed Aadhaar is refused without reaching ABDM', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await authed(receptionist).post(`${BASE}/abdm/enrolment/aadhaar/otp`).send({ aadhaar: '123', consentGiven: true });
+    const res = await authed(receptionist)
+      .post(`${BASE}/abdm/enrolment/aadhaar/otp`)
+      .send({ aadhaar: '123', consentGiven: true });
     expect(res.status).toBe(422);
   });
 
   test('the error body never echoes the Aadhaar back', async ({ skip }) => {
     if (!ready) return skip();
     const aadhaar = '111122223331'; // the mock's "no mobile linked to this Aadhaar" scenario
-    const res = await authed(receptionist).post(`${BASE}/abdm/enrolment/aadhaar/otp`).send({ aadhaar, consentGiven: true });
+    const res = await authed(receptionist)
+      .post(`${BASE}/abdm/enrolment/aadhaar/otp`)
+      .send({ aadhaar, consentGiven: true });
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(JSON.stringify(res.body)).not.toContain(aadhaar);
   });
@@ -187,7 +210,9 @@ describe('correcting the profile at ABDM', () => {
       .post(`${BASE}/abdm/enrolment/aadhaar/verify`)
       .send({ transactionId: started.body.transactionId, otp: '123456' });
 
-    const empty = await authed(orgAdmin).patch(`${BASE}/abdm/profile`).send({ transactionId: verified.body.transactionId });
+    const empty = await authed(orgAdmin)
+      .patch(`${BASE}/abdm/profile`)
+      .send({ transactionId: verified.body.transactionId });
     expect(empty.status).toBe(422);
 
     const ok = await authed(orgAdmin)
@@ -199,9 +224,11 @@ describe('correcting the profile at ABDM', () => {
 
   test('a malformed field is refused before ABDM is called', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await authed(orgAdmin)
-      .patch(`${BASE}/abdm/profile`)
-      .send({ transactionId: '00000000-0000-0000-0000-000000000000', pincode: 'abc', dateOfBirth: '1990-01-01' });
+    const res = await authed(orgAdmin).patch(`${BASE}/abdm/profile`).send({
+      transactionId: '00000000-0000-0000-0000-000000000000',
+      pincode: 'abc',
+      dateOfBirth: '1990-01-01',
+    });
     expect(res.status).toBe(422);
   });
 });
@@ -239,7 +266,9 @@ describe('the Scan-and-Share callback', () => {
     // It arrives at that hospital's desk, and only there.
     const pending = await authed(receptionist).get(`${BASE}/abdm/pending-shares`);
     expect(pending.status).toBe(200);
-    const mine = pending.body.find((s: { prefill: { firstName?: string } }) => s.prefill.firstName === 'Priya');
+    const mine = pending.body.find(
+      (s: { prefill: { firstName?: string } }) => s.prefill.firstName === 'Priya',
+    );
     expect(mine).toBeTruthy();
     // The name is split on the first space; the remainder stays with the surname.
     expect(mine.prefill.lastName).toBe('Sharma');
@@ -256,7 +285,11 @@ describe('the Scan-and-Share callback', () => {
     expect(res.status).toBe(202);
 
     const pending = await authed(receptionist).get(`${BASE}/abdm/pending-shares`);
-    expect(pending.body.some((s: { prefill: { firstName?: string } }) => s.prefill.firstName === 'Arjun')).toBe(true);
+    expect(
+      pending.body.some(
+        (s: { prefill: { firstName?: string } }) => s.prefill.firstName === 'Arjun',
+      ),
+    ).toBe(true);
   });
 
   test('answers identically for a facility that does not exist', async ({ skip }) => {

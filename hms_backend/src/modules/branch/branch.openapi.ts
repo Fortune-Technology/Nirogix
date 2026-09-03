@@ -1,6 +1,11 @@
 import { registry, z } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
-import { CreateBranchBody, UpdateBranchBody, BranchSchema, BranchesResponseSchema } from './branch.schema';
+import {
+  CreateBranchBody,
+  UpdateBranchBody,
+  BranchSchema,
+  BranchesResponseSchema,
+} from './branch.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const idParam = { params: z.object({ id: z.string().uuid() }) };
@@ -14,7 +19,11 @@ registry.registerPath({
   tags: ['Hospitals'],
   summary: 'List branches in the tenant',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Branches', ...json(BranchesResponseSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Branches', ...json(BranchesResponseSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({

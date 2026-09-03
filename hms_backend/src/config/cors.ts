@@ -35,7 +35,10 @@ export function corsOptions(): CorsOptions {
       // Same-origin and non-browser callers (curl, server-to-server) send no Origin.
       if (!origin) return callback(null, true);
       if (allowlist.includes(origin)) return callback(null, true);
-      logger.warn({ origin }, 'Blocked a cross-origin request from an origin that is not allowlisted');
+      logger.warn(
+        { origin },
+        'Blocked a cross-origin request from an origin that is not allowlisted',
+      );
       return callback(null, false);
     },
   };

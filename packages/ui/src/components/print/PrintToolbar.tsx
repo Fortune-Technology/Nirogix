@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { Download, Printer, X } from "lucide-react";
-import { cn } from "../../cn";
+import { Download, Printer, X } from 'lucide-react';
+import { cn } from '../../cn';
 
 /**
  * The only screen-side control on a print page (ADR-047), and it is `.hms-print-hide`
@@ -14,7 +14,7 @@ import { cn } from "../../cn";
  */
 export function PrintToolbar({
   onBack,
-  backLabel = "Back",
+  backLabel = 'Back',
   className,
 }: {
   onBack?: () => void;
@@ -22,7 +22,7 @@ export function PrintToolbar({
   className?: string;
 }) {
   return (
-    <div className={cn("hms-print-toolbar hms-print-hide", className)}>
+    <div className={cn('hms-print-toolbar hms-print-hide', className)}>
       {onBack ? (
         <button type="button" className="hms-btn hms-btn--ghost hms-btn--sm" onClick={onBack}>
           <X size={15} strokeWidth={2} aria-hidden /> {backLabel}
@@ -35,7 +35,11 @@ export function PrintToolbar({
           <Download size={14} strokeWidth={1.75} aria-hidden />
           Choose “Save as PDF” in the dialog to export
         </span>
-        <button type="button" className="hms-btn hms-btn--primary hms-btn--sm" onClick={() => window.print()}>
+        <button
+          type="button"
+          className="hms-btn hms-btn--primary hms-btn--sm"
+          onClick={() => window.print()}
+        >
           <Printer size={15} strokeWidth={2} aria-hidden /> Print
         </button>
       </div>

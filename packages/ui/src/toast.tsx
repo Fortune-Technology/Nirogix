@@ -17,10 +17,10 @@
 //      than stacking a fifth identical one. The de-dupe key *is* the toast id, so
 //      liveness is the library's to track and this module cannot leak a stale entry.
 
-import { toast as toastify, type Id, type ToastOptions as ToastifyOptions } from "react-toastify";
-import { ToastBody, ToastIcon } from "./components/ToastBody";
+import { toast as toastify, type Id, type ToastOptions as ToastifyOptions } from 'react-toastify';
+import { ToastBody, ToastIcon } from './components/ToastBody';
 
-export type ToastVariant = "success" | "error" | "warning" | "info" | "loading";
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'loading';
 
 export interface ToastAction {
   label: string;
@@ -56,11 +56,11 @@ const DEFAULT_DURATION: Record<ToastVariant, number | null> = {
 
 /** The words half of "never signal by colour alone". */
 const DEFAULT_TITLE: Record<ToastVariant, string> = {
-  success: "Success",
-  info: "Notice",
-  warning: "Warning",
-  error: "Something went wrong",
-  loading: "Working…",
+  success: 'Success',
+  info: 'Notice',
+  warning: 'Warning',
+  error: 'Something went wrong',
+  loading: 'Working…',
 };
 
 /**
@@ -69,11 +69,11 @@ const DEFAULT_TITLE: Record<ToastVariant, string> = {
  * reader cutting the user off and letting them finish the sentence they are on.
  */
 const ROLE: Record<ToastVariant, string> = {
-  success: "status",
-  info: "status",
-  loading: "status",
-  warning: "alert",
-  error: "alert",
+  success: 'status',
+  info: 'status',
+  loading: 'status',
+  warning: 'alert',
+  error: 'alert',
 };
 
 function optionsFor(variant: ToastVariant, duration: number | null, id: string): ToastifyOptions {
@@ -91,24 +91,35 @@ function optionsFor(variant: ToastVariant, duration: number | null, id: string):
 }
 
 function show(input: string | ToastOptions): string {
-  const opts: ToastOptions = typeof input === "string" ? { description: input } : input;
-  const variant = opts.variant ?? "info";
+  const opts: ToastOptions = typeof input === 'string' ? { description: input } : input;
+  const variant = opts.variant ?? 'info';
   const title = opts.title ?? DEFAULT_TITLE[variant];
   const duration = opts.duration === undefined ? DEFAULT_DURATION[variant] : opts.duration;
-  const id = opts.id ?? opts.dedupeKey ?? `${variant}|${title}|${opts.description ?? ""}`;
+  const id = opts.id ?? opts.dedupeKey ?? `${variant}|${title}|${opts.description ?? ''}`;
 
-  const content = <ToastBody variant={variant} title={title} description={opts.description} action={opts.action} />;
+  const content = (
+    <ToastBody
+      variant={variant}
+      title={title}
+      description={opts.description}
+      action={opts.action}
+    />
+  );
   const config = optionsFor(variant, duration, id);
 
   // A live toast with this id is refreshed in place. Asking the library rather than
   // keeping our own map means a toast the user dismissed is genuinely gone, and the
   // same message can be raised again.
   if (toastify.isActive(id)) {
-    toastify.update(id, { ...config, render: content, type: variant === "loading" ? "default" : variant });
+    toastify.update(id, {
+      ...config,
+      render: content,
+      type: variant === 'loading' ? 'default' : variant,
+    });
     return id;
   }
 
-  toastify(content, { ...config, type: variant === "loading" ? "default" : variant });
+  toastify(content, { ...config, type: variant === 'loading' ? 'default' : variant });
   return id;
 }
 
@@ -123,19 +134,30 @@ function dismiss(id?: string): void {
  * a "Working…" toast becomes a real success or failure rather than hanging forever.
  */
 function update(id: string, patch: Partial<ToastOptions>): void {
-  const variant = patch.variant ?? "info";
+  const variant = patch.variant ?? 'info';
   const title = patch.title ?? DEFAULT_TITLE[variant];
   const duration = patch.duration === undefined ? DEFAULT_DURATION[variant] : patch.duration;
   toastify.update(id, {
     ...optionsFor(variant, duration, id),
-    type: variant === "loading" ? "default" : variant,
-    render: <ToastBody variant={variant} title={title} description={patch.description} action={patch.action} />,
+    type: variant === 'loading' ? 'default' : variant,
+    render: (
+      <ToastBody
+        variant={variant}
+        title={title}
+        description={patch.description}
+        action={patch.action}
+      />
+    ),
   });
 }
 
 function withVariant(variant: ToastVariant) {
-  return (input: string | ToastOptions, opts: Omit<ToastOptions, "variant"> = {}): string =>
-    show(typeof input === "string" ? { ...opts, description: input, variant } : { ...input, ...opts, variant });
+  return (input: string | ToastOptions, opts: Omit<ToastOptions, 'variant'> = {}): string =>
+    show(
+      typeof input === 'string'
+        ? { ...opts, description: input, variant }
+        : { ...input, ...opts, variant },
+    );
 }
 
 /**
@@ -144,11 +166,11 @@ function withVariant(variant: ToastVariant) {
  * React Toastify independently (`resources/rules.md` → API Feedback & Notification).
  */
 export const toast = Object.assign(show, {
-  success: withVariant("success"),
-  error: withVariant("error"),
-  warning: withVariant("warning"),
-  info: withVariant("info"),
-  loading: withVariant("loading"),
+  success: withVariant('success'),
+  error: withVariant('error'),
+  warning: withVariant('warning'),
+  info: withVariant('info'),
+  loading: withVariant('loading'),
   dismiss,
   update,
   /** Whether a given toast (or de-dupe key) is currently on screen. */

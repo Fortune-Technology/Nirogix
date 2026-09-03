@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { ListFilter } from "lucide-react";
-import type { Column } from "@tanstack/react-table";
-import { Menu, MenuCheckboxItem, MenuSeparator } from "../Menu";
+import { ListFilter } from 'lucide-react';
+import type { Column } from '@tanstack/react-table';
+import { Menu, MenuCheckboxItem, MenuSeparator } from '../Menu';
 
 /**
  * A multi-select filter built from a column's own distinct values (rules.md →
@@ -29,7 +29,7 @@ export function DataTableFacetedFilter<Row>({
   const options: Array<{ value: string; label: string; count?: number }> = fixed
     ? fixed.map((o) => ({ value: o.value, label: o.label ?? o.value, count: counts.get(o.value) }))
     : [...counts.entries()]
-        .filter(([value]) => value !== undefined && value !== null && value !== "")
+        .filter(([value]) => value !== undefined && value !== null && value !== '')
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
         .map(([value, count]) => ({ value: String(value), label: String(value), count }));
 
@@ -54,7 +54,11 @@ export function DataTableFacetedFilter<Row>({
       }
     >
       {options.map((o) => (
-        <MenuCheckboxItem key={o.value} checked={selected.has(o.value)} onToggle={() => toggle(o.value)}>
+        <MenuCheckboxItem
+          key={o.value}
+          checked={selected.has(o.value)}
+          onToggle={() => toggle(o.value)}
+        >
           <span className="hms-filter__label">{o.label}</span>
           {o.count !== undefined ? <span className="hms-filter__facet">{o.count}</span> : null}
         </MenuCheckboxItem>

@@ -1,17 +1,25 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { UserCheck, X } from "lucide-react";
-import { Badge, DataTable, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Referral } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { useCan } from "../../../lib/auth";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { UserCheck, X } from 'lucide-react';
+import {
+  Badge,
+  DataTable,
+  Select,
+  TableAction,
+  TableActions,
+  actionsColumn,
+  type Column,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Referral } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { useCan } from '../../../lib/auth';
 
 /**
  * The referral worklist (ADR-068).
@@ -24,15 +32,15 @@ import { useCan } from "../../../lib/auth";
  */
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  pending: 'Pending',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 };
 
-function statusTone(s: string): "warning" | "success" | "neutral" {
-  if (s === "completed") return "success";
-  if (s === "cancelled") return "neutral";
-  return "warning"; // pending — someone still has to act on it
+function statusTone(s: string): 'warning' | 'success' | 'neutral' {
+  if (s === 'completed') return 'success';
+  if (s === 'cancelled') return 'neutral';
+  return 'warning'; // pending — someone still has to act on it
 }
 
 function ReferralWorklist() {
@@ -40,7 +48,7 @@ function ReferralWorklist() {
   const canCheckin = useCan(PERMISSIONS.OPD_CHECKIN);
   const canUpdate = useCan(PERMISSIONS.REFERRAL_UPDATE);
   const [rows, setRows] = useState<Referral[]>([]);
-  const [status, setStatus] = useState("pending");
+  const [status, setStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -51,7 +59,7 @@ function ReferralWorklist() {
       setRows(await api.listReferrals({ status }));
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load referrals.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not load referrals.');
     } finally {
       setLoading(false);
     }
@@ -76,8 +84,8 @@ function ReferralWorklist() {
 
   const columns: Array<Column<Referral>> = [
     {
-      key: "patient",
-      header: "Patient",
+      key: 'patient',
+      header: 'Patient',
       hideable: false,
       accessor: (r) => `${r.patientName} ${r.patientUhid}`,
       cell: (r) => (
@@ -87,9 +95,9 @@ function ReferralWorklist() {
       ),
     },
     {
-      key: "from",
-      header: "From",
-      accessor: (r) => `${r.visitNumber} ${r.fromProviderName ?? ""}`,
+      key: 'from',
+      header: 'From',
+      accessor: (r) => `${r.visitNumber} ${r.fromProviderName ?? ''}`,
       cell: (r) => (
         <span className="whitespace-nowrap">
           <Link href={`/opd/${r.visitId}`} className="font-mono text-xs text-brand hover:underline">
@@ -100,35 +108,35 @@ function ReferralWorklist() {
       ),
     },
     {
-      key: "toDepartment",
-      header: "To department",
+      key: 'toDepartment',
+      header: 'To department',
       filterable: true,
       accessor: (r) => r.toDepartmentName,
       cell: (r) => r.toDepartmentName,
     },
     {
-      key: "toDoctor",
-      header: "To doctor",
+      key: 'toDoctor',
+      header: 'To doctor',
       filterable: true,
-      accessor: (r) => r.toProviderName ?? "Any",
+      accessor: (r) => r.toProviderName ?? 'Any',
       cell: (r) => r.toProviderName ?? <span className="text-fg-subtle">Any</span>,
     },
     {
-      key: "reason",
-      header: "Reason",
+      key: 'reason',
+      header: 'Reason',
       accessor: (r) => r.reason,
       cell: (r) => <span className="text-fg-muted">{r.reason}</span>,
     },
     {
-      key: "createdAt",
-      header: "Created",
+      key: 'createdAt',
+      header: 'Created',
       sortable: true,
       accessor: (r) => r.createdAt,
       cell: (r) => <span className="whitespace-nowrap">{formatDateTime(r.createdAt)}</span>,
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       accessor: (r) => STATUS_LABEL[r.status] ?? r.status,
       cell: (r) => <Badge tone={statusTone(r.status)}>{STATUS_LABEL[r.status] ?? r.status}</Badge>,
     },
@@ -137,20 +145,20 @@ function ReferralWorklist() {
         <TableAction
           label="Check in"
           icon={<UserCheck size={16} strokeWidth={2} aria-hidden />}
-          permitted={canCheckin && r.status === "pending"}
+          permitted={canCheckin && r.status === 'pending'}
           onSelect={() => router.push(`/opd/check-in?referralId=${r.id}`)}
         />
         <TableAction
           label="Cancel referral"
           icon={<X size={16} strokeWidth={2} aria-hidden />}
           tone="danger"
-          permitted={canUpdate && r.status === "pending"}
+          permitted={canUpdate && r.status === 'pending'}
           loading={busyId === r.id}
           confirm={{
             title: `Cancel ${r.patientName}'s referral?`,
             description:
-              "It leaves the pending worklist and nobody is checked in against it. The visit it came from is unaffected.",
-            confirmLabel: "Cancel referral",
+              'It leaves the pending worklist and nobody is checked in against it. The visit it came from is unaffected.',
+            confirmLabel: 'Cancel referral',
           }}
           onSelect={() => void cancel(r)}
         />
@@ -166,15 +174,21 @@ function ReferralWorklist() {
       />
       <div className="flex items-center gap-2">
         <span className="text-sm text-fg-muted">Status:</span>
-        <select
-          className="hms-input max-w-[14rem]"
+        <Select
+          aria-label="Referral status"
+          className="max-w-[14rem]"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+          onChange={(v) => setStatus(v || 'pending')}
+          options={[
+            {
+              value: 'pending',
+              label: 'Pending',
+              description: 'Waiting for the patient to be checked in',
+            },
+            { value: 'completed', label: 'Completed' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+        />
       </div>
       <DataTable
         columns={columns}
@@ -186,8 +200,8 @@ function ReferralWorklist() {
         searchPlaceholder="Search by patient, doctor, or department…"
         emptyMessage={`No ${status} referrals.`}
         emptyDescription={
-          status === "pending"
-            ? "A doctor creates one by referring the patient during a consultation."
+          status === 'pending'
+            ? 'A doctor creates one by referring the patient during a consultation.'
             : undefined
         }
       />

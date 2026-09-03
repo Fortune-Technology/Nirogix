@@ -75,8 +75,14 @@ registry.registerPath({
       days: z.coerce.number().int().min(7).max(90).optional(),
       // An explicit inclusive window (used by the shared period filter's calendar presets).
       // Takes precedence over `days` when both `from` and `to` are valid and `to >= from`.
-      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      from: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      to: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
     }),
   },
   responses: {

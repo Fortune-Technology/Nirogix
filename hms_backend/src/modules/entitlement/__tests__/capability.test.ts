@@ -34,7 +34,10 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['Cap Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'Cap Test',
+        CODE,
+      ])
     ).rows[0].id;
     // Modules the capability tests exercise. abdm needs patient (hard dep).
     await grantModule(tenantId, 'billing');
@@ -70,7 +73,9 @@ describe('capability entitlements (deny-by-exception)', () => {
     expect(await listEntitledCapabilities(tenantId)).toContain('billing.services');
   });
 
-  test('a capability is off when its module is not entitled, even with no disable row', async ({ skip }) => {
+  test('a capability is off when its module is not entitled, even with no disable row', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await setModuleStatus(tenantId, 'billing', 'SUSPENDED');
     expect(await isCapabilityEntitled(tenantId, 'billing', 'billing.services')).toBe(false);
@@ -79,7 +84,9 @@ describe('capability entitlements (deny-by-exception)', () => {
     expect(await isCapabilityEntitled(tenantId, 'billing', 'billing.services')).toBe(true);
   });
 
-  test('listTenantCapabilities returns entitled modules capabilities with enabled state', async ({ skip }) => {
+  test('listTenantCapabilities returns entitled modules capabilities with enabled state', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const rows = await listTenantCapabilities(tenantId);
     const byKey = new Map(rows.map((r) => [r.capability, r]));
@@ -94,7 +101,9 @@ describe('capability entitlements (deny-by-exception)', () => {
     await setCapabilityStatus(tenantId, 'billing', 'billing.services', 'ACTIVE');
   });
 
-  test('getTenantModuleConfig returns every module by domain with entitled + capability state', async ({ skip }) => {
+  test('getTenantModuleConfig returns every module by domain with entitled + capability state', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const cfg = await getTenantModuleConfig(tenantId);
     expect(cfg.categories.length).toBeGreaterThan(0);

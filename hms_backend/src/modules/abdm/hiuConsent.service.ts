@@ -127,8 +127,10 @@ export async function requestPatientHistory(
 
   const hiTypes = input.hiTypes?.length ? input.hiTypes : [...HIU_HI_TYPES];
   const to = input.to ?? new Date();
-  const from = input.from ?? new Date(Date.UTC(to.getUTCFullYear() - 5, to.getUTCMonth(), to.getUTCDate()));
-  const dataEraseAt = input.dataEraseAt ?? new Date(Date.now() + DEFAULT_ERASE_AFTER_DAYS * 86400_000);
+  const from =
+    input.from ?? new Date(Date.UTC(to.getUTCFullYear() - 5, to.getUTCMonth(), to.getUTCDate()));
+  const dataEraseAt =
+    input.dataEraseAt ?? new Date(Date.now() + DEFAULT_ERASE_AFTER_DAYS * 86400_000);
 
   const saved = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
@@ -215,17 +217,88 @@ export async function recordConsentRequestId(input: {
     .limit(1);
   const request = rows[0];
   if (!request) {
-    logger.warn({ consentRequestId: input.consentRequestId }, 'Consent request id for an unknown request');
+    logger.warn(
+      { consentRequestId: input.consentRequestId },
+      'Consent request id for an unknown request',
+    );
     return false;
   }
 
   await runWithTenant(request.tenantId, (tx) =>
     tx
       .update(abdmHiuConsentRequests)
-      .set({ consentRequestId: input.consentRequestId, lastCheckedAt: new Date(), updatedAt: new Date() })
+      .set({
+        consentRequestId: input.consentRequestId,
+        lastCheckedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(abdmHiuConsentRequests.id, request.id)),
   );
   return true;
+}
+
+/** ABDM's status vocabulary, mapped onto ours. Anything unrecognised leaves the row alone. */
+function mapConsentStatus(raw: string | undefined): 'granted' | 'denied' | 'expired' | null {
+  const status = raw?.toLowerCase();
+  if (status === 'granted') return 'granted';
+  if (status === 'denied') return 'denied';
+  if (status === 'expired') return 'expired';
+  return null;
+}
+
+/**
+ * The consent manager's answer to a status poll (`on-status`).
+ *
+ * Correlated on the consent request id, which is ABDM's own and the only handle the callback
+ * carries that we also hold. An unknown id is logged and dropped: an inbound callback we cannot
+ * place is not something the caller can fix, and a 5xx would only make NHA retry it forever.
+ */
+export async function recordConsentStatusAck(body: {
+  consentRequest?: { id?: string; status?: string };
+  error?: { code?: string; message?: string } | null;
+  response?: { requestId?: string };
+}): Promise<void> {
+  const consentRequestId = body.consentRequest?.id;
+  if (!consentRequestId) {
+    logger.warn('Consent status callback carried no consent request id — discarded');
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(abdmHiuConsentRequests)
+    .where(eq(abdmHiuConsentRequests.consentRequestId, consentRequestId))
+    .limit(1);
+  const request = rows[0];
+  if (!request) {
+    logger.warn({ consentRequestId }, 'Consent status callback for an unknown request — discarded');
+    return;
+  }
+
+  const mapped = mapConsentStatus(body.consentRequest?.status);
+  await runWithTenant(request.tenantId, (tx) =>
+    tx
+      .update(abdmHiuConsentRequests)
+      .set({
+        ...(mapped ? { status: mapped } : {}),
+        lastCheckedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(abdmHiuConsentRequests.id, request.id)),
+  );
+
+  await writeAudit({
+    tenantId: request.tenantId,
+    actorUserId: null,
+    action: 'abdm.hiu.consent_status_received',
+    resourceType: 'abdm_hiu_consent_request',
+    resourceId: request.id,
+    // The status and the error code only. Never the patient, never the hospital that holds records.
+    metadata: {
+      status: mapped ?? body.consentRequest?.status ?? null,
+      error: body.error?.code ?? null,
+    },
+  });
 }
 
 /**
@@ -234,8 +307,18 @@ export async function recordConsentRequestId(input: {
  * The fallback for a callback that never arrived, and the thing that drives "waiting for the
  * patient…" in the Portal. A request stuck in `requested` forever is indistinguishable from one the
  * patient ignored, so the doctor is shown the truth either way.
+ *
+ * **The answer normally arrives on a callback, not here.** NHA's M3 document has this call answer
+ * `200` with nothing useful in it and deliver the status to
+ * `/api/v3/hiu/consent/request/on-status`. The synchronous body is still read, because some
+ * environments do fill it in and ignoring it would throw away a correct answer — but
+ * `recordConsentStatusAck` is what actually moves a request in production, and a poller written
+ * against the response alone would never see a status change at all.
  */
-export async function pollConsentRequest(tenantId: string, requestId: string): Promise<AbdmHiuConsentRequest | null> {
+export async function pollConsentRequest(
+  tenantId: string,
+  requestId: string,
+): Promise<AbdmHiuConsentRequest | null> {
   const request = await loadRequest(tenantId, requestId);
   if (!request?.consentRequestId) return request;
 
@@ -246,12 +329,15 @@ export async function pollConsentRequest(tenantId: string, requestId: string): P
     { hipId: facility?.hipId },
   )) as { consentRequest?: { status?: string } } | null;
 
-  const status = response?.consentRequest?.status?.toLowerCase();
-  const mapped = status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : status === 'expired' ? 'expired' : null;
+  const mapped = mapConsentStatus(response?.consentRequest?.status);
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(abdmHiuConsentRequests)
-      .set({ ...(mapped ? { status: mapped } : {}), lastCheckedAt: new Date(), updatedAt: new Date() })
+      .set({
+        ...(mapped ? { status: mapped } : {}),
+        lastCheckedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(abdmHiuConsentRequests.id, request.id)),
   );
   return loadRequest(tenantId, requestId);
@@ -292,7 +378,9 @@ export type FetchedArtefact = {
  * patient to attach records to, no doctor who asked, and no expiry to sweep — and a consent nobody
  * can account for is worse than one we never received.
  */
-export async function storeConsentArtefact(artefact: FetchedArtefact): Promise<AbdmHiuConsent | null> {
+export async function storeConsentArtefact(
+  artefact: FetchedArtefact,
+): Promise<AbdmHiuConsent | null> {
   const rows = await db
     .select()
     .from(abdmHiuConsentRequests)
@@ -300,7 +388,10 @@ export async function storeConsentArtefact(artefact: FetchedArtefact): Promise<A
     .limit(1);
   const request = rows[0];
   if (!request) {
-    logger.warn({ consentId: artefact.consentId }, 'Consent artefact for an unknown request — dropped');
+    logger.warn(
+      { consentId: artefact.consentId },
+      'Consent artefact for an unknown request — dropped',
+    );
     return null;
   }
 
@@ -334,7 +425,11 @@ export async function storeConsentArtefact(artefact: FetchedArtefact): Promise<A
       // Re-notification of the same artefact updates rather than duplicating.
       .onConflictDoUpdate({
         target: [abdmHiuConsents.tenantId, abdmHiuConsents.consentId],
-        set: { status: 'granted', dataEraseAt: toDate(artefact.dataEraseAt), updatedAt: new Date() },
+        set: {
+          status: 'granted',
+          dataEraseAt: toDate(artefact.dataEraseAt),
+          updatedAt: new Date(),
+        },
       })
       .returning();
 
@@ -353,7 +448,11 @@ export async function storeConsentArtefact(artefact: FetchedArtefact): Promise<A
     resourceType: 'patient',
     resourceId: request.patientId,
     severity: 'notice',
-    metadata: { hipId: artefact.hipId, hiTypes: artefact.hiTypes, dataEraseAt: artefact.dataEraseAt },
+    metadata: {
+      hipId: artefact.hipId,
+      hiTypes: artefact.hiTypes,
+      dataEraseAt: artefact.dataEraseAt,
+    },
   });
   return saved;
 }
@@ -414,7 +513,11 @@ export async function handleConsentNotification(input: {
   consentId: string;
   status: string;
 }): Promise<{ purged: boolean }> {
-  const rows = await db.select().from(abdmHiuConsents).where(eq(abdmHiuConsents.consentId, input.consentId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmHiuConsents)
+    .where(eq(abdmHiuConsents.consentId, input.consentId))
+    .limit(1);
   const consent = rows[0];
   if (!consent) {
     // Nothing held under it is the same outcome the notification asks for, so it is acknowledged.
@@ -435,7 +538,9 @@ async function acknowledgeNotification(consentId: string, tenantId?: string): Pr
     HIU_CONSENT_PATHS.onNotify,
     { acknowledgement: [{ status: 'ok', consentId }] },
     { hipId: facility?.hipId },
-  ).catch((err: unknown) => logger.error({ err, consentId }, 'Could not acknowledge a consent notification'));
+  ).catch((err: unknown) =>
+    logger.error({ err, consentId }, 'Could not acknowledge a consent notification'),
+  );
 }
 
 /**
@@ -446,12 +551,21 @@ async function acknowledgeNotification(consentId: string, tenantId?: string): Pr
  * anything past its erase date is excluded here regardless of what its status says. The sweep then
  * deletes it; this makes sure it is invisible in the meantime.
  */
-export async function usableConsents(tenantId: string, patientId: string, now = new Date()): Promise<AbdmHiuConsent[]> {
+export async function usableConsents(
+  tenantId: string,
+  patientId: string,
+  now = new Date(),
+): Promise<AbdmHiuConsent[]> {
   const requestIds = await runWithTenant(tenantId, (tx) =>
     tx
       .select({ id: abdmHiuConsentRequests.id })
       .from(abdmHiuConsentRequests)
-      .where(and(eq(abdmHiuConsentRequests.tenantId, tenantId), eq(abdmHiuConsentRequests.patientId, patientId))),
+      .where(
+        and(
+          eq(abdmHiuConsentRequests.tenantId, tenantId),
+          eq(abdmHiuConsentRequests.patientId, patientId),
+        ),
+      ),
   );
   if (requestIds.length === 0) return [];
 
@@ -481,7 +595,9 @@ export async function usableConsents(tenantId: string, patientId: string, now = 
  * date we promised the patient — rather than by status, so a consent nobody told us about still
  * dies on schedule.
  */
-export async function purgeExpiredHiuConsents(now = new Date()): Promise<{ consents: number; records: number }> {
+export async function purgeExpiredHiuConsents(
+  now = new Date(),
+): Promise<{ consents: number; records: number }> {
   const due = await db
     .select({ tenantId: abdmHiuConsents.tenantId, consentId: abdmHiuConsents.consentId })
     .from(abdmHiuConsents)
@@ -492,7 +608,8 @@ export async function purgeExpiredHiuConsents(now = new Date()): Promise<{ conse
     const result = await purgeHiuConsent(row.tenantId, row.consentId, 'erase_date');
     records += result.records;
   }
-  if (due.length > 0) logger.info({ consents: due.length, records }, 'ABDM HIU expiry sweep purged consents');
+  if (due.length > 0)
+    logger.info({ consents: due.length, records }, 'ABDM HIU expiry sweep purged consents');
   return { consents: due.length, records };
 }
 
@@ -514,18 +631,31 @@ export function dataPushUrl(): string {
   return `${env.ABDM_HIU_PUSH_BASE_URL.replace(/\/+$/, '')}${HIU_CALLBACK_PATHS.dataPush}`;
 }
 
-async function loadRequest(tenantId: string, requestId: string): Promise<AbdmHiuConsentRequest | null> {
+async function loadRequest(
+  tenantId: string,
+  requestId: string,
+): Promise<AbdmHiuConsentRequest | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(abdmHiuConsentRequests)
-      .where(and(eq(abdmHiuConsentRequests.tenantId, tenantId), eq(abdmHiuConsentRequests.id, requestId)))
+      .where(
+        and(
+          eq(abdmHiuConsentRequests.tenantId, tenantId),
+          eq(abdmHiuConsentRequests.id, requestId),
+        ),
+      )
       .limit(1),
   );
   return rows[0] ?? null;
 }
 
-async function setRequestStatus(tenantId: string, id: string, status: string, error?: string): Promise<void> {
+async function setRequestStatus(
+  tenantId: string,
+  id: string,
+  status: string,
+  error?: string,
+): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(abdmHiuConsentRequests)
@@ -535,12 +665,20 @@ async function setRequestStatus(tenantId: string, id: string, status: string, er
 }
 
 /** Requests a doctor has in flight for a patient, newest first — what the chart panel shows. */
-export async function listHistoryRequests(tenantId: string, patientId: string): Promise<AbdmHiuConsentRequest[]> {
+export async function listHistoryRequests(
+  tenantId: string,
+  patientId: string,
+): Promise<AbdmHiuConsentRequest[]> {
   return runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(abdmHiuConsentRequests)
-      .where(and(eq(abdmHiuConsentRequests.tenantId, tenantId), eq(abdmHiuConsentRequests.patientId, patientId)))
+      .where(
+        and(
+          eq(abdmHiuConsentRequests.tenantId, tenantId),
+          eq(abdmHiuConsentRequests.patientId, patientId),
+        ),
+      )
       .orderBy(sql`${abdmHiuConsentRequests.createdAt} DESC`),
   );
 }
@@ -566,7 +704,13 @@ export async function findPatientByAbha(
   identifier: string,
 ): Promise<{
   outcome: 'verified' | 'unverified' | 'not_found' | 'ambiguous';
-  patient?: { id: string; uhid: string; name: string; abhaAddress: string | null; abhaNumber: string | null };
+  patient?: {
+    id: string;
+    uhid: string;
+    name: string;
+    abhaAddress: string | null;
+    abhaNumber: string | null;
+  };
   nextStep: string;
 }> {
   const trimmed = identifier.trim();
@@ -596,14 +740,18 @@ export async function findPatientByAbha(
   if (matches.length > 1) {
     // Should now be unreachable — a unique index forbids it (ADR-100) — but a lookup that silently
     // picked one of two charts claiming a national identity would be the worst possible answer.
-    return { outcome: 'ambiguous', nextStep: 'Two charts hold this ABHA. Merge them before requesting a history.' };
+    return {
+      outcome: 'ambiguous',
+      nextStep: 'Two charts hold this ABHA. Merge them before requesting a history.',
+    };
   }
 
   const found = matches[0];
   if (!found) {
     return {
       outcome: 'not_found',
-      nextStep: 'No chart here holds that ABHA. Register the patient, or verify their ABHA at the desk first.',
+      nextStep:
+        'No chart here holds that ABHA. Register the patient, or verify their ABHA at the desk first.',
     };
   }
 
@@ -620,10 +768,15 @@ export async function findPatientByAbha(
       outcome: 'unverified',
       patient: summary,
       // The real validity check, not a fabricated one.
-      nextStep: 'This ABHA was typed in and never verified. Verify it from the patient chart before requesting their history.',
+      nextStep:
+        'This ABHA was typed in and never verified. Verify it from the patient chart before requesting their history.',
     };
   }
-  return { outcome: 'verified', patient: summary, nextStep: 'Ready — a history can be requested for this patient.' };
+  return {
+    outcome: 'verified',
+    patient: summary,
+    nextStep: 'Ready — a history can be requested for this patient.',
+  };
 }
 
 /**
@@ -676,14 +829,16 @@ export async function consentStatusSummary(
   const [requests, consents, patient] = await Promise.all([
     listHistoryRequests(tenantId, patientId),
     usableConsents(tenantId, patientId, now),
-    runWithTenant(tenantId, async (tx) =>
-      (
-        await tx
-          .select({ abhaNumber: patients.abhaNumber })
-          .from(patients)
-          .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
-          .limit(1)
-      )[0],
+    runWithTenant(
+      tenantId,
+      async (tx) =>
+        (
+          await tx
+            .select({ abhaNumber: patients.abhaNumber })
+            .from(patients)
+            .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
+            .limit(1)
+        )[0],
     ),
   ]);
 
@@ -697,11 +852,13 @@ export async function consentStatusSummary(
 
   return {
     canRequest: Boolean(patient?.abhaNumber),
-    awaitingPatient: requests.filter((r) => r.status === 'requested' || r.status === 'pending').length,
+    awaitingPatient: requests.filter((r) => r.status === 'requested' || r.status === 'pending')
+      .length,
     active: consents.length,
     declined: requests.filter((r) => r.status === 'denied').length,
     // Granted at some point, but nothing usable is left — expired, revoked, or swept.
-    lapsed: requests.filter((r) => r.status === 'granted').length > 0 && consents.length === 0 ? 1 : 0,
+    lapsed:
+      requests.filter((r) => r.status === 'granted').length > 0 && consents.length === 0 ? 1 : 0,
     failed: requests.filter((r) => r.status === 'failed').length,
     activeUntil: activeUntil ? activeUntil.toISOString() : null,
     latestStatus: latest?.status ?? null,

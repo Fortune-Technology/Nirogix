@@ -19,7 +19,8 @@ export async function reset(req: Request, res: Response): Promise<void> {
 async function storeAsset(req: Request): Promise<string> {
   const file = req.file;
   if (!file) throw Errors.validation(undefined, 'No file provided (multipart field "file")');
-  if (!file.mimetype.startsWith('image/')) throw Errors.validation(undefined, 'Branding assets must be an image');
+  if (!file.mimetype.startsWith('image/'))
+    throw Errors.validation(undefined, 'Branding assets must be an image');
   const meta = await uploadFile({
     tenantId: req.auth!.tenantId,
     uploadedBy: req.auth!.userId,

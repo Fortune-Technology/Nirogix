@@ -1,6 +1,11 @@
 import { registry } from '../../openapi/registry';
 import { ErrorResponseSchema } from '../../openapi/schemas';
-import { AccessExplainQuerySchema, AccessExplainResponseSchema, MyPermissionsResponseSchema, RolesResponseSchema } from './rbac.schema';
+import {
+  AccessExplainQuerySchema,
+  AccessExplainResponseSchema,
+  MyPermissionsResponseSchema,
+  RolesResponseSchema,
+} from './rbac.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 

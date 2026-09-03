@@ -4,7 +4,13 @@ import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
 import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
-import { CreateProviderBody, UpdateProviderBody, AssignSpecialtyBody, CreateFormTemplateBody, SetSchedulesBody } from './provider.schema';
+import {
+  CreateProviderBody,
+  UpdateProviderBody,
+  AssignSpecialtyBody,
+  CreateFormTemplateBody,
+  SetSchedulesBody,
+} from './provider.schema';
 import * as c from './provider.controller';
 
 export const providerRouter = Router();

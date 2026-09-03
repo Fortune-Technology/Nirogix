@@ -12,7 +12,12 @@ import * as c from './user.controller';
 // mutations: platform.users.manage; role/override mutations: platform.rbac.manage.
 export const userRouter = Router();
 
-userRouter.get('/users', requireAuth, requirePermission(PERMISSIONS.USERS_VIEW), asyncHandler(c.listUsers));
+userRouter.get(
+  '/users',
+  requireAuth,
+  requirePermission(PERMISSIONS.USERS_VIEW),
+  asyncHandler(c.listUsers),
+);
 userRouter.post(
   '/users',
   requireAuth,
@@ -20,7 +25,12 @@ userRouter.post(
   validate({ body: CreateUserBody }),
   asyncHandler(c.createUser),
 );
-userRouter.get('/users/:id', requireAuth, requirePermission(PERMISSIONS.USERS_VIEW), asyncHandler(c.getUser));
+userRouter.get(
+  '/users/:id',
+  requireAuth,
+  requirePermission(PERMISSIONS.USERS_VIEW),
+  asyncHandler(c.getUser),
+);
 userRouter.patch(
   '/users/:id',
   requireAuth,

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 // The session + capabilities context every Nirogix frontend shares (ADR-054).
 //
@@ -21,14 +21,14 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
-import { toast } from "@hms/ui";
-import type { AuthUser, LoginRequest } from "@hms/types";
-import type { ApiClient } from "./http";
-import { describeError } from "./feedback";
-import { clearStoredActivity, DEFAULT_IDLE_TIMEOUT_MS, useIdleSignOut } from "./idle";
+} from 'react';
+import { toast } from '@hms/ui';
+import type { AuthUser, LoginRequest } from '@hms/types';
+import type { ApiClient } from './http';
+import { describeError } from './feedback';
+import { clearStoredActivity, DEFAULT_IDLE_TIMEOUT_MS, useIdleSignOut } from './idle';
 
-type Status = "loading" | "authenticated" | "anonymous";
+type Status = 'loading' | 'authenticated' | 'anonymous';
 
 interface Capabilities {
   wildcard: boolean;
@@ -54,7 +54,9 @@ export interface AuthContextValue {
   modules: ReadonlySet<string>;
   /** The tenant's enabled capability keys. */
   capabilities: ReadonlySet<string>;
-  login: (payload: LoginRequest) => Promise<{ ok: true } | { ok: false; error: string; mfa?: boolean }>;
+  login: (
+    payload: LoginRequest,
+  ) => Promise<{ ok: true } | { ok: false; error: string; mfa?: boolean }>;
   logout: () => Promise<void>;
   /** Re-reads the session after the user changes their own profile. */
   refresh: () => Promise<void>;
@@ -82,7 +84,7 @@ export function AuthProvider({
   children: ReactNode;
   idleTimeoutMs?: number;
 }) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<Status>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [caps, setCaps] = useState<Capabilities>(EMPTY_CAPS);
   const bootstrapped = useRef(false);
@@ -103,13 +105,13 @@ export function AuthProvider({
       modules: new Set(entRes.modules),
       capabilities: new Set(entRes.capabilities),
     });
-    setStatus("authenticated");
+    setStatus('authenticated');
   }, [api]);
 
   const clearSession = useCallback(() => {
     setUser(null);
     setCaps(EMPTY_CAPS);
-    setStatus("anonymous");
+    setStatus('anonymous');
   }, []);
 
   // Re-establish an existing session (refresh cookie) once on load.
@@ -132,12 +134,16 @@ export function AuthProvider({
     return () => api.setOnSessionExpired(null);
   }, [api, clearSession, loadSession]);
 
-  const login = useCallback<AuthContextValue["login"]>(
+  const login = useCallback<AuthContextValue['login']>(
     async (payload) => {
       try {
         const res = await api.login(payload);
-        if ("mfaRequired" in res) {
-          return { ok: false, error: "This account requires MFA, which isn't supported yet.", mfa: true };
+        if ('mfaRequired' in res) {
+          return {
+            ok: false,
+            error: "This account requires MFA, which isn't supported yet.",
+            mfa: true,
+          };
         }
         api.setAccessToken(res.accessToken);
         // Hydrate from /auth/me (not the login response, which omits `roles`) so the
@@ -169,7 +175,7 @@ export function AuthProvider({
    * they are working in.
    */
   useIdleSignOut({
-    active: status === "authenticated",
+    active: status === 'authenticated',
     timeoutMs: idleTimeoutMs,
     onIdle: async () => {
       await api.logout();
@@ -177,9 +183,9 @@ export function AuthProvider({
       // Says what happened, so a returning user is not left wondering why the screen
       // emptied. The shared toast — never a page-specific one (ADR-057).
       toast.info({
-        title: "Signed out",
+        title: 'Signed out',
         description: `You were signed out after ${Math.round(idleTimeoutMs / 60_000)} minutes of inactivity.`,
-        dedupeKey: "session-idle",
+        dedupeKey: 'session-idle',
       });
     },
   });
@@ -227,7 +233,7 @@ export function AuthProvider({
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
+  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
   return ctx;
 }
 

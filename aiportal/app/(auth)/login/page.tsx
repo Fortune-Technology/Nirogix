@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
-import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
-import { useAuth } from "../../../lib/auth";
-import { MARKETING_URL, PORTAL_URL } from "../../../lib/links";
+import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { ShieldCheck } from 'lucide-react';
+import { Alert, BrandMark, Button, Card, Field, PasswordField } from '@hms/ui';
+import { useAuth } from '../../../lib/auth';
+import { MARKETING_URL, PORTAL_URL } from '../../../lib/links';
 
 /**
  * The AI Portal's front door (ADR-053).
@@ -30,14 +30,14 @@ export default function AiPortalLoginPage() {
   const { status, login } = useAuth();
   const router = useRouter();
 
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [orgCode, setOrgCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/");
+    if (status === 'authenticated') router.replace('/');
   }, [status, router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -46,7 +46,7 @@ export default function AiPortalLoginPage() {
     setSubmitting(true);
     const result = await login({ orgCode: orgCode.trim(), email: email.trim(), password });
     setSubmitting(false);
-    if (result.ok) router.replace("/");
+    if (result.ok) router.replace('/');
     else setError(result.error);
   }
 
@@ -56,8 +56,8 @@ export default function AiPortalLoginPage() {
         <BrandMark size={40} />
         <h1 className="text-lg font-semibold text-fg">Nirogix AI Portal</h1>
         <p className="text-sm text-fg-muted">
-          For authorised healthcare teams and Nirogix platform administrators. Sign in with your Nirogix account to
-          continue.
+          For authorised healthcare teams and Nirogix platform administrators. Sign in with your
+          Nirogix account to continue.
         </p>
       </div>
 
@@ -96,8 +96,8 @@ export default function AiPortalLoginPage() {
         <p className="flex items-start gap-2 text-xs text-fg-subtle">
           <ShieldCheck size={14} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            There is no sign-up for the AI Portal. Access is granted to individual accounts by a platform
-            administrator, and every sign-in is recorded. Patients cannot sign in here.
+            There is no sign-up for the AI Portal. Access is granted to individual accounts by a
+            platform administrator, and every sign-in is recorded. Patients cannot sign in here.
           </span>
         </p>
         <p className="text-center text-xs text-fg-subtle">

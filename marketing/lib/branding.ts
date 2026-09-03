@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties } from 'react';
 
 // Dynamic platform branding for the marketing surface (ADR-024). The root layout fetches the
 // `marketing` scope server-side (ISR) and applies the resolved tokens as inline --mk-* overrides
@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 // with no flash). Falls back to the built-in tokens if the API is unreachable, so the site never
 // breaks. Marketing thus trades "fully static" for "ISR-dynamic" — one cached backend read.
 
-const API_BASE = process.env.HMS_API_URL ?? "http://localhost:4000/api/v1";
+const API_BASE = process.env.HMS_API_URL ?? 'http://localhost:4000/api/v1';
 const REVALIDATE_SECONDS = 300;
 
 interface BrandingTokens {
@@ -34,11 +34,11 @@ interface PlatformBranding {
 // surfaces (background/surface/foreground/border) are theme-managed for Light/Dark
 // legibility, so they stay schema-reserved and are not overridden here.
 const TOKEN_TO_VAR: Partial<Record<keyof BrandingTokens, string>> = {
-  primary: "--mk-accent",
-  accent: "--mk-accent",
-  secondary: "--mk-secondary",
-  buttonBg: "--mk-accent",
-  buttonFg: "--mk-accent-ink",
+  primary: '--mk-accent',
+  accent: '--mk-accent',
+  secondary: '--mk-secondary',
+  buttonBg: '--mk-accent',
+  buttonFg: '--mk-accent-ink',
 };
 
 export async function getMarketingBrandingStyle(): Promise<CSSProperties> {
@@ -58,7 +58,7 @@ export async function getMarketingBrandingStyle(): Promise<CSSProperties> {
     // A custom accent needs legible button text; default it to white (safe on most brand
     // colours, both themes) unless the admin set buttonFg explicitly.
     if ((tokens.primary || tokens.accent || tokens.buttonBg) && !tokens.buttonFg) {
-      style["--mk-accent-ink"] = "#ffffff";
+      style['--mk-accent-ink'] = '#ffffff';
     }
     return style as CSSProperties;
   } catch {

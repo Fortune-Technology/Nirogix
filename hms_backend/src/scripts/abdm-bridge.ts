@@ -38,13 +38,15 @@ import { randomUUID } from 'node:crypto';
  */
 
 const GATEWAY = process.env.ABDM_GATEWAY_BASE_URL ?? 'https://dev.abdm.gov.in';
-const FACILITY_REGISTRY = process.env.ABDM_FACILITY_REGISTRY_URL ?? 'https://facilitysbx.abdm.gov.in';
+const FACILITY_REGISTRY =
+  process.env.ABDM_FACILITY_REGISTRY_URL ?? 'https://facilitysbx.abdm.gov.in';
 /** The HFR/HPR host (M4). A third base URL — neither the ABHA host nor the HIE-CM gateway. */
 const FACILITY_SERVICES = process.env.ABDM_HFR_BASE_URL ?? 'https://apihspsbx.abdm.gov.in/v4/int';
 const CM_ID = process.env.ABDM_CM_ID ?? 'sbx';
 
 /** Blank means "not configured" and behaves exactly like unset — the rule `config/env.ts` applies. */
-const notBlank = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v.trim() : undefined);
+const notBlank = (v: string | undefined): string | undefined =>
+  v && v.trim() !== '' ? v.trim() : undefined;
 const CLIENT_ID = notBlank(process.env.ABDM_CLIENT_ID);
 const CLIENT_SECRET = notBlank(process.env.ABDM_CLIENT_SECRET);
 
@@ -83,7 +85,9 @@ function assertFlagsSurvived(): void {
   if (!bareUrl || hasAction) return;
 
   bad(`Received a bare URL (${bareUrl}) with no flag — your shell stripped it.`);
-  note('PowerShell drops `--flag` tokens passed through `npm run … -- --flag value`, so the script');
+  note(
+    'PowerShell drops `--flag` tokens passed through `npm run … -- --flag value`, so the script',
+  );
   note('saw only the value. NOTHING was sent to NHA; the bridge is unchanged.');
   note('');
   note('Either of these survives PowerShell:');
@@ -101,12 +105,7 @@ function assertFlagsSurvived(): void {
  */
 type Attempt = { url: string; status: number; body: string; ok: boolean; reached: boolean };
 
-async function call(
-  url: string,
-  method: string,
-  token: string,
-  body?: unknown,
-): Promise<Attempt> {
+async function call(url: string, method: string, token: string, body?: unknown): Promise<Attempt> {
   const headers: Record<string, string> = {
     accept: '*/*',
     'Content-Type': 'application/json',
@@ -116,7 +115,11 @@ async function call(
     'X-CM-ID': CM_ID,
   };
   try {
-    const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
     const text = await res.text();
     return { url, status: res.status, body: text, ok: res.ok, reached: true };
   } catch (err) {
@@ -143,7 +146,9 @@ async function firstThatAnswers(
     last = { ...result, label: candidate.label };
     if (result.ok) return last;
     if (result.reached && result.status !== 404 && result.status !== 405) return last;
-    note(`${candidate.label} → ${result.reached ? `HTTP ${result.status}` : result.body}, trying the next`);
+    note(
+      `${candidate.label} → ${result.reached ? `HTTP ${result.status}` : result.body}, trying the next`,
+    );
   }
   return last!;
 }
@@ -166,12 +171,16 @@ async function verifyReachable(raw: string): Promise<boolean> {
   }
 
   if (url.protocol !== 'https:') {
-    bad('NHA requires HTTPS with a valid certificate. A http:// URL registers and then never works.');
+    bad(
+      'NHA requires HTTPS with a valid certificate. A http:// URL registers and then never works.',
+    );
     return false;
   }
   if (url.pathname !== '/' || url.search) {
     bad(`Register the BASE URL only — "${url.origin}", with no path.`);
-    note('The gateway appends its own paths, which is why our callback routes sit outside /api/v1.');
+    note(
+      'The gateway appends its own paths, which is why our callback routes sit outside /api/v1.',
+    );
     return false;
   }
   if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname)) {
@@ -212,7 +221,9 @@ async function verifyReachable(raw: string): Promise<boolean> {
 
   // TLS and DNS are fine — something answered — but our API is not the thing answering. Registering
   // anyway would mean the gateway reaches Nginx and gets a 404 for every callback.
-  bad(`${url.origin} is reachable over TLS, but no health endpoint answered (last status ${lastStatus}).`);
+  bad(
+    `${url.origin} is reachable over TLS, but no health endpoint answered (last status ${lastStatus}).`,
+  );
   note('The certificate is fine; the API is not serving on that host. Check PM2 and the Nginx');
   note('server block before registering, or every ABDM callback will 404 into nothing.');
   return false;
@@ -229,7 +240,11 @@ async function session(): Promise<string> {
       TIMESTAMP: new Date().toISOString(),
       'X-CM-ID': CM_ID,
     },
-    body: JSON.stringify({ clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' }),
+    body: JSON.stringify({
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      grantType: 'client_credentials',
+    }),
   });
   const text = await res.text();
   if (!res.ok) {
@@ -254,7 +269,9 @@ async function main(): Promise<void> {
   console.log(`  registry  ${FACILITY_REGISTRY}`);
   console.log(`  X-CM-ID   ${CM_ID}`);
   console.log(`  client id ${CLIENT_ID ?? '(not set)'}`);
-  console.log(`  secret    ${CLIENT_SECRET ? `set, ${CLIENT_SECRET.length} chars` : '(not set)'}\n`);
+  console.log(
+    `  secret    ${CLIENT_SECRET ? `set, ${CLIENT_SECRET.length} chars` : '(not set)'}\n`,
+  );
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
     bad('ABDM_CLIENT_ID / ABDM_CLIENT_SECRET are empty or unset.');
@@ -272,8 +289,14 @@ async function main(): Promise<void> {
   console.log('\n1. Registered services');
   const listed = await firstThatAnswers(
     [
-      { label: 'V3 /api/hiecm/gateway/v3/bridge-services', url: `${GATEWAY}/api/hiecm/gateway/v3/bridge-services` },
-      { label: 'V1 /gateway/v1/bridges/getServices', url: `${GATEWAY}/gateway/v1/bridges/getServices` },
+      {
+        label: 'V3 /api/hiecm/gateway/v3/bridge-services',
+        url: `${GATEWAY}/api/hiecm/gateway/v3/bridge-services`,
+      },
+      {
+        label: 'V1 /gateway/v1/bridges/getServices',
+        url: `${GATEWAY}/gateway/v1/bridges/getServices`,
+      },
     ],
     'GET',
     token,
@@ -284,7 +307,9 @@ async function main(): Promise<void> {
   } else {
     bad(`no candidate answered (last: HTTP ${listed.status})`);
     note(listed.body.slice(0, 300));
-    note('Nothing is registered yet, or both API versions have moved. Not fatal — writes below still run.');
+    note(
+      'Nothing is registered yet, or both API versions have moved. Not fatal — writes below still run.',
+    );
   }
 
   // --- 2. Set the bridge URL --------------------------------------------------------------
@@ -314,7 +339,10 @@ async function main(): Promise<void> {
 
     const patched = await firstThatAnswers(
       [
-        { label: 'V3 PATCH /api/hiecm/gateway/v3/bridge/url', url: `${GATEWAY}/api/hiecm/gateway/v3/bridge/url` },
+        {
+          label: 'V3 PATCH /api/hiecm/gateway/v3/bridge/url',
+          url: `${GATEWAY}/api/hiecm/gateway/v3/bridge/url`,
+        },
         { label: 'V1 PATCH /gateway/v1/bridges', url: `${GATEWAY}/gateway/v1/bridges` },
       ],
       'PATCH',
@@ -338,8 +366,12 @@ async function main(): Promise<void> {
     const name = arg('name');
     if (!serviceId || !name) {
       bad('--register-service needs --service-id and --name.');
-      note('--service-id is the HFR **facility id**, not a name of our choosing: the facility must');
-      note('already be registered in the Health Facility Registry (M4, Part A) for this to succeed.');
+      note(
+        '--service-id is the HFR **facility id**, not a name of our choosing: the facility must',
+      );
+      note(
+        'already be registered in the Health Facility Registry (M4, Part A) for this to succeed.',
+      );
       note('It is also what a hospital enters in Hospital configuration → ABDM / ABHA.');
       process.exit(1);
     }
@@ -364,7 +396,12 @@ async function main(): Promise<void> {
     // One candidate now, not two: the published HFR V4 spec puts this on the facility-registry
     // host, so the old gateway fallback was guesswork that can only produce a confusing error.
     const registered = await firstThatAnswers(
-      [{ label: 'HFR V4 /v1/bridges/MutipleHRPAddUpdateServices', url: `${FACILITY_SERVICES}/v1/bridges/MutipleHRPAddUpdateServices` }],
+      [
+        {
+          label: 'HFR V4 /v1/bridges/MutipleHRPAddUpdateServices',
+          url: `${FACILITY_SERVICES}/v1/bridges/MutipleHRPAddUpdateServices`,
+        },
+      ],
       'POST',
       token,
       payload,
@@ -386,7 +423,9 @@ async function main(): Promise<void> {
     console.log('      --register-service --service-id IN0710-XXXX --name "Nirogix HIP"');
   } else {
     console.log('\nDone. Re-run without flags to see what NHA now holds.');
-    console.log('Then set ABDM_PROVIDER=gateway on the VM and watch for the first inbound callback.');
+    console.log(
+      'Then set ABDM_PROVIDER=gateway on the VM and watch for the first inbound callback.',
+    );
   }
   console.log('');
 }

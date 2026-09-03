@@ -49,7 +49,11 @@ function withWebpExt(name: string): string {
   return `${name.replace(/\.[^./\\]+$/, '')}.webp`;
 }
 
-export async function optimizeImage(buffer: Buffer, contentType: string, filename: string): Promise<OptimizedImage> {
+export async function optimizeImage(
+  buffer: Buffer,
+  contentType: string,
+  filename: string,
+): Promise<OptimizedImage> {
   if (!OPTIMIZABLE.has(contentType.toLowerCase())) {
     return { buffer, contentType, filename, optimized: false };
   }
@@ -83,7 +87,12 @@ export async function optimizeImage(buffer: Buffer, contentType: string, filenam
     // Keep the smaller of {optimized, original}: a tiny already-optimized icon can be larger as
     // WebP than it was, and there is no point storing the worse one.
     if (best && best.length < buffer.length) {
-      return { buffer: best, contentType: 'image/webp', filename: withWebpExt(filename), optimized: true };
+      return {
+        buffer: best,
+        contentType: 'image/webp',
+        filename: withWebpExt(filename),
+        optimized: true,
+      };
     }
     return { buffer, contentType, filename, optimized: false };
   } catch (err) {

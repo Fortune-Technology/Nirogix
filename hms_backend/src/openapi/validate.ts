@@ -47,8 +47,7 @@ export async function validateOpenApiDocument(app?: Express): Promise<Validation
   for (const [path, item] of Object.entries(paths)) {
     for (const method of HTTP_METHODS) {
       const op = (item as Record<string, unknown>)[method] as
-        | { operationId?: string; responses?: Record<string, unknown>; tags?: string[] }
-        | undefined;
+        { operationId?: string; responses?: Record<string, unknown>; tags?: string[] } | undefined;
       if (!op) continue;
       const label = `${method.toUpperCase()} ${path}`;
       documented.add(`${method.toUpperCase()} ${path}`);

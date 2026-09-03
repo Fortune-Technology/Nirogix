@@ -33,7 +33,11 @@ describe('password policy', () => {
   });
 
   test('rejects a password built from what the attacker already knows', () => {
-    const ctx = { email: 'meera.iyer@citycare.example', fullName: 'Meera Iyer', orgCode: 'CITYCARE' };
+    const ctx = {
+      email: 'meera.iyer@citycare.example',
+      fullName: 'Meera Iyer',
+      orgCode: 'CITYCARE',
+    };
     expect(passwordIssues('Meera-Iyer-2026!', ctx).length).toBeGreaterThan(0);
     expect(passwordIssues('Citycare#Portal9', ctx).length).toBeGreaterThan(0);
     // The same password is fine for someone else — the rule is contextual, not a blocklist entry.

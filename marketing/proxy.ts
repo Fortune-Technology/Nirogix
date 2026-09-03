@@ -1,5 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { buildContentSecurityPolicy, originOf, SECURITY_HEADERS } from "@hms/utils";
+import { NextResponse, type NextRequest } from 'next/server';
+import { buildContentSecurityPolicy, originOf, SECURITY_HEADERS } from '@hms/utils';
 
 /**
  * Content-Security-Policy and the platform's static security headers for the public site
@@ -17,18 +17,18 @@ import { buildContentSecurityPolicy, originOf, SECURITY_HEADERS } from "@hms/uti
  */
 export default function proxy(request: NextRequest): NextResponse {
   const csp = buildContentSecurityPolicy({
-    connectSrc: [originOf(process.env.NEXT_PUBLIC_API_BASE_URL) ?? "http://localhost:4000"],
-    development: process.env.NODE_ENV === "development",
+    connectSrc: [originOf(process.env.NEXT_PUBLIC_API_BASE_URL) ?? 'http://localhost:4000'],
+    development: process.env.NODE_ENV === 'development',
   });
 
   const response = NextResponse.next({ request });
-  response.headers.set("content-security-policy", csp);
+  response.headers.set('content-security-policy', csp);
   for (const { key, value } of SECURITY_HEADERS) response.headers.set(key, value);
   return response;
 }
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|animations|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|xml|txt)$).*)",
+    '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|animations|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|xml|txt)$).*)',
   ],
 };

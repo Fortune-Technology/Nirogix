@@ -79,11 +79,16 @@ export const QUICK_LOGIN_ENVIRONMENT: 'development' | 'staging' | null = IS_DEVE
 // early. Folds away entirely in a production build (NODE_ENV==='production'), so no cost there.
 if (process.env.NODE_ENV !== 'production') {
   const configured = process.env.NEXT_PUBLIC_ENVIRONMENT;
-  if (configured && configured !== 'development' && configured !== 'staging' && configured !== 'production') {
+  if (
+    configured &&
+    configured !== 'development' &&
+    configured !== 'staging' &&
+    configured !== 'production'
+  ) {
     // eslint-disable-next-line no-console
     console.warn(
       `[env] NEXT_PUBLIC_ENVIRONMENT="${configured}" is not a canonical environment ` +
-      `(development | staging | production). The quick-login switcher stays disabled.`,
+        `(development | staging | production). The quick-login switcher stays disabled.`,
     );
   }
 }
@@ -98,24 +103,108 @@ const STAGING_PASSWORD = 'StagingOnly#2026';
 // Exactly one list survives the build (see the gate comment above).
 export const DEV_USERS: DevUser[] = IS_DEVELOPMENT
   ? [
-    // Hospital roles only — never a platform operator (ADR-080).
-    { role: 'Org Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'admin@citycare.example', password: DEV_PASSWORD },
-    { role: 'Branch Admin', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'branchadmin@citycare.example', password: DEV_PASSWORD },
-    { role: 'Doctor', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'doctor@citycare.example', password: DEV_PASSWORD },
-    { role: 'Receptionist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'reception@citycare.example', password: DEV_PASSWORD },
-    { role: 'Pharmacist', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'pharmacist@citycare.example', password: DEV_PASSWORD },
-    { role: 'Lab Technician', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'lab@citycare.example', password: DEV_PASSWORD },
-    { role: 'Cashier', orgCode: 'CITYCARE', orgName: 'CityCare Hospital', email: 'cashier@citycare.example', password: DEV_PASSWORD },
-  ]
+      // Hospital roles only — never a platform operator (ADR-080).
+      {
+        role: 'Org Admin',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'admin@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Branch Admin',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'branchadmin@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Doctor',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'doctor@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Receptionist',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'reception@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Pharmacist',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'pharmacist@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Lab Technician',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'lab@citycare.example',
+        password: DEV_PASSWORD,
+      },
+      {
+        role: 'Cashier',
+        orgCode: 'CITYCARE',
+        orgName: 'CityCare Hospital',
+        email: 'cashier@citycare.example',
+        password: DEV_PASSWORD,
+      },
+    ]
   : IS_STAGING
     ? [
-      // The staging seeder's QA hospital (`seed.staging.ts` — QAHOSP). No operator account here.
-      { role: 'Org Admin', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.admin@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Branch Admin', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.branchadmin@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Doctor', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.doctor@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Receptionist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.reception@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Pharmacist', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.pharmacist@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Lab Technician', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.lab@qahospital.example', password: STAGING_PASSWORD },
-      { role: 'Cashier', orgCode: 'QAHOSP', orgName: 'QA General Hospital', email: 'qa.cashier@qahospital.example', password: STAGING_PASSWORD },
-    ]
+        // The staging seeder's QA hospital (`seed.staging.ts` — QAHOSP). No operator account here.
+        {
+          role: 'Org Admin',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.admin@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Branch Admin',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.branchadmin@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Doctor',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.doctor@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Receptionist',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.reception@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Pharmacist',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.pharmacist@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Lab Technician',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.lab@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+        {
+          role: 'Cashier',
+          orgCode: 'QAHOSP',
+          orgName: 'QA General Hospital',
+          email: 'qa.cashier@qahospital.example',
+          password: STAGING_PASSWORD,
+        },
+      ]
     : [];

@@ -21,7 +21,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the billing module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the billing module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 
 registry.registerPath({
@@ -49,8 +52,17 @@ registry.registerPath({
   tags: ['Billing'],
   summary: 'The services & packages catalogue (E-3) — priced items billing consumes',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ activeOnly: z.enum(['true', 'false']).optional(), search: z.string().optional() }) },
-  responses: { 200: { description: 'Services', ...json(ServiceListSchema) }, 401: notAuthed, 403: forbidden },
+  request: {
+    query: z.object({
+      activeOnly: z.enum(['true', 'false']).optional(),
+      search: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: { description: 'Services', ...json(ServiceListSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -97,17 +109,28 @@ registry.registerPath({
   request: {
     query: z.object({
       patientId: z.string().uuid().optional(),
-      status: z
-        .string()
+      status: z.string().optional().openapi({
+        description: 'Comma-separated statuses (multi-select): draft,partially_paid,paid,void',
+      }),
+      amountFrom: z.coerce
+        .number()
+        .int()
         .optional()
-        .openapi({ description: 'Comma-separated statuses (multi-select): draft,partially_paid,paid,void' }),
-      amountFrom: z.coerce.number().int().optional().openapi({ description: 'Invoice-total lower bound, in paise' }),
-      amountTo: z.coerce.number().int().optional().openapi({ description: 'Invoice-total upper bound, in paise' }),
+        .openapi({ description: 'Invoice-total lower bound, in paise' }),
+      amountTo: z.coerce
+        .number()
+        .int()
+        .optional()
+        .openapi({ description: 'Invoice-total upper bound, in paise' }),
       page: z.coerce.number().int().optional(),
       pageSize: z.coerce.number().int().optional(),
     }),
   },
-  responses: { 200: { description: 'Invoices', ...json(InvoicesPageSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Invoices', ...json(InvoicesPageSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -177,7 +200,11 @@ registry.registerPath({
     'type — and `specificity` on each row is that ordering made visible.',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ includeInactive: z.enum(['true', 'false']).optional() }) },
-  responses: { 200: { description: 'Rules', ...json(FeeRuleListSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Rules', ...json(FeeRuleListSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -190,7 +217,7 @@ registry.registerPath({
     'Lets the front desk quote the fee as it picks the doctor, and say where the number came from. ' +
     'Pass the case type of the case the visit will belong to: the schedule ranks it above the ' +
     'consultation type, so a quote without it can differ from what check-in actually charges. ' +
-    'Falls back to the doctor\'s own configured fee, then to zero — exactly what check-in did ' +
+    "Falls back to the doctor's own configured fee, then to zero — exactly what check-in did " +
     'before a schedule existed.',
   security: [{ bearerAuth: [] }],
   request: {
@@ -203,7 +230,11 @@ registry.registerPath({
       branchId: z.string().uuid().optional(),
     }),
   },
-  responses: { 200: { description: 'The resolved fee', ...json(ResolvedFeeSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'The resolved fee', ...json(ResolvedFeeSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -212,7 +243,8 @@ registry.registerPath({
   operationId: 'createFeeRule',
   tags: feeTags,
   summary: 'Add a rule to the price list',
-  description: 'Two rules matching on exactly the same combination are a contradiction, and the second is refused.',
+  description:
+    'Two rules matching on exactly the same combination are a contradiction, and the second is refused.',
   security: [{ bearerAuth: [] }],
   request: { body: json(CreateFeeRuleBody) },
   responses: {

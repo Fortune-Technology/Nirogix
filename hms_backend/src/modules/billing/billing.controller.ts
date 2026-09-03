@@ -20,11 +20,15 @@ export async function createInvoice(req: Request, res: Response): Promise<void> 
 }
 
 export async function recordPayment(req: Request, res: Response): Promise<void> {
-  res.status(201).json(await svc.recordPayment(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res
+    .status(201)
+    .json(await svc.recordPayment(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
 }
 
 export async function addLine(req: Request, res: Response): Promise<void> {
-  res.status(201).json(await svc.addServiceLine(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res
+    .status(201)
+    .json(await svc.addServiceLine(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
 }
 
 export async function listServices(req: Request, res: Response): Promise<void> {
@@ -54,7 +58,9 @@ export async function createFeeRule(req: Request, res: Response): Promise<void> 
 }
 
 export async function updateFeeRule(req: Request, res: Response): Promise<void> {
-  res.json(await feeSvc.updateFeeRule(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await feeSvc.updateFeeRule(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }
 
 /** What check-in is about to charge, so the desk can quote it as it picks the doctor. */

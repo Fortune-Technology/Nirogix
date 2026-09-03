@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useLenis } from "lenis/react";
+import { useEffect } from 'react';
+import { useLenis } from 'lenis/react';
 
 /**
  * Locks background page scroll while an overlay (modal, drawer, dropdown, mobile
@@ -35,7 +35,7 @@ export function useScrollLock(locked: boolean): void {
     // scrollbars (macOS, most phones) report 0 and need no compensation.
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-    body.style.overflow = "hidden";
+    body.style.overflow = 'hidden';
     if (scrollbarWidth > 0) {
       const current = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
       body.style.paddingRight = `${current + scrollbarWidth}px`;

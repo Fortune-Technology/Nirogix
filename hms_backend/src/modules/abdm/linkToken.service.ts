@@ -44,12 +44,18 @@ export function linkTokenExpiry(token: string): Date | null {
 }
 
 /** The usable token for an ABHA address, or null when there is none we can rely on. */
-export async function linkTokenFor(tenantId: string, abhaAddress: string, now = new Date()): Promise<string | null> {
+export async function linkTokenFor(
+  tenantId: string,
+  abhaAddress: string,
+  now = new Date(),
+): Promise<string | null> {
   const row = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .select()
       .from(abdmLinkTokens)
-      .where(and(eq(abdmLinkTokens.tenantId, tenantId), eq(abdmLinkTokens.abhaAddress, abhaAddress)))
+      .where(
+        and(eq(abdmLinkTokens.tenantId, tenantId), eq(abdmLinkTokens.abhaAddress, abhaAddress)),
+      )
       .limit(1);
     return rows[0] ?? null;
   });
@@ -83,14 +89,21 @@ export async function requestLinkToken(
   if (!patient?.abhaAddress) return { requested: false, reason: 'The patient has no ABHA address' };
   // A hand-typed ABHA was never proved (ADR-084); asking a registry to trust it would be our error,
   // not the patient's.
-  if (!patient.abhaVerifiedAt) return { requested: false, reason: 'The ABHA address has not been verified' };
-  if (!patient.dateOfBirth) return { requested: false, reason: 'Demographic auth needs a date of birth' };
+  if (!patient.abhaVerifiedAt)
+    return { requested: false, reason: 'The ABHA address has not been verified' };
+  if (!patient.dateOfBirth)
+    return { requested: false, reason: 'Demographic auth needs a date of birth' };
 
   const existing = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .select()
       .from(abdmLinkTokens)
-      .where(and(eq(abdmLinkTokens.tenantId, tenantId), eq(abdmLinkTokens.abhaAddress, patient.abhaAddress!)))
+      .where(
+        and(
+          eq(abdmLinkTokens.tenantId, tenantId),
+          eq(abdmLinkTokens.abhaAddress, patient.abhaAddress!),
+        ),
+      )
       .limit(1);
     return rows[0] ?? null;
   });
@@ -98,7 +111,11 @@ export async function requestLinkToken(
   // One request in flight at a time. The webhook is the only thing that resolves it, and asking
   // again just adds another callback for the same address.
   const OUTSTANDING_MS = 10 * 60_000;
-  if (existing?.requestedAt && !existing.tokenEnc && Date.now() - existing.requestedAt.getTime() < OUTSTANDING_MS) {
+  if (
+    existing?.requestedAt &&
+    !existing.tokenEnc &&
+    Date.now() - existing.requestedAt.getTime() < OUTSTANDING_MS
+  ) {
     return { requested: false, reason: 'A request for this ABHA is already outstanding' };
   }
 
@@ -147,7 +164,11 @@ function fhirishGender(gender?: string | null): string {
  * Encrypted, or **discarded** — the same rule every other ABDM credential follows. A link token in
  * plaintext is standing permission to write to somebody's national health record.
  */
-export async function storeLinkToken(input: { abhaAddress: string; token: string; hipId: string }): Promise<boolean> {
+export async function storeLinkToken(input: {
+  abhaAddress: string;
+  token: string;
+  hipId: string;
+}): Promise<boolean> {
   const tenantId = await tenantForHip(input.hipId);
   if (!tenantId) {
     logger.warn({ hipId: input.hipId }, 'Link token delivered for an unknown facility');
@@ -155,7 +176,9 @@ export async function storeLinkToken(input: { abhaAddress: string; token: string
   }
   if (!isEncryptionConfigured()) {
     logger.error('Link token discarded — ENCRYPTION_KEY is not configured');
-    await upsertTokenRow(tenantId, input.abhaAddress, { lastError: 'Encryption is not configured on this server' });
+    await upsertTokenRow(tenantId, input.abhaAddress, {
+      lastError: 'Encryption is not configured on this server',
+    });
     return false;
   }
 
@@ -171,7 +194,10 @@ export async function storeLinkToken(input: { abhaAddress: string; token: string
     action: 'abdm.link_token.stored',
     resourceType: 'abdm_link_token',
     resourceId: null,
-    metadata: { abhaAddress: input.abhaAddress, expiresAt: linkTokenExpiry(input.token)?.toISOString() },
+    metadata: {
+      abhaAddress: input.abhaAddress,
+      expiresAt: linkTokenExpiry(input.token)?.toISOString(),
+    },
   });
   return true;
 }
@@ -197,6 +223,10 @@ async function tenantForHip(hipId: string): Promise<string | null> {
   const { db } = await import('../../db/client');
   const { abdmFacilityConfig } = await import('../../db/schema');
   const { eq: equals } = await import('drizzle-orm');
-  const rows = await db.select().from(abdmFacilityConfig).where(equals(abdmFacilityConfig.hipId, hipId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmFacilityConfig)
+    .where(equals(abdmFacilityConfig.hipId, hipId))
+    .limit(1);
   return rows[0]?.tenantId ?? null;
 }

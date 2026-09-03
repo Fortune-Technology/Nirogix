@@ -1,4 +1,4 @@
-import { cn } from "../cn";
+import { cn } from '../cn';
 
 export interface BrandMarkProps {
   /** Rendered square, in pixels. */
@@ -24,14 +24,14 @@ export interface BrandMarkProps {
  * A tenant's own uploaded logo replaces this wherever one exists; this is what a
  * hospital without a logo, and the product itself, show.
  */
-export function BrandMark({ size = 28, label = "Nirogix", className }: BrandMarkProps) {
+export function BrandMark({ size = 28, label = 'Nirogix', className }: BrandMarkProps) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 32 32"
-      className={cn("shrink-0", className)}
-      role={label ? "img" : undefined}
+      className={cn('shrink-0', className)}
+      role={label ? 'img' : undefined}
       aria-label={label || undefined}
       aria-hidden={label ? undefined : true}
       focusable="false"

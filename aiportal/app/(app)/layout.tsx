@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { LogOut, Moon, Sun } from "lucide-react";
-import { BrandMark, Button, Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { useAuth } from "../../lib/auth";
-import { useTheme } from "../../lib/theme";
-import { AccessRestricted } from "../../components/AccessRestricted";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogOut, Moon, Sun } from 'lucide-react';
+import { BrandMark, Button, Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { useAuth } from '../../lib/auth';
+import { useTheme } from '../../lib/theme';
+import { AccessRestricted } from '../../components/AccessRestricted';
 
 /**
  * The AI Portal's gate (ADR-053).
@@ -27,10 +27,10 @@ export default function AiAppLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "anonymous") router.replace("/login");
+    if (status === 'anonymous') router.replace('/login');
   }, [status, router]);
 
-  if (status !== "authenticated") {
+  if (status !== 'authenticated') {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-bg text-fg-muted">
         <Spinner /> <span className="ml-2">Loading…</span>
@@ -48,7 +48,7 @@ export default function AiAppLayout({ children }: { children: React.ReactNode })
           <AccessRestricted
             onSignOut={async () => {
               await logout();
-              router.replace("/login");
+              router.replace('/login');
             }}
           />
         </div>
@@ -63,20 +63,26 @@ export default function AiAppLayout({ children }: { children: React.ReactNode })
         <span className="font-semibold text-fg">Nirogix AI</span>
         <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{user?.fullName}</span>
         <Button variant="secondary" size="sm" onClick={toggle} aria-label="Switch theme">
-          {theme === "dark" ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+          {theme === 'dark' ? (
+            <Sun size={16} strokeWidth={2} />
+          ) : (
+            <Moon size={16} strokeWidth={2} />
+          )}
         </Button>
         <Button
           variant="secondary"
           size="sm"
           onClick={async () => {
             await logout();
-            router.replace("/login");
+            router.replace('/login');
           }}
         >
           <LogOut size={16} strokeWidth={2} /> Sign out
         </Button>
       </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-4 md:p-6">{children}</main>
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-4 md:p-6">
+        {children}
+      </main>
     </div>
   );
 }

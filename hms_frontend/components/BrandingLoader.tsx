@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useTheme } from "../lib/theme";
-import * as api from "../lib/api";
+import { useEffect } from 'react';
+import { useTheme } from '../lib/theme';
+import * as api from '../lib/api';
 
 // Layers the platform "hms" brand default (ADR-024) UNDER the per-tenant override.
 // The platform default is injected as a :root rule (stylesheet), so the per-tenant
@@ -11,14 +11,14 @@ import * as api from "../lib/api";
 // layered; neutral surfaces stay theme-managed.
 function applyPlatformHmsDefault(tokens: Record<string, string | undefined>): void {
   const brand = tokens.primary ?? tokens.accent ?? tokens.buttonBg;
-  const id = "platform-hms-branding";
+  const id = 'platform-hms-branding';
   let el = document.getElementById(id) as HTMLStyleElement | null;
   if (!brand) {
     el?.remove();
     return;
   }
   if (!el) {
-    el = document.createElement("style");
+    el = document.createElement('style');
     el.id = id;
     document.head.appendChild(el);
   }
@@ -31,15 +31,18 @@ export function BrandingLoader() {
   const { applyBranding } = useTheme();
   useEffect(() => {
     api
-      .getPlatformBranding("hms")
+      .getPlatformBranding('hms')
       .then((b) => applyPlatformHmsDefault(b.tokens as Record<string, string | undefined>))
       .catch(() => {
         /* no platform default configured — keep the built-in tokens */
       })
       .finally(() => {
-        api.getCurrentBranding().then(applyBranding).catch(() => {
-          /* no tenant branding / not reachable — keep the default tokens */
-        });
+        api
+          .getCurrentBranding()
+          .then(applyBranding)
+          .catch(() => {
+            /* no tenant branding / not reachable — keep the default tokens */
+          });
       });
   }, [applyBranding]);
   return null;

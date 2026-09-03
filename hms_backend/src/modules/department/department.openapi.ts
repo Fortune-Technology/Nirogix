@@ -5,9 +5,14 @@ import { CreateDepartmentBody, UpdateDepartmentBody, DepartmentSchema } from './
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const forbidden = { description: 'Missing platform.departments.manage', ...json(ErrorResponseSchema) };
+const forbidden = {
+  description: 'Missing platform.departments.manage',
+  ...json(ErrorResponseSchema),
+};
 
-const DepartmentListSchema = z.object({ departments: z.array(DepartmentSchema) }).openapi('DepartmentList');
+const DepartmentListSchema = z
+  .object({ departments: z.array(DepartmentSchema) })
+  .openapi('DepartmentList');
 
 registry.registerPath({
   method: 'get',

@@ -1,27 +1,32 @@
-import type { Metadata } from "next";
-import { Check, Plus } from "lucide-react";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Button } from "../../components/ui/Button";
-import { Container, SectionHeading } from "../../components/ui/primitives";
-import { PACKAGES, PRICING_FAQ } from "../../lib/catalogue";
-import { ReleaseNote } from "../../components/site/AvailabilityBadge";
-import { JsonLd } from "../../components/site/JsonLd";
-import { breadcrumbJsonLd, faqJsonLd, pageMetadata } from "../../lib/seo";
+import type { Metadata } from 'next';
+import { Check, Plus } from 'lucide-react';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Button } from '../../components/ui/Button';
+import { Container, SectionHeading } from '../../components/ui/primitives';
+import { PACKAGES, PRICING_FAQ } from '../../lib/catalogue';
+import { ReleaseNote } from '../../components/site/AvailabilityBadge';
+import { JsonLd } from '../../components/site/JsonLd';
+import { breadcrumbJsonLd, faqJsonLd, pageMetadata } from '../../lib/seo';
 
 // Primary intent: "hospital management software price / India". No numbers are
 // published (content guardrail), so no Offer/price markup is emitted either.
 export const metadata: Metadata = pageMetadata({
-  path: "/pricing",
-  title: "Hospital Management Software Pricing in India",
+  path: '/pricing',
+  title: 'Hospital Management Software Pricing in India',
   description:
-    "Nirogix pricing follows the modules you enable. Start with a single module, take the clinic bundle, or run the full set, and talk to us for a quote tailored to your hospital.",
+    'Nirogix pricing follows the modules you enable. Start with a single module, take the clinic bundle, or run the full set, and talk to us for a quote tailored to your hospital.',
 });
 
 export default function PricingPage() {
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Pricing", path: "/pricing" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Pricing', path: '/pricing' },
+        ])}
+      />
       {/* Marks up the FAQ that is rendered further down this page — nothing else. */}
       <JsonLd data={faqJsonLd(PRICING_FAQ)} />
       <PageHeader
@@ -41,17 +46,17 @@ export default function PricingPage() {
                 <div
                   key={pkg.name}
                   className={
-                    "flex flex-col rounded-xl p-7 " +
+                    'flex flex-col rounded-xl p-7 ' +
                     (featured
-                      ? "bg-surface-ink text-ink-inverse"
-                      : "border border-hairline bg-surface text-ink")
+                      ? 'bg-surface-ink text-ink-inverse'
+                      : 'border border-hairline bg-surface text-ink')
                   }
                 >
                   <div className="flex items-center justify-between">
                     <span
                       className={
-                        "grid h-11 w-11 place-items-center rounded-lg " +
-                        (featured ? "bg-white/10 text-white" : "bg-accent-subtle text-accent")
+                        'grid h-11 w-11 place-items-center rounded-lg ' +
+                        (featured ? 'bg-white/10 text-white' : 'bg-accent-subtle text-accent')
                       }
                     >
                       <Icon size={22} strokeWidth={1.6} />
@@ -65,8 +70,8 @@ export default function PricingPage() {
                   <h3 className="mt-5 text-xl font-medium tracking-tight">{pkg.name}</h3>
                   <p
                     className={
-                      "mt-2 text-sm leading-relaxed " +
-                      (featured ? "text-white/70" : "text-ink-subtle")
+                      'mt-2 text-sm leading-relaxed ' +
+                      (featured ? 'text-white/70' : 'text-ink-subtle')
                     }
                   >
                     {pkg.summary}
@@ -77,11 +82,13 @@ export default function PricingPage() {
                         <Check
                           size={18}
                           strokeWidth={2}
-                          className={"mt-0.5 shrink-0 " + (featured ? "text-accent" : "text-accent")}
+                          className={
+                            'mt-0.5 shrink-0 ' + (featured ? 'text-accent' : 'text-accent')
+                          }
                         />
                         <span
                           className={
-                            "text-sm leading-relaxed " + (featured ? "text-white/85" : "text-ink")
+                            'text-sm leading-relaxed ' + (featured ? 'text-white/85' : 'text-ink')
                           }
                         >
                           {point}
@@ -92,7 +99,7 @@ export default function PricingPage() {
                   <div className="mt-8">
                     <Button
                       href="/contact"
-                      variant={featured ? "accent" : "secondary"}
+                      variant={featured ? 'accent' : 'secondary'}
                       className="w-full"
                     >
                       Talk to sales

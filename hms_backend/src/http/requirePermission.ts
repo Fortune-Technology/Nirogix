@@ -17,3 +17,21 @@ export function requirePermission(permission: string) {
     }
   };
 }
+
+/**
+ * The same question, asked **inside** a handler instead of in front of it.
+ *
+ * For the handful of routes whose required permission is not knowable from the route table —
+ * bulk import (ADR-138), where the module is a path parameter and each module carries its own
+ * key, so a fixed `requirePermission` could only ever have named one of six.
+ *
+ * This is not a loosening. The handler still refuses, with the same 403, before doing anything;
+ * what moves is only *where* the key comes from. Every other route keeps declaring its permission
+ * explicitly in the route table, which is what `resources/rules.md` asks for and what makes the
+ * boundary readable without opening a controller.
+ */
+export async function checkPermission(req: Request, permission: string): Promise<boolean> {
+  if (!req.auth) return false;
+  const resolved = await resolvePermissions(req.auth.tenantId, req.auth.userId);
+  return hasPermission(resolved, permission);
+}

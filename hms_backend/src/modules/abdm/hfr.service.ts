@@ -107,34 +107,51 @@ export async function submitRegistration(
   branchId: string | null = null,
 ): Promise<AbdmFacilityRegistry> {
   const row = await findRegistration(tenantId, branchId);
-  if (!row) throw new AppError(404, 'ABDM_FACILITY_DRAFT_NOT_FOUND', 'Save the facility details before submitting');
+  if (!row)
+    throw new AppError(
+      404,
+      'ABDM_FACILITY_DRAFT_NOT_FOUND',
+      'Save the facility details before submitting',
+    );
   assertTransition(row.status, 'submitted');
 
   const draft = row.payload as FacilityDraft | null;
-  if (!draft) throw new AppError(422, 'ABDM_FACILITY_DRAFT_EMPTY', 'The saved facility details are incomplete');
+  if (!draft)
+    throw new AppError(
+      422,
+      'ABDM_FACILITY_DRAFT_EMPTY',
+      'The saved facility details are incomplete',
+    );
 
   // Step 1 — mints the tracking id. Persisted immediately, before anything else can fail.
-  const basic = await registryPost<{ trackingId?: string; message?: string }>(HFR_PATHS.basicInformation, {
-    trackingId: row.trackingId ?? undefined,
-    facilityInformation: {
-      facilityName: draft.facilityName,
-      facilityAddressDetails: { country: 'India', ...draft.address },
-      facilityContactInformation: draft.contact,
-      ownershipCode: draft.ownershipCode,
-      ownershipSubTypeCode: draft.ownershipSubTypeCode,
-      facilityTypeCode: draft.facilityTypeCode,
-      facilitySubType: draft.facilitySubType,
-      systemOfMedicineCode: draft.systemOfMedicineCode,
-      specialityTypeCode: draft.specialityTypeCode,
-      typeOfServiceCode: draft.typeOfServiceCode,
-      facilityOperationalStatus: draft.facilityOperationalStatus ?? 'Functional',
-      ...(draft.timings ? { timingsOfFacility: draft.timings } : {}),
+  const basic = await registryPost<{ trackingId?: string; message?: string }>(
+    HFR_PATHS.basicInformation,
+    {
+      trackingId: row.trackingId ?? undefined,
+      facilityInformation: {
+        facilityName: draft.facilityName,
+        facilityAddressDetails: { country: 'India', ...draft.address },
+        facilityContactInformation: draft.contact,
+        ownershipCode: draft.ownershipCode,
+        ownershipSubTypeCode: draft.ownershipSubTypeCode,
+        facilityTypeCode: draft.facilityTypeCode,
+        facilitySubType: draft.facilitySubType,
+        systemOfMedicineCode: draft.systemOfMedicineCode,
+        specialityTypeCode: draft.specialityTypeCode,
+        typeOfServiceCode: draft.typeOfServiceCode,
+        facilityOperationalStatus: draft.facilityOperationalStatus ?? 'Functional',
+        ...(draft.timings ? { timingsOfFacility: draft.timings } : {}),
+      },
     },
-  });
+  );
 
   const trackingId = basic.trackingId ?? row.trackingId;
   if (!trackingId) {
-    throw new AppError(502, 'ABDM_FACILITY_NO_TRACKING_ID', 'HFR accepted the details but returned no tracking id');
+    throw new AppError(
+      502,
+      'ABDM_FACILITY_NO_TRACKING_ID',
+      'HFR accepted the details but returned no tracking id',
+    );
   }
   await patch(tenantId, row.id, { trackingId });
 
@@ -142,10 +159,13 @@ export async function submitRegistration(
   // than re-keying a forty-field form.
   await registryPost(HFR_PATHS.additionalInformation, { trackingId, generalInformation: {} });
   await registryPost(HFR_PATHS.detailedInformation, { trackingId });
-  const submitted = await registryPost<{ status?: string; message?: string }>(HFR_PATHS.submitFacility, {
-    trackingId,
-    sourceOfInformation: 'Nirogix HMS',
-  });
+  const submitted = await registryPost<{ status?: string; message?: string }>(
+    HFR_PATHS.submitFacility,
+    {
+      trackingId,
+      sourceOfInformation: 'Nirogix HMS',
+    },
+  );
 
   const updated = await patch(tenantId, row.id, {
     status: 'submitted',
@@ -198,7 +218,11 @@ export async function updateRegistration(
 ): Promise<AbdmFacilityRegistry> {
   const row = await findRegistration(tenantId, draft.branchId ?? null);
   if (!row) {
-    throw new AppError(404, 'ABDM_FACILITY_NOT_REGISTERED', 'This facility is not registered with HFR yet');
+    throw new AppError(
+      404,
+      'ABDM_FACILITY_NOT_REGISTERED',
+      'This facility is not registered with HFR yet',
+    );
   }
   if (row.status !== 'verified') {
     throw new AppError(
@@ -264,7 +288,12 @@ export async function updateRegistration(
     resourceType: 'abdm_facility_registry',
     resourceId: row.id,
     severity: 'notice',
-    metadata: { trackingId, facilityId: row.facilityId, branchId: draft.branchId ?? null, facilityName: draft.facilityName },
+    metadata: {
+      trackingId,
+      facilityId: row.facilityId,
+      branchId: draft.branchId ?? null,
+      facilityName: draft.facilityName,
+    },
   });
   logger.info({ tenantId, trackingId, facilityId: row.facilityId }, 'HFR facility details updated');
   return updated;
@@ -279,14 +308,24 @@ export async function updateRegistration(
  */
 export async function recordVerification(
   tenantId: string,
-  input: { branchId?: string | null; facilityId?: string; status: 'under_review' | 'verified' | 'rejected'; message?: string },
+  input: {
+    branchId?: string | null;
+    facilityId?: string;
+    status: 'under_review' | 'verified' | 'rejected';
+    message?: string;
+  },
 ): Promise<AbdmFacilityRegistry> {
   const row = await findRegistration(tenantId, input.branchId ?? null);
-  if (!row) throw new AppError(404, 'ABDM_FACILITY_NOT_FOUND', 'No facility registration to update');
+  if (!row)
+    throw new AppError(404, 'ABDM_FACILITY_NOT_FOUND', 'No facility registration to update');
   assertTransition(row.status, input.status);
 
   if (input.status === 'verified' && !input.facilityId) {
-    throw new AppError(422, 'ABDM_FACILITY_ID_REQUIRED', 'A verified registration must carry the HFR facility id');
+    throw new AppError(
+      422,
+      'ABDM_FACILITY_ID_REQUIRED',
+      'A verified registration must carry the HFR facility id',
+    );
   }
 
   const updated = await patch(tenantId, row.id, {
@@ -320,7 +359,11 @@ export async function recordVerification(
  * who registered by hand on ABDM's portal months ago may be live on that id, and silently swapping
  * it underneath a working integration would break every callback. A conflict is logged for a human.
  */
-async function adoptFacilityId(tenantId: string, facilityId: string, facilityName: string): Promise<void> {
+async function adoptFacilityId(
+  tenantId: string,
+  facilityId: string,
+  facilityName: string,
+): Promise<void> {
   const config = await getFacilityConfig(tenantId);
   if (config?.hipId && config.hipId !== facilityId) {
     logger.warn(
@@ -336,7 +379,10 @@ async function adoptFacilityId(tenantId: string, facilityId: string, facilityNam
 }
 
 /** The registration for one facility — the screen's whole state. */
-export async function findRegistration(tenantId: string, branchId: string | null): Promise<AbdmFacilityRegistry | null> {
+export async function findRegistration(
+  tenantId: string,
+  branchId: string | null,
+): Promise<AbdmFacilityRegistry | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx
       .select()
@@ -344,7 +390,9 @@ export async function findRegistration(tenantId: string, branchId: string | null
       .where(
         and(
           eq(abdmFacilityRegistry.tenantId, tenantId),
-          branchId ? eq(abdmFacilityRegistry.branchId, branchId) : isNull(abdmFacilityRegistry.branchId),
+          branchId
+            ? eq(abdmFacilityRegistry.branchId, branchId)
+            : isNull(abdmFacilityRegistry.branchId),
         ),
       )
       .limit(1),
@@ -496,7 +544,10 @@ const MIN_RESULTS_PER_PAGE = 10;
  */
 export async function searchFacilities(input: FacilitySearchQuery): Promise<FacilitySearchResult> {
   const page = Math.max(1, input.page ?? 1);
-  const resultsPerPage = Math.min(50, Math.max(MIN_RESULTS_PER_PAGE, input.resultsPerPage ?? MIN_RESULTS_PER_PAGE));
+  const resultsPerPage = Math.min(
+    50,
+    Math.max(MIN_RESULTS_PER_PAGE, input.resultsPerPage ?? MIN_RESULTS_PER_PAGE),
+  );
 
   const body: Record<string, string | number> = { page, resultsPerPage };
   const facilityId = input.facilityId?.trim();

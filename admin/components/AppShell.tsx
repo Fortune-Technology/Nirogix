@@ -1,14 +1,22 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { LogOut, Menu } from "lucide-react";
-import { BrandMark, Button, HeaderUser, NavDrawer, NavDrawerItem, NavDrawerSection, cn } from "@hms/ui";
-import { formatRoleNames } from "@hms/permissions";
-import { useAuth } from "../lib/auth";
-import { navGroupsFor } from "../lib/nav";
-import { ThemeToggle } from "./ThemeToggle";
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { LogOut, Menu } from 'lucide-react';
+import {
+  BrandMark,
+  Button,
+  HeaderUser,
+  NavDrawer,
+  NavDrawerItem,
+  NavDrawerSection,
+  cn,
+} from '@hms/ui';
+import { formatRoleNames } from '@hms/permissions';
+import { useAuth } from '../lib/auth';
+import { navGroupsFor } from '../lib/nav';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * The platform admin shell (ADR-051).
@@ -34,13 +42,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await logout();
-    router.replace("/login");
+    router.replace('/login');
   }
 
   // Highlight by route: an item is active on its own page and any page nested under it
   // (`/tenants` stays lit on `/tenants/new`). No nav item lives at the root any more —
   // `/` only redirects to `/dashboard` — so there is no exact-match special case.
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   return (
     // Window-scroll shell like the Portal: sticky sidebar + topbar, one scrollbar, no
@@ -65,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {groups.map((group, gi) => (
             <div
               key={group.label ?? `group-${gi}`}
-              className={cn("flex flex-col gap-1", gi > 0 && "border-t border-border pt-4")}
+              className={cn('flex flex-col gap-1', gi > 0 && 'border-t border-border pt-4')}
             >
               {group.label ? (
                 <span className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.07em] text-fg-subtle">
@@ -79,10 +87,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    aria-current={active ? "page" : undefined}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors",
-                      active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+                      'flex items-center gap-2.5 rounded-token px-3 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-brand-subtle text-brand'
+                        : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >
                     <Icon size={17} strokeWidth={1.75} className="shrink-0" />
@@ -134,7 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           behave exactly as they do in every other Nirogix app (ADR-033). */}
       <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Platform admin">
         {groups.map((group) => (
-          <NavDrawerSection key={group.label ?? "root"} title={group.label ?? undefined}>
+          <NavDrawerSection key={group.label ?? 'root'} title={group.label ?? undefined}>
             {group.items.map((item) => (
               <NavDrawerItem
                 key={item.href}

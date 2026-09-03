@@ -22,14 +22,22 @@ export interface ResolvedPlatformBranding {
 
 // The PLATFORM org's tenant id (ADR-022), used for asset storage + audit.
 export async function platformTenantId(): Promise<string> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'NIROGIX')).limit(1);
+  const rows = await db
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.code, 'NIROGIX'))
+    .limit(1);
   const id = rows[0]?.id;
   if (!id) throw new Error('PLATFORM tenant not found (run db:seed)');
   return id;
 }
 
 async function getRow(scope: PlatformBrandingScope): Promise<PlatformBrandingRow | null> {
-  const rows = await db.select().from(platformBranding).where(eq(platformBranding.scope, scope)).limit(1);
+  const rows = await db
+    .select()
+    .from(platformBranding)
+    .where(eq(platformBranding.scope, scope))
+    .limit(1);
   return rows[0] ?? null;
 }
 
@@ -40,7 +48,9 @@ async function ensureRow(scope: PlatformBrandingScope): Promise<void> {
 }
 
 // The resolved branding a surface applies. Nulls/empty mean "use the built-in default tokens".
-export async function getPlatformBranding(scope: PlatformBrandingScope): Promise<ResolvedPlatformBranding> {
+export async function getPlatformBranding(
+  scope: PlatformBrandingScope,
+): Promise<ResolvedPlatformBranding> {
   const row = await getRow(scope);
   if (!row) return { scope, tokens: {}, logoUrl: null, faviconUrl: null, version: 0 };
 
@@ -50,8 +60,12 @@ export async function getPlatformBranding(scope: PlatformBrandingScope): Promise
     const tid = await platformTenantId();
     // Rendered in an <img>/<link>, so served inline rather than as a forced download.
     const [logo, favicon] = await Promise.all([
-      row.logoFileId ? getDownloadUrl(tid, row.logoFileId, { disposition: 'inline' }) : Promise.resolve(null),
-      row.faviconFileId ? getDownloadUrl(tid, row.faviconFileId, { disposition: 'inline' }) : Promise.resolve(null),
+      row.logoFileId
+        ? getDownloadUrl(tid, row.logoFileId, { disposition: 'inline' })
+        : Promise.resolve(null),
+      row.faviconFileId
+        ? getDownloadUrl(tid, row.faviconFileId, { disposition: 'inline' })
+        : Promise.resolve(null),
     ]);
     logoUrl = logo?.url ?? null;
     faviconUrl = favicon?.url ?? null;
@@ -74,7 +88,11 @@ export async function updatePlatformBranding(
   await ensureRow(scope);
   await db
     .update(platformBranding)
-    .set({ tokens: tokens as Record<string, string>, version: sql`${platformBranding.version} + 1`, updatedAt: new Date() })
+    .set({
+      tokens: tokens as Record<string, string>,
+      version: sql`${platformBranding.version} + 1`,
+      updatedAt: new Date(),
+    })
     .where(eq(platformBranding.scope, scope));
   await writeAudit({
     tenantId: await platformTenantId(),
@@ -87,9 +105,16 @@ export async function updatePlatformBranding(
   return getPlatformBranding(scope);
 }
 
-export async function setPlatformLogo(scope: PlatformBrandingScope, fileId: string, actorUserId?: string): Promise<void> {
+export async function setPlatformLogo(
+  scope: PlatformBrandingScope,
+  fileId: string,
+  actorUserId?: string,
+): Promise<void> {
   await ensureRow(scope);
-  await db.update(platformBranding).set({ logoFileId: fileId, updatedAt: new Date() }).where(eq(platformBranding.scope, scope));
+  await db
+    .update(platformBranding)
+    .set({ logoFileId: fileId, updatedAt: new Date() })
+    .where(eq(platformBranding.scope, scope));
   await writeAudit({
     tenantId: await platformTenantId(),
     actorUserId: actorUserId ?? null,
@@ -100,9 +125,16 @@ export async function setPlatformLogo(scope: PlatformBrandingScope, fileId: stri
   });
 }
 
-export async function setPlatformFavicon(scope: PlatformBrandingScope, fileId: string, actorUserId?: string): Promise<void> {
+export async function setPlatformFavicon(
+  scope: PlatformBrandingScope,
+  fileId: string,
+  actorUserId?: string,
+): Promise<void> {
   await ensureRow(scope);
-  await db.update(platformBranding).set({ faviconFileId: fileId, updatedAt: new Date() }).where(eq(platformBranding.scope, scope));
+  await db
+    .update(platformBranding)
+    .set({ faviconFileId: fileId, updatedAt: new Date() })
+    .where(eq(platformBranding.scope, scope));
   await writeAudit({
     tenantId: await platformTenantId(),
     actorUserId: actorUserId ?? null,
@@ -113,12 +145,21 @@ export async function setPlatformFavicon(scope: PlatformBrandingScope, fileId: s
   });
 }
 
-export async function resetPlatformBranding(scope: PlatformBrandingScope, actorUserId?: string): Promise<ResolvedPlatformBranding> {
+export async function resetPlatformBranding(
+  scope: PlatformBrandingScope,
+  actorUserId?: string,
+): Promise<ResolvedPlatformBranding> {
   const row = await getRow(scope);
   if (row) {
     await db
       .update(platformBranding)
-      .set({ tokens: {}, logoFileId: null, faviconFileId: null, version: sql`${platformBranding.version} + 1`, updatedAt: new Date() })
+      .set({
+        tokens: {},
+        logoFileId: null,
+        faviconFileId: null,
+        version: sql`${platformBranding.version} + 1`,
+        updatedAt: new Date(),
+      })
       .where(eq(platformBranding.scope, scope));
     await writeAudit({
       tenantId: await platformTenantId(),

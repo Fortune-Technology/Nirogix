@@ -11,7 +11,9 @@ export async function publicContext(req: Request, res: Response): Promise<void> 
 export async function publicSubmit(req: Request, res: Response): Promise<void> {
   await svc.submitRegistrationRequest(req.params.token!, req.body, { ip: req.ip });
   // Uniform, and says nothing about what happens next inside the hospital.
-  res.status(202).json({ message: 'Thanks. The hospital will confirm your registration at the desk.' });
+  res
+    .status(202)
+    .json({ message: 'Thanks. The hospital will confirm your registration at the desk.' });
 }
 
 // ---- Hospital side ---------------------------------------------------------
@@ -50,7 +52,12 @@ export async function approve(req: Request, res: Response): Promise<void> {
 }
 
 export async function reject(req: Request, res: Response): Promise<void> {
-  await svc.rejectRegistrationRequest(req.auth!.tenantId, req.params.id!, req.body?.reason, req.auth!.userId);
+  await svc.rejectRegistrationRequest(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body?.reason,
+    req.auth!.userId,
+  );
   res.status(204).end();
 }
 

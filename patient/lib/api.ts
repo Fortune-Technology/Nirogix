@@ -17,17 +17,17 @@ import type {
   PatientLabReport,
   PatientPortalProfile,
   PatientSession,
-} from "@hms/types";
-import { createApiClient } from "@hms/client";
+} from '@hms/types';
+import { createApiClient } from '@hms/client';
 
 const client = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1',
 });
 
 const { request } = client;
 
 export const apiClient = client;
-export { ApiRequestError, NetworkError, TimeoutError } from "@hms/client";
+export { ApiRequestError, NetworkError, TimeoutError } from '@hms/client';
 export const { setAccessToken, getAccessToken } = client;
 
 // ---- Sign in ---------------------------------------------------------------
@@ -39,13 +39,17 @@ type Contact = { mobile?: string; email?: string };
  * registered, so this resolves identically too — the screen must not imply otherwise.
  */
 export async function requestCode(contact: Contact): Promise<void> {
-  await request<void>("/patient/auth/request-code", { method: "POST", body: contact, feedback: false });
+  await request<void>('/patient/auth/request-code', {
+    method: 'POST',
+    body: contact,
+    feedback: false,
+  });
 }
 
 export async function verifyCode(contact: Contact, code: string): Promise<PatientSession> {
   // Sets an httpOnly, path-scoped refresh cookie as a side effect — never visible here.
-  return request<PatientSession>("/patient/auth/verify", {
-    method: "POST",
+  return request<PatientSession>('/patient/auth/verify', {
+    method: 'POST',
     body: { ...contact, code },
     feedback: false,
   });
@@ -59,8 +63,8 @@ export async function verifyCode(contact: Contact, code: string): Promise<Patien
  */
 export async function restoreSession(): Promise<PatientSession | null> {
   try {
-    return await request<PatientSession>("/patient/auth/refresh", {
-      method: "POST",
+    return await request<PatientSession>('/patient/auth/refresh', {
+      method: 'POST',
       refreshOn401: false,
       feedback: false,
     });
@@ -71,7 +75,7 @@ export async function restoreSession(): Promise<PatientSession | null> {
 
 export async function signOut(): Promise<void> {
   try {
-    await request<void>("/patient/auth/logout", { method: "POST", feedback: false });
+    await request<void>('/patient/auth/logout', { method: 'POST', feedback: false });
   } finally {
     setAccessToken(null);
   }
@@ -80,7 +84,7 @@ export async function signOut(): Promise<void> {
 // ---- Reads -----------------------------------------------------------------
 
 export async function myHospitals(): Promise<PatientHospital[]> {
-  return (await request<{ hospitals: PatientHospital[] }>("/patient/hospitals")).hospitals;
+  return (await request<{ hospitals: PatientHospital[] }>('/patient/hospitals')).hospitals;
 }
 
 export async function profile(tenantId: string): Promise<PatientPortalProfile> {
@@ -96,7 +100,9 @@ export async function invoices(tenantId: string): Promise<Paginated<InvoiceListI
 }
 
 export async function labReports(tenantId: string): Promise<PatientLabReport[]> {
-  return (await request<{ reports: PatientLabReport[] }>(`/patient/hospitals/${tenantId}/lab-reports`)).reports;
+  return (
+    await request<{ reports: PatientLabReport[] }>(`/patient/hospitals/${tenantId}/lab-reports`)
+  ).reports;
 }
 
 // ---- Public self-registration (ADR-056) ------------------------------------
@@ -127,9 +133,12 @@ export type RegistrationSubmission = {
   note?: string | null;
 };
 
-export async function submitRegistration(token: string, body: RegistrationSubmission): Promise<void> {
+export async function submitRegistration(
+  token: string,
+  body: RegistrationSubmission,
+): Promise<void> {
   await request<void>(`/public/registration/${encodeURIComponent(token)}`, {
-    method: "POST",
+    method: 'POST',
     body,
     feedback: false,
   });
@@ -173,7 +182,7 @@ export type BookingSubmission = {
 
 export async function submitBookingRequest(token: string, body: BookingSubmission): Promise<void> {
   await request<void>(`/public/booking/${encodeURIComponent(token)}`, {
-    method: "POST",
+    method: 'POST',
     body,
     feedback: false,
   });
@@ -187,12 +196,14 @@ export async function submitBookingRequest(token: string, body: BookingSubmissio
 // checks anybody in; the front desk confirms, which is also the identity check.
 
 export async function checkinContext(token: string): Promise<PublicCheckinContext> {
-  return request<PublicCheckinContext>(`/public/check-in/${encodeURIComponent(token)}`, { feedback: false });
+  return request<PublicCheckinContext>(`/public/check-in/${encodeURIComponent(token)}`, {
+    feedback: false,
+  });
 }
 
 export async function announceArrival(token: string, phone: string): Promise<void> {
   await request<void>(`/public/check-in/${encodeURIComponent(token)}`, {
-    method: "POST",
+    method: 'POST',
     body: { phone },
     feedback: false,
   });

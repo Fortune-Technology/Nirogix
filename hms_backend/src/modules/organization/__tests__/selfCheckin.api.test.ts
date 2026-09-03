@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  api,
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 
@@ -61,9 +70,13 @@ beforeAll(async () => {
     })
   ).id;
 
-  const patient = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Ravi', lastName: 'Kumar', gender: 'male', dateOfBirth: '1982-05-15', phone: PHONE });
+  const patient = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Ravi',
+    lastName: 'Kumar',
+    gender: 'male',
+    dateOfBirth: '1982-05-15',
+    phone: PHONE,
+  });
   patientId = patient.body.id;
 
   // An appointment for TODAY — self check-in only ever matches what the hospital already booked.
@@ -77,7 +90,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -91,16 +106,21 @@ afterAll(async () => {
 });
 
 async function enable() {
-  const res = await authed(sessions.org_admin!).put('/api/v1/self-check-in-settings').send({ enabled: true });
+  const res = await authed(sessions.org_admin!)
+    .put('/api/v1/self-check-in-settings')
+    .send({ enabled: true });
   token = res.body.token;
   return res;
 }
 
 /** The public endpoint, called the way a stranger with a poster would: no session at all. */
-const announce = (t: string, phone: string) => api().post(`/api/v1/public/check-in/${t}`).send({ phone });
+const announce = (t: string, phone: string) =>
+  api().post(`/api/v1/public/check-in/${t}`).send({ phone });
 
 describe('the token is the only way in', () => {
-  test('turning it on mints a link; a switch with nothing behind it would do nothing', async ({ skip }) => {
+  test('turning it on mints a link; a switch with nothing behind it would do nothing', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await enable();
     expect(res.status).toBe(200);
@@ -154,7 +174,9 @@ describe('the reply never varies', () => {
     expect(matched.body).toEqual(stranger.body);
   });
 
-  test('an unmatched announcement is still recorded, so the side effects do not leak either', async ({ skip }) => {
+  test('an unmatched announcement is still recorded, so the side effects do not leak either', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const rows = await pool.query(
       `SELECT patient_id FROM self_checkin_requests WHERE tenant_id = $1 ORDER BY announced_at`,
@@ -166,20 +188,26 @@ describe('the reply never varies', () => {
     expect(rows.rows.filter((r) => r.patient_id === null)).toHaveLength(1);
   });
 
-  test('a hospital with it switched off answers exactly the same, and writes nothing', async ({ skip }) => {
+  test('a hospital with it switched off answers exactly the same, and writes nothing', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    await authed(sessions.org_admin!).put('/api/v1/self-check-in-settings').send({ enabled: false });
+    await authed(sessions.org_admin!)
+      .put('/api/v1/self-check-in-settings')
+      .send({ enabled: false });
 
-    const before = await pool.query('SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const before = await pool.query(
+      'SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     const res = await announce(token, PHONE);
     expect(res.status).toBe(202);
     expect(res.body.message).toMatch(/front desk has been told/i);
 
-    const after = await pool.query('SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const after = await pool.query(
+      'SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     // Told the same thing, and nothing happened. "Off" must not be discoverable.
     expect(after.rows[0].c).toBe(before.rows[0].c);
 
@@ -212,7 +240,9 @@ describe("the desk's board", () => {
     pending = matched;
   });
 
-  test('an unmatched arrival is on the board too — that is a person in the lobby', async ({ skip }) => {
+  test('an unmatched arrival is on the board too — that is a person in the lobby', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await authed(sessions.receptionist!).get('/api/v1/self-check-ins?status=pending');
     const unmatched = res.body.find((r: { patientId: string | null }) => r.patientId === null);
@@ -243,7 +273,9 @@ describe("the desk's board", () => {
     expect(res.body.resultingVisitId).toBeTruthy();
 
     // The same visit every other check-in produces: a token, and a priced invoice.
-    const visit = await authed(sessions.receptionist!).get(`/api/v1/visits/${res.body.resultingVisitId}`);
+    const visit = await authed(sessions.receptionist!).get(
+      `/api/v1/visits/${res.body.resultingVisitId}`,
+    );
     expect(visit.status).toBe(200);
     expect(visit.body.tokenNumber).toBeGreaterThan(0);
     expect(visit.body.invoice.totalPaise).toBe(40000);
@@ -298,9 +330,16 @@ describe('the public path is not a way around a permission', () => {
   test('only an administrator can turn it on or mint a link', async ({ skip }) => {
     if (!ready) return skip();
     expect(
-      (await authed(sessions.receptionist!).put('/api/v1/self-check-in-settings').send({ enabled: false })).status,
+      (
+        await authed(sessions.receptionist!)
+          .put('/api/v1/self-check-in-settings')
+          .send({ enabled: false })
+      ).status,
     ).toBe(403);
-    expect((await authed(sessions.receptionist!).post('/api/v1/self-check-in-settings/regenerate')).status).toBe(403);
+    expect(
+      (await authed(sessions.receptionist!).post('/api/v1/self-check-in-settings/regenerate'))
+        .status,
+    ).toBe(403);
   });
 });
 
@@ -347,9 +386,10 @@ describe('audit and isolation', () => {
         [other.tenantId],
       );
       await announce(token, PHONE);
-      const after = await pool.query('SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1', [
-        other.tenantId,
-      ]);
+      const after = await pool.query(
+        'SELECT count(*)::int AS c FROM self_checkin_requests WHERE tenant_id = $1',
+        [other.tenantId],
+      );
       // The token IS the tenant. There is no other input that could redirect it.
       expect(after.rows[0].c).toBe(before.rows[0].c);
     } finally {

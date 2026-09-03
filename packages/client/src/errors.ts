@@ -11,7 +11,7 @@ export class ApiRequestError extends Error {
   details?: unknown;
   constructor(status: number, code: string, message: string, details?: unknown) {
     super(message);
-    this.name = "ApiRequestError";
+    this.name = 'ApiRequestError';
     this.status = status;
     this.code = code;
     this.details = details;
@@ -27,17 +27,17 @@ export class ApiRequestError extends Error {
 /** The request never reached the server (offline, DNS, CORS, connection reset). */
 export class NetworkError extends Error {
   cause?: unknown;
-  constructor(message = "Network request failed", cause?: unknown) {
+  constructor(message = 'Network request failed', cause?: unknown) {
     super(message);
-    this.name = "NetworkError";
+    this.name = 'NetworkError';
     this.cause = cause;
   }
 }
 
 /** The request exceeded the client-side timeout. */
 export class TimeoutError extends Error {
-  constructor(message = "Request timed out") {
+  constructor(message = 'Request timed out') {
     super(message);
-    this.name = "TimeoutError";
+    this.name = 'TimeoutError';
   }
 }

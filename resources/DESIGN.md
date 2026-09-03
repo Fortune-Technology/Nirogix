@@ -17,7 +17,7 @@ Enterprise healthcare SaaS: **calm, trustworthy, modern, clinically precise.** S
 3. **Clinical precision** — tight type, aligned numerals (`tabular-nums`), dense-but-legible tables. Built to be operated.
 4. **Minimal ornament** — hairline borders and soft depth over heavy shadows and gradients. Structure does the work.
 5. **Light and Dark** — every token has a dark counterpart. The Portal ships both; marketing is Light-only for now.
-6. **Tenant-branded** — the accent is a *slot*. Each hospital's brand colour re-skins the Portal at runtime without touching a component.
+6. **Tenant-branded** — the accent is a _slot_. Each hospital's brand colour re-skins the Portal at runtime without touching a component.
 
 **Two surfaces, one system.** The marketing site uses the language expressively (larger type, generous layout, hero moments). The Portal uses it densely (compact controls, the Standard DataTable, both themes, per-tenant accent). They share the same tokens, type scale, radii, and iconography so they read as one brand.
 
@@ -29,51 +29,51 @@ Values are the spec. In code they live as CSS custom properties: `--mk-*` in `ma
 
 ### Light (default)
 
-| Role | Hex | Notes |
-|---|---|---|
-| Canvas | `#f4f7f7` | Page ground. Cool off-white, never pure white, never cream. |
-| Surface | `#ffffff` | Cards, panels, inputs. |
-| Surface 2 | `#eaf1f1` | Alt rows, table headers, tints, hovers. |
-| Surface ink | `#0e1f26` | Inverted panels (deep CTA / quote). Cool teal-black. |
-| Hairline | `#dbe6e7` | 1px borders. |
-| Hairline soft | `#e8eeee` | Softer dividers. |
-| Ink | `#0f1e24` | Headlines + body. Cool near-black. |
-| Ink muted | `#52646a` | Secondary text. |
-| Ink subtle | `#7a888d` | Helper / meta. |
-| Ink faint | `#9aa8ac` | Footnotes, disabled. |
-| Ink inverse | `#ffffff` | Text on accent / surface-ink. |
-| **Accent** | `#0e7490` | Deep teal. The Nirogix signature and the Portal's tenant-overridable slot. |
-| Accent hover | `#0b5f76` | |
-| Accent ink | `#ffffff` | Text on accent. |
-| Accent subtle | `#e3f2f5` | Accent tint (badges, active nav). |
-| Accent border | `#bfe0e8` | Tinted borders. |
+| Role          | Hex       | Notes                                                                      |
+| ------------- | --------- | -------------------------------------------------------------------------- |
+| Canvas        | `#f4f7f7` | Page ground. Cool off-white, never pure white, never cream.                |
+| Surface       | `#ffffff` | Cards, panels, inputs.                                                     |
+| Surface 2     | `#eaf1f1` | Alt rows, table headers, tints, hovers.                                    |
+| Surface ink   | `#0e1f26` | Inverted panels (deep CTA / quote). Cool teal-black.                       |
+| Hairline      | `#dbe6e7` | 1px borders.                                                               |
+| Hairline soft | `#e8eeee` | Softer dividers.                                                           |
+| Ink           | `#0f1e24` | Headlines + body. Cool near-black.                                         |
+| Ink muted     | `#52646a` | Secondary text.                                                            |
+| Ink subtle    | `#7a888d` | Helper / meta.                                                             |
+| Ink faint     | `#9aa8ac` | Footnotes, disabled.                                                       |
+| Ink inverse   | `#ffffff` | Text on accent / surface-ink.                                              |
+| **Accent**    | `#0e7490` | Deep teal. The Nirogix signature and the Portal's tenant-overridable slot. |
+| Accent hover  | `#0b5f76` |                                                                            |
+| Accent ink    | `#ffffff` | Text on accent.                                                            |
+| Accent subtle | `#e3f2f5` | Accent tint (badges, active nav).                                          |
+| Accent border | `#bfe0e8` | Tinted borders.                                                            |
 
 ### Dark (Portal only)
 
-| Role | Hex |
-|---|---|
-| Canvas | `#0b1418` |
-| Surface | `#112128` |
-| Surface 2 | `#16272e` |
-| Hairline | `#22353c` |
-| Hairline soft | `#1a2a30` |
-| Ink | `#e7eff0` |
-| Ink muted | `#9db0b4` |
-| Ink subtle | `#6f8288` |
-| Ink faint | `#566a70` |
-| **Accent** | `#22b8cf` (brightened teal for contrast on dark) |
-| Accent ink | `#052027` (dark text on bright teal) |
-| Accent subtle | `#0d343d` |
-| Accent border | `#2a4a53` |
+| Role          | Hex                                              |
+| ------------- | ------------------------------------------------ |
+| Canvas        | `#0b1418`                                        |
+| Surface       | `#112128`                                        |
+| Surface 2     | `#16272e`                                        |
+| Hairline      | `#22353c`                                        |
+| Hairline soft | `#1a2a30`                                        |
+| Ink           | `#e7eff0`                                        |
+| Ink muted     | `#9db0b4`                                        |
+| Ink subtle    | `#6f8288`                                        |
+| Ink faint     | `#566a70`                                        |
+| **Accent**    | `#22b8cf` (brightened teal for contrast on dark) |
+| Accent ink    | `#052027` (dark text on bright teal)             |
+| Accent subtle | `#0d343d`                                        |
+| Accent border | `#2a4a53`                                        |
 
 ### Semantic (separate from the accent, both themes)
 
-| Role | Light | Light bg | Dark | Dark bg |
-|---|---|---|---|---|
+| Role    | Light     | Light bg  | Dark      | Dark bg   |
+| ------- | --------- | --------- | --------- | --------- |
 | Success | `#15803d` | `#e7f4ec` | `#3fb27f` | `#10251c` |
 | Warning | `#b45309` | `#fbf0e2` | `#d6a04a` | `#2a2013` |
-| Danger | `#c0392b` | `#fbe9e6` | `#f0776a` | `#2a1512` |
-| Info | `#2563eb` | `#e8effd` | `#58a6ff` | `#0f2138` |
+| Danger  | `#c0392b` | `#fbe9e6` | `#f0776a` | `#2a1512` |
+| Info    | `#2563eb` | `#e8effd` | `#58a6ff` | `#0f2138` |
 
 **Rules:** never hardcode a colour in a component — always a token. Semantic colours signal state only, never brand. Derive tints with `color-mix(in srgb, var(--accent) N%, var(--surface))` so a tenant accent override updates them automatically.
 
@@ -84,15 +84,15 @@ Values are the spec. In code they live as CSS custom properties: `--mk-*` in `ma
 - **Typeface:** **Geist** (via `next/font`), with `Geist Mono` for data/code. System sans is an acceptable fallback only.
 - **Hierarchy** (size / weight / tracking): negative tracking tightens display; body stays neutral.
 
-| Token | Size | Weight | Tracking | Use |
-|---|---|---|---|---|
-| Display | 40–54px | 600 | -0.03em | Marketing hero, big numbers |
-| Heading | 28px | 600 | -0.02em | Section / page titles |
-| Subhead | 22px | 600 | -0.02em | Sub-sections |
-| Title | 18px | 600 | -0.01em | Card titles |
-| Body | 16px | 400 | 0 | Default |
-| Small | 14px | 400 | 0 | Secondary, table cells |
-| Caption | 12px | 400/600 | 0 (0.04em upper for eyebrows) | Meta, labels |
+| Token   | Size    | Weight  | Tracking                      | Use                         |
+| ------- | ------- | ------- | ----------------------------- | --------------------------- |
+| Display | 40–54px | 600     | -0.03em                       | Marketing hero, big numbers |
+| Heading | 28px    | 600     | -0.02em                       | Section / page titles       |
+| Subhead | 22px    | 600     | -0.02em                       | Sub-sections                |
+| Title   | 18px    | 600     | -0.01em                       | Card titles                 |
+| Body    | 16px    | 400     | 0                             | Default                     |
+| Small   | 14px    | 400     | 0                             | Secondary, table cells      |
+| Caption | 12px    | 400/600 | 0 (0.04em upper for eyebrows) | Meta, labels                |
 
 - Headings get `text-wrap: balance`; body `text-wrap: pretty`, measure near 65ch.
 - Numbers in tables/stats use `font-variant-numeric: tabular-nums`.
@@ -143,17 +143,17 @@ The shared primitives live in `@hms/ui` (`Button`, `Field`, `PasswordField`, `Ca
 - **Platform branding (System Admin, ADR-024):** two **independent** platform-global scopes — **Marketing** (`--mk-*`, `marketing/app/globals.css`) and the **Portal** (`--hms-*`, `packages/ui/src/styles.css`). Editing one never affects the other. Marketing reads its scope dynamically (ISR) and injects `--mk-*`; the Portal applies the `hms` scope as the product default, under any per-tenant override.
 - **Scalable branding token contract.** Both scopes and both branding levels use one JSONB `tokens` shape, each key mapping to a CSS variable so new tokens need no schema change:
 
-  | token key | Marketing var | Portal var | notes |
-  |---|---|---|---|
-  | `primary` | `--mk-accent` | `--hms-brand` | main brand / primary CTA |
-  | `secondary` | `--mk-secondary` | `--hms-secondary` | secondary emphasis |
-  | `accent` | `--mk-accent` | `--hms-brand` | highlight (unified with primary in the current system) |
-  | `background` | `--mk-canvas` | `--hms-bg` | page ground |
-  | `surface` | `--mk-surface` | `--hms-surface` | cards / panels |
-  | `foreground` | `--mk-ink` | `--hms-fg` | text |
-  | `border` | `--mk-hairline` | `--hms-border` | hairlines |
-  | `buttonBg` | `--mk-accent` | `--hms-button-bg` (→ `--hms-brand`) | primary button fill |
-  | `buttonFg` | `--mk-accent-ink` | `--hms-button-fg` (→ `--hms-brand-fg`) | primary button text |
+  | token key    | Marketing var     | Portal var                             | notes                                                  |
+  | ------------ | ----------------- | -------------------------------------- | ------------------------------------------------------ |
+  | `primary`    | `--mk-accent`     | `--hms-brand`                          | main brand / primary CTA                               |
+  | `secondary`  | `--mk-secondary`  | `--hms-secondary`                      | secondary emphasis                                     |
+  | `accent`     | `--mk-accent`     | `--hms-brand`                          | highlight (unified with primary in the current system) |
+  | `background` | `--mk-canvas`     | `--hms-bg`                             | page ground                                            |
+  | `surface`    | `--mk-surface`    | `--hms-surface`                        | cards / panels                                         |
+  | `foreground` | `--mk-ink`        | `--hms-fg`                             | text                                                   |
+  | `border`     | `--mk-hairline`   | `--hms-border`                         | hairlines                                              |
+  | `buttonBg`   | `--mk-accent`     | `--hms-button-bg` (→ `--hms-brand`)    | primary button fill                                    |
+  | `buttonFg`   | `--mk-accent-ink` | `--hms-button-fg` (→ `--hms-brand-fg`) | primary button text                                    |
 
   Only the keys an admin sets are injected; the rest fall back to the built-in defaults. Button vars default to the brand tokens, so leaving them unset keeps buttons on-brand.
 

@@ -9,9 +9,15 @@ type Rgb = [number, number, number]; // each 0..1
 
 function parseColor(input: string): Rgb | null {
   const s = input.trim();
-  if (s.startsWith("#")) {
+  if (s.startsWith('#')) {
     const h = s.slice(1);
-    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const full =
+      h.length === 3
+        ? h
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : h;
     if (full.length < 6) return null;
     const r = parseInt(full.slice(0, 2), 16);
     const g = parseInt(full.slice(2, 4), 16);
@@ -21,7 +27,7 @@ function parseColor(input: string): Rgb | null {
   }
   const m = s.match(/rgba?\(([^)]+)\)/i);
   if (m && m[1]) {
-    const parts = m[1].split(",").map((x) => parseFloat(x));
+    const parts = m[1].split(',').map((x) => parseFloat(x));
     const [r, g, b] = parts;
     if (r !== undefined && g !== undefined && b !== undefined && ![r, g, b].some(Number.isNaN)) {
       return [r / 255, g / 255, b / 255];
@@ -108,7 +114,7 @@ export function recolorLottie<T>(data: T, brand: string, options: RecolorOptions
     const g = c[1];
     const b = c[2];
     if (r === undefined || g === undefined || b === undefined) return c;
-    const a = c.length > 3 ? c[3] ?? 1 : 1;
+    const a = c.length > 3 ? (c[3] ?? 1) : 1;
     if ([r, g, b].some((n) => n < 0 || n > 1)) return c;
     const [h, s, l] = rgbToHsl(r, g, b);
     if (s < satFloor || h < bandLo || h > bandHi) return c;
@@ -129,19 +135,21 @@ export function recolorLottie<T>(data: T, brand: string, options: RecolorOptions
   };
 
   const clone: T =
-    typeof structuredClone === "function"
+    typeof structuredClone === 'function'
       ? structuredClone(data)
       : (JSON.parse(JSON.stringify(data)) as T);
 
   const isColorArr = (a: unknown): a is number[] =>
-    Array.isArray(a) && (a.length === 3 || a.length === 4) && a.every((n) => typeof n === "number" && n >= 0 && n <= 1);
+    Array.isArray(a) &&
+    (a.length === 3 || a.length === 4) &&
+    a.every((n) => typeof n === 'number' && n >= 0 && n <= 1);
 
   const walk = (node: unknown): void => {
     if (Array.isArray(node)) {
       node.forEach(walk);
       return;
     }
-    if (node && typeof node === "object") {
+    if (node && typeof node === 'object') {
       const obj = node as Record<string, unknown>;
       // solid fill / stroke colour: { c: { a, k } }
       const cprop = obj.c as { k?: unknown } | undefined;
@@ -151,7 +159,7 @@ export function recolorLottie<T>(data: T, brand: string, options: RecolorOptions
         } else if (Array.isArray(cprop.k)) {
           // keyframed colour: array of { s: number[], e?: number[] }
           for (const kf of cprop.k as Record<string, unknown>[]) {
-            if (kf && typeof kf === "object") {
+            if (kf && typeof kf === 'object') {
               if (isColorArr(kf.s)) kf.s = remap(kf.s as number[]);
               if (isColorArr(kf.e)) kf.e = remap(kf.e as number[]);
             }

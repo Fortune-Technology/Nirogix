@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { PlatformBrandingPanel } from "../../../components/PlatformBrandingPanel";
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { PlatformBrandingPanel } from '../../../components/PlatformBrandingPanel';
 
 // Super-Admin platform branding (ADR-024): two INDEPENDENT scopes. Distinct from the
 // per-tenant branding an org_admin sets in Settings. Gated to the platform owner.

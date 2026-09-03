@@ -25,5 +25,15 @@ platformBrandingRouter.put(
   asyncHandler(c.update),
 );
 platformBrandingRouter.delete('/platform-branding/:scope', ...guard, asyncHandler(c.reset));
-platformBrandingRouter.post('/platform-branding/:scope/logo', ...guard, uploadSingle('file'), asyncHandler(c.uploadLogo));
-platformBrandingRouter.post('/platform-branding/:scope/favicon', ...guard, uploadSingle('file'), asyncHandler(c.uploadFavicon));
+platformBrandingRouter.post(
+  '/platform-branding/:scope/logo',
+  ...guard,
+  uploadSingle('file'),
+  asyncHandler(c.uploadLogo),
+);
+platformBrandingRouter.post(
+  '/platform-branding/:scope/favicon',
+  ...guard,
+  uploadSingle('file'),
+  asyncHandler(c.uploadFavicon),
+);

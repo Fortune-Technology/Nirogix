@@ -10,16 +10,16 @@
 //
 // The Portal is never indexed — product SEO lives here and nowhere else.
 
-import type { Metadata } from "next";
-import { SITE } from "./site";
+import type { Metadata } from 'next';
+import { SITE } from './site';
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 /**
  * Staging is a public-DNS copy of the site with no edge access gate (ADR-045), so it
  * must never be indexed. Set `NEXT_PUBLIC_ENVIRONMENT=staging` on that deployment.
  */
-export const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === "staging";
+export const IS_STAGING = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
 /**
  * Company facts used by Organization / LocalBusiness structured data, the site
@@ -49,14 +49,14 @@ export interface CompanyDetails {
 
 export const COMPANY: CompanyDetails = {
   legalName: SITE.legalName,
-  city: "Ahmedabad",
-  region: "Gujarat",
-  country: "India",
-  countryCode: "IN",
-  streetAddress: "",
-  postalCode: "",
-  telephone: "",
-  email: "",
+  city: 'Ahmedabad',
+  region: 'Gujarat',
+  country: 'India',
+  countryCode: 'IN',
+  streetAddress: '',
+  postalCode: '',
+  telephone: '',
+  email: '',
 };
 
 /**
@@ -64,17 +64,17 @@ export const COMPANY: CompanyDetails = {
  * so the address renders truthfully at every stage of being filled in.
  */
 export function companyAddressLines(): string[] {
-  const locality = [COMPANY.city, COMPANY.region, COMPANY.postalCode].filter(Boolean).join(", ");
+  const locality = [COMPANY.city, COMPANY.region, COMPANY.postalCode].filter(Boolean).join(', ');
   return [COMPANY.streetAddress, locality, COMPANY.country].filter(Boolean);
 }
 
 /** `tel:` href for `COMPANY.telephone`, which is written for humans. */
 export function telHref(telephone: string): string {
-  return `tel:${telephone.replace(/[^+0-9]/g, "")}`;
+  return `tel:${telephone.replace(/[^+0-9]/g, '')}`;
 }
 
 export function canonicalUrl(path: string): string {
-  return path === "/" ? SITE_URL : `${SITE_URL}${path}`;
+  return path === '/' ? SITE_URL : `${SITE_URL}${path}`;
 }
 
 export interface PageSeo {
@@ -101,15 +101,15 @@ export function pageMetadata({ path, title, description, absoluteTitle }: PageSe
     description,
     alternates: { canonical: url },
     openGraph: {
-      type: "website",
+      type: 'website',
       siteName: SITE.name,
-      locale: "en_IN",
+      locale: 'en_IN',
       url,
       title: social,
       description,
     },
     twitter: {
-      card: "summary_large_image",
+      card: 'summary_large_image',
       title: social,
       description,
     },
@@ -121,16 +121,16 @@ export function pageMetadata({ path, title, description, absoluteTitle }: PageSe
 
 export function organizationJsonLd() {
   return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": `${SITE_URL}/#organization`,
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    '@id': `${SITE_URL}/#organization`,
     name: COMPANY.legalName,
     url: SITE_URL,
     brand: SITE.name,
     description: SITE.description,
     areaServed: COMPANY.countryCode,
     address: {
-      "@type": "PostalAddress",
+      '@type': 'PostalAddress',
       addressLocality: COMPANY.city,
       addressRegion: COMPANY.region,
       addressCountry: COMPANY.countryCode,
@@ -142,18 +142,22 @@ export function organizationJsonLd() {
  * The product itself. `offers` is deliberately absent — pricing is quote-based and
  * no numbers are published (content guardrail), so claiming a price would be false.
  */
-export function softwareApplicationJsonLd(opts?: { name?: string; description?: string; path?: string }) {
+export function softwareApplicationJsonLd(opts?: {
+  name?: string;
+  description?: string;
+  path?: string;
+}) {
   return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
     name: opts?.name ?? `${SITE.name} Hospital Management System`,
-    applicationCategory: "BusinessApplication",
-    applicationSubCategory: "Hospital Management Software",
-    operatingSystem: "Web browser",
-    url: canonicalUrl(opts?.path ?? "/"),
+    applicationCategory: 'BusinessApplication',
+    applicationSubCategory: 'Hospital Management Software',
+    operatingSystem: 'Web browser',
+    url: canonicalUrl(opts?.path ?? '/'),
     description: opts?.description ?? SITE.description,
     areaServed: COMPANY.countryCode,
-    publisher: { "@id": `${SITE_URL}/#organization` },
+    publisher: { '@id': `${SITE_URL}/#organization` },
   };
 }
 
@@ -161,15 +165,15 @@ export function softwareApplicationJsonLd(opts?: { name?: string; description?: 
 export function localBusinessJsonLd() {
   if (!COMPANY.streetAddress || !COMPANY.telephone) return null;
   return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": `${SITE_URL}/#localbusiness`,
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    '@id': `${SITE_URL}/#localbusiness`,
     name: COMPANY.legalName,
     url: SITE_URL,
     telephone: COMPANY.telephone,
     email: COMPANY.email || undefined,
     address: {
-      "@type": "PostalAddress",
+      '@type': 'PostalAddress',
       streetAddress: COMPANY.streetAddress,
       addressLocality: COMPANY.city,
       addressRegion: COMPANY.region,
@@ -182,10 +186,10 @@ export function localBusinessJsonLd() {
 
 export function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
   return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
     itemListElement: trail.map((item, i) => ({
-      "@type": "ListItem",
+      '@type': 'ListItem',
       position: i + 1,
       name: item.name,
       item: canonicalUrl(item.path),
@@ -196,12 +200,12 @@ export function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
 /** Only for FAQs that are genuinely rendered on the page. */
 export function faqJsonLd(entries: readonly { q: string; a: string }[]) {
   return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
     mainEntity: entries.map((e) => ({
-      "@type": "Question",
+      '@type': 'Question',
       name: e.q,
-      acceptedAnswer: { "@type": "Answer", text: e.a },
+      acceptedAnswer: { '@type': 'Answer', text: e.a },
     })),
   };
 }

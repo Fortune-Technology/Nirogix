@@ -35,7 +35,10 @@ let visitRef = '';
 let otherRef = '';
 
 /** The consent the patient granted: two record types, this year, this HIU. */
-const grant = (consentId: string, over: Partial<consent.ConsentNotification> = {}): consent.ConsentNotification => ({
+const grant = (
+  consentId: string,
+  over: Partial<consent.ConsentNotification> = {},
+): consent.ConsentNotification => ({
   consentId,
   abhaAddress: 'xfer@sbx',
   hipId: HIP_ID,
@@ -50,7 +53,10 @@ const grant = (consentId: string, over: Partial<consent.ConsentNotification> = {
 });
 
 /** A request as the gateway would forward it. */
-const request = (consentId: string, over: Partial<Parameters<typeof receiveHealthInformationRequest>[0]> = {}) => ({
+const request = (
+  consentId: string,
+  over: Partial<Parameters<typeof receiveHealthInformationRequest>[0]> = {},
+) => ({
   hipId: HIP_ID,
   transactionId: `txn-${consentId}`,
   requestId: `req-${consentId}`,
@@ -67,16 +73,17 @@ const request = (consentId: string, over: Partial<Parameters<typeof receiveHealt
 /** Runs a request through to completion, skipping the queue the controller would use. */
 async function transfer(input: Parameters<typeof receiveHealthInformationRequest>[0]) {
   await receiveHealthInformationRequest(input);
-  const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2', [
-    tenantId,
-    input.transactionId,
-  ]);
+  const row = await pool.query(
+    'SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2',
+    [tenantId, input.transactionId],
+  );
   return performTransfer(tenantId, row.rows[0].id);
 }
 
 /** What we would have put on the wire to the HIU. */
 const pushes = () => recordedHipCalls().filter((c) => c.path === PUSH_URL);
-const gatewayCalls = (fragment: string) => recordedHipCalls().filter((c) => c.path.includes(fragment));
+const gatewayCalls = (fragment: string) =>
+  recordedHipCalls().filter((c) => c.path.includes(fragment));
 
 beforeAll(async () => {
   ready = await dbReady();
@@ -95,7 +102,10 @@ beforeAll(async () => {
     phone: '9700003333',
   });
   patientId = patient.id;
-  await pool.query("UPDATE patients SET abha_address = 'xfer@sbx', abha_verified_at = now() WHERE id = $1", [patientId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'xfer@sbx', abha_verified_at = now() WHERE id = $1",
+    [patientId],
+  );
 
   // A real signed consultation, so the bundle built from it is a real bundle.
   const visit = await pool.query(
@@ -126,10 +136,16 @@ beforeAll(async () => {
     hiType: 'OPConsultation',
     visitId,
   });
-  await pool.query("UPDATE abdm_care_contexts SET status = 'linked' WHERE reference_number = $1", [visitRef]);
+  await pool.query("UPDATE abdm_care_contexts SET status = 'linked' WHERE reference_number = $1", [
+    visitRef,
+  ]);
 
   // A second patient's context, which no consent in this suite covers.
-  const other = await createPatient(tenantId, { firstName: 'Someone', lastName: 'Else', phone: '9700004444' });
+  const other = await createPatient(tenantId, {
+    firstName: 'Someone',
+    lastName: 'Else',
+    phone: '9700004444',
+  });
   otherPatientId = other.id;
   const otherVisit = await pool.query(
     `INSERT INTO visits (tenant_id, patient_id, visit_number, visit_date, status, token_number)
@@ -155,7 +171,9 @@ beforeAll(async () => {
     hiType: 'OPConsultation',
     visitId: otherVisit.rows[0].id,
   });
-  await pool.query("UPDATE abdm_care_contexts SET status = 'linked' WHERE reference_number = $1", [otherRef]);
+  await pool.query("UPDATE abdm_care_contexts SET status = 'linked' WHERE reference_number = $1", [
+    otherRef,
+  ]);
 });
 
 afterAll(async () => {
@@ -176,14 +194,18 @@ describe('accepting a request', () => {
     // NHA expects a prompt ACKNOWLEDGED; a gateway held open while we build FHIR for a year of
     // records would time out on a transfer that was going to succeed.
     const ack = gatewayCalls('hip/on-request')[0];
-    expect((ack?.body as { hiRequest: { sessionStatus: string } }).hiRequest.sessionStatus).toBe('ACKNOWLEDGED');
+    expect((ack?.body as { hiRequest: { sessionStatus: string } }).hiRequest.sessionStatus).toBe(
+      'ACKNOWLEDGED',
+    );
     expect(pushes()).toHaveLength(0);
   });
 
   test('a request for an unknown facility is dropped, not acknowledged', async ({ skip }) => {
     if (!ready) return skip();
     // The facility id is the only identifier on an inbound callback we can trust at all.
-    const result = await receiveHealthInformationRequest(request('xfer-nofac', { hipId: 'NOT-A-FACILITY' }));
+    const result = await receiveHealthInformationRequest(
+      request('xfer-nofac', { hipId: 'NOT-A-FACILITY' }),
+    );
     expect(result.accepted).toBe(false);
     expect(recordedHipCalls()).toHaveLength(0);
   });
@@ -194,10 +216,10 @@ describe('accepting a request', () => {
     await receiveHealthInformationRequest(request('xfer-dupe'));
     await receiveHealthInformationRequest(request('xfer-dupe'));
 
-    const rows = await pool.query('SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2', [
-      tenantId,
-      'txn-xfer-dupe',
-    ]);
+    const rows = await pool.query(
+      'SELECT id FROM abdm_data_transfers WHERE tenant_id = $1 AND transaction_id = $2',
+      [tenantId, 'txn-xfer-dupe'],
+    );
     expect(rows.rowCount).toBe(1);
   });
 
@@ -206,13 +228,18 @@ describe('accepting a request', () => {
     await consent.recordConsentGrant(grant('xfer-sla'));
     await receiveHealthInformationRequest(request('xfer-sla'));
 
-    const row = await pool.query('SELECT deadline_at FROM abdm_data_transfers WHERE transaction_id = $1', ['txn-xfer-sla']);
+    const row = await pool.query(
+      'SELECT deadline_at FROM abdm_data_transfers WHERE transaction_id = $1',
+      ['txn-xfer-sla'],
+    );
     expect(new Date(row.rows[0].deadline_at).getTime()).toBeGreaterThan(Date.now());
   });
 });
 
 describe('sending records', () => {
-  test('a consented request sends encrypted entries with a checksum of the plaintext', async ({ skip }) => {
+  test('a consented request sends encrypted entries with a checksum of the plaintext', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await consent.recordConsentGrant(grant('xfer-ok'));
     const result = await transfer(request('xfer-ok'));
@@ -232,7 +259,9 @@ describe('sending records', () => {
 
     // The checksum is of what the HIU will hold AFTER decrypting, which is the only way it can
     // verify the decryption worked.
-    const plaintext = Buffer.from(body.entries[0]!.content, 'base64').toString('utf8').replace('MOCK-NOT-ENCRYPTED:', '');
+    const plaintext = Buffer.from(body.entries[0]!.content, 'base64')
+      .toString('utf8')
+      .replace('MOCK-NOT-ENCRYPTED:', '');
     expect(body.entries[0]!.checksum).toBe(contentChecksum(plaintext));
     expect(JSON.parse(plaintext).resourceType).toBe('Bundle');
   });
@@ -244,7 +273,9 @@ describe('sending records', () => {
 
     const notify = gatewayCalls('health-information/notify')[0];
     const body = notify?.body as {
-      notification: { statusNotification: { sessionStatus: string; statusResponses: Array<{ hiStatus: string }> } };
+      notification: {
+        statusNotification: { sessionStatus: string; statusResponses: Array<{ hiStatus: string }> };
+      };
     };
     expect(body.notification.statusNotification.sessionStatus).toBe('TRANSFERRED');
     expect(body.notification.statusNotification.statusResponses[0]!.hiStatus).toBe('OK');
@@ -255,9 +286,10 @@ describe('sending records', () => {
     await consent.recordConsentGrant(grant('xfer-record'));
     await transfer(request('xfer-record'));
 
-    const row = await pool.query('SELECT status, entries_sent, completed_at FROM abdm_data_transfers WHERE transaction_id = $1', [
-      'txn-xfer-record',
-    ]);
+    const row = await pool.query(
+      'SELECT status, entries_sent, completed_at FROM abdm_data_transfers WHERE transaction_id = $1',
+      ['txn-xfer-record'],
+    );
     expect(row.rows[0].status).toBe('transferred');
     expect(row.rows[0].entries_sent).toBe(1);
     expect(row.rows[0].completed_at).toBeTruthy();
@@ -267,7 +299,9 @@ describe('sending records', () => {
     if (!ready) return skip();
     await consent.recordConsentGrant(grant('xfer-once'));
     await transfer(request('xfer-once'));
-    const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE transaction_id = $1', ['txn-xfer-once']);
+    const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE transaction_id = $1', [
+      'txn-xfer-once',
+    ]);
 
     clearRecordedHipCalls();
     const again = await performTransfer(tenantId, row.rows[0].id);
@@ -285,7 +319,9 @@ describe('refusing to send', () => {
     await receiveHealthInformationRequest(request('xfer-revoked'));
     await consent.revokeConsent(HIP_ID, 'xfer-revoked');
 
-    const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE transaction_id = $1', ['txn-xfer-revoked']);
+    const row = await pool.query('SELECT id FROM abdm_data_transfers WHERE transaction_id = $1', [
+      'txn-xfer-revoked',
+    ]);
     clearRecordedHipCalls();
     const result = await performTransfer(tenantId, row.rows[0].id);
 
@@ -294,13 +330,17 @@ describe('refusing to send', () => {
     expect(result.reason).toMatch(/No consent artefact/);
   });
 
-  test('a refusal still tells the gateway, rather than leaving the HIU waiting', async ({ skip }) => {
+  test('a refusal still tells the gateway, rather than leaving the HIU waiting', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const result = await transfer(request('xfer-noconsent'));
 
     expect(result.sent).toBe(0);
     const body = gatewayCalls('health-information/notify')[0]?.body as {
-      notification: { statusNotification: { sessionStatus: string; statusResponses: Array<{ hiStatus: string }> } };
+      notification: {
+        statusNotification: { sessionStatus: string; statusResponses: Array<{ hiStatus: string }> };
+      };
     };
     expect(body.notification.statusNotification.sessionStatus).toBe('FAILED');
     expect(body.notification.statusNotification.statusResponses[0]!.hiStatus).toBe('ERRORED');
@@ -311,7 +351,9 @@ describe('refusing to send', () => {
     // The consent names one patient's contexts. Asking for another patient's must send nothing —
     // the request says what the HIU wants, the consent says what they may have.
     await consent.recordConsentGrant(
-      grant('xfer-scope', { careContexts: [{ careContextReference: visitRef }] } as Partial<consent.ConsentNotification>),
+      grant('xfer-scope', {
+        careContexts: [{ careContextReference: visitRef }],
+      } as Partial<consent.ConsentNotification>),
     );
     const result = await transfer(request('xfer-scope', { careContextRefs: [otherRef] }));
 
@@ -341,7 +383,9 @@ describe('refusing to send', () => {
 
   test('an expired consent is refused with its own reason', async ({ skip }) => {
     if (!ready) return skip();
-    await consent.recordConsentGrant(grant('xfer-expired', { dataEraseAt: '2020-01-01T00:00:00.000Z' }));
+    await consent.recordConsentGrant(
+      grant('xfer-expired', { dataEraseAt: '2020-01-01T00:00:00.000Z' }),
+    );
     const result = await transfer(request('xfer-expired'));
 
     // "Expired" and "never granted" are different incidents; an auditor must be able to tell them
