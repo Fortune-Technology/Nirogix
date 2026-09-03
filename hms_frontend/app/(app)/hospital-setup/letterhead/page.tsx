@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Button, Card, Field, Skeleton, Textarea } from "@hms/ui";
-import type { DocumentPageSize, OrganizationProfile } from "@hms/types";
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../../components/Can";
-import * as api from "../../../../lib/api";
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Alert, Button, Card, Field, Skeleton, Textarea } from '@hms/ui';
+import type { DocumentPageSize, OrganizationProfile } from '@hms/types';
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../../components/Can';
+import * as api from '../../../../lib/api';
 
 /**
  * Letterhead & documents (ADR-056, ADR-065).
@@ -22,12 +22,13 @@ import * as api from "../../../../lib/api";
  * never keeps a second copy of them.
  */
 
-const PAGE_SIZES: { value: DocumentPageSize; label: string; dimensions: string; ratio: string }[] = [
-  { value: "A4", label: "A4", dimensions: "210 × 297 mm", ratio: "210 / 297" },
-  { value: "A5", label: "A5", dimensions: "148 × 210 mm", ratio: "148 / 210" },
-  { value: "LETTER", label: "US Letter", dimensions: "8.5 × 11 in", ratio: "216 / 279" },
-  { value: "LEGAL", label: "US Legal", dimensions: "8.5 × 14 in", ratio: "216 / 356" },
-];
+const PAGE_SIZES: { value: DocumentPageSize; label: string; dimensions: string; ratio: string }[] =
+  [
+    { value: 'A4', label: 'A4', dimensions: '210 × 297 mm', ratio: '210 / 297' },
+    { value: 'A5', label: 'A5', dimensions: '148 × 210 mm', ratio: '148 / 210' },
+    { value: 'LETTER', label: 'US Letter', dimensions: '8.5 × 11 in', ratio: '216 / 279' },
+    { value: 'LEGAL', label: 'US Legal', dimensions: '8.5 × 14 in', ratio: '216 / 356' },
+  ];
 
 type TextState = {
   letterheadHeader: string;
@@ -37,25 +38,25 @@ type TextState = {
 };
 
 const EMPTY_TEXT: TextState = {
-  letterheadHeader: "",
-  letterheadFooter: "",
-  signatoryName: "",
-  signatoryDesignation: "",
+  letterheadHeader: '',
+  letterheadFooter: '',
+  signatoryName: '',
+  signatoryDesignation: '',
 };
 
 function toText(p: OrganizationProfile): TextState {
   return {
-    letterheadHeader: p.letterheadHeader ?? "",
-    letterheadFooter: p.letterheadFooter ?? "",
-    signatoryName: p.signatoryName ?? "",
-    signatoryDesignation: p.signatoryDesignation ?? "",
+    letterheadHeader: p.letterheadHeader ?? '',
+    letterheadFooter: p.letterheadFooter ?? '',
+    signatoryName: p.signatoryName ?? '',
+    signatoryDesignation: p.signatoryDesignation ?? '',
   };
 }
 
 function LetterheadSettings() {
   const [profile, setProfile] = useState<OrganizationProfile | null>(null);
   const [text, setText] = useState<TextState>(EMPTY_TEXT);
-  const [pageSize, setPageSize] = useState<DocumentPageSize>("A4");
+  const [pageSize, setPageSize] = useState<DocumentPageSize>('A4');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -65,7 +66,7 @@ function LetterheadSettings() {
   function apply(p: OrganizationProfile) {
     setProfile(p);
     setText(toText(p));
-    setPageSize(p.documentPageSize ?? "A4");
+    setPageSize(p.documentPageSize ?? 'A4');
   }
 
   useEffect(() => {
@@ -73,7 +74,9 @@ function LetterheadSettings() {
       .getOrganizationProfile()
       .then(apply)
       .catch((e) =>
-        setLoadError(e instanceof api.ApiRequestError ? e.message : "Could not load your hospital's details."),
+        setLoadError(
+          e instanceof api.ApiRequestError ? e.message : "Could not load your hospital's details.",
+        ),
       );
   }, []);
 
@@ -100,7 +103,7 @@ function LetterheadSettings() {
       /* reported by the shared API-feedback layer */
     } finally {
       setUploading(false);
-      if (imageInput.current) imageInput.current.value = "";
+      if (imageInput.current) imageInput.current.value = '';
     }
   }
 
@@ -119,9 +122,9 @@ function LetterheadSettings() {
   if (!profile) return <Skeleton height="24rem" />;
 
   const imageUrl = profile.letterheadImageUrl;
-  const activeRatio = PAGE_SIZES.find((s) => s.value === pageSize)?.ratio ?? "210 / 297";
+  const activeRatio = PAGE_SIZES.find((s) => s.value === pageSize)?.ratio ?? '210 / 297';
   const dirty =
-    pageSize !== (profile.documentPageSize ?? "A4") ||
+    pageSize !== (profile.documentPageSize ?? 'A4') ||
     (Object.keys(text) as (keyof TextState)[]).some((k) => text[k] !== toText(profile)[k]);
 
   return (
@@ -129,9 +132,10 @@ function LetterheadSettings() {
       {/* 1 — Letterhead image ------------------------------------------------- */}
       <Card header="Letterhead image">
         <p className="mb-4 text-sm text-fg-muted">
-          Upload the header your hospital already prints on paper. When set, it prints full-width across the top of every
-          document — invoices, receipts, prescriptions and reports — and replaces the plain name-and-address header
-          below. Leave it empty to use that text header instead.
+          Upload the header your hospital already prints on paper. When set, it prints full-width
+          across the top of every document — invoices, receipts, prescriptions and reports — and
+          replaces the plain name-and-address header below. Leave it empty to use that text header
+          instead.
         </p>
 
         <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -160,8 +164,12 @@ function LetterheadSettings() {
               className="hidden"
               onChange={(e) => uploadImage(e.target.files?.[0])}
             />
-            <Button variant="secondary" onClick={() => imageInput.current?.click()} loading={uploading}>
-              {imageUrl ? "Replace image" : "Upload image"}
+            <Button
+              variant="secondary"
+              onClick={() => imageInput.current?.click()}
+              loading={uploading}
+            >
+              {imageUrl ? 'Replace image' : 'Upload image'}
             </Button>
             {imageUrl ? (
               <Button variant="ghost" onClick={removeImage} loading={removing}>
@@ -169,8 +177,8 @@ function LetterheadSettings() {
               </Button>
             ) : null}
             <p className="text-xs text-fg-subtle">
-              A wide image sized for the top of the page (PNG or JPG). Keep important marks away from the very edges;
-              printers cannot print the outer few millimetres.
+              A wide image sized for the top of the page (PNG or JPG). Keep important marks away
+              from the very edges; printers cannot print the outer few millimetres.
             </p>
           </div>
         </div>
@@ -196,11 +204,11 @@ function LetterheadSettings() {
                   aria-checked={active}
                   onClick={() => setPageSize(s.value)}
                   className={[
-                    "rounded-token border px-3 py-2 text-left transition-colors",
+                    'rounded-token border px-3 py-2 text-left transition-colors',
                     active
-                      ? "border-brand bg-brand-subtle text-brand"
-                      : "border-border text-fg-muted hover:border-brand/60 hover:text-fg",
-                  ].join(" ")}
+                      ? 'border-brand bg-brand-subtle text-brand'
+                      : 'border-border text-fg-muted hover:border-brand/60 hover:text-fg',
+                  ].join(' ')}
                 >
                   <span className="block text-sm font-medium">{s.label}</span>
                   <span className="block text-xs text-fg-subtle">{s.dimensions}</span>
@@ -245,7 +253,12 @@ function LetterheadSettings() {
             <Button type="submit" loading={saving} disabled={!dirty}>
               Save
             </Button>
-            <Button type="button" variant="secondary" onClick={() => apply(profile)} disabled={!dirty}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => apply(profile)}
+              disabled={!dirty}
+            >
               Cancel
             </Button>
           </div>
@@ -255,8 +268,9 @@ function LetterheadSettings() {
       {/* Preview — image (or text header) on the chosen page ------------------ */}
       <Card header="Preview">
         <p className="mb-4 text-sm text-fg-muted">
-          How the letterhead sits on a {PAGE_SIZES.find((s) => s.value === pageSize)?.label} page. The real document
-          carries your branding colour and is rendered by the shared print kit; this shows the layout and copy.
+          How the letterhead sits on a {PAGE_SIZES.find((s) => s.value === pageSize)?.label} page.
+          The real document carries your branding colour and is rendered by the shared print kit;
+          this shows the layout and copy.
         </p>
         {/* A paper replica: always white with dark ink whatever the app theme, exactly like the
             printed document (a document is a document in Dark mode too). The ink/rule literals
@@ -269,7 +283,11 @@ function LetterheadSettings() {
           <div className="flex h-full flex-col p-4">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- see above.
-              <img src={imageUrl} alt="" className="max-h-24 w-full border-b-2 border-brand object-contain pb-2" />
+              <img
+                src={imageUrl}
+                alt=""
+                className="max-h-24 w-full border-b-2 border-brand object-contain pb-2"
+              />
             ) : (
               <div className="border-b-2 border-brand pb-2">
                 <div className="text-sm font-semibold">{profile.displayName || profile.name}</div>
@@ -284,11 +302,15 @@ function LetterheadSettings() {
               </div>
             )}
 
-            <div className="flex-1 py-6 text-center text-[11px] text-[#9ca3af]">Document content</div>
+            <div className="flex-1 py-6 text-center text-[11px] text-[#9ca3af]">
+              Document content
+            </div>
 
             {text.signatoryName ? (
               <div className="mb-2 text-right">
-                <div className="ml-auto w-28 border-t border-[#d1d5db] pt-1 text-[11px]">{text.signatoryName}</div>
+                <div className="ml-auto w-28 border-t border-[#d1d5db] pt-1 text-[11px]">
+                  {text.signatoryName}
+                </div>
                 {text.signatoryDesignation ? (
                   <div className="text-[10px] text-[#4b5563]">{text.signatoryDesignation}</div>
                 ) : null}
@@ -305,9 +327,9 @@ function LetterheadSettings() {
       </Card>
 
       <Alert>
-        Your logo and colour come from <strong className="font-medium">Branding</strong>, and your address from{" "}
-        <strong className="font-medium">Hospital information</strong>. They are the same details everywhere rather than
-        a second copy kept only for printing.
+        Your logo and colour come from <strong className="font-medium">Branding</strong>, and your
+        address from <strong className="font-medium">Hospital information</strong>. They are the
+        same details everywhere rather than a second copy kept only for printing.
       </Alert>
     </div>
   );

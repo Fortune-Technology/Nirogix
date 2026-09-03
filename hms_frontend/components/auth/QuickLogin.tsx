@@ -1,9 +1,14 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Badge, Button, Dialog } from "@hms/ui";
-import { FlaskConical } from "lucide-react";
-import { DEV_USERS, QUICK_LOGIN_ENVIRONMENT, isQuickLoginEnabled, type DevUser } from "../../lib/devUsers";
+import { useState } from 'react';
+import { Badge, Button, Dialog } from '@hms/ui';
+import { FlaskConical } from 'lucide-react';
+import {
+  DEV_USERS,
+  QUICK_LOGIN_ENVIRONMENT,
+  isQuickLoginEnabled,
+  type DevUser,
+} from '../../lib/devUsers';
 
 /**
  * Development/staging quick-login (issue #7, refined in issue #10; environment-true per ADR-077).
@@ -18,7 +23,13 @@ import { DEV_USERS, QUICK_LOGIN_ENVIRONMENT, isQuickLoginEnabled, type DevUser }
  * each other's. Returns `null` in production (gated by `isQuickLoginEnabled`, which keys off the
  * build-time `NEXT_PUBLIC_ENVIRONMENT` flag and defaults to disabled), so it can never appear there.
  */
-export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => void; busy?: boolean }) {
+export function QuickLogin({
+  onSelect,
+  busy,
+}: {
+  onSelect: (user: DevUser) => void;
+  busy?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   if (!isQuickLoginEnabled()) return null;
 
@@ -30,7 +41,13 @@ export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => vo
   return (
     <>
       <div className="mt-5 flex justify-center border-t border-border pt-4">
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)} disabled={busy}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setOpen(true)}
+          disabled={busy}
+        >
           <FlaskConical size={15} strokeWidth={2} aria-hidden />
           Test credentials
         </Button>
@@ -44,7 +61,9 @@ export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => vo
         size="lg"
       >
         <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Badge tone="warning">{QUICK_LOGIN_ENVIRONMENT === "staging" ? "Staging only" : "Development only"}</Badge>
+          <Badge tone="warning">
+            {QUICK_LOGIN_ENVIRONMENT === 'staging' ? 'Staging only' : 'Development only'}
+          </Badge>
           <span className="text-xs text-fg-subtle">Not available in production.</span>
         </div>
 
@@ -68,10 +87,10 @@ export function QuickLogin({ onSelect, busy }: { onSelect: (user: DevUser) => vo
         </ul>
 
         <p className="mt-3 text-xs text-fg-subtle">
-          Missing an account? Run{" "}
+          Missing an account? Run{' '}
           <code className="font-mono">
-            {QUICK_LOGIN_ENVIRONMENT === "staging" ? "npm run db:seed:staging" : "npm run db:seed"}
-          </code>{" "}
+            {QUICK_LOGIN_ENVIRONMENT === 'staging' ? 'npm run db:seed:staging' : 'npm run db:seed'}
+          </code>{' '}
           to create the seeded users.
         </p>
       </Dialog>

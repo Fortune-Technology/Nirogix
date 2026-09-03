@@ -36,13 +36,23 @@ const DATASET: SeedDataset = {
       departments: [{ code: 'SI-GEN', name: 'General Medicine', specialty: 'general_medicine' }],
       users: [
         { email: 'seedidem.admin@example.com', fullName: 'Seed Admin', role: 'org_admin' },
-        { email: 'seedidem.reception@example.com', fullName: 'Seed Reception', role: 'receptionist' },
+        {
+          email: 'seedidem.reception@example.com',
+          fullName: 'Seed Reception',
+          role: 'receptionist',
+        },
         { email: 'seedidem.cashier@example.com', fullName: 'Seed Cashier', role: 'cashier' },
       ],
       services: [{ code: 'SI-DRESS', name: 'Dressing', pricePaise: 15000, department: 'SI-GEN' }],
       labTests: [{ name: 'Haemoglobin', code: 'SI-HB', pricePaise: 20000 }],
       patients: [
-        { firstName: 'Seed', lastName: 'Patient', gender: 'female', dateOfBirth: '1990-01-01', phone: '+919000900001' },
+        {
+          firstName: 'Seed',
+          lastName: 'Patient',
+          gender: 'female',
+          dateOfBirth: '1990-01-01',
+          phone: '+919000900001',
+        },
       ],
       registrationRequests: [
         { firstName: 'Seed', lastName: 'Walkin', phone: '+919000900002', decision: 'pending' },
@@ -68,14 +78,19 @@ async function snapshot(tenantId: string): Promise<Record<string, number>> {
   ];
   const out: Record<string, number> = {};
   for (const t of tables) {
-    const rows = await pool.query<{ n: string }>(`select count(*)::int as n from "${t}" where tenant_id = $1`, [tenantId]);
+    const rows = await pool.query<{ n: string }>(
+      `select count(*)::int as n from "${t}" where tenant_id = $1`,
+      [tenantId],
+    );
     out[t] = Number(rows.rows[0]?.n ?? 0);
   }
   return out;
 }
 
 async function tenantId(): Promise<string> {
-  const rows = await db.execute<{ id: string }>(sql`select id from tenants where code = ${CODE} limit 1`);
+  const rows = await db.execute<{ id: string }>(
+    sql`select id from tenants where code = ${CODE} limit 1`,
+  );
   return rows.rows[0]!.id;
 }
 
@@ -96,7 +111,9 @@ afterAll(async () => {
   // teaching the wrong lesson: CI's database is thrown away after the run, and a developer is
   // left with one clearly-named fixture hospital holding nothing.
   if (!ready) return;
-  const rows = await db.execute<{ id: string }>(sql`select id from tenants where code = ${CODE} limit 1`);
+  const rows = await db.execute<{ id: string }>(
+    sql`select id from tenants where code = ${CODE} limit 1`,
+  );
   const id = rows.rows[0]?.id;
   if (!id) return;
   await pool.query('delete from seed_markers where tenant_code = $1', [CODE]);
@@ -146,9 +163,15 @@ describe('seeding twice (ADR-122)', () => {
     // a public form switched off, and a disabled account.
     await runWithTenant(id, async (tx) => {
       await tx.execute(sql`update patients set first_name = 'Edited' where tenant_id = ${id}`);
-      await tx.execute(sql`update services set price_paise = 99999, name = 'Edited service' where tenant_id = ${id}`);
-      await tx.execute(sql`update organization_profile set city = 'Edited city' where tenant_id = ${id}`);
-      await tx.execute(sql`update tenant_branding set brand_color = '#123456' where tenant_id = ${id}`);
+      await tx.execute(
+        sql`update services set price_paise = 99999, name = 'Edited service' where tenant_id = ${id}`,
+      );
+      await tx.execute(
+        sql`update organization_profile set city = 'Edited city' where tenant_id = ${id}`,
+      );
+      await tx.execute(
+        sql`update tenant_branding set brand_color = '#123456' where tenant_id = ${id}`,
+      );
       await tx.execute(sql`update users set status = 'inactive' where tenant_id = ${id}`);
     });
 
@@ -158,7 +181,13 @@ describe('seeding twice (ADR-122)', () => {
     expect(second).toEqual(first);
 
     const after = await runWithTenant(id, (tx) =>
-      tx.execute<{ name: string; price: string; city: string; colour: string; inactive: number }>(sql`
+      tx.execute<{
+        name: string;
+        price: string;
+        city: string;
+        colour: string;
+        inactive: number;
+      }>(sql`
         select (select first_name from patients where tenant_id = ${id} limit 1) as name,
                (select price_paise from services where tenant_id = ${id} limit 1) as price,
                (select city from organization_profile where tenant_id = ${id} limit 1) as city,
@@ -186,7 +215,10 @@ describe('seeding twice (ADR-122)', () => {
             ...DATASET.tenants[0]!.services!,
             { code: 'SI-NEBU', name: 'Nebulisation', pricePaise: 20000, department: 'SI-GEN' },
           ],
-          labTests: [...DATASET.tenants[0]!.labTests!, { name: 'Blood Sugar', code: 'SI-FBS', pricePaise: 15000 }],
+          labTests: [
+            ...DATASET.tenants[0]!.labTests!,
+            { name: 'Blood Sugar', code: 'SI-FBS', pricePaise: 15000 },
+          ],
         },
       ],
     };
@@ -198,7 +230,9 @@ describe('seeding twice (ADR-122)', () => {
 
     // …and the edited one is still edited, not restored from the dataset.
     const rows = await runWithTenant(id, (tx) =>
-      tx.execute<{ price: string }>(sql`select price_paise as price from services where tenant_id = ${id} and code = 'SI-DRESS'`),
+      tx.execute<{ price: string }>(
+        sql`select price_paise as price from services where tenant_id = ${id} and code = 'SI-DRESS'`,
+      ),
     );
     expect(Number(rows.rows[0]!.price)).toBe(99999);
   }, 180_000);

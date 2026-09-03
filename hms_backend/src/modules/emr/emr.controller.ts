@@ -17,7 +17,9 @@ export async function signEncounter(req: Request, res: Response): Promise<void> 
 
 // Reopen a signed consultation for correction (ADR-134) — its own permission, its own reason.
 export async function amendEncounter(req: Request, res: Response): Promise<void> {
-  res.json(await svc.openAmendment(req.auth!.tenantId, req.params.id!, req.body.reason, req.auth!.userId));
+  res.json(
+    await svc.openAmendment(req.auth!.tenantId, req.params.id!, req.body.reason, req.auth!.userId),
+  );
 }
 
 export async function cancelAmendment(req: Request, res: Response): Promise<void> {

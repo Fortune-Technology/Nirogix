@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Alert, Badge, Button, Card, ConfirmDialog } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Patient } from "@hms/types";
-import * as api from "../../lib/api";
-import { useCan } from "../../lib/auth";
+import { useState } from 'react';
+import { Alert, Badge, Button, Card, ConfirmDialog } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Patient } from '@hms/types';
+import * as api from '../../lib/api';
+import { useCan } from '../../lib/auth';
 
 /**
  * Grant or withdraw a patient's access to the patient portal (ADR-052).
@@ -66,16 +66,16 @@ export function PortalAccessCard({ patient }: { patient: Patient }) {
     <Card header="Patient portal access">
       {!contact ? (
         <Alert>
-          This patient has no mobile number or email on file. Add one before giving them portal access. The code that
-          proves who they are has to go somewhere.
+          This patient has no mobile number or email on file. Add one before giving them portal
+          access. The code that proves who they are has to go somewhere.
         </Alert>
       ) : (
         <>
           <p className="text-sm text-fg-muted">
-            Lets this patient sign in to the Nirogix patient portal and read their own record, appointments, bills and
-            laboratory reports from this hospital. They sign in with a one-time code sent to{" "}
-            <strong className="text-fg">{contact.label}</strong>: granting access does not sign them in, and it does
-            not prove the contact is theirs.
+            Lets this patient sign in to the Nirogix patient portal and read their own record,
+            appointments, bills and laboratory reports from this hospital. They sign in with a
+            one-time code sent to <strong className="text-fg">{contact.label}</strong>: granting
+            access does not sign them in, and it does not prove the contact is theirs.
           </p>
 
           {granted ? (

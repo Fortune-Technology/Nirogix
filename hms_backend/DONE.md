@@ -9,6 +9,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Initial Express + TypeScript + Drizzle backend foundation. No business logic yet.
 
 **Added:**
+
 - `package.json` — deps (express, helmet, cors, pino/pino-http, zod, dotenv, drizzle-orm, pg, jsonwebtoken, argon2), dev deps (typescript, tsx, drizzle-kit, @types/*), scripts (`dev`/`build`/`start`/`typecheck`/`db:generate`/`db:migrate`/`db:studio`).
 - `tsconfig.json` extending `@hms/config` base (CommonJS/Node build to `dist`).
 - `.env.example`, `drizzle.config.ts`.
@@ -34,6 +35,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Wired the backend into the root npm workspace and verified it boots and serves.
 
 **Changes:**
+
 - Swapped native `argon2` → pure-JS `bcryptjs` (+ `@types/bcryptjs`) to avoid native-build failures on Windows.
 - Added `pino-pretty` devDependency — `logger.ts` uses it as the dev transport; its absence crashed the process at boot (`unable to determine transport target for "pino-pretty"`). Fixed.
 - Package manager is npm workspaces + Turborepo (ADR-014), not pnpm.
@@ -71,6 +73,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Multi-tenant data isolation via PostgreSQL Row-Level Security.
 
 **Added:**
+
 - Schema: `db/schema/tenants.ts` (platform-managed, no RLS), `db/schema/branches.ts` (tenant-scoped: `tenant_id` FK + per-tenant unique code), barrel updated.
 - `db/rls.ts` — `findTenantScopedTables()` + `applyRls()`: auto-applies `ENABLE` + `FORCE` RLS + `tenant_isolation` policy (`current_setting('app.tenant_id')`, fail-closed) to every table with a `tenant_id` column.
 - `db/migrate.ts` — runs Drizzle migrations then `applyRls` (`db:migrate` script). `db:generate` produced `drizzle/0000_silent_ted_forrester.sql`.
@@ -83,7 +86,7 @@ Append-only implementation log. Newest at the bottom.
 
 **Testing status:** `npm run typecheck` green. Migration generates. Isolation test **skips gracefully** locally (no reachable DB — the local 5432 server's credentials are unknown). Designed to run + pass in CI against the Postgres service, or locally via `TEST_DATABASE_URL`. **Live green run pending a reachable DB** (CI, or a dev-provided URL).
 
-**Decisions:** `tenants` is exempt from RLS (it IS the boundary; provisioning is platform-level) — matches the rule "every table *holding tenant-scoped data* has a tenant_id + RLS". FORCE RLS + mandatory non-superuser app role. RLS applied dynamically (any `tenant_id` table) so coverage can't be forgotten.
+**Decisions:** `tenants` is exempt from RLS (it IS the boundary; provisioning is platform-level) — matches the rule "every table _holding tenant-scoped data_ has a tenant_id + RLS". FORCE RLS + mandatory non-superuser app role. RLS applied dynamically (any `tenant_id` table) so coverage can't be forgotten.
 
 **Known limitations:** No auth yet, so `app.tenant_id` isn't wired from a real session (Task #4).
 
@@ -100,6 +103,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** JWT auth on top of the tenancy core.
 
 **Added:**
+
 - Schema: `users` + `sessions` (both tenant-scoped → RLS auto-applied). Migration `drizzle/0001_ordinary_power_pack.sql`.
 - `modules/auth/`: `password.ts` (bcrypt), `tokens.ts` (access/refresh JWT sign+verify, SHA-256 hash, expiry), `auth.service.ts` (org-code login, session issue, refresh rotation, logout, getUserById), `auth.schema.ts` (Zod = validation + OpenAPI), `auth.controller.ts` (+ httpOnly refresh cookie), `auth.routes.ts`, `auth.openapi.ts`.
 - `http/requireAuth.ts` (Bearer middleware → `req.auth`), `http/asyncHandler.ts`, `types/express.d.ts` (Request.auth augmentation).
@@ -122,6 +126,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** Role-based access control with per-user overrides and time-bound permissions.
 
 **Added:**
+
 - `@hms/permissions` (shared): dot-hierarchy `PERMISSIONS` catalog, `WILDCARD`, `SYSTEM_ROLES` (8 MVP roles + their defaults). Backend now depends on it.
 - Schema: `permissions` (global catalog) + `roles`, `role_permissions`, `user_roles`, `user_permission_overrides` (tenant-scoped, RLS). Migration `drizzle/0002_silly_sumo.sql`.
 - `modules/rbac/`: `rbac.service.ts` (seed catalog, provision tenant roles, assign role, **resolvePermissions**, setOverride/revokeOverride), `permissionCache.ts` (ADR-010 bounded cache + targeted invalidation), `rbac.schema.ts`, `rbac.controller.ts`, `rbac.routes.ts`, `rbac.openapi.ts`.
@@ -144,6 +149,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** The 2nd authorization link — tenant module entitlements gating business modules before permission checks. Completes the chain `auth → module → permission → logic`.
 
 **Added:**
+
 - `modules/entitlement/moduleCatalog.ts` (module keys + hard-dependency graph).
 - Schema `tenant_entitlements` (tenant-scoped, RLS) — state machine + effective dates + soft-transition timestamps. Migration `drizzle/0003_talented_clea.sql`.
 - `entitlement.service.ts`: isModuleEntitled, listEntitledModules, **grantModule (hard-dep enforcement)**, setModuleStatus.
@@ -167,6 +173,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** Immutable, tamper-evident audit trail.
 
 **Added:**
+
 - Schema `audit_log` (tenant-scoped, RLS) — actor, action, resource, method/path/status, severity, jsonb metadata, ip/ua. Migration `drizzle/0004_motionless_lenny_balinger.sql`.
 - `db/auditProtection.ts` — trigger blocking UPDATE/DELETE (append-only); applied by `db:migrate` after RLS.
 - `modules/audit/audit.service.ts` (writeAudit best-effort + listAudit) + `audit.{schema,controller,routes,openapi}.ts`.
@@ -190,6 +197,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** Provider-agnostic notification sending (email/SMS/WhatsApp) behind an abstraction.
 
 **Added:**
+
 - `modules/notification/providers/`: `EmailProvider`/`SmsProvider` interfaces, dev `LogProvider` (logs, doesn't send), MSG91 adapters (dormant without a key), config selection (`MSG91_API_KEY`).
 - Schema `notification_log` + `notification_templates` (tenant-scoped, RLS). Migration `drizzle/0005_rich_ser_duncan.sql`.
 - `notification.service.ts`: `sendEmail`/`sendSms`, `{{placeholder}}` template render, **idempotency**, log write; `listNotifications`.
@@ -210,6 +218,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 **What:** Object storage abstraction (local dev provider + S3/EOS adapter); metadata-only DB; signed URLs; server-side validation.
 
 **Added:**
+
 - `modules/file/providers/`: `FileStorageProvider` interface, `LocalFileStorageProvider` (disk), `S3FileStorageProvider` (`@aws-sdk/client-s3` + presigner, dormant without creds), config selection.
 - Schema `file_metadata` (tenant-scoped, RLS) — storage key, filename, MIME, size, sha256, uploader, version, soft-delete. Migration `drizzle/0006_old_the_twelve.sql`.
 - `file.service.ts`: upload (checksum + putObject + metadata + audit), getDownloadUrl (presigned S3 or tokenized local), getFileContent (audited read), deleteFile (object removal + soft-delete metadata + audit).
@@ -228,7 +237,7 @@ Ran against the developer's local PostgreSQL (`hms` database): tenant-isolation 
 
 ## 2026-08-13 (later) — Object storage switched to Cloudflare R2 (no AWS) — ADR-017
 
-Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3` / `s3-request-presigner` with the **MinIO client** (`minio`) — a non-AWS S3-compatible client — and renamed the provider `S3FileStorageProvider` → `R2FileStorageProvider` (`s3Provider.ts` → `r2Provider.ts`). Config `FILE_STORAGE_PROVIDER=local|r2`, `R2_*` env (was `S3_*`). **No AWS packages remain installed** (only an unused *optional* peer `@aws-sdk/client-rds-data` that drizzle-kit advertises — not installed, we use `pg`). Note: `@aws-sdk/client-s3` was only ever the S3-protocol client (R2's own docs recommend it), never an AWS service — removed to honor the directive. typecheck green; local provider + full suite unaffected. **For PHI, pin the R2 bucket jurisdiction to India** (architecture.md → File Storage).
+Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3` / `s3-request-presigner` with the **MinIO client** (`minio`) — a non-AWS S3-compatible client — and renamed the provider `S3FileStorageProvider` → `R2FileStorageProvider` (`s3Provider.ts` → `r2Provider.ts`). Config `FILE_STORAGE_PROVIDER=local|r2`, `R2_*` env (was `S3_*`). **No AWS packages remain installed** (only an unused _optional_ peer `@aws-sdk/client-rds-data` that drizzle-kit advertises — not installed, we use `pg`). Note: `@aws-sdk/client-s3` was only ever the S3-protocol client (R2's own docs recommend it), never an AWS service — removed to honor the directive. typecheck green; local provider + full suite unaffected. **For PHI, pin the R2 bucket jurisdiction to India** (architecture.md → File Storage).
 
 ---
 
@@ -237,6 +246,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Internal domain-event bus + a background job runner (Redis/BullMQ with an inline fallback).
 
 **Added:**
+
 - `events/`: `types.ts` (DomainEventPayload map), `eventBus.ts` (typed in-process pub/sub, error-isolated), `subscribers.ts` (`notification.requested` → enqueue job; representative subscribers).
 - `jobs/`: `types.ts`, `runner.ts` (JobRunner interface + `getJobRunner`), `inlineRunner.ts` (dev/CI), `bullmqRunner.ts` (Redis+BullMQ, retryable/schedulable, dormant), `processors.ts` (`notification.send`).
 - `bootstrap.ts` `initBackground()` (wired into `server.ts`).
@@ -256,6 +266,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The provider directory + specialty model — FHIR Practitioner / PractitionerRole, a global specialty catalog, and no-EAV specialty form templates. Closes Phase 0's clinical-foundation slice (invariants #5).
 
 **Added:**
+
 - Schema `db/schema/providers.ts`: `providers` (Practitioner — tenant-scoped, RLS; optional `user_id`), `practitioner_roles` (PractitionerRole — tenant-scoped, RLS; unique `(provider_id, specialty_code, branch_id)`), `specialty_form_templates` (tenant-scoped, RLS; versioned JSON Schema), `specialties` (**global** reference, no RLS). Migration `drizzle/0007_clammy_wildside.sql` (4 tables).
 - `modules/provider/specialtyCatalog.ts` — 17-specialty seed (SNOMED codes left null until verified).
 - `provider.service.ts`: seedSpecialtyCatalog, listSpecialties, createProvider, **assignSpecialty** (catalog-validated → 422 on unknown code; insert PractitionerRole), listProvidersWithRoles, getProviderWithRoles, createFormTemplate, listFormTemplates — all explicit `tenant_id`-scoped (ADR-015) + audited.
@@ -267,9 +278,9 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 
 **Testing status:** typecheck green · openapi:validate green · full suite **31/31** (10 files). **Live-verified:** 17 specialties listed; seeded "Dr. Ananya Sharma" shows cardiology + registration; created "Dr. Rohit Mehta" then assigned orthopedics (PractitionerRole visible on re-GET); unknown specialty → **422 VALIDATION**; dental form template created.
 
-**Decisions:** FHIR Practitioner/PractitionerRole (ADR-008) — a specialty is a *role assignment* (data), never a new table. `specialties` is a global reference table (no RLS), like `permissions`. Specialty variation via configurable `specialty_form_templates` (JSON Schema), never EAV (invariant #5). Unknown specialty is a client validation error (422), not a 500.
+**Decisions:** FHIR Practitioner/PractitionerRole (ADR-008) — a specialty is a _role assignment_ (data), never a new table. `specialties` is a global reference table (no RLS), like `permissions`. Specialty variation via configurable `specialty_form_templates` (JSON Schema), never EAV (invariant #5). Unknown specialty is a client validation error (422), not a 500.
 
-**Known limitations:** Specialty `snomed_code`s unset (need a verified source before terminology binding). No provider↔branch scheduling/availability yet (a later clinical phase). Form-template *rendering/validation* engine (applying a template's JSON Schema to captured data) is not built — templates are stored, not yet enforced. PractitionerRole deactivation flow (`is_active`) exposed in reads but no endpoint to toggle it.
+**Known limitations:** Specialty `snomed_code`s unset (need a verified source before terminology binding). No provider↔branch scheduling/availability yet (a later clinical phase). Form-template _rendering/validation_ engine (applying a template's JSON Schema to captured data) is not built — templates are stored, not yet enforced. PractitionerRole deactivation flow (`is_active`) exposed in reads but no endpoint to toggle it.
 
 ---
 
@@ -278,6 +289,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The Phase 0 operational baseline — a multi-tenant demo seed, error tracking on top of the existing structured logging, and a versioned deploy/CI-CD/backup baseline (IaC posture, even if lightweight, per development-plan §16/§18).
 
 **Added / changed:**
+
 - **Seed** (`scripts/seed.ts`) rewritten data-driven: **2 Indian-context demo tenants** (CITYCARE — Pune; SUNRISE — Ahmedabad), each with a branch layout and **one user per role** (super_admin/org_admin/branch_admin/doctor/receptionist/pharmacist/lab_technician/cashier), plus per-tenant FHIR providers. Idempotent; keeps the existing `admin@`/`reception@citycare.example` stable. All names/hospitals/cities are genuine Indian context (§17 Test Data).
 - **Error tracking** (`observability/errorTracker.ts`): a thin abstraction that logs `error.captured` events by default and accepts a `SENTRY_DSN` (Sentry/GlitchTip) without call-site changes. Wired into `http/errorHandler.ts` for every unexpected 5xx, with request-id + tenant/user/method/path correlation. New `SENTRY_DSN` env (optional).
 - **Deploy baseline** (`deploy/`): `pm2.ecosystem.cjs` (3 apps), `nginx/hms.conf.template` (api/portal/marketing reverse proxy + Cloudflare real-ip), `backup/backup.sh` (nightly pg_dump + verify + off-box to R2 + retention), `backup/restore-drill.sh` (**restore drilled, not just configured** — restores to a scratch DB and checks row counts), `README.md` (ops runbook: provisioning, deploy flow, rollback, RPO/RTO table).
@@ -296,6 +308,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The operator-facing onboarding surface (development-plan §20A, ADR-020) — a platform Super Admin creates tenants through the API instead of editing `seed.ts`.
 
 **Added (`modules/admin/`):**
+
 - `admin.service.ts`: `onboardTenant` (transaction — create tenant → `provisionTenantRbac` → grant modules with **hard-dependency closure + catalog ordering** → create first `org_admin` with a one-time temp password → create branches; audited), `listTenants` (platform-level, no-RLS `tenants` table), `getTenantDetail` (modules + branches + user count, fetched in the tenant's own context), `setTenantStatus`, `grantTenantModule`/`revokeTenantModule` (soft, never deleted), `tenantExists`.
 - `admin.{schema,controller,routes,openapi}.ts`. New permission `platform.tenants.manage` in `@hms/permissions` — **not attached to any role**; only `super_admin` (WILDCARD) resolves it.
 - Wired into `api/v1/index.ts` + `openapi/register.ts`.
@@ -317,6 +330,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The tenant-scoped admin surface an `org_admin` uses to manage their own staff and branches (development-plan §20A).
 
 **Added:**
+
 - `modules/user/` — `listUsers` (with role keys), `createUser` (one-time temp password when none supplied), `getUserDetail` (roles + effective permissions + active overrides), `updateUser` (status/name). Controller also wires role assign/remove and override add/revoke to the RBAC service.
 - `rbac.service` additions: `removeRoleByKey`, `listUserRoles`, `listUserOverrides` (active only).
 - `modules/branch/` — `listBranches`, `createBranch` (unique code per tenant), `updateBranch`.
@@ -337,6 +351,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Per-tenant branding persisted in the DB and applied through the Phase-0 token seam (development-plan §20A, ADR-021) — replacing the client-only preset demo.
 
 **Added:**
+
 - Schema `db/schema/branding.ts`: `tenant_branding` (tenant-scoped, RLS; nullable `branch_id`; `brand_color`, `secondary_color`, `logo_file_id`, `favicon_file_id`, `typography` jsonb, `version`). Migration `drizzle/0008_worried_chimera.sql` (RLS auto-applied).
 - `modules/branding/`: `branding.service` (getCurrentBranding — resolves logo/favicon ids to short-lived URLs via the existing `FileStorageService`; updateBranding, setLogo/setFavicon, resetBranding, `version` bump), `branding.{schema,controller,routes,openapi}.ts`. Logo/favicon uploads **reuse** `uploadSingle('file')` + `uploadFile` (no new storage path).
 - New permission `platform.branding.manage` in `@hms/permissions` (+ org_admin — added to the seeded role set; `db:seed` grants it to existing tenants idempotently). Wired into `api/v1` + `openapi/register`.
@@ -353,9 +368,10 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 
 ## 2026-08-14 — System Super Admin moved to a dedicated PLATFORM org (ADR-022)
 
-**What:** Separated the platform owner from customer hospitals. The System Super Admin previously lived *inside* the CITYCARE hospital (`superadmin@citycare.example`) as a login shortcut; conceptually the vendor should sit above all hospitals, unattached to any.
+**What:** Separated the platform owner from customer hospitals. The System Super Admin previously lived _inside_ the CITYCARE hospital (`superadmin@citycare.example`) as a login shortcut; conceptually the vendor should sit above all hospitals, unattached to any.
 
 **Changed:**
+
 - `scripts/seed.ts`: added a **`PLATFORM`** org (name "Takoriya Technology LLP", `modules: []`, no branches/providers) holding the sole `super_admin` user `owner@takoriya.example`. Removed the `super_admin` user from CITYCARE. `SeedTenant` gained an optional `modules` field (defaults to the MVP set; PLATFORM overrides to none). Existing tenants now top out at `org_admin`.
 - Docs: **ADR-022**; `TESTING_CREDENTIALS.md` (new Tier-0 Platform section, `PLATFORM`/`owner@takoriya.example`); `KNOWLEDGE.md` demo line.
 
@@ -372,6 +388,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The read side of the System-Admin and Org-Admin dashboards (development-plan §20B, user-journeys.md §1.3/§2.5).
 
 **Added:**
+
 - `admin.service.getPlatformStats()` — platform-wide counts **across all tenants**, **aggregate-only** (ADR-023): organizations (active/inactive), hospitals (excludes the `PLATFORM` org), branches, doctors, users, per-module adoption; `patients`/`appointments` return `null` until Stage 1 (tiles degrade). Read path: the non-RLS `tenants` table + a per-tenant `runWithTenant` COUNT loop (correct under a non-superuser prod role). `GET /admin/stats` (super-admin, `platform.tenants.manage`).
 - `modules/dashboard/`: `getOrgSummary(tenantId)` — the caller's **own tenant** roll-up (users, doctors, branches, modules), RLS-scoped. `GET /dashboard/summary` (any authed user). OpenAPI for both.
 
@@ -388,6 +405,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The first MVP-0 clinical vertical slice — patient registration + directory — and the **first real business module** to go through the full authz chain (`requireAuth → requireModule('patient') → requirePermission → logic`). On branch `feat/phase-1-clinic-pilot`.
 
 **Added:**
+
 - Schema `db/schema/patients.ts`: `patients` (tenant-scoped, RLS; migration `drizzle/0009_futuristic_rhodey.sql`) — strongly typed (no EAV, invariant #5): name/gender/DOB/phone/email/blood group/address+PIN/**ABHA**/emergency contact/lifecycle status. Per-tenant **UHID** auto-allocated (`UHID-000001`…), unique `(tenant_id, uhid)`.
 - `modules/patient/`: `patient.service` (createPatient w/ UHID retry-on-conflict, getPatient, listPatients paginated + search via `ILIKE` on UHID/name/phone, updatePatient, countPatients), `patient.{schema,controller,routes,openapi}.ts`. Routes module-gated + permission-gated. Wired into `api/v1` + `openapi/register`.
 - Removed the `/patients` demonstrator stub from the entitlement module (kept `/ipd/beds` as a requireModule demonstrator for the not-yet-built IPD).
@@ -409,6 +427,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Booking + scheduling, the second MVP-0 vertical slice, with the two phases.md acceptance criteria: **double-booking prevented** and **cancellation frees the slot**.
 
 **Added:**
+
 - Schema `db/schema/appointments.ts` (tenant-scoped, RLS; migration `drizzle/0010_colorful_deathbird.sql`) — FK to `patients` + `providers`; `scheduled_at` + `duration_minutes`, `status`, reason, cancel fields.
 - `modules/appointment/`: `bookAppointment` (validates patient+provider in-tenant, **overlap check** → 409 on a double-booked provider slot, publishes `appointment.booked`), `listAppointments` (paginated + filter date/provider/patient/status, **join-enriched** with patient/provider names), `cancelAppointment` (frees slot, publishes `appointment.cancelled`), `countAppointments`. Schema/controller/routes/openapi; module-gated + permission-gated. Wired into `api/v1` + `openapi/register`.
 - Wired **appointment counts into both dashboards**; the patient module now publishes `patient.registered`. Seed books 1 demo appointment per hospital.
@@ -428,6 +447,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Vendor-owned, platform-global branding for two independent surfaces — `marketing` (public site) and `hms` (Portal default) — distinct from per-tenant branding.
 
 **Added:**
+
 - `db/schema/platformBranding.ts` — `platform_branding` table: **global (no `tenant_id` → no RLS)**, `scope` enum (unique), scalable `tokens` jsonb, logo/favicon file ids, `version`. Migration `drizzle/0011_sticky_korg.sql`.
 - `modules/platform-branding/` — service (base `db`, not `runWithTenant`; assets stored under the PLATFORM tenant so tenant-scoped storage works unchanged), controller, routes, openapi, schema. **Public** `GET /public/branding/:scope` (no auth; CORS already open) + super-admin `PUT` / `DELETE` / `POST logo|favicon` on `/platform-branding/:scope`, gated by the new `PLATFORM_BRANDING_MANAGE` (WILDCARD-only; not granted to org_admin).
 - `@hms/permissions`: `PLATFORM_BRANDING_MANAGE = 'platform.branding.platform.manage'`. `@hms/types`: `PlatformBranding`, `BrandingTokens`, `PlatformBrandingScope`.
@@ -442,6 +462,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The visit/encounter backbone + the shared Financial Transaction Infrastructure (invariant #8).
 
 **Added:**
+
 - **`billing` module** (financial infra, no clinical logic) — `invoices` / `invoice_line_items` / `payments` tables (integer paise in `bigint`, tax in bps, migration `0012`, RLS auto-applied). `billing.service`: `createInvoice` (server-computed totals, tenant-monotonic `INV-` number), `getInvoice` (receipt: lines + payments + balance), `listInvoices`, **idempotent `recordPayment`** (`unique(tenant, idempotency_key)` + `onConflictDoNothing`; recomputes paid/status from the ledger). Routes gated `requireModule('billing')` + `BILLING_VIEW/CREATE/PAYMENT`.
 - **`opd` module** (clinical) — `visits` table (token/queue, `V-` number, status machine). `checkIn` validates patient/provider/appointment, dedupes an already-checked-in appointment, allocates a daily token, and opens a **draft consultation-fee invoice via `billing.createInvoice`** (never touches money tables). `listQueue` (today's visits, token order), `getVisit`, `updateStatus` (checked_in→in_consultation→completed, optimistic version). Routes gated `requireModule('opd')` + new `OPD_VIEW/CHECKIN/UPDATE`.
 - `@hms/permissions`: `OPD_VIEW/CHECKIN/UPDATE` (receptionist checks in, doctor advances, cashier + admins view). `@hms/types`: Visit/Invoice/Payment + request contracts. Event `visit.checked_in` (+ now-published `invoice.created`/`payment.received`). Routers mounted; OpenAPI registered; `db:seed` re-run to grant the new perms.
@@ -455,6 +476,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** The consultation — one encounter per visit (SOAP notes + typed vitals + ICD-10 diagnoses + prescriptions + lab orders), draft → signed.
 
 **Added:**
+
 - `db/schema/emr.ts` — `encounters` (visit-linked, SOAP `text` + **typed integer vitals**, status, `authored_by`, `version`), `diagnoses`, `prescriptions`, `lab_orders` (tenant-scoped, migration `0013`, RLS auto-applied). Vitals use integer units (temp tenths-°C, weight grams) converted at the edge — strongly typed, no EAV (invariant #5).
 - `modules/emr/` — service: `getEncounterByVisit` (get-or-create draft), `saveEncounter` (whole-encounter save — **optimistic `version`** + **author-only** + **draft-only**; replaces the diagnoses/rx/lab collections), `signEncounter` (locks the encounter + **completes the visit**), ICD-10 search (curated in-memory `icd10.data.ts`). Routes gated `requireModule('emr')` + `EMR_VIEW/WRITE`. Event `encounter.signed`.
 - `@hms/types`: Encounter / Vitals / Diagnosis / Prescription / LabOrder / Icd10Code + SaveEncounterRequest. Router mounted; OpenAPI registered.
@@ -468,6 +490,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Drug master + FEFO batch stock + dispense-against-prescription that extends Billing Core.
 
 **Added:**
+
 - `billing.service.addInvoiceLine` — the **Billing-Core extension point** (invariant #8): adds a line to an existing invoice + recomputes totals/status from the ledger. Pharmacy / Lab / IPD reuse it, never reimplement it.
 - `db/schema/pharmacy.ts` — `drugs` (master), `drug_batches` (FEFO stock), `dispenses` (migration `0014`, RLS auto-applied). Money integer paise.
 - `modules/pharmacy/` — service: `listDrugs` (on-hand + **low-stock flag**), `createDrug`, `receiveStock` (adds a batch), `listPendingPrescriptions` (the worklist — prescriptions `ordered` from EMR), **`dispense`** (FEFO stock deduction, **cannot over-dispense**, marks the prescription dispensed, adds a pharmacy line to the visit's invoice, records the dispense). New `PHARMACY_MANAGE` perm; `requireModule('pharmacy')`.
@@ -482,6 +505,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Test master + result entry against the EMR lab orders, abnormal-value flag, lab charge on the visit invoice.
 
 **Added:**
+
 - `db/schema/lab.ts` — `lab_tests` (master: LOINC, reference range, price), `lab_results` (one per lab order, abnormal flag) (migration `0015`, RLS auto-applied). `lab_orders` reused from EMR (1.4).
 - `modules/laboratory/` — service: `listTests`/`createTest`, `listWorklist` (from the EMR lab orders + results), `collectSample` (ordered→collected), **`enterResult`** (**auto-flags the value against the test's reference range**, marks resulted, **adds a lab line to the visit invoice via `addInvoiceLine` — billed once**, publishes `lab.result_ready`), `getLabOrder` (report). New `LAB_MANAGE` perm; `requireModule('laboratory')`.
 - `@hms/types` LabTest / LabOrder / LabResult + requests. Router mounted; OpenAPI registered; `db:seed` re-run.
@@ -495,6 +519,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **What:** Read-only aggregate reports over the clinic data — no new tables.
 
 **Added:**
+
 - `modules/reports/` — service: `opdRegister` (visits in a date range + patient/provider/invoice), `collections` (payments by day + method + total), `pendingLabs` (unresolved lab orders). New `REPORTS_VIEW` perm (org_admin / branch_admin / cashier). Routes gated by `REPORTS_VIEW` (no module gate — cross-cutting like the dashboard); data tenant-scoped through RLS.
 - `@hms/types` OpdRegisterRow / CollectionsReport / PendingLabRow. Router mounted; OpenAPI registered; `db:seed` re-run. **No migration** (read-only).
 
@@ -509,6 +534,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Why:** the Portal's audit table was being rebuilt as a server-mode DataTable (ADR-029), and `GET /audit` accepted only `page`/`pageSize` — so search and sorting had nowhere to go. Filtering a security log in the browser was never an option: it only ever holds one page.
 
 **Changed:**
+
 - `audit.service.ts` — `listAudit` takes `{ page, pageSize, search?, severity?, sortBy?, sortDir? }`. `search` is an ILIKE over `action` / `path` / `resource_type`; `severity` is an equality filter; sorting uses an **allow-list map** (`createdAt`, `action`, `severity`, `statusCode`) so an arbitrary column can never reach the query. Filters apply to both the page query and the count, so totals stay honest. Still entirely inside `runWithTenant` (tenant isolation unchanged).
 - `audit.controller.ts` — Zod schema extended with `search` (≤120 chars), `severity` enum, `sortBy`/`sortDir` enums with defaults (`createdAt` / `desc`).
 - `audit.openapi.ts` — the query parameters are documented with descriptions; summary updated.
@@ -522,6 +548,7 @@ Per an explicit no-AWS directive: replaced the S3 adapter's `@aws-sdk/client-s3`
 **Bug fixed — access tokens never carried roles.** `signAccessToken({... roles: [] })` was hardcoded at **both** mint sites (login and refresh), so `req.auth.roles` was always empty and the Portal's new profile screen showed "No role assigned" for everyone. Now populated from `listUserRoles()` at both sites; refresh re-reads them, so a role granted or removed mid-session takes effect on the next token instead of persisting until sign-out. Authorization is unaffected — it always resolved roles + overrides server-side (invariant #2); this was an informational claim that was silently wrong.
 
 **Security fixes (SECURITY-AUDIT.md):**
+
 - **M-5** login timing no longer enumerates accounts: `burnPasswordComparison()` spends the same bcrypt work against a precomputed dummy hash when the email is unknown, so "no such user" and "wrong password" cost the same.
 - **M-2** report date ranges are validated server-side (format + ordering) and capped at **366 days**, closing an unbounded multi-year scan; `expensiveLimiter` now covers the report and file-upload routes, completing H-1.
 
@@ -591,7 +618,7 @@ Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`
 
 **Not module-gated.** A department is organisational structure every entitled clinical module reads, exactly like a branch — Platform Core, not a purchasable module.
 
-**Wired in:** `practitioner_roles.department_id` (a provider works in a department), `visits.department_id` (check-in routes by one), and a `departments` step in the Hospital Setup Console that doctors now depend on. `visits.department` stays and check-in writes the department's *name* into it as well, so every existing read keeps working and the migration stays additive and reversible. Departments are deactivated, never deleted — visits and encounters reference them — and deactivation is audited at `notice`.
+**Wired in:** `practitioner_roles.department_id` (a provider works in a department), `visits.department_id` (check-in routes by one), and a `departments` step in the Hospital Setup Console that doctors now depend on. `visits.department` stays and check-in writes the department's _name_ into it as well, so every existing read keeps working and the migration stays additive and reversible. Departments are deactivated, never deleted — visits and encounters reference them — and deactivation is audited at `notice`.
 
 **Found while building the tests:** the uppercase-code normalisation lived **only** in the Zod request schema, so `createDepartment` called from the seed stored `ortho` and the case-sensitive unique index accepted `ORTHO` beside it. Moved into the service, where every caller passes.
 
@@ -610,6 +637,7 @@ Same posture as `getPlatformStats`: super-admin gated (`platform.tenants.manage`
 **The tenant is never trusted from the path.** Every patient read calls `resolvePatientAccess` first, which proves an active link and returns **the patient id from that link** — which is what the query filters on. The caller supplies no patient id, so reading someone else's chart is not refused, it is unrepresentable. Because the check is per request, revocation is immediate.
 
 **Decisions worth recording:**
+
 - Codes are **hashed** (a leaked table must not hand over live codes), single-use, expiring, with an attempt cap so brute force is bounded rather than merely slowed.
 - `request-code` always answers 202 with the same message. Telling an unauthenticated caller "no account for this number" would make the endpoint a directory of who is a patient somewhere.
 - Verification is sent from the **PLATFORM tenant**, never a hospital: logging it against a hospital would tell that hospital's staff, in their own notification log, that this person is signing in — including hospitals they did not choose this time.
@@ -647,6 +675,7 @@ Rotation on every use, hashed storage, server-side revocation on sign-out. Exist
 **Schema.** `organization_profile` gained the self-registration toggle and a unique, indexed `self_registration_token`, plus the identity and letterhead fields the Portal now edits (`display_name`, `secondary_phone`, `support_email`, `letterhead_header`, `letterhead_footer`, `signatory_name`, `signatory_designation`). New tenant-scoped `registration_requests` (RLS applied automatically, like every table with a `tenant_id`), holding the submission, its status, the reviewer, and the `patient_id` once converted. Migration `0021_great_photon.sql`.
 
 **The two properties that matter:**
+
 - **The tenant is resolved from the token in the path, server-side, on every public call** — never from a body field, header or query parameter. `resolveRegistrationToken` is the one lookup that runs before a tenant is known, because determining the tenant is its purpose; it uses the base client, reads one row by a unique indexed token, and returns only a hospital name, a city and the on/off flag. A caller has no field in which to name a different hospital, so "scan Hospital A's poster, land in Hospital B" is unrepresentable.
 - **A submission writes a request, not a patient.** Nothing on the public path touches `patients`. ADR-052 stands: the front desk verifies the person, checks for a duplicate, and converts — and that conversion is where a chart appears.
 
@@ -690,7 +719,7 @@ All three refusals verified live: the staging seeder rejected in a development e
 
 **One OTP implementation, not two.** `communication.service.ts` is the seam ADR-059 requires — `sendEmail`, `sendSms`, `sendOtp`, `verifyOtp`, `resendOtp`.
 
-The interesting part was migrating patient sign-in onto it. The existing inline implementation was **stronger** than the generic one I first wrote: it limited wrong guesses to five, which my version lacked. Bolting a weaker `verifyOtp` alongside it would have produced exactly the duplication ADR-059 forbids, so the shared service gained attempt-limiting (`OTP_MAX_ATTEMPTS`) and `patientIdentity` now delegates through an `OtpStore` adapter that only says *where the rows live*. Generation, hashing, expiry, attempt-limiting and single-use consumption have one home.
+The interesting part was migrating patient sign-in onto it. The existing inline implementation was **stronger** than the generic one I first wrote: it limited wrong guesses to five, which my version lacked. Bolting a weaker `verifyOtp` alongside it would have produced exactly the duplication ADR-059 forbids, so the shared service gained attempt-limiting (`OTP_MAX_ATTEMPTS`) and `patientIdentity` now delegates through an `OtpStore` adapter that only says _where the rows live_. Generation, hashing, expiry, attempt-limiting and single-use consumption have one home.
 
 `sendOtp` deliberately returns nothing. A caller that could read the code back is a caller that could log it, which defeats hashing at rest.
 
@@ -700,7 +729,7 @@ The now-orphaned `createHash`/`randomInt` import went with it.
 
 ## 2026-08-17 — Patient list gains server-side facet and date-range filters (ADR-063)
 
-`GET /patients` now accepts `gender`, `status`, `city` (comma-separated multi-select) and `registeredFrom`/`registeredTo` (ISO dates), applied as Drizzle `inArray` and inclusive day-bounds on `created_at`, composed with the existing tenant scope and free-text search. This is what makes the DataTable's faceted filters and its date-range control narrow the *whole* dataset rather than the page in the browser (ADR-063). OpenAPI documents each parameter; `openapi:validate` passes.
+`GET /patients` now accepts `gender`, `status`, `city` (comma-separated multi-select) and `registeredFrom`/`registeredTo` (ISO dates), applied as Drizzle `inArray` and inclusive day-bounds on `created_at`, composed with the existing tenant scope and free-text search. This is what makes the DataTable's faceted filters and its date-range control narrow the _whole_ dataset rather than the page in the browser (ADR-063). OpenAPI documents each parameter; `openapi:validate` passes.
 
 **Testing status:** 121 backend tests pass (+2: facet composition — a male in Kochi is only Arjun — and the registration-date window, both against a real DB); typecheck and build clean.
 
@@ -812,6 +841,7 @@ Replaced stylistic em dashes with a period or colon in the 20 user-facing `messa
 ## 2026-08-18 — System master data + hospital custom data (ADR-072, issue #13)
 
 Hospitals no longer re-type standardised reference data. Two tables, one read model:
+
 - **`reference_catalog`** — global **system** master data (no `tenant_id`, so the RLS auto-policy never targets it, like `specialties`), keyed `(category, code)` with a jsonb `attributes` for pre-fill hints. Seeded from `modules/catalog/catalog.data.ts` (India-context) via `seedReferenceCatalog()` in **all three** seeders, so production has it: **96 items** across lab tests (25, LOINC-coded common + Indian panels), drugs (25, generics + form/strength/unit), services (15), vaccines (17, India IAP/UIP schedule), and suggested departments (14). Idempotent `onConflictDoUpdate`, so a renamed item propagates on the next migrate/seed; `is_active` is never resurrected.
 - **`tenant_reference_items`** — hospital **custom** data for simple-list categories (vaccines today); tenant-scoped → RLS. Custom codes are `CUSTOM_…` so they never collide with a system code.
 - The richer priced catalogues (`lab_tests`, `drugs`, `services`) keep their existing tenant tables and gain a nullable `catalog_code` recording which item a row was adopted from (NULL = pure custom) — additive, nothing existing breaks.
@@ -827,6 +857,7 @@ Hospitals no longer re-type standardised reference data. Two tables, one read mo
 ## 2026-08-18 — Platform admins + platform name (issue #15)
 
 The seeded platform identity is now **Nirogix** with **two** Platform Admins instead of the `owner@takoriya.example` placeholder:
+
 - **Dev seeder** (`seed.ts`): the `PLATFORM` org is named **Nirogix** and seeds `jaivik@thefortunetech.com` (Jaivik Patel) and `nishant@thefortunetech.com` (Nishant Patel), both `super_admin`. Idempotent `upsertUser` (by email) means re-seeding never duplicates them; the loop upserts users for existing tenants too.
 - **Staging seeder** (`seed.staging.ts`): PLATFORM org → Nirogix; added `nishant@` alongside the existing `jaivik@`, both `super_admin`.
 - **Production seeder** (`seed.production.ts`): the default `PLATFORM_NAME` is now `Nirogix` (still overridable via `BOOTSTRAP_PLATFORM_NAME`); the first operator stays env-driven (`BOOTSTRAP_ADMIN_EMAIL`/`_PASSWORD`), never a hardcoded default account.
@@ -837,6 +868,7 @@ The seeded platform identity is now **Nirogix** with **two** Platform Admins ins
 ## 2026-08-18 — Per-hospital (branch) availability of master data (ADR-073, issue #14)
 
 Within one organization, hospitals can now carry different items — Hospital 1 offers Drug A, Hospital 2 does not — enforced at the database/API, not just hidden in the UI.
+
 - **`branch_item_availability`** overlay (`tenant_id`→RLS, `branch_id`, `item_type` ∈ drug|lab_test|service|vaccine, `item_ref`, `is_available`, `price_override_paise`). The master `is_active` is the org default; an overlay row is the per-branch exception; no row = inherit. Availability = `master.is_active AND NOT(overlay.is_available=false)`. One item identity (no duplication; ADR-072 links + snapshot history intact); org-isolated by RLS. Departments excluded (natively branch-scoped).
 - **API** (`modules/catalog`): `PUT /branch-availability` (upsert, validates the branch belongs to the org), `GET /branch-availability` (a branch's overrides), `GET /branch-availability/items` (the org's items of a type with their per-branch state — the config screen's read model). Gated by new permission `platform.catalog.availability.manage` (org_admin).
 - **Backend enforcement**: `listDrugs`, `listTests`, `listServices`, and `listCatalog` (vaccine) accept an optional `branchId`; when given, they drop items disabled for that branch and apply any price override. Every path filters `tenant_id` explicitly AND runs under RLS.
@@ -846,7 +878,7 @@ Within one organization, hospitals can now carry different items — Hospital 1 
 
 ## 2026-08-18 — Operator org code → `NIROGIX`; case-insensitive org-code login (ADR-074)
 
-The operator org (ADR-022) is now coded **`NIROGIX`** (was `PLATFORM`) — consistent with `CITYCARE` / `SUNRISE` and with the org's own name, so operators sign in with the product name. Changed the three services that resolve the operator org by literal — `patient-identity` (verification sender), `platform-branding` (default scopes), `admin` onboarding (`PLATFORM_CODE`) — and the three seeders (`seed.ts`, `seed.staging.ts`, `seed.production.ts`). The running dev DB was migrated **in place** (a code rename on the existing row; the two Platform Admins stayed attached — no duplicate org). `PLATFORM` is retired as a code; the word survives only as the *concept* "platform operator".
+The operator org (ADR-022) is now coded **`NIROGIX`** (was `PLATFORM`) — consistent with `CITYCARE` / `SUNRISE` and with the org's own name, so operators sign in with the product name. Changed the three services that resolve the operator org by literal — `patient-identity` (verification sender), `platform-branding` (default scopes), `admin` onboarding (`PLATFORM_CODE`) — and the three seeders (`seed.ts`, `seed.staging.ts`, `seed.production.ts`). The running dev DB was migrated **in place** (a code rename on the existing row; the two Platform Admins stayed attached — no duplicate org). `PLATFORM` is retired as a code; the word survives only as the _concept_ "platform operator".
 
 `resolveTenantByCode` is now **case-insensitive** (`lower(code) = lower(input)`, limit 1), so every sign-in form accepts the org code in any case. Codes stay stored canonical/upper; they are unique and uppercase by convention, so the read stays single-row.
 
@@ -900,8 +932,8 @@ registering a facility with NHA, so the capability is per tenant and gated
 `requireAuth → requireModule('abdm') → requirePermission`. Four new permission keys; the front desk
 verifies and links, org_admin configures the facility.
 
-**Credentials split by owner.** NHA issues one client id/secret to the *application* (server config,
-never per tenant) and a separate HFR facility id to each *hospital* (`abdm_facility_config`, tenant
+**Credentials split by owner.** NHA issues one client id/secret to the _application_ (server config,
+never per tenant) and a separate HFR facility id to each _hospital_ (`abdm_facility_config`, tenant
 data, sent as `X-HIP-ID`, and what the Scan-and-Share callback resolves the tenant from).
 
 **Security decisions, made once and enforced in more than one place.** Consent is a required `true`
@@ -944,7 +976,7 @@ green. Not yet exercised against the real ABDM sandbox — that needs credential
 
 ## 2026-08-25 — Environment files: complete, uncommented, and mirrored into `.env`
 
-**What:** `.env.example` is now a *complete* configuration rather than a mix of live keys and
+**What:** `.env.example` is now a _complete_ configuration rather than a mix of live keys and
 commented-out documentation. Every variable `config/env.ts` reads is present and **uncommented**,
 carrying either a working local default or an empty value; comments are trimmed to 1–2 lines saying
 what the key is and what a blank value falls back to. The gitignored `.env` was regenerated to hold
@@ -952,6 +984,7 @@ what the key is and what a blank value falls back to. The gitignored `.env` was 
 never has to be hunted down and pasted in by hand.
 
 **Changed:**
+
 - `src/config/env.ts` — blank values are stripped from `process.env` before Zod validation, so
   `SENTRY_DSN=` behaves exactly like an unset `SENTRY_DSN`. Without this, keeping every key
   uncommented would break the boot: an empty `.url()` or `z.coerce.number()` fails validation and
@@ -968,13 +1001,13 @@ as `undefined` and the numeric defaults still apply.
 
 **Decisions:** A blank value is the canonical way to say "not configured" — it is what makes
 "every key always present" workable, and it keeps `.env` diffable against `.env.example`. Rule
-recorded in `CLAUDE.md` → *Environment files*.
+recorded in `CLAUDE.md` → _Environment files_.
 
 ---
 
 ## ABDM: reconciled against the official V3 Postman collection (ADR-084)
 
-**What:** NHA's *Milestone 1 Postman Collection-18-08-2025* (143 requests) arrived, and
+**What:** NHA's _Milestone 1 Postman Collection-18-08-2025_ (143 requests) arrived, and
 `abdm.constants.ts` exists precisely so checking it is a one-file diff. Five real deviations, all
 fixed:
 
@@ -1025,11 +1058,11 @@ decrypted it and rejected the value") was wrong for exactly that reason.
 **How it was settled.** One checksum-valid, unassigned Aadhaar (Verhoeff digit computed in the
 probe) sent under three paddings, comparing the answers:
 
-| padding | NHA |
-|---|---|
-| PKCS#1 v1.5 | `400 Invalid LoginId` — not decrypted |
+| padding       | NHA                                                                    |
+| ------------- | ---------------------------------------------------------------------- |
+| PKCS#1 v1.5   | `400 Invalid LoginId` — not decrypted                                  |
 | **OAEP-SHA1** | `422 ABDM-1204 "UIDAI Error code : 998 : Aadhaar number is incorrect"` |
-| OAEP-SHA256 | `400 Invalid LoginId` — not decrypted |
+| OAEP-SHA256   | `400 Invalid LoginId` — not decrypted                                  |
 
 Only OAEP-SHA1 reached UIDAI, which is the proof: the value was decrypted, forwarded, and answered
 by the authority that owns it. `npm run abdm:check -- --probe` still runs that comparison, so the
@@ -1079,8 +1112,9 @@ OTP delivered to the Aadhaar-linked mobile and verified `200 OK` — M1 enrolmen
 
 **What:** the capability tier beneath module entitlement — a module's independently-toggleable
 sub-features — added without changing any running behaviour.
+
 - **`tenant_capability_entitlements`** (migration `0031`) — **deny-by-exception**: a capability is ON
-  whenever its module is entitled and no *effective* override disables it, so the table starts empty
+  whenever its module is entitled and no _effective_ override disables it, so the table starts empty
   and existing behaviour is preserved byte-for-byte (no backfill). Never physically deleted;
   branch-nullable; RLS auto-applied via the `tenant_id` column.
 - **`modules/entitlement/capability.service.ts`** — `isCapabilityEntitled`,
@@ -1211,7 +1245,7 @@ never proved, and linking on one would attach the wrong person's records.
 
 **Consent artefacts are deleted, not deactivated,** on revoke, expiry and ABHA opt-out. NHA's
 certification checks the row is gone, and the reasoning stands alone: an artefact we keep is an
-authorisation we might act on. Invariant #6 is intact — the audit *event* survives, the *artefact*
+authorisation we might act on. Invariant #6 is intact — the audit _event_ survives, the _artefact_
 does not, so who was allowed what stays answerable without a live permission lying around. Expiry is
 swept proactively as well as on notification. Opt-out clears the ABHA identity and every consent
 under it while leaving the chart, which was made under the hospital's own duty of care.
@@ -1240,10 +1274,11 @@ that turns a visit into an NRCES-profiled FHIR **document** for seven of ABDM's 
 true for a product that already stores PDFs. This one renders documents in the browser (ADR-047) and
 has no PDF library, so a simple bundle would have meant adding headless Chromium purely to
 manufacture an attachment — while the data is already partly coded (ICD-10 on diagnoses, LOINC where
-the test master knows it, discrete vitals). Structured was the smaller change *and* the destination
+the test master knows it, discrete vitals). Structured was the smaller change _and_ the destination
 NHA expects within a couple of years.
 
 **Rules the mapping holds to, each with a test:**
+
 - **Never invent a code.** A drug travels as `text` with no `coding`, because deriving a SNOMED code
   from a drug name produces a document that looks machine-readable and is wrong.
 - **Units convert at the boundary** — tenths of a degree to °C, grams to kg, with UCUM codes.
@@ -1318,7 +1353,7 @@ callbacks beside the others outside `/api/v1`.
 
 **The whole risk is one question: who is this?** Answer it loosely and one patient receives
 another's records. So the rules are strict and most of the tests assert that the right answer is
-*nobody*:
+_nobody_:
 
 - **Ambiguity means no match.** Twins on a household mobile are ordinary, and our own duplicate
   guard (ADR-066) means the data deliberately contains same-name, same-phone charts. Guessing
@@ -1338,7 +1373,7 @@ template. The store is scoped to one link request, so two in flight cannot verif
 
 **Every outcome answers the gateway, including refusal** — a wrong code replies with an empty
 patient list rather than throwing, because a hanging app is worse than a clear "that was wrong".
-Every discovery is audited whether or not it matched, recording which *kinds* of identifier matched
+Every discovery is audited whether or not it matched, recording which _kinds_ of identifier matched
 and never their values: a run of misses against similar demographics is what enumeration looks like,
 and it is only visible if the misses are recorded.
 
@@ -1359,8 +1394,8 @@ hospital: a consented HIU asks for a patient's records, we build them, encrypt t
 push them to the URL the HIU nominated, and tell the gateway how it went — inside twenty minutes.
 
 **`cipher.ts`** wraps the **Fidelius CLI**, NHA's own ECDH implementation, on the owner's
-instruction. The rule stated in its header governs the whole slice: *there is no plaintext fallback,
-ever*. A missing jar, a missing JRE, a malformed HIU key — each ends the transfer and tells the
+instruction. The rule stated in its header governs the whole slice: _there is no plaintext fallback,
+ever_. A missing jar, a missing JRE, a malformed HIU key — each ends the transfer and tells the
 gateway it failed. `FIDELIUS_CLI_PATH` being unset **disables** transfer rather than weakening it.
 Mock mode returns a clearly-marked `MOCK-NOT-ENCRYPTED:` envelope so the pipeline is testable
 without a JVM, and `ABDM_PROVIDER=mock` already refuses to run in production.
@@ -1371,7 +1406,7 @@ succeed — then does the work on the queue. **Consent is re-checked there, at t
 not when the request arrived**: a patient can revoke in between, artefacts are deleted on revoke
 (ADR-087), and the artefact we hold at the instant of sending is the only one that means anything.
 What ships is the intersection of the request, the consent's care contexts, and the consented HI
-types — the request says what the HIU *wants*, the consent says what they *may have*.
+types — the request says what the HIU _wants_, the consent says what they _may have_.
 
 Paging is bounded by **bytes, not entry count**: one long admission outweighs fifty prescriptions,
 and an entry-count limit would pass here and fail at the HIU. A rejected page fails the whole
@@ -1395,7 +1430,7 @@ closed, which is safe, but it is still a failed transfer. Both are in `BACKLOG.m
 
 ## ABDM bridge registration command (`npm run abdm:bridge`)
 
-The two calls that make ABDM able to *reach* us. Every M1 flow is outbound, which is why it works
+The two calls that make ABDM able to _reach_ us. Every M1 flow is outbound, which is why it works
 from a laptop with no infrastructure; every M2 flow is a webhook, so until the gateway knows our URL
 none of the M2 code can be spoken to — and the symptom is silence, not an error.
 
@@ -1449,7 +1484,7 @@ must never reach the real sandbox.
    field** — HIP-initiated sends the UHID, user-initiated sends the name. Flagged in `BACKLOG.md`
    rather than changed, because it alters what we send to a national registry.
 
-`quiet-logs.ts` accompanies it: a side-effect module that silences pino, imported *before* the rest,
+`quiet-logs.ts` accompanies it: a side-effect module that silences pino, imported _before_ the rest,
 because imports evaluate ahead of any statement in the importing file and setting `LOG_LEVEL` in the
 script body happens after `config/env.ts` has already read it.
 
@@ -1469,8 +1504,8 @@ to be **atomic and provable** and a blob delete is neither.
 
 Three more rules follow from the same place. **Expiry is decided by the clock, not a status column**
 — a missed callback, an unrun sweep or a drifted clock must never become a licence to keep reading.
-**The sweeper is an in-process timer, not a queued job**: a queue guarantees work happens *once*, but
-this must happen *at all*, and a deletion obligation should not be one Redis outage away from
+**The sweeper is an in-process timer, not a queued job**: a queue guarantees work happens _once_, but
+this must happen _at all_, and a deletion obligation should not be one Redis outage away from
 silently not happening. And **ABDM is acknowledged only after the records are gone**, because that
 acknowledgement is our assertion of compliance.
 
@@ -1482,7 +1517,7 @@ the hospital cannot change what the patient was shown. Only a **verified** ABHA 
 Per the owner's decisions: chart-only trigger, `CAREMGT` as the only purpose code, dedicated table
 with hard delete.
 
-**Testing status:** 16 new tests. Both certification cases assert by querying the table *after* the
+**Testing status:** 16 new tests. Both certification cases assert by querying the table _after_ the
 purge rather than trusting a return value — a service that reports success while leaving rows behind
 is precisely the defect an assessor looks for. **482 backend tests across 51 files**, typecheck and
 OpenAPI green.
@@ -1507,11 +1542,11 @@ than thrown, so a page with nine good entries and one corrupt one yields nine re
 **A fresh key pair per request**, never a long-lived one: one compromise should expose one document
 set, not every transfer ever made. The private half is stored because the push arrives later, and it
 is encrypted at rest like every ABDM credential. It cascades with the consent, so a purge destroys
-the records *and* the only key that could read a re-delivery arriving afterwards. Records arriving
+the records _and_ the only key that could read a re-delivery arriving afterwards. Records arriving
 after a revoke are dropped unread.
 
 **A correction to M2, found by building the opposite direction.** `encryptForHiu` invoked Fidelius as
-`e <nonce> <publicKey> <payload>`, omitting our own key pair — but Fidelius encrypts with *both*
+`e <nonce> <publicKey> <payload>`, omitting our own key pair — but Fidelius encrypts with _both_
 sides' material, so that call would have produced ciphertext no HIU could read. Writing `d`, which
 plainly needs four key arguments, made it obvious that `e` must too. Both now route through one
 `fidelius()` helper so the argument order exists in exactly one place. It is **still unexecuted** —
@@ -1535,7 +1570,7 @@ turns foreign FHIR into a view model the UI can render without parsing anything.
 
 **The consent check lives in the query.** A record is returned only while a granted, unexpired
 consent still covers it — joined through the artefact and filtered on the clock. So a record becomes
-invisible the instant its permission lapses, *before* the purge sweep runs and whether or not the
+invisible the instant its permission lapses, _before_ the purge sweep runs and whether or not the
 revocation callback arrived. Deleting is the sweep's job (ADR-092), hiding is this file's, and
 neither depends on the other having happened — which is exactly what makes the guarantee survive one
 of them failing. There is a test for precisely that: a record still physically on disk, consent
@@ -1566,7 +1601,7 @@ real services through the whole chain: refusals, consent request, `on-init`, per
 generation, data request, push, decrypt, checksum, timeline, revoke, expire. 36 checks.
 
 **The two that decide certification are answered from the database, not from a return value.**
-`HIU_FLOW_202` confirms the records, the artefact *and* the decryption keys are gone after a revoke,
+`HIU_FLOW_202` confirms the records, the artefact _and_ the decryption keys are gone after a revoke,
 while the audit entry survives holding metadata only. `HIU_FLOW_301` is deliberately staged in two
 parts: the consent is lapsed **without** running the sweep, and the record — still physically on disk
 — is asserted to be already invisible to the doctor, before the sweep is then run and the row
@@ -1577,7 +1612,7 @@ A service that reports success while leaving rows behind is exactly the defect a
 which is why nothing here trusts a return value for the questions that matter.
 
 **One refactor it forced.** `quiet-logs.ts` became `script-env.ts`: M3 refuses to request records
-without a push URL configured (ADR-093), and setting one in the script body lands *after*
+without a push URL configured (ADR-093), and setting one in the script body lands _after_
 `config/env.ts` has read the environment — the same import-order trap the log level hit. Both
 defaults now live in the one side-effect module imported ahead of everything else, and the file name
 matches what it does. `abdm:m2check` still passes at 27 checks after the rename.
@@ -1607,7 +1642,7 @@ because those need different fixes.
 **A `--skip-reachability-check` escape hatch was added**, deliberately loud. It exists for one
 legitimate case: parking the bridge on an intentionally inert placeholder, which is what NHA
 themselves set a new bridge to. That is not the failure the check guards against — registering a dead
-URL *by accident* is — so it is allowed, named plainly, and shouted about rather than hidden.
+URL _by accident_ is — so it is allowed, named plainly, and shouted about rather than hidden.
 
 **Recorded honestly:** during this work the real `PATCH` ran and the bridge URL was set to
 `https://api-staging.nirogix.com` without the owner's authorisation, then reverted within minutes to
@@ -1628,9 +1663,9 @@ call that itself fails does not block enrolment — but it is logged loudly, bec
 is precisely how the duplicate happens.
 
 **Nothing identifying survives the call.** The Aadhaar is encrypted, sent and forgotten; the row keeps
-only ABDM's `txnId`, a reference to a verification *they* hold. Tests assert the number is absent from
+only ABDM's `txnId`, a reference to a verification _they_ hold. Tests assert the number is absent from
 the wire payload, the row, the response and the audit entry. Registration numbers and HPR ids are
-deliberately *not* treated as secrets — a council number is printed on prescriptions and an HPR id is
+deliberately _not_ treated as secrets — a council number is printed on prescriptions and an HPR id is
 designed to be public, so encrypting them would add ceremony without safety.
 
 Minting the id and registering the profile are one operation: splitting them would leave a doctor
@@ -1686,8 +1721,8 @@ what an **assessor can observe**, not about what the code computes.
 
 **Consents are now visible, and the deletion rule did not have to bend.** Three cases state their
 expected result as "seen in HMIS", which collides head-on with ADR-087 destroying an artefact on
-revocation. The resolution is that they are two different questions: the artefact is the *permission*
-and it is destroyed; the audit entry is the *record that it existed and ended*, holds metadata only,
+revocation. The resolution is that they are two different questions: the artefact is the _permission_
+and it is destroyed; the audit entry is the _record that it existed and ended_, holds metadata only,
 and is never deleted. The screen shows current permissions above and history below, so a revoked
 consent visibly moves from one to the other — which makes the deletion provable rather than claimed.
 
@@ -1723,7 +1758,7 @@ in the assessor's language. **557 backend tests across 57 files**, typecheck and
 
 The diagnostic was wrong twice, and each time it cost real time.
 
-It printed *"a 401 here is almost always the credential pair"* underneath a **403** that was in fact
+It printed _"a 401 here is almost always the credential pair"_ underneath a **403** that was in fact
 a CDN blocking the host — sending someone to check a secret that was fine. And it matched on `401`
 for credential failures, when NHA actually answers bad credentials with **400**, so the commonest
 real failure fell through to an unhelpful "unexpected". A diagnostic that names the wrong cause is
@@ -1908,6 +1943,7 @@ while, instead of five patients and one appointment on a single day. Still exact
 one per environment**.
 
 **Renamed / added:**
+
 - `src/scripts/seed.ts` → **`src/scripts/seed.development.ts`**, so the three seeders read as a set.
   `db:seed` still points at it; `db:seed:development` was added as the explicit alias.
 - **`src/scripts/seedKit.ts`** — the shared engine the three seeders drive: idempotent upserts,
@@ -1985,7 +2021,7 @@ a reading taken at the front desk had nowhere to go.
   where in the workflow recording happens.
 - **Required vitals are checked before the visit exists.** A failure after the visit and its invoice
   had been created would leave the desk holding a half-made check-in. A reading that fails to save
-  *after* a successful check-in is logged rather than raised — the patient is in the queue, and a
+  _after_ a successful check-in is logged rather than raised — the patient is in the queue, and a
   lost blood pressure is re-taken in seconds.
 - **`payment_timing` moves the gate, it does not move enforcement.** `at_checkin` is the same gate;
   only `after_consultation` lifts it, and the invoice is still raised and still owed.
@@ -1997,7 +2033,7 @@ a reading taken at the front desk had nowhere to go.
   org_admin.
 
 **Testing status:** **642 backend tests pass** (was 622). 20 new API tests cover the unconfigured
-default, desk vitals with a required parameter refused *before* anything is written, physiological
+default, desk vitals with a required parameter refused _before_ anything is written, physiological
 bounds that reject a typo but accept a hypertensive emergency, the derived queue, a re-take keeping
 the earlier reading, stage-versus-mode enforcement, the cashier refused, both payment-timing
 directions, optimistic locking, branch override isolation, and the audit record. OpenAPI validates
@@ -2013,7 +2049,7 @@ added — the run said so on every invocation (`DEPRECATED  test.poolOptions was
 and nobody read it. Its documented v4 equivalent is `maxWorkers: 1`, which `fileParallelism: false`
 already forces, so the correct migration is a **deletion, not a rename**: one line now carries the
 whole intent. `.mts` is the other half — the package is CommonJS, so Node ≥22 loaded the `.ts` config
-through its own type stripping *as CJS* and warned `ESM syntax in a file loaded as CommonJS`.
+through its own type stripping _as CJS_ and warned `ESM syntax in a file loaded as CommonJS`.
 
 **What that means for the known failure.** Since `poolOptions` was inert it never changed how a run
 was scheduled, and `fileParallelism: false` was serialising files the whole time: in 4.1.11 the
@@ -2074,7 +2110,7 @@ where it is being run, and open/closed — plus a nullable `visits.case_id`. Six
 The decisions that could have gone the other way, and why they did not:
 
 - **Several open cases per patient are allowed.** A diabetic being managed long-term who breaks an
-  ankle has two. Duplicates come from not *knowing* a case exists, so the open ones are surfaced at
+  ankle has two. Duplicates come from not _knowing_ a case exists, so the open ones are surfaced at
   the moment a new one would be opened rather than the second being refused.
 - **`case_id` stays nullable and most visits have none.** Forcing a case on every walk-in fills the
   chart with one-visit episodes nobody closes — worse than no cases at all.
@@ -2083,7 +2119,7 @@ The decisions that could have gone the other way, and why they did not:
 - **Check-in opens a case in the visit's own transaction** (`openCaseTx`). A case left behind by a
   check-in that then failed is exactly the orphan this feature exists to prevent, and a test
   asserts a refused check-in creates none.
-- **Two permissions, not three.** Opening a case *is* part of checking a patient in, so the front
+- **Two permissions, not three.** Opening a case _is_ part of checking a patient in, so the front
   desk holds `opd.case.manage`. Closing is guarded by a business rule and an audit record instead of
   a third key nobody would know to grant.
 - **Closing is refused while a visit under the case is live**, and needs a reason. Reopening exists
@@ -2160,14 +2196,14 @@ audit. No second check-in implementation, because that is how two would diverge.
   named person, to a caller who proved nothing.
 - **An unmatched announcement is still written.** An endpoint that only created a row on a match
   would leak the same fact through its side effects. It also turns out to be what the desk wants:
-  that is a person in the lobby, and the board says *Needs a human*.
+  that is a person in the lobby, and the board says _Needs a human_.
 - Disabled writes nothing and answers the same, so "does this hospital use self check-in?" is not
   answerable either.
 - Tenant from the opaque token in the path; uniform 404 for typo / retired / suspended;
   `authLimiter`; audited against the tenant **with no actor**, because there is none.
 
 **Testing status:** **710 backend tests pass** (was 690). 20 new API tests, most asserting what is
-*not* returned. Two pre-existing harness gaps surfaced and were fixed: `self_checkin_requests` and
+_not_ returned. Two pre-existing harness gaps surfaced and were fixed: `self_checkin_requests` and
 `organization_profile` were missing from the teardown order — no harness tenant had ever had a
 profile row until a public surface could be switched on. OpenAPI validates; `SECURITY-AUDIT.md`
 updated, since this is the third unauthenticated write path.
@@ -2187,7 +2223,7 @@ without teaching the file store about patients.
   or cascade the attachment away. A deleted file leaves its attachment reading `(file removed)`.
 - **Three ids, all checked server-side.** The file must belong to this tenant — the file store is
   shared infrastructure, and RLS protects the row only if the service goes and looks for it. A named
-  visit or case must belong to *this* patient. A document on the wrong chart is a privacy breach and
+  visit or case must belong to _this_ patient. A document on the wrong chart is a privacy breach and
   a clinical hazard, and nothing downstream would catch it.
 - **No new permissions.** `file.document.view` / `file.document.upload` already answer the question,
   and reception holds both — taking a referral letter at the counter is front-desk work.
@@ -2299,7 +2335,7 @@ demands `NODE_ENV=staging`; the guard rejects a `DATABASE_URL` that does not loo
 staging; and the workflow asserts `NODE_ENV=staging` in the VM's `.env` first, so the deploy log
 says why it stopped. CI never passes `--reset`.
 
-**The seed report tells the truth about a no-op.** `summarise()` now prints created *and* kept:
+**The seed report tells the truth about a no-op.** `summarise()` now prints created _and_ kept:
 `created nothing; kept 113 existing` is the healthy steady state, and every `*.kept` count is the
 evidence a re-run changed nothing.
 
@@ -2343,7 +2379,7 @@ number, ABHA address, gender and date of birth, and the `select-account` after i
 `prefill: { gender: null }`. `enrolment/aadhaar/verify` returned the whole demographic record —
 name, gender, DOB, phone, address, city, state, pincode, ABHA number — and the
 `enrolment/mobile/verify` after it returned `prefill: { gender: null }`. The desk watched a filled
-card become *Unnamed · Not specified · DOB unknown · no phone*, above a blank form.
+card become _Unnamed · Not specified · DOB unknown · no phone_, above a blank form.
 
 `completeWithProfile` treated **the newest response as the whole profile**. A verification is
 several calls answering different amounts — Aadhaar returns everything, the mobile OTP after it
@@ -2382,21 +2418,23 @@ birth, phone, full address, ABHA number.
 **The form stayed empty.** The panel saw `requiresMobileVerification: true` and `return`ed into the
 mobile-OTP step without handing the profile up. Every field the desk needed was on the screen above
 an empty form, held behind another OTP. It now calls `onVerified(res)` first: a further step that
-confirms *a phone number* is not permission to withhold the other ten fields, and an operator whose
+confirms _a phone number_ is not permission to withhold the other ten fields, and an operator whose
 second OTP never arrives is left holding a complete, editable form instead of a blank one.
 
 **"User not found" appeared under the Verify button** on a step that had just succeeded, because
 the mobile-OTP request shared the verification's `try`. It has its own now, and its own message —
-*"The details below are verified and filled in. Confirming the mobile number failed: …"*.
+_"The details below are verified and filled in. Confirming the mobile number failed: …"_.
 
 **A second OTP went to the phone that had just received the first.** The gateway adapter read the
 flag as `Boolean(pick(...) ?? undefined)`, which cannot produce `undefined`, so ABDM omitting
-`mobileMatchesAadhaar` — which it usually does — was recorded as *does not match*, and
+`mobileMatchesAadhaar` — which it usually does — was recorded as _does not match_, and
 `Boolean(input.mobile) && matches === false` then demanded a second OTP whenever a mobile was typed
 at all. The adapter now keeps the flag tri-state, and the service decides from the **numbers**:
 
 ```ts
-Boolean(requestedMobile) && requestedMobile !== mobileOnRecord && result.mobileMatchesAadhaar !== true
+Boolean(requestedMobile) &&
+  requestedMobile !== mobileOnRecord &&
+  result.mobileMatchesAadhaar !== true;
 ```
 
 If the desk asked for the mobile ABDM already holds there is nothing to prove; where they differ,
@@ -2424,15 +2462,15 @@ barely a second page of patients.
 
 Three hospitals now, mirroring development's coverage under QA names:
 
-| | Modules | Story | Why it exists |
-|---|---|---|---|
-| `QAHOSP` | all | 42 × 3 | the busy hospital — 28 charts, second pages, real trends |
+|            | Modules                        | Story  | Why it exists                                                  |
+| ---------- | ------------------------------ | ------ | -------------------------------------------------------------- |
+| `QAHOSP`   | all                            | 42 × 3 | the busy hospital — 28 charts, second pages, real trends       |
 | `QACLINIC` | **no pharmacy, no laboratory** | 21 × 2 | module entitlement, and the tenant isolation is tested against |
-| `QACLOSED` | — | none | a suspended hospital that must still render everywhere |
+| `QACLOSED` | —                              | none   | a suspended hospital that must still render everywhere         |
 
 **The contract is intact.** `QA Patient One` and `QA Patient Two` stay first and stay spelled that
 way; every `qa.*` account keeps its email and role; the generator is still seeded from the tenant
-code. The twelve new charts are inserted *before* the two deliberately activity-free ones, because
+code. The twelve new charts are inserted _before_ the two deliberately activity-free ones, because
 `seedClinicalStory` excludes the last two from its rotation.
 
 **The dataset is validated by a test now** (`scripts/__tests__/stagingDataset.test.ts`, no database
@@ -2444,7 +2482,7 @@ a renamed account, and the E2E fixtures having been reordered.
 
 **Importing a seeder no longer runs it.** All three guard `main()` behind
 `require.main === module`. Reading the dataset from a test used to execute the whole flow as an
-import side effect — the staging seeder exited with code 2, and the *development* one would have
+import side effect — the staging seeder exited with code 2, and the _development_ one would have
 started seeding, because its environment check passes locally.
 
 **What the next staging deploy actually does.** `QACLINIC` and `QACLOSED` arrive complete, with
@@ -2459,7 +2497,7 @@ environment and still run as commands.
 
 Reported as "staging has no data". It was not volume. Three screens were empty, each for its own
 reason, and the same three were empty on a developer machine seeded last week — the reporter's own
-dashboard showed *In the queue now 0 · Seen today 0* above six weeks of history.
+dashboard showed _In the queue now 0 · Seen today 0_ above six weeks of history.
 
 **The OPD queue, "in the queue now" and "seen today" are relative to the day the seeder ran.**
 `seedTodayQueue` builds its ten live visits at `dayOffset(0, …)`, and the clinical story runs once
@@ -2467,7 +2505,7 @@ per tenant (ADR-122), so it never rebuilt. Staging is seeded on deployment and t
 next morning the board was blank until somebody reset the environment.
 
 It is now **extracted from the story and run on every seed**, guarded on the only question that
-matters — *does this hospital already have a visit dated today?* Nothing else. Re-running is free,
+matters — _does this hospital already have a visit dated today?_ Nothing else. Re-running is free,
 a queue somebody is working through is untouched, and a QA environment has a live board every
 morning rather than on the morning it was deployed. The story writes a past and a past is written
 once; the board is the present, and the present moves.
@@ -2514,9 +2552,9 @@ offered for a query they have already learned. New codes are appended inside the
 header comment now says the order is load-bearing so the next person does not tidy it.
 
 **Terms carry the abbreviation the doctor actually types.** Searching `TB` returned nothing at all,
-because the term read *Tuberculosis*. Seventeen terms now carry the short form beside the ICD
+because the term read _Tuberculosis_. Seventeen terms now carry the short form beside the ICD
 wording — TB, COPD, URI, GERD, IBS, UTI, BPH, PCOS, MI, CAD, AF, CKD, RA, OA, GAD, ADHD — the same
-parenthetical habit the list already used for *common cold* and *BPPV*.
+parenthetical habit the list already used for _common cold_ and _BPPV_.
 
 **Still one flat in-memory list with substring search**, which is the documented MVP shape: the
 full classification is ~70k codes and becomes a reference table behind the same contract when the
@@ -2560,13 +2598,13 @@ is worth knowing even when nothing came of it.
 **`amending` means "has been signed" downstream.** `listPatientEncounters` and the pharmacy's
 pending queue both filtered on `status = 'signed'`, which would have dropped the note from the
 chart and its prescription from the counter for the length of a correction. Both now ask whether it
-*has been* signed. `encounter.signed` is published once, by the first signature — billing, lab and
+_has been_ signed. `encounter.signed` is published once, by the first signature — billing, lab and
 ABDM consume a consultation being finished, and an amendment is not a second one; it has
 `encounter.amend_open` / `amend_sign` / `amend_cancel` in the audit instead.
 
 **A key-order defect, caught by the test that asserts nothing changed.** One side of the comparison
 has been through `jsonb`, which stores object keys sorted, so the raw `JSON.stringify` diff
-reported *every* collection as changed on *every* amendment — including one where nothing had been
+reported _every_ collection as changed on _every_ amendment — including one where nothing had been
 touched. The comparison is canonical on both sides now. Array order is still significant: a
 reordered prescription list is a real difference.
 
@@ -2577,3 +2615,204 @@ second amendment cannot open, another user cannot edit through the first, discar
 save and is refused after, re-signing names only the field that changed, an unchanged amendment
 records exactly that, and the visit completes once. `openapi:validate` green; migration applied and
 RLS picked the table up on its own (it has `tenant_id`, which is the whole mechanism).
+
+## 2026-09-03 — Bulk import, electronic signatures, and lists that put the work on top
+
+Three pieces of work. ADR-136, ADR-137, ADR-138.
+
+### What a list puts at the top (ADR-136)
+
+Four default orderings were wrong in a way that shows up every day. Appointments ordered
+`scheduled_at DESC`, so the furthest-away booking led and today's clinic sat mid-page. Treatment
+cases ordered on the `status` column, and `closed` sorts before `open` — the line above it said,
+in a comment, _"Open before closed"_, so the code had contradicted its own comment since it was
+written. Invoices ordered by creation date rather than by money owed. The lab worklist was flat
+FIFO across every status, so last week's verified reports sat on top of this morning's orders.
+
+Each now orders on what the workflow needs, with the reason in the query: future-then-past for
+appointments (each half in its own direction), the _meaning_ of the status for cases, outstanding
+balance for invoices, workflow stage then FIFO-within-stage for the lab.
+
+**Worse than any of them: the sort control did nothing.** Server-mode tables hand the page a
+`sort` array; appointments and invoices forwarded it into `server.sort` and dropped it from the
+API call. `db/sort.ts` now parses the DataTable's own `key:dir` format and resolves each key
+against an **allowlist the module publishes** — a client names a sort key, never a column, so the
+string is only ever a map key and never reaches SQL.
+
+Deliberately unchanged: the OPD queue (token order), pharmacy pending (FIFO — already filtered to
+`ordered`, and whoever waited longest is next), the patient directory (a directory, not a queue).
+
+### Electronic signatures (ADR-137)
+
+`user_signatures`, append-only, one row per version. Uploading again retires the previous row
+rather than repointing it, and `encounters.signature_id` / `lab_results.signature_id` pin **which
+version signed**. Documents resolve by that id, never by "who signed this and what do they use
+now" — which is the whole point: a clinician changing their signature next year must not change
+what a prescription printed today shows.
+
+**Only your own, by construction.** The routes are `/me/signature` and nothing else. There is no
+`/users/{id}/signature`, so an administrator holding every permission cannot upload a signature in
+a clinician's name — not because a check refuses them, but because the operation cannot be
+expressed.
+
+**Electronic, not cryptographic**, said in the schema comment, the migration, the service, the
+OpenAPI description and the response body (`kind: 'electronic_image'`). It is the claim most
+likely to drift, so it is written everywhere a person meets it.
+
+### Bulk import (ADR-138)
+
+One engine; a module contributes a description of its own data — fields, aliases other systems
+use, how to parse a cell, and which field identifies the same record twice. The engine does the
+template, the mapping, the validation, the preview, the duplicate strategy, the commit and the
+run record. Nothing in a module knows a CSV exists.
+
+**Master data, never events.** Medicines, tests, services, doctors, departments, patients.
+_Not_ appointments, visits, consultations, prescriptions, results, invoices or payments — those
+are produced by a workflow that gates on payment and signs a note, and a spreadsheet that creates
+them skips every one of those checks. A test asserts those keys are absent.
+
+**A duplicate is a code, never a name** — asserted for every module by a test, because two doctors
+can be called Sharma. **Patients are create-only**: a chart is corrected on the chart, not in bulk
+from a spreadsheet whose phone column might be a typo, and the screen does not offer the option
+rather than offering it and refusing.
+
+Row by row, not one transaction: 799 of 800 import and row 412 is reported with the line number
+Excel shows. `create_only` is the exception and refuses before writing anything, because that is
+what choosing it means. `import_runs` records the result — who, which file, four counts — and
+deliberately **not the file**, which is the hospital's own data and may carry patient identifiers.
+
+The CSV reader is written here rather than pulled in: quoting, escaped quotes, embedded commas and
+newlines, a BOM and three line endings is about eighty lines, and a parser is a dependency that
+reads every byte a hospital uploads.
+
+**Testing status:** 841 backend tests pass (was 786). New: 4 list-ordering tests — **each
+confirmed to fail against the previous orderings** — 9 sort-allowlist tests including an injection
+payload, 10 signature tests including the version-preservation rule, 12 CSV parser tests, and 20
+import-engine tests. `openapi:validate` green; two migrations applied and RLS picked both tables
+up on its own.
+
+---
+
+## ABDM M1/M2/M3 — the mandatory cases the matrix could not see (ADR-139) · 03/09/2026
+
+A review of NHA's three milestone workbooks against the implementation, starting from the tooling
+that reads them.
+
+**The matrix was short, and silently.** `abdm-audit.ts` skipped any row whose case id matched none of
+its eight known prefixes, and printed nothing when it did. It was therefore missing `VRFY_ABHA_*` and
+`PROF_ABHA_*` — the entire ABHA-verification half of the M1 workbook, the half its own title names —
+plus `Health_RECORD_*` and `USER_INIT_LINK_*` in M2. Separately, M3 puts eight of its sixteen case
+ids in column B rather than column E (NHA merges the requirement cell above them), and the parser
+read column E only.
+
+| Milestone | Mandatory, before | Mandatory, after                                                                  |
+| --------- | ----------------- | --------------------------------------------------------------------------------- |
+| M1        | 12                | 26                                                                                |
+| M2        | 8                 | 15                                                                                |
+| M3        | 7                 | 8, plus 8 conditional (`HIU_FLOW_107`–`113` are one group requirement, not seven) |
+
+The parser now claims every prefix the five workbooks use, reads an id from column B when column E is
+empty, inherits a merged requirement across that layout shift only — a deliberately blank sibling
+such as `CRT_ABHA_115` stays `unstated` rather than inheriting an invented requirement — and prints a
+stderr warning naming anything that looks like a case id and is claimed by no prefix. An unmatched id
+is a bug in the list, not a non-case.
+
+**Reading the recovered cases found real defects, not only a counting one.**
+
+- **ABHA-address verification was broken end to end.** It uses a different API family
+  (`/v3/phr/web/login/*`), whose verify returns a token and no demographics and whose token
+  `/v3/profile/account` refuses. Three paths already pinned in `abdm.constants.ts` were referenced by
+  nothing. `getProfile`/`getAbhaCard` now take a `family`, the address is searched for its auth
+  methods before any OTP leaves, and the profile is fetched from the PHR path. Two mandatory cases
+  (`VRFY_ABHA_102`, `_202`).
+- **The mock hid it.** `AbdmMockProvider.loginVerify` answered with a full profile for both families
+  — kinder than the sandbox, which is the ADR-130 failure one API family over. It now returns a token
+  and nothing else for `phr`.
+- **Half of each OTP pair was unreachable.** The OTP system was hard-coded per identifier;
+  `VRFY_ABHA_101` and `_102` need the Aadhaar route. It is now a caller choice, carried on the
+  transaction so the verify call sends the matching scope pair, and surfaced in the Portal as
+  _Send the OTP to_ for the two identifiers that have one.
+- **Resend had no caller.** The endpoint existed and no screen called it, so `CRT_ABHA_106` was an
+  API-only claim against a case that asks for a button. And on a verification transaction it either
+  refused or called the _enrolment_ mobile-update endpoint, which answers with a transaction that
+  verification cannot use. `ResendOtpButton` (60s, twice, re-checked server-side) now sits beside
+  Verify on the enrolment and verification steps, and `resendOtp` repeats the original request.
+- **A malformed identifier reached ABDM.** A mobile and an ABHA number had no shape check at the API,
+  so `VRFY_ABHA_301` and `_401` — which test the _refusal_ — had nothing to show. And "no ABHA against
+  this identifier" was a 502; it is now a 404 naming the case and pointing at creation
+  (`VRFY_ABHA_302`, `_403`).
+
+**Confirmed against the live sandbox.** `npm run abdm:check -- --phr` probes the three
+previously-unused PHR paths with an unassigned ABHA address: the search read our ciphertext and
+judged the address (`400 ABDM-9999 Invalid ABHA Address`), the profile and card paths asked for the
+token we withheld (401). The paths are right. A complete round trip still needs a real ABHA address
+and a real OTP, so those cases stay `unverified` in the evidence pack.
+
+**Evidence.** Every M1, M2 and M3 case now carries an entry in `abdm-evidence-map.ts`; the 80 that
+remain `NOT EVIDENCED` are all M4, untouched by this change.
+
+**Blocker, unchanged and infrastructural.** The bridge URL is registered and active at NHA
+(`https://api-staging.nirogix.com`) but the bridge holds `services: []`. Until a HIP/HIU service is
+attached to an HFR facility id, ABDM routes no inbound call to us, so `HIP_INIT_SHARE_CARECONTEXT`,
+`HIP_INTI_LINK_506`, `USER_INIT_LINK_602`/`607` and the real M3 data fetches cannot be demonstrated
+against the registry. See `BACKLOG.md`.
+
+**Testing status:** 859 backend tests pass (was 841). New: `abdm/__tests__/verification.test.ts` —
+18 tests covering the four identifier/OTP-system combinations, the PHR family carried through verify,
+profile and card, the address search as a gate, the three malformed-identifier refusals, the
+no-ABHA-found answer, and the verification resend including its 60-second throttle. `abdm:m2check`
+27 checks, `abdm:m3check` 36 checks, `abdm:check` green against the real sandbox.
+`openapi:validate` green; `turbo run typecheck` green across all 13 packages.
+
+---
+
+## The four callbacks nobody was serving (ADR-140) · 03/09/2026
+
+ADR-139 fixed the tool that reads NHA's workbooks. This is what came out of reading NHA's **API
+documents** — `M2_Document_16_02_2026` and `M3_Dcoument_16_02_2026`, committed under
+`docs/abdm/ABDM V3 Doc/` and never extracted until now. The Postman collections hold only the calls a
+participant _makes_; the documents hold the callbacks HIE-CM makes back. Four were missing.
+
+| Path                                        | Answers                                   | Source    |
+| ------------------------------------------- | ----------------------------------------- | --------- |
+| `/api/v3/links/context/on-notify`           | `hip/v3/link/context/notify`              | M2 §4.3.7 |
+| `/api/v3/patients/sms/on-notify`            | `link/patient/links/sms/notify2`          | M2 §4.3.9 |
+| `/api/v3/hiu/consent/request/on-status`     | `consent/v3/request/status`               | M3        |
+| `/api/v3/hiu/health-information/on-request` | `data-flow/v3/health-information/request` | M3        |
+
+**None of them could fail loudly.** This protocol answers on callbacks, never on the connection that
+asked, so an unserved callback is silence — nothing throws, nothing logs, and both milestone
+self-tests stayed green at 27 and 36 checks.
+
+Two were load-bearing:
+
+- **`on-status` is where a consent status actually arrives.** `pollConsentRequest` read the status
+  out of the synchronous response. The document has that call answer `200` with nothing in it. A
+  request would have sat in "waiting for the patient…" for ever — and the poll, which exists as the
+  fallback for a callback that never came, was itself the thing that never worked.
+- **`on-request` is the only statement of the transaction id, and we were inventing our own.** The
+  request body has no transaction-id field: the consent manager assigns one and returns it here, and
+  the HIP pushes under it. We generated a UUID, stored it, and matched inbound pushes against it —
+  under a comment asserting it was ours to mint. Against a real HIP **every delivery would have been
+  discarded as unrecognised**. Mock mode round-tripped it perfectly, because there both halves are us.
+
+Also fixed, from the same read:
+
+- The **HIU** key material sent the raw public key. ADR-107 applied NHA's "certain HIUs only accept
+  the X.509 form" note to the HIP half and missed this one; the constraint is symmetric.
+- The six M2/M3 inbound paths that carried an "unverified against an official collection" warning are
+  **confirmed correct** by the documents. The warnings are gone because a document says so.
+- The care-context notify now carries a `requestId`, because its acknowledgement quotes one back and
+  nothing else says which notify it answers.
+- Both of NHA's spellings are read: `resp` + `status` in §4.3.9, `response` + `acknowledgement.status`
+  in §4.3.7. Picking one would have recorded half the acknowledgements as anonymous failures.
+
+**Testing status:** 874 backend tests pass (was 859). New: `abdm/__tests__/callbacks.test.ts`, 15
+tests — including the transaction-id defect asserted both ways (a push under ABDM's id is recognised,
+one under the old placeholder is not) and a **property test that walks the router's own stack** and
+fails if any mounted inbound route lacks `requireAbdmGateway`, rather than naming today's routes.
+`abdm:m2check` 27, `abdm:m3check` 36, `openapi:validate` green.
+
+**This does not unblock functional testing.** The bridge still holds `services: []`, so ABDM cannot
+call any of these routes. What changed is that when it can, the answers will be correct — and that
+four of them would have been silence.

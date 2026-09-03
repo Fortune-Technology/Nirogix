@@ -1,10 +1,22 @@
-"use client";
+'use client';
 
-import { use, useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2 } from "lucide-react";
-import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Select, Skeleton, Textarea, TimeField } from "@hms/ui";
-import { todayApiDate } from "@hms/utils";
-import * as api from "../../../../lib/api";
+import { use, useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2 } from 'lucide-react';
+import {
+  Alert,
+  BrandMark,
+  Button,
+  Card,
+  DateField,
+  Field,
+  PhoneField,
+  Select,
+  Skeleton,
+  Textarea,
+  TimeField,
+} from '@hms/ui';
+import { todayApiDate } from '@hms/utils';
+import * as api from '../../../../lib/api';
 
 /**
  * The hospital's public appointment-request form (ADR-069).
@@ -34,15 +46,15 @@ type Form = {
 };
 
 const EMPTY: Form = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  email: "",
-  preferredDate: "",
+  firstName: '',
+  lastName: '',
+  phone: '',
+  email: '',
+  preferredDate: '',
   preferredTime: null,
-  departmentId: "",
-  providerId: "",
-  note: "",
+  departmentId: '',
+  providerId: '',
+  note: '',
 };
 
 export default function PublicBookingPage({ params }: { params: Promise<{ token: string }> }) {
@@ -86,7 +98,11 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
       });
       setDone(true);
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "We could not send your request just now.");
+      setError(
+        err instanceof api.ApiRequestError
+          ? err.message
+          : 'We could not send your request just now.',
+      );
     } finally {
       setBusy(false);
     }
@@ -99,8 +115,8 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
           <BrandMark size={36} />
           <h1 className="text-lg font-semibold text-fg">This booking link is not active</h1>
           <p className="max-w-sm text-sm text-fg-muted">
-            The link or QR code may have been replaced, or the hospital may not be taking online appointment requests
-            right now. Please call the hospital or ask at the reception desk.
+            The link or QR code may have been replaced, or the hospital may not be taking online
+            appointment requests right now. Please call the hospital or ask at the reception desk.
           </p>
         </div>
       </Card>
@@ -116,8 +132,8 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
           <CheckCircle2 size={40} strokeWidth={1.75} className="text-success" aria-hidden />
           <h1 className="text-lg font-semibold text-fg">Thank you. We have your request</h1>
           <p className="max-w-sm text-sm text-fg-muted">
-            The hospital will confirm your appointment. {context.hospitalName} will contact you on the number you gave
-            to settle the exact date and time.
+            The hospital will confirm your appointment. {context.hospitalName} will contact you on
+            the number you gave to settle the exact date and time.
           </p>
           <p className="max-w-sm text-xs text-fg-subtle">
             Sending this form does not book a slot by itself, and it does not create an account.
@@ -132,11 +148,13 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
       <Card>
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
           <BrandMark size={36} />
-          <h1 className="text-lg font-semibold text-fg">Request an appointment at {context.hospitalName}</h1>
+          <h1 className="text-lg font-semibold text-fg">
+            Request an appointment at {context.hospitalName}
+          </h1>
           {context.city ? <p className="text-sm text-fg-muted">{context.city}</p> : null}
           <p className="max-w-md text-sm text-fg-muted">
-            Tell us who you are and when you would like to come in. The hospital checks its schedule and confirms the
-            actual slot with you. Nothing is booked until they do.
+            Tell us who you are and when you would like to come in. The hospital checks its schedule
+            and confirms the actual slot with you. Nothing is booked until they do.
           </p>
         </div>
 
@@ -147,7 +165,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
             <Field
               label="First name"
               value={form.firstName}
-              onChange={(e) => set("firstName", e.target.value)}
+              onChange={(e) => set('firstName', e.target.value)}
               required
               autoFocus
               autoComplete="given-name"
@@ -155,13 +173,13 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
             <Field
               label="Last name"
               value={form.lastName}
-              onChange={(e) => set("lastName", e.target.value)}
+              onChange={(e) => set('lastName', e.target.value)}
               autoComplete="family-name"
             />
             <PhoneField
               label="Mobile number"
               value={form.phone}
-              onChange={(v) => set("phone", v)}
+              onChange={(v) => set('phone', v)}
               required
               hint="How the hospital will reach you to confirm."
             />
@@ -169,7 +187,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
               label="Email"
               type="email"
               value={form.email}
-              onChange={(e) => set("email", e.target.value)}
+              onChange={(e) => set('email', e.target.value)}
               autoComplete="email"
             />
 
@@ -178,14 +196,14 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
             <DateField
               label="Preferred date"
               value={form.preferredDate || null}
-              onChange={(v) => set("preferredDate", v ?? "")}
+              onChange={(v) => set('preferredDate', v ?? '')}
               min={todayApiDate()}
               hint="Optional."
             />
             <TimeField
               label="Preferred time"
               value={form.preferredTime}
-              onChange={(v) => set("preferredTime", v)}
+              onChange={(v) => set('preferredTime', v)}
               hint="Optional."
             />
 
@@ -194,7 +212,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
                 id="book-department"
                 label="Department"
                 value={form.departmentId}
-                onChange={(v) => set("departmentId", v)}
+                onChange={(v) => set('departmentId', v)}
                 options={context.departments.map((d) => ({ value: d.id, label: d.name }))}
                 placeholder="No preference"
                 clearable
@@ -206,7 +224,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
                 id="book-doctor"
                 label="Doctor"
                 value={form.providerId}
-                onChange={(v) => set("providerId", v)}
+                onChange={(v) => set('providerId', v)}
                 options={context.providers.map((p) => ({ value: p.id, label: p.fullName }))}
                 placeholder="No preference"
                 emptyMessage="No doctor matches."
@@ -218,7 +236,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
               <Textarea
                 label="Anything the hospital should know"
                 value={form.note}
-                onChange={(e) => set("note", e.target.value)}
+                onChange={(e) => set('note', e.target.value)}
                 rows={3}
                 maxLength={500}
                 hint="Optional. Please do not include medical details here. Tell the doctor those in person."
@@ -233,8 +251,9 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
       </Card>
 
       <p className="mt-4 px-2 text-center text-xs text-fg-subtle">
-        Your details go only to {context.hospitalName}. Sending this form does not book an appointment by itself,
-        create an account, or give you access to any records. The hospital confirms your appointment with you.
+        Your details go only to {context.hospitalName}. Sending this form does not book an
+        appointment by itself, create an account, or give you access to any records. The hospital
+        confirms your appointment with you.
       </p>
     </>
   );

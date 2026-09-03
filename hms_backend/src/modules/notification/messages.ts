@@ -19,7 +19,8 @@ export const MESSAGES = {
     passwordResetDone: 'Password set. Sign in with your new password.',
   },
   tenant: {
-    onboarded: 'Hospital onboarded. A welcome email with a set-password link was sent to the administrator.',
+    onboarded:
+      'Hospital onboarded. A welcome email with a set-password link was sent to the administrator.',
     statusChanged: 'Hospital status updated.',
   },
   user: {

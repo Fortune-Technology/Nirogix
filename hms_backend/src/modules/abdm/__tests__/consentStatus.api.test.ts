@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { grantModule } from '../../entitlement/entitlement.service';
 import { pool } from '../../../db/client';
 
@@ -43,21 +51,23 @@ beforeAll(async () => {
     sessions[role] = await login(CODE, tenant.users[role]!);
   }
 
-  const plain = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Anil', lastName: 'Kulkarni', gender: 'male', dateOfBirth: '1966-02-02', phone: '9812345621' });
+  const plain = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Anil',
+    lastName: 'Kulkarni',
+    gender: 'male',
+    dateOfBirth: '1966-02-02',
+    phone: '9812345621',
+  });
   patientId = plain.body.id;
 
-  const withAbha = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({
-      firstName: 'Sneha',
-      lastName: 'Desai',
-      gender: 'female',
-      dateOfBirth: '1988-09-09',
-      phone: '9812345622',
-      abhaNumber: '91-1234-5678-9012',
-    });
+  const withAbha = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Sneha',
+    lastName: 'Desai',
+    gender: 'female',
+    dateOfBirth: '1988-09-09',
+    phone: '9812345622',
+    abhaNumber: '91-1234-5678-9012',
+  });
   abhaPatientId = withAbha.body.id;
 }, 180_000);
 
@@ -65,7 +75,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -182,7 +194,9 @@ describe('what it refuses to tell the desk', () => {
 
   test('🔒 nor the records', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await authed(sessions.receptionist!).get(`/api/v1/abdm/history/${abhaPatientId}/timeline`);
+    const res = await authed(sessions.receptionist!).get(
+      `/api/v1/abdm/history/${abhaPatientId}/timeline`,
+    );
     expect(res.status).toBe(403);
   });
 
@@ -226,9 +240,12 @@ describe('the capability makes it switchable per hospital', () => {
       // Status, requests and the timeline all go, together — a hospital entitled to ABDM for ABHA
       // verification alone must not silently gain a national records pull.
       expect((await statusFor(sessions.doctor!, abhaPatientId)).status).toBe(403);
-      expect((await authed(sessions.doctor!).get(`/api/v1/abdm/history/${abhaPatientId}`)).status).toBe(403);
       expect(
-        (await authed(sessions.doctor!).get(`/api/v1/abdm/history/${abhaPatientId}/timeline`)).status,
+        (await authed(sessions.doctor!).get(`/api/v1/abdm/history/${abhaPatientId}`)).status,
+      ).toBe(403);
+      expect(
+        (await authed(sessions.doctor!).get(`/api/v1/abdm/history/${abhaPatientId}/timeline`))
+          .status,
       ).toBe(403);
     } finally {
       await pool.query(

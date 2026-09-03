@@ -45,7 +45,8 @@ const addDoctor = async (name: string, regNo: string | null, active = true): Pro
 };
 
 const hprIdOf = async (providerId: string): Promise<string | null> =>
-  (await pool.query('SELECT hpr_id FROM abdm_staff_hpr WHERE provider_id = $1', [providerId])).rows[0]?.hpr_id ?? null;
+  (await pool.query('SELECT hpr_id FROM abdm_staff_hpr WHERE provider_id = $1', [providerId]))
+    .rows[0]?.hpr_id ?? null;
 
 beforeAll(async () => {
   ready = await dbReady();
@@ -106,7 +107,11 @@ describe('the import matches strictly', () => {
     if (!ready) return skip();
     const solo = await addDoctor('Vikram Solo', null);
     const outcome = await bulk.importProfessionalResults(tenantId, null, [
-      row({ [C.fullName]: 'Vikram Solo', [C.registrationNumber]: '', [C.hprId]: '71-4444-5555-6666' }),
+      row({
+        [C.fullName]: 'Vikram Solo',
+        [C.registrationNumber]: '',
+        [C.hprId]: '71-4444-5555-6666',
+      }),
     ]);
 
     expect(outcome.matched).toBe(1);
@@ -119,7 +124,11 @@ describe('the import matches strictly', () => {
     const twinB = await addDoctor('Rahul Sharma', null);
 
     const outcome = await bulk.importProfessionalResults(tenantId, null, [
-      row({ [C.fullName]: 'Rahul Sharma', [C.registrationNumber]: '', [C.hprId]: '71-7777-8888-9999' }),
+      row({
+        [C.fullName]: 'Rahul Sharma',
+        [C.registrationNumber]: '',
+        [C.hprId]: '71-7777-8888-9999',
+      }),
     ]);
 
     // Handing one real person's national identity to another is a defect nobody would notice.
@@ -132,14 +141,24 @@ describe('the import matches strictly', () => {
 
   test('somebody who does not work here is reported, not created', async ({ skip }) => {
     if (!ready) return skip();
-    const before = await pool.query('SELECT count(*)::int AS n FROM abdm_staff_hpr WHERE tenant_id = $1', [tenantId]);
+    const before = await pool.query(
+      'SELECT count(*)::int AS n FROM abdm_staff_hpr WHERE tenant_id = $1',
+      [tenantId],
+    );
     const outcome = await bulk.importProfessionalResults(tenantId, null, [
-      row({ [C.fullName]: 'Somebody Else', [C.registrationNumber]: 'NOT-OURS', [C.hprId]: '71-0001-0002-0003' }),
+      row({
+        [C.fullName]: 'Somebody Else',
+        [C.registrationNumber]: 'NOT-OURS',
+        [C.hprId]: '71-0001-0002-0003',
+      }),
     ]);
 
     expect(outcome.matched).toBe(0);
     expect(outcome.unmatched[0]!.reason).toMatch(/No active staff member/);
-    const after = await pool.query('SELECT count(*)::int AS n FROM abdm_staff_hpr WHERE tenant_id = $1', [tenantId]);
+    const after = await pool.query(
+      'SELECT count(*)::int AS n FROM abdm_staff_hpr WHERE tenant_id = $1',
+      [tenantId],
+    );
     expect(after.rows[0].n).toBe(before.rows[0].n);
   });
 
@@ -197,7 +216,10 @@ describe('facilities import the same way', () => {
     ]);
 
     expect(outcome.matched).toBe(1);
-    const row = await pool.query('SELECT facility_id, status FROM abdm_facility_registry WHERE tenant_id = $1', [tenantId]);
+    const row = await pool.query(
+      'SELECT facility_id, status FROM abdm_facility_registry WHERE tenant_id = $1',
+      [tenantId],
+    );
     expect(row.rows[0].facility_id).toBe('IN0710-BULK-1');
     expect(row.rows[0].status).toBe('verified');
   });

@@ -9,6 +9,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The public product site, brand-consistent with the Portal, whose primary job is to route visitors to the Portal login.
 
 **Added:**
+
 - `app/layout.tsx` — fonts, `@hms/ui/styles.css`, shared `SiteHeader` + `SiteFooter`, Light theme, SEO `metadata` (title/description).
 - `app/page.tsx` — landing: hero (headline + subcopy + CTA), a 4-card feature grid (multi-tenant/RLS, RBAC, per-hospital modules, India-resident + audit), and a closing sign-in CTA.
 - `components/SiteHeader.tsx` / `SiteFooter.tsx` — logo + Portal sign-in actions.
@@ -32,6 +33,7 @@ Append-only implementation log. Newest at the bottom.
 **Design system:** `app/globals.css` now carries a marketing-only token layer (`--mk-*`: cream `#f5f1ec` canvas, charcoal `#111` ink, hairline `#d3cec6`, accent = HMS brand teal `#0e7490`, modest radii, no drop shadows), mapped into Tailwind `@theme`. Geist substitutes Saans (500 display w/ negative tracking, 400 body). Deliberately separate from the Portal's `@hms/ui` clinical system; `@hms/ui` is still imported so real product-UI previews render as the genuine Portal.
 
 **Added:**
+
 - **UI kit:** `components/ui/Button` (charcoal primary / teal accent / white secondary / ghost), `primitives` (Container, Eyebrow, SectionHeading, Pill), `Reveal` (IntersectionObserver fade-up, reduced-motion safe).
 - **Chrome:** `SiteHeader` (sticky editorial nav + mobile hamburger), `SiteFooter` (dense link grid). Replaced the old root-level `components/SiteHeader/SiteFooter`.
 - **Product previews:** `ProductFrame` + `previews` (Appointments / Audit / Entitlements) built from **real `@hms/ui` components** with illustrative India-context data (no fake div screenshots, no real PHI).
@@ -66,6 +68,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Applied the permanent frontend rules (`resources/DESIGN.md` §9) to the marketing site.
 
 **Changed:**
+
 - `app/layout.tsx` — wrapped in the shared `SmoothScroll` (Lenis + route scroll-to-top) with a `BackToTop`, both from `@hms/ui`.
 - `components/site/SiteHeader.tsx` — the mobile menu now uses the shared `useScrollLock(open)` (stops Lenis + locks background) instead of a manual `body.overflow` toggle.
 - `lib/site.ts` — `NAV_LINKS` now includes **About** and **Contact** (7 links; verified single-line at desktop, and rendered in the mobile menu).
@@ -81,6 +84,7 @@ Append-only implementation log. Newest at the bottom.
 **Light/Dark:** `lib/theme.tsx` (`ThemeProvider` + Sun/Moon toggle in the navbar, desktop + mobile), a `[data-theme="dark"]` `--mk-*` block, a no-flash script in `layout.tsx`, persisted under `mk-theme` (first visit honours `prefers-color-scheme`). Framed `@hms/ui` previews follow the same attribute. Verified: dark tokens resolve (canvas `#0b1418`), no overflow at 1280/1024/375.
 
 **Dynamic branding:** the site trades fully-static for **ISR-dynamic** to pick up System-Admin-set colours.
+
 - `lib/branding.ts` — server-side fetch of `GET /public/branding/marketing` (`revalidate: 300`), maps the theme-safe **brand-family** tokens (primary/secondary/accent/button) → `--mk-*` (neutrals stay theme-managed), defaults button text to white on a custom accent, falls back to built-in tokens if the API is down.
 - `app/layout.tsx` — async; applies the overrides as inline `--mk-*` on `<html>` (both themes, no flash).
 - `globals.css` — accent tints now derive from `--mk-accent` via `color-mix` (one value cascades); added `--mk-secondary`.
@@ -94,6 +98,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Replaced the hero's product mockup with a Lottie doctor animation, and added the shared Lottie preloader.
 
 **Changed:**
+
 - `public/animations/{doctor,ambulance}.json` — moved out of the repo root into the app's public assets (root cleaned).
 - `components/home/Hero.tsx` — **removed** the `portal.hms · appointments` `ProductFrame` + `AppointmentsPreview` from the hero; replaced with the **doctor Lottie** (`@hms/ui` `LottiePlayer`, `src="/animations/doctor.json"`, loop + autoplay, responsive `max-w`, no container/border per the design). `ProductFrame`/`AppointmentsPreview` are still used on other pages (modules/security/platform), so nothing was orphaned.
 - `app/layout.tsx` — added the shared `LottiePreloader` (`src="/animations/ambulance.json"`).
@@ -107,10 +112,12 @@ Append-only implementation log. Newest at the bottom.
 **What:** The marketing site now owns product SEO properly — every public route has its own intent-matched metadata, a canonical, social cards, and honest structured data. (The Portal was made `noindex, nofollow` in the same change.)
 
 **Added:**
+
 - `lib/seo.ts` — the single SEO source: `SITE_URL`, `canonicalUrl()`, `pageMetadata()` (unique title + description → canonical + Open Graph + Twitter), the `COMPANY` constant, and JSON-LD builders `organizationJsonLd` / `softwareApplicationJsonLd` / `localBusinessJsonLd` / `breadcrumbJsonLd` / `faqJsonLd`.
 - `components/site/JsonLd.tsx` — renders a structured-data block; `null` renders nothing (server component, no client JS).
 
 **Changed:**
+
 - Every route now calls `pageMetadata()` with an intent-matched title: `/` "Hospital Management System Software for Hospitals & Clinics" · `/platform` "Hospital ERP Software Platform" · `/modules` "HMS Software Modules for Hospitals" · `/solutions` "Clinic & Hospital Management Software by Role" · `/pricing` "Hospital Management Software Pricing in India" · `/security` "Security, Tenant Isolation & India Data Residency" · `/integrations` "Healthcare Integrations — FHIR, ABDM, DICOM & Payments" · `/about` "About Takoriya Technology LLP" · `/contact` "Book a Demo — Hospital Software in Ahmedabad" · both legal pages. `/modules/[slug]` gained a `MODULE_SEO` map (Patient Management System, Hospital Appointment Management Software, OPD Management & Patient Check-in Software, EMR Software, Pharmacy Management Software for Hospitals, Laboratory Management System (LIS), Hospital Billing Software); an unknown slug returns `noindex`.
 - Structured data: `Organization` in the root layout (now from `lib/seo.ts`, `@id`-referenced elsewhere) · `SoftwareApplication` on `/`, `/platform`, and each module page (deliberately **no** `offers` — no prices are published) · `BreadcrumbList` on every nested route · `FAQPage` on `/pricing` for the FAQ that page renders · `LocalBusiness` on `/about` + `/contact`, emitted **only** once a real street address and phone exist.
 - `app/sitemap.ts` / `app/robots.ts` now share `SITE_URL` from `lib/seo.ts` instead of each re-reading the env var.
@@ -127,6 +134,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Every public route now ships its own 1200×630 social card instead of sharing one text-only preview.
 
 **Added:**
+
 - `lib/og.tsx` — `ogImage({ title, eyebrow })` renders the card through `next/og`'s `ImageResponse`: deep ink ground, teal mark + `HMS` wordmark, section eyebrow, the page's own headline (auto-shrinks past 46 characters), and a teal rule with the positioning line. Satori has no CSS custom properties, so this file holds the **only** hardcoded colours in the app, each annotated against `resources/DESIGN.md` §2.
 - `opengraph-image.tsx` in `app/`, `platform/`, `modules/`, `solutions/`, `security/`, `integrations/`, `pricing/`, `about/`, `contact/` (three lines each), plus `app/modules/[slug]/opengraph-image.tsx` which generates one card per clinic module via `generateStaticParams`.
 
@@ -145,6 +153,7 @@ Append-only implementation log. Newest at the bottom.
 **Incident + guard:** init **overwrote `components/ui/Button.tsx`** — the site's own token-driven button — which was restored from git. The `ui` alias now points at **`@/components/shadcn`**, so generated components land in their own folder and the CLI can never clobber the marketing kit again.
 
 **Changed — `app/globals.css`, reconciled by hand after init** (init had inlined its palette into the middle of a token declaration, repointed `--font-sans` at itself, and appended a `.dark` block plus a base reset):
+
 - Restored the file from git and re-applied the shadcn layer cleanly: `tw-animate-css` + `shadcn/tailwind.css` imports, `@custom-variant dark` bound to `[data-theme="dark"]`, and shadcn's semantic contract expressed entirely in `--mk-*` (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`).
 - `--font-sans` (Geist) and the marketing `--color-accent` / `--color-secondary` mappings left untouched, so `bg-accent` is still the teal CTA.
 
@@ -155,6 +164,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — Specializations + app-like mobile navigation (ADR-033, ADR-034)
 
 **Specializations:**
+
 - `lib/specialties.ts` — 22 specialties; six (cardiology, dentistry, pediatrics, gynecology, physiotherapy, radiology) carry real content: operational challenges, how configurable modules answer them, the modules such a practice enables, and what gets configured.
 - `components/specialties/` — the reusable system (`SpecializationCard`, `SpecializationGrid`, `SpecializationFeatureList`, `SpecializationModules`, `SpecializationWorkflow`, `SpecializationSection`). A new specialty is a data entry, never a new layout.
 - `/specialties` (full grid) + `/specialties/[slug]` for the six featured ones only — specialties without differentiated content stay on the index rather than becoming thin near-duplicate pages. Each page ships intent-matched metadata ("Hospital Management Software for Cardiology"), `SoftwareApplication` + `BreadcrumbList` JSON-LD, and its own OG card. Sitemap and nav updated.
@@ -175,6 +185,7 @@ Append-only implementation log. Newest at the bottom.
 **Rewritten — the seven clinic-core modules** now carry `live` (what the Portal does today) and `planned` (the rest of their PRD scope) instead of one blended `points` list, and `/modules/[slug]` renders them as "What it does today" and a separate "Planned for this module". Taglines and per-module SEO descriptions were rewritten to describe only what is built — out went kiosk and QR self-registration, duplicate detection, family linking, multi-channel booking, reminders and no-show tracking, digital signage, specialty templates, interaction and allergy alerts, purchase orders and GRN, Schedule H/H1/X registers, LOINC coding, barcoded samples, pathologist sign-off, GST e-invoice with HSN/SAC, and payer-wise rate lists — all of which now read as planned scope.
 
 **Corrected claims elsewhere:**
+
 - **Integrations** — ICD-10 coding and DLT-compliant SMS/email are marked built; FHIR APIs, SNOMED/LOINC, DICOM/PACS, ABDM/ABHA, scan-and-share, WhatsApp, the payment gateway and Tally export are marked planned. The FHIR entry now says precisely what exists (a FHIR-modelled clinical core) and what does not (the APIs).
 - **Security** — practices split into "Enforced today" (RBAC with overrides, server-side validation, tiered rate limiting) and "Commitment" (AES-256 at rest / TLS 1.2+, backups and the restore drill, PII masking, PCI-aligned payments, which needs the unbuilt gateway). "The platform runs on E2E Networks" became "is built to run on", since nothing is deployed. The no-certification note now also rules out audit and accreditation.
 - **Pricing** — "Most popular" (we have no customers) became "What we have built"; the enterprise tier's isolation upgrade is labelled planned; a new first FAQ answers "which modules can we actually use today"; the residency answer is future tense.
@@ -259,7 +270,7 @@ Marketing was the one app whose first visit honoured `prefers-color-scheme` — 
 
 **What:** the marketing site's `.env.example` and its gitignored `.env` now hold the same keys in the same
 order, every one live and uncommented, so copying the example gives a boot-ready file where only
-values change (CLAUDE.md → *Environment files*).
+values change (CLAUDE.md → _Environment files_).
 
 **Changed:** `.env.example` now lists every variable the app reads, all uncommented, with 1–2 line
 comments — including the two that were missing: `NEXT_PUBLIC_API_BASE_URL` (used by `proxy.ts` for
@@ -283,6 +294,7 @@ with “the domain website is not working properly and entity name is not mentio
 The other half of that rejection is that nothing is deployed on the apex — `BACKLOG.md` I-7.
 
 **Changed:**
+
 - `lib/seo.ts` — `COMPANY` is typed (`CompanyDetails`) instead of `as const`, so a blank value stays a
   `string` and every render site can gate on it. Added `companyAddressLines()` (drops whatever is not
   confirmed, so the address is truthful at every stage of being filled in) and `telHref()`.

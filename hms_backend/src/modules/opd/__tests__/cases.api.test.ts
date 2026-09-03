@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 import { createDepartment } from '../../department/department.service';
@@ -55,17 +63,29 @@ beforeAll(async () => {
     })
   ).id;
   departmentId = (
-    await createDepartment(tenant.tenantId, { code: 'ORTH', name: 'Orthopaedics' }, sessions.org_admin!.userId)
+    await createDepartment(
+      tenant.tenantId,
+      { code: 'ORTH', name: 'Orthopaedics' },
+      sessions.org_admin!.userId,
+    )
   ).id;
 
-  const a = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Deepa', lastName: 'Menon', gender: 'female', dateOfBirth: '1984-03-19', phone: '9812345677' });
+  const a = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Deepa',
+    lastName: 'Menon',
+    gender: 'female',
+    dateOfBirth: '1984-03-19',
+    phone: '9812345677',
+  });
   patientId = a.body.id;
 
-  const b = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Arjun', lastName: 'Pillai', gender: 'male', dateOfBirth: '1975-11-02', phone: '9812345666' });
+  const b = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Arjun',
+    lastName: 'Pillai',
+    gender: 'male',
+    dateOfBirth: '1975-11-02',
+    phone: '9812345666',
+  });
   otherPatientId = b.body.id;
 }, 180_000);
 
@@ -73,7 +93,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -121,21 +143,28 @@ describe('opening a case', () => {
       .send({ patientId, title: 'Diabetes management' });
     expect(res.status).toBe(201);
 
-    const open = await authed(sessions.receptionist!).get(`/api/v1/cases?patientId=${patientId}&status=open`);
+    const open = await authed(sessions.receptionist!).get(
+      `/api/v1/cases?patientId=${patientId}&status=open`,
+    );
     expect(open.body).toHaveLength(2);
   });
 
   test('an untitled case is refused — it would be unpickable later', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await authed(sessions.receptionist!).post('/api/v1/cases').send({ patientId, title: '' });
+    const res = await authed(sessions.receptionist!)
+      .post('/api/v1/cases')
+      .send({ patientId, title: '' });
     expect(res.status).toBe(422);
   });
 
   test('the pharmacist cannot open or read cases', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await authed(sessions.pharmacist!).get(`/api/v1/cases?patientId=${patientId}`)).status).toBe(403);
     expect(
-      (await authed(sessions.pharmacist!).post('/api/v1/cases').send({ patientId, title: 'Nope' })).status,
+      (await authed(sessions.pharmacist!).get(`/api/v1/cases?patientId=${patientId}`)).status,
+    ).toBe(403);
+    expect(
+      (await authed(sessions.pharmacist!).post('/api/v1/cases').send({ patientId, title: 'Nope' }))
+        .status,
     ).toBe(403);
   });
 });
@@ -169,7 +198,9 @@ describe('checking in under a case', () => {
     expect(res.body.error.message).toMatch(/different patient/i);
   });
 
-  test('sending both an existing case and a new one is refused rather than guessed', async ({ skip }) => {
+  test('sending both an existing case and a new one is refused rather than guessed', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await clearLiveVisits();
     const res = await authed(sessions.receptionist!)
@@ -182,18 +213,24 @@ describe('checking in under a case', () => {
   test('check-in can open a case in the same breath', async ({ skip }) => {
     if (!ready) return skip();
     await clearLiveVisits();
-    const before = await pool.query('SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const before = await pool.query(
+      'SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     const res = await authed(sessions.receptionist!)
       .post('/api/v1/visits/check-in')
-      .send({ patientId, providerId, newCase: { title: 'Antenatal care', notes: 'First trimester' } });
+      .send({
+        patientId,
+        providerId,
+        newCase: { title: 'Antenatal care', notes: 'First trimester' },
+      });
     expect(res.status).toBe(201);
     expect(res.body.caseTitle).toBe('Antenatal care');
 
-    const after = await pool.query('SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const after = await pool.query(
+      'SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     expect(after.rows[0].c).toBe(before.rows[0].c + 1);
   });
 
@@ -202,17 +239,19 @@ describe('checking in under a case', () => {
     // The patient is already checked in today, so this is refused *after* the point a case would
     // have been created. The case and the visit share one transaction precisely so this cannot
     // leave an episode nobody will ever close.
-    const before = await pool.query('SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const before = await pool.query(
+      'SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     const res = await authed(sessions.receptionist!)
       .post('/api/v1/visits/check-in')
       .send({ patientId, providerId, newCase: { title: 'Should never exist' } });
     expect(res.status).toBe(409);
 
-    const after = await pool.query('SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1', [
-      tenant.tenantId,
-    ]);
+    const after = await pool.query(
+      'SELECT count(*)::int AS c FROM patient_cases WHERE tenant_id = $1',
+      [tenant.tenantId],
+    );
     expect(after.rows[0].c).toBe(before.rows[0].c);
   });
 

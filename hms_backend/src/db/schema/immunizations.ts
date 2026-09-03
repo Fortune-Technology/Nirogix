@@ -10,7 +10,9 @@ import { users } from './users';
 // catalogue code (e.g. BCG) or a hospital custom code (CUSTOM_…); `source` records which.
 // Tenant-scoped → automatic RLS.
 export const patientImmunizations = pgTable('patient_immunizations', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -23,7 +25,9 @@ export const patientImmunizations = pgTable('patient_immunizations', {
   dateGiven: date('date_given').notNull(),
   doseLabel: varchar('dose_label', { length: 60 }),
   notes: text('notes'),
-  recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

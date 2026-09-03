@@ -4,14 +4,14 @@
 
 > Product, architecture, rules, phases, and the engineering roadmap live in [`resources/`](resources/). Start with [`CLAUDE.md`](CLAUDE.md) (monorepo index) and [`resources/development-plan.md`](resources/development-plan.md) (execution roadmap). Environment host names come from [`resources/domains.md`](resources/domains.md). Architectural decisions are in [`DECISIONS.md`](DECISIONS.md).
 
-> **Naming.** The product is Nirogix everywhere a person can see it. Internal identifiers — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` design tokens and `.hms-*` class names — deliberately keep their prefix (ADR-041): they are invisible outside the repository, and renaming them would touch nearly every file for no user-visible gain. "HMS" also survives in marketing copy where it is the industry search term for *hospital management system*, never as our product's name.
+> **Naming.** The product is Nirogix everywhere a person can see it. Internal identifiers — the `hms_backend/` and `hms_frontend/` directories, the `@hms/*` package scope, the `--hms-*` design tokens and `.hms-*` class names — deliberately keep their prefix (ADR-041): they are invisible outside the repository, and renaming them would touch nearly every file for no user-visible gain. "HMS" also survives in marketing copy where it is the industry search term for _hospital management system_, never as our product's name.
 
 ## Requirements
 
-| Tool | Version |
-|---|---|
-| Node.js | **≥ 20** (developed on 22.x) |
-| npm | **≥ 10** (developed on 10.9.2) |
+| Tool    | Version                        |
+| ------- | ------------------------------ |
+| Node.js | **≥ 20** (developed on 22.x)   |
+| npm     | **≥ 10** (developed on 10.9.2) |
 
 No global package manager beyond npm is required (ADR-014 — npm workspaces, not pnpm). Turborepo is installed as a dev dependency.
 
@@ -32,14 +32,14 @@ That's it — one install, one dev command. No need to `cd` into each app.
 
 ## Applications & ports
 
-| Workspace | What it is | Dev URL | Port |
-|---|---|---|---|
-| `hms_backend` | Node.js + Express + TypeScript API (Drizzle/PostgreSQL) | http://localhost:4000/api/v1 | **4000** |
-| `marketing` | Next.js public marketing/SEO site | http://localhost:3000 | **3000** |
-| `hms_frontend` | Next.js **Nirogix Portal** — hospital staff | http://localhost:3001 | **3001** |
-| `patient` | Next.js patient portal — verified patients | http://localhost:3002 | **3002** |
-| `admin` | Next.js platform administration — vendor operators | http://localhost:3003 | **3003** |
-| `aiportal` | Next.js AI Portal — staff + operators, never patients | http://localhost:3004 | **3004** |
+| Workspace      | What it is                                              | Dev URL                      | Port     |
+| -------------- | ------------------------------------------------------- | ---------------------------- | -------- |
+| `hms_backend`  | Node.js + Express + TypeScript API (Drizzle/PostgreSQL) | http://localhost:4000/api/v1 | **4000** |
+| `marketing`    | Next.js public marketing/SEO site                       | http://localhost:3000        | **3000** |
+| `hms_frontend` | Next.js **Nirogix Portal** — hospital staff             | http://localhost:3001        | **3001** |
+| `patient`      | Next.js patient portal — verified patients              | http://localhost:3002        | **3002** |
+| `admin`        | Next.js platform administration — vendor operators      | http://localhost:3003        | **3003** |
+| `aiportal`     | Next.js AI Portal — staff + operators, never patients   | http://localhost:3004        | **3004** |
 
 Shared libraries (not servers): `packages/types` (`@hms/types`), `packages/client` (`@hms/client`), `packages/ui` (`@hms/ui`), `packages/config` (`@hms/config`), `packages/utils` (`@hms/utils`), `packages/permissions` (`@hms/permissions`).
 
@@ -49,18 +49,18 @@ Health check: `GET http://localhost:4000/api/v1/health` → `{"status":"ok",...}
 
 ## Root commands
 
-| Command | Does |
-|---|---|
-| `npm run install:all` | Install all workspace dependencies (= `npm install`) |
-| `npm run dev` | Start backend + portal + marketing concurrently (Turborepo, labelled logs) |
-| `npm run build` | Build every app/package (`turbo run build`) |
-| `npm run lint` | Lint every workspace |
-| `npm run test` | Run every workspace's tests |
-| `npm run typecheck` | Type-check every workspace (`tsc --noEmit`) |
-| `npm run openapi:generate` | Write the backend OpenAPI spec to `hms_backend/generated/openapi.json` |
-| `npm run openapi:validate` | Validate the OpenAPI spec and fail on any undocumented `/api/v1` route |
-| `npm run format` | Prettier-format the repo |
-| `npm run format:check` | Verify formatting without writing |
+| Command                    | Does                                                                       |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `npm run install:all`      | Install all workspace dependencies (= `npm install`)                       |
+| `npm run dev`              | Start backend + portal + marketing concurrently (Turborepo, labelled logs) |
+| `npm run build`            | Build every app/package (`turbo run build`)                                |
+| `npm run lint`             | Lint every workspace                                                       |
+| `npm run test`             | Run every workspace's tests                                                |
+| `npm run typecheck`        | Type-check every workspace (`tsc --noEmit`)                                |
+| `npm run openapi:generate` | Write the backend OpenAPI spec to `hms_backend/generated/openapi.json`     |
+| `npm run openapi:validate` | Validate the OpenAPI spec and fail on any undocumented `/api/v1` route     |
+| `npm run format`           | Prettier-format the repo                                                   |
+| `npm run format:check`     | Verify formatting without writing                                          |
 
 Logs from `npm run dev` are prefixed per service (`hms_backend:dev:`, `hms_frontend:dev:`, `marketing:dev:`, `patient:dev:`, `admin:dev:`, `aiportal:dev:`) so failures are attributable at a glance. Stop everything with **Ctrl+C**.
 
@@ -79,13 +79,13 @@ npm run dev -w aiportal         # AI Portal       (:3004)
 
 ## API documentation (Swagger / OpenAPI)
 
-The backend serves environment-aware OpenAPI docs. Documentation is **mandatory** — every `/api/v1` route must be documented, and `npm run openapi:validate` (run in CI) fails on any undocumented or invalid API. See [`resources/rules.md`](resources/rules.md) → *API Documentation Rules*.
+The backend serves environment-aware OpenAPI docs. Documentation is **mandatory** — every `/api/v1` route must be documented, and `npm run openapi:validate` (run in CI) fails on any undocumented or invalid API. See [`resources/rules.md`](resources/rules.md) → _API Documentation Rules_.
 
-| Environment | Swagger UI | Raw spec |
-|---|---|---|
-| Local | http://localhost:4000/api/v1/docs | http://localhost:4000/api/v1/openapi.json |
-| Testing / Staging | `{staging-api}/api/v1/docs` | `{staging-api}/api/v1/openapi.json` |
-| Production | `{prod-api}/api/v1/docs` (when `OPENAPI_UI_ENABLED`) | `{prod-api}/api/v1/openapi.json` |
+| Environment       | Swagger UI                                           | Raw spec                                  |
+| ----------------- | ---------------------------------------------------- | ----------------------------------------- |
+| Local             | http://localhost:4000/api/v1/docs                    | http://localhost:4000/api/v1/openapi.json |
+| Testing / Staging | `{staging-api}/api/v1/docs`                          | `{staging-api}/api/v1/openapi.json`       |
+| Production        | `{prod-api}/api/v1/docs` (when `OPENAPI_UI_ENABLED`) | `{prod-api}/api/v1/openapi.json`          |
 
 - The spec is **generated from route definitions** (Zod + `zod-to-openapi` in `hms_backend/src/openapi/`) — never hand-written. To add a route: document it in the module's `*.openapi.ts` and import that file in `src/openapi/register.ts`.
 - Server URLs come from config (`API_PUBLIC_URL`, `API_STAGING_URL`, `API_PRODUCTION_URL`) — never hard-coded. Disable the UI per environment with `OPENAPI_UI_ENABLED=false` (the JSON spec is always served).
@@ -93,16 +93,16 @@ The backend serves environment-aware OpenAPI docs. Documentation is **mandatory*
 
 ## Environment
 
-Secrets are **never committed**. Each app carries a committed `.env.example` and a gitignored `.env` holding **the same keys in the same order** (CLAUDE.md → *Environment files*). Every key in an example file is live and uncommented — an unconfigured or secret one is present with an empty value — so `cp .env.example .env` gives a complete, boot-ready file where only values need changing. A blank value means “not configured” and behaves exactly like an unset one.
+Secrets are **never committed**. Each app carries a committed `.env.example` and a gitignored `.env` holding **the same keys in the same order** (CLAUDE.md → _Environment files_). Every key in an example file is live and uncommented — an unconfigured or secret one is present with an empty value — so `cp .env.example .env` gives a complete, boot-ready file where only values need changing. A blank value means “not configured” and behaves exactly like an unset one.
 
-| Workspace | File | Key vars |
-|---|---|---|
-| `hms_backend` | `.env` | `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, `MSG91_*`, `R2_*`, `ABDM_*` |
+| Workspace      | File   | Key vars                                                                                                     |
+| -------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| `hms_backend`  | `.env` | `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, `MSG91_*`, `R2_*`, `ABDM_*`     |
 | `hms_frontend` | `.env` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_ADMIN_ORIGIN`, `NEXT_PUBLIC_PATIENT_URL`, `NEXT_PUBLIC_ENVIRONMENT` |
-| `marketing` | `.env` | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PORTAL_LOGIN_URL`, `NEXT_PUBLIC_ENVIRONMENT`, `HMS_API_URL` |
-| `patient` | `.env` | `NEXT_PUBLIC_API_BASE_URL` |
-| `admin` | `.env` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_PORTAL_URL` |
-| `aiportal` | `.env` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_PORTAL_URL`, `NEXT_PUBLIC_SITE_URL` |
+| `marketing`    | `.env` | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PORTAL_LOGIN_URL`, `NEXT_PUBLIC_ENVIRONMENT`, `HMS_API_URL`             |
+| `patient`      | `.env` | `NEXT_PUBLIC_API_BASE_URL`                                                                                   |
+| `admin`        | `.env` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_PORTAL_URL`                                                         |
+| `aiportal`     | `.env` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_PORTAL_URL`, `NEXT_PUBLIC_SITE_URL`                                 |
 
 The backend validates its environment at boot (Zod) and exits with a clear message if a variable is missing or malformed. A local PostgreSQL is only required to hit DB-backed endpoints — the API boots and serves `/health` without one.
 
@@ -116,13 +116,13 @@ The Portal can verify a patient's ABHA at the registration desk and fill the for
 
 The mock's behaviour is selected by the **last digit of the Aadhaar number**, so a tester can reproduce any scenario on demand:
 
-| Aadhaar ends in | Scenario |
-|---|---|
-| `0` | the Aadhaar already has an ABHA — the returning-patient path |
-| `1` | no mobile linked to the Aadhaar — the error the desk must be able to read |
-| `5` | the identifier resolves to two ABHA accounts — the shared-family-mobile case |
-| `9` | ABDM rejects the OTP — the failure and manual-form fallback |
-| anything else | a clean new ABHA creation |
+| Aadhaar ends in | Scenario                                                                     |
+| --------------- | ---------------------------------------------------------------------------- |
+| `0`             | the Aadhaar already has an ABHA — the returning-patient path                 |
+| `1`             | no mobile linked to the Aadhaar — the error the desk must be able to read    |
+| `5`             | the identifier resolves to two ABHA accounts — the shared-family-mobile case |
+| `9`             | ABDM rejects the OTP — the failure and manual-form fallback                  |
+| anything else   | a clean new ABHA creation                                                    |
 
 ### Connecting to the real ABDM sandbox
 
@@ -130,12 +130,12 @@ The mock's behaviour is selected by the **last digit of the Aadhaar number**, so
 2. **Set the server variables** (see `hms_backend/.env.example`): `ABDM_PROVIDER=gateway`, `ABDM_CLIENT_ID`, `ABDM_CLIENT_SECRET`, and `ENCRYPTION_KEY` (ABDM tokens are stored encrypted; without a key they are discarded rather than written in the clear). The API refuses to boot if a credential is missing, if production points at the sandbox, or if a non-production environment points at production ABDM.
 3. **Prove the credentials** before anything else — `npm run abdm:check -w hms_backend` requests a session and fetches the RSA certificate, printing no secret, so the output is safe to paste into an NHA support ticket.
 4. **Register the bridge URL and the HIP service.** Both need `Authorization: Bearer <session token>`; NHA's onboarding email omits that header and quotes **outdated V1 paths**. V3 uses `PATCH https://dev.abdm.gov.in/api/hiecm/gateway/v3/bridge/url` with `{"url":"https://<your api host>"}` — register the **base** URL, because the gateway appends `/api/v3/hip/patient/share` itself, and it must be HTTPS with a valid certificate. Service registration is on the **facility-registry** host: `POST https://facilitysbx.abdm.gov.in/v1/bridges/MutipleHRPAddUpdateServices` with `{facilityId, facilityName, HRP:[{bridgeId, hipName, type:"HIP", active:true}]}` — `type: "HIP"`, not the email's `HEALTH_LOCKER`.
-5. **Register each hospital's facility** in the Health Facility Registry, then enter its facility id in the Portal under **Hospital configuration → ABDM / ABHA**. NHA issues *one* credential pair to the application (us) and a *separate* facility id to each hospital, so the facility id is tenant data and never server configuration. Scan and Share needs it; the Aadhaar and identifier flows do not.
+5. **Register each hospital's facility** in the Health Facility Registry, then enter its facility id in the Portal under **Hospital configuration → ABDM / ABHA**. NHA issues _one_ credential pair to the application (us) and a _separate_ facility id to each hospital, so the facility id is tenant data and never server configuration. Scan and Share needs it; the Aadhaar and identifier flows do not.
 6. **OTP delivery in sandbox is whatever NHA does** — the Portal pre-fills the OTP field only when the response actually carries one (the mock always does) and otherwise leaves it empty for the operator to type from the patient's phone. Use an Aadhaar whose linked mobile you hold; the allowance is a few OTPs per number per day.
 
 ### Verifying the endpoint contract
 
-`hms_backend/src/modules/abdm/abdm.constants.ts` holds **every** ABDM path, header name and scope string, deliberately in one file. It was reconciled on **25/08/2026** against the official *Milestone 1 Postman Collection-18-08-2025*, which corrected five things — the login-verify scope pair, the `T-token` header on `verify/user`, the separate PHR family for ABHA-address verification, the gateway-dictated Scan-and-Share path and payload, and the missing `on-share` acknowledgement (details in `BACKLOG.md`). Re-check that one file whenever NHA publishes a new collection; nothing else in the codebase hard-codes an ABDM path, so verification is a review of one file rather than of the module.
+`hms_backend/src/modules/abdm/abdm.constants.ts` holds **every** ABDM path, header name and scope string, deliberately in one file. It was reconciled on **25/08/2026** against the official _Milestone 1 Postman Collection-18-08-2025_, which corrected five things — the login-verify scope pair, the `T-token` header on `verify/user`, the separate PHR family for ABHA-address verification, the gateway-dictated Scan-and-Share path and payload, and the missing `on-share` acknowledgement (details in `BACKLOG.md`). Re-check that one file whenever NHA publishes a new collection; nothing else in the codebase hard-codes an ABDM path, so verification is a review of one file rather than of the module.
 
 ### Going to production
 
@@ -150,15 +150,15 @@ Production credentials are issued by NHA, not configured by us, and only after: 
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `turbo: Could not resolve workspace … Missing packageManager field` | The root `package.json` must keep `"packageManager": "npm@…"`. |
-| A port is already in use | Another process holds one of 3000-3004 or 4000. Stop it, or change that app's `dev` **and** `start` scripts together — and `.claude/launch.json`, `deploy/nginx/` and `resources/domains.md` with them. |
-| Backend exits immediately at boot | Missing/invalid `hms_backend/.env` — copy `.env.example` and set `DATABASE_URL` + JWT secrets (≥16 chars). |
-| `unable to determine transport target for "pino-pretty"` | `pino-pretty` missing — `npm install` at root (it is a backend devDependency). |
-| Workspace package not found (`@hms/*`) | Run `npm run install:all` from the root so npm links the workspaces. |
-| `npm audit` shows vulnerabilities | Review with `npm audit`; do **not** run `--force` blindly (breaking changes). Address in the security-hardening stage. |
-| Stale build cache | `npx turbo run build --force`, or delete `.turbo/`. |
+| Symptom                                                             | Fix                                                                                                                                                                                                     |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `turbo: Could not resolve workspace … Missing packageManager field` | The root `package.json` must keep `"packageManager": "npm@…"`.                                                                                                                                          |
+| A port is already in use                                            | Another process holds one of 3000-3004 or 4000. Stop it, or change that app's `dev` **and** `start` scripts together — and `.claude/launch.json`, `deploy/nginx/` and `resources/domains.md` with them. |
+| Backend exits immediately at boot                                   | Missing/invalid `hms_backend/.env` — copy `.env.example` and set `DATABASE_URL` + JWT secrets (≥16 chars).                                                                                              |
+| `unable to determine transport target for "pino-pretty"`            | `pino-pretty` missing — `npm install` at root (it is a backend devDependency).                                                                                                                          |
+| Workspace package not found (`@hms/*`)                              | Run `npm run install:all` from the root so npm links the workspaces.                                                                                                                                    |
+| `npm audit` shows vulnerabilities                                   | Review with `npm audit`; do **not** run `--force` blindly (breaking changes). Address in the security-hardening stage.                                                                                  |
+| Stale build cache                                                   | `npx turbo run build --force`, or delete `.turbo/`.                                                                                                                                                     |
 
 ## Project layout
 

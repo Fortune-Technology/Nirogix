@@ -4,7 +4,12 @@ import { seedPermissionCatalog } from '../../rbac/rbac.service';
 import { onboardTenant } from '../../admin/admin.service';
 import { createBranch } from '../../branch/branch.service';
 import { createProvider } from '../../provider/provider.service';
-import { createDepartment, listDepartments, updateDepartment, getDepartment } from '../department.service';
+import {
+  createDepartment,
+  listDepartments,
+  updateDepartment,
+  getDepartment,
+} from '../department.service';
 import { getSetupStatus } from '../../setup/setup.service';
 
 // Departments (ADR-050). Skips if no database is reachable, like the other service tests.
@@ -63,7 +68,9 @@ beforeAll(async () => {
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@depttesta.example'])).rows[0].id;
+    adminA = (
+      await pool.query('SELECT id FROM users WHERE email = $1', ['admin@depttesta.example'])
+    ).rows[0].id;
     branchA = (await createBranch(tenantA, { code: 'MAIN', name: 'Main' })).id;
     branchB = (await createBranch(tenantB, { code: 'MAIN', name: 'Other Main' })).id;
     providerA = (await createProvider(tenantA, { fullName: 'Dr. Test A' })).id;
@@ -100,9 +107,9 @@ describe('departments', () => {
 
   test('the code is unique within the hospital', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(createDepartment(tenantA, { code: 'ORTHO', name: 'Duplicate' }, adminA)).rejects.toThrow(
-      /already exists/i,
-    );
+    await expect(
+      createDepartment(tenantA, { code: 'ORTHO', name: 'Duplicate' }, adminA),
+    ).rejects.toThrow(/already exists/i);
   });
 
   test('the same code is free in another hospital', async ({ skip }) => {
@@ -122,7 +129,11 @@ describe('departments', () => {
     if (!ready) return skip();
     const otherProvider = await createProvider(tenantB, { fullName: 'Dr. Other' });
     await expect(
-      createDepartment(tenantA, { code: 'ENT', name: 'ENT', headProviderId: otherProvider.id }, adminA),
+      createDepartment(
+        tenantA,
+        { code: 'ENT', name: 'ENT', headProviderId: otherProvider.id },
+        adminA,
+      ),
     ).rejects.toThrow(/does not belong to your organization/i);
   });
 
@@ -140,7 +151,12 @@ describe('departments', () => {
   test('update changes what was sent and leaves the rest', async ({ skip }) => {
     if (!ready) return skip();
     const before = (await listDepartments(tenantA)).find((d) => d.code === 'CARDIO')!;
-    const after = await updateDepartment(tenantA, before.id, { name: 'Cardiology & Cath Lab' }, adminA);
+    const after = await updateDepartment(
+      tenantA,
+      before.id,
+      { name: 'Cardiology & Cath Lab' },
+      adminA,
+    );
     expect(after.name).toBe('Cardiology & Cath Lab');
     expect(after.branchName).toBe('Main');
     expect(after.headProviderName).toBe('Dr. Test A');
@@ -152,7 +168,9 @@ describe('departments', () => {
     const off = await updateDepartment(tenantA, d.id, { isActive: false }, adminA);
     expect(off.isActive).toBe(false);
     expect(await getDepartment(tenantA, d.id)).toBeTruthy(); // still there — never deleted
-    expect((await listDepartments(tenantA, { activeOnly: true })).some((x) => x.code === 'ORTHO')).toBe(false);
+    expect(
+      (await listDepartments(tenantA, { activeOnly: true })).some((x) => x.code === 'ORTHO'),
+    ).toBe(false);
   });
 
   test('deactivation is audited at notice level', async ({ skip }) => {

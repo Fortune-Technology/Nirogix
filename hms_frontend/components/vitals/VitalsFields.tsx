@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { emptyLabel, Field, Select } from "@hms/ui";
-import type { VitalParameter, Vitals, VitalsRecord, VitalsStage } from "@hms/types";
+import { emptyLabel, Field, Select } from '@hms/ui';
+import type { VitalParameter, Vitals, VitalsRecord, VitalsStage } from '@hms/types';
 
 /** Where in the workflow a reading was taken. Shown beside it, because it changes how it reads. */
 export const VITALS_STAGE_LABEL: Record<VitalsStage, string> = {
-  check_in: "At check-in",
-  pre_consultation: "Vitals room",
-  consultation: "In consultation",
+  check_in: 'At check-in',
+  pre_consultation: 'Vitals room',
+  consultation: 'In consultation',
 };
 
 /**
@@ -15,7 +15,7 @@ export const VITALS_STAGE_LABEL: Record<VitalsStage, string> = {
  * numbers is never abbreviated two different ways in one product.
  */
 export function summariseVitals(v: VitalsRecord | null): string {
-  if (!v) return emptyLabel("notRecorded");
+  if (!v) return emptyLabel('notRecorded');
   const parts: string[] = [];
   if (v.systolic != null && v.diastolic != null) parts.push(`${v.systolic}/${v.diastolic} mmHg`);
   if (v.pulse != null) parts.push(`${v.pulse} bpm`);
@@ -25,7 +25,7 @@ export function summariseVitals(v: VitalsRecord | null): string {
   if (v.weightKg != null) parts.push(`${v.weightKg} kg`);
   if (v.heightCm != null) parts.push(`${v.heightCm} cm`);
   if (v.bloodSugarMgDl != null) parts.push(`${v.bloodSugarMgDl} mg/dL`);
-  return parts.length > 0 ? parts.join(" · ") : "Recorded";
+  return parts.length > 0 ? parts.join(' · ') : 'Recorded';
 }
 
 export type VitalsDraft = {
@@ -33,22 +33,22 @@ export type VitalsDraft = {
 };
 
 export const EMPTY_VITALS: VitalsDraft = {
-  systolic: "",
-  diastolic: "",
-  pulse: "",
-  spo2: "",
-  respRate: "",
-  tempC: "",
-  weightKg: "",
-  heightCm: "",
-  bloodSugarMgDl: "",
-  bloodSugarType: "",
+  systolic: '',
+  diastolic: '',
+  pulse: '',
+  spo2: '',
+  respRate: '',
+  tempC: '',
+  weightKg: '',
+  heightCm: '',
+  bloodSugarMgDl: '',
+  bloodSugarType: '',
 };
 
 const BLOOD_SUGAR_TYPES = [
-  { value: "fasting", label: "Fasting" },
-  { value: "post_prandial", label: "Post-prandial" },
-  { value: "random", label: "Random" },
+  { value: 'fasting', label: 'Fasting' },
+  { value: 'post_prandial', label: 'Post-prandial' },
+  { value: 'random', label: 'Random' },
 ];
 
 /**
@@ -63,7 +63,7 @@ export function toVitalsPayload(draft: VitalsDraft): Partial<Vitals> {
   for (const [key, raw] of Object.entries(draft)) {
     const value = raw.trim();
     if (!value) continue;
-    if (key === "bloodSugarType") {
+    if (key === 'bloodSugarType') {
       out[key] = value;
       continue;
     }
@@ -75,7 +75,9 @@ export function toVitalsPayload(draft: VitalsDraft): Partial<Vitals> {
 
 /** True when the draft carries at least one actual reading. */
 export function hasAnyReading(draft: VitalsDraft): boolean {
-  return Object.entries(draft).some(([key, value]) => key !== "bloodSugarType" && value.trim() !== "");
+  return Object.entries(draft).some(
+    ([key, value]) => key !== 'bloodSugarType' && value.trim() !== '',
+  );
 }
 
 /**
@@ -109,17 +111,22 @@ export function VitalsFields({ value, onChange, required, optional, disabled }: 
   }
 
   if (shown.size === 0) {
-    return <p className="text-sm text-fg-muted">This hospital has not configured any vitals to record.</p>;
+    return (
+      <p className="text-sm text-fg-muted">
+        This hospital has not configured any vitals to record.
+      </p>
+    );
   }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {shown.has("bloodPressure") && (
+      {shown.has('bloodPressure') && (
         // One control, two numbers: nobody records half a blood pressure, and the server refuses
         // one half without the other.
         <div className="hms-field sm:col-span-2">
           <span className="hms-label">
-            Blood pressure (mmHg){isRequired("bloodPressure") && <span className="text-danger"> *</span>}
+            Blood pressure (mmHg)
+            {isRequired('bloodPressure') && <span className="text-danger"> *</span>}
           </span>
           <div className="flex items-center gap-2">
             <Field
@@ -131,9 +138,11 @@ export function VitalsFields({ value, onChange, required, optional, disabled }: 
               max={300}
               value={value.systolic}
               disabled={disabled}
-              onChange={(e) => set("systolic", e.target.value)}
+              onChange={(e) => set('systolic', e.target.value)}
             />
-            <span aria-hidden className="text-fg-muted">/</span>
+            <span aria-hidden className="text-fg-muted">
+              /
+            </span>
             <Field
               type="number"
               inputMode="numeric"
@@ -143,54 +152,61 @@ export function VitalsFields({ value, onChange, required, optional, disabled }: 
               max={200}
               value={value.diastolic}
               disabled={disabled}
-              onChange={(e) => set("diastolic", e.target.value)}
+              onChange={(e) => set('diastolic', e.target.value)}
             />
           </div>
         </div>
       )}
 
-      {shown.has("pulse") && (
+      {shown.has('pulse') && (
         <Field
-          label={<>Pulse (bpm){isRequired("pulse") && <span className="text-danger"> *</span>}</>}
+          label={<>Pulse (bpm){isRequired('pulse') && <span className="text-danger"> *</span>}</>}
           type="number"
           inputMode="numeric"
           min={20}
           max={300}
           value={value.pulse}
           disabled={disabled}
-          onChange={(e) => set("pulse", e.target.value)}
+          onChange={(e) => set('pulse', e.target.value)}
         />
       )}
 
-      {shown.has("spo2") && (
+      {shown.has('spo2') && (
         <Field
-          label={<>SpO₂ (%){isRequired("spo2") && <span className="text-danger"> *</span>}</>}
+          label={<>SpO₂ (%){isRequired('spo2') && <span className="text-danger"> *</span>}</>}
           type="number"
           inputMode="numeric"
           min={50}
           max={100}
           value={value.spo2}
           disabled={disabled}
-          onChange={(e) => set("spo2", e.target.value)}
+          onChange={(e) => set('spo2', e.target.value)}
         />
       )}
 
-      {shown.has("respRate") && (
+      {shown.has('respRate') && (
         <Field
-          label={<>Respiratory rate (breaths/min){isRequired("respRate") && <span className="text-danger"> *</span>}</>}
+          label={
+            <>
+              Respiratory rate (breaths/min)
+              {isRequired('respRate') && <span className="text-danger"> *</span>}
+            </>
+          }
           type="number"
           inputMode="numeric"
           min={4}
           max={90}
           value={value.respRate}
           disabled={disabled}
-          onChange={(e) => set("respRate", e.target.value)}
+          onChange={(e) => set('respRate', e.target.value)}
         />
       )}
 
-      {shown.has("tempC") && (
+      {shown.has('tempC') && (
         <Field
-          label={<>Temperature (°C){isRequired("tempC") && <span className="text-danger"> *</span>}</>}
+          label={
+            <>Temperature (°C){isRequired('tempC') && <span className="text-danger"> *</span>}</>
+          }
           type="number"
           inputMode="decimal"
           step="0.1"
@@ -198,13 +214,15 @@ export function VitalsFields({ value, onChange, required, optional, disabled }: 
           max={45}
           value={value.tempC}
           disabled={disabled}
-          onChange={(e) => set("tempC", e.target.value)}
+          onChange={(e) => set('tempC', e.target.value)}
         />
       )}
 
-      {shown.has("weightKg") && (
+      {shown.has('weightKg') && (
         <Field
-          label={<>Weight (kg){isRequired("weightKg") && <span className="text-danger"> *</span>}</>}
+          label={
+            <>Weight (kg){isRequired('weightKg') && <span className="text-danger"> *</span>}</>
+          }
           type="number"
           inputMode="decimal"
           step="0.1"
@@ -212,46 +230,53 @@ export function VitalsFields({ value, onChange, required, optional, disabled }: 
           max={400}
           value={value.weightKg}
           disabled={disabled}
-          onChange={(e) => set("weightKg", e.target.value)}
+          onChange={(e) => set('weightKg', e.target.value)}
         />
       )}
 
-      {shown.has("heightCm") && (
+      {shown.has('heightCm') && (
         <Field
-          label={<>Height (cm){isRequired("heightCm") && <span className="text-danger"> *</span>}</>}
+          label={
+            <>Height (cm){isRequired('heightCm') && <span className="text-danger"> *</span>}</>
+          }
           type="number"
           inputMode="numeric"
           min={20}
           max={260}
           value={value.heightCm}
           disabled={disabled}
-          onChange={(e) => set("heightCm", e.target.value)}
+          onChange={(e) => set('heightCm', e.target.value)}
         />
       )}
 
-      {shown.has("bloodSugar") && (
+      {shown.has('bloodSugar') && (
         <>
           <Field
-            label={<>Blood sugar (mg/dL){isRequired("bloodSugar") && <span className="text-danger"> *</span>}</>}
+            label={
+              <>
+                Blood sugar (mg/dL)
+                {isRequired('bloodSugar') && <span className="text-danger"> *</span>}
+              </>
+            }
             type="number"
             inputMode="numeric"
             min={10}
             max={900}
             value={value.bloodSugarMgDl}
             disabled={disabled}
-            onChange={(e) => set("bloodSugarMgDl", e.target.value)}
+            onChange={(e) => set('bloodSugarMgDl', e.target.value)}
           />
           {/* A sugar reading with no type is a number nobody can interpret, so the server insists
               on this whenever a value is entered. */}
           <Select
             label="Blood sugar reading"
             value={value.bloodSugarType}
-            onChange={(v) => set("bloodSugarType", v)}
+            onChange={(v) => set('bloodSugarType', v)}
             options={BLOOD_SUGAR_TYPES}
             placeholder="Fasting, post-prandial or random"
             searchable={false}
             disabled={disabled}
-            required={value.bloodSugarMgDl.trim() !== ""}
+            required={value.bloodSugarMgDl.trim() !== ''}
             clearable
           />
         </>

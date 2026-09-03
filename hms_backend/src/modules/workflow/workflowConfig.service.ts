@@ -127,7 +127,7 @@ export async function assertConsultationType(
     throw Errors.validation(
       undefined,
       config.consultationTypes.length
-        ? `Not a consultation type this hospital uses. Configured: ${config.consultationTypes.join(", ")}`
+        ? `Not a consultation type this hospital uses. Configured: ${config.consultationTypes.join(', ')}`
         : 'This hospital has not set up consultation types. Add them under Hospital setup → Workflow first',
     );
   }
@@ -145,7 +145,7 @@ export async function assertCaseType(
     throw Errors.validation(
       undefined,
       config.caseTypes.length
-        ? `Not a case type this hospital uses. Configured: ${config.caseTypes.join(", ")}`
+        ? `Not a case type this hospital uses. Configured: ${config.caseTypes.join(', ')}`
         : 'This hospital has not set up case types. Add them under Hospital setup → Workflow first',
     );
   }
@@ -157,14 +157,22 @@ export async function assertCaseType(
  * platform defaults. Every enforcement point calls this rather than reading the table, so the
  * branch-then-organization fallback exists in exactly one place.
  */
-export async function resolveConfig(tenantId: string, branchId?: string | null): Promise<ResolvedWorkflowConfig> {
+export async function resolveConfig(
+  tenantId: string,
+  branchId?: string | null,
+): Promise<ResolvedWorkflowConfig> {
   return runWithTenant(tenantId, async (tx) => {
     if (branchId) {
       const own = (
         await tx
           .select()
           .from(hospitalWorkflowConfig)
-          .where(and(eq(hospitalWorkflowConfig.tenantId, tenantId), eq(hospitalWorkflowConfig.branchId, branchId)))
+          .where(
+            and(
+              eq(hospitalWorkflowConfig.tenantId, tenantId),
+              eq(hospitalWorkflowConfig.branchId, branchId),
+            ),
+          )
           .limit(1)
       )[0];
       if (own) return toResolved(own);
@@ -173,7 +181,12 @@ export async function resolveConfig(tenantId: string, branchId?: string | null):
       await tx
         .select()
         .from(hospitalWorkflowConfig)
-        .where(and(eq(hospitalWorkflowConfig.tenantId, tenantId), isNull(hospitalWorkflowConfig.branchId)))
+        .where(
+          and(
+            eq(hospitalWorkflowConfig.tenantId, tenantId),
+            isNull(hospitalWorkflowConfig.branchId),
+          ),
+        )
         .limit(1)
     )[0];
     return org ? toResolved(org) : PLATFORM_DEFAULTS;
@@ -193,7 +206,10 @@ export interface WorkflowConfigDto extends ResolvedWorkflowConfig {
  * because "this hospital is running on the organization default" is the thing an administrator most
  * needs to know before changing anything.
  */
-export async function getConfig(tenantId: string, branchId?: string | null): Promise<WorkflowConfigDto> {
+export async function getConfig(
+  tenantId: string,
+  branchId?: string | null,
+): Promise<WorkflowConfigDto> {
   return runWithTenant(tenantId, async (tx) => {
     let branchName: string | null = null;
     if (branchId) {
@@ -211,11 +227,23 @@ export async function getConfig(tenantId: string, branchId?: string | null): Pro
         await tx
           .select()
           .from(hospitalWorkflowConfig)
-          .where(and(eq(hospitalWorkflowConfig.tenantId, tenantId), eq(hospitalWorkflowConfig.branchId, branchId)))
+          .where(
+            and(
+              eq(hospitalWorkflowConfig.tenantId, tenantId),
+              eq(hospitalWorkflowConfig.branchId, branchId),
+            ),
+          )
           .limit(1)
       )[0];
       if (own) {
-        return { ...toResolved(own), branchId, branchName, version: own.version, isDefault: false, inheritedFromOrganization: false };
+        return {
+          ...toResolved(own),
+          branchId,
+          branchName,
+          version: own.version,
+          isDefault: false,
+          inheritedFromOrganization: false,
+        };
       }
     }
 
@@ -223,7 +251,12 @@ export async function getConfig(tenantId: string, branchId?: string | null): Pro
       await tx
         .select()
         .from(hospitalWorkflowConfig)
-        .where(and(eq(hospitalWorkflowConfig.tenantId, tenantId), isNull(hospitalWorkflowConfig.branchId)))
+        .where(
+          and(
+            eq(hospitalWorkflowConfig.tenantId, tenantId),
+            isNull(hospitalWorkflowConfig.branchId),
+          ),
+        )
         .limit(1)
     )[0];
 
@@ -274,7 +307,10 @@ function normaliseTypeList(values: string[], label: string): string[] {
     const value = raw.trim();
     if (!value) continue;
     if (value.length > MAX_TYPE_LENGTH) {
-      throw Errors.validation(undefined, `${label} must be ${MAX_TYPE_LENGTH} characters or fewer: "${value}"`);
+      throw Errors.validation(
+        undefined,
+        `${label} must be ${MAX_TYPE_LENGTH} characters or fewer: "${value}"`,
+      );
     }
     if (!out.some((v) => v.toLowerCase() === value.toLowerCase())) out.push(value);
   }
@@ -328,7 +364,7 @@ async function assertRemovedTypesUnused(
   if (clashes.length > 0) {
     throw Errors.validation(
       undefined,
-      `The fee schedule still prices ${clashes.join(", ")}. Retire those rules before removing the type`,
+      `The fee schedule still prices ${clashes.join(', ')}. Retire those rules before removing the type`,
     );
   }
 }
@@ -349,14 +385,19 @@ export async function updateConfig(
     consultationTypes: input.consultationTypes
       ? normaliseTypeList(input.consultationTypes, 'A consultation type')
       : before.consultationTypes,
-    caseTypes: input.caseTypes ? normaliseTypeList(input.caseTypes, 'A case type') : before.caseTypes,
+    caseTypes: input.caseTypes
+      ? normaliseTypeList(input.caseTypes, 'A case type')
+      : before.caseTypes,
   };
 
   // A parameter cannot be both required and merely offered — one of the two lists is wrong, and
   // guessing which would make the form behave differently from what the administrator read.
   const overlap = next.vitalsRequiredParams.filter((p) => next.vitalsOptionalParams.includes(p));
   if (overlap.length > 0) {
-    throw Errors.validation(undefined, `A vital cannot be both required and optional: ${overlap.join(', ')}`);
+    throw Errors.validation(
+      undefined,
+      `A vital cannot be both required and optional: ${overlap.join(', ')}`,
+    );
   }
   // Requiring a reading nobody is asked to take is a form that can never be submitted.
   if (next.vitalsMode === 'disabled' && next.vitalsRequiredParams.length > 0) {
@@ -365,7 +406,9 @@ export async function updateConfig(
 
   await runWithTenant(tenantId, async (tx) => {
     await assertRemovedTypesUnused(tx, tenantId, {
-      consultationTypes: before.consultationTypes.filter((t) => !next.consultationTypes.includes(t)),
+      consultationTypes: before.consultationTypes.filter(
+        (t) => !next.consultationTypes.includes(t),
+      ),
       caseTypes: before.caseTypes.filter((t) => !next.caseTypes.includes(t)),
     });
 
@@ -376,7 +419,9 @@ export async function updateConfig(
         .where(
           and(
             eq(hospitalWorkflowConfig.tenantId, tenantId),
-            branchId ? eq(hospitalWorkflowConfig.branchId, branchId) : isNull(hospitalWorkflowConfig.branchId),
+            branchId
+              ? eq(hospitalWorkflowConfig.branchId, branchId)
+              : isNull(hospitalWorkflowConfig.branchId),
           ),
         )
         .limit(1)
@@ -384,7 +429,9 @@ export async function updateConfig(
 
     if (existing) {
       if (existing.version !== input.version) {
-        throw Errors.conflict('This configuration was changed by someone else. Reload and try again');
+        throw Errors.conflict(
+          'This configuration was changed by someone else. Reload and try again',
+        );
       }
       await tx
         .update(hospitalWorkflowConfig)
@@ -398,7 +445,12 @@ export async function updateConfig(
           version: existing.version + 1,
           updatedAt: new Date(),
         })
-        .where(and(eq(hospitalWorkflowConfig.tenantId, tenantId), eq(hospitalWorkflowConfig.id, existing.id)));
+        .where(
+          and(
+            eq(hospitalWorkflowConfig.tenantId, tenantId),
+            eq(hospitalWorkflowConfig.id, existing.id),
+          ),
+        );
       return;
     }
 

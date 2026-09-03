@@ -102,7 +102,8 @@ async function fidelius(args: string[], what: string): Promise<Record<string, st
   try {
     const stdout = viaFile
       ? await runViaFile(env.FIDELIUS_CLI_PATH, args)
-      : (await run(env.FIDELIUS_CLI_PATH, args, { maxBuffer: 64 * 1024 * 1024, timeout: 60_000 })).stdout;
+      : (await run(env.FIDELIUS_CLI_PATH, args, { maxBuffer: 64 * 1024 * 1024, timeout: 60_000 }))
+          .stdout;
 
     const parsed = JSON.parse(stdout) as Record<string, string>;
     if (parsed.error) throw new EncryptionUnavailableError(parsed.error);
@@ -158,7 +159,10 @@ async function runViaFile(cliPath: string, args: string[]): Promise<string> {
     // Best-effort, and deliberately not allowed to mask a Fidelius error: a failed cleanup is worth
     // a log line, never worth replacing the reason the transfer failed.
     await rm(dir, { recursive: true, force: true }).catch((err: unknown) => {
-      logger.error({ err, dir }, 'Could not remove the Fidelius parameter file — delete it by hand');
+      logger.error(
+        { err, dir },
+        'Could not remove the Fidelius parameter file — delete it by hand',
+      );
     });
   }
 }
@@ -173,7 +177,11 @@ async function runViaFile(cliPath: string, args: string[]): Promise<string> {
 export async function generateKeyPair(): Promise<KeyPair> {
   if (env.ABDM_PROVIDER !== 'gateway') {
     const nonce = randomBytes(32).toString('base64');
-    return { privateKey: `MOCK-PRIVATE-${nonce.slice(0, 12)}`, publicKey: 'MOCK-PUBLIC-KEY', nonce };
+    return {
+      privateKey: `MOCK-PRIVATE-${nonce.slice(0, 12)}`,
+      publicKey: 'MOCK-PUBLIC-KEY',
+      nonce,
+    };
   }
   // `gkm` — `generate-key-material`. There is no `g`.
   const parsed = await fidelius(['gkm'], 'key generation');
@@ -207,7 +215,9 @@ export async function decryptFromHip(input: {
     // The exact inverse of the mock envelope, so the whole pipeline is exercisable without a JVM.
     const decoded = Buffer.from(input.ciphertext, 'base64').toString('utf8');
     if (!decoded.startsWith(MOCK_PREFIX)) {
-      throw new EncryptionUnavailableError('Mock decryption received something that was not a mock envelope');
+      throw new EncryptionUnavailableError(
+        'Mock decryption received something that was not a mock envelope',
+      );
     }
     return decoded.slice(MOCK_PREFIX.length);
   }
@@ -216,7 +226,14 @@ export async function decryptFromHip(input: {
   // We are the requester here; the HIP is the sender. The ciphertext comes FIRST — it was last in
   // an earlier version of this file, which would have failed on the first real record.
   const parsed = await fidelius(
-    ['d', input.ciphertext, input.ourNonce, input.hipNonce, input.ourPrivateKey, input.hipPublicKey],
+    [
+      'd',
+      input.ciphertext,
+      input.ourNonce,
+      input.hipNonce,
+      input.ourPrivateKey,
+      input.hipPublicKey,
+    ],
     'decryption',
   );
   // `decryptedData` is the CLI's own field name, confirmed from its documentation.
@@ -260,7 +277,11 @@ export async function encryptForHiu(input: {
       keyMaterial: {
         cryptoAlg: 'ECDH',
         curve: 'Curve25519',
-        dhPublicKey: { expiry: expiryIso(), parameters: 'Curve25519/32byte random key', keyValue: 'MOCK-PUBLIC-KEY' },
+        dhPublicKey: {
+          expiry: expiryIso(),
+          parameters: 'Curve25519/32byte random key',
+          keyValue: 'MOCK-PUBLIC-KEY',
+        },
         nonce,
       },
     };
@@ -290,7 +311,8 @@ export async function encryptForHiu(input: {
     ],
     'encryption',
   );
-  if (!parsed.encryptedData) throw new EncryptionUnavailableError('Fidelius returned no ciphertext');
+  if (!parsed.encryptedData)
+    throw new EncryptionUnavailableError('Fidelius returned no ciphertext');
 
   return {
     content: parsed.encryptedData,

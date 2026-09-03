@@ -1,13 +1,16 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { useAuth, useCan } from "../../../lib/auth";
-import { HospitalAdminDashboard } from "../../../components/dashboard/HospitalAdminDashboard";
-import { ClinicalDashboard, clinicalRoleFor } from "../../../components/dashboard/ClinicalDashboard";
-import { StaffDashboard } from "../../../components/dashboard/StaffDashboard";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { useAuth, useCan } from '../../../lib/auth';
+import { HospitalAdminDashboard } from '../../../components/dashboard/HospitalAdminDashboard';
+import {
+  ClinicalDashboard,
+  clinicalRoleFor,
+} from '../../../components/dashboard/ClinicalDashboard';
+import { StaffDashboard } from '../../../components/dashboard/StaffDashboard';
 
 /**
  * The hospital's dashboard, chosen by what the signed-in user is allowed to do

@@ -48,7 +48,7 @@ Substitute that value wherever this document writes `<E2E_IP>`.
 
 A success from a developer's machine does not count and never has: every ABDM call that has ever
 worked in this project ran from a home connection in India, which is exactly why the US host's
-failure went unnoticed for weeks. The question is what *this box* can reach.
+failure went unnoticed for weeks. The question is what _this box_ can reach.
 
 Create the node (Step 1), SSH in, and before installing anything:
 
@@ -64,12 +64,12 @@ answered. Only one combination is the failure this whole migration exists to fix
 curl -sSI https://dev.abdm.gov.in | grep -Ei 'HTTP/|x-amz-cf-pop|x-cache'
 ```
 
-| Result | Meaning |
-|---|---|
-| `400` / `401` / `200` | The request reached NHA. Premise holds — continue to Step 2. |
-| **`403`** with body `Request blocked` | **The failure this migration is about.** A WAF refused the request before any ABDM logic ran. If the PoP is Indian this is per-ASN rather than geographic: raise it with NHA integration support quoting the client id and this IP, and develop against a tunnel meanwhile. **Keep the node** — `ADR-006` requires India-resident hosting independently of ABDM. |
-| **`503`** with `x-cache: Error from cloudfront` | **Not a block.** CloudFront accepted the request and the origin did not answer — almost always NHA's sandbox being down, which it periodically is. Confirm before concluding anything: run the same request from a machine known to reach ABDM at the same moment. Both `503` means NHA; only this host `503` means look here. |
-| Any status from an Indian PoP (`MAA`, `BOM`, `DEL`, `HYD`, `CCU`, `MAA50-P2`, …) | The edge is treating this host as Indian, which is the thing the IONOS box could never do. Whatever else is wrong, it is not the geographic block. |
+| Result                                                                           | Meaning                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400` / `401` / `200`                                                            | The request reached NHA. Premise holds — continue to Step 2.                                                                                                                                                                                                                                                                                                     |
+| **`403`** with body `Request blocked`                                            | **The failure this migration is about.** A WAF refused the request before any ABDM logic ran. If the PoP is Indian this is per-ASN rather than geographic: raise it with NHA integration support quoting the client id and this IP, and develop against a tunnel meanwhile. **Keep the node** — `ADR-006` requires India-resident hosting independently of ABDM. |
+| **`503`** with `x-cache: Error from cloudfront`                                  | **Not a block.** CloudFront accepted the request and the origin did not answer — almost always NHA's sandbox being down, which it periodically is. Confirm before concluding anything: run the same request from a machine known to reach ABDM at the same moment. Both `503` means NHA; only this host `503` means look here.                                   |
+| Any status from an Indian PoP (`MAA`, `BOM`, `DEL`, `HYD`, `CCU`, `MAA50-P2`, …) | The edge is treating this host as Indian, which is the thing the IONOS box could never do. Whatever else is wrong, it is not the geographic block.                                                                                                                                                                                                               |
 
 A bare `GET /` is a coarse probe — it exercises no API. Once the edge looks healthy, the real test
 is a session call with credentials (Step 12, `npm run abdm:check`), because that is the only thing
@@ -79,19 +79,19 @@ Five minutes to avoid rebuilding an entire environment on a false assumption.
 
 ---
 
-## Step 1 — Create the node *(done — kept as the record of what was chosen)*
+## Step 1 — Create the node _(done — kept as the record of what was chosen)_
 
-| Setting | Value | Why |
-|---|---|---|
-| **Region** | **Chennai** (any India region) | The whole point — `ADR-005`, `ADR-006` |
-| **Plan** | C3 — 4 vCPU / 8 GB / 100 GB | Sizing below |
-| **Image** | Ubuntu 24.04 LTS | |
-| **Billing** | On-Demand | No commitment before the premise is proven |
-| **VPC** | ON | Cannot be added later without a rebuild; the DBaaS and any second node join it |
-| **Reserved IPv4** | ON | DNS, TLS and the ABDM bridge URL all resolve here |
-| **Backup** | OFF for staging | Synthetic data, reproducible from the seeder |
-| **Security Group** | New — **22, 80, 443 only** | Postgres and Redis stay on localhost |
-| **SSH key** | At creation; password login disabled | |
+| Setting            | Value                                | Why                                                                            |
+| ------------------ | ------------------------------------ | ------------------------------------------------------------------------------ |
+| **Region**         | **Chennai** (any India region)       | The whole point — `ADR-005`, `ADR-006`                                         |
+| **Plan**           | C3 — 4 vCPU / 8 GB / 100 GB          | Sizing below                                                                   |
+| **Image**          | Ubuntu 24.04 LTS                     |                                                                                |
+| **Billing**        | On-Demand                            | No commitment before the premise is proven                                     |
+| **VPC**            | ON                                   | Cannot be added later without a rebuild; the DBaaS and any second node join it |
+| **Reserved IPv4**  | ON                                   | DNS, TLS and the ABDM bridge URL all resolve here                              |
+| **Backup**         | OFF for staging                      | Synthetic data, reproducible from the seeder                                   |
+| **Security Group** | New — **22, 80, 443 only**           | Postgres and Redis stay on localhost                                           |
+| **SSH key**        | At creation; password login disabled |                                                                                |
 
 ### Sizing, and why 8 GB rather than 4
 
@@ -202,10 +202,10 @@ sudo mkdir -p /etc/nirogix && printf 'NIROGIX_PORT_API=4000\nNIROGIX_PORT_MARKET
 backups and point-in-time recovery are a day-one requirement for medical records, not later
 hardening.
 
-| Environment | Decision |
-|---|---|
-| **Production** | **DBaaS, always.** Not negotiable under the architecture. |
-| **Staging** | PostgreSQL on the VM. A deliberate credit-saving deviation, written down here so production does not inherit it by accident. |
+| Environment    | Decision                                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Production** | **DBaaS, always.** Not negotiable under the architecture.                                                                    |
+| **Staging**    | PostgreSQL on the VM. A deliberate credit-saving deviation, written down here so production does not inherit it by accident. |
 
 > **`hms` here is a PostgreSQL role, not the Linux user.** The OS user is `deploy`; the database
 > role is `hms`. They are deliberately different things and neither is renamed to match the other —
@@ -325,16 +325,16 @@ instance pointed at production ABDM, and refuses to boot production pointed at t
 first would make staging quietly non-functional, the second would leak real Aadhaar traffic into a
 test system.
 
-The values that fail *quietly* when wrong, which is why they are worth checking twice:
+The values that fail _quietly_ when wrong, which is why they are worth checking twice:
 
-| Key | Consequence |
-|---|---|
-| `ENCRYPTION_KEY` | **Silent.** ABDM tokens are discarded with only a log warning; linking never works and reads as a gateway fault. |
-| `DATABASE_URL` | A superuser role silently disables RLS — tenant isolation gone, no error. |
-| `ABDM_PROVIDER` | In `mock` the API receives callbacks and *records* its replies instead of sending them, so NHA times out on an answer already computed. |
-| `FIDELIUS_CLI_PATH` | Blank disables record transfer entirely — nothing is ever sent unencrypted, so M2/M3 refuse rather than degrade. |
-| `REDIS_URL` | Blank runs jobs inline, so the 20-minute ABDM transfer SLA competes with request handling. |
-| `ABDM_HIU_PUSH_BASE_URL` | Blank means M3 refuses to request external records. |
+| Key                      | Consequence                                                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENCRYPTION_KEY`         | **Silent.** ABDM tokens are discarded with only a log warning; linking never works and reads as a gateway fault.                        |
+| `DATABASE_URL`           | A superuser role silently disables RLS — tenant isolation gone, no error.                                                               |
+| `ABDM_PROVIDER`          | In `mock` the API receives callbacks and _records_ its replies instead of sending them, so NHA times out on an answer already computed. |
+| `FIDELIUS_CLI_PATH`      | Blank disables record transfer entirely — nothing is ever sent unencrypted, so M2/M3 refuse rather than degrade.                        |
+| `REDIS_URL`              | Blank runs jobs inline, so the 20-minute ABDM transfer SLA competes with request handling.                                              |
+| `ABDM_HIU_PUSH_BASE_URL` | Blank means M3 refuses to request external records.                                                                                     |
 
 **File storage.** `FILE_STORAGE_PROVIDER=local` is fine to start and needs no credentials — uploads
 live on the VM disk. For production parity set `r2` with the shared non-production bucket
@@ -385,14 +385,14 @@ All six staging `A` records currently point at the retired IONOS box `74.208.78.
 (`resources/domains.md` §8a). At **GoDaddy → nirogix.com → DNS**, change each record's value to the
 reserved E2E address:
 
-| Type | Name | Value |
-|---|---|---|
-| A | `staging` | `<E2E_IP>` |
-| A | `portal-staging` | `<E2E_IP>` |
-| A | `api-staging` | `<E2E_IP>` |
-| A | `admin-staging` | `<E2E_IP>` |
-| A | `patient-staging` | `<E2E_IP>` |
-| A | `ai-staging` | `<E2E_IP>` |
+| Type | Name              | Value      |
+| ---- | ----------------- | ---------- |
+| A    | `staging`         | `<E2E_IP>` |
+| A    | `portal-staging`  | `<E2E_IP>` |
+| A    | `api-staging`     | `<E2E_IP>` |
+| A    | `admin-staging`   | `<E2E_IP>` |
+| A    | `patient-staging` | `<E2E_IP>` |
+| A    | `ai-staging`      | `<E2E_IP>` |
 
 Also check the apex `@`: it still resolves to the staging IP, so `nirogix.com` would serve staging
 content. Repoint or delete it when the production node exists (`resources/domains.md` §9).
@@ -477,16 +477,16 @@ sudo cp deploy/nginx/nirogix.conf.template /etc/nginx/sites-available/nirogix.co
 
 Edit `/etc/nginx/sites-available/nirogix.conf` and replace every `${...}` placeholder:
 
-| Placeholder | Staging value |
-|---|---|
-| `${MARKETING_HOST}` | `staging.nirogix.com` |
-| `${PORTAL_HOST}` | `portal-staging.nirogix.com` |
-| `${API_HOST}` | `api-staging.nirogix.com` |
-| `${ADMIN_HOST}` | `admin-staging.nirogix.com` |
-| `${PATIENT_HOST}` | `patient-staging.nirogix.com` |
-| `${AIPORTAL_HOST}` | `ai-staging.nirogix.com` |
-| `${NIROGIX_PORT_API}` … | `4000` / `3000` / `3001` / `3002` / `3003` / `3004` |
-| `${SSL_CERT_PATH}` / `${SSL_KEY_PATH}` | Filled in by certbot below |
+| Placeholder                            | Staging value                                       |
+| -------------------------------------- | --------------------------------------------------- |
+| `${MARKETING_HOST}`                    | `staging.nirogix.com`                               |
+| `${PORTAL_HOST}`                       | `portal-staging.nirogix.com`                        |
+| `${API_HOST}`                          | `api-staging.nirogix.com`                           |
+| `${ADMIN_HOST}`                        | `admin-staging.nirogix.com`                         |
+| `${PATIENT_HOST}`                      | `patient-staging.nirogix.com`                       |
+| `${AIPORTAL_HOST}`                     | `ai-staging.nirogix.com`                            |
+| `${NIROGIX_PORT_API}` …                | `4000` / `3000` / `3001` / `3002` / `3003` / `3004` |
+| `${SSL_CERT_PATH}` / `${SSL_KEY_PATH}` | Filled in by certbot below                          |
 
 Delete the `www.${MARKETING_HOST}` redirect block — it is production-only, and staging has no
 `www-staging` record for certbot to validate.
@@ -575,12 +575,12 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Set these on the GitHub **staging environment** (Settings → Environments → staging → secrets):
 
-| Secret | Value |
-|---|---|
-| `STAGING_HOST` | The reserved E2E IP |
-| `STAGING_USER` | `deploy` |
+| Secret            | Value                                                                            |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `STAGING_HOST`    | The reserved E2E IP                                                              |
+| `STAGING_USER`    | `deploy`                                                                         |
 | `STAGING_SSH_KEY` | Contents of `~/.ssh/nirogix_e2e` (the private key, `BEGIN`/`END` lines included) |
-| `STAGING_PATH` | `/var/www/projects/nirogix` |
+| `STAGING_PATH`    | `/var/www/projects/nirogix`                                                      |
 
 The `deploy` user must accept that key. Append the matching **public** key to its authorized keys:
 
@@ -633,7 +633,7 @@ dashboard. A green health check is not a working environment.
 ## Decommissioning the old box
 
 **Do not destroy it.** `74.208.78.255` is a shared machine running six unrelated projects, and it is
-somebody else's box as much as ours; the task is removing Nirogix *from* it, not removing it. This
+somebody else's box as much as ours; the task is removing Nirogix _from_ it, not removing it. This
 is the one step in this document that can break software belonging to other people, so it is also
 the one to do last and slowly.
 
@@ -645,13 +645,13 @@ as a record of which keys were set, and generate fresh `JWT_*` and `ENCRYPTION_K
 new box rather than copying them across. Only account-bound values (the `MSG91_*` keys, the ABDM
 client pair) carry over.
 
-| Remove | Leave alone |
-|---|---|
-| PM2 apps matching `nirogix-*`, then `pm2 save` | Every other PM2 process |
-| Nginx server blocks for `*.nirogix.com` | Other projects' blocks; never touch `default_server` |
-| Certbot certificates for the six staging hosts | Every other certificate on the box |
-| The Nirogix database and role (dump it first) | The PostgreSQL server itself |
-| `/var/www/projects/nirogix`, `/etc/nirogix/ports.env` | Anything outside those paths |
+| Remove                                                | Leave alone                                          |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| PM2 apps matching `nirogix-*`, then `pm2 save`        | Every other PM2 process                              |
+| Nginx server blocks for `*.nirogix.com`               | Other projects' blocks; never touch `default_server` |
+| Certbot certificates for the six staging hosts        | Every other certificate on the box                   |
+| The Nirogix database and role (dump it first)         | The PostgreSQL server itself                         |
+| `/var/www/projects/nirogix`, `/etc/nirogix/ports.env` | Anything outside those paths                         |
 
 `nginx -t` before every reload. A mistake in a shared `sites-enabled` breaks six other sites.
 

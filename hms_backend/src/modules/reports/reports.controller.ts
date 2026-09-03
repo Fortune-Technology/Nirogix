@@ -7,8 +7,14 @@ import * as svc from './reports.service';
 const MAX_RANGE_DAYS = 366;
 
 const RangeQuery = z.object({
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 /**
@@ -23,14 +29,14 @@ function range(req: Request): { from: string; to: string } {
 
   const start = Date.parse(`${from}T00:00:00Z`);
   const end = Date.parse(`${to}T00:00:00Z`);
-  if (Number.isNaN(start) || Number.isNaN(end)) throw Errors.validation(undefined, 'Invalid date range');
+  if (Number.isNaN(start) || Number.isNaN(end))
+    throw Errors.validation(undefined, 'Invalid date range');
   if (end < start) throw Errors.validation(undefined, '"to" must not be earlier than "from"');
   if (end - start > MAX_RANGE_DAYS * 86_400_000) {
     throw Errors.validation(undefined, `Report range is limited to ${MAX_RANGE_DAYS} days`);
   }
   return { from, to };
 }
-
 
 export async function opdRegister(req: Request, res: Response): Promise<void> {
   const { from, to } = range(req);

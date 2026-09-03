@@ -68,11 +68,11 @@ This document states rules only. For the architecture each rule is derived from,
 
 ### Standard DataTable Component
 
-**One DataTable system → many modules → consistent UX.** It lives in `@hms/ui`, is built on the shadcn/ui Data Table pattern (TanStack Table headless core, styled on our tokens — ADR-029), and every tabular view in the platform renders through it. No module ships `PatientTable.tsx` / `DoctorTable.tsx` / `BillingTable.tsx`; it ships a *column + filter configuration* for the shared table.
+**One DataTable system → many modules → consistent UX.** It lives in `@hms/ui`, is built on the shadcn/ui Data Table pattern (TanStack Table headless core, styled on our tokens — ADR-029), and every tabular view in the platform renders through it. No module ships `PatientTable.tsx` / `DoctorTable.tsx` / `BillingTable.tsx`; it ships a _column + filter configuration_ for the shared table.
 
 - **Required capabilities:** column sorting (with a visible unsorted / ascending / descending indicator, Lucide icons) and multi-column sorting where it makes sense; pagination with a configurable page size (10 / 20 / 50 / 100, sensible default per module — never a hardcoded single size); search; per-column and faceted filtering; column visibility (show / hide / restore, with a sensible default set per table); row selection and select-all where required; empty, loading (skeleton) and error states; responsive behaviour with contained horizontal scrolling; sticky headers where appropriate; keyboard operation and visible focus states; a consistent action column; custom cell rendering and column definitions.
 - **Client-side or server-side, stated explicitly.** Small local datasets sort/filter/paginate in the browser; large ones (patient lists, audit, MIS reports) use server-side pagination, sorting, filtering and search. The table's configuration makes the mode obvious at the call site. Never load thousands of rows into the browser to filter them there.
-- **Consistent control layout:** *Search → Filters → Column visibility → Actions* above the table; *Rows per page → Pagination → "Showing X–Y of Z"* below it.
+- **Consistent control layout:** _Search → Filters → Column visibility → Actions_ above the table; _Rows per page → Pagination → "Showing X–Y of Z"_ below it.
 - **URL/query state** where a view is worth linking or reloading into (page, page size, sort, search, filters).
 - **Filters are reusable components** (status, department, doctor, date range, branch, role, priority, payment status), configured per module — never re-implemented per page.
 - **Row actions use the one shared action menu/button.** Same affordance in every module; destructive actions always go through the shared confirmation dialog.
@@ -92,8 +92,8 @@ This document states rules only. For the architecture each rule is derived from,
 ### Seeded Data That Ages (binding — ADR-133)
 
 **Anything a seeder writes relative to "today" is stale tomorrow.** A queue, an arrivals board, a
-"seen today" count and a vitals queue are the *present*, and the present moves; a history is a
-*past*, and a past is written once. Seed them differently:
+"seen today" count and a vitals queue are the _present_, and the present moves; a history is a
+_past_, and a past is written once. Seed them differently:
 
 - **A past runs once**, guarded by a marker (ADR-122).
 - **The present is rebuilt on every run**, guarded on the day itself — "does today already have
@@ -129,7 +129,7 @@ the newest response as the whole answer: the step that returns the most is rarel
   and an operator whose last step fails should still be holding everything the earlier ones proved.
 - **One request, one error.** Two calls sharing a `try` means a failure in the second is reported
   with the first one's message — a step that succeeded gets blamed for one that did not.
-- **Parse a tri-state as a tri-state.** `true`, `false` and *absent* are three answers. An adapter
+- **Parse a tri-state as a tri-state.** `true`, `false` and _absent_ are three answers. An adapter
   that flattens "not stated" into `false` is inventing a response, and the caller then acts on it:
   a missing `mobileMatchesAadhaar` read as `false` sent every patient to a second OTP.
 - **Decide from the data where the data can decide.** Where two values can simply be compared —
@@ -138,8 +138,8 @@ the newest response as the whole answer: the step that returns the most is rarel
 
 ### Configuration Read Keys (binding — ADR-129)
 
-**A permission named for the screen that *edits* something is the wrong key for the screens that
-merely *read* it.** Where a configuration governs a form — where vitals are taken, when a fee is
+**A permission named for the screen that _edits_ something is the wrong key for the screens that
+merely _read_ it.** Where a configuration governs a form — where vitals are taken, when a fee is
 due, which vocabularies a dropdown offers — **every role that uses the form needs the read key**,
 or the form 403s against the settings that describe it.
 
@@ -153,8 +153,8 @@ or the form 403s against the settings that describe it.
 
 ### Page Actions (binding — ADR-128)
 
-**A page's primary action lives in its `PageHeader`, top-right, and nowhere else.** *Register
-patient*, *Book appointment*, *Check in*, *New invoice*, *Add service*, *Add doctor* — every one of
+**A page's primary action lives in its `PageHeader`, top-right, and nowhere else.** _Register
+patient_, _Book appointment_, _Check in_, _New invoice_, _Add service_, _Add doctor_ — every one of
 them is in the same place on every screen, so a member of staff learns the position once instead of
 hunting for it per page. A control that moved between screens was the defect this rule exists to
 prevent.
@@ -163,7 +163,7 @@ prevent.
   toolbar is Search → Filters → Sort → Column visibility → Pagination (ADR-029) and holds nothing
   else. Putting a create button there is not a style choice; there is nowhere to put it.
 - **Ordering when a page has several:** supporting actions first, the primary action **last**
-  (right-most) — `ghost` for navigation away, `secondary` for a side task such as *Print / PDF*,
+  (right-most) — `ghost` for navigation away, `secondary` for a side task such as _Print / PDF_,
   and the default variant for the one action the page is for.
 - **Permission-gated in place.** Wrap the button in `<Can perm={…}>`; an action the user may not
   perform is not rendered, and the header simply has no actions. Never disable it instead, and
@@ -209,7 +209,7 @@ Two rules follow:
 
 - **The reason is chosen at the call site**, because only the call site knows which is true: `unassigned` (a link to another record that nobody has made yet), `unspecified` (an optional field left blank), `notRecorded` (an observation nobody took), `notConfigured` (a setting the hospital has not set up), `notApplicable` (the field cannot have a value for this row), `none` (an empty list, where zero is the complete answer), `notAvailable` (the value exists but this screen does not have it — rare, and usually a bug worth chasing rather than labelling).
 - **The accessor carries the same words as the cell**, so the column's filter offers "Not assigned" as a value and a search finds those rows.
-- **Investigate before labelling.** A column empty on *every* row is a data or query problem, not a display one — fix the join, the mapper or the dataset first, and label only what is genuinely absent. Changing the placeholder without finding out why the value is missing is the failure this rule exists to prevent.
+- **Investigate before labelling.** A column empty on _every_ row is a data or query problem, not a display one — fix the join, the mapper or the dataset first, and label only what is genuinely absent. Changing the placeholder without finding out why the value is missing is the failure this rule exists to prevent.
 - A dash survives only where it is **typography** — the `–` between the two ends of a reference range — never as a placeholder.
 - **CSV and other machine-readable exports keep an empty cell.** A spreadsheet sorts, filters and sums an empty cell correctly; a label in an amount column turns a number into text. The reason is for a human reading a screen or a printed document.
 
@@ -218,14 +218,16 @@ Two rules follow:
 **Build once, configure everywhere, reuse forever.** Applies to every frontend — the Portal, marketing, the admin console, the patient portal and the AI Portal — to current and future work.
 
 **Frontend boundaries (binding — ADR-051).** Five applications, one audience each, one backend. A frontend may render and may hide; it may never decide. Specifically:
+
 - **No authorization logic is duplicated into a frontend.** Every route it calls is independently re-checked server-side (`authenticated → tenant entitled → user permitted → business rule`). A guard in an app is UX only, and that matters more once URLs like `/admin` and the AI Portal exist for someone to type.
-- **No application calls an API outside its audience.** The admin console holds no clinical call; the Portal holds no platform-administration call. An operator works inside a hospital through an audited support session on the *Portal's* origin, never by rendering clinical screens on the platform origin.
+- **No application calls an API outside its audience.** The admin console holds no clinical call; the Portal holds no platform-administration call. An operator works inside a hospital through an audited support session on the _Portal's_ origin, never by rendering clinical screens on the platform origin.
 - **No cross-application session.** The refresh cookie is host-only on the API; each origin is listed individually in `CORS_ORIGINS` per environment; nothing sets `Domain=.nirogix.com`.
 - **A token never travels in a URL.** The support-session handoff uses `postMessage` with both sides naming the other's origin from configuration.
 - **No development credential appears in any frontend source or bundle.** Seed accounts live in `hms_backend/src/scripts/seed.development.ts` and `testcases.md`.
 - **The design system is the only thing shared by copy or import.** `@hms/ui`, `@hms/types` and `@hms/permissions` are shared; business logic is not.
 
 **Public (unauthenticated) endpoints (binding — ADR-056).** There is one unauthenticated write path in the product and there must not casually be a second. Any endpoint that accepts a request without a session obeys all of:
+
 - **The tenant is resolved server-side from an opaque token in the path** — never from a body field, a header, a query parameter, or a subdomain. A caller must have no way to name a tenant.
 - **The token is high-entropy, opaque and derived from nothing internal.** It may be printed on a poster, so treat everything encoded in it as published: no tenant id, no record id, no configuration, nothing authenticating.
 - **It never writes to a clinical table.** It may create a request for a human to review; a patient, encounter, order or invoice is created only by an authenticated, permitted user.
@@ -247,11 +249,11 @@ Two rules follow:
 ### Dates & Formatting
 
 - **Every user-facing date is `DD/MM/YYYY`, every time `hh:mm AM/PM`, and the two together `DD/MM/YYYY, hh:mm AM/PM`** (ADR-046) — Portal, marketing, print documents and PDFs, in tables, forms, date pickers, appointments, patient and staff records, billing, invoices, reports, audit logs, notifications, activity timelines, dashboards, filters, and search results. Never `2026-08-15`, `08/15/2026`, `15-08-2026`, `Aug 15, 2026`, or a 24-hour `16:45` in the UI. Days and months are always zero-padded and the meridiem is always shown.
-- **Entry uses the shared fields, never a native date/time input** (ADR-048): `DateField`, `TimeField` and `DateTimeField` from `@hms/ui`. A native `<input type="date">` renders in the *browser's* locale, so the same field reads differently machine to machine — the standard has to hold at the keyboard, not only on the screen. The value crossing the boundary is always ISO.
+- **Entry uses the shared fields, never a native date/time input** (ADR-048): `DateField`, `TimeField` and `DateTimeField` from `@hms/ui`. A native `<input type="date">` renders in the _browser's_ locale, so the same field reads differently machine to machine — the standard has to hold at the keyboard, not only on the screen. The value crossing the boundary is always ISO.
 - **The meridiem may be rendered as a badge** in schedules, time pickers and dense components — `formatTimeParts()` splits it out for exactly that, styled from the design tokens.
 - **Chart axes are the one abbreviated exception**, and even they go through the central layer: `formatMonthLabel()` (`Aug 26`) and `formatDayLabel()` (`16/08`) exist because twelve full dates cannot fit across an axis. No other abbreviated date form exists anywhere in the platform.
 - **Display format is separate from transport format.** APIs, the database, and query parameters keep their machine-readable format (ISO-8601); conversion happens once, at the display boundary.
-- **All of it goes through the centralized date utility** (`@hms/utils`): formatting, parsing, comparison, ranges, validation, and input↔output conversion — and is *rendered* through `DateDisplay` / `TimeDisplay` / `DateTimeDisplay` in `@hms/ui`, which also emit the machine-readable `<time datetime>` value. No component calls `toLocaleDateString()`, hand-rolls a format, or adds a date library of its own. A new date-bearing component uses the utility or extends it, so a future change to the standard is one edit rather than a sweep of every module.
+- **All of it goes through the centralized date utility** (`@hms/utils`): formatting, parsing, comparison, ranges, validation, and input↔output conversion — and is _rendered_ through `DateDisplay` / `TimeDisplay` / `DateTimeDisplay` in `@hms/ui`, which also emit the machine-readable `<time datetime>` value. No component calls `toLocaleDateString()`, hand-rolls a format, or adds a date library of its own. A new date-bearing component uses the utility or extends it, so a future change to the standard is one edit rather than a sweep of every module.
 
 ### Light & Dark Theme
 
@@ -285,7 +287,7 @@ Two rules follow:
 
 ### Content & Language
 
-- **Write natural, professional English.** No hyphens joining words that are not a real compound: *Hospital Management System*, never *Hospital-Management-System*. Legitimate compounds and terminology keep their hyphens — `multi-tenant`, `check-in`, `follow-up`, `no-show`, `India-resident`, `append-only`, `role-based` — as do URLs, slugs, CSS classes, and technical identifiers. Never bulk-strip hyphens.
+- **Write natural, professional English.** No hyphens joining words that are not a real compound: _Hospital Management System_, never _Hospital-Management-System_. Legitimate compounds and terminology keep their hyphens — `multi-tenant`, `check-in`, `follow-up`, `no-show`, `India-resident`, `append-only`, `role-based` — as do URLs, slugs, CSS classes, and technical identifiers. Never bulk-strip hyphens.
 - Applies to every user-facing string: headings, body copy, buttons, navigation, cards, labels, marketing copy, form text, error messages, empty states, tooltips, metadata, and SEO content.
 - Product copy stays inside the PRD's content guardrails (no invented customers, no certification claims, no published prices).
 
@@ -357,7 +359,7 @@ Binding order for **every** new page or feature on the Marketing site and the Po
 
 **Requirements → UX → SEO (where applicable) → Accessibility → Next.js optimization → API feedback → Performance → Code cleanup.**
 
-The shipped result is *SEO-friendly + fast + accessible + responsive + maintainable + secure + production-ready*. A page that renders correctly but has duplicate metadata, no API feedback, an un-optimized image, or leftover unused files is not done.
+The shipped result is _SEO-friendly + fast + accessible + responsive + maintainable + secure + production-ready_. A page that renders correctly but has duplicate metadata, no API feedback, an un-optimized image, or leftover unused files is not done.
 
 ### SEO / AEO / GEO Rules
 
@@ -381,7 +383,7 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 **Keyword strategy**
 
 - Keywords are **mapped to the page whose search intent they match**, and used naturally in the title, `<h1>`, and body — or not used at all. The mapping is recorded in `marketing/KNOWLEDGE.md`.
-- The working set is the product's real market: *Hospital Management System / Software*, *…in India*, *…Gujarat*, *Hospital Software Ahmedabad*, *Healthcare Management Software*, *Clinic Management Software*, *Hospital ERP Software*, *HMS Software for Hospitals*, *Hospital Billing Software*, *Hospital Appointment Management*, *Patient Management System*, *Doctor Management System*, *Pharmacy Management*, *Laboratory Management System*. Location and module terms belong on the pages that genuinely serve them (module pages, solutions, contact), not sitewide.
+- The working set is the product's real market: _Hospital Management System / Software_, _…in India_, _…Gujarat_, _Hospital Software Ahmedabad_, _Healthcare Management Software_, _Clinic Management Software_, _Hospital ERP Software_, _HMS Software for Hospitals_, _Hospital Billing Software_, _Hospital Appointment Management_, _Patient Management System_, _Doctor Management System_, _Pharmacy Management_, _Laboratory Management System_. Location and module terms belong on the pages that genuinely serve them (module pages, solutions, contact), not sitewide.
 - **SEO never overrides UX.** If a keyword makes a sentence worse, the sentence wins.
 
 **Prohibited in SEO work**
@@ -407,7 +409,7 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 - **Screenshots and mockups are claims.** A UI shown on the marketing site depicts a screen that exists, with fields and states the product really has. An illustrative mockup of a planned screen is labelled as such.
 - **Numbers are claims too** — uptime, response time, tenant counts, savings, adoption. No metric without a source we can produce on request.
 - This extends, and never relaxes, the PRD content guardrails (no invented customers, no certification claims, no published prices) and the SEO prohibitions above.
-- The test is the complaint we are preventing: *"your website says you have this, the product does not."* If a sentence could produce it, rewrite the sentence.
+- The test is the complaint we are preventing: _"your website says you have this, the product does not."_ If a sentence could produce it, rewrite the sentence.
 
 ### Marketing Imagery
 
@@ -433,11 +435,11 @@ The shipped result is *SEO-friendly + fast + accessible + responsive + maintaina
 
 ### Database Seeding Rules (binding — ADR-058, ADR-122)
 
-- **One seeder per environment — development, staging, production — and each refuses to run anywhere else.** A seeder declares the environment it is written for; `NODE_ENV` must match, and the guard *additionally* inspects `DATABASE_URL`, because `NODE_ENV` is set by whoever typed the command while the connection string decides which database is actually written.
+- **One seeder per environment — development, staging, production — and each refuses to run anywhere else.** A seeder declares the environment it is written for; `NODE_ENV` must match, and the guard _additionally_ inspects `DATABASE_URL`, because `NODE_ENV` is set by whoever typed the command while the connection string decides which database is actually written.
 - **Development** seeds realistic synthetic data — platform owner, demo hospitals, every role, doctors, staff, departments, patients, appointments. **Never real patient information**, in any environment, ever.
 - **Staging** seeds a controlled, **deterministic** dataset shaped like production, so QA, E2E and regression assertions can depend on exact values.
 - **Production seeds bootstrap configuration only** — the permission catalogue, system roles, and where genuinely required a first administrator. **Never a hospital, a patient, an appointment, a demo doctor, or any other invented record.** It requires an explicit confirmation variable so it cannot run as a side effect of a deploy.
-- **Idempotent in the useful sense: a seeder converges on *present*, never on the dataset's values** (ADR-122). It creates what is missing and **never updates, resets or deletes** a record that exists — a value edited by hand on a shared environment belongs to the person who edited it. Records are matched on a **stable key** (a code, an email, a registration number, a phone number), never on a display name. An action with no record of its own — applying a profile, a colour, a toggle, a history, a column backfill — is recorded in `seed_markers` and done once; a backfill fills a newly added column **only where it is NULL**.
+- **Idempotent in the useful sense: a seeder converges on _present_, never on the dataset's values** (ADR-122). It creates what is missing and **never updates, resets or deletes** a record that exists — a value edited by hand on a shared environment belongs to the person who edited it. Records are matched on a **stable key** (a code, an email, a registration number, a phone number), never on a display name. An action with no record of its own — applying a profile, a colour, a toggle, a history, a column backfill — is recorded in `seed_markers` and done once; a backfill fills a newly added column **only where it is NULL**.
 - **Staging is seeded automatically by its deployment workflow**, immediately after migrations, so a new table or a newly required record reaches it on the deploy that ships them. Development is run by hand. **No workflow ever seeds production, and no workflow ever passes `--reset`.** Adding seed data for a new table, or a backfill for a new column, is part of the change that adds them.
 - **Deterministic wherever practical**, so re-running is safe and repeatable.
 - **No secrets in a seeder.** Development passwords are known throwaway defaults, and are obviously that.
@@ -469,7 +471,7 @@ The failure this exists to prevent is unrecoverable: invented patients interleav
 - **The layer handles every failure mode:** network failure, timeout, validation (field errors rendered on the fields plus one summary notification), 401 (session expired → silent refresh, then the re-auth path — never a bare "Unauthorized"), 403 (the standard Forbidden panel at page level), 409/optimistic-lock conflict, 429, 5xx, and unstructured or non-JSON responses.
 - **Never surface internals.** No stack traces, SQL, raw provider errors, internal hostnames, or developer-facing `details` reach the user; full detail goes to the structured logger / `errorTracker`. **Never render PHI in a notification.**
 - **Accessible by construction:** `role="status"` (polite) for routine messages and `role="alert"` (assertive) for errors and warnings, keyboard-reachable with a labelled close control, auto-dismiss for success, errors persist until dismissed, honours `prefers-reduced-motion`, positioned so it never covers the app bar or the primary action, with a stack limit and de-duplication.
-- **Status is never carried by colour alone.** Every variant renders a distinct icon *and* a title in words, so the state survives greyscale, colour-blindness, and a screen reader reading the text with no styling at all.
+- **Status is never carried by colour alone.** Every variant renders a distinct icon _and_ a title in words, so the state survives greyscale, colour-blindness, and a screen reader reading the text with no styling at all.
 - **One layer owns each message.** The API client raises the notification for a request's outcome; a page that has already handled the same failure inline (a field error, an inline error panel) passes `feedback: false` rather than letting a second toast say the same thing. Two notifications for one event is the failure mode this rule prevents.
 - **Idempotent retries produce one notification, not one per attempt.**
 
@@ -568,7 +570,7 @@ The repository root holds **`testcases.md`** — the complete manual QA checklis
 
 **If it is not used, it does not stay. No garbage code, ever — in this change, not "later".**
 
-- **No dead implementations.** Replacing a technology or component follows *migrate → verify → delete*, in the same change. The old implementation is never kept "for future use", and two systems solving the same problem are never both active without a documented reason.
+- **No dead implementations.** Replacing a technology or component follows _migrate → verify → delete_, in the same change. The old implementation is never kept "for future use", and two systems solving the same problem are never both active without a documented reason.
 - **Deletion is part of Done, not a follow-up.** A change that leaves behind something it made unnecessary is unfinished — this is a Definition-of-Done gate, and a reviewer rejects on it.
 - **The cleanup pass covers, at minimum:** orphaned files and components (nothing imports them), unused imports/exports/types/constants/hooks/utilities, dead CSS and design tokens, unreferenced images / Lottie / fonts / other `public/` assets, superseded API services and endpoints, generated scaffolding nothing consumes, empty directories, commented-out code, and **dependencies nothing imports — removed from `package.json` in the same commit**.
 - **Regenerable scaffolding is deleted too.** Tooling output that can be recreated on demand (for example a `shadcn add` that was not adopted, or the `lib/utils.ts` its init writes) is removed while unused; the tool will write it again when it is actually needed.
@@ -622,7 +624,7 @@ The repository root holds **`testcases.md`** — the complete manual QA checklis
 
 ### Architecture Decision Records (DECISIONS.md)
 
-A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording *why*, not *what* or *when*.
+A fourth documentation file, alongside CLAUDE.md, KNOWLEDGE.md, and DONE.md — recording _why_, not _what_ or _when_.
 
 - **CLAUDE.md** — what the AI/developer must follow (conventions, standards)
 - **KNOWLEDGE.md** — how the system currently works
@@ -644,4 +646,5 @@ Seed entries for this platform's own foundational decisions:
 New architectural decisions of similar weight are appended here as they are made, with the same rigor as DONE.md is append-only for implementation history.
 
 ---
-*Rules & Engineering Standards — v1.0 — Takoriya Technology LLP — August 2026*
+
+_Rules & Engineering Standards — v1.0 — Takoriya Technology LLP — August 2026_

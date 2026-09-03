@@ -1,6 +1,18 @@
 import { describe, expect, test } from 'vitest';
-import { decryptSecret, encryptSecret, isEncryptionConfigured, safeEqual, tryDecryptSecret } from '../encryption';
-import { containsAadhaarLike, maskAadhaar, maskMobile, redactAadhaarText, scrubAadhaar } from '../redaction';
+import {
+  decryptSecret,
+  encryptSecret,
+  isEncryptionConfigured,
+  safeEqual,
+  tryDecryptSecret,
+} from '../encryption';
+import {
+  containsAadhaarLike,
+  maskAadhaar,
+  maskMobile,
+  redactAadhaarText,
+  scrubAadhaar,
+} from '../redaction';
 
 /**
  * The two security primitives ABDM Milestone 1 rests on (ADR-084). No database — these are pure
@@ -66,7 +78,9 @@ describe('Aadhaar redaction', () => {
   test('an ABHA number survives — it is not an Aadhaar', () => {
     // Regression: `91-1234-5678-9999` was being stored as `91-XXXXXXXX9999`, because its last
     // twelve digits are a 4-4-4 group. Found in the browser via a Scan-and-Share profile.
-    expect(redactAadhaarText('ABHA 91-1234-5678-9999 verified')).toBe('ABHA 91-1234-5678-9999 verified');
+    expect(redactAadhaarText('ABHA 91-1234-5678-9999 verified')).toBe(
+      'ABHA 91-1234-5678-9999 verified',
+    );
     expect(redactAadhaarText('91-1234-5678-9999')).toBe('91-1234-5678-9999');
     expect(containsAadhaarLike('91-1234-5678-9999')).toBe(false);
   });

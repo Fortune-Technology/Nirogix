@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 import { createDrug, receiveStock } from '../../pharmacy/pharmacy.service';
@@ -42,7 +50,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -77,14 +87,26 @@ beforeAll(async () => {
       userId: sessions.doctor!.userId,
     })
   ).id;
-  drugId = (await createDrug(tenant.tenantId, { name: 'Paracetamol 650 mg', unit: 'tablet', unitPricePaise: DRUG_PRICE_PAISE }))!.id;
-  await receiveStock(tenant.tenantId, drugId, { batchNo: 'AM-1', expiryDate: '2027-12-31', quantity: 50 });
+  drugId = (await createDrug(tenant.tenantId, {
+    name: 'Paracetamol 650 mg',
+    unit: 'tablet',
+    unitPricePaise: DRUG_PRICE_PAISE,
+  }))!.id;
+  await receiveStock(tenant.tenantId, drugId, {
+    batchNo: 'AM-1',
+    expiryDate: '2027-12-31',
+    quantity: 50,
+  });
 
   // A patient, checked in, fee paid, consulted and signed — the state every test below starts from.
   patientId = (
-    await authed(sessions.receptionist!)
-      .post('/api/v1/patients')
-      .send({ firstName: 'Ramesh', lastName: 'Kulkarni', gender: 'male', dateOfBirth: '1979-09-02', phone: '9812345699' })
+    await authed(sessions.receptionist!).post('/api/v1/patients').send({
+      firstName: 'Ramesh',
+      lastName: 'Kulkarni',
+      gender: 'male',
+      dateOfBirth: '1979-09-02',
+      phone: '9812345699',
+    })
   ).body.id;
 
   const checkedIn = await authed(sessions.receptionist!)
@@ -108,8 +130,18 @@ beforeAll(async () => {
       objective: 'Chest clear. Throat mildly congested.',
       assessment: 'Acute bronchitis',
       plan: 'Symptomatic treatment, review in five days',
-      diagnoses: [{ icd10Code: 'J20.9', icd10Term: 'Acute bronchitis, unspecified', isPrimary: true }],
-      prescriptions: [{ drugId, drugName: 'Paracetamol 650 mg', dose: '650 mg', frequency: 'TDS', duration: '5 days' }],
+      diagnoses: [
+        { icd10Code: 'J20.9', icd10Term: 'Acute bronchitis, unspecified', isPrimary: true },
+      ],
+      prescriptions: [
+        {
+          drugId,
+          drugName: 'Paracetamol 650 mg',
+          dose: '650 mg',
+          frequency: 'TDS',
+          duration: '5 days',
+        },
+      ],
       labOrders: [],
     });
 
@@ -124,7 +156,9 @@ afterAll(async () => {
 });
 
 describe('1 — a signed consultation is closed to ordinary editing', () => {
-  test('the signature stands, and the doctor who wrote it cannot simply save over it', async ({ skip }) => {
+  test('the signature stands, and the doctor who wrote it cannot simply save over it', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const chart = await authed(sessions.doctor!).get(`/api/v1/encounters/${encounterId}`);
     expect(chart.body.status).toBe('signed');
@@ -132,9 +166,13 @@ describe('1 — a signed consultation is closed to ordinary editing', () => {
     expect(chart.body.amendments).toEqual([]);
     expect(chart.body.openAmendment).toBeNull();
 
-    const edit = await authed(sessions.doctor!)
-      .put(`/api/v1/encounters/${encounterId}`)
-      .send({ version, assessment: 'rewritten in place', diagnoses: [], prescriptions: [], labOrders: [] });
+    const edit = await authed(sessions.doctor!).put(`/api/v1/encounters/${encounterId}`).send({
+      version,
+      assessment: 'rewritten in place',
+      diagnoses: [],
+      prescriptions: [],
+      labOrders: [],
+    });
     expect(edit.status).toBe(409);
     // The refusal has to point at the way through, or it is just a wall.
     expect(edit.body.error.message).toMatch(/amend/i);
@@ -161,7 +199,9 @@ describe('2 — reopening is its own permission, and its own act', () => {
 
   test('a reason is required, and a keystroke is not a reason', async ({ skip }) => {
     if (!ready) return skip();
-    const empty = await authed(sessions.doctor!).post(`/api/v1/encounters/${encounterId}/amend`).send({});
+    const empty = await authed(sessions.doctor!)
+      .post(`/api/v1/encounters/${encounterId}/amend`)
+      .send({});
     expect(empty.status).toBe(422);
 
     const tooShort = await authed(sessions.doctor!)
@@ -173,7 +213,9 @@ describe('2 — reopening is its own permission, and its own act', () => {
     expect(chart.body.status).toBe('signed');
   });
 
-  test('the doctor reopens it: the note becomes editable and the reason is on the record', async ({ skip }) => {
+  test('the doctor reopens it: the note becomes editable and the reason is on the record', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const amended = await authed(sessions.doctor!)
       .post(`/api/v1/encounters/${encounterId}/amend`)
@@ -207,16 +249,22 @@ describe('2 — reopening is its own permission, and its own act', () => {
     if (!ready) return skip();
     // The administrator holds every permission; what stops them here is that the reason on the
     // record is the doctor's, and editing through it would attribute their change to that reason.
-    const edit = await authed(sessions.org_admin!)
-      .put(`/api/v1/encounters/${encounterId}`)
-      .send({ version, assessment: 'administrator edit', diagnoses: [], prescriptions: [], labOrders: [] });
+    const edit = await authed(sessions.org_admin!).put(`/api/v1/encounters/${encounterId}`).send({
+      version,
+      assessment: 'administrator edit',
+      diagnoses: [],
+      prescriptions: [],
+      labOrders: [],
+    });
     expect(edit.status).toBe(403);
     expect(edit.body.error.message).toMatch(/another user/i);
   });
 });
 
 describe('3 — a note being amended has not left the hospital', () => {
-  test("it is still in the patient's history while the correction is in progress", async ({ skip }) => {
+  test("it is still in the patient's history while the correction is in progress", async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const history = await authed(sessions.doctor!).get(`/api/v1/patients/${patientId}/encounters`);
     expect(history.status).toBe(200);
@@ -244,8 +292,18 @@ describe('4 — the correction, and what it leaves behind', () => {
         objective: 'Chest clear. Throat mildly congested.',
         assessment: 'Acute bronchitis',
         plan: 'Symptomatic treatment, review in five days',
-        diagnoses: [{ icd10Code: 'J20.9', icd10Term: 'Acute bronchitis, unspecified', isPrimary: true }],
-        prescriptions: [{ drugId, drugName: 'Paracetamol 650 mg', dose: '650 mg', frequency: 'TDS', duration: '5 days' }],
+        diagnoses: [
+          { icd10Code: 'J20.9', icd10Term: 'Acute bronchitis, unspecified', isPrimary: true },
+        ],
+        prescriptions: [
+          {
+            drugId,
+            drugName: 'Paracetamol 650 mg',
+            dose: '650 mg',
+            frequency: 'TDS',
+            duration: '5 days',
+          },
+        ],
         labOrders: [],
       });
     expect(saved.status).toBe(200);
@@ -256,7 +314,9 @@ describe('4 — the correction, and what it leaves behind', () => {
 
   test('an amendment with a correction in it cannot be quietly discarded', async ({ skip }) => {
     if (!ready) return skip();
-    const cancel = await authed(sessions.doctor!).post(`/api/v1/encounters/${encounterId}/amend/cancel`);
+    const cancel = await authed(sessions.doctor!).post(
+      `/api/v1/encounters/${encounterId}/amend/cancel`,
+    );
     expect(cancel.status).toBe(409);
     expect(cancel.body.error.message).toMatch(/sign it/i);
 
@@ -282,7 +342,9 @@ describe('4 — the correction, and what it leaves behind', () => {
     version = signed.body.version;
   });
 
-  test('the visit was completed once, by the first signature, and the amendment did not redo it', async ({ skip }) => {
+  test('the visit was completed once, by the first signature, and the amendment did not redo it', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const visit = await authed(sessions.doctor!).get(`/api/v1/visits/${visitId}`);
     expect(visit.body.status).toBe('completed');
@@ -318,14 +380,18 @@ describe('5 — an amendment that changes nothing still says so', () => {
 });
 
 describe('6 — an amendment opened by mistake', () => {
-  test('discards cleanly while nothing has been edited, and the trail keeps that it happened', async ({ skip }) => {
+  test('discards cleanly while nothing has been edited, and the trail keeps that it happened', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const opened = await authed(sessions.doctor!)
       .post(`/api/v1/encounters/${encounterId}/amend`)
       .send({ reason: 'Opened this by mistake — meant the next patient on the list.' });
     expect(opened.status).toBe(200);
 
-    const cancelled = await authed(sessions.doctor!).post(`/api/v1/encounters/${encounterId}/amend/cancel`);
+    const cancelled = await authed(sessions.doctor!).post(
+      `/api/v1/encounters/${encounterId}/amend/cancel`,
+    );
     expect(cancelled.status).toBe(200);
     expect(cancelled.body.status).toBe('signed');
     expect(cancelled.body.openAmendment).toBeNull();

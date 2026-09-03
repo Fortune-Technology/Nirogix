@@ -56,8 +56,28 @@ const BOOKS: Array<{ prefix: string; milestone: string }> = [
   { prefix: 'HPR', milestone: 'M4-HPR' },
 ];
 
-/** Case ids across all five workbooks. Anything else on a row is prose, not a case. */
-const CASE_ID = /^(CRT_|HIP_|HIU_|TAGGING|HFR-|HPR-|LINK_|DISC_|CONS_)/;
+/**
+ * Case ids across all five workbooks. Anything else on a row is prose, not a case.
+ *
+ * **Every prefix NHA actually uses, not the ones we remembered.** The first version of this list
+ * held eight prefixes and silently dropped three more, because a row whose id does not match is
+ * skipped without a word. What it dropped was not an edge: `VRFY_`/`PROF_`/`SHARE` is the entire
+ * second half of the M1 workbook — the half its own title names (*ABHA Creation **and
+ * Verification***) — and `USER_INIT_`/`Health_RECORD_` is a seventh of M2. M1 reported 12
+ * mandatory cases when it has 26.
+ *
+ * So the rule is: **an unmatched id is a bug in this list, not a non-case.** `unmatchedIds`
+ * below reports anything that looks like an id and is not claimed here, so the next prefix NHA
+ * invents is loud rather than invisible.
+ */
+const CASE_ID =
+  /^(CRT_|VRFY_|PROF_|SHARE_|SHARE _|HIP_|HIU_|USER_INIT_|HEALTH_RECORD_|TAGGING|HFR-|HPR-|LINK_|DISC_|CONS_)/i;
+
+/**
+ * Anything shaped like a case id — an ALL-CAPS or Title_Case token with an underscore or dash and
+ * a number. Used only to notice ids `CASE_ID` does not claim, never to admit them silently.
+ */
+const LOOKS_LIKE_ID = /^[A-Za-z][A-Za-z]*[_-][A-Za-z0-9_ -]*d/;
 
 // ── xlsx reading ────────────────────────────────────────────────────────────
 // An .xlsx is a zip of XML. Read it directly rather than shelling out to `unzip`, so the script
@@ -190,7 +210,10 @@ function sectionExcludes(applicableTo: string, sectionTitle: string, role: Role)
  * because a mandatory field is still something an assessor checks, but the report labels M4
  * separately rather than pretending the two questions are the same one.
  */
-const REQUIREMENT_TOKEN = /^(mandatory|optional|non-mandatory|yes|no)\b/i;
+// `any one of them` leads M3's group requirement for the seven HI-type fetches. Without it the
+// phrase is not recognised as a requirement at all, the group falls through to the previous
+// row's "Mandatory", and one requirement is reported as seven.
+const REQUIREMENT_TOKEN = /^(mandatory|optional|non-mandatory|any one of them|yes|no)\b/i;
 
 /**
  * Which column holds the requirement — it moves, and not only between workbooks.
@@ -222,8 +245,13 @@ function requirementOf(statusText: string, role: Role): Requirement {
 
   if (s.startsWith('optional') || s.includes('non-mandatory')) return 'optional';
   // "Either of X or Y is mandatory for Government, Optional for Private"
-  if (s.includes('either of the test cases')) return role === 'government' ? 'mandatory' : 'optional';
+  if (s.includes('either of the test cases'))
+    return role === 'government' ? 'mandatory' : 'optional';
   if (s.includes('mandatory if the intergrator is implementing')) return 'conditional';
+  // "Any one of them is mandatory" (M3's seven HI-type fetches): the GROUP must be demonstrated,
+  // no single member of it must. Conditional is the honest label — calling each one mandatory
+  // would invent six requirements, and calling them optional would lose the group's real one.
+  if (s.includes('any one of them is mandatory')) return 'conditional';
   if (s.includes('mandatory for government') && !s.includes('private')) {
     return role === 'government' ? 'mandatory' : 'optional';
   }
@@ -242,6 +270,14 @@ function requirementOf(statusText: string, role: Role): Requirement {
  */
 let duplicateRows = 0;
 
+/**
+ * Ids that look like a case but no prefix in `CASE_ID` claims.
+ *
+ * Empty is the only acceptable value. A non-empty set means the matrix is short by exactly that
+ * many cases, and nobody would otherwise know — the failure this whole file exists to prevent.
+ */
+const unmatchedIds = new Set<string>();
+
 export function buildMatrix(role: Role): Case[] {
   if (!existsSync(WORKBOOK_DIR)) {
     throw new Error(
@@ -253,30 +289,57 @@ export function buildMatrix(role: Role): Case[] {
   const cases: Case[] = [];
   const seen = new Set<string>();
   duplicateRows = 0;
+  unmatchedIds.clear();
 
   for (const book of BOOKS) {
     const file = present.find((f) => f.startsWith(book.prefix));
     if (!file) {
       // Said out loud rather than silently producing a smaller total.
-      process.stderr.write(`  ! no workbook found for ${book.milestone} (prefix "${book.prefix}")\n`);
+      process.stderr.write(
+        `  ! no workbook found for ${book.milestone} (prefix "${book.prefix}")\n`,
+      );
       continue;
     }
     const rows = sheetRows(readZip(readFileSync(join(WORKBOOK_DIR, file))));
 
     let section = '';
     let applicableTo = '';
+    // The requirement a SECTION header carries, when it carries one. M3's "Expiry of Consent
+    // Request" states `Mandatory` on the header and leaves the case row beneath it blank.
+    let sectionRequirement = '';
+    // Within one group a blank requirement means "as the row above" — NHA merges the cell rather
+    // than repeating it, and losing that reads a merged group as unstated.
+    let groupRequirement = '';
+
     for (const row of rows) {
       const sno = row[0] ?? '';
-      const id = (row[4] ?? '').trim();
+      const colE = (row[4] ?? '').trim();
+      const colB = (row[1] ?? '').trim();
+      // The id is normally in column E. M2 and M3 put it in column B for whole blocks — the seven
+      // HI-type fetches, `USER_INIT_LINK_601`, `HIU_FLOW_301` — and reading only column E dropped
+      // every one of them. Column B is accepted ONLY when it holds something `CASE_ID` claims, so
+      // a `Function` title is never mistaken for a case.
+      const idInColumnB = !colE && CASE_ID.test(colB);
+      const id = colE || (idInColumnB ? colB : '');
 
       // A section header: a bare integer S.No, a title, and no case id of its own. This is how
       // M1–M3 mark them, and it is where `Applicable To` — the scoping that matters — lives.
       if (/^\d+$/.test(sno) && row[1] && !CASE_ID.test(id)) {
         section = row[1] ?? '';
         applicableTo = row[2] ?? '';
+        sectionRequirement = REQUIREMENT_TOKEN.test(row[3] ?? '') ? (row[3] ?? '').trim() : '';
+        groupRequirement = '';
         continue;
       }
-      if (!CASE_ID.test(id)) continue;
+      if (!CASE_ID.test(id)) {
+        // Not a case — but if it LOOKS like one, this list is out of date and the matrix is
+        // quietly short. Say so rather than dropping it.
+        for (const candidate of [colE, colB]) {
+          if (candidate && LOOKS_LIKE_ID.test(candidate))
+            unmatchedIds.add(`${book.milestone}::${candidate}`);
+        }
+        continue;
+      }
 
       const key = `${book.milestone}::${id}`;
       if (seen.has(key)) {
@@ -285,13 +348,20 @@ export function buildMatrix(role: Role): Case[] {
       }
       seen.add(key);
 
-      const statusText = resolveRequirementText(row);
+      // A row whose id sits in column B has no requirement text of its own — column B is spent
+      // on the id. Fall back to the group it belongs to, then to the section header.
+      const ownStatus = idInColumnB ? '' : resolveRequirementText(row);
+      if (ownStatus) groupRequirement = ownStatus;
+      // Inheritance is for the LAYOUT SHIFT only. A row that simply has no requirement stays
+      // unstated: NHA states the requirement once for a pair of alternates (CRT_ABHA_114/115) and
+      // leaves the sibling blank on purpose, and filling that in invents a requirement.
+      const statusText = idInColumnB ? groupRequirement || sectionRequirement : ownStatus;
 
       // M4 groups its cases differently: no numbered header row, just a `Function` in column B on
       // the first case of each group ("Facility search", "Bridge linkage", …) which then merges
       // down. Carry it forward so the breakdown is grouped by something a person can act on
       // rather than by one anonymous run of 54.
-      const fn = (row[1] ?? '').trim();
+      const fn = idInColumnB ? '' : colB;
       if (fn && fn !== statusText && !REQUIREMENT_TOKEN.test(fn)) section = fn;
       cases.push({
         milestone: book.milestone,
@@ -327,6 +397,16 @@ function main(): void {
     const m = byMilestone.get(c.milestone) ?? new Map<Requirement, number>();
     m.set(c.requirement, (m.get(c.requirement) ?? 0) + 1);
     byMilestone.set(c.milestone, m);
+  }
+
+  if (unmatchedIds.size > 0) {
+    // Loud, and on stderr, because a short matrix that looks complete is exactly the failure this
+    // script exists to end. Add the prefix to CASE_ID — never ignore this.
+    process.stderr.write(
+      `\n  !! ${unmatchedIds.size} row(s) look like a case but no prefix in CASE_ID claims them.\n` +
+        `     The matrix below is SHORT by that many. Add the prefix and re-run:\n` +
+        `${[...unmatchedIds].map((i) => `       ${i}`).join('\n')}\n`,
+    );
   }
 
   const pad = (s: string, n: number) => s.padEnd(n);

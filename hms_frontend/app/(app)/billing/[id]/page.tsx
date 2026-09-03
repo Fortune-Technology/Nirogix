@@ -1,33 +1,50 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Plus, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Dialog, Field, Select, Spinner, type Column } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AddInvoiceLineRequest, Invoice, Service } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../../lib/api";
-import { RequirePermission, Can } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { formatPaise, rupeesToPaise } from "../../../../lib/money";
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Plus, Printer } from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Dialog,
+  Field,
+  Select,
+  Spinner,
+  type Column,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { AddInvoiceLineRequest, Invoice, Service } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../../lib/api';
+import { RequirePermission, Can } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { formatPaise, rupeesToPaise } from '../../../../lib/money';
 
-function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
-  if (s === "paid") return "success";
-  if (s === "partially_paid") return "warning";
-  if (s === "void") return "neutral";
-  return "danger";
+function statusTone(s: string): 'success' | 'warning' | 'neutral' | 'danger' {
+  if (s === 'paid') return 'success';
+  if (s === 'partially_paid') return 'warning';
+  if (s === 'void') return 'neutral';
+  return 'danger';
 }
 
-const METHODS: Array<Invoice["payments"][number]["method"]> = ["cash", "upi", "card", "netbanking", "other"];
+const METHODS: Array<Invoice['payments'][number]['method']> = [
+  'cash',
+  'upi',
+  'card',
+  'netbanking',
+  'other',
+];
 
 /** Invoice line items — the shared table, configured as a receipt (ADR-029). */
-function lineItemColumns(currency: string): Array<Column<Invoice["lineItems"][number]>> {
+function lineItemColumns(currency: string): Array<Column<Invoice['lineItems'][number]>> {
   return [
     {
-      key: "item",
-      header: "Item",
+      key: 'item',
+      header: 'Item',
       cell: (li) => (
         <span className="text-fg">
           {li.description}
@@ -35,20 +52,26 @@ function lineItemColumns(currency: string): Array<Column<Invoice["lineItems"][nu
         </span>
       ),
     },
-    { key: "qty", header: "Qty", cell: (li) => <span className="text-fg-muted">{li.quantity}</span> },
     {
-      key: "unit",
-      header: "Unit",
-      cell: (li) => <span className="text-fg-muted">{formatPaise(li.unitPricePaise, currency)}</span>,
+      key: 'qty',
+      header: 'Qty',
+      cell: (li) => <span className="text-fg-muted">{li.quantity}</span>,
     },
     {
-      key: "tax",
-      header: "Tax",
+      key: 'unit',
+      header: 'Unit',
+      cell: (li) => (
+        <span className="text-fg-muted">{formatPaise(li.unitPricePaise, currency)}</span>
+      ),
+    },
+    {
+      key: 'tax',
+      header: 'Tax',
       cell: (li) => <span className="text-fg-muted">{formatPaise(li.taxPaise, currency)}</span>,
     },
     {
-      key: "amount",
-      header: "Amount",
+      key: 'amount',
+      header: 'Amount',
       cell: (li) => <span className="text-fg">{formatPaise(li.lineTotalPaise, currency)}</span>,
     },
   ];
@@ -60,21 +83,21 @@ function InvoiceDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const [collecting, setCollecting] = useState(false);
-  const [amountRupees, setAmountRupees] = useState("");
-  const [method, setMethod] = useState("cash");
-  const [reference, setReference] = useState("");
-  const [idemKey, setIdemKey] = useState("");
+  const [amountRupees, setAmountRupees] = useState('');
+  const [method, setMethod] = useState('cash');
+  const [reference, setReference] = useState('');
+  const [idemKey, setIdemKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Add-item dialog — a catalogue service (server-priced) or a custom one-off line.
   const [adding, setAdding] = useState(false);
   const [services, setServices] = useState<Service[] | null>(null); // null = not loaded yet
-  const [mode, setMode] = useState<"service" | "custom">("service");
-  const [serviceId, setServiceId] = useState("");
-  const [qty, setQty] = useState("1");
-  const [itemDesc, setItemDesc] = useState("");
-  const [itemPriceRupees, setItemPriceRupees] = useState("");
-  const [itemTaxPercent, setItemTaxPercent] = useState("");
+  const [mode, setMode] = useState<'service' | 'custom'>('service');
+  const [serviceId, setServiceId] = useState('');
+  const [qty, setQty] = useState('1');
+  const [itemDesc, setItemDesc] = useState('');
+  const [itemPriceRupees, setItemPriceRupees] = useState('');
+  const [itemTaxPercent, setItemTaxPercent] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [addingBusy, setAddingBusy] = useState(false);
 
@@ -85,7 +108,7 @@ function InvoiceDetail({ id }: { id: string }) {
       setInv(i);
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load the invoice.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load the invoice.');
     } finally {
       setLoading(false);
     }
@@ -99,8 +122,8 @@ function InvoiceDetail({ id }: { id: string }) {
     if (!inv) return;
     setIdemKey(crypto.randomUUID()); // one key per attempt — retries are idempotent server-side
     setAmountRupees(String(inv.balancePaise / 100));
-    setMethod("cash");
-    setReference("");
+    setMethod('cash');
+    setReference('');
     setError(null);
     setCollecting(true);
   }
@@ -109,37 +132,40 @@ function InvoiceDetail({ id }: { id: string }) {
     e.preventDefault();
     const amt = Number(amountRupees);
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError("Enter a valid payment amount.");
+      setError('Enter a valid payment amount.');
       return;
     }
     setSubmitting(true);
     try {
       const updated = await api.recordPayment(id, {
         amountPaise: rupeesToPaise(amt),
-        method: method as "cash" | "upi" | "card" | "netbanking" | "other",
+        method: method as 'cash' | 'upi' | 'card' | 'netbanking' | 'other',
         reference: reference || undefined,
         idempotencyKey: idemKey,
       });
       setInv(updated);
       setCollecting(false);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not record the payment.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not record the payment.');
     } finally {
       setSubmitting(false);
     }
   }
 
   function openAddItem() {
-    setMode("service");
-    setServiceId("");
-    setQty("1");
-    setItemDesc("");
-    setItemPriceRupees("");
-    setItemTaxPercent("");
+    setMode('service');
+    setServiceId('');
+    setQty('1');
+    setItemDesc('');
+    setItemPriceRupees('');
+    setItemTaxPercent('');
     setAddError(null);
     setAdding(true);
     if (services === null) {
-      api.listServices({ activeOnly: true }).then(setServices).catch(() => setServices([]));
+      api
+        .listServices({ activeOnly: true })
+        .then(setServices)
+        .catch(() => setServices([]));
     }
   }
 
@@ -149,30 +175,30 @@ function InvoiceDetail({ id }: { id: string }) {
     setAddError(null);
     const q = Number(qty);
     if (!Number.isInteger(q) || q < 1) {
-      setAddError("Quantity must be a whole number of at least 1.");
+      setAddError('Quantity must be a whole number of at least 1.');
       return;
     }
     let body: AddInvoiceLineRequest;
-    if (mode === "service") {
+    if (mode === 'service') {
       if (!serviceId) {
-        setAddError("Choose a service from the catalogue.");
+        setAddError('Choose a service from the catalogue.');
         return;
       }
       // Catalogue lines are priced by the server from the service — never send a price.
       body = { serviceId, quantity: q };
     } else {
       if (!itemDesc.trim()) {
-        setAddError("Describe the item.");
+        setAddError('Describe the item.');
         return;
       }
       const price = Number(itemPriceRupees);
-      if (itemPriceRupees.trim() === "" || !Number.isFinite(price) || price < 0) {
-        setAddError("Enter a valid unit price.");
+      if (itemPriceRupees.trim() === '' || !Number.isFinite(price) || price < 0) {
+        setAddError('Enter a valid unit price.');
         return;
       }
-      const pct = itemTaxPercent.trim() === "" ? 0 : Number(itemTaxPercent);
+      const pct = itemTaxPercent.trim() === '' ? 0 : Number(itemTaxPercent);
       if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-        setAddError("Enter a valid tax percentage (0–100).");
+        setAddError('Enter a valid tax percentage (0–100).');
         return;
       }
       body = {
@@ -188,7 +214,7 @@ function InvoiceDetail({ id }: { id: string }) {
       setInv(updated); // the API returns the recalculated invoice
       setAdding(false);
     } catch (err) {
-      setAddError(err instanceof api.ApiRequestError ? err.message : "Could not add the item.");
+      setAddError(err instanceof api.ApiRequestError ? err.message : 'Could not add the item.');
     } finally {
       setAddingBusy(false);
     }
@@ -201,13 +227,16 @@ function InvoiceDetail({ id }: { id: string }) {
       </div>
     );
   }
-  if (!inv) return <Alert tone="danger">{error ?? "Invoice not found."}</Alert>;
+  if (!inv) return <Alert tone="danger">{error ?? 'Invoice not found.'}</Alert>;
 
   const currency = inv.currency;
 
   return (
     <>
-      <Link href="/billing" className="print:hidden inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
+      <Link
+        href="/billing"
+        className="print:hidden inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
+      >
         <ArrowLeft size={15} strokeWidth={2} /> Billing
       </Link>
       <PageHeader
@@ -222,14 +251,14 @@ function InvoiceDetail({ id }: { id: string }) {
                 <Printer size={16} strokeWidth={2} /> Print / PDF
               </Button>
             </Link>
-            {inv.status !== "void" && (
+            {inv.status !== 'void' && (
               <Can perm={PERMISSIONS.BILLING_CREATE}>
                 <Button variant="secondary" onClick={openAddItem}>
                   <Plus size={16} strokeWidth={2} /> Add item
                 </Button>
               </Can>
             )}
-            {inv.balancePaise > 0 && inv.status !== "void" && (
+            {inv.balancePaise > 0 && inv.status !== 'void' && (
               <Can perm={PERMISSIONS.BILLING_PAYMENT}>
                 <Button onClick={openCollect}>Collect payment</Button>
               </Can>
@@ -259,11 +288,19 @@ function InvoiceDetail({ id }: { id: string }) {
                 onChange={(v) => setMethod(v || METHODS[0]!)}
                 options={METHODS.map((m) => ({ value: m, label: m.toUpperCase() }))}
               />
-              <Field label="Reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} />
+              <Field
+                label="Reference (optional)"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
             </div>
             <div className="flex items-center gap-3">
-              <Button type="submit" loading={submitting}>Record payment</Button>
-              <Button type="button" variant="ghost" onClick={() => setCollecting(false)}>Cancel</Button>
+              <Button type="submit" loading={submitting}>
+                Record payment
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setCollecting(false)}>
+                Cancel
+              </Button>
             </div>
           </form>
         </Card>
@@ -273,7 +310,7 @@ function InvoiceDetail({ id }: { id: string }) {
         header={
           <div className="flex items-center justify-between">
             <span>Receipt</span>
-            <Badge tone={statusTone(inv.status)}>{inv.status.replace("_", " ")}</Badge>
+            <Badge tone={statusTone(inv.status)}>{inv.status.replace('_', ' ')}</Badge>
           </div>
         }
       >
@@ -306,7 +343,9 @@ function InvoiceDetail({ id }: { id: string }) {
             <dt>Paid</dt>
             <dd>{formatPaise(inv.amountPaidPaise, currency)}</dd>
           </div>
-          <div className={`flex justify-between font-semibold ${inv.balancePaise > 0 ? "text-danger" : "text-success"}`}>
+          <div
+            className={`flex justify-between font-semibold ${inv.balancePaise > 0 ? 'text-danger' : 'text-success'}`}
+          >
             <dt>Balance</dt>
             <dd>{formatPaise(inv.balancePaise, currency)}</dd>
           </div>
@@ -317,10 +356,16 @@ function InvoiceDetail({ id }: { id: string }) {
         <Card header="Payments">
           <ul className="flex flex-col gap-2 text-sm">
             {inv.payments.map((p) => (
-              <li key={p.id} className="flex items-center justify-between border-b border-border/60 pb-2 last:border-0 last:pb-0">
+              <li
+                key={p.id}
+                className="flex items-center justify-between border-b border-border/60 pb-2 last:border-0 last:pb-0"
+              >
                 <span className="text-fg">
-                  {formatPaise(p.amountPaise, currency)} · <span className="uppercase text-fg-muted">{p.method}</span>
-                  {p.reference && <span className="ml-2 text-xs text-fg-subtle">{p.reference}</span>}
+                  {formatPaise(p.amountPaise, currency)} ·{' '}
+                  <span className="uppercase text-fg-muted">{p.method}</span>
+                  {p.reference && (
+                    <span className="ml-2 text-xs text-fg-subtle">{p.reference}</span>
+                  )}
                 </span>
                 <span className="text-xs text-fg-muted">{formatDateTime(p.collectedAt)}</span>
               </li>
@@ -338,7 +383,12 @@ function InvoiceDetail({ id }: { id: string }) {
         busy={addingBusy}
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" type="button" disabled={addingBusy} onClick={() => setAdding(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={addingBusy}
+              onClick={() => setAdding(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="add-line-form" loading={addingBusy}>
@@ -353,23 +403,23 @@ function InvoiceDetail({ id }: { id: string }) {
             <Button
               type="button"
               size="sm"
-              variant={mode === "service" ? "secondary" : "ghost"}
-              aria-pressed={mode === "service"}
-              onClick={() => setMode("service")}
+              variant={mode === 'service' ? 'secondary' : 'ghost'}
+              aria-pressed={mode === 'service'}
+              onClick={() => setMode('service')}
             >
               From catalogue
             </Button>
             <Button
               type="button"
               size="sm"
-              variant={mode === "custom" ? "secondary" : "ghost"}
-              aria-pressed={mode === "custom"}
-              onClick={() => setMode("custom")}
+              variant={mode === 'custom' ? 'secondary' : 'ghost'}
+              aria-pressed={mode === 'custom'}
+              onClick={() => setMode('custom')}
             >
               Custom
             </Button>
           </div>
-          {mode === "service" ? (
+          {mode === 'service' ? (
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
               {/* A hospital's service catalogue runs to hundreds of lines, so this is the shared
                   searchable Select (ADR-029): the code and the fee are their own columns rather
@@ -386,11 +436,18 @@ function InvoiceDetail({ id }: { id: string }) {
                   meta: formatPaise(s.pricePaise),
                 }))}
                 loading={services === null}
-                placeholder={services === null ? "Loading catalogue…" : "Choose a service…"}
+                placeholder={services === null ? 'Loading catalogue…' : 'Choose a service…'}
                 emptyMessage="No active services."
                 clearable
               />
-              <Field label="Qty" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+              <Field
+                label="Qty"
+                type="number"
+                min={1}
+                step={1}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-3">
@@ -412,7 +469,14 @@ function InvoiceDetail({ id }: { id: string }) {
                 value={itemPriceRupees}
                 onChange={(e) => setItemPriceRupees(e.target.value)}
               />
-              <Field label="Qty" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+              <Field
+                label="Qty"
+                type="number"
+                min={1}
+                step={1}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
               <Field
                 label="Tax (%)"
                 type="number"

@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent } from "react";
-import Link from "next/link";
-import { Alert, BrandMark, Button, Card, Field } from "@hms/ui";
-import { forgotPassword } from "../../../lib/api";
+import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { Alert, BrandMark, Button, Card, Field } from '@hms/ui';
+import { forgotPassword } from '../../../lib/api';
 
 // These pages render outcomes inline (feedback: false on the calls), so a caught
 // error's message — the backend's own wording via ApiRequestError — is shown here.
 function errorMessage(err: unknown): string {
-  return err instanceof Error && err.message ? err.message : "Something went wrong. Try again.";
+  return err instanceof Error && err.message ? err.message : 'Something went wrong. Try again.';
 }
 
 /**
@@ -17,8 +17,8 @@ function errorMessage(err: unknown): string {
  * matches, and this page simply shows it — nothing here can confirm an account exists.
  */
 export default function ForgotPasswordPage() {
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
+  const [orgCode, setOrgCode] = useState('');
+  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

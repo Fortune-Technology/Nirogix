@@ -42,7 +42,10 @@ beforeAll(async () => {
     phone: '9876500100',
   });
   meeraId = meera.id;
-  await pool.query("UPDATE patients SET abha_address = 'meera.iyer@sbx', abha_verified_at = now() WHERE id = $1", [meeraId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'meera.iyer@sbx', abha_verified_at = now() WHERE id = $1",
+    [meeraId],
+  );
 
   await recordCareContext({
     tenantId,
@@ -126,7 +129,8 @@ describe('matching a patient', () => {
   test('but it CAN choose between demographic candidates', async ({ skip }) => {
     if (!ready) return skip();
     // The weaker-signal role ABDM describes: it breaks a tie the patient has already narrowed.
-    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0].uhid;
+    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0]
+      .uhid;
     const result = await discoverPatient(tenantId, {
       mobile: '9876500100',
       name: 'Meera Iyer',
@@ -173,7 +177,10 @@ describe('answering the gateway', () => {
 
     const call = recordedHipCalls().at(-1)!;
     expect(call.path).toBe('/api/hiecm/user-initiated-linking/v3/patient/care-context/on-discover');
-    const body = call.body as { matchedBy: string[]; patient: Array<{ careContexts: Array<{ display: string }> }> };
+    const body = call.body as {
+      matchedBy: string[];
+      patient: Array<{ careContexts: Array<{ display: string }> }>;
+    };
     expect(body.matchedBy).toEqual(['HEALTH_ID']);
     expect(body.patient[0]!.careContexts).toHaveLength(2);
     // Labels are dates and settings; nothing else may reach the consent manager.
@@ -185,7 +192,11 @@ describe('answering the gateway', () => {
   test('no match still answers, with an empty patient list', async ({ skip }) => {
     if (!ready) return skip();
     // Silence would leave the patient's app waiting; an empty answer tells them we hold nothing.
-    await respondToDiscovery({ hipId: HIP_ID, request: { abhaAddress: 'nobody@sbx' }, transactionId: 'txn-2' });
+    await respondToDiscovery({
+      hipId: HIP_ID,
+      request: { abhaAddress: 'nobody@sbx' },
+      transactionId: 'txn-2',
+    });
     const body = recordedHipCalls().at(-1)!.body as { patient: unknown[]; matchedBy: string[] };
     expect(body.patient).toEqual([]);
     expect(body.matchedBy).toEqual([]);
@@ -193,7 +204,10 @@ describe('answering the gateway', () => {
 
   test('an unknown facility is answered by silence, not an error', async ({ skip }) => {
     if (!ready) return skip();
-    const result = await respondToDiscovery({ hipId: 'NOT-A-FACILITY', request: { abhaAddress: 'meera.iyer@sbx' } });
+    const result = await respondToDiscovery({
+      hipId: 'NOT-A-FACILITY',
+      request: { abhaAddress: 'meera.iyer@sbx' },
+    });
     expect(result.matched).toBe(false);
     expect(recordedHipCalls()).toHaveLength(0);
   });
@@ -202,7 +216,8 @@ describe('answering the gateway', () => {
 describe('the patient linking what they found', () => {
   test('only contexts that actually belong to them can be linked', async ({ skip }) => {
     if (!ready) return skip();
-    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0].uhid;
+    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0]
+      .uhid;
     // A reference the caller invented, or somebody else's — refused, because these arrive from
     // outside and a caller naming any reference could otherwise take another patient's records.
     const result = await initUserLink({
@@ -216,7 +231,8 @@ describe('the patient linking what they found', () => {
 
   test('init sends an OTP and tells ABDM one is coming', async ({ skip }) => {
     if (!ready) return skip();
-    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0].uhid;
+    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0]
+      .uhid;
     const result = await initUserLink({
       hipId: HIP_ID,
       transactionId: 'txn-4',
@@ -228,13 +244,16 @@ describe('the patient linking what they found', () => {
 
     const call = recordedHipCalls().at(-1)!;
     expect(call.path).toBe('/api/hiecm/user-initiated-linking/v3/link/care-context/on-init');
-    const body = call.body as { link: { meta: { communicationMedium: string }; referenceNumber: string } };
+    const body = call.body as {
+      link: { meta: { communicationMedium: string }; referenceNumber: string };
+    };
     expect(body.link.meta.communicationMedium).toBe('MOBILE');
 
     // The code is hashed at rest and never returned — the request row proves the first half.
-    const row = await pool.query('SELECT code_hash, care_context_refs FROM abdm_link_requests WHERE reference_number = $1', [
-      body.link.referenceNumber,
-    ]);
+    const row = await pool.query(
+      'SELECT code_hash, care_context_refs FROM abdm_link_requests WHERE reference_number = $1',
+      [body.link.referenceNumber],
+    );
     expect(row.rows[0].code_hash).toHaveLength(64);
     // Only the context they actually own survived the intersection.
     expect(row.rows[0].care_context_refs).toEqual(['visit-disc-1']);
@@ -242,7 +261,8 @@ describe('the patient linking what they found', () => {
 
   test('a wrong code links nothing, and still answers', async ({ skip }) => {
     if (!ready) return skip();
-    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0].uhid;
+    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0]
+      .uhid;
     const init = (await initUserLink({
       hipId: HIP_ID,
       transactionId: 'txn-5',
@@ -251,7 +271,11 @@ describe('the patient linking what they found', () => {
     })) as { referenceNumber: string };
 
     clearRecordedHipCalls();
-    const result = await confirmUserLink({ hipId: HIP_ID, referenceNumber: init.referenceNumber, token: '000000' });
+    const result = await confirmUserLink({
+      hipId: HIP_ID,
+      referenceNumber: init.referenceNumber,
+      token: '000000',
+    });
     expect(result.linked).toBe(0);
     // Answered anyway — a hanging app is worse than a clear refusal.
     const call = recordedHipCalls().at(-1)!;
@@ -261,7 +285,8 @@ describe('the patient linking what they found', () => {
 
   test('the right code links exactly what was chosen', async ({ skip }) => {
     if (!ready) return skip();
-    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0].uhid;
+    const uhid = (await pool.query('SELECT uhid FROM patients WHERE id = $1', [meeraId])).rows[0]
+      .uhid;
     const init = (await initUserLink({
       hipId: HIP_ID,
       transactionId: 'txn-6',
@@ -271,8 +296,11 @@ describe('the patient linking what they found', () => {
 
     // The code is never returned to any caller, so a test has to read the hash and reverse a
     // six-digit space — which is exactly the property being asserted.
-    const hash = (await pool.query('SELECT code_hash FROM abdm_link_requests WHERE reference_number = $1', [init.referenceNumber]))
-      .rows[0].code_hash as string;
+    const hash = (
+      await pool.query('SELECT code_hash FROM abdm_link_requests WHERE reference_number = $1', [
+        init.referenceNumber,
+      ])
+    ).rows[0].code_hash as string;
     const { createHash } = await import('node:crypto');
     let code = '';
     for (let i = 0; i < 1_000_000; i++) {
@@ -285,20 +313,33 @@ describe('the patient linking what they found', () => {
     expect(code).not.toBe('');
 
     clearRecordedHipCalls();
-    const result = await confirmUserLink({ hipId: HIP_ID, referenceNumber: init.referenceNumber, token: code });
+    const result = await confirmUserLink({
+      hipId: HIP_ID,
+      referenceNumber: init.referenceNumber,
+      token: code,
+    });
     expect(result.linked).toBe(1);
 
-    const body = recordedHipCalls().at(-1)!.body as { patient: Array<{ careContexts: Array<{ referenceNumber: string }> }> };
+    const body = recordedHipCalls().at(-1)!.body as {
+      patient: Array<{ careContexts: Array<{ referenceNumber: string }> }>;
+    };
     expect(body.patient[0]!.careContexts.map((c) => c.referenceNumber)).toEqual(['visit-disc-2']);
 
     // Linked through the same path as HIP-initiated linking, so `status` means one thing.
-    const context = await pool.query('SELECT status FROM abdm_care_contexts WHERE reference_number = $1', ['visit-disc-2']);
+    const context = await pool.query(
+      'SELECT status FROM abdm_care_contexts WHERE reference_number = $1',
+      ['visit-disc-2'],
+    );
     expect(context.rows[0].status).toBe('linked');
   });
 
   test('an unknown reference number is refused', async ({ skip }) => {
     if (!ready) return skip();
-    const result = await confirmUserLink({ hipId: HIP_ID, referenceNumber: 'never-issued', token: '123456' });
+    const result = await confirmUserLink({
+      hipId: HIP_ID,
+      referenceNumber: 'never-issued',
+      token: '123456',
+    });
     expect(result.linked).toBe(0);
     expect(result.reason).toContain('Unknown link request');
   });

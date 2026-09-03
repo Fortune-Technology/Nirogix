@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Check, ChevronRight, Layers, Lock, Search, X } from "lucide-react";
-import { Alert, Badge, Button, Card, ConfirmDialog, Spinner } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { ModuleConfigModule, TenantDetail, TenantModuleConfig } from "@hms/types";
-import * as api from "../../../../../lib/api";
-import { RequirePermission } from "../../../../../components/Can";
-import { PageHeader } from "../../../../../components/PageHeader";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Check, ChevronRight, Layers, Lock, Search, X } from 'lucide-react';
+import { Alert, Badge, Button, Card, ConfirmDialog, Spinner } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { ModuleConfigModule, TenantDetail, TenantModuleConfig } from '@hms/types';
+import * as api from '../../../../../lib/api';
+import { RequirePermission } from '../../../../../components/Can';
+import { PageHeader } from '../../../../../components/PageHeader';
 
-type FilterKey = "all" | "enabled" | "disabled" | "soon";
+type FilterKey = 'all' | 'enabled' | 'disabled' | 'soon';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "enabled", label: "Enabled" },
-  { key: "disabled", label: "Disabled" },
-  { key: "soon", label: "Coming soon" },
+  { key: 'all', label: 'All' },
+  { key: 'enabled', label: 'Enabled' },
+  { key: 'disabled', label: 'Disabled' },
+  { key: 'soon', label: 'Coming soon' },
 ];
 
 function Manager({ id }: { id: string }) {
@@ -25,12 +25,15 @@ function Manager({ id }: { id: string }) {
   const [config, setConfig] = useState<TenantModuleConfig | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [openModule, setOpenModule] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDisable, setConfirmDisable] = useState<{ module: ModuleConfigModule; dependents: string[] } | null>(null);
+  const [confirmDisable, setConfirmDisable] = useState<{
+    module: ModuleConfigModule;
+    dependents: string[];
+  } | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -40,7 +43,7 @@ function Manager({ id }: { id: string }) {
       setConfig(c);
       setActiveCat((prev) => prev ?? c.categories[0]?.key ?? null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load configuration.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load configuration.');
     } finally {
       setLoading(false);
     }
@@ -56,7 +59,7 @@ function Manager({ id }: { id: string }) {
       await action();
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Action failed.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Action failed.');
     } finally {
       setBusy(false);
     }
@@ -68,10 +71,10 @@ function Manager({ id }: { id: string }) {
 
   const passesFilter = useCallback(
     (m: ModuleConfigModule) =>
-      filter === "all" ||
-      (filter === "enabled" && m.entitled) ||
-      (filter === "disabled" && !m.entitled && m.status === "BUILT") ||
-      (filter === "soon" && m.status !== "BUILT"),
+      filter === 'all' ||
+      (filter === 'enabled' && m.entitled) ||
+      (filter === 'disabled' && !m.entitled && m.status === 'BUILT') ||
+      (filter === 'soon' && m.status !== 'BUILT'),
     [filter],
   );
 
@@ -83,7 +86,9 @@ function Manager({ id }: { id: string }) {
           searching
             ? m.name.toLowerCase().includes(q) ||
               m.key.toLowerCase().includes(q) ||
-              m.capabilities.some((c) => c.name.toLowerCase().includes(q) || c.key.toLowerCase().includes(q))
+              m.capabilities.some(
+                (c) => c.name.toLowerCase().includes(q) || c.key.toLowerCase().includes(q),
+              )
             : m.category === activeCat,
         )
         .filter(passesFilter),
@@ -102,8 +107,11 @@ function Manager({ id }: { id: string }) {
 
   const enabledModules = modules.filter((m) => m.entitled);
   const totalCaps = modules.reduce((n, m) => n + m.capabilities.length, 0);
-  const enabledCaps = modules.reduce((n, m) => n + m.capabilities.filter((c) => c.enabled).length, 0);
-  const drill = openModule ? modules.find((m) => m.key === openModule) ?? null : null;
+  const enabledCaps = modules.reduce(
+    (n, m) => n + m.capabilities.filter((c) => c.enabled).length,
+    0,
+  );
+  const drill = openModule ? (modules.find((m) => m.key === openModule) ?? null) : null;
 
   if (loading) {
     return (
@@ -118,7 +126,9 @@ function Manager({ id }: { id: string }) {
   function toggleModule(m: ModuleConfigModule) {
     if (m.alwaysOn) return;
     if (m.entitled) {
-      const dependents = modules.filter((x) => x.entitled && x.hardDependencies.includes(m.key)).map((x) => x.name);
+      const dependents = modules
+        .filter((x) => x.entitled && x.hardDependencies.includes(m.key))
+        .map((x) => x.name);
       setConfirmDisable({ module: m, dependents });
     } else {
       void run(() => api.grantTenantModule(id, m.key));
@@ -158,7 +168,9 @@ function Manager({ id }: { id: string }) {
               .filter((c) => enabledModules.some((m) => m.category === c.key))
               .map((c) => (
                 <div key={c.key}>
-                  <div className="text-xs font-medium uppercase tracking-wide text-fg-subtle">{c.name}</div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-fg-subtle">
+                    {c.name}
+                  </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {enabledModules
                       .filter((m) => m.category === c.key)
@@ -169,15 +181,24 @@ function Manager({ id }: { id: string }) {
                             key={m.key}
                             type="button"
                             onClick={() => {
-                              setSearch("");
+                              setSearch('');
                               setActiveCat(m.category);
                               setOpenModule(m.key);
                             }}
                             className="inline-flex items-center gap-1.5 rounded-token border border-border bg-surface px-2 py-1 text-xs text-fg hover:bg-surface-2"
                           >
                             {m.name}
-                            {m.alwaysOn && <Lock size={11} strokeWidth={2} className="text-fg-subtle" aria-label="Required" />}
-                            {m.status !== "BUILT" && <span className="text-fg-subtle">· preview</span>}
+                            {m.alwaysOn && (
+                              <Lock
+                                size={11}
+                                strokeWidth={2}
+                                className="text-fg-subtle"
+                                aria-label="Required"
+                              />
+                            )}
+                            {m.status !== 'BUILT' && (
+                              <span className="text-fg-subtle">· preview</span>
+                            )}
                             {m.capabilities.length > 0 && (
                               <span className="text-fg-muted">
                                 {on}/{m.capabilities.length}
@@ -196,7 +217,12 @@ function Manager({ id }: { id: string }) {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[16rem] flex-1">
-          <Search size={16} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" aria-hidden />
+          <Search
+            size={16}
+            strokeWidth={2}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+            aria-hidden
+          />
           <input
             className="hms-input w-full pl-9"
             placeholder="Search modules or capabilities…"
@@ -210,7 +236,7 @@ function Manager({ id }: { id: string }) {
           {search && (
             <button
               type="button"
-              onClick={() => setSearch("")}
+              onClick={() => setSearch('')}
               className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-token text-fg-muted hover:bg-surface-2 hover:text-fg"
               aria-label="Clear search"
             >
@@ -226,7 +252,9 @@ function Manager({ id }: { id: string }) {
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
               className={`rounded-token px-3 py-1.5 text-sm ${
-                filter === f.key ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg"
+                filter === f.key
+                  ? 'bg-brand-subtle text-brand'
+                  : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
               }`}
             >
               {f.label}
@@ -248,11 +276,13 @@ function Manager({ id }: { id: string }) {
                 onClick={() => {
                   setActiveCat(c.key);
                   setOpenModule(null);
-                  setSearch("");
+                  setSearch('');
                 }}
-                aria-current={active ? "page" : undefined}
+                aria-current={active ? 'page' : undefined}
                 className={`flex items-center justify-between gap-2 rounded-token px-3 py-2 text-left text-sm ${
-                  active ? "bg-brand-subtle text-brand" : "text-fg-muted hover:bg-surface-2 hover:text-fg"
+                  active
+                    ? 'bg-brand-subtle text-brand'
+                    : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
                 }`}
               >
                 <span className="truncate">{c.name}</span>
@@ -268,7 +298,10 @@ function Manager({ id }: { id: string }) {
           {drill ? (
             /* Level 3 — one module's capabilities */
             <Card>
-              <nav className="flex items-center gap-1.5 text-xs text-fg-muted" aria-label="Breadcrumb">
+              <nav
+                className="flex items-center gap-1.5 text-xs text-fg-muted"
+                aria-label="Breadcrumb"
+              >
                 <button type="button" className="hover:text-fg" onClick={() => setOpenModule(null)}>
                   {categoryName(drill.category)}
                 </button>
@@ -285,13 +318,17 @@ function Manager({ id }: { id: string }) {
                         <Lock size={11} strokeWidth={2} aria-hidden /> Required
                       </Badge>
                     ) : (
-                      <Badge tone={drill.entitled ? "success" : "neutral"}>{drill.entitled ? "Enabled" : "Disabled"}</Badge>
+                      <Badge tone={drill.entitled ? 'success' : 'neutral'}>
+                        {drill.entitled ? 'Enabled' : 'Disabled'}
+                      </Badge>
                     )}
-                    {drill.status !== "BUILT" && <Badge tone="warning">Coming soon</Badge>}
+                    {drill.status !== 'BUILT' && <Badge tone="warning">Coming soon</Badge>}
                   </div>
                   <div className="mt-0.5 font-mono text-xs text-fg-subtle">{drill.key}</div>
                   {drill.hardDependencies.length > 0 && (
-                    <div className="mt-1 text-xs text-fg-muted">Requires {drill.hardDependencies.join(", ")}</div>
+                    <div className="mt-1 text-xs text-fg-muted">
+                      Requires {drill.hardDependencies.join(', ')}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -301,18 +338,20 @@ function Manager({ id }: { id: string }) {
                   {!drill.alwaysOn && (
                     <Button
                       size="sm"
-                      variant={drill.entitled ? "secondary" : undefined}
+                      variant={drill.entitled ? 'secondary' : undefined}
                       disabled={busy}
                       onClick={() => toggleModule(drill)}
                     >
-                      {drill.entitled ? "Disable module" : "Enable module"}
+                      {drill.entitled ? 'Disable module' : 'Enable module'}
                     </Button>
                   )}
                 </div>
               </div>
 
               {drill.capabilities.length === 0 ? (
-                <p className="mt-3 text-sm text-fg-subtle">Whole module — no separate capabilities.</p>
+                <p className="mt-3 text-sm text-fg-subtle">
+                  Whole module — no separate capabilities.
+                </p>
               ) : !drill.entitled ? (
                 <div className="mt-3">
                   <p className="text-sm text-fg-muted">
@@ -320,7 +359,10 @@ function Manager({ id }: { id: string }) {
                   </p>
                   <ul className="mt-2 flex flex-wrap gap-1.5">
                     {drill.capabilities.map((cap) => (
-                      <li key={cap.key} className="rounded-token border border-border px-2 py-1 text-xs text-fg-subtle">
+                      <li
+                        key={cap.key}
+                        className="rounded-token border border-border px-2 py-1 text-xs text-fg-subtle"
+                      >
                         {cap.name}
                       </li>
                     ))}
@@ -329,27 +371,35 @@ function Manager({ id }: { id: string }) {
               ) : (
                 <ul className="mt-3 flex flex-col gap-2">
                   {drill.capabilities.map((cap) => {
-                    const builtCap = cap.status === "BUILT";
+                    const builtCap = cap.status === 'BUILT';
                     return (
                       <li key={cap.key} className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm text-fg">{cap.name}</span>
-                            <Badge tone={cap.enabled ? "success" : "neutral"}>{cap.enabled ? "On" : "Off"}</Badge>
+                            <Badge tone={cap.enabled ? 'success' : 'neutral'}>
+                              {cap.enabled ? 'On' : 'Off'}
+                            </Badge>
                             {!builtCap && <Badge tone="warning">Coming soon</Badge>}
                           </div>
                           <div className="font-mono text-[11px] text-fg-subtle">{cap.key}</div>
                           {cap.dependencies.length > 0 && (
-                            <div className="text-xs text-fg-muted">Requires {cap.dependencies.join(", ")}</div>
+                            <div className="text-xs text-fg-muted">
+                              Requires {cap.dependencies.join(', ')}
+                            </div>
                           )}
                         </div>
                         <Button
                           size="sm"
-                          variant={cap.enabled ? "secondary" : undefined}
+                          variant={cap.enabled ? 'secondary' : undefined}
                           disabled={busy}
-                          onClick={() => void run(() => api.setTenantCapability(id, drill.key, cap.key, !cap.enabled))}
+                          onClick={() =>
+                            void run(() =>
+                              api.setTenantCapability(id, drill.key, cap.key, !cap.enabled),
+                            )
+                          }
                         >
-                          {cap.enabled ? "Disable" : "Enable"}
+                          {cap.enabled ? 'Disable' : 'Enable'}
                         </Button>
                       </li>
                     );
@@ -362,8 +412,8 @@ function Manager({ id }: { id: string }) {
             <>
               <p className="text-sm text-fg-muted">
                 {searching
-                  ? `${visibleModules.length} module${visibleModules.length === 1 ? "" : "s"} match “${search.trim()}”.`
-                  : `${categoryName(activeCat ?? "")} — ${visibleModules.length} module${visibleModules.length === 1 ? "" : "s"}. Open one to configure its capabilities.`}
+                  ? `${visibleModules.length} module${visibleModules.length === 1 ? '' : 's'} match “${search.trim()}”.`
+                  : `${categoryName(activeCat ?? '')} — ${visibleModules.length} module${visibleModules.length === 1 ? '' : 's'}. Open one to configure its capabilities.`}
               </p>
               {visibleModules.length === 0 ? (
                 <Card>
@@ -377,7 +427,10 @@ function Manager({ id }: { id: string }) {
                     {visibleModules.map((m) => {
                       const on = m.capabilities.filter((c) => c.enabled).length;
                       return (
-                        <li key={m.key} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                        <li
+                          key={m.key}
+                          className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                        >
                           <button
                             type="button"
                             className="min-w-0 flex-1 text-left"
@@ -391,29 +444,36 @@ function Manager({ id }: { id: string }) {
                                   <Lock size={11} strokeWidth={2} aria-hidden /> Required
                                 </Badge>
                               ) : (
-                                <Badge tone={m.entitled ? "success" : "neutral"}>{m.entitled ? "Enabled" : "Disabled"}</Badge>
+                                <Badge tone={m.entitled ? 'success' : 'neutral'}>
+                                  {m.entitled ? 'Enabled' : 'Disabled'}
+                                </Badge>
                               )}
-                              {m.status !== "BUILT" && <Badge tone="warning">Coming soon</Badge>}
-                              {searching && <span className="text-xs text-fg-subtle">{categoryName(m.category)}</span>}
+                              {m.status !== 'BUILT' && <Badge tone="warning">Coming soon</Badge>}
+                              {searching && (
+                                <span className="text-xs text-fg-subtle">
+                                  {categoryName(m.category)}
+                                </span>
+                              )}
                             </div>
                             <div className="mt-0.5 text-xs text-fg-subtle">
                               {m.capabilities.length === 0
-                                ? "No separate capabilities"
+                                ? 'No separate capabilities'
                                 : m.entitled
                                   ? `${on}/${m.capabilities.length} capabilities on`
                                   : `${m.capabilities.length} capabilities`}
-                              {m.hardDependencies.length > 0 && ` · requires ${m.hardDependencies.join(", ")}`}
+                              {m.hardDependencies.length > 0 &&
+                                ` · requires ${m.hardDependencies.join(', ')}`}
                             </div>
                           </button>
                           <div className="flex shrink-0 items-center gap-2">
                             {!m.alwaysOn && (
                               <Button
                                 size="sm"
-                                variant={m.entitled ? "secondary" : undefined}
+                                variant={m.entitled ? 'secondary' : undefined}
                                 disabled={busy}
                                 onClick={() => toggleModule(m)}
                               >
-                                {m.entitled ? "Disable" : "Enable"}
+                                {m.entitled ? 'Disable' : 'Enable'}
                               </Button>
                             )}
                             <button
@@ -438,11 +498,11 @@ function Manager({ id }: { id: string }) {
 
       <ConfirmDialog
         open={confirmDisable !== null}
-        title={confirmDisable ? `Disable ${confirmDisable.module.name}?` : ""}
+        title={confirmDisable ? `Disable ${confirmDisable.module.name}?` : ''}
         description={
           confirmDisable?.dependents.length
-            ? `Everyone in this hospital loses access immediately. These enabled modules depend on it and may stop working correctly: ${confirmDisable.dependents.join(", ")}. Historical data is kept and the module can be re-enabled.`
-            : "Everyone in this hospital loses access immediately. Historical data is kept and the module can be re-enabled."
+            ? `Everyone in this hospital loses access immediately. These enabled modules depend on it and may stop working correctly: ${confirmDisable.dependents.join(', ')}. Historical data is kept and the module can be re-enabled.`
+            : 'Everyone in this hospital loses access immediately. Historical data is kept and the module can be re-enabled.'
         }
         confirmLabel="Disable"
         tone="danger"

@@ -13,7 +13,13 @@ import * as c from './laboratory.controller';
 export const laboratoryRouter = Router();
 const mod = requireModule('laboratory');
 
-laboratoryRouter.get('/lab-tests', requireAuth, mod, requirePermission(PERMISSIONS.LAB_ORDER_VIEW), asyncHandler(c.listTests));
+laboratoryRouter.get(
+  '/lab-tests',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_ORDER_VIEW),
+  asyncHandler(c.listTests),
+);
 laboratoryRouter.post(
   '/lab-tests',
   requireAuth,
@@ -22,9 +28,27 @@ laboratoryRouter.post(
   validate({ body: CreateTestBody }),
   asyncHandler(c.createTest),
 );
-laboratoryRouter.get('/lab-orders', requireAuth, mod, requirePermission(PERMISSIONS.LAB_ORDER_VIEW), asyncHandler(c.worklist));
-laboratoryRouter.get('/lab-orders/:id', requireAuth, mod, requirePermission(PERMISSIONS.LAB_ORDER_VIEW), asyncHandler(c.getOrder));
-laboratoryRouter.post('/lab-orders/:id/collect', requireAuth, mod, requirePermission(PERMISSIONS.LAB_MANAGE), asyncHandler(c.collect));
+laboratoryRouter.get(
+  '/lab-orders',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_ORDER_VIEW),
+  asyncHandler(c.worklist),
+);
+laboratoryRouter.get(
+  '/lab-orders/:id',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_ORDER_VIEW),
+  asyncHandler(c.getOrder),
+);
+laboratoryRouter.post(
+  '/lab-orders/:id/collect',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.LAB_MANAGE),
+  asyncHandler(c.collect),
+);
 laboratoryRouter.post(
   '/lab-orders/:id/result',
   requireAuth,

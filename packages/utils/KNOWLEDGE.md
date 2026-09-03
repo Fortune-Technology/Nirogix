@@ -37,7 +37,6 @@ Absent or unparseable values render an em dash, never "Invalid Date". No compone
 
 ## Colour (`src/color.ts`)
 
-
 Only for the few places a brand colour must be used where the design tokens cannot reach — today, the dark modules of a printed QR code (ADR-056). Components still use the tokens and never a literal.
 
 `ensureContrast(color)` returns the darkest-necessary version of a colour that still reads against a background, blending toward black in 5% steps so the **hue survives** — a hospital's pale teal becomes a darker teal, not black. The default threshold is **5:1**, above WCAG's 4.5:1 for text because the reader is a camera and the paper may be a photocopy, but not so strict that it overrides a colour already dark enough: measured on white, `#0f766e` (5.5:1) and `#7c3aed` (5.7:1) pass untouched, `#0d9488` (3.7:1) is nudged, and pale yellows and pinks around 2:1 are darkened properly.
@@ -55,7 +54,7 @@ one screen asks for, as `{ value, label }` pairs a `Select` consumes directly.
 
 They live **here and not in `@hms/ui`** because `ui` depends on `utils`; the reverse would invert
 the dependency graph, and a blood group is not a design-system concern in any case. A list earns a
-place here on its **second** caller. Anything a *hospital* defines for itself — consultation types,
+place here on its **second** caller. Anything a _hospital_ defines for itself — consultation types,
 case types, departments — never belongs here: that comes from the tenant's own configuration.
 
 Label and value are deliberately the same string for blood groups. A typographic minus (`AB−`)

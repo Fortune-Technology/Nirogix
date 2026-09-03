@@ -44,14 +44,22 @@ export type ResolvedOrganizationProfile = {
 const REQUIRED_FOR_DOCUMENTS = ['addressLine1', 'city', 'state', 'postalCode', 'phone'] as const;
 
 async function getTenantRow(tenantId: string): Promise<{ name: string; code: string }> {
-  const rows = await db.select({ name: tenants.name, code: tenants.code }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  const rows = await db
+    .select({ name: tenants.name, code: tenants.code })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
   const row = rows[0];
   return { name: row?.name ?? '', code: row?.code ?? '' };
 }
 
 async function getRow(tenantId: string): Promise<OrganizationProfile | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
-    tx.select().from(organizationProfile).where(eq(organizationProfile.tenantId, tenantId)).limit(1),
+    tx
+      .select()
+      .from(organizationProfile)
+      .where(eq(organizationProfile.tenantId, tenantId))
+      .limit(1),
   );
   return rows[0] ?? null;
 }
@@ -74,12 +82,16 @@ export function buildContactLines(p: Partial<OrganizationProfile>): string[] {
   const statutory = [
     p.registrationNumber && `Reg. no. ${p.registrationNumber}`,
     p.gstin && `GSTIN ${p.gstin}`,
-  ].filter(Boolean).join(' · ');
+  ]
+    .filter(Boolean)
+    .join(' · ');
   if (statutory) lines.push(statutory);
   return lines;
 }
 
-export async function getOrganizationProfile(tenantId: string): Promise<ResolvedOrganizationProfile> {
+export async function getOrganizationProfile(
+  tenantId: string,
+): Promise<ResolvedOrganizationProfile> {
   const [tenant, row] = await Promise.all([getTenantRow(tenantId), getRow(tenantId)]);
   const p = row ?? {};
   // The stored file id is resolved to a short-lived URL on every read, exactly like the
@@ -180,7 +192,11 @@ async function upsertLetterheadImage(tenantId: string, fileId: string | null): P
     if (existing[0]) {
       await tx
         .update(organizationProfile)
-        .set({ letterheadImageFileId: fileId, version: sql`${organizationProfile.version} + 1`, updatedAt: new Date() })
+        .set({
+          letterheadImageFileId: fileId,
+          version: sql`${organizationProfile.version} + 1`,
+          updatedAt: new Date(),
+        })
         .where(eq(organizationProfile.tenantId, tenantId));
     } else {
       await tx.insert(organizationProfile).values({ tenantId, letterheadImageFileId: fileId });

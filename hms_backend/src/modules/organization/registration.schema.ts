@@ -59,7 +59,9 @@ export const RegistrationSettingsSchema = z
   })
   .openapi('RegistrationSettings');
 
-export const SetSelfRegistrationBody = z.object({ enabled: z.boolean() }).openapi('SetSelfRegistrationBody');
+export const SetSelfRegistrationBody = z
+  .object({ enabled: z.boolean() })
+  .openapi('SetSelfRegistrationBody');
 export const RejectRegistrationBody = z
   .object({ reason: z.string().trim().max(300).optional() })
   .openapi('RejectRegistrationBody');

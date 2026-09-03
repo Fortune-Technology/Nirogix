@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import {
   actionsColumn,
   Badge,
@@ -20,20 +20,21 @@ import {
   valueLabel,
   ValueOrEmpty,
   ViewAction,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Patient } from "@hms/types";
-import { ageInYears, formatDate } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { RequirePermission, Can } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { useCan } from "../../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Patient } from '@hms/types';
+import { ageInYears, formatDate } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { RequirePermission, Can } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { BulkImportAction } from '../../../components/import/BulkImportDialog';
+import { useCan } from '../../../lib/auth';
 
 // One calculation, shared with the patient chart's identity strip (ADR-127) — a list and the
 // record it opens must not disagree about somebody's age.
 function age(dob: string | null): string {
   const years = ageInYears(dob);
-  return years === null ? emptyLabel("notRecorded") : `${years}y`;
+  return years === null ? emptyLabel('notRecorded') : `${years}y`;
 }
 
 /**
@@ -49,79 +50,86 @@ function patientColumns(
 ): Array<Column<Patient>> {
   return [
     {
-      key: "uhid",
-      header: "UHID",
+      key: 'uhid',
+      header: 'UHID',
       sortable: true,
       hideable: false,
       accessor: (p) => p.uhid,
       cell: (p) => (
-        <Link href={`/patients/${p.id}`} className="font-mono font-medium text-brand hover:underline">
+        <Link
+          href={`/patients/${p.id}`}
+          className="font-mono font-medium text-brand hover:underline"
+        >
           {p.uhid}
         </Link>
       ),
     },
     {
-      key: "name",
-      header: "Name",
+      key: 'name',
+      header: 'Name',
       sortable: true,
       hideable: false,
-      accessor: (p) => [p.firstName, p.lastName].filter(Boolean).join(" "),
-      cell: (p) => <span className="font-medium text-fg">{[p.firstName, p.lastName].filter(Boolean).join(" ")}</span>,
+      accessor: (p) => [p.firstName, p.lastName].filter(Boolean).join(' '),
+      cell: (p) => (
+        <span className="font-medium text-fg">
+          {[p.firstName, p.lastName].filter(Boolean).join(' ')}
+        </span>
+      ),
     },
     {
-      key: "gender",
-      header: "Gender",
+      key: 'gender',
+      header: 'Gender',
       filterable: true,
-      accessor: (p) => valueLabel(p.gender, "unspecified"),
+      accessor: (p) => valueLabel(p.gender, 'unspecified'),
       cell: (p) => <ValueOrEmpty value={p.gender} reason="unspecified" />,
     },
     // Left, like every other label: "24y" is not a magnitude anyone compares down the column.
-    { key: "age", header: "Age", accessor: (p) => p.dateOfBirth, cell: (p) => age(p.dateOfBirth) },
+    { key: 'age', header: 'Age', accessor: (p) => p.dateOfBirth, cell: (p) => age(p.dateOfBirth) },
     {
-      key: "phone",
-      header: "Phone",
-      accessor: (p) => valueLabel(p.phone, "unspecified"),
+      key: 'phone',
+      header: 'Phone',
+      accessor: (p) => valueLabel(p.phone, 'unspecified'),
       cell: (p) => <ValueOrEmpty value={p.phone} reason="unspecified" />,
     },
     {
-      key: "city",
-      header: "City",
+      key: 'city',
+      header: 'City',
       filterable: true,
-      accessor: (p) => valueLabel(p.city, "unspecified"),
+      accessor: (p) => valueLabel(p.city, 'unspecified'),
       cell: (p) => <ValueOrEmpty value={p.city} reason="unspecified" />,
     },
     {
-      key: "registered",
-      header: "Registered",
+      key: 'registered',
+      header: 'Registered',
       sortable: true,
       defaultHidden: true,
       accessor: (p) => p.createdAt,
       cell: (p) => formatDate(p.createdAt),
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       filterable: true,
       accessor: (p) => p.status,
-      cell: (p) => <Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status}</Badge>,
+      cell: (p) => <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>,
     },
     actionsColumn<Patient>((p) => (
-      <TableActions label={`Actions for ${[p.firstName, p.lastName].filter(Boolean).join(" ")}`}>
+      <TableActions label={`Actions for ${[p.firstName, p.lastName].filter(Boolean).join(' ')}`}>
         <ViewAction label="View record" onSelect={() => onView(p)} />
         <EditAction label="Edit details" permitted={canEdit} onSelect={() => onEdit(p)} />
         {/* Deactivate, never delete (ADR-060). A patient record is referenced by
             visits, prescriptions, lab orders and invoices; destroying it would orphan
             a clinical history the hospital is obliged to keep. */}
         <ToggleAction
-          on={p.status === "active"}
+          on={p.status === 'active'}
           permitted={canEdit}
           onLabel="Deactivate patient"
           offLabel="Reactivate patient"
           confirm={{
-            title: `Deactivate ${[p.firstName, p.lastName].filter(Boolean).join(" ")}?`,
+            title: `Deactivate ${[p.firstName, p.lastName].filter(Boolean).join(' ')}?`,
             description:
-              "The record stays, along with every visit, prescription and bill attached to it. It is hidden from day-to-day lists and cannot be booked. You can reactivate at any time.",
-            confirmLabel: "Deactivate",
+              'The record stays, along with every visit, prescription and bill attached to it. It is hidden from day-to-day lists and cannot be booked. You can reactivate at any time.',
+            confirmLabel: 'Deactivate',
           }}
           onToggle={() => onToggle(p)}
         />
@@ -134,7 +142,13 @@ function PatientsTable() {
   const router = useRouter();
   const canEdit = useCan(PERMISSIONS.PATIENT_CREATE);
   const [rows, setRows] = useState<Patient[]>([]);
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
+  const [query, setQuery] = useState<DataTableQuery>({
+    page: 1,
+    pageSize: 20,
+    search: '',
+    sort: [],
+    filters: {},
+  });
   // Registration date-range lives beside `query`: it is a structured range, not a
   // faceted multi-select, so it travels as its own params rather than in `filters` (ADR-063).
   const [registered, setRegistered] = useState<DateRangeValue>({ from: null, to: null });
@@ -151,7 +165,7 @@ function PatientsTable() {
       setError(null);
     } catch {
       // The shared toast already told the user; the table shows its error state.
-      setError("Could not load patients.");
+      setError('Could not load patients.');
     } finally {
       setLoading(false);
     }
@@ -169,7 +183,7 @@ function PatientsTable() {
   async function toggleStatus(p: Patient) {
     try {
       // The API's patient states are `active` | `archived` (never deleted, ADR-060).
-      await api.updatePatient(p.id, { status: p.status === "active" ? "archived" : "active" });
+      await api.updatePatient(p.id, { status: p.status === 'active' ? 'archived' : 'active' });
       await load(query, registered);
     } catch {
       /* reported by the shared API-feedback layer */
@@ -183,6 +197,12 @@ function PatientsTable() {
         description={`${total} registered`}
         actions={
           <Can perm={PERMISSIONS.PATIENT_CREATE}>
+            {/* Migrating a register from another system. Patients are create-only on import —
+                a chart is corrected on the chart, not in bulk from a spreadsheet (ADR-138). */}
+            <BulkImportAction
+              moduleKey="patients"
+              onImported={() => void load(query, registered)}
+            />
             <Link href="/patients/new">
               <Button>
                 <Plus size={16} strokeWidth={2} /> Register patient
@@ -214,9 +234,13 @@ function PatientsTable() {
             }}
           />
         }
-        emptyMessage={query.search ? "No patients match your search." : "No patients registered yet."}
+        emptyMessage={
+          query.search ? 'No patients match your search.' : 'No patients registered yet.'
+        }
         emptyDescription={
-          query.search ? "Try a different UHID, name, or phone number." : "Register the first patient to get started."
+          query.search
+            ? 'Try a different UHID, name, or phone number.'
+            : 'Register the first patient to get started.'
         }
         emptyAction={
           <Can perm={PERMISSIONS.PATIENT_CREATE}>

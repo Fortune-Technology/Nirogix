@@ -6,10 +6,27 @@ import { onboardTenant } from '../../admin/admin.service';
 import { createPatient } from '../../patient/patient.service';
 import { createProvider } from '../../provider/provider.service';
 import { checkIn, getVisit, listQueue, updateStatus } from '../opd.service';
-import { getEncounterByVisit, saveEncounter, signEncounter, getEncounter, listPatientEncounters } from '../../emr/emr.service';
+import {
+  getEncounterByVisit,
+  saveEncounter,
+  signEncounter,
+  getEncounter,
+  listPatientEncounters,
+} from '../../emr/emr.service';
 import { getInvoice, recordPayment, listInvoices } from '../../billing/billing.service';
-import { createTest as createLabTest, listWorklist, collectSample, enterResult } from '../../laboratory/laboratory.service';
-import { createDrug, receiveStock, listPendingPrescriptions, dispense, listDrugs } from '../../pharmacy/pharmacy.service';
+import {
+  createTest as createLabTest,
+  listWorklist,
+  collectSample,
+  enterResult,
+} from '../../laboratory/laboratory.service';
+import {
+  createDrug,
+  receiveStock,
+  listPendingPrescriptions,
+  dispense,
+  listDrugs,
+} from '../../pharmacy/pharmacy.service';
 
 /**
  * The complete OPD journey, twice, with the workflow rules the modules enforce between
@@ -51,21 +68,44 @@ async function cleanupTenant(code: string): Promise<void> {
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
-    'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
-    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses',
+    'payments',
+    'invoice_line_items',
+    'dispenses',
+    'drug_batches',
+    'drugs',
+    'lab_results',
+    'lab_orders',
+    'lab_tests',
+    'prescriptions',
+    'diagnoses',
     // Before 'encounters': the amendment trail is ON DELETE RESTRICT so an encounter cannot
     // take its own correction history with it (ADR-134).
-    'encounter_amendments', 'encounters',
-    'visits', 'invoices', 'appointments', 'patients',
-    'practitioner_roles', 'providers', 'departments',
-    'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users',
+    'encounter_amendments',
+    'encounters',
+    'visits',
+    'invoices',
+    'appointments',
+    'patients',
+    'practitioner_roles',
+    'providers',
+    'departments',
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
   ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }
   await pool.query('DELETE FROM tenants WHERE id = $1', [t.id]);
 }
 
-async function expectAppError(p: Promise<unknown>, status: number, codeOrMsg?: string | RegExp): Promise<AppError> {
+async function expectAppError(
+  p: Promise<unknown>,
+  status: number,
+  codeOrMsg?: string | RegExp,
+): Promise<AppError> {
   try {
     await p;
   } catch (err) {
@@ -101,15 +141,46 @@ beforeAll(async () => {
     });
     otherTenantId = r2.tenant.id;
 
-    providerId = (await createProvider(tenantId, { fullName: 'Dr. Journey', consultationFeePaise: doctorFee })).id;
-    p1 = (await createPatient(tenantId, { firstName: 'Asha', lastName: 'Verma', phone: '9811111111', dateOfBirth: '1990-01-01' })).id;
-    p2 = (await createPatient(tenantId, { firstName: 'Bharat', lastName: 'Singh', phone: '9822222222', dateOfBirth: '1985-05-05' })).id;
+    providerId = (
+      await createProvider(tenantId, { fullName: 'Dr. Journey', consultationFeePaise: doctorFee })
+    ).id;
+    p1 = (
+      await createPatient(tenantId, {
+        firstName: 'Asha',
+        lastName: 'Verma',
+        phone: '9811111111',
+        dateOfBirth: '1990-01-01',
+      })
+    ).id;
+    p2 = (
+      await createPatient(tenantId, {
+        firstName: 'Bharat',
+        lastName: 'Singh',
+        phone: '9822222222',
+        dateOfBirth: '1985-05-05',
+      })
+    ).id;
 
-    const hb = await createLabTest(tenantId, { name: 'Hemoglobin', code: 'HB', unit: 'g/dL', refLow: '12', refHigh: '17', pricePaise: 20000 });
+    const hb = await createLabTest(tenantId, {
+      name: 'Hemoglobin',
+      code: 'HB',
+      unit: 'g/dL',
+      refLow: '12',
+      refHigh: '17',
+      pricePaise: 20000,
+    });
     hbTestId = hb!.id;
-    const pcm = await createDrug(tenantId, { name: 'Paracetamol 500 mg', unit: 'tablet', unitPricePaise: 200 });
+    const pcm = await createDrug(tenantId, {
+      name: 'Paracetamol 500 mg',
+      unit: 'tablet',
+      unitPricePaise: 200,
+    });
     pcmDrugId = pcm!.id;
-    await receiveStock(tenantId, pcmDrugId, { batchNo: 'T-1', expiryDate: '2027-01-01', quantity: 100 });
+    await receiveStock(tenantId, pcmDrugId, {
+      batchNo: 'T-1',
+      expiryDate: '2027-01-01',
+      quantity: 100,
+    });
 
     ready = true;
   } catch (err) {
@@ -141,18 +212,35 @@ describe('registration — duplicates are a decision, not an accident', () => {
   test('same phone + same DOB is refused even with a different name', async ({ skip }) => {
     if (!ready) return skip();
     await expectAppError(
-      createPatient(tenantId, { firstName: 'A', lastName: 'V', phone: '9811111111', dateOfBirth: '1990-01-01' }),
+      createPatient(tenantId, {
+        firstName: 'A',
+        lastName: 'V',
+        phone: '9811111111',
+        dateOfBirth: '1990-01-01',
+      }),
       409,
       'DUPLICATE_PATIENT',
     );
   });
 
-  test('allowDuplicate registers anyway; a different person on the same phone registers cleanly', async ({ skip }) => {
+  test('allowDuplicate registers anyway; a different person on the same phone registers cleanly', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const dup = await createPatient(tenantId, { firstName: 'Asha', lastName: 'Verma', phone: '9811111111', allowDuplicate: true });
+    const dup = await createPatient(tenantId, {
+      firstName: 'Asha',
+      lastName: 'Verma',
+      phone: '9811111111',
+      allowDuplicate: true,
+    });
     expect(dup.uhid).toBeTruthy();
     await pool.query('DELETE FROM patients WHERE id = $1', [dup.id]); // keep the journey dataset clean
-    const spouse = await createPatient(tenantId, { firstName: 'Deepak', lastName: 'Verma', phone: '9811111111', dateOfBirth: '1988-03-03' });
+    const spouse = await createPatient(tenantId, {
+      firstName: 'Deepak',
+      lastName: 'Verma',
+      phone: '9811111111',
+      dateOfBirth: '1988-03-03',
+    });
     expect(spouse.uhid).toBeTruthy();
     await pool.query('DELETE FROM patients WHERE id = $1', [spouse.id]);
   });
@@ -173,31 +261,59 @@ describe('patient 1 — check-in and payment before consultation', () => {
 
   test('a second walk-in check-in while the visit is live is refused', async ({ skip }) => {
     if (!ready) return skip();
-    await expectAppError(checkIn(tenantId, { patientId: p1, providerId }), 409, /already checked in/);
+    await expectAppError(
+      checkIn(tenantId, { patientId: p1, providerId }),
+      409,
+      /already checked in/,
+    );
   });
 
-  test('the consultation cannot start while the fee is unpaid (both entry points)', async ({ skip }) => {
+  test('the consultation cannot start while the fee is unpaid (both entry points)', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await expectAppError(getEncounterByVisit(tenantId, visit1), 409, /unpaid/);
-    await expectAppError(updateStatus(tenantId, visit1, 'in_consultation', undefined), 409, /unpaid/);
+    await expectAppError(
+      updateStatus(tenantId, visit1, 'in_consultation', undefined),
+      409,
+      /unpaid/,
+    );
   });
 
-  test('overpayment is refused; exact cash settles; the same idempotency key never applies twice; a settled invoice takes no more', async ({ skip }) => {
+  test('overpayment is refused; exact cash settles; the same idempotency key never applies twice; a settled invoice takes no more', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await expectAppError(
-      recordPayment(tenantId, invoice1, { amountPaise: doctorFee + 1, method: 'cash', idempotencyKey: 'j-p1-over' }),
+      recordPayment(tenantId, invoice1, {
+        amountPaise: doctorFee + 1,
+        method: 'cash',
+        idempotencyKey: 'j-p1-over',
+      }),
       422,
     );
-    const paid = await recordPayment(tenantId, invoice1, { amountPaise: doctorFee, method: 'cash', idempotencyKey: 'j-p1-fee' });
+    const paid = await recordPayment(tenantId, invoice1, {
+      amountPaise: doctorFee,
+      method: 'cash',
+      idempotencyKey: 'j-p1-fee',
+    });
     expect(paid.status).toBe('paid');
     expect(paid.balancePaise).toBe(0);
     expect(paid.payments[0]?.method).toBe('cash');
 
-    const retried = await recordPayment(tenantId, invoice1, { amountPaise: doctorFee, method: 'cash', idempotencyKey: 'j-p1-fee' });
+    const retried = await recordPayment(tenantId, invoice1, {
+      amountPaise: doctorFee,
+      method: 'cash',
+      idempotencyKey: 'j-p1-fee',
+    });
     expect(retried.payments.length).toBe(1); // retry answered with the original, not re-applied
 
     await expectAppError(
-      recordPayment(tenantId, invoice1, { amountPaise: 100, method: 'cash', idempotencyKey: 'j-p1-extra' }),
+      recordPayment(tenantId, invoice1, {
+        amountPaise: 100,
+        method: 'cash',
+        idempotencyKey: 'j-p1-extra',
+      }),
       409,
       /settled/,
     );
@@ -221,7 +337,15 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
       version: enc1Version,
       chiefComplaint: 'Fever 3 days',
       diagnoses: [{ icd10Code: 'A90', icd10Term: 'Dengue fever', isPrimary: true }],
-      prescriptions: [{ drugId: pcmDrugId, drugName: 'whatever the client typed', dose: '500 mg', frequency: '1-0-1', duration: '5 days' }],
+      prescriptions: [
+        {
+          drugId: pcmDrugId,
+          drugName: 'whatever the client typed',
+          dose: '500 mg',
+          frequency: '1-0-1',
+          duration: '5 days',
+        },
+      ],
       labOrders: [{ testId: hbTestId, testName: 'typed name', priority: 'routine' as const }],
     };
     const saved = await saveEncounter(tenantId, enc1, body);
@@ -235,14 +359,22 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
     await expectAppError(saveEncounter(tenantId, enc1, { ...body, version: enc1Version - 1 }), 409);
   });
 
-  test('a draft prescription is NOT dispensable and not in the pharmacy worklist', async ({ skip }) => {
+  test('a draft prescription is NOT dispensable and not in the pharmacy worklist', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const pending = await listPendingPrescriptions(tenantId);
     expect(pending.find((x) => x.id === rx1)).toBeUndefined();
-    await expectAppError(dispense(tenantId, { prescriptionId: rx1, drugId: pcmDrugId, quantity: 2 }), 409, /not signed/);
+    await expectAppError(
+      dispense(tenantId, { prescriptionId: rx1, drugId: pcmDrugId, quantity: 2 }),
+      409,
+      /not signed/,
+    );
   });
 
-  test('lab: result before collection is refused; collection bills the order exactly once', async ({ skip }) => {
+  test('lab: result before collection is refused; collection bills the order exactly once', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await expectAppError(enterResult(tenantId, lab1, { value: '10' }), 409, /Collect the sample/);
 
@@ -262,7 +394,9 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
     expect(inv.lineItems.filter((l) => l.itemType === 'lab').length).toBe(1);
   });
 
-  test('re-saving the draft does NOT destroy the collected order or its result (the cascade-delete bug)', async ({ skip }) => {
+  test('re-saving the draft does NOT destroy the collected order or its result (the cascade-delete bug)', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // The doctor keeps writing after the sample was taken — send a save WITHOUT the lab
     // order in the payload at all: a progressed order must survive anyway.
@@ -270,7 +404,15 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
       version: enc1Version,
       chiefComplaint: 'Fever 3 days, day 2 review',
       diagnoses: [{ icd10Code: 'A90', icd10Term: 'Dengue fever', isPrimary: true }],
-      prescriptions: [{ id: rx1, drugId: pcmDrugId, drugName: 'Paracetamol 500 mg', dose: '650 mg', frequency: '1-1-1' }],
+      prescriptions: [
+        {
+          id: rx1,
+          drugId: pcmDrugId,
+          drugName: 'Paracetamol 500 mg',
+          dose: '650 mg',
+          frequency: '1-1-1',
+        },
+      ],
       labOrders: [],
     });
     enc1Version = saved.version;
@@ -282,7 +424,9 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
     expect(order?.result?.value).toBe('10'); // the result row survived
   });
 
-  test('signing completes the visit; signed is immutable; completed visit takes no transitions', async ({ skip }) => {
+  test('signing completes the visit; signed is immutable; completed visit takes no transitions', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const signed = await signEncounter(tenantId, enc1);
     expect(signed.status).toBe('signed');
@@ -291,13 +435,20 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
 
     await expectAppError(signEncounter(tenantId, enc1), 409);
     await expectAppError(
-      saveEncounter(tenantId, enc1, { version: signed.version, diagnoses: [], prescriptions: [], labOrders: [] }),
+      saveEncounter(tenantId, enc1, {
+        version: signed.version,
+        diagnoses: [],
+        prescriptions: [],
+        labOrders: [],
+      }),
       409,
     );
     await expectAppError(updateStatus(tenantId, visit1, 'in_consultation', undefined), 409);
   });
 
-  test('pharmacy: signed prescription appears, dispenses once, bills back, never twice', async ({ skip }) => {
+  test('pharmacy: signed prescription appears, dispenses once, bills back, never twice', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const pending = await listPendingPrescriptions(tenantId);
     const mine = pending.find((x) => x.id === rx1);
@@ -305,19 +456,30 @@ describe('patient 1 — consultation, lab, sign, pharmacy', () => {
     expect(mine!.drugId).toBe(pcmDrugId);
 
     const before = (await listDrugs(tenantId)).find((d) => d.id === pcmDrugId)!.onHand;
-    const result = await dispense(tenantId, { prescriptionId: rx1, drugId: pcmDrugId, quantity: 10 });
+    const result = await dispense(tenantId, {
+      prescriptionId: rx1,
+      drugId: pcmDrugId,
+      quantity: 10,
+    });
     expect(result.totalPaise).toBe(2000);
     const after = (await listDrugs(tenantId)).find((d) => d.id === pcmDrugId)!.onHand;
     expect(before - after).toBe(10);
 
-    await expectAppError(dispense(tenantId, { prescriptionId: rx1, drugId: pcmDrugId, quantity: 1 }), 409);
+    await expectAppError(
+      dispense(tenantId, { prescriptionId: rx1, drugId: pcmDrugId, quantity: 1 }),
+      409,
+    );
 
     const inv = await getInvoice(tenantId, invoice1);
     expect(inv.lineItems.filter((l) => l.itemType === 'pharmacy').length).toBe(1);
     expect(inv.totalPaise).toBe(doctorFee + 20000 + 2000);
     expect(inv.balancePaise).toBe(20000 + 2000); // consultation already paid
 
-    const settled = await recordPayment(tenantId, invoice1, { amountPaise: 22000, method: 'cash', idempotencyKey: 'j-p1-final' });
+    const settled = await recordPayment(tenantId, invoice1, {
+      amountPaise: 22000,
+      method: 'cash',
+      idempotencyKey: 'j-p1-final',
+    });
     expect(settled.status).toBe('paid');
   });
 });
@@ -333,14 +495,18 @@ describe('patient 2 — an independent journey; nothing mixes', () => {
       providerId,
       consultationFeePaise: 30000,
       canOverrideFee: true,
-      feeOverrideReason: "Agreed rate for this patient",
+      feeOverrideReason: 'Agreed rate for this patient',
     });
     visit2 = v.id;
     expect(v.tokenNumber).toBe(2);
     invoice2 = v.invoice!.id;
     expect(v.invoice!.totalPaise).toBe(30000);
 
-    await recordPayment(tenantId, invoice2, { amountPaise: 30000, method: 'cash', idempotencyKey: 'j-p2-fee' });
+    await recordPayment(tenantId, invoice2, {
+      amountPaise: 30000,
+      method: 'cash',
+      idempotencyKey: 'j-p2-fee',
+    });
     const e = await getEncounterByVisit(tenantId, visit2);
     enc2 = e.id;
     const saved = await saveEncounter(tenantId, enc2, {
@@ -354,7 +520,9 @@ describe('patient 2 — an independent journey; nothing mixes', () => {
     expect(saved.prescriptions[0]?.drugId).toBeNull();
   });
 
-  test('records stay separate: history, worklists, invoices and queues are per patient', async ({ skip }) => {
+  test('records stay separate: history, worklists, invoices and queues are per patient', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const h1 = await listPatientEncounters(tenantId, p1);
     const h2 = await listPatientEncounters(tenantId, p2);

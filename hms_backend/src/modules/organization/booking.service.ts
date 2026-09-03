@@ -2,7 +2,13 @@ import { and, desc, eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { db } from '../../db/client';
 import { runWithTenant } from '../../db/tenantContext';
-import { appointmentRequests, organizationProfile, tenants, departments, providers } from '../../db/schema';
+import {
+  appointmentRequests,
+  organizationProfile,
+  tenants,
+  departments,
+  providers,
+} from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { createPatient, getPatient } from '../patient/patient.service';
@@ -35,7 +41,9 @@ export type PublicBookingContext = {
 
 /** Same uniform-failure contract as the registration token: typo, retired token and
  * disabled hospital are indistinguishable to an unauthenticated caller. */
-export async function resolveBookingToken(token: string): Promise<{ tenantId: string; ctx: PublicBookingContext }> {
+export async function resolveBookingToken(
+  token: string,
+): Promise<{ tenantId: string; ctx: PublicBookingContext }> {
   if (!token || token.length < 16) throw Errors.notFound('That booking link is not valid');
 
   const rows = await db
@@ -53,7 +61,8 @@ export async function resolveBookingToken(token: string): Promise<{ tenantId: st
     .limit(1);
 
   const row = rows[0];
-  if (!row || row.tenantStatus !== 'active') throw Errors.notFound('That booking link is not valid');
+  if (!row || row.tenantStatus !== 'active')
+    throw Errors.notFound('That booking link is not valid');
 
   const [depts, provs] = await runWithTenant(row.tenantId, async (tx) =>
     Promise.all([
@@ -102,8 +111,14 @@ export async function submitBookingRequest(
 
   // A wished-for department/provider must at least be one of this hospital's own —
   // anything else is dropped rather than stored (the desk picks the real one anyway).
-  const departmentId = input.departmentId && ctx.departments.some((d) => d.id === input.departmentId) ? input.departmentId : null;
-  const providerId = input.providerId && ctx.providers.some((p) => p.id === input.providerId) ? input.providerId : null;
+  const departmentId =
+    input.departmentId && ctx.departments.some((d) => d.id === input.departmentId)
+      ? input.departmentId
+      : null;
+  const providerId =
+    input.providerId && ctx.providers.some((p) => p.id === input.providerId)
+      ? input.providerId
+      : null;
 
   await runWithTenant(tenantId, (tx) =>
     tx.insert(appointmentRequests).values({
@@ -145,7 +160,9 @@ export async function listBookingRequests(tenantId: string, status = 'pending') 
       .from(appointmentRequests)
       .leftJoin(departments, eq(departments.id, appointmentRequests.departmentId))
       .leftJoin(providers, eq(providers.id, appointmentRequests.providerId))
-      .where(and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.status, status)))
+      .where(
+        and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.status, status)),
+      )
       .orderBy(desc(appointmentRequests.createdAt));
     return rows.map((row) => ({
       id: row.r.id,
@@ -192,7 +209,13 @@ export async function approveBookingRequest(
 ): Promise<{ appointmentId: string; patientId: string }> {
   const req = (
     await runWithTenant(tenantId, (tx) =>
-      tx.select().from(appointmentRequests).where(and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.id, requestId))).limit(1),
+      tx
+        .select()
+        .from(appointmentRequests)
+        .where(
+          and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.id, requestId)),
+        )
+        .limit(1),
     )
   )[0];
   if (!req) throw Errors.notFound('Booking request not found');
@@ -233,7 +256,13 @@ export async function approveBookingRequest(
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(appointmentRequests)
-      .set({ status: 'approved', appointmentId: appointment.id, patientId, reviewedBy: actorUserId, reviewedAt: new Date() })
+      .set({
+        status: 'approved',
+        appointmentId: appointment.id,
+        patientId,
+        reviewedBy: actorUserId,
+        reviewedAt: new Date(),
+      })
       .where(eq(appointmentRequests.id, requestId)),
   );
 
@@ -250,16 +279,38 @@ export async function approveBookingRequest(
   return { appointmentId: appointment.id, patientId };
 }
 
-export async function rejectBookingRequest(tenantId: string, requestId: string, reason: string | undefined, actorUserId: string) {
+export async function rejectBookingRequest(
+  tenantId: string,
+  requestId: string,
+  reason: string | undefined,
+  actorUserId: string,
+) {
   await runWithTenant(tenantId, async (tx) => {
     const moved = await tx
       .update(appointmentRequests)
-      .set({ status: 'rejected', rejectionReason: reason?.trim() || null, reviewedBy: actorUserId, reviewedAt: new Date() })
-      .where(and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.id, requestId), eq(appointmentRequests.status, 'pending')))
+      .set({
+        status: 'rejected',
+        rejectionReason: reason?.trim() || null,
+        reviewedBy: actorUserId,
+        reviewedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(appointmentRequests.tenantId, tenantId),
+          eq(appointmentRequests.id, requestId),
+          eq(appointmentRequests.status, 'pending'),
+        ),
+      )
       .returning({ id: appointmentRequests.id });
     if (!moved[0]) {
       const exists = (
-        await tx.select({ id: appointmentRequests.id }).from(appointmentRequests).where(and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.id, requestId))).limit(1)
+        await tx
+          .select({ id: appointmentRequests.id })
+          .from(appointmentRequests)
+          .where(
+            and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.id, requestId)),
+          )
+          .limit(1)
       )[0];
       if (!exists) throw Errors.notFound('Booking request not found');
       throw Errors.conflict('That request has already been reviewed');
@@ -292,7 +343,10 @@ export async function getBookingSettings(tenantId: string): Promise<BookingSetti
   return runWithTenant(tenantId, async (tx) => {
     const profile = (
       await tx
-        .select({ enabled: organizationProfile.onlineBookingEnabled, token: organizationProfile.onlineBookingToken })
+        .select({
+          enabled: organizationProfile.onlineBookingEnabled,
+          token: organizationProfile.onlineBookingToken,
+        })
         .from(organizationProfile)
         .where(eq(organizationProfile.tenantId, tenantId))
         .limit(1)
@@ -300,16 +354,26 @@ export async function getBookingSettings(tenantId: string): Promise<BookingSetti
     const pending = await tx
       .select({ id: appointmentRequests.id })
       .from(appointmentRequests)
-      .where(and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.status, 'pending')));
+      .where(
+        and(eq(appointmentRequests.tenantId, tenantId), eq(appointmentRequests.status, 'pending')),
+      );
     return { enabled: profile.enabled, token: profile.token, pendingCount: pending.length };
   });
 }
 
-export async function setOnlineBooking(tenantId: string, enabled: boolean, actorUserId?: string): Promise<BookingSettings> {
+export async function setOnlineBooking(
+  tenantId: string,
+  enabled: boolean,
+  actorUserId?: string,
+): Promise<BookingSettings> {
   await ensureProfile(tenantId);
   await runWithTenant(tenantId, async (tx) => {
     const profile = (
-      await tx.select({ token: organizationProfile.onlineBookingToken }).from(organizationProfile).where(eq(organizationProfile.tenantId, tenantId)).limit(1)
+      await tx
+        .select({ token: organizationProfile.onlineBookingToken })
+        .from(organizationProfile)
+        .where(eq(organizationProfile.tenantId, tenantId))
+        .limit(1)
     )[0]!;
     await tx
       .update(organizationProfile)
@@ -332,10 +396,16 @@ export async function setOnlineBooking(tenantId: string, enabled: boolean, actor
   return getBookingSettings(tenantId);
 }
 
-export async function regenerateBookingToken(tenantId: string, actorUserId?: string): Promise<BookingSettings> {
+export async function regenerateBookingToken(
+  tenantId: string,
+  actorUserId?: string,
+): Promise<BookingSettings> {
   await ensureProfile(tenantId);
   await runWithTenant(tenantId, (tx) =>
-    tx.update(organizationProfile).set({ onlineBookingToken: newToken(), updatedAt: new Date() }).where(eq(organizationProfile.tenantId, tenantId)),
+    tx
+      .update(organizationProfile)
+      .set({ onlineBookingToken: newToken(), updatedAt: new Date() })
+      .where(eq(organizationProfile.tenantId, tenantId)),
   );
   await writeAudit({
     tenantId,

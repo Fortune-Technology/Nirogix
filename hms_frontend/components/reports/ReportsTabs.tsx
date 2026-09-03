@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 /**
  * The Reports registers' own navigation — one routed tab per register, so the URL
@@ -13,9 +13,9 @@ import { usePathname } from "next/navigation";
  * — and deliberately not a tab here.
  */
 const TABS = [
-  { href: "/reports", label: "OPD register" },
-  { href: "/reports/collections", label: "Collections" },
-  { href: "/reports/pending-labs", label: "Pending labs" },
+  { href: '/reports', label: 'OPD register' },
+  { href: '/reports/collections', label: 'Collections' },
+  { href: '/reports/pending-labs', label: 'Pending labs' },
 ] as const;
 
 export function ReportsTabs() {
@@ -23,7 +23,7 @@ export function ReportsTabs() {
   // Carry the current query (the persisted `?range=…`) onto each tab, so switching
   // register keeps the selected period. This component re-renders inside ReportsView,
   // which owns the period, so the search string is fresh whenever the range changes.
-  const search = typeof window !== "undefined" ? window.location.search : "";
+  const search = typeof window !== 'undefined' ? window.location.search : '';
   return (
     <nav aria-label="Reports" className="-mx-1 overflow-x-auto">
       <ul className="flex min-w-max items-center gap-1 border-b border-border px-1">
@@ -33,13 +33,13 @@ export function ReportsTabs() {
             <li key={tab.href}>
               <Link
                 href={`${tab.href}${search}`}
-                aria-current={active ? "page" : undefined}
+                aria-current={active ? 'page' : undefined}
                 className={[
-                  "flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm transition-colors",
+                  'flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm transition-colors',
                   active
-                    ? "border-b-2 border-brand font-medium text-brand"
-                    : "border-b-2 border-transparent text-fg-muted hover:text-fg",
-                ].join(" ")}
+                    ? 'border-b-2 border-brand font-medium text-brand'
+                    : 'border-b-2 border-transparent text-fg-muted hover:text-fg',
+                ].join(' ')}
               >
                 {tab.label}
               </Link>

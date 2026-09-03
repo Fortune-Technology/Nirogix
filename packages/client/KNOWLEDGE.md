@@ -6,7 +6,7 @@ The shared frontend foundation for every Nirogix application (ADR-054). Read aft
 
 One implementation of the parts that must not drift between five frontends: token handling, the single in-flight refresh, the 401 retry, error classification, the one-notification-per-call rule (ADR-026), and permission resolution.
 
-The half most likely to drift is the security-relevant half — *when* a session is treated as expired, *whether* a failure is announced, *whether* a server message is safe to render. Those now have one home.
+The half most likely to drift is the security-relevant half — _when_ a session is treated as expired, _whether_ a failure is announced, _whether_ a server message is safe to render. Those now have one home.
 
 ## What's here
 

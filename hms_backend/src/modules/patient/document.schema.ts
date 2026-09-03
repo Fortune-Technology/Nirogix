@@ -57,4 +57,6 @@ export const PatientDocumentSchema = z
   })
   .openapi('PatientDocument');
 
-export const PatientDocumentListSchema = z.array(PatientDocumentSchema).openapi('PatientDocumentList');
+export const PatientDocumentListSchema = z
+  .array(PatientDocumentSchema)
+  .openapi('PatientDocumentList');

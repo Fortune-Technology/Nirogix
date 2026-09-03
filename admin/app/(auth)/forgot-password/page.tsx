@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent } from "react";
-import Link from "next/link";
-import { Alert, BrandMark, Button, Card, Field } from "@hms/ui";
-import { forgotPassword } from "../../../lib/api";
+import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { Alert, BrandMark, Button, Card, Field } from '@hms/ui';
+import { forgotPassword } from '../../../lib/api';
 
 /**
  * Forgot-password step 1 for the operator console (ADR-081). Same uniform-response
@@ -11,12 +11,12 @@ import { forgotPassword } from "../../../lib/api";
  * matches, so nothing here can confirm an operator email exists.
  */
 function errorMessage(err: unknown): string {
-  return err instanceof Error && err.message ? err.message : "Something went wrong. Try again.";
+  return err instanceof Error && err.message ? err.message : 'Something went wrong. Try again.';
 }
 
 export default function ForgotPasswordPage() {
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
+  const [orgCode, setOrgCode] = useState('');
+  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

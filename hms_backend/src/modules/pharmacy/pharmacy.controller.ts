@@ -12,7 +12,9 @@ export async function createDrug(req: Request, res: Response): Promise<void> {
 }
 
 export async function receiveStock(req: Request, res: Response): Promise<void> {
-  res.status(201).json(await svc.receiveStock(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res
+    .status(201)
+    .json(await svc.receiveStock(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
 }
 
 export async function pendingPrescriptions(req: Request, res: Response): Promise<void> {
@@ -32,11 +34,15 @@ export async function createSupplier(req: Request, res: Response): Promise<void>
 }
 
 export async function updateSupplier(req: Request, res: Response): Promise<void> {
-  res.json(await svc.updateSupplier(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await svc.updateSupplier(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }
 
 export async function adjustStock(req: Request, res: Response): Promise<void> {
-  res.status(201).json(await svc.adjustStock(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res
+    .status(201)
+    .json(await svc.adjustStock(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
 }
 
 export async function listAdjustments(req: Request, res: Response): Promise<void> {

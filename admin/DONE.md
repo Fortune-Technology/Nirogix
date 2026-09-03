@@ -8,7 +8,7 @@ Append-only implementation log for the Nirogix Platform Admin app.
 
 Built: root layout with the no-flash theme script and the shared `Toaster`, a Light/Dark theme provider with **no tenant branding** (this is the platform's own surface — a console that repaints itself in a customer's colours is one you can misread), the session + effective-permission context, a focused API client, permission-filtered navigation, the app shell with the shared mobile drawer, the operator sign-in screen, and the platform dashboard.
 
-**Deliberately narrow API surface.** `lib/api.ts` carries session, `admin/*`, audit and platform branding — and no clinical call at all. An operator working inside a hospital does so through an audited support session in the *Portal*, not by rendering clinical screens on the platform origin.
+**Deliberately narrow API surface.** `lib/api.ts` carries session, `admin/*`, audit and platform branding — and no clinical call at all. An operator working inside a hospital does so through an audited support session in the _Portal_, not by rendering clinical screens on the platform origin.
 
 **Two gates on every authenticated route.** A session is not enough: a hospital's org_admin has a valid one, because there is a single backend. `(app)/layout.tsx` also requires `platform.tenants.manage`, which only a super_admin in the PLATFORM org resolves. The client gate is UX — the API refuses the same caller independently.
 
@@ -26,7 +26,7 @@ Built: root layout with the no-flash theme script and the shared `Toaster`, a Li
 
 **The cross-origin bug this surfaced.** The support-session handoff opened `/support/enter` and posted the token with `postMessage(..., window.location.origin)`, with the receiver checking `event.origin !== window.location.origin`. That was correct while both ends shared an origin and **silently wrong the moment they did not** — the admin console would have posted the token to itself, where nothing listens, and the Portal would have rejected the real sender. Both ends now name the other explicitly from configuration: `admin/lib/portal.ts` (`NEXT_PUBLIC_PORTAL_URL`) and `hms_frontend/lib/adminOrigin.ts` (`NEXT_PUBLIC_ADMIN_ORIGIN`). The token still travels by `postMessage` and never in a URL, where it would land in history, referrers and server logs.
 
-**What deliberately stayed in the Portal:** `/support/enter`, because it *receives* a session rather than minting one, and the **read** of platform branding — `GET /public/branding/:scope` is public and is how the Portal applies the platform default at bootstrap. Only the branding *writes* moved. Removing the read was a mistake caught by the typechecker and reverted.
+**What deliberately stayed in the Portal:** `/support/enter`, because it _receives_ a session rather than minting one, and the **read** of platform branding — `GET /public/branding/:scope` is public and is how the Portal applies the platform default at bootstrap. Only the branding _writes_ moved. Removing the read was a mistake caught by the typechecker and reverted.
 
 **Testing status:** `next build` clean — `/`, `/login`, `/tenants`, `/tenants/[id]`, `/tenants/new`, `/branding`, `/audit`. Typecheck clean in both apps. The Portal builds with 31 routes and **no `/platform` or `/admin/*`**, and a grep for `getPlatformStats`, `listTenants`, `startSupportSession` and `updatePlatformBranding` across `hms_frontend` returns nothing. Portal tests still pass (12).
 
@@ -74,7 +74,7 @@ The platform **EOD report** in **Overview → EOD report** (`/eod`, gated by `au
 
 ## 2026-08-18 — Dev/staging "Test credentials" quick-login on the operator console (ADR-074)
 
-The sign-in screen (`:3003`) gained the dev/staging quick-login the Portal already has: a **Test credentials** button opens a modal of the two Platform Admins (`jaivik@` / `nishant@`, org code **`NIROGIX`**); choosing one fills the *same* form and posts to the *same* API — never a second auth path, populate-only (the operator still clicks Sign in). New `lib/devUsers.ts` (the account list) + `components/auth/QuickLogin.tsx` (the modal), mirroring the Portal, both **built behind the inline `NEXT_PUBLIC_ENVIRONMENT` gate** so the array folds to `[]` in a production build (ADR-071, issue #7). Added `NEXT_PUBLIC_ENVIRONMENT=development` to the console's git-ignored local `.env`. The login page's JSDoc was corrected — it previously claimed nothing is ever pre-filled, which is no longer true in dev/staging.
+The sign-in screen (`:3003`) gained the dev/staging quick-login the Portal already has: a **Test credentials** button opens a modal of the two Platform Admins (`jaivik@` / `nishant@`, org code **`NIROGIX`**); choosing one fills the _same_ form and posts to the _same_ API — never a second auth path, populate-only (the operator still clicks Sign in). New `lib/devUsers.ts` (the account list) + `components/auth/QuickLogin.tsx` (the modal), mirroring the Portal, both **built behind the inline `NEXT_PUBLIC_ENVIRONMENT` gate** so the array folds to `[]` in a production build (ADR-071, issue #7). Added `NEXT_PUBLIC_ENVIRONMENT=development` to the console's git-ignored local `.env`. The login page's JSDoc was corrected — it previously claimed nothing is ever pre-filled, which is no longer true in dev/staging.
 
 **Testing status:** browser-verified at `:3003/login` — the button appears, the modal lists both admins tagged `· NIROGIX`, selecting jaivik's card fills org `NIROGIX` + email + the 12-char dev password, and **Sign in reaches "Platform overview"**. Typecheck clean (admin + Portal + backend). The production fold-out is by construction — the same inline gate proven by grepping the built chunks in issue #7.
 
@@ -108,7 +108,7 @@ The "Test credentials" quick-login added on 2026-08-18 (ADR-074) is **deleted** 
 
 **What:** the Platform Admin console's `.env.example` and its gitignored `.env` now hold the same keys in the same
 order, every one live and uncommented, so copying the example gives a boot-ready file where only
-values change (CLAUDE.md → *Environment files*).
+values change (CLAUDE.md → _Environment files_).
 
 **Changed:** `.env.example` trimmed to 1–2 line comments with every key uncommented, and
 `NEXT_PUBLIC_ENVIRONMENT` **removed** from both `.env.example` and `.env` — no code has read it
@@ -190,7 +190,7 @@ drill-down: Level 2 lists the selected domain's modules (status, capability coun
 and opening one shows Level 3, that module's capabilities with a breadcrumb back. Header counts both
 tiers (`8/42 modules · 22/246 capabilities`). The Enabled-configuration chips are clickable and jump
 straight to a module. Platform Services renders **Required 🔒** with no toggle (`alwaysOn`), and a
-capability that is not `BUILT` carries its own *Coming soon* badge. Onboarding shows all 42 grouped
+capability that is not `BUILT` carries its own _Coming soon_ badge. Onboarding shows all 42 grouped
 by domain.
 
 **Testing status:** `admin` typecheck green; backend **355** green; OpenAPI valid. Live API against
@@ -204,15 +204,15 @@ checkbox plus a chevron that reveals **its capabilities, each with an On/Off pil
 deny-by-exception: selecting a module turns all of its capabilities on, and the operator switches
 off only what the hospital should not have. The footer counts both tiers
 (`7 modules · 41 capabilities`). A capability control is disabled until its module is selected, and
-a non-`BUILT` module or capability carries a *Coming soon* badge.
+a non-`BUILT` module or capability carries a _Coming soon_ badge.
 
 Backend: `GET /admin/module-catalog` now returns each module's `alwaysOn` and its declared
 `capabilities`; `OnboardTenantBody` accepts `disabledCapabilities: string[]`, which
 `onboardTenant` applies through `setCapabilityStatus` after the module grants (a capability whose
 module was not granted is ignored rather than failing onboarding). `@hms/types` updated to match.
 
-**Testing status:** backend **372** green — including a new `admin.test.ts` case, *onboarding
-honours capability choices*, asserting a switched-off capability is absent, untouched ones stay on
+**Testing status:** backend **372** green — including a new `admin.test.ts` case, _onboarding
+honours capability choices_, asserting a switched-off capability is absent, untouched ones stay on
 with no row written, and a capability of an ungranted module is ignored. Typechecks + OpenAPI green;
 live catalog endpoint verified returning 42 modules / 246 capabilities.
 

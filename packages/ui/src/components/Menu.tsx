@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { cn } from "../cn";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { cn } from '../cn';
 
 export interface MenuProps {
   /** The control that opens the panel. Rendered inside a button. */
   trigger: ReactNode;
   children: ReactNode | ((close: () => void) => ReactNode);
   /** Which edge the panel aligns to. */
-  align?: "start" | "end";
+  align?: 'start' | 'end';
   label?: string;
   triggerClassName?: string;
   /**
@@ -32,10 +32,10 @@ export interface MenuProps {
 export function Menu({
   trigger,
   children,
-  align = "end",
+  align = 'end',
   label,
   triggerClassName,
-  triggerBase = "hms-btn hms-btn--secondary hms-btn--sm",
+  triggerBase = 'hms-btn hms-btn--secondary hms-btn--sm',
   panelClassName,
   disabled,
 }: MenuProps) {
@@ -57,33 +57,38 @@ export function Menu({
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.stopPropagation();
         close();
         return;
       }
       if (!panelRef.current) return;
-      const items = [...panelRef.current.querySelectorAll<HTMLElement>("[data-menu-item]:not([disabled])")];
+      const items = [
+        ...panelRef.current.querySelectorAll<HTMLElement>('[data-menu-item]:not([disabled])'),
+      ];
       if (items.length === 0) return;
       const current = items.indexOf(document.activeElement as HTMLElement);
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const next = e.key === "ArrowDown" ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+        const next =
+          e.key === 'ArrowDown'
+            ? (current + 1) % items.length
+            : (current - 1 + items.length) % items.length;
         items[next]?.focus();
-      } else if (e.key === "Home") {
+      } else if (e.key === 'Home') {
         e.preventDefault();
         items[0]?.focus();
-      } else if (e.key === "End") {
+      } else if (e.key === 'End') {
         e.preventDefault();
         items[items.length - 1]?.focus();
       }
     }
 
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [open, close]);
 
@@ -108,9 +113,13 @@ export function Menu({
           ref={panelRef}
           role="menu"
           aria-label={label}
-          className={cn("hms-menu__panel", align === "start" && "hms-menu__panel--start", panelClassName)}
+          className={cn(
+            'hms-menu__panel',
+            align === 'start' && 'hms-menu__panel--start',
+            panelClassName,
+          )}
         >
-          {typeof children === "function" ? children(() => close()) : children}
+          {typeof children === 'function' ? children(() => close()) : children}
         </div>
       )}
     </div>
@@ -122,12 +131,19 @@ export interface MenuItemProps {
   onSelect?: () => void;
   disabled?: boolean;
   /** Destructive items read in the danger tone; pair with a confirmation. */
-  tone?: "default" | "danger";
+  tone?: 'default' | 'danger';
   icon?: ReactNode;
   className?: string;
 }
 
-export function MenuItem({ children, onSelect, disabled, tone = "default", icon, className }: MenuItemProps) {
+export function MenuItem({
+  children,
+  onSelect,
+  disabled,
+  tone = 'default',
+  icon,
+  className,
+}: MenuItemProps) {
   return (
     <button
       type="button"
@@ -135,7 +151,7 @@ export function MenuItem({ children, onSelect, disabled, tone = "default", icon,
       data-menu-item
       disabled={disabled}
       onClick={onSelect}
-      className={cn("hms-menu__item", tone === "danger" && "hms-menu__item--danger", className)}
+      className={cn('hms-menu__item', tone === 'danger' && 'hms-menu__item--danger', className)}
     >
       {icon ? <span className="hms-menu__item-icon">{icon}</span> : null}
       {children}
@@ -165,7 +181,7 @@ export function MenuCheckboxItem({
       onClick={onToggle}
       className="hms-menu__item"
     >
-      <span className={cn("hms-menu__check", checked && "hms-menu__check--on")} aria-hidden />
+      <span className={cn('hms-menu__check', checked && 'hms-menu__check--on')} aria-hidden />
       {children}
     </button>
   );

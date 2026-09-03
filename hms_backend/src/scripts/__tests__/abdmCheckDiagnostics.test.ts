@@ -27,7 +27,8 @@ function capture(fn: () => void): string {
 afterEach(() => vi.restoreAllMocks());
 
 describe('a CDN edge block', () => {
-  const cdnBody = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01"><HTML><H1>403 ERROR</H1>Request blocked</HTML>';
+  const cdnBody =
+    '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01"><HTML><H1>403 ERROR</H1>Request blocked</HTML>';
 
   test('is named as a network block, never as a credential problem', () => {
     const res = new Response(cdnBody, {
@@ -60,7 +61,10 @@ describe('a genuine ABDM rejection', () => {
   test('NHA answers bad credentials with 400, and that is treated as credentials', () => {
     // Observed from the real sandbox, not assumed — matching on 401 alone missed this entirely.
     const body = '{"error":{"code":"ABDM-9999: ","message":"Invalid user credentials"}}';
-    const res = new Response(body, { status: 400, headers: { 'content-type': 'application/json' } });
+    const res = new Response(body, {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
     const out = capture(() => explainFailure(res, body));
 
     expect(out).toMatch(/This is the credential pair, not the code/);
@@ -76,7 +80,10 @@ describe('a genuine ABDM rejection', () => {
 
   test('a JSON 403 is a missing role, not a network block', () => {
     const body = '{"error":{"code":"ABDM-1000","message":"Forbidden for this client"}}';
-    const res = new Response(body, { status: 403, headers: { 'content-type': 'application/json' } });
+    const res = new Response(body, {
+      status: 403,
+      headers: { 'content-type': 'application/json' },
+    });
     const out = capture(() => explainFailure(res, body));
 
     // Same status as the CDN case, opposite cause — which is exactly why the body matters.

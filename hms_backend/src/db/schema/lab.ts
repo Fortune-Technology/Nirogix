@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, integer, bigint, boolean, timestamp, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  bigint,
+  boolean,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { labOrders } from './emr';
@@ -9,7 +18,9 @@ import { labOrders } from './emr';
 // visit's invoice via the Billing-Core extension point. Money is integer paise. Tenant-scoped → RLS.
 
 export const labTests = pgTable('lab_tests', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -32,7 +43,9 @@ export const labTests = pgTable('lab_tests', {
 export const labResults = pgTable(
   'lab_results',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -53,6 +66,11 @@ export const labResults = pgTable(
     // clears these (a corrected value needs re-verification).
     verifiedBy: uuid('verified_by'),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    // Which signature VERSION signed this, pinned at the moment of signing (ADR-137). Not the
+    // signer's current signature: a clinician who uploads a new one next year must not change what
+    // a document printed last year shows. Plain uuid, no FK — signature rows are retained forever
+    // and this must never be able to block one being written.
+    signatureId: uuid('signature_id'),
     // Attached report file (PDF/image) via the file module. Plain uuid, no FK — files
     // soft-delete and are retained, same convention as the branding/letterhead assets.
     fileId: uuid('file_id'),

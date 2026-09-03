@@ -22,11 +22,18 @@ export async function listRequests(req: Request, res: Response): Promise<void> {
 }
 
 export async function approve(req: Request, res: Response): Promise<void> {
-  res.json(await svc.approveBookingRequest(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await svc.approveBookingRequest(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }
 
 export async function reject(req: Request, res: Response): Promise<void> {
-  await svc.rejectBookingRequest(req.auth!.tenantId, req.params.id!, req.body?.reason, req.auth!.userId);
+  await svc.rejectBookingRequest(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body?.reason,
+    req.auth!.userId,
+  );
   res.status(204).end();
 }
 

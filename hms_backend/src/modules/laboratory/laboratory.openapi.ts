@@ -11,7 +11,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the laboratory module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the laboratory module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 const notFound = { description: 'Not found', ...json(ErrorResponseSchema) };
 
@@ -23,7 +26,11 @@ registry.registerPath({
   summary: 'Lab test master',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ search: z.string().optional() }) },
-  responses: { 200: { description: 'Tests', ...json(LabTestListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Tests', ...json(LabTestListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -34,7 +41,12 @@ registry.registerPath({
   summary: 'Add a lab test to the master',
   security: [{ bearerAuth: [] }],
   request: { body: json(CreateTestBody) },
-  responses: { 201: { description: 'Created test', ...json(LabTestSchema) }, 401: notAuthed, 403: forbidden, 422: { description: 'Validation error', ...json(ErrorResponseSchema) } },
+  responses: {
+    201: { description: 'Created test', ...json(LabTestSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
 });
 
 registry.registerPath({
@@ -44,9 +56,15 @@ registry.registerPath({
   tags: ['Laboratory'],
   summary: 'Lab worklist (orders from the EMR, with results)',
   security: [{ bearerAuth: [] }],
-  request: { query: z.object({ status: z.string().optional(), patientId: z.string().uuid().optional() }) },
+  request: {
+    query: z.object({ status: z.string().optional(), patientId: z.string().uuid().optional() }),
+  },
   // (worklist — verify/attachment paths registered below)
-  responses: { 200: { description: 'Lab orders', ...json(LabWorklistSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Lab orders', ...json(LabWorklistSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -57,7 +75,12 @@ registry.registerPath({
   summary: 'A lab order with its result (the report)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }) },
-  responses: { 200: { description: 'Lab order', ...json(LabOrderSchema) }, 401: notAuthed, 403: notEntitled, 404: notFound },
+  responses: {
+    200: { description: 'Lab order', ...json(LabOrderSchema) },
+    401: notAuthed,
+    403: notEntitled,
+    404: notFound,
+  },
 });
 
 registry.registerPath({
@@ -68,7 +91,13 @@ registry.registerPath({
   summary: 'Mark the sample collected',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }) },
-  responses: { 200: { description: 'Updated order', ...json(LabOrderSchema) }, 401: notAuthed, 403: forbidden, 404: notFound, 409: { description: 'Invalid status transition', ...json(ErrorResponseSchema) } },
+  responses: {
+    200: { description: 'Updated order', ...json(LabOrderSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: notFound,
+    409: { description: 'Invalid status transition', ...json(ErrorResponseSchema) },
+  },
 });
 
 registry.registerPath({
@@ -76,7 +105,8 @@ registry.registerPath({
   path: '/api/v1/lab-orders/{id}/result',
   operationId: 'enterLabResult',
   tags: ['Laboratory'],
-  summary: 'Enter a result (auto-flags vs the reference range; adds a lab line to the visit invoice)',
+  summary:
+    'Enter a result (auto-flags vs the reference range; adds a lab line to the visit invoice)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }), body: json(EnterResultBody) },
   responses: {

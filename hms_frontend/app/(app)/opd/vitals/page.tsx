@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Activity } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Activity } from 'lucide-react';
 import {
   actionsColumn,
   Alert,
@@ -18,14 +18,14 @@ import {
   type Column,
   valueLabel,
   ValueOrEmpty,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { formatTime } from "@hms/utils";
-import type { HospitalWorkflowConfig, VitalsQueueEntry } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { useCan } from "../../../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { formatTime } from '@hms/utils';
+import type { HospitalWorkflowConfig, VitalsQueueEntry } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { useCan } from '../../../../lib/auth';
 import {
   EMPTY_VITALS,
   VitalsFields,
@@ -33,7 +33,7 @@ import {
   summariseVitals,
   toVitalsPayload,
   type VitalsDraft,
-} from "../../../../components/vitals/VitalsFields";
+} from '../../../../components/vitals/VitalsFields';
 
 /**
  * The vitals queue (ADR-113) — the "vitals after check-in" workflow.
@@ -46,7 +46,6 @@ import {
  * to see what they have finished and be able to re-take a reading they doubt.
  */
 
-
 function VitalsQueue() {
   const canRecord = useCan(PERMISSIONS.VITALS_RECORD);
 
@@ -57,7 +56,7 @@ function VitalsQueue() {
 
   const [active, setActive] = useState<VitalsQueueEntry | null>(null);
   const [draft, setDraft] = useState<VitalsDraft>(EMPTY_VITALS);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -69,7 +68,7 @@ function VitalsQueue() {
       setWorkflow(config);
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load the vitals queue.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not load the vitals queue.');
     } finally {
       setLoading(false);
     }
@@ -84,14 +83,14 @@ function VitalsQueue() {
     // Deliberately blank, even when a reading exists: this is a NEW observation, and pre-filling it
     // with the last one invites a nurse to save numbers they did not take.
     setDraft(EMPTY_VITALS);
-    setNotes("");
+    setNotes('');
     setSaveError(null);
   }
 
   async function save() {
     if (!active) return;
     if (!hasAnyReading(draft)) {
-      setSaveError("Enter at least one reading.");
+      setSaveError('Enter at least one reading.');
       return;
     }
     setSaving(true);
@@ -99,14 +98,16 @@ function VitalsQueue() {
     try {
       await api.recordVitals({
         visitId: active.visitId,
-        stage: "pre_consultation",
+        stage: 'pre_consultation',
         ...toVitalsPayload(draft),
         notes: notes.trim() || undefined,
       });
       setActive(null);
       await load();
     } catch (err) {
-      setSaveError(err instanceof api.ApiRequestError ? err.message : "Could not record the vitals.");
+      setSaveError(
+        err instanceof api.ApiRequestError ? err.message : 'Could not record the vitals.',
+      );
     } finally {
       setSaving(false);
     }
@@ -114,15 +115,17 @@ function VitalsQueue() {
 
   const columns: Array<Column<VitalsQueueEntry>> = [
     {
-      key: "token",
-      header: "Token",
+      key: 'token',
+      header: 'Token',
       hideable: false,
       accessor: (v) => v.tokenNumber,
-      cell: (v) => <span className="font-mono text-base font-semibold text-fg">#{v.tokenNumber}</span>,
+      cell: (v) => (
+        <span className="font-mono text-base font-semibold text-fg">#{v.tokenNumber}</span>
+      ),
     },
     {
-      key: "patient",
-      header: "Patient",
+      key: 'patient',
+      header: 'Patient',
       hideable: false,
       accessor: (v) => `${v.patientName} ${v.patientUhid}`,
       cell: (v) => (
@@ -132,30 +135,32 @@ function VitalsQueue() {
       ),
     },
     {
-      key: "provider",
-      header: "Seeing",
+      key: 'provider',
+      header: 'Seeing',
       filterable: true,
-      accessor: (v) => valueLabel(v.providerName, "unassigned"),
+      accessor: (v) => valueLabel(v.providerName, 'unassigned'),
       cell: (v) => <ValueOrEmpty value={v.providerName} reason="unassigned" />,
     },
     {
-      key: "department",
-      header: "Department",
+      key: 'department',
+      header: 'Department',
       filterable: true,
-      accessor: (v) => valueLabel(v.department, "unassigned"),
+      accessor: (v) => valueLabel(v.department, 'unassigned'),
       cell: (v) => <ValueOrEmpty value={v.department} reason="unassigned" />,
     },
     {
-      key: "since",
-      header: "Checked in",
+      key: 'since',
+      header: 'Checked in',
       accessor: (v) => v.checkedInAt,
-      cell: (v) => <span className="whitespace-nowrap text-fg-muted">{formatTime(v.checkedInAt)}</span>,
+      cell: (v) => (
+        <span className="whitespace-nowrap text-fg-muted">{formatTime(v.checkedInAt)}</span>
+      ),
     },
     {
-      key: "vitals",
-      header: "Vitals",
+      key: 'vitals',
+      header: 'Vitals',
       filterable: true,
-      accessor: (v) => (v.latestVitals ? "Recorded" : "Waiting"),
+      accessor: (v) => (v.latestVitals ? 'Recorded' : 'Waiting'),
       cell: (v) =>
         v.latestVitals ? (
           <div className="flex flex-col gap-1">
@@ -174,7 +179,7 @@ function VitalsQueue() {
     actionsColumn<VitalsQueueEntry>((v) => (
       <TableActions label={`Actions for token #${v.tokenNumber}`}>
         <TableAction
-          label={v.latestVitals ? "Record again" : "Record vitals"}
+          label={v.latestVitals ? 'Record again' : 'Record vitals'}
           icon={<Activity size={16} strokeWidth={2} aria-hidden />}
           permitted={canRecord}
           onSelect={() => open(v)}
@@ -185,19 +190,22 @@ function VitalsQueue() {
 
   // A hospital that has not chosen this workflow gets an explanation rather than an empty table it
   // has to interpret.
-  if (!loading && workflow && workflow.vitalsMode !== "after_checkin") {
+  if (!loading && workflow && workflow.vitalsMode !== 'after_checkin') {
     return (
       <>
-        <PageHeader title="Vitals queue" description="Patients checked in and waiting for their vitals." />
+        <PageHeader
+          title="Vitals queue"
+          description="Patients checked in and waiting for their vitals."
+        />
         <Card>
           <EmptyState
             title="This hospital does not use a separate vitals step"
             description={
-              workflow.vitalsMode === "during_checkin"
-                ? "Vitals are recorded at the front desk during check-in."
-                : workflow.vitalsMode === "disabled"
-                  ? "Vitals are switched off for this hospital."
-                  : "Vitals are recorded by the doctor during the consultation."
+              workflow.vitalsMode === 'during_checkin'
+                ? 'Vitals are recorded at the front desk during check-in.'
+                : workflow.vitalsMode === 'disabled'
+                  ? 'Vitals are switched off for this hospital.'
+                  : 'Vitals are recorded by the doctor during the consultation.'
             }
             action={
               <Link href="/hospital-setup/workflow">
@@ -230,7 +238,7 @@ function VitalsQueue() {
       <Dialog
         open={active !== null}
         onClose={() => setActive(null)}
-        title={active ? `Vitals — ${active.patientName}` : "Vitals"}
+        title={active ? `Vitals — ${active.patientName}` : 'Vitals'}
         description={active ? `Token #${active.tokenNumber} · ${active.patientUhid}` : undefined}
         busy={saving}
         size="lg"
@@ -249,9 +257,13 @@ function VitalsQueue() {
           {saveError && <Alert tone="danger">{saveError}</Alert>}
           {active?.latestVitals && (
             <Alert tone="neutral">
-              A reading was already taken{active.latestVitals.recordedByName ? ` by ${active.latestVitals.recordedByName}` : ""}{" "}
-              at {formatTime(active.latestVitals.recordedAt)}: {summariseVitals(active.latestVitals)}. Saving records a new one; the
-              earlier reading is kept.
+              A reading was already taken
+              {active.latestVitals.recordedByName
+                ? ` by ${active.latestVitals.recordedByName}`
+                : ''}{' '}
+              at {formatTime(active.latestVitals.recordedAt)}:{' '}
+              {summariseVitals(active.latestVitals)}. Saving records a new one; the earlier reading
+              is kept.
             </Alert>
           )}
           <VitalsFields

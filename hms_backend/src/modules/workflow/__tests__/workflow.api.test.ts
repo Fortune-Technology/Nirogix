@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 
@@ -50,9 +58,13 @@ beforeAll(async () => {
     })
   ).id;
 
-  const created = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Rakesh', lastName: 'Nair', gender: 'male', dateOfBirth: '1979-02-11', phone: '9812345699' });
+  const created = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Rakesh',
+    lastName: 'Nair',
+    gender: 'male',
+    dateOfBirth: '1979-02-11',
+    phone: '9812345699',
+  });
   patientId = created.body.id;
 }, 180_000);
 
@@ -60,7 +72,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -106,7 +120,9 @@ async function clearLiveVisits() {
 }
 
 describe('a hospital that has configured nothing', () => {
-  test('is told so, and is given exactly the behaviour it had before this existed', async ({ skip }) => {
+  test('is told so, and is given exactly the behaviour it had before this existed', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await authed(sessions.org_admin!).get('/api/v1/workflow-config');
     expect(res.status).toBe(200);
@@ -151,16 +167,20 @@ describe('vitals at the front desk', () => {
     await closeVisit(res.body.id);
   });
 
-  test("a required vital is refused before anything is created, not after", async ({ skip }) => {
+  test('a required vital is refused before anything is created, not after', async ({ skip }) => {
     if (!ready) return skip();
-    const before = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [tenant.tenantId]);
+    const before = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [
+      tenant.tenantId,
+    ]);
     const res = await checkIn({ vitals: { pulse: 80 } }); // no blood pressure
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/blood pressure/i);
 
     // The refusal must not leave a half-made check-in behind — that is the whole reason the check
     // happens up front rather than after the visit and its invoice exist.
-    const after = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [tenant.tenantId]);
+    const after = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [
+      tenant.tenantId,
+    ]);
     expect(after.rows[0].c).toBe(before.rows[0].c);
   });
 
@@ -277,7 +297,11 @@ describe('payment timing', () => {
   test('after_consultation lifts the gate, and the balance is still owed', async ({ skip }) => {
     if (!ready) return skip();
     await clearLiveVisits();
-    await setConfig({ paymentTiming: 'after_consultation', vitalsMode: 'consultation_only', vitalsOptionalParams: [] });
+    await setConfig({
+      paymentTiming: 'after_consultation',
+      vitalsMode: 'consultation_only',
+      vitalsOptionalParams: [],
+    });
 
     const res = await checkIn();
     expect(res.status).toBe(201);
@@ -324,7 +348,11 @@ describe('the configuration itself', () => {
 
   test('nothing can be required when vitals are switched off', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await setConfig({ vitalsMode: 'disabled', vitalsRequiredParams: ['pulse'], vitalsOptionalParams: [] });
+    const res = await setConfig({
+      vitalsMode: 'disabled',
+      vitalsRequiredParams: ['pulse'],
+      vitalsOptionalParams: [],
+    });
     expect(res.status).toBe(422);
   });
 
@@ -348,7 +376,8 @@ describe('the configuration itself', () => {
     // are built from it, PUT stays `platform.workflow.manage` — the administrator's alone.
     expect((await authed(sessions.receptionist!).get('/api/v1/workflow-config')).status).toBe(200);
     expect(
-      (await authed(sessions.receptionist!).put('/api/v1/workflow-config').send({ version: 1 })).status,
+      (await authed(sessions.receptionist!).put('/api/v1/workflow-config').send({ version: 1 }))
+        .status,
     ).toBe(403);
   });
 
@@ -367,7 +396,9 @@ describe('the configuration itself', () => {
     expect(branch.status).toBe(201);
     const branchId = branch.body.id;
 
-    const inherited = await authed(sessions.org_admin!).get(`/api/v1/workflow-config?branchId=${branchId}`);
+    const inherited = await authed(sessions.org_admin!).get(
+      `/api/v1/workflow-config?branchId=${branchId}`,
+    );
     expect(inherited.status).toBe(200);
     expect(inherited.body.inheritedFromOrganization).toBe(true);
     // A branch creating its first override sends its own version, not the organization's.

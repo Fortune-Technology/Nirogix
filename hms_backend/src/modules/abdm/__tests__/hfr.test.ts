@@ -29,7 +29,12 @@ const draft = (over: Partial<hfr.FacilityDraft> = {}): hfr.FacilityDraft => ({
   ownershipCode: 'O2',
   facilityTypeCode: 'FT1',
   systemOfMedicineCode: 'M1',
-  address: { stateLGDCode: '27', districtLGDCode: '520', addressLine1: '7 Park Street', pincode: '440001' },
+  address: {
+    stateLGDCode: '27',
+    districtLGDCode: '520',
+    addressLine1: '7 Park Street',
+    pincode: '440001',
+  },
   contact: { facilityEmailId: 'facility@nirogix.test', facilityContactNumber: '9822011122' },
   ...over,
 });
@@ -64,7 +69,10 @@ describe('the draft', () => {
   test('re-saving updates rather than duplicating', async ({ skip }) => {
     if (!ready) return skip();
     await hfr.saveDraft(tenantId, null, draft({ facilityName: 'Renamed Hospital' }));
-    const rows = await pool.query('SELECT facility_name FROM abdm_facility_registry WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query(
+      'SELECT facility_name FROM abdm_facility_registry WHERE tenant_id = $1',
+      [tenantId],
+    );
     expect(rows.rowCount).toBe(1);
     expect(rows.rows[0].facility_name).toBe('Renamed Hospital');
   });
@@ -85,21 +93,28 @@ describe('the draft', () => {
       `INSERT INTO branches (tenant_id, name, code, is_active) VALUES ($1,'North Wing','NW', true) RETURNING id`,
       [tenantId],
     );
-    await hfr.saveDraft(tenantId, null, draft({ branchId: branch.rows[0].id, facilityName: 'North Wing' }));
+    await hfr.saveDraft(
+      tenantId,
+      null,
+      draft({ branchId: branch.rows[0].id, facilityName: 'North Wing' }),
+    );
 
     // A group registers each branch in its own right — the brief assumed one hospital, which would
     // have collapsed every tenant onto a single row.
     expect(await hfr.listRegistrations(tenantId)).toHaveLength(2);
-    expect((await hfr.findRegistration(tenantId, branch.rows[0].id))?.facilityName).toBe('North Wing');
+    expect((await hfr.findRegistration(tenantId, branch.rows[0].id))?.facilityName).toBe(
+      'North Wing',
+    );
   });
 });
 
 describe('the status machine', () => {
   test('submitted is NOT verified', async ({ skip }) => {
     if (!ready) return skip();
-    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1 AND branch_id IS NULL", [
-      tenantId,
-    ]);
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1 AND branch_id IS NULL",
+      [tenantId],
+    );
     // HFR routes every registration to a human verifier. A green tick on submission would have an
     // administrator believe they hold a Facility ID they do not.
     expect(await statusOf()).toBe('submitted');
@@ -117,18 +132,23 @@ describe('the status machine', () => {
     const other = await makeTenant(`${CODE}2`);
     await grantModule(other.tenantId, 'abdm');
     await hfr.saveDraft(other.tenantId, null, draft());
-    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1", [other.tenantId]);
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1",
+      [other.tenantId],
+    );
 
     // "Verified" with nothing to show for it is the state that makes the whole record useless.
-    await expect(hfr.recordVerification(other.tenantId, { status: 'verified' })).rejects.toThrow(/facility id/i);
+    await expect(hfr.recordVerification(other.tenantId, { status: 'verified' })).rejects.toThrow(
+      /facility id/i,
+    );
     await cleanupTenant(`${CODE}2`);
   });
 
   test('an illegal transition is named, not silently applied', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(hfr.recordVerification(tenantId, { status: 'rejected', message: 'no' })).rejects.toThrow(
-      /cannot become/i,
-    );
+    await expect(
+      hfr.recordVerification(tenantId, { status: 'rejected', message: 'no' }),
+    ).rejects.toThrow(/cannot become/i);
   });
 });
 
@@ -138,9 +158,15 @@ describe('adopting the facility id', () => {
     const fresh = await makeTenant(`${CODE}3`);
     await grantModule(fresh.tenantId, 'abdm');
     await hfr.saveDraft(fresh.tenantId, null, draft());
-    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1", [fresh.tenantId]);
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1",
+      [fresh.tenantId],
+    );
 
-    await hfr.recordVerification(fresh.tenantId, { status: 'verified', facilityId: 'IN0710-ADOPTED' });
+    await hfr.recordVerification(fresh.tenantId, {
+      status: 'verified',
+      facilityId: 'IN0710-ADOPTED',
+    });
 
     // The one place M4 reaches back into the earlier milestones: leaving an administrator to copy
     // this across by hand is how two sources of truth start disagreeing.
@@ -153,15 +179,27 @@ describe('adopting the facility id', () => {
     const fresh = await makeTenant(`${CODE}4`);
     await grantModule(fresh.tenantId, 'abdm');
     // Registered by hand on ABDM's portal months ago, and live on that id.
-    await upsertFacilityConfig(fresh.tenantId, { hipId: 'IN0710-ALREADY-LIVE', facilityName: 'Existing' });
+    await upsertFacilityConfig(fresh.tenantId, {
+      hipId: 'IN0710-ALREADY-LIVE',
+      facilityName: 'Existing',
+    });
     await hfr.saveDraft(fresh.tenantId, null, draft());
-    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1", [fresh.tenantId]);
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1",
+      [fresh.tenantId],
+    );
 
-    await hfr.recordVerification(fresh.tenantId, { status: 'verified', facilityId: 'IN0710-NEWLY-ISSUED' });
+    await hfr.recordVerification(fresh.tenantId, {
+      status: 'verified',
+      facilityId: 'IN0710-NEWLY-ISSUED',
+    });
 
     // Swapping it underneath a working integration would break every callback silently.
     expect((await getFacilityConfig(fresh.tenantId))?.hipId).toBe('IN0710-ALREADY-LIVE');
-    const row = await pool.query('SELECT facility_id FROM abdm_facility_registry WHERE tenant_id = $1', [fresh.tenantId]);
+    const row = await pool.query(
+      'SELECT facility_id FROM abdm_facility_registry WHERE tenant_id = $1',
+      [fresh.tenantId],
+    );
     // The issued id is still recorded — the conflict is surfaced, not discarded.
     expect(row.rows[0].facility_id).toBe('IN0710-NEWLY-ISSUED');
     await cleanupTenant(`${CODE}4`);
@@ -186,7 +224,9 @@ describe('searching the registry', () => {
 
   test('refuses an empty search rather than walking the whole registry', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(hfr.searchFacilities({})).rejects.toMatchObject({ code: 'SEARCH_FILTERS_REQUIRED' });
+    await expect(hfr.searchFacilities({})).rejects.toMatchObject({
+      code: 'SEARCH_FILTERS_REQUIRED',
+    });
   });
 
   test('paging alone is not a search', async ({ skip }) => {
@@ -267,7 +307,10 @@ describe('updating a verified facility', () => {
     const fresh = await makeTenant(`${CODE}7`);
     await grantModule(fresh.tenantId, 'abdm');
     await hfr.saveDraft(fresh.tenantId, null, draft());
-    await pool.query("UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1", [fresh.tenantId]);
+    await pool.query(
+      "UPDATE abdm_facility_registry SET status = 'submitted' WHERE tenant_id = $1",
+      [fresh.tenantId],
+    );
     // Changing it underneath a verifier would mean they approve something nobody has read.
     await expect(hfr.updateRegistration(fresh.tenantId, null, draft())).rejects.toMatchObject({
       code: 'ABDM_FACILITY_NOT_VERIFIED',
@@ -275,7 +318,9 @@ describe('updating a verified facility', () => {
     await cleanupTenant(`${CODE}7`);
   });
 
-  test('a verified facility with no tracking id says so instead of re-registering', async ({ skip }) => {
+  test('a verified facility with no tracking id says so instead of re-registering', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const fresh = await makeTenant(`${CODE}8`);
     await grantModule(fresh.tenantId, 'abdm');

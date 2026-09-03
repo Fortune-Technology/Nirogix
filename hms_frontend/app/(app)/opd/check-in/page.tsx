@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { Suspense } from "react";
-import { PERMISSIONS } from "@hms/permissions";
-import { RequirePermission } from "../../../../components/Can";
-import { VisitWorkflow } from "../../../../components/visit/VisitWorkflow";
+import { Suspense } from 'react';
+import { PERMISSIONS } from '@hms/permissions';
+import { RequirePermission } from '../../../../components/Can';
+import { VisitWorkflow } from '../../../../components/visit/VisitWorkflow';
 
 /**
  * Check-in — the "right now" half of the one visit workflow (ADR-115).

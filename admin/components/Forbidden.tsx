@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { LogOut, ExternalLink } from "lucide-react";
-import { Button, Card } from "@hms/ui";
-import { useAuth } from "../lib/auth";
-import { PORTAL_URL } from "../lib/portal";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogOut, ExternalLink } from 'lucide-react';
+import { Button, Card } from '@hms/ui';
+import { useAuth } from '../lib/auth';
+import { PORTAL_URL } from '../lib/portal';
 
 /**
  * The standard 403 panel for the admin console.
@@ -34,7 +34,7 @@ export function Forbidden() {
       // Whether or not the server call succeeded, the local session is gone — so send
       // them to sign-in either way. `replace`, matching AppShell: the forbidden page is
       // not somewhere Back should return to.
-      router.replace("/login");
+      router.replace('/login');
     }
   }
 
@@ -45,8 +45,8 @@ export function Forbidden() {
           <span className="hms-badge hms-badge--danger">403 · Forbidden</span>
           <h1 className="text-lg font-semibold text-fg">You don&apos;t have access to this</h1>
           <p className="text-sm text-fg-muted">
-            This console is for Nirogix platform operators. Your role doesn&apos;t include the permission it
-            requires. If you believe that is a mistake, contact the platform owner.
+            This console is for Nirogix platform operators. Your role doesn&apos;t include the
+            permission it requires. If you believe that is a mistake, contact the platform owner.
           </p>
 
           {user ? (
@@ -67,7 +67,8 @@ export function Forbidden() {
           </div>
 
           <p className="mt-1 text-xs text-fg-subtle">
-            Hospital staff — including a hospital&apos;s own administrator — work in the Portal, not here.
+            Hospital staff — including a hospital&apos;s own administrator — work in the Portal, not
+            here.
           </p>
         </div>
       </Card>

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { SlidersHorizontal } from "lucide-react";
-import type { Table } from "@tanstack/react-table";
-import { Menu, MenuCheckboxItem, MenuSeparator } from "../Menu";
+import { SlidersHorizontal } from 'lucide-react';
+import type { Table } from '@tanstack/react-table';
+import { Menu, MenuCheckboxItem, MenuSeparator } from '../Menu';
 
 /**
  * The shared column show/hide control (rules.md → Standard DataTable). One
@@ -10,7 +10,7 @@ import { Menu, MenuCheckboxItem, MenuSeparator } from "../Menu";
  * which start hidden, and "Show all" restores the default set.
  */
 export function DataTableViewOptions<Row>({ table }: { table: Table<Row> }) {
-  const columns = table.getAllLeafColumns().filter((c) => c.getCanHide() && c.id !== "__select");
+  const columns = table.getAllLeafColumns().filter((c) => c.getCanHide() && c.id !== '__select');
   if (columns.length === 0) return null;
 
   return (
@@ -28,7 +28,9 @@ export function DataTableViewOptions<Row>({ table }: { table: Table<Row> }) {
           checked={column.getIsVisible()}
           onToggle={() => column.toggleVisibility(!column.getIsVisible())}
         >
-          {typeof column.columnDef.meta === "object" && column.columnDef.meta && "label" in column.columnDef.meta
+          {typeof column.columnDef.meta === 'object' &&
+          column.columnDef.meta &&
+          'label' in column.columnDef.meta
             ? String((column.columnDef.meta as { label?: unknown }).label ?? column.id)
             : column.id}
         </MenuCheckboxItem>

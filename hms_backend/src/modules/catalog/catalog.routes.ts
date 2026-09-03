@@ -5,7 +5,12 @@ import { requireAuth } from '../../http/requireAuth';
 import { requirePermission } from '../../http/requirePermission';
 import { validate } from '../../http/validate';
 import { asyncHandler } from '../../http/asyncHandler';
-import { CatalogCategoryEnum, CreateCustomItemBody, AvailabilityItemTypeEnum, SetAvailabilityBody } from './catalog.schema';
+import {
+  CatalogCategoryEnum,
+  CreateCustomItemBody,
+  AvailabilityItemTypeEnum,
+  SetAvailabilityBody,
+} from './catalog.schema';
 import * as c from './catalog.controller';
 
 // System master-data catalogue (ADR-072). Reading the catalogue is available to any authenticated
@@ -37,7 +42,9 @@ catalogRouter.get(
   '/branch-availability',
   requireAuth,
   requirePermission(PERMISSIONS.CATALOG_AVAILABILITY_MANAGE),
-  validate({ query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum.optional() }) }),
+  validate({
+    query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum.optional() }),
+  }),
   asyncHandler(c.listAvailability),
 );
 // The org's items of a type with their availability at a branch — the config screen's read model.
@@ -45,7 +52,9 @@ catalogRouter.get(
   '/branch-availability/items',
   requireAuth,
   requirePermission(PERMISSIONS.CATALOG_AVAILABILITY_MANAGE),
-  validate({ query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum }) }),
+  validate({
+    query: z.object({ branchId: z.string().uuid(), itemType: AvailabilityItemTypeEnum }),
+  }),
   asyncHandler(c.listAvailabilityItems),
 );
 catalogRouter.put(

@@ -1,14 +1,17 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import type { AuthUser } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { useAuth } from "../../../lib/auth";
-import { useTheme } from "../../../lib/theme";
-import { PageHeader } from "../../../components/PageHeader";
-import { Badge, Button, EmptyValue } from "@hms/ui";
+import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import type { AuthUser } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { useAuth } from '../../../lib/auth';
+import { useTheme } from '../../../lib/theme';
+import { PageHeader } from '../../../components/PageHeader';
+import { Badge, Button, EmptyValue } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { Can } from '../../../components/Can';
+import { ProfileSignatureCard } from '../../../components/profile/SignatureCard';
 import {
   Field,
   ProfileEditableCard,
@@ -16,7 +19,7 @@ import {
   ProfileHeader,
   ProfileInfoCard,
   ProfileSecurityCard,
-} from "../../../components/profile";
+} from '../../../components/profile';
 
 /**
  * My Profile (ADR-035) — one screen for every role, built from the shared profile
@@ -32,7 +35,7 @@ export default function ProfilePage() {
   const { user, refresh } = useAuth();
   const router = useRouter();
 
-  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [fullName, setFullName] = useState(user?.fullName ?? '');
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
   const [me, setMe] = useState<AuthUser | null>(user);
@@ -76,7 +79,7 @@ export default function ProfilePage() {
     try {
       await api.changeOwnPassword(input);
       // Every session was revoked server-side, including this one.
-      router.replace("/login");
+      router.replace('/login');
     } catch {
       /* reported by the shared API-feedback layer */
     } finally {
@@ -96,7 +99,7 @@ export default function ProfilePage() {
         fullName={me.fullName}
         email={me.email}
         roles={me.roles ?? []}
-        status={me.status ?? "active"}
+        status={me.status ?? 'active'}
       />
 
       <ProfileEditableCard
@@ -107,22 +110,43 @@ export default function ProfilePage() {
         onSave={saveProfile}
         onCancel={() => setFullName(me.fullName)}
       >
-        <Field label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
-        <Field label="Email" value={me.email} readOnly disabled title="Contact an administrator to change your email." />
+        <Field
+          label="Full name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          autoComplete="name"
+        />
+        <Field
+          label="Email"
+          value={me.email}
+          readOnly
+          disabled
+          title="Contact an administrator to change your email."
+        />
       </ProfileEditableCard>
 
       <ProfileInfoCard header="Account">
         <ProfileField label="Organization ID">
           <span className="font-mono text-sm">{me.tenantId}</span>
         </ProfileField>
-        <ProfileField label="Role">{(me.roles ?? []).join(", ")}</ProfileField>
-        <ProfileField label="Account status">{me.status ?? "active"}</ProfileField>
-        <ProfileField label="Two-factor authentication">{me.mfaEnabled ? "Enabled" : "Not enabled"}</ProfileField>
-        <ProfileField label="Last sign-in">{me.lastLoginAt ? formatDateTime(me.lastLoginAt) : "This session"}</ProfileField>
+        <ProfileField label="Role">{(me.roles ?? []).join(', ')}</ProfileField>
+        <ProfileField label="Account status">{me.status ?? 'active'}</ProfileField>
+        <ProfileField label="Two-factor authentication">
+          {me.mfaEnabled ? 'Enabled' : 'Not enabled'}
+        </ProfileField>
+        <ProfileField label="Last sign-in">
+          {me.lastLoginAt ? formatDateTime(me.lastLoginAt) : 'This session'}
+        </ProfileField>
         <ProfileField label="Member since">
           {me.createdAt ? formatDateTime(me.createdAt) : <EmptyValue reason="notAvailable" />}
         </ProfileField>
       </ProfileInfoCard>
+
+      {/* Only for someone who signs something. A receptionist has no document to sign, so the
+          card is absent rather than present-and-pointless (ADR-137). */}
+      <Can perm={PERMISSIONS.SIGNATURE_MANAGE}>
+        <ProfileSignatureCard />
+      </Can>
 
       <ProfileSecurityCard onSubmit={changePassword} busy={changing} />
 
@@ -142,9 +166,9 @@ function AppearanceCard() {
     <ProfileInfoCard header="Appearance">
       <ProfileField label="Theme">
         <span className="flex flex-wrap items-center gap-3">
-          <Badge tone="brand">{theme === "dark" ? "Dark" : "Light"}</Badge>
+          <Badge tone="brand">{theme === 'dark' ? 'Dark' : 'Light'}</Badge>
           <Button variant="secondary" size="sm" onClick={toggle}>
-            Switch to {theme === "dark" ? "Light" : "Dark"}
+            Switch to {theme === 'dark' ? 'Light' : 'Dark'}
           </Button>
         </span>
       </ProfileField>

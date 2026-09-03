@@ -5,7 +5,11 @@ import { referenceCatalog, tenantReferenceItems, drugs, labTests, services } fro
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { REFERENCE_CATALOG, CUSTOM_CAPABLE_CATEGORIES, type CatalogEntry } from './catalog.data';
-import { resolveOverrides, isRefAvailable, type AvailabilityItemType } from './branchAvailability.service';
+import {
+  resolveOverrides,
+  isRefAvailable,
+  type AvailabilityItemType,
+} from './branchAvailability.service';
 
 export type CatalogCategory = CatalogEntry['category'];
 
@@ -50,13 +54,21 @@ export async function listItemsForAvailability(
   } else if (itemType === 'lab_test') {
     base = (
       await runWithTenant(tenantId, (tx) =>
-        tx.select().from(labTests).where(eq(labTests.tenantId, tenantId)).orderBy(asc(labTests.name)),
+        tx
+          .select()
+          .from(labTests)
+          .where(eq(labTests.tenantId, tenantId))
+          .orderBy(asc(labTests.name)),
       )
     ).map((t) => ({ ref: t.id, name: t.name, detail: dash([t.sampleType, t.code]) }));
   } else if (itemType === 'service') {
     base = (
       await runWithTenant(tenantId, (tx) =>
-        tx.select().from(services).where(eq(services.tenantId, tenantId)).orderBy(asc(services.name)),
+        tx
+          .select()
+          .from(services)
+          .where(eq(services.tenantId, tenantId))
+          .orderBy(asc(services.name)),
       )
     ).map((s) => ({ ref: s.id, name: s.name, detail: s.code }));
   } else {
@@ -67,10 +79,19 @@ export async function listItemsForAvailability(
     }));
   }
 
-  const overrides = await resolveOverrides(tenantId, branchId, itemType, base.map((b) => b.ref));
+  const overrides = await resolveOverrides(
+    tenantId,
+    branchId,
+    itemType,
+    base.map((b) => b.ref),
+  );
   return base.map((b) => {
     const o = overrides.get(b.ref);
-    return { ...b, isAvailable: o?.isAvailable !== false, priceOverridePaise: o?.priceOverridePaise ?? null };
+    return {
+      ...b,
+      isAvailable: o?.isAvailable !== false,
+      priceOverridePaise: o?.priceOverridePaise ?? null,
+    };
   });
 }
 
@@ -89,7 +110,10 @@ export async function listCatalog(
   const q = search?.trim();
   const items = await runWithTenant(tenantId, async (tx) => {
     const sysConds = [eq(referenceCatalog.category, category), eq(referenceCatalog.isActive, true)];
-    if (q) sysConds.push(or(ilike(referenceCatalog.name, `%${q}%`), ilike(referenceCatalog.code, `%${q}%`))!);
+    if (q)
+      sysConds.push(
+        or(ilike(referenceCatalog.name, `%${q}%`), ilike(referenceCatalog.code, `%${q}%`))!,
+      );
     const sys = await tx
       .select()
       .from(referenceCatalog)
@@ -109,7 +133,13 @@ export async function listCatalog(
         eq(tenantReferenceItems.category, category),
         eq(tenantReferenceItems.isActive, true),
       ];
-      if (q) cusConds.push(or(ilike(tenantReferenceItems.name, `%${q}%`), ilike(tenantReferenceItems.code, `%${q}%`))!);
+      if (q)
+        cusConds.push(
+          or(
+            ilike(tenantReferenceItems.name, `%${q}%`),
+            ilike(tenantReferenceItems.code, `%${q}%`),
+          )!,
+        );
       const cus = await tx
         .select()
         .from(tenantReferenceItems)
@@ -131,7 +161,12 @@ export async function listCatalog(
   // code. Priced categories are filtered in their own list endpoints; departments are natively
   // branch-scoped. No branch → the org-wide list unchanged.
   if (!branchId || category !== 'vaccine') return items;
-  const overrides = await resolveOverrides(tenantId, branchId, 'vaccine', items.map((i) => i.code));
+  const overrides = await resolveOverrides(
+    tenantId,
+    branchId,
+    'vaccine',
+    items.map((i) => i.code),
+  );
   return items.filter((i) => isRefAvailable(overrides, i.code));
 }
 
@@ -170,7 +205,8 @@ export async function createCustomItem(
         ),
       )
       .limit(1);
-    if (existing[0]) throw Errors.conflict(`A custom item named "${name}" already exists in this catalogue.`);
+    if (existing[0])
+      throw Errors.conflict(`A custom item named "${name}" already exists in this catalogue.`);
     return (
       await tx
         .insert(tenantReferenceItems)

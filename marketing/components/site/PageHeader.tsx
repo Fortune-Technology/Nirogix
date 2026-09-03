@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Container, Eyebrow } from "../ui/primitives";
+import type { ReactNode } from 'react';
+import { Container, Eyebrow } from '../ui/primitives';
 
 /**
  * Standard inner-page header: eyebrow + display title + lede, on the cream canvas.

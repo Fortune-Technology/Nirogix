@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -17,19 +17,19 @@ import {
   TableActions,
   actionsColumn,
   type Column,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
 import type {
   ArrivalType,
   ConsultationFeeRule,
   Department,
   HospitalWorkflowConfig,
   Provider,
-} from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { useCan } from "../../../../lib/auth";
-import { formatPaise, rupeesToPaise } from "../../../../lib/money";
+} from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { useCan } from '../../../../lib/auth';
+import { formatPaise, rupeesToPaise } from '../../../../lib/money';
 
 /**
  * The consultation price list (ADR-117).
@@ -48,12 +48,12 @@ import { formatPaise, rupeesToPaise } from "../../../../lib/money";
  */
 
 const ARRIVAL_LABEL: Record<string, string> = {
-  walk_in: "Walk-in",
-  appointment: "First visit",
-  follow_up: "Follow-up",
+  walk_in: 'Walk-in',
+  appointment: 'First visit',
+  follow_up: 'Follow-up',
 };
 
-const ANY = "__any__";
+const ANY = '__any__';
 
 function FeeSchedule() {
   const canManage = useCan(PERMISSIONS.BILLING_FEE_RULES_MANAGE);
@@ -72,13 +72,13 @@ function FeeSchedule() {
   const [arrivalType, setArrivalType] = useState(ANY);
   const [consultationType, setConsultationType] = useState(ANY);
   const [caseType, setCaseType] = useState(ANY);
-  const [feeRupees, setFeeRupees] = useState("");
-  const [label, setLabel] = useState("");
+  const [feeRupees, setFeeRupees] = useState('');
+  const [label, setLabel] = useState('');
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<ConsultationFeeRule | null>(null);
-  const [editFee, setEditFee] = useState("");
+  const [editFee, setEditFee] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,7 +96,7 @@ function FeeSchedule() {
       setWorkflow(w);
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load the fee schedule.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not load the fee schedule.');
     } finally {
       setLoading(false);
     }
@@ -108,16 +108,19 @@ function FeeSchedule() {
 
   const providerOptions = useMemo(
     () => [
-      { value: ANY, label: "Any doctor" },
+      { value: ANY, label: 'Any doctor' },
       ...providers
         .filter((p) => p.isActive)
-        .map((p) => ({ value: p.id, label: p.fullName, keywords: p.specialties.join(" ") })),
+        .map((p) => ({ value: p.id, label: p.fullName, keywords: p.specialties.join(' ') })),
     ],
     [providers],
   );
 
   const departmentOptions = useMemo(
-    () => [{ value: ANY, label: "Any department" }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
+    () => [
+      { value: ANY, label: 'Any department' },
+      ...departments.map((d) => ({ value: d.id, label: d.name })),
+    ],
     [departments],
   );
 
@@ -127,7 +130,7 @@ function FeeSchedule() {
   async function add() {
     const fee = Number(feeRupees);
     if (!Number.isFinite(fee) || fee < 0) {
-      setAddError("Enter a valid fee.");
+      setAddError('Enter a valid fee.');
       return;
     }
     setSaving(true);
@@ -148,11 +151,11 @@ function FeeSchedule() {
       setArrivalType(ANY);
       setConsultationType(ANY);
       setCaseType(ANY);
-      setFeeRupees("");
-      setLabel("");
+      setFeeRupees('');
+      setLabel('');
       await load();
     } catch (e) {
-      setAddError(e instanceof api.ApiRequestError ? e.message : "Could not add the rule.");
+      setAddError(e instanceof api.ApiRequestError ? e.message : 'Could not add the rule.');
     } finally {
       setSaving(false);
     }
@@ -164,7 +167,10 @@ function FeeSchedule() {
     if (!Number.isFinite(fee) || fee < 0) return;
     setSaving(true);
     try {
-      await api.updateFeeRule(editing.id, { version: editing.version, feePaise: rupeesToPaise(fee) });
+      await api.updateFeeRule(editing.id, {
+        version: editing.version,
+        feePaise: rupeesToPaise(fee),
+      });
       setEditing(null);
       await load();
     } finally {
@@ -179,18 +185,22 @@ function FeeSchedule() {
 
   const columns: Array<Column<ConsultationFeeRule>> = [
     {
-      key: "applies",
-      header: "Applies to",
+      key: 'applies',
+      header: 'Applies to',
       hideable: false,
       accessor: (r) =>
-        `${r.providerName ?? ""} ${r.departmentName ?? ""} ${r.arrivalType ?? ""} ${r.consultationType ?? ""} ${r.caseType ?? ""}`,
+        `${r.providerName ?? ''} ${r.departmentName ?? ''} ${r.arrivalType ?? ''} ${r.consultationType ?? ''} ${r.caseType ?? ''}`,
       cell: (r) => (
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge tone={r.providerName ? "brand" : "neutral"}>{r.providerName ?? "Any doctor"}</Badge>
-            <Badge tone={r.departmentName ? "brand" : "neutral"}>{r.departmentName ?? "Any department"}</Badge>
-            <Badge tone={r.arrivalType ? "brand" : "neutral"}>
-              {r.arrivalType ? ARRIVAL_LABEL[r.arrivalType] : "Any visit type"}
+            <Badge tone={r.providerName ? 'brand' : 'neutral'}>
+              {r.providerName ?? 'Any doctor'}
+            </Badge>
+            <Badge tone={r.departmentName ? 'brand' : 'neutral'}>
+              {r.departmentName ?? 'Any department'}
+            </Badge>
+            <Badge tone={r.arrivalType ? 'brand' : 'neutral'}>
+              {r.arrivalType ? ARRIVAL_LABEL[r.arrivalType] : 'Any visit type'}
             </Badge>
             {/* Only shown when set: a row of four "Any …" badges says nothing and hides the one
                 dimension that actually narrows this rule. */}
@@ -202,17 +212,19 @@ function FeeSchedule() {
       ),
     },
     {
-      key: "fee",
-      header: "Fee",
+      key: 'fee',
+      header: 'Fee',
       accessor: (r) => r.feePaise,
       cell: (r) => <span className="font-medium text-fg">{formatPaise(r.feePaise)}</span>,
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       filterable: true,
-      accessor: (r) => (r.isActive ? "Active" : "Retired"),
-      cell: (r) => <Badge tone={r.isActive ? "success" : "neutral"}>{r.isActive ? "Active" : "Retired"}</Badge>,
+      accessor: (r) => (r.isActive ? 'Active' : 'Retired'),
+      cell: (r) => (
+        <Badge tone={r.isActive ? 'success' : 'neutral'}>{r.isActive ? 'Active' : 'Retired'}</Badge>
+      ),
     },
     actionsColumn<ConsultationFeeRule>((r) => (
       <TableActions label={`Actions for this rule`}>
@@ -230,10 +242,10 @@ function FeeSchedule() {
           onLabel="Retire rule"
           offLabel="Reinstate rule"
           confirm={{
-            title: r.isActive ? "Retire this rule?" : "Reinstate this rule?",
+            title: r.isActive ? 'Retire this rule?' : 'Reinstate this rule?',
             description: r.isActive
-              ? "It stops applying to new check-ins. Invoices it already priced are untouched — a retired rule is kept because it explains them."
-              : "It will apply to new check-ins again.",
+              ? 'It stops applying to new check-ins. Invoices it already priced are untouched — a retired rule is kept because it explains them.'
+              : 'It will apply to new check-ins again.',
           }}
           onToggle={() => void toggle(r)}
         />
@@ -247,33 +259,37 @@ function FeeSchedule() {
 
       <Card header="How a fee is decided">
         <p className="text-sm text-fg-muted">
-          A rule can name a <strong className="font-medium text-fg">doctor</strong>, a{" "}
-          <strong className="font-medium text-fg">department</strong>, a{" "}
-          <strong className="font-medium text-fg">case type</strong>, a{" "}
-          <strong className="font-medium text-fg">consultation type</strong>, a{" "}
-          <strong className="font-medium text-fg">visit type</strong>, or any combination. Leaving one as
-          &ldquo;any&rdquo; makes the rule broader. When several rules match, the{" "}
-          <strong className="font-medium text-fg">most specific wins</strong> — a named doctor beats a department,
-          which beats a case type, which beats a consultation type, which beats a blanket visit-type rate. Rules
-          are listed below in that order.
+          A rule can name a <strong className="font-medium text-fg">doctor</strong>, a{' '}
+          <strong className="font-medium text-fg">department</strong>, a{' '}
+          <strong className="font-medium text-fg">case type</strong>, a{' '}
+          <strong className="font-medium text-fg">consultation type</strong>, a{' '}
+          <strong className="font-medium text-fg">visit type</strong>, or any combination. Leaving
+          one as &ldquo;any&rdquo; makes the rule broader. When several rules match, the{' '}
+          <strong className="font-medium text-fg">most specific wins</strong> — a named doctor beats
+          a department, which beats a case type, which beats a consultation type, which beats a
+          blanket visit-type rate. Rules are listed below in that order.
         </p>
         {consultationTypes.length === 0 && caseTypes.length === 0 && (
           <p className="mt-3 text-sm text-fg-muted">
-            Consultation types (teleconsultation, procedure, review…) and case types (corporate, insurance,
-            camp…) are your own words, and you have not defined any yet. Add them under{" "}
-            <strong className="font-medium text-fg">Hospital setup → Workflow</strong> and they become
-            available here and on the check-in form.
+            Consultation types (teleconsultation, procedure, review…) and case types (corporate,
+            insurance, camp…) are your own words, and you have not defined any yet. Add them under{' '}
+            <strong className="font-medium text-fg">Hospital setup → Workflow</strong> and they
+            become available here and on the check-in form.
           </p>
         )}
         <p className="mt-3 text-sm text-fg-muted">
-          Where nothing matches, the doctor&rsquo;s own configured fee applies, and then ₹0. A hospital that adds no
-          rules here keeps behaving exactly as it does today.
+          Where nothing matches, the doctor&rsquo;s own configured fee applies, and then ₹0. A
+          hospital that adds no rules here keeps behaving exactly as it does today.
         </p>
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-          <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showRetired}
+            onChange={(e) => setShowRetired(e.target.checked)}
+          />
           Show retired rules
         </label>
         {canManage && (
@@ -308,10 +324,20 @@ function FeeSchedule() {
         busy={saving}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setAdding(false)} disabled={saving}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setAdding(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="button" loading={saving} onClick={() => void add()} disabled={!feeRupees.trim()}>
+            <Button
+              type="button"
+              loading={saving}
+              onClick={() => void add()}
+              disabled={!feeRupees.trim()}
+            >
               Add rule
             </Button>
           </>
@@ -320,18 +346,28 @@ function FeeSchedule() {
         <div className="flex flex-col gap-4">
           {addError && <Alert tone="danger">{addError}</Alert>}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Select label="Doctor" value={providerId} onChange={setProviderId} options={providerOptions} />
-            <Select label="Department" value={departmentId} onChange={setDepartmentId} options={departmentOptions} />
+            <Select
+              label="Doctor"
+              value={providerId}
+              onChange={setProviderId}
+              options={providerOptions}
+            />
+            <Select
+              label="Department"
+              value={departmentId}
+              onChange={setDepartmentId}
+              options={departmentOptions}
+            />
             <Select
               label="Visit type"
               value={arrivalType}
               onChange={setArrivalType}
               searchable={false}
               options={[
-                { value: ANY, label: "Any visit type" },
-                { value: "walk_in", label: "Walk-in" },
-                { value: "appointment", label: "First visit" },
-                { value: "follow_up", label: "Follow-up" },
+                { value: ANY, label: 'Any visit type' },
+                { value: 'walk_in', label: 'Walk-in' },
+                { value: 'appointment', label: 'First visit' },
+                { value: 'follow_up', label: 'Follow-up' },
               ]}
             />
             {/* Both are hidden until the hospital has a vocabulary — an empty dropdown is a dead end. */}
@@ -343,7 +379,7 @@ function FeeSchedule() {
                 searchable={false}
                 hint="Beats consultation type when both match."
                 options={[
-                  { value: ANY, label: "Any case type" },
+                  { value: ANY, label: 'Any case type' },
                   ...caseTypes.map((t) => ({ value: t, label: t })),
                 ]}
               />
@@ -355,7 +391,7 @@ function FeeSchedule() {
                 onChange={setConsultationType}
                 searchable={false}
                 options={[
-                  { value: ANY, label: "Any consultation type" },
+                  { value: ANY, label: 'Any consultation type' },
                   ...consultationTypes.map((t) => ({ value: t, label: t })),
                 ]}
               />
@@ -389,7 +425,12 @@ function FeeSchedule() {
         busy={saving}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setEditing(null)} disabled={saving}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setEditing(null)}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button type="button" loading={saving} onClick={() => void saveEdit()}>

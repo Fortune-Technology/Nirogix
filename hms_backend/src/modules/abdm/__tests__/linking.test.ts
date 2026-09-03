@@ -6,7 +6,12 @@ import { createPatient } from '../../patient/patient.service';
 import { upsertFacilityConfig } from '../abdm.service';
 import { recordCareContext, labelForVisit, listCareContexts } from '../careContext.service';
 import { clearRecordedHipCalls, recordedHipCalls } from '../hipGateway';
-import { linkTokenExpiry, linkTokenFor, requestLinkToken, storeLinkToken } from '../linkToken.service';
+import {
+  linkTokenExpiry,
+  linkTokenFor,
+  requestLinkToken,
+  storeLinkToken,
+} from '../linkToken.service';
 import * as linking from '../linking.service';
 
 /**
@@ -28,7 +33,9 @@ let unverifiedPatientId = '';
 
 /** A JWT-shaped token whose `exp` is a chosen number of days away. Only the payload matters here. */
 function tokenExpiringInDays(days: number): string {
-  const payload = Buffer.from(JSON.stringify({ sub: 'x', exp: Math.floor(Date.now() / 1000) + days * 86400 })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ sub: 'x', exp: Math.floor(Date.now() / 1000) + days * 86400 }),
+  ).toString('base64url');
   return `eyJhbGciOiJSUzUxMiJ9.${payload}.signature-not-checked`;
 }
 
@@ -57,7 +64,9 @@ beforeAll(async () => {
   // Same ABHA string, never verified — the case that must never be linked.
   const unverified = await createPatient(tenantId, { firstName: 'Typed', phone: '9700002222' });
   unverifiedPatientId = unverified.id;
-  await pool.query("UPDATE patients SET abha_address = 'typed@sbx' WHERE id = $1", [unverifiedPatientId]);
+  await pool.query("UPDATE patients SET abha_address = 'typed@sbx' WHERE id = $1", [
+    unverifiedPatientId,
+  ]);
 });
 
 afterAll(async () => {
@@ -89,7 +98,10 @@ describe('link token lifetime', () => {
     const token = tokenExpiringInDays(180);
     expect(await storeLinkToken({ abhaAddress: 'linked@sbx', token, hipId: HIP_ID })).toBe(true);
 
-    const row = await pool.query('SELECT token_enc, expires_at FROM abdm_link_tokens WHERE abha_address = $1', ['linked@sbx']);
+    const row = await pool.query(
+      'SELECT token_enc, expires_at FROM abdm_link_tokens WHERE abha_address = $1',
+      ['linked@sbx'],
+    );
     expect(row.rows[0].token_enc).toMatch(/^v1\./);
     expect(row.rows[0].token_enc).not.toContain(token);
     expect(row.rows[0].expires_at).toBeTruthy();
@@ -101,13 +113,23 @@ describe('link token lifetime', () => {
     if (!ready) return skip();
     // Starting a link with a token that expires in hours risks it dying mid-flight, so the caller
     // is told there is none and asks for a fresh one.
-    await storeLinkToken({ abhaAddress: 'expiring@sbx', token: tokenExpiringInDays(0.5), hipId: HIP_ID });
+    await storeLinkToken({
+      abhaAddress: 'expiring@sbx',
+      token: tokenExpiringInDays(0.5),
+      hipId: HIP_ID,
+    });
     expect(await linkTokenFor(tenantId, 'expiring@sbx')).toBeNull();
   });
 
   test('a token for an unknown facility is dropped', async ({ skip }) => {
     if (!ready) return skip();
-    expect(await storeLinkToken({ abhaAddress: 'x@sbx', token: tokenExpiringInDays(90), hipId: 'NOT-A-FACILITY' })).toBe(false);
+    expect(
+      await storeLinkToken({
+        abhaAddress: 'x@sbx',
+        token: tokenExpiringInDays(90),
+        hipId: 'NOT-A-FACILITY',
+      }),
+    ).toBe(false);
   });
 });
 
@@ -116,7 +138,10 @@ describe('requesting a link token', () => {
     if (!ready) return skip();
     // Asking a national registry to trust a hand-typed identifier would be our error, not the
     // patient's (ADR-084).
-    const result = await requestLinkToken(tenantId, { patientId: unverifiedPatientId, hipId: HIP_ID });
+    const result = await requestLinkToken(tenantId, {
+      patientId: unverifiedPatientId,
+      hipId: HIP_ID,
+    });
     expect(result.requested).toBe(false);
     expect(result.reason).toContain('not been verified');
     expect(recordedHipCalls()).toHaveLength(0);
@@ -125,7 +150,10 @@ describe('requesting a link token', () => {
   test('sends the demographics from the chart', async ({ skip }) => {
     if (!ready) return skip();
     await pool.query('DELETE FROM abdm_link_tokens WHERE abha_address = $1', ['linked@sbx']);
-    const result = await requestLinkToken(tenantId, { patientId: verifiedPatientId, hipId: HIP_ID });
+    const result = await requestLinkToken(tenantId, {
+      patientId: verifiedPatientId,
+      hipId: HIP_ID,
+    });
     expect(result.requested).toBe(true);
 
     const call = recordedHipCalls().at(-1)!;
@@ -143,7 +171,10 @@ describe('requesting a link token', () => {
     if (!ready) return skip();
     // The webhook is the only thing that resolves it; asking again just adds another callback.
     clearRecordedHipCalls();
-    const second = await requestLinkToken(tenantId, { patientId: verifiedPatientId, hipId: HIP_ID });
+    const second = await requestLinkToken(tenantId, {
+      patientId: verifiedPatientId,
+      hipId: HIP_ID,
+    });
     expect(second.requested).toBe(false);
     expect(second.reason).toContain('already outstanding');
     expect(recordedHipCalls()).toHaveLength(0);
@@ -151,7 +182,9 @@ describe('requesting a link token', () => {
 });
 
 describe('the link payload', () => {
-  test('one context with three HI types becomes three blocks, not three contexts', async ({ skip }) => {
+  test('one context with three HI types becomes three blocks, not three contexts', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const blocks = linking.toPatientBlocks(
       [
@@ -164,10 +197,16 @@ describe('the link payload', () => {
       'UHID-000001',
     );
     expect(blocks).toHaveLength(3);
-    expect(blocks.map((b) => b.hiType).sort()).toEqual(['DiagnosticReport', 'Invoice', 'Prescription']);
+    expect(blocks.map((b) => b.hiType).sort()).toEqual([
+      'DiagnosticReport',
+      'Invoice',
+      'Prescription',
+    ]);
     // Every block points back at the same care context — the fan-out is a wire format only.
     for (const block of blocks) {
-      expect(block.careContexts).toEqual([{ referenceNumber: 'visit-1', display: 'OPD records from 03/10/2026' }]);
+      expect(block.careContexts).toEqual([
+        { referenceNumber: 'visit-1', display: 'OPD records from 03/10/2026' },
+      ]);
       expect(block.count).toBe(1);
     }
   });
@@ -176,7 +215,13 @@ describe('the link payload', () => {
     if (!ready) return skip();
     // The HIE-CM is data blind: the payload may contain a date and a setting, and nothing else.
     const blocks = linking.toPatientBlocks(
-      [{ referenceNumber: 'v', displayLabel: labelForVisit('2026-10-03'), hiTypes: ['Prescription'] } as never],
+      [
+        {
+          referenceNumber: 'v',
+          displayLabel: labelForVisit('2026-10-03'),
+          hiTypes: ['Prescription'],
+        } as never,
+      ],
       'UHID-1',
     );
     expect(JSON.stringify(blocks)).toBe(
@@ -220,7 +265,11 @@ describe('linking a patient', () => {
 
   test('links every pending context in ONE call once a token exists', async ({ skip }) => {
     if (!ready) return skip();
-    await storeLinkToken({ abhaAddress: 'linked@sbx', token: tokenExpiringInDays(120), hipId: HIP_ID });
+    await storeLinkToken({
+      abhaAddress: 'linked@sbx',
+      token: tokenExpiringInDays(120),
+      hipId: HIP_ID,
+    });
     for (const ref of ['visit-a', 'visit-b']) {
       await recordCareContext({
         tenantId,
@@ -235,7 +284,9 @@ describe('linking a patient', () => {
     expect(result.linked).toBe(2);
 
     // One call, not one per context: a visit producing four records should notify the patient once.
-    const linkCalls = recordedHipCalls().filter((c) => c.path === '/api/hiecm/hip/v3/link/carecontext');
+    const linkCalls = recordedHipCalls().filter(
+      (c) => c.path === '/api/hiecm/hip/v3/link/carecontext',
+    );
     expect(linkCalls).toHaveLength(1);
     expect(linkCalls[0]!.headers['X-LINK-TOKEN']).toBeTruthy();
     expect(linkCalls[0]!.headers['X-HIP-ID']).toBe(HIP_ID);
@@ -262,7 +313,11 @@ describe('linking a patient', () => {
 
   test('the sweep is safe to run twice', async ({ skip }) => {
     if (!ready) return skip();
-    await storeLinkToken({ abhaAddress: 'linked@sbx', token: tokenExpiringInDays(120), hipId: HIP_ID });
+    await storeLinkToken({
+      abhaAddress: 'linked@sbx',
+      token: tokenExpiringInDays(120),
+      hipId: HIP_ID,
+    });
     await recordCareContext({
       tenantId,
       patientId: verifiedPatientId,
@@ -283,7 +338,11 @@ describe('when ABDM says the link failed', () => {
   test('the context goes back to pending so the sweep retries', async ({ skip }) => {
     if (!ready) return skip();
     await pool.query('DELETE FROM abdm_care_contexts WHERE tenant_id = $1', [tenantId]);
-    await storeLinkToken({ abhaAddress: 'linked@sbx', token: tokenExpiringInDays(120), hipId: HIP_ID });
+    await storeLinkToken({
+      abhaAddress: 'linked@sbx',
+      token: tokenExpiringInDays(120),
+      hipId: HIP_ID,
+    });
     await recordCareContext({
       tenantId,
       patientId: verifiedPatientId,
@@ -309,7 +368,11 @@ describe('when ABDM says the link failed', () => {
   test('a success confirmation does not move the linked timestamp', async ({ skip }) => {
     if (!ready) return skip();
     const before = (await listCareContexts(tenantId, verifiedPatientId))[0];
-    await linking.recordLinkCallback({ hipId: HIP_ID, abhaAddress: 'linked@sbx', status: 'Successfully Linked care context' });
+    await linking.recordLinkCallback({
+      hipId: HIP_ID,
+      abhaAddress: 'linked@sbx',
+      status: 'Successfully Linked care context',
+    });
     const after = (await listCareContexts(tenantId, verifiedPatientId))[0];
     expect(after?.linkedAt?.toISOString()).toBe(before?.linkedAt?.toISOString());
   });
@@ -324,7 +387,9 @@ describe('the SMS fallback', () => {
     expect(result.sent).toBe(true);
     const call = recordedHipCalls().at(-1)!;
     expect(call.path).toBe('/api/hiecm/hip/v3/link/patient/links/sms/notify2');
-    expect(call.body).toMatchObject({ notification: { hip: { id: HIP_ID }, phoneNo: '9700002222' } });
+    expect(call.body).toMatchObject({
+      notification: { hip: { id: HIP_ID }, phoneNo: '9700002222' },
+    });
   });
 
   test('does not text a patient whose records are already linked', async ({ skip }) => {
@@ -370,7 +435,10 @@ describe('the callbacks ABDM posts to us', () => {
 
   test('a malformed callback is refused', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await api().post('/api/v3/hip/token/on-generate-token').set('X-HIP-ID', HIP_ID).send({ nope: true });
+    const res = await api()
+      .post('/api/v3/hip/token/on-generate-token')
+      .set('X-HIP-ID', HIP_ID)
+      .send({ nope: true });
     expect(res.status).toBe(422);
   });
 

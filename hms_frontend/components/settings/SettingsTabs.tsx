@@ -1,10 +1,22 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Building2, FileText, IndianRupee, ListChecks, Palette, Layers, QrCode, Hospital, ShieldCheck, Workflow, type LucideIcon } from "lucide-react";
-import { PERMISSIONS } from "@hms/permissions";
-import { useCan } from "../../lib/auth";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Building2,
+  FileText,
+  IndianRupee,
+  ListChecks,
+  Palette,
+  Layers,
+  QrCode,
+  Hospital,
+  ShieldCheck,
+  Workflow,
+  type LucideIcon,
+} from 'lucide-react';
+import { PERMISSIONS } from '@hms/permissions';
+import { useCan } from '../../lib/auth';
 
 /**
  * The Hospital Configuration console's own navigation (ADR-049).
@@ -21,19 +33,59 @@ import { useCan } from "../../lib/auth";
 type Tab = { href: string; label: string; icon: LucideIcon; perm: string | null };
 
 const TABS: Tab[] = [
-  { href: "/hospital-setup", label: "Setup overview", icon: ListChecks, perm: null },
-  { href: "/hospital-setup/hospital-information", label: "Hospital information", icon: Building2, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/hospital-setup/letterhead", label: "Letterhead", icon: FileText, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/hospital-setup/branding", label: "Branding", icon: Palette, perm: PERMISSIONS.BRANDING_MANAGE },
+  { href: '/hospital-setup', label: 'Setup overview', icon: ListChecks, perm: null },
+  {
+    href: '/hospital-setup/hospital-information',
+    label: 'Hospital information',
+    icon: Building2,
+    perm: PERMISSIONS.ORG_PROFILE_MANAGE,
+  },
+  {
+    href: '/hospital-setup/letterhead',
+    label: 'Letterhead',
+    icon: FileText,
+    perm: PERMISSIONS.ORG_PROFILE_MANAGE,
+  },
+  {
+    href: '/hospital-setup/branding',
+    label: 'Branding',
+    icon: Palette,
+    perm: PERMISSIONS.BRANDING_MANAGE,
+  },
   // One tab for the three QR surfaces — self-registration, online booking, self check-in. They
   // are one mechanism with three destinations, and three tabs only asked the administrator to
   // remember which was which (ADR-124). Each still has its own setting, token and queue.
-  { href: "/hospital-setup/public-access", label: "Patient self-service", icon: QrCode, perm: PERMISSIONS.ORG_PROFILE_MANAGE },
-  { href: "/hospital-setup/hospital-availability", label: "Hospital availability", icon: Hospital, perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE },
-  { href: "/hospital-setup/workflow", label: "Workflow", icon: Workflow, perm: PERMISSIONS.WORKFLOW_CONFIG_VIEW },
-  { href: "/hospital-setup/fee-schedule", label: "Fee schedule", icon: IndianRupee, perm: PERMISSIONS.BILLING_FEE_RULES_VIEW },
-  { href: "/hospital-setup/abdm", label: "ABDM / ABHA", icon: ShieldCheck, perm: PERMISSIONS.ABDM_FACILITY_VIEW },
-  { href: "/hospital-setup/enabled-modules", label: "Enabled modules", icon: Layers, perm: null },
+  {
+    href: '/hospital-setup/public-access',
+    label: 'Patient self-service',
+    icon: QrCode,
+    perm: PERMISSIONS.ORG_PROFILE_MANAGE,
+  },
+  {
+    href: '/hospital-setup/hospital-availability',
+    label: 'Hospital availability',
+    icon: Hospital,
+    perm: PERMISSIONS.CATALOG_AVAILABILITY_MANAGE,
+  },
+  {
+    href: '/hospital-setup/workflow',
+    label: 'Workflow',
+    icon: Workflow,
+    perm: PERMISSIONS.WORKFLOW_CONFIG_VIEW,
+  },
+  {
+    href: '/hospital-setup/fee-schedule',
+    label: 'Fee schedule',
+    icon: IndianRupee,
+    perm: PERMISSIONS.BILLING_FEE_RULES_VIEW,
+  },
+  {
+    href: '/hospital-setup/abdm',
+    label: 'ABDM / ABHA',
+    icon: ShieldCheck,
+    perm: PERMISSIONS.ABDM_FACILITY_VIEW,
+  },
+  { href: '/hospital-setup/enabled-modules', label: 'Enabled modules', icon: Layers, perm: null },
 ];
 
 function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
@@ -47,13 +99,13 @@ function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
     <li>
       <Link
         href={tab.href}
-        aria-current={active ? "page" : undefined}
+        aria-current={active ? 'page' : undefined}
         className={[
-          "flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm transition-colors",
+          'flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm transition-colors',
           active
-            ? "border-b-2 border-brand font-medium text-brand"
-            : "border-b-2 border-transparent text-fg-muted hover:text-fg",
-        ].join(" ")}
+            ? 'border-b-2 border-brand font-medium text-brand'
+            : 'border-b-2 border-transparent text-fg-muted hover:text-fg',
+        ].join(' ')}
       >
         <Icon size={16} strokeWidth={2} />
         {tab.label}

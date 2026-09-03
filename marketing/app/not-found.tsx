@@ -1,12 +1,12 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-import { ArrowRight, Compass } from "lucide-react";
-import { Container } from "../components/ui/primitives";
-import { Button } from "../components/ui/Button";
-import { NAV_LINKS } from "../lib/site";
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { ArrowRight, Compass } from 'lucide-react';
+import { Container } from '../components/ui/primitives';
+import { Button } from '../components/ui/Button';
+import { NAV_LINKS } from '../lib/site';
 
 export const metadata: Metadata = {
-  title: "Page not found",
+  title: 'Page not found',
   robots: { index: false, follow: true },
 };
 
@@ -25,10 +25,12 @@ export default function NotFound() {
         </span>
 
         <p className="mt-8 font-mono text-sm tracking-wide text-accent">404</p>
-        <h1 className="mk-display mt-3 max-w-2xl text-ink">This page has moved, or never existed</h1>
+        <h1 className="mk-display mt-3 max-w-2xl text-ink">
+          This page has moved, or never existed
+        </h1>
         <p className="mk-lede mt-4 max-w-xl text-ink-muted">
-          The link may be out of date. Everything about the platform, its modules and the specialties it supports is
-          still a click away.
+          The link may be out of date. Everything about the platform, its modules and the
+          specialties it supports is still a click away.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -40,7 +42,10 @@ export default function NotFound() {
           </Button>
         </div>
 
-        <nav aria-label="Site sections" className="mt-14 w-full max-w-3xl border-t border-hairline pt-8">
+        <nav
+          aria-label="Site sections"
+          className="mt-14 w-full max-w-3xl border-t border-hairline pt-8"
+        >
           <p className="text-sm font-medium text-ink-subtle">Or jump straight to</p>
           <ul className="mt-4 flex flex-wrap justify-center gap-2">
             {NAV_LINKS.map((link) => (

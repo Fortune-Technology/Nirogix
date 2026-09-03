@@ -17,7 +17,8 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
 export async function uploadLetterheadImage(req: Request, res: Response): Promise<void> {
   const file = req.file;
   if (!file) throw Errors.validation(undefined, 'No file provided (multipart field "file")');
-  if (!file.mimetype.startsWith('image/')) throw Errors.validation(undefined, 'The letterhead must be an image');
+  if (!file.mimetype.startsWith('image/'))
+    throw Errors.validation(undefined, 'The letterhead must be an image');
   const meta = await uploadFile({
     tenantId: req.auth!.tenantId,
     uploadedBy: req.auth!.userId,

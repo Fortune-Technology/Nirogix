@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useLayoutEffect, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
-import { ReactLenis, useLenis } from "lenis/react";
+import { useEffect, useLayoutEffect, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { ReactLenis, useLenis } from 'lenis/react';
 
 // Run synchronously before the browser paints on the client (so a new route never flashes at the
 // previous scroll position), but fall back to a plain effect during SSR where useLayoutEffect warns.
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
  * Positions the scroll on every client-side route change (resources/DESIGN.md — frontend rules):
@@ -26,7 +26,7 @@ function ScrollOnRouteChange() {
   const lenis = useLenis();
 
   useIsomorphicLayoutEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
     const hash = window.location.hash;
     if (hash.length > 1) {

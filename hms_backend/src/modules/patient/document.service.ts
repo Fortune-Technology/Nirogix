@@ -90,9 +90,15 @@ export interface ListDocumentsOptions {
   includeArchived?: boolean;
 }
 
-export async function listDocuments(tenantId: string, opts: ListDocumentsOptions): Promise<PatientDocumentDto[]> {
+export async function listDocuments(
+  tenantId: string,
+  opts: ListDocumentsOptions,
+): Promise<PatientDocumentDto[]> {
   return runWithTenant(tenantId, async (tx) => {
-    const conds = [eq(patientDocuments.tenantId, tenantId), eq(patientDocuments.patientId, opts.patientId)];
+    const conds = [
+      eq(patientDocuments.tenantId, tenantId),
+      eq(patientDocuments.patientId, opts.patientId),
+    ];
     if (opts.caseId) conds.push(eq(patientDocuments.caseId, opts.caseId));
     if (!opts.includeArchived) conds.push(eq(patientDocuments.status, 'active'));
 
@@ -145,7 +151,11 @@ export async function attachDocument(
     // another hospital's chart.
     const file = (
       await tx
-        .select({ id: fileMetadata.id, filename: fileMetadata.filename, status: fileMetadata.status })
+        .select({
+          id: fileMetadata.id,
+          filename: fileMetadata.filename,
+          status: fileMetadata.status,
+        })
         .from(fileMetadata)
         .where(and(eq(fileMetadata.tenantId, tenantId), eq(fileMetadata.id, input.fileId)))
         .limit(1)
@@ -258,7 +268,8 @@ export async function archiveDocument(
         ),
       )
       .returning({ id: patientDocuments.id });
-    if (!bumped[0]) throw Errors.conflict('That document was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('That document was changed by someone else. Reload and try again');
     return row.patientId;
   });
 

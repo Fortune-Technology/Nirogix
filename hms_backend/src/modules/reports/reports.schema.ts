@@ -1,6 +1,8 @@
 import { z } from '../../openapi/registry';
 
-export const DateRangeQuery = z.object({ from: z.string(), to: z.string() }).openapi('DateRangeQuery');
+export const DateRangeQuery = z
+  .object({ from: z.string(), to: z.string() })
+  .openapi('DateRangeQuery');
 
 export const OpdRegisterRowSchema = z
   .object({

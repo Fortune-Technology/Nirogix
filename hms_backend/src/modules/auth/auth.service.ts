@@ -21,14 +21,21 @@ import {
   type RefreshClaims,
   type PasswordResetClaims,
 } from './tokens';
-import type { ForgotPasswordInput, LoginInput, PublicUser, ResetPasswordInput } from './auth.schema';
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  PublicUser,
+  ResetPasswordInput,
+} from './auth.schema';
 import { writeAudit } from '../audit/audit.service';
 import { sendAppEmail } from '../notification/communication.service';
 import { eventBus } from '../../events/eventBus';
 
 /** Hospital name for an email body (the `tenants` table is platform-managed, no RLS). */
 async function orgNameOf(tenantId: string): Promise<string> {
-  const row = (await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0];
+  const row = (
+    await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  )[0];
   return row?.name ?? 'Nirogix';
 }
 
@@ -86,7 +93,11 @@ async function resolveTenantByCode(code: string) {
   // Case-insensitive match: staff and operators may type the organization code in any case
   // (`nirogix`, `Nirogix`, `NIROGIX`). Codes are stored in a canonical (upper) case, so a
   // case-folded comparison resolves the tenant regardless of how it was typed on the form.
-  const rows = await db.select().from(tenants).where(sql`lower(${tenants.code}) = lower(${code})`).limit(1);
+  const rows = await db
+    .select()
+    .from(tenants)
+    .where(sql`lower(${tenants.code}) = lower(${code})`)
+    .limit(1);
   return rows[0] ?? null;
 }
 
@@ -317,7 +328,11 @@ export async function logout(
       .returning();
     const row = revoked[0];
     if (!row) return null;
-    return { tenantId: row.tenantId, userId: row.userId, impersonatedBy: row.impersonatedBy ?? null };
+    return {
+      tenantId: row.tenantId,
+      userId: row.userId,
+      impersonatedBy: row.impersonatedBy ?? null,
+    };
   });
 }
 
@@ -383,7 +398,11 @@ export async function changeOwnPassword(
       .update(users)
       // The old password is dead, so any failure streak counted against it goes with it
       // (ADR-082) — a user who just proved themselves is never left locked out.
-      .set({ passwordHash: await hashPassword(input.newPassword), updatedAt: new Date(), ...CLEARED })
+      .set({
+        passwordHash: await hashPassword(input.newPassword),
+        updatedAt: new Date(),
+        ...CLEARED,
+      })
       .where(eq(users.id, userId));
 
     // Every session is invalidated, including this one: a password change must log
@@ -526,7 +545,8 @@ export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta)
 
     const userRows = await tx.select().from(users).where(eq(users.id, claims.sub)).limit(1);
     const user = userRows[0];
-    if (!user || user.status !== 'active') throw Errors.unauthorized('Invalid or expired reset link');
+    if (!user || user.status !== 'active')
+      throw Errors.unauthorized('Invalid or expired reset link');
 
     if (await verifyPassword(input.newPassword, user.passwordHash)) {
       throw Errors.validation(undefined, 'The new password must be different from the current one');
@@ -591,7 +611,12 @@ export async function issueImpersonatedSession(
 ): Promise<{ accessToken: string; refreshToken: string }> {
   const sid = randomUUID();
   const refreshToken = signRefreshToken({ sub: userId, tid: tenantId, sid });
-  const accessToken = signAccessToken({ sub: userId, tid: tenantId, roles, imp: meta.impersonatedBy });
+  const accessToken = signAccessToken({
+    sub: userId,
+    tid: tenantId,
+    roles,
+    imp: meta.impersonatedBy,
+  });
   await runWithTenant(tenantId, (tx) =>
     tx.insert(sessions).values({
       id: sid,

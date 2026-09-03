@@ -9,7 +9,10 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ tone = 'neutral', className, children, ...rest }: BadgeProps) {
   return (
-    <span className={cn('hms-badge', tone !== 'neutral' && `hms-badge--${tone}`, className)} {...rest}>
+    <span
+      className={cn('hms-badge', tone !== 'neutral' && `hms-badge--${tone}`, className)}
+      {...rest}
+    >
       {children}
     </span>
   );

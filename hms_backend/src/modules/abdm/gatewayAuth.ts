@@ -154,27 +154,40 @@ export function requireAbdmGateway(req: Request, res: Response, next: NextFuncti
 
   if (!token) {
     if (active === 'log') {
-      logger.warn({ path: req.path, headers: Object.keys(req.headers) }, 'ABDM callback carried no bearer token (log mode — allowed)');
+      logger.warn(
+        { path: req.path, headers: Object.keys(req.headers) },
+        'ABDM callback carried no bearer token (log mode — allowed)',
+      );
       return next();
     }
     logger.warn({ path: req.path }, 'ABDM callback refused: no bearer token');
-    res.status(401).json({ error: { code: 'ABDM_CALLBACK_UNAUTHENTICATED', message: 'Unauthenticated' } });
+    res
+      .status(401)
+      .json({ error: { code: 'ABDM_CALLBACK_UNAUTHENTICATED', message: 'Unauthenticated' } });
     return;
   }
 
   verifyGatewayToken(token)
     .then(({ kid, claims }) => {
       // Logged rather than enforced until a real callback has been seen — see the header comment.
-      logger.info({ path: req.path, kid, iss: claims.iss, aud: claims.aud, sub: claims.sub }, 'ABDM callback verified');
+      logger.info(
+        { path: req.path, kid, iss: claims.iss, aud: claims.aud, sub: claims.sub },
+        'ABDM callback verified',
+      );
       next();
     })
     .catch((err: unknown) => {
       if (active === 'log') {
-        logger.warn({ err, path: req.path }, 'ABDM callback failed verification (log mode — allowed)');
+        logger.warn(
+          { err, path: req.path },
+          'ABDM callback failed verification (log mode — allowed)',
+        );
         return next();
       }
       logger.warn({ err, path: req.path }, 'ABDM callback refused: token did not verify');
-      res.status(401).json({ error: { code: 'ABDM_CALLBACK_UNAUTHENTICATED', message: 'Unauthenticated' } });
+      res
+        .status(401)
+        .json({ error: { code: 'ABDM_CALLBACK_UNAUTHENTICATED', message: 'Unauthenticated' } });
     });
 }
 

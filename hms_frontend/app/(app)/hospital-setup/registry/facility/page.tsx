@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Alert, Badge, Button, Card, Field, PageHeader, Select, Spinner, toast } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { Branch } from "@hms/types";
-import { ArrowLeft, Pencil, Save, Search, Send } from "lucide-react";
-import * as api from "../../../../../lib/api";
-import { RequirePermission } from "../../../../../components/Can";
-import { useCan } from "../../../../../lib/auth";
-import { RegistryMasterSelect } from "../../../../../components/abdm/RegistryMasterSelect";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Alert, Badge, Button, Card, Field, PageHeader, Select, Spinner, toast } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { Branch } from '@hms/types';
+import { ArrowLeft, Pencil, Save, Search, Send } from 'lucide-react';
+import * as api from '../../../../../lib/api';
+import { RequirePermission } from '../../../../../components/Can';
+import { useCan } from '../../../../../lib/auth';
+import { RegistryMasterSelect } from '../../../../../components/abdm/RegistryMasterSelect';
 
 /**
  * Registering the hospital in the Health Facility Registry (ADR-096; HFR-010…HFR-063).
@@ -32,42 +32,65 @@ import { RegistryMasterSelect } from "../../../../../components/abdm/RegistryMas
  *   corrected.
  */
 
-const STATUS: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger"; note: string }> = {
-  draft: { label: "Not submitted", tone: "neutral", note: "Nothing has been sent to the registry yet." },
-  submitted: {
-    label: "Awaiting verification",
-    tone: "warning",
-    note: "Sent to HFR. A verifier reviews it by hand, which takes time — this is not yet an approval.",
+const STATUS: Record<
+  string,
+  { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger'; note: string }
+> = {
+  draft: {
+    label: 'Not submitted',
+    tone: 'neutral',
+    note: 'Nothing has been sent to the registry yet.',
   },
-  under_review: { label: "Under review", tone: "warning", note: "A verifier has picked it up." },
-  verified: { label: "Verified", tone: "success", note: "HFR has issued a Facility ID." },
-  rejected: { label: "Rejected", tone: "danger", note: "Correct what the registry asked for and submit again." },
+  submitted: {
+    label: 'Awaiting verification',
+    tone: 'warning',
+    note: 'Sent to HFR. A verifier reviews it by hand, which takes time — this is not yet an approval.',
+  },
+  under_review: { label: 'Under review', tone: 'warning', note: 'A verifier has picked it up.' },
+  verified: { label: 'Verified', tone: 'success', note: 'HFR has issued a Facility ID.' },
+  rejected: {
+    label: 'Rejected',
+    tone: 'danger',
+    note: 'Correct what the registry asked for and submit again.',
+  },
 };
 
 /** Bed counts, in the order and wording the workbook uses (HFR-050…061). */
 const BED_FIELDS: Array<{ key: string; label: string; max: number }> = [
-  { key: "countIPDBedsWithoutOxygen", label: "IPD beds without oxygen", max: 99 },
-  { key: "countIPDBedsWithOxygen", label: "IPD beds with oxygen", max: 99 },
-  { key: "countICUBedsWithVentilators", label: "ICU beds with ventilators", max: 99 },
-  { key: "countICUBedsWithoutVentilators", label: "ICU beds without ventilators", max: 99 },
-  { key: "countHDUBedsWithFunctionalVentilators", label: "HDU beds with functional ventilators", max: 99 },
-  { key: "countHDUBedsWithVentilators", label: "HDU beds with ventilators", max: 99 },
-  { key: "countHDUBedsWithoutVentilators", label: "HDU beds without ventilators", max: 99 },
-  { key: "countDayCareBedsWithoutOxygen", label: "Day-care beds without oxygen", max: 99 },
-  { key: "countDayCareBedsWithOxygen", label: "Day-care beds with oxygen", max: 99 },
-  { key: "countDentalChairs", label: "Dental chairs", max: 99 },
+  { key: 'countIPDBedsWithoutOxygen', label: 'IPD beds without oxygen', max: 99 },
+  { key: 'countIPDBedsWithOxygen', label: 'IPD beds with oxygen', max: 99 },
+  { key: 'countICUBedsWithVentilators', label: 'ICU beds with ventilators', max: 99 },
+  { key: 'countICUBedsWithoutVentilators', label: 'ICU beds without ventilators', max: 99 },
+  {
+    key: 'countHDUBedsWithFunctionalVentilators',
+    label: 'HDU beds with functional ventilators',
+    max: 99,
+  },
+  { key: 'countHDUBedsWithVentilators', label: 'HDU beds with ventilators', max: 99 },
+  { key: 'countHDUBedsWithoutVentilators', label: 'HDU beds without ventilators', max: 99 },
+  { key: 'countDayCareBedsWithoutOxygen', label: 'Day-care beds without oxygen', max: 99 },
+  { key: 'countDayCareBedsWithOxygen', label: 'Day-care beds with oxygen', max: 99 },
+  { key: 'countDentalChairs', label: 'Dental chairs', max: 99 },
 ];
 
 /** Identifiers the facility may already hold elsewhere (HFR-039…046). All optional. */
 const PROGRAMME_FIELDS: Array<{ key: string; label: string; hint: string }> = [
-  { key: "nhrrId", label: "NHRR ID", hint: "National Health Resource Repository" },
-  { key: "ninId", label: "NIN", hint: "National Identification Number" },
-  { key: "abPmjayId", label: "AB-PMJAY hospital ID", hint: "Ayushman Bharat" },
-  { key: "rohiniId", label: "ROHINI ID", hint: "Registry of Hospitals in Network of Insurance" },
-  { key: "echsId", label: "ECHS ID", hint: "Ex-Servicemen Contributory Health Scheme" },
-  { key: "cghsId", label: "CGHS ID", hint: "Central Government Health Scheme" },
-  { key: "ceaRegistrationNumber", label: "CEA registration number", hint: "Clinical Establishments Act" },
-  { key: "stateInsuranceSchemeId", label: "State insurance scheme ID", hint: "If the state runs one" },
+  { key: 'nhrrId', label: 'NHRR ID', hint: 'National Health Resource Repository' },
+  { key: 'ninId', label: 'NIN', hint: 'National Identification Number' },
+  { key: 'abPmjayId', label: 'AB-PMJAY hospital ID', hint: 'Ayushman Bharat' },
+  { key: 'rohiniId', label: 'ROHINI ID', hint: 'Registry of Hospitals in Network of Insurance' },
+  { key: 'echsId', label: 'ECHS ID', hint: 'Ex-Servicemen Contributory Health Scheme' },
+  { key: 'cghsId', label: 'CGHS ID', hint: 'Central Government Health Scheme' },
+  {
+    key: 'ceaRegistrationNumber',
+    label: 'CEA registration number',
+    hint: 'Clinical Establishments Act',
+  },
+  {
+    key: 'stateInsuranceSchemeId',
+    label: 'State insurance scheme ID',
+    hint: 'If the state runs one',
+  },
 ];
 
 type Draft = {
@@ -87,13 +110,13 @@ type Draft = {
 };
 
 const EMPTY: Draft = {
-  facilityName: "",
-  ownershipCode: "",
-  ownershipSubTypeCode: "",
-  ownershipSubTypeCode2: "",
-  facilityTypeCode: "",
-  facilitySubType: "",
-  facilityOperationalStatus: "",
+  facilityName: '',
+  ownershipCode: '',
+  ownershipSubTypeCode: '',
+  ownershipSubTypeCode2: '',
+  facilityTypeCode: '',
+  facilitySubType: '',
+  facilityOperationalStatus: '',
   systemOfMedicineCodes: [],
   address: {},
   contact: {},
@@ -113,7 +136,7 @@ export default function FacilityRegistrationPage() {
 function FacilityRegistration() {
   const canManage = useCan(PERMISSIONS.ABDM_REGISTRY_MANAGE);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchId, setBranchId] = useState<string>("");
+  const [branchId, setBranchId] = useState<string>('');
   const [registrations, setRegistrations] = useState<api.AbdmFacilityRegistration[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -122,10 +145,10 @@ function FacilityRegistration() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const current = useMemo(
-    () => registrations.find((r) => (r.branchId ?? "") === branchId) ?? null,
+    () => registrations.find((r) => (r.branchId ?? '') === branchId) ?? null,
     [registrations, branchId],
   );
-  const status = STATUS[current?.status ?? "draft"]!;
+  const status = STATUS[current?.status ?? 'draft']!;
   /**
    * Amending a facility HFR has already verified.
    *
@@ -137,14 +160,14 @@ function FacilityRegistration() {
    * national registry" should be something the administrator chose, not something they discovered.
    */
   const [amending, setAmending] = useState(false);
-  const isVerified = current?.status === "verified";
+  const isVerified = current?.status === 'verified';
 
   // A registration under review is the registry's to change, not ours — editing it locally would
   // show an administrator a form that no longer matches what a verifier is looking at. A verified
   // one unlocks only while amending.
   const locked =
-    current?.status === "submitted" ||
-    current?.status === "under_review" ||
+    current?.status === 'submitted' ||
+    current?.status === 'under_review' ||
     (isVerified && !amending);
   const readOnly = !canManage || locked;
 
@@ -176,42 +199,56 @@ function FacilityRegistration() {
             programmeIds: { ...(payload.programmeIds ?? {}) },
             systemOfMedicineCodes: payload.systemOfMedicineCodes ?? [],
             timings: payload.timings ?? [],
-            facilityName: payload.facilityName ?? current?.facilityName ?? "",
+            facilityName: payload.facilityName ?? current?.facilityName ?? '',
           }
-        : { ...EMPTY, facilityName: current?.facilityName ?? "" },
+        : { ...EMPTY, facilityName: current?.facilityName ?? '' },
     );
     setErrors({});
   }, [current]);
 
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const setNested = (group: "address" | "contact" | "infrastructure" | "programmeIds", key: string, value: string) =>
-    setDraft((d) => ({ ...d, [group]: { ...d[group], [key]: value } }));
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+  const setNested = (
+    group: 'address' | 'contact' | 'infrastructure' | 'programmeIds',
+    key: string,
+    value: string,
+  ) => setDraft((d) => ({ ...d, [group]: { ...d[group], [key]: value } }));
 
   /** Only what the registry itself rejects. A draft is allowed to be incomplete; a submission is not. */
   function validateForSubmit(): Record<string, string> {
     const e: Record<string, string> = {};
     if (!/^[A-Za-z][A-Za-z0-9 .,'&()/-]*$/.test(draft.facilityName.trim()))
-      e.facilityName = "Must start with a letter (HFR-010).";
-    if (!draft.address.stateLGDCode) e.state = "Required.";
-    if (!draft.address.districtLGDCode) e.district = "Required.";
-    if (!draft.address.addressLine1) e.addressLine1 = "Required.";
-    if (draft.address.pincode && !/^\d{6}$/.test(draft.address.pincode)) e.pincode = "Six digits (HFR-019).";
-    if (!draft.address.pincode) e.pincode = "Required.";
-    if (!draft.facilityTypeCode) e.facilityType = "Required.";
-    if (!draft.ownershipCode) e.ownership = "Required.";
-    if (draft.systemOfMedicineCodes.length === 0) e.medicine = "Choose at least one (HFR-034).";
-    if (!draft.facilityOperationalStatus) e.operationalStatus = "Required.";
-    if (draft.contact.facilityContactNumber && !/^\d{10}$/.test(draft.contact.facilityContactNumber))
-      e.mobile = "Ten digits.";
-    if (draft.contact.facilityLandlineNumber && !/^\d{6,8}$/.test(draft.contact.facilityLandlineNumber))
-      e.landline = "Six to eight digits.";
-    if (draft.contact.facilityEmailId && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.contact.facilityEmailId))
-      e.email = "Not a valid email address.";
+      e.facilityName = 'Must start with a letter (HFR-010).';
+    if (!draft.address.stateLGDCode) e.state = 'Required.';
+    if (!draft.address.districtLGDCode) e.district = 'Required.';
+    if (!draft.address.addressLine1) e.addressLine1 = 'Required.';
+    if (draft.address.pincode && !/^\d{6}$/.test(draft.address.pincode))
+      e.pincode = 'Six digits (HFR-019).';
+    if (!draft.address.pincode) e.pincode = 'Required.';
+    if (!draft.facilityTypeCode) e.facilityType = 'Required.';
+    if (!draft.ownershipCode) e.ownership = 'Required.';
+    if (draft.systemOfMedicineCodes.length === 0) e.medicine = 'Choose at least one (HFR-034).';
+    if (!draft.facilityOperationalStatus) e.operationalStatus = 'Required.';
+    if (
+      draft.contact.facilityContactNumber &&
+      !/^\d{10}$/.test(draft.contact.facilityContactNumber)
+    )
+      e.mobile = 'Ten digits.';
+    if (
+      draft.contact.facilityLandlineNumber &&
+      !/^\d{6,8}$/.test(draft.contact.facilityLandlineNumber)
+    )
+      e.landline = 'Six to eight digits.';
+    if (
+      draft.contact.facilityEmailId &&
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.contact.facilityEmailId)
+    )
+      e.email = 'Not a valid email address.';
     return e;
   }
 
   function toBody() {
-    const num = (v?: string) => (v === "" || v === undefined ? undefined : Number(v));
+    const num = (v?: string) => (v === '' || v === undefined ? undefined : Number(v));
     return {
       branchId: branchId || null,
       facilityName: draft.facilityName.trim(),
@@ -222,15 +259,17 @@ function FacilityRegistration() {
       facilitySubType: draft.facilitySubType || undefined,
       facilityOperationalStatus: draft.facilityOperationalStatus || undefined,
       systemOfMedicineCodes: draft.systemOfMedicineCodes,
-      address: Object.fromEntries(Object.entries(draft.address).filter(([, v]) => v !== "")),
-      contact: Object.fromEntries(Object.entries(draft.contact).filter(([, v]) => v !== "")),
+      address: Object.fromEntries(Object.entries(draft.address).filter(([, v]) => v !== '')),
+      contact: Object.fromEntries(Object.entries(draft.contact).filter(([, v]) => v !== '')),
       timings: draft.timings.filter((t) => t.workingDays && t.openingHours),
       infrastructure: Object.fromEntries(
         Object.entries(draft.infrastructure)
           .map(([k, v]) => [k, num(v)])
           .filter(([, v]) => v !== undefined),
       ),
-      programmeIds: Object.fromEntries(Object.entries(draft.programmeIds).filter(([, v]) => v !== "")),
+      programmeIds: Object.fromEntries(
+        Object.entries(draft.programmeIds).filter(([, v]) => v !== ''),
+      ),
     };
   }
 
@@ -238,14 +277,14 @@ function FacilityRegistration() {
     // Deliberately no validation here beyond the name the row is keyed by: a half-filled draft is
     // the normal state of this form, and refusing to save one would lose an afternoon's typing.
     if (!draft.facilityName.trim()) {
-      setErrors({ facilityName: "A name is needed before this can be saved." });
+      setErrors({ facilityName: 'A name is needed before this can be saved.' });
       return;
     }
     setSaving(true);
     try {
       await api.saveAbdmFacilityRegistration(toBody());
       await load();
-      toast.success("Draft saved. Nothing has been sent to the registry yet.");
+      toast.success('Draft saved. Nothing has been sent to the registry yet.');
     } finally {
       setSaving(false);
     }
@@ -255,7 +294,7 @@ function FacilityRegistration() {
     const e = validateForSubmit();
     setErrors(e);
     if (Object.keys(e).length > 0) {
-      toast.error("Some required details are missing. They are marked below.");
+      toast.error('Some required details are missing. They are marked below.');
       return;
     }
     setSubmitting(true);
@@ -265,7 +304,9 @@ function FacilityRegistration() {
       await load();
       // Never "Registered." — a verifier still has to look at it, and saying otherwise is the
       // single most misleading thing this screen could do.
-      toast.success("Sent to HFR. A verifier reviews it by hand — you will not have a Facility ID yet.");
+      toast.success(
+        'Sent to HFR. A verifier reviews it by hand — you will not have a Facility ID yet.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -283,7 +324,7 @@ function FacilityRegistration() {
     const e = validateForSubmit();
     setErrors(e);
     if (Object.keys(e).length > 0) {
-      toast.error("Some required details are missing. They are marked below.");
+      toast.error('Some required details are missing. They are marked below.');
       return;
     }
     setSubmitting(true);
@@ -292,7 +333,7 @@ function FacilityRegistration() {
       await load();
       setAmending(false);
       // Not "Saved." — this went to a national registry, and the Facility ID is unchanged.
-      toast.success("Sent to HFR. The Facility ID stays the same; the details are updated.");
+      toast.success('Sent to HFR. The Facility ID stays the same; the details are updated.');
     } finally {
       setSubmitting(false);
     }
@@ -333,7 +374,9 @@ function FacilityRegistration() {
           <div>
             <Badge tone={status.tone}>{status.label}</Badge>
             <p className="mt-1 text-sm text-fg-muted">{status.note}</p>
-            {current?.trackingId ? <p className="mt-1 text-sm text-fg-muted">Tracking ID: {current.trackingId}</p> : null}
+            {current?.trackingId ? (
+              <p className="mt-1 text-sm text-fg-muted">Tracking ID: {current.trackingId}</p>
+            ) : null}
             {current?.facilityId ? <p>Facility ID: {current.facilityId}</p> : null}
           </div>
           {branches.length > 0 ? (
@@ -350,7 +393,7 @@ function FacilityRegistration() {
           ) : null}
         </div>
 
-        {current?.status === "rejected" && current.statusMessage ? (
+        {current?.status === 'rejected' && current.statusMessage ? (
           <Alert tone="danger" title="The registry rejected this registration">
             {/* The verifier's own words. Rewording them would obscure the instruction. */}
             {current.statusMessage}
@@ -359,8 +402,8 @@ function FacilityRegistration() {
 
         {locked ? (
           <Alert tone="neutral" title="This registration is with the registry">
-            It cannot be edited while a verifier has it. If something is wrong, wait for the outcome — a rejection
-            reopens this form with everything still filled in.
+            It cannot be edited while a verifier has it. If something is wrong, wait for the outcome
+            — a rejection reopens this form with everything still filled in.
           </Alert>
         ) : null}
       </Card>
@@ -373,7 +416,7 @@ function FacilityRegistration() {
             error={errors.facilityName}
             hint="Starts with a letter. As it should appear in the registry."
             disabled={readOnly}
-            onChange={(e) => set("facilityName", e.target.value)}
+            onChange={(e) => set('facilityName', e.target.value)}
           />
           <RegistryMasterSelect
             label="Operational status"
@@ -383,7 +426,7 @@ function FacilityRegistration() {
             value={draft.facilityOperationalStatus}
             disabled={readOnly}
             hint={errors.operationalStatus}
-            onChange={(v) => set("facilityOperationalStatus", v)}
+            onChange={(v) => set('facilityOperationalStatus', v)}
           />
         </div>
       </Card>
@@ -398,7 +441,7 @@ function FacilityRegistration() {
             value={draft.ownershipCode}
             disabled={readOnly}
             hint={errors.ownership}
-            onChange={(v) => set("ownershipCode", v)}
+            onChange={(v) => set('ownershipCode', v)}
           />
           <RegistryMasterSelect
             label="Ownership subtype"
@@ -408,7 +451,7 @@ function FacilityRegistration() {
             value={draft.ownershipSubTypeCode}
             disabled={readOnly}
             hint="HFR requires this only for government-owned facilities (HFR-032)."
-            onChange={(v) => set("ownershipSubTypeCode", v)}
+            onChange={(v) => set('ownershipSubTypeCode', v)}
           />
           <RegistryMasterSelect
             label="Central government body"
@@ -417,7 +460,7 @@ function FacilityRegistration() {
             value={draft.ownershipSubTypeCode2}
             disabled={readOnly}
             hint="Only for a central-government facility (HFR-033)."
-            onChange={(v) => set("ownershipSubTypeCode2", v)}
+            onChange={(v) => set('ownershipSubTypeCode2', v)}
           />
         </div>
       </Card>
@@ -429,10 +472,10 @@ function FacilityRegistration() {
             label="State / UT"
             kind="states"
             required
-            value={draft.address.stateLGDCode ?? ""}
+            value={draft.address.stateLGDCode ?? ''}
             disabled={readOnly}
             hint={errors.state}
-            onChange={(v) => setNested("address", "stateLGDCode", v)}
+            onChange={(v) => setNested('address', 'stateLGDCode', v)}
           />
           <RegistryMasterSelect
             label="District"
@@ -440,125 +483,136 @@ function FacilityRegistration() {
             required
             filters={{ code: draft.address.stateLGDCode }}
             parentHint="Choose a state first"
-            value={draft.address.districtLGDCode ?? ""}
+            value={draft.address.districtLGDCode ?? ''}
             disabled={readOnly}
             hint={errors.district}
-            onChange={(v) => setNested("address", "districtLGDCode", v)}
+            onChange={(v) => setNested('address', 'districtLGDCode', v)}
           />
           <RegistryMasterSelect
             label="Sub-district"
             kind="subDistricts"
             filters={{ code: draft.address.districtLGDCode }}
             parentHint="Choose a district first"
-            value={draft.address.subDistrictLGDCode ?? ""}
+            value={draft.address.subDistrictLGDCode ?? ''}
             disabled={readOnly}
-            onChange={(v) => setNested("address", "subDistrictLGDCode", v)}
+            onChange={(v) => setNested('address', 'subDistrictLGDCode', v)}
           />
           <Field
             label="Address line 1 *"
-            value={draft.address.addressLine1 ?? ""}
+            value={draft.address.addressLine1 ?? ''}
             error={errors.addressLine1}
             disabled={readOnly}
-            onChange={(e) => setNested("address", "addressLine1", e.target.value)}
+            onChange={(e) => setNested('address', 'addressLine1', e.target.value)}
           />
           <Field
             label="Address line 2"
-            value={draft.address.addressLine2 ?? ""}
+            value={draft.address.addressLine2 ?? ''}
             disabled={readOnly}
-            onChange={(e) => setNested("address", "addressLine2", e.target.value)}
+            onChange={(e) => setNested('address', 'addressLine2', e.target.value)}
           />
           <Field
             label="Pincode *"
             inputMode="numeric"
             maxLength={6}
-            value={draft.address.pincode ?? ""}
+            value={draft.address.pincode ?? ''}
             error={errors.pincode}
             disabled={readOnly}
-            onChange={(e) => setNested("address", "pincode", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setNested('address', 'pincode', e.target.value.replace(/\D/g, ''))}
           />
           <div />
           <Field
             label="Latitude"
             inputMode="decimal"
-            value={draft.address.latitude ?? ""}
+            value={draft.address.latitude ?? ''}
             hint="Decimal degrees, e.g. 12.9716 (HFR-011)."
             disabled={readOnly}
-            onChange={(e) => setNested("address", "latitude", e.target.value)}
+            onChange={(e) => setNested('address', 'latitude', e.target.value)}
           />
           <Field
             label="Longitude"
             inputMode="decimal"
-            value={draft.address.longitude ?? ""}
+            value={draft.address.longitude ?? ''}
             hint="Decimal degrees, e.g. 77.5946 (HFR-012)."
             disabled={readOnly}
-            onChange={(e) => setNested("address", "longitude", e.target.value)}
+            onChange={(e) => setNested('address', 'longitude', e.target.value)}
           />
         </div>
       </Card>
 
       <Card header="Contact details for public display">
-        <p className="mb-4 text-sm text-fg-muted">These appear in the public registry, so use a desk that is answered — not a personal number.</p>
+        <p className="mb-4 text-sm text-fg-muted">
+          These appear in the public registry, so use a desk that is answered — not a personal
+          number.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Mobile number"
             inputMode="numeric"
             maxLength={10}
-            value={draft.contact.facilityContactNumber ?? ""}
+            value={draft.contact.facilityContactNumber ?? ''}
             error={errors.mobile}
             hint="Ten digits."
             disabled={readOnly}
-            onChange={(e) => setNested("contact", "facilityContactNumber", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setNested('contact', 'facilityContactNumber', e.target.value.replace(/\D/g, ''))
+            }
           />
           <Field
             label="Landline number"
             inputMode="numeric"
             maxLength={8}
-            value={draft.contact.facilityLandlineNumber ?? ""}
+            value={draft.contact.facilityLandlineNumber ?? ''}
             error={errors.landline}
             hint="Six to eight digits, without the STD code."
             disabled={readOnly}
-            onChange={(e) => setNested("contact", "facilityLandlineNumber", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setNested('contact', 'facilityLandlineNumber', e.target.value.replace(/\D/g, ''))
+            }
           />
           <Field
             label="STD code"
             inputMode="numeric"
             maxLength={8}
-            value={draft.contact.facilityStdCode ?? ""}
+            value={draft.contact.facilityStdCode ?? ''}
             disabled={readOnly}
-            onChange={(e) => setNested("contact", "facilityStdCode", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setNested('contact', 'facilityStdCode', e.target.value.replace(/\D/g, ''))
+            }
           />
           <Field
             label="Email"
             type="email"
-            value={draft.contact.facilityEmailId ?? ""}
+            value={draft.contact.facilityEmailId ?? ''}
             error={errors.email}
             disabled={readOnly}
-            onChange={(e) => setNested("contact", "facilityEmailId", e.target.value)}
+            onChange={(e) => setNested('contact', 'facilityEmailId', e.target.value)}
           />
           <Field
             label="Website"
-            value={draft.contact.websiteLink ?? ""}
+            value={draft.contact.websiteLink ?? ''}
             hint="Include https://"
             disabled={readOnly}
-            onChange={(e) => setNested("contact", "websiteLink", e.target.value)}
+            onChange={(e) => setNested('contact', 'websiteLink', e.target.value)}
           />
         </div>
       </Card>
 
       <Card header="Systems of medicine">
-        <p className="mb-4 text-sm text-fg-muted">A facility may practise more than one (HFR-034). Specialities are recorded against each.</p>
+        <p className="mb-4 text-sm text-fg-muted">
+          A facility may practise more than one (HFR-034). Specialities are recorded against each.
+        </p>
         <SystemsOfMedicine
           selected={draft.systemOfMedicineCodes}
           disabled={readOnly}
           error={errors.medicine}
-          onChange={(codes) => set("systemOfMedicineCodes", codes)}
+          onChange={(codes) => set('systemOfMedicineCodes', codes)}
         />
       </Card>
 
       <Card header="Facility type">
         <p className="mb-4 text-sm text-fg-muted">
-          HFR derives the available types from the ownership and systems of medicine chosen above, so those come
-          first (HFR-035, HFR-036).
+          HFR derives the available types from the ownership and systems of medicine chosen above,
+          so those come first (HFR-035, HFR-036).
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <RegistryMasterSelect
@@ -574,7 +628,7 @@ function FacilityRegistration() {
             value={draft.facilityTypeCode}
             disabled={readOnly}
             hint={errors.facilityType}
-            onChange={(v) => set("facilityTypeCode", v)}
+            onChange={(v) => set('facilityTypeCode', v)}
           />
           <RegistryMasterSelect
             label="Facility sub-type"
@@ -584,13 +638,15 @@ function FacilityRegistration() {
             parentHint="Choose a facility type first"
             value={draft.facilitySubType}
             disabled={readOnly}
-            onChange={(v) => set("facilitySubType", v)}
+            onChange={(v) => set('facilitySubType', v)}
           />
         </div>
       </Card>
 
       <Card header="Medical infrastructure">
-        <p className="mb-4 text-sm text-fg-muted">Bed and equipment counts as HFR asks for them. Leave blank rather than guessing.</p>
+        <p className="mb-4 text-sm text-fg-muted">
+          Bed and equipment counts as HFR asks for them. Leave blank rather than guessing.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {BED_FIELDS.map((f) => (
             <Field
@@ -598,48 +654,61 @@ function FacilityRegistration() {
               label={f.label}
               inputMode="numeric"
               maxLength={2}
-              value={draft.infrastructure[f.key] ?? ""}
+              value={draft.infrastructure[f.key] ?? ''}
               disabled={readOnly}
-              onChange={(e) => setNested("infrastructure", f.key, e.target.value.replace(/\D/g, "").slice(0, 2))}
+              onChange={(e) =>
+                setNested('infrastructure', f.key, e.target.value.replace(/\D/g, '').slice(0, 2))
+              }
             />
           ))}
           <Field
             label="Total ventilators"
             inputMode="numeric"
             maxLength={4}
-            value={draft.infrastructure.totalNumberOfVentilators ?? ""}
+            value={draft.infrastructure.totalNumberOfVentilators ?? ''}
             disabled={readOnly}
             hint={
               draft.infrastructure.totalNumberOfVentilators &&
               Number(draft.infrastructure.totalNumberOfVentilators) !== bedsWithVentilators
                 ? `The beds above add up to ${bedsWithVentilators}. Check which is right.`
-                : "Should match the ventilator beds above (HFR-057)."
+                : 'Should match the ventilator beds above (HFR-057).'
             }
-            onChange={(e) => setNested("infrastructure", "totalNumberOfVentilators", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setNested(
+                'infrastructure',
+                'totalNumberOfVentilators',
+                e.target.value.replace(/\D/g, ''),
+              )
+            }
           />
           <Field
             label="Total beds"
             inputMode="numeric"
             maxLength={4}
-            value={draft.infrastructure.totalNumberOfBeds ?? ""}
+            value={draft.infrastructure.totalNumberOfBeds ?? ''}
             disabled={readOnly}
             hint="Stated by you, not calculated (HFR-060)."
-            onChange={(e) => setNested("infrastructure", "totalNumberOfBeds", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setNested('infrastructure', 'totalNumberOfBeds', e.target.value.replace(/\D/g, ''))
+            }
           />
         </div>
       </Card>
 
       <Card header="Other programme identifiers">
-        <p className="mb-4 text-sm text-fg-muted">All optional. Fill in only the ones this facility genuinely holds — a wrong number is worse than a blank.</p>
+        <p className="mb-4 text-sm text-fg-muted">
+          All optional. Fill in only the ones this facility genuinely holds — a wrong number is
+          worse than a blank.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           {PROGRAMME_FIELDS.map((f) => (
             <Field
               key={f.key}
               label={f.label}
               hint={f.hint}
-              value={draft.programmeIds[f.key] ?? ""}
+              value={draft.programmeIds[f.key] ?? ''}
               disabled={readOnly}
-              onChange={(e) => setNested("programmeIds", f.key, e.target.value)}
+              onChange={(e) => setNested('programmeIds', f.key, e.target.value)}
             />
           ))}
         </div>
@@ -650,8 +719,8 @@ function FacilityRegistration() {
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-fg-muted">
-              This facility is registered. Its details can be corrected &mdash; beds, contacts, a rename &mdash; and the
-              Facility ID stays the same.
+              This facility is registered. Its details can be corrected &mdash; beds, contacts, a
+              rename &mdash; and the Facility ID stays the same.
             </p>
             <Button variant="secondary" onClick={() => setAmending(true)}>
               <Pencil className="size-4" aria-hidden /> Update details
@@ -675,12 +744,13 @@ function FacilityRegistration() {
               Cancel
             </Button>
             <Button onClick={sendUpdate} disabled={submitting}>
-              <Send className="size-4" aria-hidden /> {submitting ? "Sending…" : "Send update to HFR"}
+              <Send className="size-4" aria-hidden />{' '}
+              {submitting ? 'Sending…' : 'Send update to HFR'}
             </Button>
           </div>
           <p className="mt-1 text-sm text-fg-muted">
-            This changes what the national registry holds about this hospital. The Facility ID is not affected, and the
-            registration does not go back into the verification queue.
+            This changes what the national registry holds about this hospital. The Facility ID is
+            not affected, and the registration does not go back into the verification queue.
           </p>
         </Card>
       ) : null}
@@ -689,15 +759,15 @@ function FacilityRegistration() {
         <Card>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={save} disabled={saving || submitting}>
-              <Save className="size-4" aria-hidden /> {saving ? "Saving…" : "Save draft"}
+              <Save className="size-4" aria-hidden /> {saving ? 'Saving…' : 'Save draft'}
             </Button>
             <Button onClick={submit} disabled={saving || submitting}>
-              <Send className="size-4" aria-hidden /> {submitting ? "Sending…" : "Submit to HFR"}
+              <Send className="size-4" aria-hidden /> {submitting ? 'Sending…' : 'Submit to HFR'}
             </Button>
           </div>
           <p className="mt-1 text-sm text-fg-muted">
-            Submitting sends the registration for review by an HFR verifier. It cannot be edited again until they
-            answer.
+            Submitting sends the registration for review by an HFR verifier. It cannot be edited
+            again until they answer.
           </p>
         </Card>
       ) : null}
@@ -729,7 +799,7 @@ function SystemsOfMedicine({
   useEffect(() => {
     let cancelled = false;
     api
-      .abdmFacilityMaster("masterData", { type: "MEDICINE" })
+      .abdmFacilityMaster('masterData', { type: 'MEDICINE' })
       .then((list) => !cancelled && setOptions(list))
       .catch(() => !cancelled && setFailed(true));
     return () => {

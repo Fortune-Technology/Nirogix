@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { LottiePlayer } from "./LottiePlayer";
-import { cn } from "../cn";
+import { useEffect, useRef, useState } from 'react';
+import { LottiePlayer } from './LottiePlayer';
+import { cn } from '../cn';
 
 export interface LottiePreloaderProps {
   /** URL to the preloader Lottie JSON (served from /public). */
@@ -27,10 +27,10 @@ export function LottiePreloader({
   src,
   minDurationMs = 500,
   maxDurationMs = 4000,
-  label = "Loading",
+  label = 'Loading',
   tintCssVar,
 }: LottiePreloaderProps) {
-  const [state, setState] = useState<"visible" | "leaving" | "gone">("visible");
+  const [state, setState] = useState<'visible' | 'leaving' | 'gone'>('visible');
   const startRef = useRef(0);
 
   useEffect(() => {
@@ -40,13 +40,13 @@ export function LottiePreloader({
       if (begun) return;
       begun = true;
       const elapsed = performance.now() - startRef.current;
-      window.setTimeout(() => setState("leaving"), Math.max(0, minDurationMs - elapsed));
+      window.setTimeout(() => setState('leaving'), Math.max(0, minDurationMs - elapsed));
     };
-    if (document.readyState === "complete") begin();
-    else window.addEventListener("load", begin, { once: true });
+    if (document.readyState === 'complete') begin();
+    else window.addEventListener('load', begin, { once: true });
     const cap = window.setTimeout(begin, maxDurationMs);
     return () => {
-      window.removeEventListener("load", begin);
+      window.removeEventListener('load', begin);
       window.clearTimeout(cap);
     };
   }, [minDurationMs, maxDurationMs]);
@@ -54,26 +54,26 @@ export function LottiePreloader({
   // Once fading out, remove after the fade (timer, not transitionend — deterministic
   // even if the fade is a no-op under reduced motion or an unstyled state).
   useEffect(() => {
-    if (state !== "leaving") return;
-    const t = window.setTimeout(() => setState("gone"), 520);
+    if (state !== 'leaving') return;
+    const t = window.setTimeout(() => setState('gone'), 520);
     return () => window.clearTimeout(t);
   }, [state]);
 
   // Block background scroll/interaction while the overlay is up.
   useEffect(() => {
-    if (state === "gone") return;
+    if (state === 'gone') return;
     const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previous;
     };
   }, [state]);
 
-  if (state === "gone") return null;
+  if (state === 'gone') return null;
 
   return (
     <div
-      className={cn("hms-preloader", state === "leaving" && "hms-preloader--leaving")}
+      className={cn('hms-preloader', state === 'leaving' && 'hms-preloader--leaving')}
       role="status"
       aria-live="polite"
       aria-label={label}

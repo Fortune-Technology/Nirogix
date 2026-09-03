@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -15,15 +15,15 @@ import {
   type SortingState,
   type Updater,
   type VisibilityState,
-} from "@tanstack/react-table";
-import { cn } from "../../cn";
-import { EmptyState, ErrorState, Skeleton } from "../States";
-import { DataTableColumnHeader } from "./DataTableColumnHeader";
-import { DataTableFacetedFilter } from "./DataTableFacetedFilter";
-import { DataTablePagination } from "./DataTablePagination";
-import { DataTableToolbar } from "./DataTableToolbar";
-import { DataTableViewOptions } from "./DataTableViewOptions";
-import type { Column, ColumnFilters, DataTableProps, SortState } from "./types";
+} from '@tanstack/react-table';
+import { cn } from '../../cn';
+import { EmptyState, ErrorState, Skeleton } from '../States';
+import { DataTableColumnHeader } from './DataTableColumnHeader';
+import { DataTableFacetedFilter } from './DataTableFacetedFilter';
+import { DataTablePagination } from './DataTablePagination';
+import { DataTableToolbar } from './DataTableToolbar';
+import { DataTableViewOptions } from './DataTableViewOptions';
+import type { Column, ColumnFilters, DataTableProps, SortState } from './types';
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50, 100];
 
@@ -48,11 +48,11 @@ export function DataTable<Row>({
   loading = false,
   error = null,
   onRetry,
-  emptyMessage = "No records found.",
+  emptyMessage = 'No records found.',
   emptyDescription,
   emptyAction,
   searchable,
-  searchPlaceholder = "Search…",
+  searchPlaceholder = 'Search…',
   filters,
   columnVisibility: showColumnVisibility,
   pagination = {},
@@ -69,13 +69,13 @@ export function DataTable<Row>({
   const pageSizeOptions = (paginationOn && pagination?.pageSizeOptions) || DEFAULT_PAGE_SIZES;
   const initialPageSize = (paginationOn && pagination?.pageSize) || pageSizeOptions[1] || 20;
 
-  const urlPrefix = typeof urlState === "string" ? `${urlState}_` : "";
+  const urlPrefix = typeof urlState === 'string' ? `${urlState}_` : '';
   const urlEnabled = Boolean(urlState);
 
   // ---- state (URL-seeded when the caller asked for linkable views) ----------
   const initial = useMemo(() => readUrlState(urlEnabled, urlPrefix), [urlEnabled, urlPrefix]);
   const [sorting, setSorting] = useState<SortingState>(
-    server?.sort?.map((s) => ({ id: s.key, desc: s.dir === "desc" })) ?? initial.sorting,
+    server?.sort?.map((s) => ({ id: s.key, desc: s.dir === 'desc' })) ?? initial.sorting,
   );
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
     server?.filters ? recordToColumnFilters(server.filters) : [],
@@ -100,15 +100,15 @@ export function DataTable<Row>({
       enableHiding: col.hideable !== false,
       enableColumnFilter: Boolean(col.filterable),
       enableGlobalFilter: col.searchable ?? Boolean(col.accessor),
-      filterFn: col.filterable ? "arrIncludesSome" : "includesString",
-      meta: { label: typeof col.header === "string" ? col.header : col.key, width: col.width },
+      filterFn: col.filterable ? 'arrIncludesSome' : 'includesString',
+      meta: { label: typeof col.header === 'string' ? col.header : col.key, width: col.width },
       header: () => col.header,
       cell: (ctx) => col.cell(ctx.row.original, ctx.row.index),
     }));
 
     if (selectable) {
       defs.unshift({
-        id: "__select",
+        id: '__select',
         enableSorting: false,
         enableHiding: false,
         header: ({ table }) => (
@@ -118,7 +118,9 @@ export function DataTable<Row>({
             aria-label="Select all rows on this page"
             checked={table.getIsAllPageRowsSelected()}
             ref={(el) => {
-              if (el) el.indeterminate = !table.getIsAllPageRowsSelected() && table.getIsSomePageRowsSelected();
+              if (el)
+                el.indeterminate =
+                  !table.getIsAllPageRowsSelected() && table.getIsSomePageRowsSelected();
             }}
             onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
           />
@@ -151,7 +153,7 @@ export function DataTable<Row>({
       if (!server) return;
       const sort: SortState[] = (next.sorting ?? sorting).map((s) => ({
         key: s.id,
-        dir: s.desc ? "desc" : "asc",
+        dir: s.desc ? 'desc' : 'asc',
       }));
       server.onChange({
         page: next.page ?? page,
@@ -175,7 +177,7 @@ export function DataTable<Row>({
    */
   const changeColumnFilters = useCallback(
     (updater: Updater<ColumnFiltersState>) => {
-      const nextFilters = typeof updater === "function" ? updater(columnFilters) : updater;
+      const nextFilters = typeof updater === 'function' ? updater(columnFilters) : updater;
       setColumnFilters(nextFilters);
       if (server) {
         setPage(1);
@@ -193,7 +195,7 @@ export function DataTable<Row>({
       columnFilters,
       columnVisibility: visibility,
       rowSelection: selection,
-      globalFilter: server ? "" : search,
+      globalFilter: server ? '' : search,
       ...(paginationOn && !server ? { pagination: { pageIndex: page - 1, pageSize } } : {}),
     },
     getRowId: rowKey ? (row, index) => rowKey(row, index) : undefined,
@@ -232,27 +234,34 @@ export function DataTable<Row>({
   useEffect(() => () => (searchTimer.current ? clearTimeout(searchTimer.current) : undefined), []);
 
   useEffect(() => {
-    if (onSelectionChange) onSelectionChange(table.getSelectedRowModel().rows.map((r) => r.original));
+    if (onSelectionChange)
+      onSelectionChange(table.getSelectedRowModel().rows.map((r) => r.original));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection]);
 
   // Keep the URL in step with the view when the caller opted in.
   useEffect(() => {
-    if (!urlEnabled || typeof window === "undefined") return;
+    if (!urlEnabled || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     setParam(params, `${urlPrefix}page`, page > 1 ? String(page) : null);
     setParam(params, `${urlPrefix}size`, pageSize !== initialPageSize ? String(pageSize) : null);
     setParam(params, `${urlPrefix}q`, search || null);
-    setParam(params, `${urlPrefix}sort`, sorting.length ? sorting.map((s) => `${s.id}:${s.desc ? "desc" : "asc"}`).join(",") : null);
+    setParam(
+      params,
+      `${urlPrefix}sort`,
+      sorting.length ? sorting.map((s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',') : null,
+    );
     const qs = params.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, [urlEnabled, urlPrefix, page, pageSize, search, sorting, initialPageSize]);
 
   // ---- derived view --------------------------------------------------------
   const facetColumns = columns.filter((c) => c.filterable);
   const activeFilterCount = columnFilters.length;
   const total = server ? server.total : table.getFilteredRowModel().rows.length;
-  const pageCount = server ? Math.max(1, Math.ceil(server.total / server.pageSize)) : table.getPageCount();
+  const pageCount = server
+    ? Math.max(1, Math.ceil(server.total / server.pageSize))
+    : table.getPageCount();
   const currentPage = server ? server.page : page;
   const bodyRows = table.getRowModel().rows;
   const headerGroups = table.getHeaderGroups();
@@ -283,7 +292,9 @@ export function DataTable<Row>({
     let next: SortingState;
 
     if (!current) {
-      next = keepOthers ? [...sorting, { id: columnId, desc: false }] : [{ id: columnId, desc: false }];
+      next = keepOthers
+        ? [...sorting, { id: columnId, desc: false }]
+        : [{ id: columnId, desc: false }];
     } else if (!current.desc) {
       next = keepOthers
         ? sorting.map((s) => (s.id === columnId ? { ...s, desc: true } : s))
@@ -300,7 +311,7 @@ export function DataTable<Row>({
   }
 
   return (
-    <div className={cn("hms-datatable", className)}>
+    <div className={cn('hms-datatable', className)}>
       <DataTableToolbar
         search={search}
         onSearchChange={onSearchChange}
@@ -316,7 +327,7 @@ export function DataTable<Row>({
                   <DataTableFacetedFilter
                     key={c.key}
                     column={column}
-                    label={c.filterLabel ?? (typeof c.header === "string" ? c.header : c.key)}
+                    label={c.filterLabel ?? (typeof c.header === 'string' ? c.header : c.key)}
                     options={c.filterOptions}
                   />
                 ) : null;
@@ -332,14 +343,13 @@ export function DataTable<Row>({
       />
 
       <div className="hms-table__wrap">
-        <table className={cn("hms-table", stickyHeader && "hms-table--sticky")}>
+        <table className={cn('hms-table', stickyHeader && 'hms-table--sticky')}>
           <thead>
             {headerGroups.map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const meta = header.column.columnDef.meta as
-                    | { width?: string; label?: string }
-                    | undefined;
+                    { width?: string; label?: string } | undefined;
                   const sortIndex = sorting.findIndex((s) => s.id === header.column.id) + 1;
                   return (
                     // Every column is left-aligned (heading and cells alike), so the `th`
@@ -367,7 +377,7 @@ export function DataTable<Row>({
                 <tr key={`skeleton-${i}`}>
                   {Array.from({ length: colSpan }).map((__, j) => (
                     <td key={j}>
-                      <Skeleton height="0.85rem" width={j === 0 ? "60%" : "40%"} />
+                      <Skeleton height="0.85rem" width={j === 0 ? '60%' : '40%'} />
                     </td>
                   ))}
                 </tr>
@@ -381,14 +391,20 @@ export function DataTable<Row>({
             ) : bodyRows.length === 0 ? (
               <tr>
                 <td className="hms-table__state" colSpan={colSpan}>
-                  <EmptyState title={emptyMessage} description={emptyDescription} action={emptyAction} />
+                  <EmptyState
+                    title={emptyMessage}
+                    description={emptyDescription}
+                    action={emptyAction}
+                  />
                 </td>
               </tr>
             ) : (
               bodyRows.map((row) => (
                 <tr key={row.id} data-selected={row.getIsSelected() || undefined}>
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                    <td key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
                   ))}
                 </tr>
               ))
@@ -415,7 +431,7 @@ export function DataTable<Row>({
 
 /** Comparable primitive for sorting/filtering (Dates sort chronologically). */
 function normalize(value: string | number | Date | null | undefined): string | number {
-  if (value === null || value === undefined) return "";
+  if (value === null || value === undefined) return '';
   if (value instanceof Date) return value.getTime();
   return value;
 }
@@ -426,7 +442,7 @@ function columnFiltersToRecord(filters: ColumnFiltersState): ColumnFilters {
   for (const f of filters) {
     const arr = Array.isArray(f.value)
       ? f.value.map(String)
-      : f.value === undefined || f.value === null || f.value === ""
+      : f.value === undefined || f.value === null || f.value === ''
         ? []
         : [String(f.value)];
     if (arr.length) out[f.id] = arr;
@@ -447,21 +463,26 @@ function setParam(params: URLSearchParams, key: string, value: string | null) {
 }
 
 function readUrlState(enabled: boolean, prefix: string) {
-  const empty = { sorting: [] as SortingState, search: "", page: 1, pageSize: undefined as number | undefined };
-  if (!enabled || typeof window === "undefined") return empty;
+  const empty = {
+    sorting: [] as SortingState,
+    search: '',
+    page: 1,
+    pageSize: undefined as number | undefined,
+  };
+  if (!enabled || typeof window === 'undefined') return empty;
   const params = new URLSearchParams(window.location.search);
   const sortParam = params.get(`${prefix}sort`);
   return {
     sorting: sortParam
       ? sortParam
-          .split(",")
+          .split(',')
           .map((part) => {
-            const [id, dir] = part.split(":");
-            return { id: id ?? "", desc: dir === "desc" };
+            const [id, dir] = part.split(':');
+            return { id: id ?? '', desc: dir === 'desc' };
           })
-          .filter((s) => s.id !== "")
+          .filter((s) => s.id !== '')
       : [],
-    search: params.get(`${prefix}q`) ?? "",
+    search: params.get(`${prefix}q`) ?? '',
     page: Number(params.get(`${prefix}page`)) || 1,
     pageSize: Number(params.get(`${prefix}size`)) || undefined,
   };

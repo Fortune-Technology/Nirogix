@@ -16,7 +16,9 @@ import { branches } from './branches';
 export const branchItemAvailability = pgTable(
   'branch_item_availability',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -36,7 +38,12 @@ export const branchItemAvailability = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    uniq: unique('branch_item_availability_unique').on(t.tenantId, t.branchId, t.itemType, t.itemRef),
+    uniq: unique('branch_item_availability_unique').on(
+      t.tenantId,
+      t.branchId,
+      t.itemType,
+      t.itemRef,
+    ),
   }),
 );
 

@@ -51,7 +51,12 @@ export async function listDrugs(tenantId: string, search?: string, branchId?: st
   // Per-hospital availability (ADR-073): when a branch is given, drop items disabled for it and
   // swap in any per-branch price. No branch → the organization-wide list, unchanged.
   if (!branchId) return list;
-  const overrides = await resolveOverrides(tenantId, branchId, 'drug', list.map((d) => d.id));
+  const overrides = await resolveOverrides(
+    tenantId,
+    branchId,
+    'drug',
+    list.map((d) => d.id),
+  );
   return list
     .filter((d) => isRefAvailable(overrides, d.id))
     .map((d) => ({ ...d, unitPricePaise: priceFor(overrides, d.id, d.unitPricePaise) }));
@@ -89,7 +94,14 @@ export async function createDrug(tenantId: string, input: CreateDrugInput, actor
         .returning()
     )[0]!;
   });
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'drug.create', resourceType: 'drug', resourceId: drug.id, metadata: { name: drug.name } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'drug.create',
+    resourceType: 'drug',
+    resourceId: drug.id,
+    metadata: { name: drug.name },
+  });
   return listDrugs(tenantId, drug.name).then((d) => d.find((x) => x.id === drug.id));
 }
 
@@ -101,13 +113,28 @@ export interface ReceiveStockInput {
   supplierId?: string | null;
 }
 
-export async function receiveStock(tenantId: string, drugId: string, input: ReceiveStockInput, actorUserId?: string) {
+export async function receiveStock(
+  tenantId: string,
+  drugId: string,
+  input: ReceiveStockInput,
+  actorUserId?: string,
+) {
   await runWithTenant(tenantId, async (tx) => {
-    const drug = (await tx.select({ id: drugs.id }).from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId))).limit(1))[0];
+    const drug = (
+      await tx
+        .select({ id: drugs.id })
+        .from(drugs)
+        .where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId)))
+        .limit(1)
+    )[0];
     if (!drug) throw Errors.notFound('Drug not found');
     if (input.supplierId) {
       const sup = (
-        await tx.select({ id: suppliers.id }).from(suppliers).where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, input.supplierId))).limit(1)
+        await tx
+          .select({ id: suppliers.id })
+          .from(suppliers)
+          .where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, input.supplierId)))
+          .limit(1)
       )[0];
       if (!sup) throw Errors.notFound('Supplier not found');
     }
@@ -121,7 +148,14 @@ export async function receiveStock(tenantId: string, drugId: string, input: Rece
       costPricePaise: input.costPricePaise ?? null,
     });
   });
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'stock.receive', resourceType: 'drug', resourceId: drugId, metadata: { quantity: input.quantity, supplierId: input.supplierId ?? null } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'stock.receive',
+    resourceType: 'drug',
+    resourceId: drugId,
+    metadata: { quantity: input.quantity, supplierId: input.supplierId ?? null },
+  });
   return listDrugs(tenantId).then((d) => d.find((x) => x.id === drugId));
 }
 
@@ -136,10 +170,20 @@ export interface SupplierInput {
 }
 
 export async function listSuppliers(tenantId: string): Promise<Supplier[]> {
-  return runWithTenant(tenantId, (tx) => tx.select().from(suppliers).where(eq(suppliers.tenantId, tenantId)).orderBy(asc(suppliers.name)));
+  return runWithTenant(tenantId, (tx) =>
+    tx
+      .select()
+      .from(suppliers)
+      .where(eq(suppliers.tenantId, tenantId))
+      .orderBy(asc(suppliers.name)),
+  );
 }
 
-export async function createSupplier(tenantId: string, input: SupplierInput, actorUserId?: string): Promise<Supplier> {
+export async function createSupplier(
+  tenantId: string,
+  input: SupplierInput,
+  actorUserId?: string,
+): Promise<Supplier> {
   const created = (
     await runWithTenant(tenantId, (tx) =>
       tx
@@ -155,7 +199,14 @@ export async function createSupplier(tenantId: string, input: SupplierInput, act
         .returning(),
     )
   )[0]!;
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'supplier.create', resourceType: 'supplier', resourceId: created.id, metadata: { name: created.name } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'supplier.create',
+    resourceType: 'supplier',
+    resourceId: created.id,
+    metadata: { name: created.name },
+  });
   return created;
 }
 
@@ -167,15 +218,27 @@ export async function updateSupplier(
 ): Promise<Supplier> {
   const set: Record<string, unknown> = { updatedAt: new Date() };
   for (const f of ['name', 'phone', 'email', 'gstin', 'addressLine', 'isActive'] as const) {
-    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+    if ((patch as Record<string, unknown>)[f] !== undefined)
+      set[f] = (patch as Record<string, unknown>)[f];
   }
   const updated = (
     await runWithTenant(tenantId, (tx) =>
-      tx.update(suppliers).set(set).where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, supplierId))).returning(),
+      tx
+        .update(suppliers)
+        .set(set)
+        .where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, supplierId)))
+        .returning(),
     )
   )[0];
   if (!updated) throw Errors.notFound('Supplier not found');
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'supplier.update', resourceType: 'supplier', resourceId: supplierId, metadata: { fields: Object.keys(set).filter((k) => k !== 'updatedAt') } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'supplier.update',
+    resourceType: 'supplier',
+    resourceId: supplierId,
+    metadata: { fields: Object.keys(set).filter((k) => k !== 'updatedAt') },
+  });
   return updated;
 }
 
@@ -192,10 +255,22 @@ export interface AdjustStockInput {
  * "recount says N" case), locked FOR UPDATE, never below zero, and recorded in its own
  * ledger row. The batch quantity says what is on hand; `stock_adjustments` says why.
  */
-export async function adjustStock(tenantId: string, drugId: string, input: AdjustStockInput, actorUserId?: string) {
-  if (!Number.isInteger(input.delta) || input.delta === 0) throw Errors.validation(undefined, 'delta must be a non-zero integer');
+export async function adjustStock(
+  tenantId: string,
+  drugId: string,
+  input: AdjustStockInput,
+  actorUserId?: string,
+) {
+  if (!Number.isInteger(input.delta) || input.delta === 0)
+    throw Errors.validation(undefined, 'delta must be a non-zero integer');
   const adjustmentId = await runWithTenant(tenantId, async (tx) => {
-    const drug = (await tx.select({ id: drugs.id }).from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId))).limit(1))[0];
+    const drug = (
+      await tx
+        .select({ id: drugs.id })
+        .from(drugs)
+        .where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, drugId)))
+        .limit(1)
+    )[0];
     if (!drug) throw Errors.notFound('Drug not found');
 
     const batchConds = [eq(drugBatches.tenantId, tenantId), eq(drugBatches.drugId, drugId)];
@@ -209,16 +284,27 @@ export async function adjustStock(tenantId: string, drugId: string, input: Adjus
         .limit(1)
         .for('update')
     )[0];
-    if (!batch) throw Errors.notFound(input.batchId ? 'Batch not found' : 'This drug has no stock batch to adjust');
+    if (!batch)
+      throw Errors.notFound(
+        input.batchId ? 'Batch not found' : 'This drug has no stock batch to adjust',
+      );
 
     const next = batch.quantity + input.delta;
-    if (next < 0) throw Errors.conflict(`Adjustment would make the batch negative (${batch.quantity} on hand)`);
+    if (next < 0)
+      throw Errors.conflict(`Adjustment would make the batch negative (${batch.quantity} on hand)`);
     await tx.update(drugBatches).set({ quantity: next }).where(eq(drugBatches.id, batch.id));
 
     const row = (
       await tx
         .insert(stockAdjustments)
-        .values({ tenantId, drugId, batchId: batch.id, delta: input.delta, reason: input.reason.trim(), adjustedBy: actorUserId ?? null })
+        .values({
+          tenantId,
+          drugId,
+          batchId: batch.id,
+          delta: input.delta,
+          reason: input.reason.trim(),
+          adjustedBy: actorUserId ?? null,
+        })
         .returning({ id: stockAdjustments.id })
     )[0]!;
     return row.id;
@@ -319,12 +405,15 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
       await tx
         .select()
         .from(prescriptions)
-        .where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.id, input.prescriptionId)))
+        .where(
+          and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.id, input.prescriptionId)),
+        )
         .limit(1)
         .for('update')
     )[0];
     if (!rx) throw Errors.notFound('Prescription not found');
-    if (rx.status !== 'ordered') throw Errors.conflict('This prescription has already been dispensed or cancelled');
+    if (rx.status !== 'ordered')
+      throw Errors.conflict('This prescription has already been dispensed or cancelled');
 
     // Only signed consultations are dispensable — the worklist filters drafts out, and this
     // re-checks it server-side so a direct API call cannot jump the rule.
@@ -339,7 +428,13 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
       throw Errors.conflict('This prescription belongs to a consultation that is not signed yet');
     }
 
-    const drug = (await tx.select().from(drugs).where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, input.drugId))).limit(1))[0];
+    const drug = (
+      await tx
+        .select()
+        .from(drugs)
+        .where(and(eq(drugs.tenantId, tenantId), eq(drugs.id, input.drugId)))
+        .limit(1)
+    )[0];
     if (!drug) throw Errors.notFound('Drug not found');
 
     // Lock the batches being drawn down — concurrent dispenses of the same drug otherwise
@@ -347,18 +442,28 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
     const batches = await tx
       .select()
       .from(drugBatches)
-      .where(and(eq(drugBatches.tenantId, tenantId), eq(drugBatches.drugId, input.drugId), gt(drugBatches.quantity, 0)))
+      .where(
+        and(
+          eq(drugBatches.tenantId, tenantId),
+          eq(drugBatches.drugId, input.drugId),
+          gt(drugBatches.quantity, 0),
+        ),
+      )
       .orderBy(asc(drugBatches.expiryDate)) // FEFO (Postgres ASC → NULLs last, so dated batches go first)
       .for('update');
 
     const onHand = batches.reduce((s, b) => s + b.quantity, 0);
-    if (onHand < input.quantity) throw Errors.conflict(`Insufficient stock: ${onHand} in hand, ${input.quantity} requested`);
+    if (onHand < input.quantity)
+      throw Errors.conflict(`Insufficient stock: ${onHand} in hand, ${input.quantity} requested`);
 
     let remaining = input.quantity;
     for (const b of batches) {
       if (remaining <= 0) break;
       const take = Math.min(b.quantity, remaining);
-      await tx.update(drugBatches).set({ quantity: b.quantity - take }).where(eq(drugBatches.id, b.id));
+      await tx
+        .update(drugBatches)
+        .set({ quantity: b.quantity - take })
+        .where(eq(drugBatches.id, b.id));
       remaining -= take;
     }
 
@@ -408,27 +513,51 @@ export async function dispense(tenantId: string, input: DispenseInput, actorUser
 
   let invoiceId: string | null = null;
   const visit = await runWithTenant(tenantId, (tx) =>
-    tx.select({ invoiceId: visits.invoiceId }).from(visits).where(eq(visits.id, ctx.visitId!)).limit(1),
+    tx
+      .select({ invoiceId: visits.invoiceId })
+      .from(visits)
+      .where(eq(visits.id, ctx.visitId!))
+      .limit(1),
   );
   invoiceId = visit[0]?.invoiceId ?? null;
 
   if (invoiceId) {
     await billing.addInvoiceLine(tenantId, invoiceId, line, actorUserId);
   } else {
-    const inv = await billing.createInvoice(tenantId, { patientId: ctx.patientId, visitId: ctx.visitId, lineItems: [line] }, actorUserId);
+    const inv = await billing.createInvoice(
+      tenantId,
+      { patientId: ctx.patientId, visitId: ctx.visitId, lineItems: [line] },
+      actorUserId,
+    );
     invoiceId = inv.id;
-    await runWithTenant(tenantId, (tx) => tx.update(visits).set({ invoiceId }).where(eq(visits.id, ctx.visitId!)));
+    await runWithTenant(tenantId, (tx) =>
+      tx.update(visits).set({ invoiceId }).where(eq(visits.id, ctx.visitId!)),
+    );
   }
 
-  await runWithTenant(tenantId, (tx) => tx.update(dispenses).set({ invoiceId }).where(eq(dispenses.id, ctx.dispenseId)));
+  await runWithTenant(tenantId, (tx) =>
+    tx.update(dispenses).set({ invoiceId }).where(eq(dispenses.id, ctx.dispenseId)),
+  );
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
     action: 'pharmacy.dispense',
     resourceType: 'dispense',
     resourceId: ctx.dispenseId,
-    metadata: { prescriptionId: ctx.prescriptionId, drugId: input.drugId, quantity: input.quantity, invoiceId, substituted: ctx.substituted },
+    metadata: {
+      prescriptionId: ctx.prescriptionId,
+      drugId: input.drugId,
+      quantity: input.quantity,
+      invoiceId,
+      substituted: ctx.substituted,
+    },
   });
 
-  return { dispenseId: ctx.dispenseId, invoiceId, drugName: ctx.drugName, quantity: input.quantity, totalPaise: ctx.unitPricePaise * input.quantity };
+  return {
+    dispenseId: ctx.dispenseId,
+    invoiceId,
+    drugName: ctx.drugName,
+    quantity: input.quantity,
+    totalPaise: ctx.unitPricePaise * input.quantity,
+  };
 }

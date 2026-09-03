@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { PageHeader } from "../../../components/PageHeader";
-import { SettingsTabs } from "../../../components/settings/SettingsTabs";
+import type { ReactNode } from 'react';
+import { PageHeader } from '../../../components/PageHeader';
+import { SettingsTabs } from '../../../components/settings/SettingsTabs';
 
 /**
  * Hospital Configuration console (ADR-049).

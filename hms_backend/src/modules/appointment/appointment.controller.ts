@@ -15,6 +15,11 @@ export async function bookAppointment(req: Request, res: Response): Promise<void
 }
 
 export async function cancelAppointment(req: Request, res: Response): Promise<void> {
-  const a = await svc.cancelAppointment(req.auth!.tenantId, req.params.id!, req.body?.reason, req.auth!.userId);
+  const a = await svc.cancelAppointment(
+    req.auth!.tenantId,
+    req.params.id!,
+    req.body?.reason,
+    req.auth!.userId,
+  );
   res.json({ id: a.id, status: a.status });
 }

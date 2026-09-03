@@ -1,4 +1,14 @@
-import { pgTable, uuid, varchar, integer, text, boolean, timestamp, jsonb, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  text,
+  boolean,
+  timestamp,
+  jsonb,
+  unique,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { patients } from './patients';
@@ -14,7 +24,9 @@ import { visits } from './visits';
 export const encounters = pgTable(
   'encounters',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -36,6 +48,11 @@ export const encounters = pgTable(
     // until the payment gate is satisfied, so columns on this row could never hold them.
     status: varchar('status', { length: 20 }).notNull().default('draft'), // draft | signed
     authoredBy: uuid('authored_by'),
+    // Which signature VERSION signed this, pinned at the moment of signing (ADR-137). Not the
+    // signer's current signature: a clinician who uploads a new one next year must not change what
+    // a document printed last year shows. Plain uuid, no FK — signature rows are retained forever
+    // and this must never be able to block one being written.
+    signatureId: uuid('signature_id'),
     version: integer('version').notNull().default(1),
     signedAt: timestamp('signed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -45,7 +62,9 @@ export const encounters = pgTable(
 );
 
 export const diagnoses = pgTable('diagnoses', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -60,7 +79,9 @@ export const diagnoses = pgTable('diagnoses', {
 });
 
 export const prescriptions = pgTable('prescriptions', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -86,7 +107,9 @@ export const prescriptions = pgTable('prescriptions', {
 });
 
 export const labOrders = pgTable('lab_orders', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -121,7 +144,9 @@ export const labOrders = pgTable('lab_orders', {
 // jsonb rather than typed columns on purpose: it is a frozen copy of a past shape, not live
 // clinical data to be queried or migrated, and invariant #5 governs the latter.
 export const encounterAmendments = pgTable('encounter_amendments', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { permissionModuleKey } from "@hms/permissions";
-import { useAuth, useCan } from "./auth";
+import type { ReactNode } from 'react';
+import { permissionModuleKey } from '@hms/permissions';
+import { useAuth, useCan } from './auth';
 
 /**
  * Permission guards, shared by every Nirogix frontend (ADR-054).

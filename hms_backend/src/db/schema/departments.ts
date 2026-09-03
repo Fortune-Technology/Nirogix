@@ -37,7 +37,9 @@ export const departments = pgTable(
     // FHIR-aligned: the department maps to a specialty where one applies, so a department's
     // doctors and its specialty stay one concept rather than two competing taxonomies.
     specialtyCode: varchar('specialty_code', { length: 50 }),
-    headProviderId: uuid('head_provider_id').references(() => providers.id, { onDelete: 'set null' }),
+    headProviderId: uuid('head_provider_id').references(() => providers.id, {
+      onDelete: 'set null',
+    }),
     // Departments are deactivated, never deleted — visits and encounters reference them, and a
     // register from last year must still name the department it happened in.
     isActive: boolean('is_active').notNull().default(true),

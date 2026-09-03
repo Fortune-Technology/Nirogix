@@ -31,7 +31,10 @@ const NOTICE =
  * where "who opened it, and when" has to be answerable later — before there is anything
  * to open, not after.
  */
-export async function enterAiPortal(tenantId: string, actorUserId: string): Promise<AiPortalSession> {
+export async function enterAiPortal(
+  tenantId: string,
+  actorUserId: string,
+): Promise<AiPortalSession> {
   await writeAudit({
     tenantId,
     actorUserId,

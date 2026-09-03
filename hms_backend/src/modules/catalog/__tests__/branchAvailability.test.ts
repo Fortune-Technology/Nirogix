@@ -32,8 +32,19 @@ async function cleanupTenant(code: string): Promise<void> {
   await pool.query('DELETE FROM audit_log WHERE tenant_id = $1', [t.id]);
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
-    'branch_item_availability', 'drug_batches', 'drugs', 'lab_tests', 'services', 'tenant_reference_items',
-    'organization_profile', 'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users',
+    'branch_item_availability',
+    'drug_batches',
+    'drugs',
+    'lab_tests',
+    'services',
+    'tenant_reference_items',
+    'organization_profile',
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
   ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }
@@ -48,21 +59,38 @@ beforeAll(async () => {
     await cleanupTenant(CODE_A);
     await cleanupTenant(CODE_B);
     const a = await onboardTenant({
-      code: CODE_A, name: 'Availability Org A',
+      code: CODE_A,
+      name: 'Availability Org A',
       modules: ['patient', 'pharmacy', 'laboratory', 'billing'],
       admin: { email: 'admin@bavaila.example', fullName: 'A Admin' },
     });
     const b = await onboardTenant({
-      code: CODE_B, name: 'Availability Org B',
+      code: CODE_B,
+      name: 'Availability Org B',
       modules: ['pharmacy'],
       admin: { email: 'admin@bavailb.example', fullName: 'B Admin' },
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    actorA = (await pool.query('SELECT id FROM users WHERE tenant_id = $1 LIMIT 1', [tenantA])).rows[0].id;
-    branch1 = (await pool.query(`INSERT INTO branches (tenant_id, code, name) VALUES ($1,'H1','Hospital 1') RETURNING id`, [tenantA])).rows[0].id;
-    branch2 = (await pool.query(`INSERT INTO branches (tenant_id, code, name) VALUES ($1,'H2','Hospital 2') RETURNING id`, [tenantA])).rows[0].id;
-    drugId = (await createDrug(tenantA, { name: 'Paracetamol 500 mg', form: 'tablet', unitPricePaise: 100 }, actorA))!.id;
+    actorA = (await pool.query('SELECT id FROM users WHERE tenant_id = $1 LIMIT 1', [tenantA]))
+      .rows[0].id;
+    branch1 = (
+      await pool.query(
+        `INSERT INTO branches (tenant_id, code, name) VALUES ($1,'H1','Hospital 1') RETURNING id`,
+        [tenantA],
+      )
+    ).rows[0].id;
+    branch2 = (
+      await pool.query(
+        `INSERT INTO branches (tenant_id, code, name) VALUES ($1,'H2','Hospital 2') RETURNING id`,
+        [tenantA],
+      )
+    ).rows[0].id;
+    drugId = (await createDrug(
+      tenantA,
+      { name: 'Paracetamol 500 mg', form: 'tablet', unitPricePaise: 100 },
+      actorA,
+    ))!.id;
     ready = true;
   } catch (err) {
     ready = false;
@@ -79,9 +107,15 @@ afterAll(async () => {
 });
 
 describe('per-hospital availability (ADR-073)', () => {
-  test('disabling an item at one hospital does not affect the other or the org-wide list', async ({ skip }) => {
+  test('disabling an item at one hospital does not affect the other or the org-wide list', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    await setAvailability(tenantA, { branchId: branch1, itemType: 'drug', itemRef: drugId, isAvailable: false }, actorA);
+    await setAvailability(
+      tenantA,
+      { branchId: branch1, itemType: 'drug', itemRef: drugId, isAvailable: false },
+      actorA,
+    );
 
     const atH1 = await listDrugs(tenantA, undefined, branch1);
     const atH2 = await listDrugs(tenantA, undefined, branch2);
@@ -96,7 +130,13 @@ describe('per-hospital availability (ADR-073)', () => {
     if (!ready) return skip();
     await setAvailability(
       tenantA,
-      { branchId: branch2, itemType: 'drug', itemRef: drugId, isAvailable: true, priceOverridePaise: 250 },
+      {
+        branchId: branch2,
+        itemType: 'drug',
+        itemRef: drugId,
+        isAvailable: true,
+        priceOverridePaise: 250,
+      },
       actorA,
     );
     const atH2 = await listDrugs(tenantA, undefined, branch2);
@@ -107,14 +147,18 @@ describe('per-hospital availability (ADR-073)', () => {
 
   test('vaccines are branch-scoped by catalogue code', async ({ skip }) => {
     if (!ready) return skip();
-    await setAvailability(tenantA, { branchId: branch1, itemType: 'vaccine', itemRef: 'BCG', isAvailable: false }, actorA);
+    await setAvailability(
+      tenantA,
+      { branchId: branch1, itemType: 'vaccine', itemRef: 'BCG', isAvailable: false },
+      actorA,
+    );
     const atH1 = await listCatalog(tenantA, 'vaccine', undefined, branch1);
     const atH2 = await listCatalog(tenantA, 'vaccine', undefined, branch2);
     expect(atH1.some((v) => v.code === 'BCG')).toBe(false);
     expect(atH2.some((v) => v.code === 'BCG')).toBe(true);
   });
 
-  test('one organization cannot see another organization\'s per-branch config', async ({ skip }) => {
+  test("one organization cannot see another organization's per-branch config", async ({ skip }) => {
     if (!ready) return skip();
     // tenant A has overrides on branch1; tenant B must see none of them.
     const bOverrides = await listOverrides(tenantB, branch1);
@@ -124,7 +168,11 @@ describe('per-hospital availability (ADR-073)', () => {
   test('a branch outside the organization is refused', async ({ skip }) => {
     if (!ready) return skip();
     try {
-      await setAvailability(tenantB, { branchId: branch1, itemType: 'drug', itemRef: drugId, isAvailable: false }, actorA);
+      await setAvailability(
+        tenantB,
+        { branchId: branch1, itemType: 'drug', itemRef: drugId, isAvailable: false },
+        actorA,
+      );
       throw new Error('expected the foreign branch to be refused');
     } catch (err) {
       expect(err).toBeInstanceOf(AppError);

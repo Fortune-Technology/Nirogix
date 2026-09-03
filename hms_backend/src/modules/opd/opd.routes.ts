@@ -14,8 +14,20 @@ import * as c from './opd.controller';
 export const opdRouter = Router();
 const mod = requireModule('opd');
 
-opdRouter.get('/visits', requireAuth, mod, requirePermission(PERMISSIONS.OPD_VIEW), asyncHandler(c.listQueue));
-opdRouter.get('/visits/:id', requireAuth, mod, requirePermission(PERMISSIONS.OPD_VIEW), asyncHandler(c.getVisit));
+opdRouter.get(
+  '/visits',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.OPD_VIEW),
+  asyncHandler(c.listQueue),
+);
+opdRouter.get(
+  '/visits/:id',
+  requireAuth,
+  mod,
+  requirePermission(PERMISSIONS.OPD_VIEW),
+  asyncHandler(c.getVisit),
+);
 opdRouter.post(
   '/visits/check-in',
   requireAuth,
@@ -38,8 +50,22 @@ opdRouter.patch(
 // role holds `opd.case.manage` and not only the view key.
 const caseCap = requireCapability('opd', 'opd.case');
 
-opdRouter.get('/cases', requireAuth, mod, caseCap, requirePermission(PERMISSIONS.CASE_VIEW), asyncHandler(c.listCases));
-opdRouter.get('/cases/:id', requireAuth, mod, caseCap, requirePermission(PERMISSIONS.CASE_VIEW), asyncHandler(c.getCase));
+opdRouter.get(
+  '/cases',
+  requireAuth,
+  mod,
+  caseCap,
+  requirePermission(PERMISSIONS.CASE_VIEW),
+  asyncHandler(c.listCases),
+);
+opdRouter.get(
+  '/cases/:id',
+  requireAuth,
+  mod,
+  caseCap,
+  requirePermission(PERMISSIONS.CASE_VIEW),
+  asyncHandler(c.getCase),
+);
 opdRouter.post(
   '/cases',
   requireAuth,

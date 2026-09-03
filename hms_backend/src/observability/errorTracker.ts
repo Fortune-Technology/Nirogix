@@ -29,7 +29,10 @@ class LogErrorTracker implements ErrorTracker {
     // Scrubbed here as well as in the logger: when a real tracker (Sentry/GlitchTip) is wired
     // in below, it will NOT pass through pino, and an Aadhaar number must not reach a
     // third-party service under any transport (ADR-084).
-    logger.error({ err: scrubAadhaar(err), ...context, event: 'error.captured' }, 'Captured server error');
+    logger.error(
+      { err: scrubAadhaar(err), ...context, event: 'error.captured' },
+      'Captured server error',
+    );
   }
 }
 

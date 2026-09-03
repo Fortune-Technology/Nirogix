@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 /**
  * Scrolling over a focused number input must not change its value (ADR-127).
@@ -49,7 +49,7 @@ export function NumberInputGuard(): null {
 
     function onWheel(e: WheelEvent) {
       const active = document.activeElement;
-      if (!(active instanceof HTMLInputElement) || active.type !== "number") return;
+      if (!(active instanceof HTMLInputElement) || active.type !== 'number') return;
       // Only the gesture the browser would actually apply to the field: the pointer has to be over
       // the focused input. Scrolling elsewhere on the page never touched the value to begin with.
       if (!e.composedPath().includes(active)) return;
@@ -61,8 +61,8 @@ export function NumberInputGuard(): null {
 
     // Non-passive, because a passive listener may not call preventDefault — and React's own
     // `onWheel` is registered passively, which is why this cannot be a prop on the input.
-    document.addEventListener("wheel", onWheel, { passive: false });
-    return () => document.removeEventListener("wheel", onWheel);
+    document.addEventListener('wheel', onWheel, { passive: false });
+    return () => document.removeEventListener('wheel', onWheel);
   }, []);
 
   return null;

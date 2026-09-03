@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useCallback,
@@ -9,11 +9,11 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
-import { Check, Search, X } from "lucide-react";
-import { cn } from "../cn";
-import { useAnchoredPanel } from "./useAnchoredPanel";
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Search, X } from 'lucide-react';
+import { cn } from '../cn';
+import { useAnchoredPanel } from './useAnchoredPanel';
 
 export interface ComboboxOption {
   /** Stable id of the record behind the option — a drug id, a test id, an ICD-10 code. */
@@ -70,13 +70,14 @@ export interface ComboboxProps {
   className?: string;
   /** Class applied to the input itself — width constraints belong here. */
   inputClassName?: string;
-  "aria-label"?: string;
+  'aria-label'?: string;
 }
 
 function matches(option: ComboboxOption, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const haystack = `${option.label} ${option.description ?? ""} ${option.keywords ?? ""}`.toLowerCase();
+  const haystack =
+    `${option.label} ${option.description ?? ''} ${option.keywords ?? ''}`.toLowerCase();
   // Every whitespace-separated term must appear, so "amox 500" finds Amoxicillin 500 mg
   // without the user having to type it in the order the master happens to store it.
   return q.split(/\s+/).every((term) => haystack.includes(term));
@@ -120,13 +121,13 @@ export function Combobox({
   customValueHint,
   required = false,
   loading = false,
-  emptyMessage = "No matches.",
+  emptyMessage = 'No matches.',
   clearable = true,
   id,
   name,
   className,
   inputClassName,
-  "aria-label": ariaLabel,
+  'aria-label': ariaLabel,
 }: ComboboxProps) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -154,7 +155,10 @@ export function Combobox({
   );
 
   const groups = useMemo(() => {
-    const out: Array<{ name: string | null; items: Array<{ option: ComboboxOption; index: number }> }> = [];
+    const out: Array<{
+      name: string | null;
+      items: Array<{ option: ComboboxOption; index: number }>;
+    }> = [];
     visible.forEach((option, index) => {
       const name = option.group ?? null;
       const last = out[out.length - 1];
@@ -207,8 +211,8 @@ export function Combobox({
       if (wrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       close();
     }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open, close]);
 
   // Keep the active option in view when the keyboard walks past the scroll edge.
@@ -216,7 +220,7 @@ export function Combobox({
     if (!open || activeIndex < 0) return;
     listRef.current
       ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: 'nearest' });
   }, [open, activeIndex]);
 
   function move(delta: number) {
@@ -231,31 +235,31 @@ export function Combobox({
 
   function onKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
     if (!open) {
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         openPanel();
       }
       return;
     }
     switch (e.key) {
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         e.stopPropagation();
         close();
         break;
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
         move(1);
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
         move(-1);
         break;
-      case "Home":
+      case 'Home':
         e.preventDefault();
         setActiveIndex(visible.findIndex((o) => !o.disabled));
         break;
-      case "End":
+      case 'End':
         e.preventDefault();
         for (let i = visible.length - 1; i >= 0; i--) {
           if (!visible[i]?.disabled) {
@@ -264,7 +268,7 @@ export function Combobox({
           }
         }
         break;
-      case "Enter": {
+      case 'Enter': {
         const option = visible[activeIndex];
         // Enter on a highlighted option selects it. With nothing highlighted the key is
         // left alone, so the field stays submittable inside a form.
@@ -274,7 +278,7 @@ export function Combobox({
         }
         break;
       }
-      case "Tab":
+      case 'Tab':
         close();
         break;
       default:
@@ -285,10 +289,11 @@ export function Combobox({
   function onBlur() {
     // Without free text the field cannot be left holding a value that means nothing:
     // an unmatched string reverts to empty rather than looking like a real selection.
-    if (!allowCustomValue && !exact && value !== "") onChange("", null);
+    if (!allowCustomValue && !exact && value !== '') onChange('', null);
   }
 
-  const showCustomHint = Boolean(customValueHint) && allowCustomValue && !exact && value.trim() !== "";
+  const showCustomHint =
+    Boolean(customValueHint) && allowCustomValue && !exact && value.trim() !== '';
   const hasMessage = Boolean(error || hint || showCustomHint);
 
   const panel =
@@ -306,7 +311,7 @@ export function Combobox({
           id={listId}
           ref={listRef}
           role="listbox"
-          aria-label={typeof label === "string" ? label : ariaLabel}
+          aria-label={typeof label === 'string' ? label : ariaLabel}
           className="hms-select__list"
           style={{ maxHeight: rect.maxHeight }}
         >
@@ -330,10 +335,10 @@ export function Combobox({
                     aria-selected={exact?.value === option.value}
                     aria-disabled={option.disabled || undefined}
                     className={cn(
-                      "hms-select__option",
-                      index === activeIndex && "hms-select__option--active",
-                      exact?.value === option.value && "hms-select__option--selected",
-                      option.disabled && "hms-select__option--disabled",
+                      'hms-select__option',
+                      index === activeIndex && 'hms-select__option--active',
+                      exact?.value === option.value && 'hms-select__option--selected',
+                      option.disabled && 'hms-select__option--disabled',
                     )}
                     onPointerMove={() => !option.disabled && setActiveIndex(index)}
                     // Pointer-down, not click: the field's own blur would otherwise close
@@ -348,7 +353,9 @@ export function Combobox({
                     </span>
                     <span className="hms-select__option-text">
                       <span className="hms-select__option-label">{option.label}</span>
-                      {option.description && <span className="hms-select__option-desc">{option.description}</span>}
+                      {option.description && (
+                        <span className="hms-select__option-desc">{option.description}</span>
+                      )}
                     </span>
                     {option.meta ? <span className="hms-select__meta">{option.meta}</span> : null}
                   </div>
@@ -361,13 +368,13 @@ export function Combobox({
     ) : null;
 
   return (
-    <div className={cn("hms-field", className)}>
+    <div className={cn('hms-field', className)}>
       {label && (
         <label className="hms-label" htmlFor={fieldId}>
           {label}
           {required && (
             <span className="hms-select__required" aria-hidden>
-              {" "}
+              {' '}
               *
             </span>
           )}
@@ -384,19 +391,25 @@ export function Combobox({
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls={open ? listId : undefined}
-          aria-activedescendant={open && activeIndex >= 0 ? `${fieldId}-opt-${activeIndex}` : undefined}
+          aria-activedescendant={
+            open && activeIndex >= 0 ? `${fieldId}-opt-${activeIndex}` : undefined
+          }
           aria-required={required || undefined}
           aria-invalid={!!error}
           aria-label={ariaLabel}
           aria-describedby={hasMessage ? messageId : undefined}
-          className={cn("hms-combobox__input", inputClassName)}
+          className={cn('hms-combobox__input', inputClassName)}
           placeholder={placeholder}
           value={value}
           disabled={disabled}
           name={name}
           onChange={(e) => {
             const text = e.target.value;
-            onChange(text, options.find((o) => o.label.trim().toLowerCase() === text.trim().toLowerCase()) ?? null);
+            onChange(
+              text,
+              options.find((o) => o.label.trim().toLowerCase() === text.trim().toLowerCase()) ??
+                null,
+            );
             onSearch?.(text);
             setActiveIndex(0);
             if (!open) openPanel();
@@ -405,7 +418,7 @@ export function Combobox({
           onKeyDown={onKeyDown}
           onBlur={onBlur}
         />
-        {clearable && value !== "" && !disabled ? (
+        {clearable && value !== '' && !disabled ? (
           <button
             type="button"
             aria-label="Clear"
@@ -413,8 +426,8 @@ export function Combobox({
             // Pointer-down for the same reason as an option: blur must not beat the click.
             onPointerDown={(e) => {
               e.preventDefault();
-              onChange("", null);
-              onSearch?.("");
+              onChange('', null);
+              onSearch?.('');
               inputRef.current?.focus();
             }}
           >
@@ -422,7 +435,7 @@ export function Combobox({
           </button>
         ) : null}
       </div>
-      {typeof document !== "undefined" && panel ? createPortal(panel, document.body) : null}
+      {typeof document !== 'undefined' && panel ? createPortal(panel, document.body) : null}
       {error ? (
         <span id={messageId} className="hms-field__error">
           {error}

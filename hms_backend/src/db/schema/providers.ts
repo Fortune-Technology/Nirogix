@@ -75,7 +75,9 @@ export const practitionerRoles = pgTable(
     // Which department this provider works in (ADR-050). Nullable: a single-doctor clinic has
     // no departments, and a provider added before departments existed keeps working. The
     // reference is `set null` — deactivating a department must never orphan a doctor's record.
-    departmentId: uuid('department_id').references((): AnyPgColumn => departments.id, { onDelete: 'set null' }),
+    departmentId: uuid('department_id').references((): AnyPgColumn => departments.id, {
+      onDelete: 'set null',
+    }),
     role: varchar('role', { length: 50 }).notNull().default('consultant'),
     isPrimary: boolean('is_primary').notNull().default(false),
     periodStart: timestamp('period_start', { withTimezone: true }),

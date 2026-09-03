@@ -59,7 +59,11 @@ async function requestToken(): Promise<string> {
     // The client secret is in the request, never in the response — but the body is still an
     // external string, so it goes out through the logger's scrub like everything else.
     logger.error({ status: res.status, body }, 'ABDM session request failed');
-    throw new AbdmGatewayError(res.status, 'ABDM_SESSION_FAILED', 'Could not authenticate with ABDM');
+    throw new AbdmGatewayError(
+      res.status,
+      'ABDM_SESSION_FAILED',
+      'Could not authenticate with ABDM',
+    );
   }
 
   const data = (await res.json()) as { accessToken?: string; expiresIn?: number };

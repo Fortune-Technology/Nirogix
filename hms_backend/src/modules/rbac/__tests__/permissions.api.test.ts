@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { grantModule, setModuleStatus } from '../../entitlement/entitlement.service';
 
 /**
@@ -29,7 +37,13 @@ beforeAll(async () => {
   }
   await cleanupTenant(CODE);
   tenant = await makeTenant(CODE);
-  for (const role of ['receptionist', 'doctor', 'pharmacist', 'lab_technician', 'cashier'] as const) {
+  for (const role of [
+    'receptionist',
+    'doctor',
+    'pharmacist',
+    'lab_technician',
+    'cashier',
+  ] as const) {
     sessions[role] = await login(CODE, tenant.users[role]!);
   }
 }, 120_000);
@@ -38,7 +52,11 @@ afterAll(async () => {
   if (ready) await cleanupTenant(CODE);
 });
 
-const newPatient = (name: string) => ({ firstName: name, lastName: 'Rbac', gender: 'other' as const });
+const newPatient = (name: string) => ({
+  firstName: name,
+  lastName: 'Rbac',
+  gender: 'other' as const,
+});
 
 describe('read permission (PATIENT_VIEW)', () => {
   // Every clinical/counter role holds PATIENT_VIEW — they all need to find the patient.
@@ -55,8 +73,12 @@ describe('read permission (PATIENT_VIEW)', () => {
 describe('write permission (PATIENT_CREATE)', () => {
   test('receptionist and doctor may create a patient', async ({ skip }) => {
     if (!ready) return skip();
-    const byReception = await authed(sessions.receptionist!).post('/api/v1/patients').send(newPatient('Reception'));
-    const byDoctor = await authed(sessions.doctor!).post('/api/v1/patients').send(newPatient('Doctor'));
+    const byReception = await authed(sessions.receptionist!)
+      .post('/api/v1/patients')
+      .send(newPatient('Reception'));
+    const byDoctor = await authed(sessions.doctor!)
+      .post('/api/v1/patients')
+      .send(newPatient('Doctor'));
     expect(byReception.status).toBe(201);
     expect(byDoctor.status).toBe(201);
   });
@@ -65,7 +87,9 @@ describe('write permission (PATIENT_CREATE)', () => {
     '%s holds PATIENT_VIEW but is refused PATIENT_CREATE — reading is not writing',
     async (role) => {
       if (!ready) return;
-      const res = await authed(sessions[role]!).post('/api/v1/patients').send(newPatient('ShouldNotExist'));
+      const res = await authed(sessions[role]!)
+        .post('/api/v1/patients')
+        .send(newPatient('ShouldNotExist'));
       expect(res.status).toBe(403);
       expect(res.body.error).toBeDefined();
       // The refusal must not leak which permission key was missing.
@@ -83,7 +107,9 @@ describe('write permission (PATIENT_CREATE)', () => {
 });
 
 describe('cross-module refusal', () => {
-  test('a cashier cannot reach pharmacy dispensing, and a pharmacist cannot reach billing', async ({ skip }) => {
+  test('a cashier cannot reach pharmacy dispensing, and a pharmacist cannot reach billing', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const cashierAtPharmacy = await authed(sessions.cashier!).get('/api/v1/drugs');
     const pharmacistAtBilling = await authed(sessions.pharmacist!).get('/api/v1/invoices');
@@ -101,7 +127,9 @@ describe('cross-module refusal', () => {
 });
 
 describe('unauthenticated access', () => {
-  test('protected endpoints are 401 without a session, never 200 and never 403', async ({ skip }) => {
+  test('protected endpoints are 401 without a session, never 200 and never 403', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const { api } = await import('../../../test-api');
     for (const url of ['/api/v1/patients', '/api/v1/invoices', '/api/v1/drugs']) {
@@ -112,7 +140,9 @@ describe('unauthenticated access', () => {
 });
 
 describe('module entitlement precedes permission', () => {
-  test('revoking the tenant’s patient module refuses even a permitted user, with a distinct code', async ({ skip }) => {
+  test('revoking the tenant’s patient module refuses even a permitted user, with a distinct code', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const before = await authed(sessions.receptionist!).get('/api/v1/patients');
     expect(before.status).toBe(200);

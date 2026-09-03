@@ -17,7 +17,10 @@ export interface Series {
 }
 
 /** The y range a chart should draw, padded so the top line is not flush with the frame. */
-export function domain(all: number[], { stacked = false, count = 0 } = {}): { min: number; max: number } {
+export function domain(
+  all: number[],
+  { stacked = false, count = 0 } = {},
+): { min: number; max: number } {
   if (all.length === 0) return { min: 0, max: 1 };
   const max = Math.max(...all, 0);
   // A flat-zero dataset still needs a non-zero range, or every point lands on the axis.
@@ -42,7 +45,9 @@ export function yAt(value: number, d: { min: number; max: number }): number {
 export function linePath(values: number[], d: { min: number; max: number }): string {
   if (values.length === 0) return '';
   return values
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${xAt(i, values.length).toFixed(2)} ${yAt(v, d).toFixed(2)}`)
+    .map(
+      (v, i) => `${i === 0 ? 'M' : 'L'}${xAt(i, values.length).toFixed(2)} ${yAt(v, d).toFixed(2)}`,
+    )
     .join(' ');
 }
 

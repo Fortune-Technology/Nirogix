@@ -4,31 +4,31 @@ name: Intercom-design-analysis
 description: "An editorial customer-service marketing canvas built around a soft cream-white ground, charcoal type set in Saans (Intercom's proprietary geometric sans), and a single confident Fin Orange (#ff5600) reserved for the Fin AI brand. Cards live as floating white tiles with thin hairline borders and minimal radii (8–16px). Display headlines run Saans at weight 500 with measured negative tracking. The system reads as a careful, product-led publication: product screenshots dominate, ornament is rare, and the only place chromatic energy enters is the Fin Orange CTA."
 
 colors:
-  primary: "#111111"
-  on-primary: "#ffffff"
-  ink: "#111111"
-  ink-muted: "#626260"
-  ink-subtle: "#7b7b78"
-  ink-tertiary: "#9c9fa5"
-  canvas: "#f5f1ec"
-  surface-1: "#ffffff"
-  surface-2: "#ebe7e1"
-  inverse-canvas: "#000000"
-  inverse-surface-1: "#313130"
-  inverse-ink: "#ffffff"
-  inverse-ink-muted: "#9c9fa5"
-  hairline: "#d3cec6"
-  hairline-soft: "#ebe7e1"
-  fin-orange: "#ff5600"
-  report-orange: "#fe4c02"
-  report-blue: "#65b5ff"
-  report-green: "#0bdf50"
-  report-pink: "#ff2067"
-  report-lime: "#b3e01c"
-  report-cyan: "#03b2cb"
-  brand-blue: "#0007cb"
-  semantic-error: "#c41c1c"
-  semantic-success: "#0bdf50"
+  primary: '#111111'
+  on-primary: '#ffffff'
+  ink: '#111111'
+  ink-muted: '#626260'
+  ink-subtle: '#7b7b78'
+  ink-tertiary: '#9c9fa5'
+  canvas: '#f5f1ec'
+  surface-1: '#ffffff'
+  surface-2: '#ebe7e1'
+  inverse-canvas: '#000000'
+  inverse-surface-1: '#313130'
+  inverse-ink: '#ffffff'
+  inverse-ink-muted: '#9c9fa5'
+  hairline: '#d3cec6'
+  hairline-soft: '#ebe7e1'
+  fin-orange: '#ff5600'
+  report-orange: '#fe4c02'
+  report-blue: '#65b5ff'
+  report-green: '#0bdf50'
+  report-pink: '#ff2067'
+  report-lime: '#b3e01c'
+  report-cyan: '#03b2cb'
+  brand-blue: '#0007cb'
+  semantic-error: '#c41c1c'
+  semantic-success: '#0bdf50'
 
 typography:
   display-xl:
@@ -132,123 +132,123 @@ spacing:
 
 components:
   button-primary:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.on-primary}"
-    typography: "{typography.button}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.ink}'
+    textColor: '{colors.on-primary}'
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
     padding: 10px 18px
   button-primary-pressed:
-    backgroundColor: "{colors.inverse-canvas}"
-    textColor: "{colors.on-primary}"
-    typography: "{typography.button}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.inverse-canvas}'
+    textColor: '{colors.on-primary}'
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
   button-secondary:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.button}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
     padding: 10px 18px
   button-tertiary:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink}"
-    typography: "{typography.button}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
     padding: 10px 18px
   button-fin:
-    backgroundColor: "{colors.fin-orange}"
-    textColor: "{colors.on-primary}"
-    typography: "{typography.button}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.fin-orange}'
+    textColor: '{colors.on-primary}'
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
     padding: 10px 18px
   pricing-card:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.lg}'
     padding: 24px
   pricing-card-featured:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.on-primary}"
-    typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.ink}'
+    textColor: '{colors.on-primary}'
+    typography: '{typography.body}'
+    rounded: '{rounded.lg}'
     padding: 24px
   feature-card:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.lg}'
     padding: 24px
   product-mockup-card:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.xl}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.xl}'
     padding: 24px
   testimonial-card:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body-lg}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body-lg}'
+    rounded: '{rounded.lg}'
     padding: 32px
   customer-logo-tile:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.caption}"
-    rounded: "{rounded.xs}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink-muted}'
+    typography: '{typography.caption}'
+    rounded: '{rounded.xs}'
     padding: 16px
   text-input:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.md}'
     padding: 10px 14px
   text-input-focused:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.md}'
     padding: 10px 14px
   pricing-tab-default:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.button}"
-    rounded: "{rounded.pill}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink-muted}'
+    typography: '{typography.button}'
+    rounded: '{rounded.pill}'
     padding: 8px 16px
   pricing-tab-selected:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.button}"
-    rounded: "{rounded.pill}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.button}'
+    rounded: '{rounded.pill}'
     padding: 8px 16px
   faq-row:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.md}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.md}'
     padding: 24px
   cta-banner:
-    backgroundColor: "{colors.surface-1}"
-    textColor: "{colors.ink}"
-    typography: "{typography.headline}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.surface-1}'
+    textColor: '{colors.ink}'
+    typography: '{typography.headline}'
+    rounded: '{rounded.lg}'
     padding: 48px
   startup-discount-card:
-    backgroundColor: "{colors.surface-2}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    backgroundColor: '{colors.surface-2}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.lg}'
     padding: 32px
   top-nav:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body-sm}"
-    rounded: "{rounded.xs}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body-sm}'
+    rounded: '{rounded.xs}'
     height: 56px
   footer:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.caption}"
-    rounded: "{rounded.xs}"
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink-muted}'
+    typography: '{typography.caption}'
+    rounded: '{rounded.xs}'
     padding: 64px 32px
 ---
 
@@ -265,6 +265,7 @@ The single chromatic accent is **Fin Orange** (`{colors.fin-orange}` #ff5600) �
 The page rhythm is heavy on **product mockups**: every section's payload is a high-fidelity screenshot of Intercom's product UI, framed in white cards with `{rounded.xl}` 16px corners. The marketing chrome is intentionally quiet so the product can be the protagonist.
 
 **Key Characteristics:**
+
 - **Cream canvas** (`{colors.canvas}` #f5f1ec) is the brand's defining surface — neither white nor gray, deliberately warm.
 - Product-screenshot-led page rhythm: every section centers a product mockup card, marketing chrome stays minimal.
 - **Saans** proprietary sans-serif carries the entire hierarchy; SaansMono for code-only contexts.
@@ -278,6 +279,7 @@ The page rhythm is heavy on **product mockups**: every section's payload is a hi
 > Source pages: intercom.com (home), /pricing, /helpdesk, /customers, /helpdesk/inbox.
 
 ### Brand & Accent
+
 - **Charcoal** ({colors.ink}): The system primary surface. Headlines, body type, primary CTA pill background — all charcoal.
 - **White** ({colors.on-primary}): Text on charcoal CTAs; canvas of floating cards.
 - **Fin Orange** ({colors.fin-orange}): The AI-product accent. Used on the Fin CTA, Fin badge, and a small set of inline emphasis moments.
@@ -285,6 +287,7 @@ The page rhythm is heavy on **product mockups**: every section's payload is a hi
 - **Brand Blue** ({colors.brand-blue}): Saturated brand blue (#0007cb) — used on a small set of marketing illustrations.
 
 ### Surface
+
 - **Canvas** ({colors.canvas}): Default page background — soft cream-white #f5f1ec.
 - **Surface 1** ({colors.surface-1}): Pure white — used for floating cards (pricing, feature, product-mockup).
 - **Surface 2** ({colors.surface-2}): Slightly darker cream — startup-discount banner, alt-row stripes.
@@ -294,6 +297,7 @@ The page rhythm is heavy on **product mockups**: every section's payload is a hi
 - **Inverse Surface 1** ({colors.inverse-surface-1}): One step lighter — hovered footer items in dark contexts.
 
 ### Text
+
 - **Ink** ({colors.ink}): All headlines, body type, button labels — charcoal #111111.
 - **Ink Muted** ({colors.ink-muted}): Secondary type at #626260 — meta info, deselected pricing tabs.
 - **Ink Subtle** ({colors.ink-subtle}): Tertiary type at #7b7b78 — footer columns, helper text.
@@ -302,6 +306,7 @@ The page rhythm is heavy on **product mockups**: every section's payload is a hi
 - **Inverse Ink Muted** ({colors.inverse-ink-muted}): Light gray on black — quote-strip meta.
 
 ### Semantic & Report Palette (in-product mockups)
+
 - **Error Red** ({colors.semantic-error}): Form validation, destructive states.
 - **Success Green** ({colors.semantic-success}): Positive states (also `{colors.report-green}`).
 - **Report Blue** ({colors.report-blue}): Analytics chart blue.
@@ -322,21 +327,21 @@ The same family carries the entire hierarchy. Hierarchy is carried by size + wei
 
 ### Hierarchy
 
-| Token | Size | Weight | Line Height | Letter Spacing | Use |
-|---|---|---|---|---|---|
-| `{typography.display-xl}` | 72px | 500 | 1.05 | -2.0px | Largest hero headline |
-| `{typography.display-lg}` | 56px | 500 | 1.10 | -1.4px | Section opener headlines |
-| `{typography.display-md}` | 40px | 500 | 1.15 | -0.8px | Sub-section headlines |
-| `{typography.headline}` | 28px | 500 | 1.20 | -0.5px | Pricing tier titles, CTA banner |
-| `{typography.card-title}` | 22px | 500 | 1.25 | -0.3px | Card title, feature card |
-| `{typography.subhead}` | 20px | 400 | 1.40 | -0.2px | Lead body, intro paragraphs |
-| `{typography.body-lg}` | 18px | 400 | 1.50 | -0.1px | Hero subhead, lead paragraphs |
-| `{typography.body}` | 16px | 400 | 1.50 | 0 | Default body |
-| `{typography.body-sm}` | 14px | 400 | 1.50 | 0 | Card body, footer |
-| `{typography.caption}` | 12px | 400 | 1.40 | 0 | Captions, meta |
-| `{typography.button}` | 15px | 500 | 1.20 | 0 | Pill / square button labels |
-| `{typography.eyebrow}` | 14px | 500 | 1.30 | 0 | Section eyebrow (sentence case) |
-| `{typography.mono}` | 13px | 400 | 1.50 | 0 | SaansMono for code in mockups |
+| Token                     | Size | Weight | Line Height | Letter Spacing | Use                             |
+| ------------------------- | ---- | ------ | ----------- | -------------- | ------------------------------- |
+| `{typography.display-xl}` | 72px | 500    | 1.05        | -2.0px         | Largest hero headline           |
+| `{typography.display-lg}` | 56px | 500    | 1.10        | -1.4px         | Section opener headlines        |
+| `{typography.display-md}` | 40px | 500    | 1.15        | -0.8px         | Sub-section headlines           |
+| `{typography.headline}`   | 28px | 500    | 1.20        | -0.5px         | Pricing tier titles, CTA banner |
+| `{typography.card-title}` | 22px | 500    | 1.25        | -0.3px         | Card title, feature card        |
+| `{typography.subhead}`    | 20px | 400    | 1.40        | -0.2px         | Lead body, intro paragraphs     |
+| `{typography.body-lg}`    | 18px | 400    | 1.50        | -0.1px         | Hero subhead, lead paragraphs   |
+| `{typography.body}`       | 16px | 400    | 1.50        | 0              | Default body                    |
+| `{typography.body-sm}`    | 14px | 400    | 1.50        | 0              | Card body, footer               |
+| `{typography.caption}`    | 12px | 400    | 1.40        | 0              | Captions, meta                  |
+| `{typography.button}`     | 15px | 500    | 1.20        | 0              | Pill / square button labels     |
+| `{typography.eyebrow}`    | 14px | 500    | 1.30        | 0              | Section eyebrow (sentence case) |
+| `{typography.mono}`       | 13px | 400    | 1.50        | 0              | SaansMono for code in mockups   |
 
 ### Principles
 
@@ -372,12 +377,12 @@ The cream canvas does the work white space would in another brand. Sections sepa
 
 ## Elevation & Depth
 
-| Level | Treatment | Use |
-|---|---|---|
-| 0 (flat) | No shadow, no border | Default for body type, hero text, footer |
+| Level             | Treatment                                                        | Use                                           |
+| ----------------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| 0 (flat)          | No shadow, no border                                             | Default for body type, hero text, footer      |
 | 1 (lift on cream) | `{colors.surface-1}` white background on `{colors.canvas}` cream | Pricing cards, feature cards, product mockups |
-| 2 (hairline lift) | `{colors.surface-1}` + 1px `{colors.hairline}` border | Floating tiles with extra definition |
-| 3 (deep accent) | `{colors.inverse-canvas}` true black | Quote / testimonial callout strip |
+| 2 (hairline lift) | `{colors.surface-1}` + 1px `{colors.hairline}` border            | Floating tiles with extra definition          |
+| 3 (deep accent)   | `{colors.inverse-canvas}` true black                             | Quote / testimonial callout strip             |
 
 Intercom resists drop shadows. Depth is communicated by the white-on-cream surface change.
 
@@ -390,16 +395,16 @@ Intercom resists drop shadows. Depth is communicated by the white-on-cream surfa
 
 ### Border Radius Scale
 
-| Token | Value | Use |
-|---|---|---|
-| `{rounded.xs}` | 4px | Small chips, badges |
-| `{rounded.sm}` | 6px | Inline tags |
-| `{rounded.md}` | 8px | All buttons, form inputs |
-| `{rounded.lg}` | 12px | Pricing cards, feature cards, FAQ rows |
-| `{rounded.xl}` | 16px | Product mockup cards |
-| `{rounded.xxl}` | 24px | Oversized CTA banners |
-| `{rounded.pill}` | 9999px | Tab toggles |
-| `{rounded.full}` | 9999px | Avatar circles |
+| Token            | Value  | Use                                    |
+| ---------------- | ------ | -------------------------------------- |
+| `{rounded.xs}`   | 4px    | Small chips, badges                    |
+| `{rounded.sm}`   | 6px    | Inline tags                            |
+| `{rounded.md}`   | 8px    | All buttons, form inputs               |
+| `{rounded.lg}`   | 12px   | Pricing cards, feature cards, FAQ rows |
+| `{rounded.xl}`   | 16px   | Product mockup cards                   |
+| `{rounded.xxl}`  | 24px   | Oversized CTA banners                  |
+| `{rounded.pill}` | 9999px | Tab toggles                            |
+| `{rounded.full}` | 9999px | Avatar circles                         |
 
 ### Photography & Illustration Geometry
 
@@ -412,68 +417,85 @@ Intercom resists drop shadows. Depth is communicated by the white-on-cream surfa
 ### Buttons
 
 **`button-primary`** — Charcoal CTA. The default primary CTA across all pages.
+
 - Background `{colors.ink}`, text `{colors.on-primary}`, type `{typography.button}`, padding 10px 18px, rounded `{rounded.md}`.
 - Pressed state lives in `button-primary-pressed`.
 
 **`button-secondary`** — White button on cream. Used for secondary CTAs.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.button}`, padding 10px 18px, rounded `{rounded.md}`. 1px `{colors.hairline}` border.
 
 **`button-tertiary`** — Plain text button.
+
 - Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.button}`, rounded `{rounded.md}`, padding 10px 18px.
 
 **`button-fin`** — Fin Orange CTA — reserved for Fin AI product CTAs.
+
 - Background `{colors.fin-orange}`, text `{colors.on-primary}`, type `{typography.button}`, rounded `{rounded.md}`, padding 10px 18px.
 
 ### Pricing Tabs
 
 **`pricing-tab-default`** + **`pricing-tab-selected`** — Pill-toggle on `/pricing`.
+
 - Default: `{colors.canvas}` background, `{colors.ink-muted}` text, rounded `{rounded.pill}`.
 - Selected: `{colors.surface-1}` white background, `{colors.ink}` text — selected = lift onto white.
 
 ### Cards & Containers
 
 **`pricing-card`** — Each tier on `/pricing`.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.lg}`, padding 24px.
 
 **`pricing-card-featured`** — Featured / recommended tier — inverts to charcoal.
+
 - Background `{colors.ink}`, text `{colors.on-primary}`, otherwise identical structure.
 
 **`feature-card`** — Generic feature highlight.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.lg}`, padding 24px.
 
 **`product-mockup-card`** — The dominant card type — frames a high-fidelity product UI screenshot.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.xl}`, padding 24px.
 
 **`testimonial-card`** — Customer quote with avatar + name + company.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body-lg}`, rounded `{rounded.lg}`, padding 32px.
 
 **`startup-discount-card`** — The "Startups get 90% off" tinted card.
+
 - Background `{colors.surface-2}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.lg}`, padding 32px.
 
 **`customer-logo-tile`** — Small tile in the customer marquee.
+
 - Background `{colors.canvas}`, text `{colors.ink-muted}`, type `{typography.caption}`, rounded `{rounded.xs}`, padding 16px.
 
 **`cta-banner`** — Closing CTA panel near page bottom.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.headline}`, rounded `{rounded.lg}`, padding 48px.
 
 ### Inputs & Forms
 
 **`text-input`** + **`text-input-focused`** — Form fields on contact and search overlays.
+
 - Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.md}`, padding 10px 14px.
 
 ### FAQ
 
 **`faq-row`** — Expandable accordion row in the pricing FAQ.
+
 - Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.md}`, padding 24px. 1px `{colors.hairline-soft}` bottom rule.
 
 ### Navigation
 
 **`top-nav`** — Sticky cream bar with the Intercom wordmark left, nav links centered, log-in + sign-up pair right.
+
 - Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body-sm}`, height 56px.
 
 ### Footer
 
 **`footer`** — Dense link grid on `{colors.canvas}` cream with the Intercom wordmark left.
+
 - Background `{colors.canvas}`, text `{colors.ink-muted}`, type `{typography.caption}`, padding 64px 32px.
 
 ## Do's and Don'ts
@@ -503,13 +525,13 @@ Intercom resists drop shadows. Depth is communicated by the white-on-cream surfa
 
 ### Breakpoints
 
-| Name | Width | Key Changes |
-|---|---|---|
-| Desktop-XL | 1440px | Default desktop layout |
-| Desktop | 1280px | Card grid 3-up maintained |
-| Tablet | 1024px | Card grid 3-up → 2-up |
-| Mobile-Lg | 768px | Pricing comparison becomes accordion; nav hamburger |
-| Mobile | 480px | Single-column; display-xl scales 72px → ~32px |
+| Name       | Width  | Key Changes                                         |
+| ---------- | ------ | --------------------------------------------------- |
+| Desktop-XL | 1440px | Default desktop layout                              |
+| Desktop    | 1280px | Card grid 3-up maintained                           |
+| Tablet     | 1024px | Card grid 3-up → 2-up                               |
+| Mobile-Lg  | 768px  | Pricing comparison becomes accordion; nav hamburger |
+| Mobile     | 480px  | Single-column; display-xl scales 72px → ~32px       |
 
 ### Touch Targets
 

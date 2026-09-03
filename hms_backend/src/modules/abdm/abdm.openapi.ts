@@ -39,10 +39,22 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const forbidden = { description: 'Missing permission / module not entitled', ...json(ErrorResponseSchema) };
-const unprocessable = { description: 'Validation error, or consent not recorded', ...json(ErrorResponseSchema) };
-const gone = { description: 'The verification expired — start again', ...json(ErrorResponseSchema) };
-const upstream = { description: 'ABDM rejected the request or is unavailable', ...json(ErrorResponseSchema) };
+const forbidden = {
+  description: 'Missing permission / module not entitled',
+  ...json(ErrorResponseSchema),
+};
+const unprocessable = {
+  description: 'Validation error, or consent not recorded',
+  ...json(ErrorResponseSchema),
+};
+const gone = {
+  description: 'The verification expired — start again',
+  ...json(ErrorResponseSchema),
+};
+const upstream = {
+  description: 'ABDM rejected the request or is unavailable',
+  ...json(ErrorResponseSchema),
+};
 const TAG = 'ABDM';
 
 registry.registerPath({
@@ -55,7 +67,11 @@ registry.registerPath({
     'Drives the registration screen. Scan and Share is only offered when the hospital has an HFR facility id, a QR payload and the flow switched on; the Aadhaar and identifier flows need no facility registration.',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ branchId: z.string().uuid().optional() }) },
-  responses: { 200: { description: 'Capabilities', ...json(AbdmCapabilitiesSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Capabilities', ...json(AbdmCapabilitiesSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -90,7 +106,10 @@ registry.registerPath({
   request: { body: json(VerifyAadhaarOtpBody) },
   responses: {
     200: { description: 'Verified', ...json(VerificationResultSchema) },
-    401: { description: 'Not authenticated, or the OTP was rejected by ABDM', ...json(ErrorResponseSchema) },
+    401: {
+      description: 'Not authenticated, or the OTP was rejected by ABDM',
+      ...json(ErrorResponseSchema),
+    },
     403: forbidden,
     410: gone,
     422: unprocessable,
@@ -108,7 +127,14 @@ registry.registerPath({
     'A distinct ABDM sub-flow, not a formality: it decides which linking token is issued, and skipping it produces a token that fails later at care-context linking.',
   security: [{ bearerAuth: [] }],
   request: { body: json(RequestMobileOtpBody) },
-  responses: { 202: { description: 'OTP sent', ...json(OtpSentSchema) }, 401: notAuthed, 403: forbidden, 410: gone, 422: unprocessable, 502: upstream },
+  responses: {
+    202: { description: 'OTP sent', ...json(OtpSentSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    422: unprocessable,
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -119,7 +145,13 @@ registry.registerPath({
   summary: 'Verify the secondary mobile OTP',
   security: [{ bearerAuth: [] }],
   request: { body: json(VerifyOtpBody) },
-  responses: { 200: { description: 'Verified', ...json(VerificationResultSchema) }, 401: notAuthed, 403: forbidden, 410: gone, 502: upstream },
+  responses: {
+    200: { description: 'Verified', ...json(VerificationResultSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -130,7 +162,13 @@ registry.registerPath({
   summary: 'ABHA address suggestions for a newly created ABHA',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ transactionId: z.string().uuid() }) },
-  responses: { 200: { description: 'Suggestions', ...json(AbhaAddressSuggestionsSchema) }, 401: notAuthed, 403: forbidden, 410: gone, 502: upstream },
+  responses: {
+    200: { description: 'Suggestions', ...json(AbhaAddressSuggestionsSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -142,7 +180,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: json(CreateAbhaAddressBody) },
   responses: {
-    201: { description: 'Created', ...json(z.object({ transactionId: z.string().uuid(), abhaAddress: z.string() })) },
+    201: {
+      description: 'Created',
+      ...json(z.object({ transactionId: z.string().uuid(), abhaAddress: z.string() })),
+    },
     401: notAuthed,
     403: forbidden,
     409: { description: 'That ABHA address is already taken', ...json(ErrorResponseSchema) },
@@ -158,11 +199,15 @@ registry.registerPath({
   operationId: 'downloadAbhaCard',
   tags: [TAG],
   summary: 'Download the ABHA card',
-  description: 'Streamed straight from ABDM. Never persisted on our side — it carries the patient photo and we already hold the data it renders.',
+  description:
+    'Streamed straight from ABDM. Never persisted on our side — it carries the patient photo and we already hold the data it renders.',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ transactionId: z.string().uuid() }) },
   responses: {
-    200: { description: 'The card image or PDF', content: { 'image/png': { schema: z.string() }, 'application/pdf': { schema: z.string() } } },
+    200: {
+      description: 'The card image or PDF',
+      content: { 'image/png': { schema: z.string() }, 'application/pdf': { schema: z.string() } },
+    },
     401: notAuthed,
     403: forbidden,
     410: gone,
@@ -179,7 +224,14 @@ registry.registerPath({
   summary: 'Send an OTP to verify an existing ABHA (number / address / mobile / Aadhaar)',
   security: [{ bearerAuth: [] }],
   request: { body: json(StartVerificationBody) },
-  responses: { 202: { description: 'OTP sent', ...json(OtpSentSchema) }, 401: notAuthed, 403: forbidden, 422: unprocessable, 429: { description: 'Too many OTP requests', ...json(ErrorResponseSchema) }, 502: upstream },
+  responses: {
+    202: { description: 'OTP sent', ...json(OtpSentSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: unprocessable,
+    429: { description: 'Too many OTP requests', ...json(ErrorResponseSchema) },
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -188,10 +240,17 @@ registry.registerPath({
   operationId: 'verifyAbhaIdentifierOtp',
   tags: [TAG],
   summary: 'Verify the OTP for an existing ABHA',
-  description: 'When the identifier resolves to several ABHA accounts (a shared family mobile), the response carries `accounts` and no prefill until one is selected.',
+  description:
+    'When the identifier resolves to several ABHA accounts (a shared family mobile), the response carries `accounts` and no prefill until one is selected.',
   security: [{ bearerAuth: [] }],
   request: { body: json(VerifyOtpBody) },
-  responses: { 200: { description: 'Verified', ...json(VerificationResultSchema) }, 401: notAuthed, 403: forbidden, 410: gone, 502: upstream },
+  responses: {
+    200: { description: 'Verified', ...json(VerificationResultSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -202,7 +261,13 @@ registry.registerPath({
   summary: 'Choose one ABHA when the identifier resolved to several',
   security: [{ bearerAuth: [] }],
   request: { body: json(SelectAccountBody) },
-  responses: { 200: { description: 'Verified', ...json(VerificationResultSchema) }, 401: notAuthed, 403: forbidden, 410: gone, 502: upstream },
+  responses: {
+    200: { description: 'Verified', ...json(VerificationResultSchema) },
+    401: notAuthed,
+    403: forbidden,
+    410: gone,
+    502: upstream,
+  },
 });
 
 registry.registerPath({
@@ -212,7 +277,11 @@ registry.registerPath({
   tags: [TAG],
   summary: 'Profiles patients have pushed by scanning the facility QR, waiting at the desk',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Pending shares', ...json(PendingShareListSchema) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: { description: 'Pending shares', ...json(PendingShareListSchema) },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -223,7 +292,13 @@ registry.registerPath({
   summary: 'Re-read a verification (for a screen that reloaded mid-flow)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ transactionId: z.string().uuid() }) },
-  responses: { 200: { description: 'Verification', ...json(VerificationResultSchema) }, 401: notAuthed, 403: forbidden, 404: { description: 'Not found', ...json(ErrorResponseSchema) }, 410: gone },
+  responses: {
+    200: { description: 'Verification', ...json(VerificationResultSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    410: gone,
+  },
 });
 
 registry.registerPath({
@@ -234,7 +309,12 @@ registry.registerPath({
   summary: 'Close a verification without linking (the operator fell back to the manual form)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ transactionId: z.string().uuid() }) },
-  responses: { 204: { description: 'Dismissed' }, 401: notAuthed, 403: forbidden, 404: { description: 'Not found', ...json(ErrorResponseSchema) } },
+  responses: {
+    204: { description: 'Dismissed' },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+  },
 });
 
 registry.registerPath({
@@ -252,7 +332,10 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     410: gone,
-    422: { description: 'Nothing to update, or ABDM refused a field', ...json(ErrorResponseSchema) },
+    422: {
+      description: 'Nothing to update, or ABDM refused a field',
+      ...json(ErrorResponseSchema),
+    },
     502: upstream,
   },
 });
@@ -268,11 +351,19 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: json(LinkPatientBody) },
   responses: {
-    200: { description: 'The updated patient', ...json(z.object({ id: z.string().uuid(), uhid: z.string(), abhaNumber: z.string().nullable() })) },
+    200: {
+      description: 'The updated patient',
+      ...json(
+        z.object({ id: z.string().uuid(), uhid: z.string(), abhaNumber: z.string().nullable() }),
+      ),
+    },
     401: notAuthed,
     403: forbidden,
     404: { description: 'Patient or verification not found', ...json(ErrorResponseSchema) },
-    409: { description: 'That ABHA is already linked to another patient', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'That ABHA is already linked to another patient',
+      ...json(ErrorResponseSchema),
+    },
     410: gone,
     422: unprocessable,
   },
@@ -286,7 +377,14 @@ registry.registerPath({
   summary: "The hospital's ABDM/HFR facility registration",
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ branchId: z.string().uuid().optional() }) },
-  responses: { 200: { description: 'Facility configuration (null when unconfigured)', ...json(FacilityConfigSchema.nullable()) }, 401: notAuthed, 403: forbidden },
+  responses: {
+    200: {
+      description: 'Facility configuration (null when unconfigured)',
+      ...json(FacilityConfigSchema.nullable()),
+    },
+    401: notAuthed,
+    403: forbidden,
+  },
 });
 
 registry.registerPath({
@@ -295,10 +393,16 @@ registry.registerPath({
   operationId: 'putAbdmFacility',
   tags: [TAG],
   summary: "Set the hospital's HFR facility id and Scan-and-Share QR",
-  description: 'The facility id is issued by NHA to the hospital, never by us. It is sent as X-HIP-ID on outbound calls and is what the Scan-and-Share callback resolves the tenant from.',
+  description:
+    'The facility id is issued by NHA to the hospital, never by us. It is sent as X-HIP-ID on outbound calls and is what the Scan-and-Share callback resolves the tenant from.',
   security: [{ bearerAuth: [] }],
   request: { body: json(FacilityConfigBody) },
-  responses: { 200: { description: 'Saved', ...json(FacilityConfigSchema) }, 401: notAuthed, 403: forbidden, 422: unprocessable },
+  responses: {
+    200: { description: 'Saved', ...json(FacilityConfigSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: unprocessable,
+  },
 });
 
 registry.registerPath({
@@ -322,7 +426,8 @@ registry.registerPath({
   path: '/api/v3/consent/request/hip/notify',
   operationId: 'abdmHipConsentNotifyCallback',
   tags: [TAG],
-  summary: 'ABDM notifies the hospital that a consent was granted, revoked or expired (unauthenticated)',
+  summary:
+    'ABDM notifies the hospital that a consent was granted, revoked or expired (unauthenticated)',
   description:
     "The only way a Health Information Provider ever learns a consent changed — there is no polling equivalent, so without this route a withdrawn consent goes on authorising transfers indefinitely (ADR-101, M2 §6.3.1). One path carries three events, separated only by `notification.status`: GRANTED stores the artefact, REVOKED and EXPIRED delete it outright rather than flagging it, and an unrecognised status deliberately does neither. Like every gateway callback the tenant is resolved server-side from `X-HIP-ID` and the answer is an identical 202 whatever the facility turns out to be. Acting on it is acknowledged separately, by calling the gateway's `consent/v3/request/hip/on-notify` **after** the artefact has actually been stored or purged.",
   request: { body: json(HipConsentNotifyBody) },
@@ -354,7 +459,7 @@ registry.registerPath({
   path: '/api/v1/abdm/history/request',
   operationId: 'abdmRequestPatientHistory',
   tags: [TAG],
-  summary: "Ask a patient for permission to read their history at other hospitals",
+  summary: 'Ask a patient for permission to read their history at other hospitals',
   description:
     "Sends a consent request to the patient's consent manager. Returns 202 as soon as ABDM acknowledges — the consent request id arrives asynchronously on our `on-init` callback, and the patient grants or denies in their own PHR app, which we do not control. Refused with 422 unless the patient's ABHA address is **verified** (a hand-typed identifier was never proved to be theirs) and unless the requesting doctor has a medical registration number on file, because that is what the patient reads when deciding whether to grant. The purpose is always `CAREMGT`.",
   security: [{ bearerAuth: [] }],
@@ -373,13 +478,16 @@ registry.registerPath({
   path: '/api/v1/abdm/history/{patientId}',
   operationId: 'abdmListHistoryRequests',
   tags: [TAG],
-  summary: "History requests raised for a patient, newest first",
+  summary: 'History requests raised for a patient, newest first',
   description:
     'Drives the live status the doctor sees while waiting for the patient to grant, so a request is never a dead end after the button is pressed.',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ patientId: z.string().uuid() }) },
   responses: {
-    200: { description: 'Requests', ...json(z.object({ requests: z.array(HistoryRequestSchema) })) },
+    200: {
+      description: 'Requests',
+      ...json(z.object({ requests: z.array(HistoryRequestSchema) })),
+    },
     401: notAuthed,
     403: forbidden,
   },
@@ -408,7 +516,7 @@ registry.registerPath({
   path: '/api/v1/abdm/history/{patientId}/fetch',
   operationId: 'abdmFetchExternalRecords',
   tags: [TAG],
-  summary: "Pull the records every granted consent for this patient unlocks",
+  summary: 'Pull the records every granted consent for this patient unlocks',
   description:
     'One request per hospital that granted a consent. Answers 202 because the records arrive later, pushed to our own endpoint on a separate connection — a 200 would imply they are already here. Each consent is re-checked against the clock at the moment of asking, so one revoked since the doctor pressed the button produces no request at all. A hospital that cannot be reached is skipped rather than failing the others: a partial history is worth more than none, provided the doctor is told which sources answered.',
   security: [{ bearerAuth: [] }],
@@ -438,7 +546,12 @@ const TimelineEntrySchema = z.object({
   title: z.string(),
   author: z.string().nullable(),
   details: z.array(
-    z.object({ group: z.string(), label: z.string(), value: z.string(), emphasis: z.literal('abnormal').optional() }),
+    z.object({
+      group: z.string(),
+      label: z.string(),
+      value: z.string(),
+      emphasis: z.literal('abnormal').optional(),
+    }),
   ),
   hasAbnormalFinding: z.boolean(),
   receivedAt: z.string(),
@@ -503,7 +616,10 @@ registry.registerPath({
     'One row per facility — a multi-branch group registers each branch separately, so `branchId` is null for the organisation’s principal facility and set for a branch.',
   security: [{ bearerAuth: [] }],
   responses: {
-    200: { description: 'Registrations', ...json(z.object({ registrations: z.array(FacilityRegistrationSchema) })) },
+    200: {
+      description: 'Registrations',
+      ...json(z.object({ registrations: z.array(FacilityRegistrationSchema) })),
+    },
     401: notAuthed,
     403: forbidden,
   },
@@ -543,7 +659,10 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Nothing saved to submit', ...json(ErrorResponseSchema) },
-    409: { description: 'Not a legal transition from the current status', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Not a legal transition from the current status',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -572,7 +691,7 @@ registry.registerPath({
   path: '/api/v1/abdm/registry/facility/update',
   operationId: 'abdmUpdateFacilityRegistration',
   tags: [TAG],
-  summary: "Amend a facility HFR has already verified",
+  summary: 'Amend a facility HFR has already verified',
   description:
     "A registered hospital still changes — beds, contacts, a rename. Saving refuses once a registration is verified, so that nobody re-registers a building that already holds a Facility ID and gives it a **second** national identity; this is the deliberate act that refusal leaves room for. Re-runs the same four wizard calls quoting the tracking id HFR already knows, never touches the issued Facility ID, and leaves the status `verified` — the facility *is* registered; what is in flight is a change to its details.\n\n**Unverified against the live registry.** HFR's published V4 contract has no dedicated update endpoint, so amending through the wizard is inferred from its statefulness rather than documented. Run it once against a real verified facility before relying on it.",
   security: [{ bearerAuth: [] }],
@@ -582,8 +701,14 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Not registered with HFR yet', ...json(ErrorResponseSchema) },
-    409: { description: 'Not verified — edit the registration and submit it again instead', ...json(ErrorResponseSchema) },
-    422: { description: 'No HFR tracking id, so it cannot be amended through the API', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Not verified — edit the registration and submit it again instead',
+      ...json(ErrorResponseSchema),
+    },
+    422: {
+      description: 'No HFR tracking id, so it cannot be amended through the API',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -625,7 +750,10 @@ registry.registerPath({
     },
     401: notAuthed,
     403: forbidden,
-    422: { description: 'No filter given, or a filter failed validation', ...json(ErrorResponseSchema) },
+    422: {
+      description: 'No filter given, or a filter failed validation',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -639,7 +767,16 @@ registry.registerPath({
     'States, districts, sub-districts, facility types, owner sub-types and specialities, proxied from HFR and cached for six hours. Fetched rather than hard-coded: LGD codes are the registry’s to define, and a local copy would drift silently into rejections that look like our bug.',
   security: [{ bearerAuth: [] }],
   request: {
-    params: z.object({ kind: z.enum(['states', 'districts', 'subDistricts', 'facilityType', 'ownerSubtype', 'specialities']) }),
+    params: z.object({
+      kind: z.enum([
+        'states',
+        'districts',
+        'subDistricts',
+        'facilityType',
+        'ownerSubtype',
+        'specialities',
+      ]),
+    }),
     query: z.object({ code: z.string().optional() }),
   },
   responses: {
@@ -656,7 +793,13 @@ const HprEnrolmentSchema = z.object({
   id: z.string().uuid(),
   providerId: z.string().uuid(),
   hprId: z.string().nullable(),
-  status: z.enum(['not_started', 'aadhaar_verified', 'mobile_verified', 'registered', 'already_registered']),
+  status: z.enum([
+    'not_started',
+    'aadhaar_verified',
+    'mobile_verified',
+    'registered',
+    'already_registered',
+  ]),
   statusMessage: z.string().nullable(),
   professionalCategory: z.string().nullable(),
   registrationCouncil: z.string().nullable(),
@@ -672,7 +815,10 @@ registry.registerPath({
   summary: 'HPR enrolment state for this hospital’s clinicians',
   security: [{ bearerAuth: [] }],
   responses: {
-    200: { description: 'Enrolments', ...json(z.object({ enrolments: z.array(HprEnrolmentSchema) })) },
+    200: {
+      description: 'Enrolments',
+      ...json(z.object({ enrolments: z.array(HprEnrolmentSchema) })),
+    },
     401: notAuthed,
     403: forbidden,
   },
@@ -689,7 +835,10 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: json(HprStartBody) },
   responses: {
-    202: { description: 'OTP sent', ...json(z.object({ status: z.string(), alreadyRegistered: z.boolean() })) },
+    202: {
+      description: 'OTP sent',
+      ...json(z.object({ status: z.string(), alreadyRegistered: z.boolean() })),
+    },
     401: notAuthed,
     403: forbidden,
     404: { description: 'No such staff member', ...json(ErrorResponseSchema) },
@@ -699,8 +848,18 @@ registry.registerPath({
 });
 
 for (const [path, opId, summary, body] of [
-  ['/api/v1/abdm/registry/professional/aadhaar-otp', 'abdmVerifyHprAadhaarOtp', 'Verify the Aadhaar OTP', HprOtpBody],
-  ['/api/v1/abdm/registry/professional/mobile-otp/verify', 'abdmVerifyHprMobileOtp', 'Verify the mobile OTP', HprOtpBody],
+  [
+    '/api/v1/abdm/registry/professional/aadhaar-otp',
+    'abdmVerifyHprAadhaarOtp',
+    'Verify the Aadhaar OTP',
+    HprOtpBody,
+  ],
+  [
+    '/api/v1/abdm/registry/professional/mobile-otp/verify',
+    'abdmVerifyHprMobileOtp',
+    'Verify the mobile OTP',
+    HprOtpBody,
+  ],
 ] as const) {
   registry.registerPath({
     method: 'post',
@@ -766,11 +925,23 @@ registry.registerPath({
   operationId: 'abdmHprMasterData',
   tags: [TAG],
   summary: 'Reference data the HPR enrolment form needs',
-  description: 'Medical and nursing councils, systems of medicine, universities and courses — proxied from HPR and cached.',
+  description:
+    'Medical and nursing councils, systems of medicine, universities and courses — proxied from HPR and cached.',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
-      kind: z.enum(['states', 'districts', 'subDistricts', 'countries', 'languages', 'systemsOfMedicine', 'medicalCouncils', 'nurseCouncils', 'universities', 'courses']),
+      kind: z.enum([
+        'states',
+        'districts',
+        'subDistricts',
+        'countries',
+        'languages',
+        'systemsOfMedicine',
+        'medicalCouncils',
+        'nurseCouncils',
+        'universities',
+        'courses',
+      ]),
     }),
   },
   responses: {
@@ -830,7 +1001,10 @@ for (const [path, opId, what] of [
     security: [{ bearerAuth: [] }],
     request: { body: json(BulkImportBody) },
     responses: {
-      200: { description: 'What matched, and what a human must look at', ...json(ImportOutcomeSchema) },
+      200: {
+        description: 'What matched, and what a human must look at',
+        ...json(ImportOutcomeSchema),
+      },
       401: notAuthed,
       403: forbidden,
       422: unprocessable,
@@ -895,14 +1069,23 @@ registry.registerPath({
   responses: {
     202: {
       description: 'Code sent again',
-      ...json(z.object({ transactionId: z.string(), mobileHint: z.string().optional(), resendsLeft: z.number() })),
+      ...json(
+        z.object({
+          transactionId: z.string(),
+          mobileHint: z.string().optional(),
+          resendsLeft: z.number(),
+        }),
+      ),
     },
     401: notAuthed,
     403: forbidden,
     409: { description: 'The verification is already finished', ...json(ErrorResponseSchema) },
     410: { description: 'The verification expired — start again', ...json(ErrorResponseSchema) },
     422: unprocessable,
-    429: { description: 'Too soon, or the three-send limit is reached', ...json(ErrorResponseSchema) },
+    429: {
+      description: 'Too soon, or the three-send limit is reached',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -963,17 +1146,19 @@ registry.registerPath({
       description: 'The consent position',
       content: {
         'application/json': {
-          schema: z.object({
-            canRequest: z.boolean(),
-            awaitingPatient: z.number().int(),
-            active: z.number().int(),
-            declined: z.number().int(),
-            lapsed: z.number().int(),
-            failed: z.number().int(),
-            activeUntil: z.string().nullable(),
-            latestStatus: z.string().nullable(),
-            latestRequestedAt: z.string().nullable(),
-          }).openapi('AbdmConsentStatus'),
+          schema: z
+            .object({
+              canRequest: z.boolean(),
+              awaitingPatient: z.number().int(),
+              active: z.number().int(),
+              declined: z.number().int(),
+              lapsed: z.number().int(),
+              failed: z.number().int(),
+              activeUntil: z.string().nullable(),
+              latestStatus: z.string().nullable(),
+              latestRequestedAt: z.string().nullable(),
+            })
+            .openapi('AbdmConsentStatus'),
         },
       },
     },

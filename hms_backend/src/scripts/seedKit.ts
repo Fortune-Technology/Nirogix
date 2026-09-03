@@ -70,9 +70,25 @@ import { seedReferenceCatalog } from '../modules/catalog/catalog.service';
 import { createPatient, type PatientInput } from '../modules/patient/patient.service';
 import { bookAppointment, cancelAppointment } from '../modules/appointment/appointment.service';
 import { checkIn, updateStatus } from '../modules/opd/opd.service';
-import { getEncounterByVisit, saveEncounter, signEncounter, type SaveEncounterInput } from '../modules/emr/emr.service';
-import { createInvoice, createService, recordPayment, type ServiceInput } from '../modules/billing/billing.service';
-import { createTest, collectSample, enterResult, verifyResult, type CreateTestInput } from '../modules/laboratory/laboratory.service';
+import {
+  getEncounterByVisit,
+  saveEncounter,
+  signEncounter,
+  type SaveEncounterInput,
+} from '../modules/emr/emr.service';
+import {
+  createInvoice,
+  createService,
+  recordPayment,
+  type ServiceInput,
+} from '../modules/billing/billing.service';
+import {
+  createTest,
+  collectSample,
+  enterResult,
+  verifyResult,
+  type CreateTestInput,
+} from '../modules/laboratory/laboratory.service';
 import {
   adjustStock,
   createDrug,
@@ -129,7 +145,8 @@ export function seedFrom(text: string): number {
   return h >>> 0;
 }
 
-const pick = <T>(r: () => number, xs: readonly T[]): T => xs[Math.floor(r() * xs.length) % xs.length]!;
+const pick = <T>(r: () => number, xs: readonly T[]): T =>
+  xs[Math.floor(r() * xs.length) % xs.length]!;
 
 // ---------------------------------------------------------------------------
 // Dates
@@ -183,12 +200,23 @@ export type SeedPatient = PatientInput & {
   /** `inactive` exercises the Patients status filter; the record stays, as clinical records must. */
   status?: 'active' | 'inactive';
   /** Vaccines to record against this patient (paediatric charts, mostly). */
-  immunizations?: Array<{ vaccineCode: string; vaccineName: string; dateGiven: string; doseLabel?: string }>;
+  immunizations?: Array<{
+    vaccineCode: string;
+    vaccineName: string;
+    dateGiven: string;
+    doseLabel?: string;
+  }>;
 };
 
 export type SeedDrug = CreateDrugInput & {
   /** Opening batches. More than one exercises FEFO; a near expiry drives the expiry views. */
-  batches: Array<{ batchNo: string; expiryDate: string; quantity: number; costPricePaise?: number; supplier?: string }>;
+  batches: Array<{
+    batchNo: string;
+    expiryDate: string;
+    quantity: number;
+    costPricePaise?: number;
+    supplier?: string;
+  }>;
 };
 
 export type StoryPlan = {
@@ -269,7 +297,16 @@ export type SeedDataset = {
 };
 
 /** The modules that are actually BUILT — nothing else is ever granted by a seeder (ADR-038). */
-export const BUILT_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing', 'abdm'];
+export const BUILT_MODULES = [
+  'patient',
+  'appointment',
+  'opd',
+  'emr',
+  'pharmacy',
+  'laboratory',
+  'billing',
+  'abdm',
+];
 
 export type SeedCounts = Record<string, number>;
 export type SeedReport = { tenant: string; code: string; counts: SeedCounts };
@@ -311,9 +348,15 @@ async function backdateVisit(
 
 async function backdateInvoice(tenantId: string, invoiceId: string, when: Date): Promise<void> {
   await runWithTenant(tenantId, async (tx) => {
-    await tx.execute(sql`update invoices set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${invoiceId}`);
-    await tx.execute(sql`update invoice_line_items set created_at = ${when}::timestamptz where invoice_id = ${invoiceId}`);
-    await tx.execute(sql`update payments set created_at = ${when}::timestamptz where invoice_id = ${invoiceId}`);
+    await tx.execute(
+      sql`update invoices set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${invoiceId}`,
+    );
+    await tx.execute(
+      sql`update invoice_line_items set created_at = ${when}::timestamptz where invoice_id = ${invoiceId}`,
+    );
+    await tx.execute(
+      sql`update payments set created_at = ${when}::timestamptz where invoice_id = ${invoiceId}`,
+    );
   });
 }
 
@@ -328,15 +371,23 @@ async function backdateEncounter(tenantId: string, encounterId: string, when: Da
   );
 }
 
-async function backdateAppointment(tenantId: string, appointmentId: string, when: Date): Promise<void> {
+async function backdateAppointment(
+  tenantId: string,
+  appointmentId: string,
+  when: Date,
+): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
-    tx.execute(sql`update appointments set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${appointmentId}`),
+    tx.execute(
+      sql`update appointments set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${appointmentId}`,
+    ),
   );
 }
 
 async function backdatePatient(tenantId: string, patientId: string, when: Date): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
-    tx.execute(sql`update patients set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${patientId}`),
+    tx.execute(
+      sql`update patients set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where id = ${patientId}`,
+    ),
   );
 }
 
@@ -349,9 +400,15 @@ async function backdateVisitTree(
 ): Promise<void> {
   await backdateVisit(tenantId, visitId, when, completed, token);
   await runWithTenant(tenantId, async (tx) => {
-    await tx.execute(sql`update encounters set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz, signed_at = case when signed_at is null then null else ${when}::timestamptz end where visit_id = ${visitId}`);
-    await tx.execute(sql`update lab_orders set created_at = ${when}::timestamptz where visit_id = ${visitId}`);
-    await tx.execute(sql`update invoices set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where visit_id = ${visitId}`);
+    await tx.execute(
+      sql`update encounters set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz, signed_at = case when signed_at is null then null else ${when}::timestamptz end where visit_id = ${visitId}`,
+    );
+    await tx.execute(
+      sql`update lab_orders set created_at = ${when}::timestamptz where visit_id = ${visitId}`,
+    );
+    await tx.execute(
+      sql`update invoices set created_at = ${when}::timestamptz, updated_at = ${when}::timestamptz where visit_id = ${visitId}`,
+    );
     await tx.execute(sql`
       update invoice_line_items set created_at = ${when}::timestamptz
        where invoice_id in (select id from invoices where visit_id = ${visitId})`);
@@ -391,13 +448,22 @@ async function once(
   run: () => Promise<void | Record<string, unknown>>,
 ): Promise<boolean> {
   const markerKey = `${seedEnvironment}:${tenantCode ?? 'platform'}:${key}`;
-  const existing = await db.select({ id: seedMarkers.id }).from(seedMarkers).where(eq(seedMarkers.markerKey, markerKey)).limit(1);
+  const existing = await db
+    .select({ id: seedMarkers.id })
+    .from(seedMarkers)
+    .where(eq(seedMarkers.markerKey, markerKey))
+    .limit(1);
   if (existing.length > 0) return false;
 
   const detail = (await run()) ?? null;
   await db
     .insert(seedMarkers)
-    .values({ markerKey, environment: seedEnvironment, tenantCode, detail: detail as Record<string, unknown> | null })
+    .values({
+      markerKey,
+      environment: seedEnvironment,
+      tenantCode,
+      detail: detail as Record<string, unknown> | null,
+    })
     // A concurrent seeder (two deploys racing) must not turn into a duplicate-key crash.
     .onConflictDoNothing({ target: seedMarkers.markerKey });
   return true;
@@ -406,7 +472,11 @@ async function once(
 /** Has this action already been done? Used where the marker must be written *after* the work. */
 async function markerExists(key: string, tenantCode: string | null): Promise<boolean> {
   const markerKey = `${seedEnvironment}:${tenantCode ?? 'platform'}:${key}`;
-  const rows = await db.select({ id: seedMarkers.id }).from(seedMarkers).where(eq(seedMarkers.markerKey, markerKey)).limit(1);
+  const rows = await db
+    .select({ id: seedMarkers.id })
+    .from(seedMarkers)
+    .where(eq(seedMarkers.markerKey, markerKey))
+    .limit(1);
   return rows.length > 0;
 }
 
@@ -462,7 +532,10 @@ export async function upsertTenant(spec: SeedTenantSpec): Promise<string> {
     return existing.id;
   }
   const created = (
-    await db.insert(tenants).values({ code: spec.code, name: spec.name, status: spec.status ?? 'active' }).returning()
+    await db
+      .insert(tenants)
+      .values({ code: spec.code, name: spec.name, status: spec.status ?? 'active' })
+      .returning()
   )[0]!;
   await provisionTenantRbac(created.id);
   return created.id;
@@ -482,7 +555,13 @@ export async function upsertUser(
     const created = await runWithTenant(tenantId, (tx) =>
       tx
         .insert(users)
-        .values({ tenantId, email: u.email, passwordHash, fullName: u.fullName, status: u.status ?? 'active' })
+        .values({
+          tenantId,
+          email: u.email,
+          passwordHash,
+          fullName: u.fullName,
+          status: u.status ?? 'active',
+        })
         .returning({ id: users.id }),
     );
     userId = created[0]!.id;
@@ -500,7 +579,11 @@ async function upsertBranch(
 ): Promise<{ id: string; created: boolean }> {
   return runWithTenant(tenantId, async (tx) => {
     const existing = (
-      await tx.select().from(branches).where(and(eq(branches.tenantId, tenantId), eq(branches.code, b.code))).limit(1)
+      await tx
+        .select()
+        .from(branches)
+        .where(and(eq(branches.tenantId, tenantId), eq(branches.code, b.code)))
+        .limit(1)
     )[0];
     // Present already: left alone, including whether it is active (ADR-122).
     if (existing) return { id: existing.id, created: false };
@@ -608,90 +691,221 @@ type Presentation = {
   assessment: string;
   plan: string;
   diagnoses: Array<{ code: string; term: string; primary?: boolean }>;
-  drugs: Array<{ name: string; dose: string; frequency: string; duration: string; route?: string; instructions?: string }>;
+  drugs: Array<{
+    name: string;
+    dose: string;
+    frequency: string;
+    duration: string;
+    route?: string;
+    instructions?: string;
+  }>;
   tests: string[];
-  vitals: { systolic: number; diastolic: number; pulse: number; spo2: number; respRate: number; tempC: number; weightKg: number; heightCm: number };
+  vitals: {
+    systolic: number;
+    diastolic: number;
+    pulse: number;
+    spo2: number;
+    respRate: number;
+    tempC: number;
+    weightKg: number;
+    heightCm: number;
+  };
 };
 
 const PRESENTATIONS: readonly Presentation[] = [
   {
     complaint: 'Fever and body ache for 3 days',
-    subjective: 'Intermittent fever up to 101 °F for three days, generalised body ache, mild headache. No rash, no bleeding. Appetite reduced.',
+    subjective:
+      'Intermittent fever up to 101 °F for three days, generalised body ache, mild headache. No rash, no bleeding. Appetite reduced.',
     objective: 'Febrile, well hydrated. Throat mildly congested. Chest clear. No organomegaly.',
     assessment: 'Acute febrile illness, likely viral. Dengue screen advised given local outbreak.',
     plan: 'Antipyretics, oral fluids, CBC and dengue screen today. Review in 48 hours or earlier if bleeding, persistent vomiting or drowsiness.',
     diagnoses: [{ code: 'R50.9', term: 'Fever, unspecified', primary: true }],
-    drugs: [{ name: 'Paracetamol', dose: '650 mg', frequency: 'TDS', duration: '3 days', route: 'Oral', instructions: 'After food' }],
+    drugs: [
+      {
+        name: 'Paracetamol',
+        dose: '650 mg',
+        frequency: 'TDS',
+        duration: '3 days',
+        route: 'Oral',
+        instructions: 'After food',
+      },
+    ],
     tests: ['Complete Blood Count', 'Dengue NS1 Antigen'],
-    vitals: { systolic: 118, diastolic: 78, pulse: 96, spo2: 98, respRate: 18, tempC: 38.4, weightKg: 68, heightCm: 170 },
+    vitals: {
+      systolic: 118,
+      diastolic: 78,
+      pulse: 96,
+      spo2: 98,
+      respRate: 18,
+      tempC: 38.4,
+      weightKg: 68,
+      heightCm: 170,
+    },
   },
   {
     complaint: 'Cough and cold for 5 days',
-    subjective: 'Dry cough worse at night, nasal congestion, mild sore throat. No breathlessness, no fever since yesterday.',
+    subjective:
+      'Dry cough worse at night, nasal congestion, mild sore throat. No breathlessness, no fever since yesterday.',
     objective: 'Afebrile. Nasal mucosa congested, throat mildly inflamed. Chest clear bilaterally.',
     assessment: 'Acute upper respiratory tract infection, viral.',
     plan: 'Symptomatic treatment, steam inhalation, adequate fluids. Antibiotic not indicated. Review if fever or breathlessness.',
-    diagnoses: [{ code: 'J06.9', term: 'Acute upper respiratory infection, unspecified', primary: true }],
+    diagnoses: [
+      { code: 'J06.9', term: 'Acute upper respiratory infection, unspecified', primary: true },
+    ],
     drugs: [
       { name: 'Cetirizine', dose: '10 mg', frequency: 'HS', duration: '5 days', route: 'Oral' },
       { name: 'Paracetamol', dose: '500 mg', frequency: 'SOS', duration: '3 days', route: 'Oral' },
     ],
     tests: [],
-    vitals: { systolic: 122, diastolic: 80, pulse: 84, spo2: 99, respRate: 16, tempC: 36.9, weightKg: 72, heightCm: 174 },
+    vitals: {
+      systolic: 122,
+      diastolic: 80,
+      pulse: 84,
+      spo2: 99,
+      respRate: 16,
+      tempC: 36.9,
+      weightKg: 72,
+      heightCm: 174,
+    },
   },
   {
     complaint: 'Follow-up for diabetes',
-    subjective: 'On metformin for two years. Reports occasional evening hypoglycaemia symptoms. Diet compliance moderate, no regular exercise.',
-    objective: 'Overweight. No pallor or oedema. Peripheral pulses intact, no foot ulcer. Fundus review pending.',
+    subjective:
+      'On metformin for two years. Reports occasional evening hypoglycaemia symptoms. Diet compliance moderate, no regular exercise.',
+    objective:
+      'Overweight. No pallor or oedema. Peripheral pulses intact, no foot ulcer. Fundus review pending.',
     assessment: 'Type 2 diabetes mellitus, moderately controlled.',
     plan: 'Continue metformin. HbA1c and lipid profile today. Dietician referral discussed. Review with reports in 2 weeks.',
     diagnoses: [
       { code: 'E11.9', term: 'Type 2 diabetes mellitus without complications', primary: true },
       { code: 'E78.5', term: 'Hyperlipidaemia, unspecified' },
     ],
-    drugs: [{ name: 'Metformin', dose: '500 mg', frequency: 'BD', duration: '30 days', route: 'Oral', instructions: 'After meals' }],
+    drugs: [
+      {
+        name: 'Metformin',
+        dose: '500 mg',
+        frequency: 'BD',
+        duration: '30 days',
+        route: 'Oral',
+        instructions: 'After meals',
+      },
+    ],
     tests: ['HbA1c', 'Lipid Profile', 'Fasting Blood Sugar'],
-    vitals: { systolic: 134, diastolic: 86, pulse: 78, spo2: 98, respRate: 16, tempC: 36.7, weightKg: 84, heightCm: 168 },
+    vitals: {
+      systolic: 134,
+      diastolic: 86,
+      pulse: 78,
+      spo2: 98,
+      respRate: 16,
+      tempC: 36.7,
+      weightKg: 84,
+      heightCm: 168,
+    },
   },
   {
     complaint: 'High blood pressure review',
-    subjective: 'Known hypertensive for six years. Occasional early-morning headache. Taking amlodipine regularly, salt intake high.',
+    subjective:
+      'Known hypertensive for six years. Occasional early-morning headache. Taking amlodipine regularly, salt intake high.',
     objective: 'BP elevated on two readings. Heart sounds normal, no murmur. No pedal oedema.',
     assessment: 'Essential hypertension, sub-optimally controlled.',
     plan: 'Salt restriction counselled. Continue amlodipine, add home BP diary. Kidney function and lipid profile today. Review in 4 weeks.',
     diagnoses: [{ code: 'I10', term: 'Essential (primary) hypertension', primary: true }],
-    drugs: [{ name: 'Amlodipine', dose: '5 mg', frequency: 'OD', duration: '30 days', route: 'Oral', instructions: 'Morning' }],
+    drugs: [
+      {
+        name: 'Amlodipine',
+        dose: '5 mg',
+        frequency: 'OD',
+        duration: '30 days',
+        route: 'Oral',
+        instructions: 'Morning',
+      },
+    ],
     tests: ['Kidney Function Test', 'Lipid Profile'],
-    vitals: { systolic: 148, diastolic: 94, pulse: 80, spo2: 98, respRate: 16, tempC: 36.6, weightKg: 78, heightCm: 172 },
+    vitals: {
+      systolic: 148,
+      diastolic: 94,
+      pulse: 80,
+      spo2: 98,
+      respRate: 16,
+      tempC: 36.6,
+      weightKg: 78,
+      heightCm: 172,
+    },
   },
   {
     complaint: 'Burning in the stomach after meals',
-    subjective: 'Epigastric burning for two weeks, worse after spicy food, relieved partially by antacids. No vomiting, no black stools.',
+    subjective:
+      'Epigastric burning for two weeks, worse after spicy food, relieved partially by antacids. No vomiting, no black stools.',
     objective: 'Mild epigastric tenderness. No guarding. Bowel sounds normal.',
     assessment: 'Gastro-oesophageal reflux disease.',
     plan: 'Proton-pump inhibitor for four weeks, dietary advice, avoid late meals. Endoscopy if no relief.',
-    diagnoses: [{ code: 'K21.9', term: 'Gastro-oesophageal reflux disease without oesophagitis', primary: true }],
-    drugs: [{ name: 'Pantoprazole', dose: '40 mg', frequency: 'OD', duration: '28 days', route: 'Oral', instructions: 'Before breakfast' }],
+    diagnoses: [
+      {
+        code: 'K21.9',
+        term: 'Gastro-oesophageal reflux disease without oesophagitis',
+        primary: true,
+      },
+    ],
+    drugs: [
+      {
+        name: 'Pantoprazole',
+        dose: '40 mg',
+        frequency: 'OD',
+        duration: '28 days',
+        route: 'Oral',
+        instructions: 'Before breakfast',
+      },
+    ],
     tests: [],
-    vitals: { systolic: 124, diastolic: 82, pulse: 76, spo2: 99, respRate: 16, tempC: 36.8, weightKg: 70, heightCm: 166 },
+    vitals: {
+      systolic: 124,
+      diastolic: 82,
+      pulse: 76,
+      spo2: 99,
+      respRate: 16,
+      tempC: 36.8,
+      weightKg: 70,
+      heightCm: 166,
+    },
   },
   {
     complaint: 'Loose motions since yesterday',
-    subjective: 'Six loose stools since yesterday evening, mild abdominal cramps, one episode of vomiting. Ate outside food two days ago.',
-    objective: 'Mildly dehydrated, tongue dry. Abdomen soft, diffuse tenderness. No fever at present.',
+    subjective:
+      'Six loose stools since yesterday evening, mild abdominal cramps, one episode of vomiting. Ate outside food two days ago.',
+    objective:
+      'Mildly dehydrated, tongue dry. Abdomen soft, diffuse tenderness. No fever at present.',
     assessment: 'Acute infective gastroenteritis with mild dehydration.',
     plan: 'ORS after every loose stool, bland diet, zinc supplementation. Stool routine if symptoms persist beyond 48 hours.',
-    diagnoses: [{ code: 'A09', term: 'Infectious gastroenteritis and colitis, unspecified', primary: true }],
+    diagnoses: [
+      { code: 'A09', term: 'Infectious gastroenteritis and colitis, unspecified', primary: true },
+    ],
     drugs: [
-      { name: 'ORS', dose: '1 sachet', frequency: 'After each stool', duration: '3 days', route: 'Oral' },
+      {
+        name: 'ORS',
+        dose: '1 sachet',
+        frequency: 'After each stool',
+        duration: '3 days',
+        route: 'Oral',
+      },
       { name: 'Pantoprazole', dose: '40 mg', frequency: 'OD', duration: '5 days', route: 'Oral' },
     ],
     tests: ['Complete Blood Count'],
-    vitals: { systolic: 108, diastolic: 70, pulse: 98, spo2: 98, respRate: 18, tempC: 37.2, weightKg: 62, heightCm: 164 },
+    vitals: {
+      systolic: 108,
+      diastolic: 70,
+      pulse: 98,
+      spo2: 98,
+      respRate: 18,
+      tempC: 37.2,
+      weightKg: 62,
+      heightCm: 164,
+    },
   },
   {
     complaint: 'Tiredness and hair fall',
-    subjective: 'Fatigue for two months, hair fall, cold intolerance. Menstrual cycles regular but heavy.',
+    subjective:
+      'Fatigue for two months, hair fall, cold intolerance. Menstrual cycles regular but heavy.',
     objective: 'Pallor present. Thyroid not palpable. No pedal oedema.',
     assessment: 'Anaemia for evaluation; hypothyroidism to be ruled out.',
     plan: 'Haemogram, TSH and iron studies today. Iron supplementation started. Review with reports.',
@@ -699,45 +913,115 @@ const PRESENTATIONS: readonly Presentation[] = [
       { code: 'D50.9', term: 'Iron deficiency anaemia, unspecified', primary: true },
       { code: 'E03.9', term: 'Hypothyroidism, unspecified' },
     ],
-    drugs: [{ name: 'Ferrous Ascorbate', dose: '100 mg', frequency: 'OD', duration: '30 days', route: 'Oral', instructions: 'Empty stomach with vitamin C' }],
+    drugs: [
+      {
+        name: 'Ferrous Ascorbate',
+        dose: '100 mg',
+        frequency: 'OD',
+        duration: '30 days',
+        route: 'Oral',
+        instructions: 'Empty stomach with vitamin C',
+      },
+    ],
     tests: ['Hemoglobin', 'Thyroid Stimulating Hormone', 'Complete Blood Count'],
-    vitals: { systolic: 106, diastolic: 68, pulse: 88, spo2: 99, respRate: 16, tempC: 36.6, weightKg: 52, heightCm: 158 },
+    vitals: {
+      systolic: 106,
+      diastolic: 68,
+      pulse: 88,
+      spo2: 99,
+      respRate: 16,
+      tempC: 36.6,
+      weightKg: 52,
+      heightCm: 158,
+    },
   },
   {
     complaint: 'Wheezing and breathlessness on exertion',
-    subjective: 'Known asthmatic. Increased wheeze for four days, night-time cough, using inhaler more often. No fever.',
+    subjective:
+      'Known asthmatic. Increased wheeze for four days, night-time cough, using inhaler more often. No fever.',
     objective: 'Mild respiratory distress. Bilateral rhonchi. SpO2 maintained on room air.',
     assessment: 'Bronchial asthma, mild exacerbation.',
     plan: 'Inhaled bronchodilator, montelukast at night, trigger avoidance counselled. Review in one week; earlier if worsening.',
     diagnoses: [{ code: 'J45.909', term: 'Unspecified asthma, uncomplicated', primary: true }],
     drugs: [
-      { name: 'Salbutamol', dose: '2 puffs', frequency: 'QID', duration: '7 days', route: 'Inhalation' },
+      {
+        name: 'Salbutamol',
+        dose: '2 puffs',
+        frequency: 'QID',
+        duration: '7 days',
+        route: 'Inhalation',
+      },
       { name: 'Montelukast', dose: '10 mg', frequency: 'HS', duration: '14 days', route: 'Oral' },
     ],
     tests: [],
-    vitals: { systolic: 120, diastolic: 78, pulse: 92, spo2: 96, respRate: 22, tempC: 36.9, weightKg: 66, heightCm: 169 },
+    vitals: {
+      systolic: 120,
+      diastolic: 78,
+      pulse: 92,
+      spo2: 96,
+      respRate: 22,
+      tempC: 36.9,
+      weightKg: 66,
+      heightCm: 169,
+    },
   },
   {
     complaint: 'Burning urination for 3 days',
-    subjective: 'Burning micturition, increased frequency, mild lower abdominal discomfort. No fever, no flank pain.',
+    subjective:
+      'Burning micturition, increased frequency, mild lower abdominal discomfort. No fever, no flank pain.',
     objective: 'Suprapubic tenderness present. No renal angle tenderness.',
     assessment: 'Lower urinary tract infection.',
     plan: 'Urine routine and culture, empirical antibiotic started, plenty of oral fluids. Review with culture report.',
-    diagnoses: [{ code: 'N39.0', term: 'Urinary tract infection, site not specified', primary: true }],
-    drugs: [{ name: 'Amoxicillin', dose: '500 mg', frequency: 'TDS', duration: '5 days', route: 'Oral', instructions: 'Complete the course' }],
+    diagnoses: [
+      { code: 'N39.0', term: 'Urinary tract infection, site not specified', primary: true },
+    ],
+    drugs: [
+      {
+        name: 'Amoxicillin',
+        dose: '500 mg',
+        frequency: 'TDS',
+        duration: '5 days',
+        route: 'Oral',
+        instructions: 'Complete the course',
+      },
+    ],
     tests: ['Urine Routine'],
-    vitals: { systolic: 118, diastolic: 76, pulse: 82, spo2: 99, respRate: 16, tempC: 37.1, weightKg: 58, heightCm: 160 },
+    vitals: {
+      systolic: 118,
+      diastolic: 76,
+      pulse: 82,
+      spo2: 99,
+      respRate: 16,
+      tempC: 37.1,
+      weightKg: 58,
+      heightCm: 160,
+    },
   },
   {
     complaint: 'Itchy rash on both forearms',
-    subjective: 'Itchy red rash for one week after starting a new detergent. Worse at night. No systemic symptoms.',
-    objective: 'Erythematous papular rash over both forearms with excoriation marks. No secondary infection.',
+    subjective:
+      'Itchy red rash for one week after starting a new detergent. Worse at night. No systemic symptoms.',
+    objective:
+      'Erythematous papular rash over both forearms with excoriation marks. No secondary infection.',
     assessment: 'Allergic contact dermatitis.',
     plan: 'Stop the suspected detergent, topical emollient, oral antihistamine at night. Review in 10 days.',
-    diagnoses: [{ code: 'L23.9', term: 'Allergic contact dermatitis, unspecified cause', primary: true }],
-    drugs: [{ name: 'Cetirizine', dose: '10 mg', frequency: 'HS', duration: '10 days', route: 'Oral' }],
+    diagnoses: [
+      { code: 'L23.9', term: 'Allergic contact dermatitis, unspecified cause', primary: true },
+    ],
+    drugs: [
+      { name: 'Cetirizine', dose: '10 mg', frequency: 'HS', duration: '10 days', route: 'Oral' },
+    ],
     tests: [],
-    vitals: { systolic: 116, diastolic: 74, pulse: 78, spo2: 99, respRate: 16, tempC: 36.7, weightKg: 64, heightCm: 165 },
+    vitals: {
+      systolic: 116,
+      diastolic: 74,
+      pulse: 78,
+      spo2: 99,
+      respRate: 16,
+      tempC: 36.7,
+      weightKg: 64,
+      heightCm: 165,
+    },
   },
 ];
 
@@ -777,7 +1061,11 @@ function labValue(testName: string, abnormal: boolean): string {
  *
  * Nothing here updates. A price a tester edited on staging is theirs.
  */
-async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<typeof actors>): Promise<void> {
+async function seedCatalogues(
+  ctx: Ctx,
+  spec: SeedTenantSpec,
+  act: ReturnType<typeof actors>,
+): Promise<void> {
   if (ctx.modules.includes('laboratory') && spec.labTests?.length) {
     for (const t of spec.labTests) {
       const key = t.code?.trim();
@@ -786,13 +1074,21 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
         'labTests',
         () =>
           key
-            ? firstId(ctx.tenantId, sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and upper(code) = ${key.toUpperCase()} limit 1`)
-            : firstId(ctx.tenantId, sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and name = ${t.name} limit 1`),
+            ? firstId(
+                ctx.tenantId,
+                sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and upper(code) = ${key.toUpperCase()} limit 1`,
+              )
+            : firstId(
+                ctx.tenantId,
+                sql`select id from lab_tests where tenant_id = ${ctx.tenantId} and name = ${t.name} limit 1`,
+              ),
         async () => (await createTest(ctx.tenantId, t, act.admin))?.id,
       );
     }
     const rows = await runWithTenant(ctx.tenantId, (tx) =>
-      tx.execute<{ id: string }>(sql`select id from lab_tests where tenant_id = ${ctx.tenantId} order by created_at`),
+      tx.execute<{ id: string }>(
+        sql`select id from lab_tests where tenant_id = ${ctx.tenantId} order by created_at`,
+      ),
     );
     ctx.labTestIds = rows.rows.map((r) => r.id);
   }
@@ -807,7 +1103,10 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
         ctx.counts,
         'services',
         () =>
-          firstId(ctx.tenantId, sql`select id from services where tenant_id = ${ctx.tenantId} and upper(code) = ${input.code.toUpperCase()} limit 1`),
+          firstId(
+            ctx.tenantId,
+            sql`select id from services where tenant_id = ${ctx.tenantId} and upper(code) = ${input.code.toUpperCase()} limit 1`,
+          ),
         async () => {
           const created = await createService(ctx.tenantId, { ...input, departmentId }, act.admin);
           if (!created) return null;
@@ -815,7 +1114,10 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
           // historical invoices that already reference it. Set only at creation.
           if (isActive === false) {
             await runWithTenant(ctx.tenantId, (tx) =>
-              tx.update(servicesTable).set({ isActive: false, updatedAt: new Date() }).where(eq(servicesTable.id, created.id)),
+              tx
+                .update(servicesTable)
+                .set({ isActive: false, updatedAt: new Date() })
+                .where(eq(servicesTable.id, created.id)),
             );
           }
           return created.id;
@@ -839,7 +1141,11 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
     const id = await ensure(
       ctx.counts,
       'suppliers',
-      () => firstId(ctx.tenantId, sql`select id from suppliers where tenant_id = ${ctx.tenantId} and name = ${sup.name} limit 1`),
+      () =>
+        firstId(
+          ctx.tenantId,
+          sql`select id from suppliers where tenant_id = ${ctx.tenantId} and name = ${sup.name} limit 1`,
+        ),
       async () => (await createSupplier(ctx.tenantId, sup, act.pharmacist ?? act.admin))?.id,
     );
     if (id) supplierIds.set(sup.name, id);
@@ -850,7 +1156,11 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
     await ensure(
       ctx.counts,
       'drugs',
-      () => firstId(ctx.tenantId, sql`select id from drugs where tenant_id = ${ctx.tenantId} and name = ${input.name} limit 1`),
+      () =>
+        firstId(
+          ctx.tenantId,
+          sql`select id from drugs where tenant_id = ${ctx.tenantId} and name = ${input.name} limit 1`,
+        ),
       async () => {
         const created = await createDrug(ctx.tenantId, input, act.pharmacist ?? act.admin);
         if (!created) return null;
@@ -876,18 +1186,26 @@ async function seedCatalogues(ctx: Ctx, spec: SeedTenantSpec, act: ReturnType<ty
   }
 
   const drugRows = await runWithTenant(ctx.tenantId, (tx) =>
-    tx.execute<{ id: string; name: string }>(sql`select id, name from drugs where tenant_id = ${ctx.tenantId} order by name`),
+    tx.execute<{ id: string; name: string }>(
+      sql`select id, name from drugs where tenant_id = ${ctx.tenantId} order by name`,
+    ),
   );
   ctx.drugIds = drugRows.rows.map((r) => r.id);
 }
 
 /** Department id from the code the dataset names it by; null when the hospital has no such code. */
 async function departmentIdByCode(tenantId: string, code: string): Promise<string | null> {
-  return firstId(tenantId, sql`select id from departments where tenant_id = ${tenantId} and upper(code) = ${code.trim().toUpperCase()} limit 1`);
+  return firstId(
+    tenantId,
+    sql`select id from departments where tenant_id = ${tenantId} and upper(code) = ${code.trim().toUpperCase()} limit 1`,
+  );
 }
 
 /** Drug id by (loose) name, so a presentation's prescription links the real master row. */
-async function drugByName(tenantId: string, name: string): Promise<{ id: string; name: string } | null> {
+async function drugByName(
+  tenantId: string,
+  name: string,
+): Promise<{ id: string; name: string } | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx.execute<{ id: string; name: string }>(
       sql`select id, name from drugs where tenant_id = ${tenantId} and name ilike ${`${name}%`} and is_active order by name limit 1`,
@@ -897,7 +1215,10 @@ async function drugByName(tenantId: string, name: string): Promise<{ id: string;
 }
 
 /** Test id by (loose) name — same idea, so an order is priced and range-checked properly. */
-async function testByName(tenantId: string, name: string): Promise<{ id: string; name: string; code: string | null } | null> {
+async function testByName(
+  tenantId: string,
+  name: string,
+): Promise<{ id: string; name: string; code: string | null } | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx.execute<{ id: string; name: string; code: string | null }>(
       sql`select id, name, code from lab_tests where tenant_id = ${tenantId} and name ilike ${`${name}%`} and is_active order by name limit 1`,
@@ -971,7 +1292,8 @@ async function settleVisitBalance(
     ),
   );
   for (const row of rows.rows) {
-    if (Number(row.balance) > 0) await payInvoice(ctx, row.id, Number(row.balance), method, actorUserId, key);
+    if (Number(row.balance) > 0)
+      await payInvoice(ctx, row.id, Number(row.balance), method, actorUserId, key);
   }
 }
 
@@ -1000,7 +1322,13 @@ async function runConsultation(
   const p = opts.presentation;
 
   if (opts.stage === 'in_progress') {
-    await updateStatus(ctx.tenantId, visitId, 'in_consultation', undefined, act.doctor ?? act.reception);
+    await updateStatus(
+      ctx.tenantId,
+      visitId,
+      'in_consultation',
+      undefined,
+      act.doctor ?? act.reception,
+    );
   }
 
   const enc = await getEncounterByVisit(ctx.tenantId, visitId, act.doctor);
@@ -1057,7 +1385,11 @@ async function runConsultation(
     assessment: opts.stage === 'in_progress' ? null : p.assessment,
     plan: opts.stage === 'in_progress' ? null : p.plan,
     vitals: p.vitals,
-    diagnoses: p.diagnoses.map((d) => ({ icd10Code: d.code, icd10Term: d.term, isPrimary: d.primary ?? false })),
+    diagnoses: p.diagnoses.map((d) => ({
+      icd10Code: d.code,
+      icd10Term: d.term,
+      isPrimary: d.primary ?? false,
+    })),
     prescriptions: opts.stage === 'in_progress' ? [] : prescriptions,
     labOrders: opts.stage === 'in_progress' ? [] : labOrders,
   };
@@ -1108,7 +1440,9 @@ async function runConsultation(
         // the reference range, and an explicit flag only survives for a qualitative result. The
         // product has no "mark critical" action yet (BACKLOG), so the row is set here.
         await runWithTenant(ctx.tenantId, (tx) =>
-          tx.execute(sql`update lab_results set flag = 'critical' where tenant_id = ${ctx.tenantId} and lab_order_id = ${o.id}`),
+          tx.execute(
+            sql`update lab_results set flag = 'critical' where tenant_id = ${ctx.tenantId} and lab_order_id = ${o.id}`,
+          ),
         );
         bump(ctx.counts, 'labCritical');
       }
@@ -1144,7 +1478,11 @@ async function runConsultation(
       const available = Number(onHand.rows[0]?.qty ?? 0);
       const quantity = Math.min(10, available - 5);
       if (quantity < 1) continue;
-      await dispense(ctx.tenantId, { prescriptionId: line.id, drugId: line.drug_id, quantity }, act.pharmacist);
+      await dispense(
+        ctx.tenantId,
+        { prescriptionId: line.id, drugId: line.drug_id, quantity },
+        act.pharmacist,
+      );
       bump(ctx.counts, 'dispenses');
     }
   }
@@ -1207,7 +1545,9 @@ async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
 
   const today = isoDate(dayOffset(0));
   const already = await runWithTenant(ctx.tenantId, (tx) =>
-    tx.execute<{ id: string }>(sql`select id from visits where tenant_id = ${ctx.tenantId} and visit_date = ${today}::date limit 1`),
+    tx.execute<{ id: string }>(
+      sql`select id from visits where tenant_id = ${ctx.tenantId} and visit_date = ${today}::date limit 1`,
+    ),
   );
   if (already.rows.length > 0) {
     bump(ctx.counts, 'todayQueueAlreadyPresent');
@@ -1245,7 +1585,14 @@ async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
       try {
         const appt = await bookAppointment(
           ctx.tenantId,
-          { patientId, providerId, scheduledAt: at.toISOString(), durationMinutes: 15, reason: presentation.complaint, branchId },
+          {
+            patientId,
+            providerId,
+            scheduledAt: at.toISOString(),
+            durationMinutes: 15,
+            reason: presentation.complaint,
+            branchId,
+          },
           act.reception,
         );
         appointmentId = appt.id;
@@ -1261,7 +1608,14 @@ async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
     try {
       visit = await checkIn(
         ctx.tenantId,
-        { patientId, appointmentId, providerId, branchId, departmentId, reason: presentation.complaint },
+        {
+          patientId,
+          appointmentId,
+          providerId,
+          branchId,
+          departmentId,
+          reason: presentation.complaint,
+        },
         act.reception,
       );
     } catch {
@@ -1274,8 +1628,24 @@ async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
     if (visit.invoice) {
       bump(ctx.counts, 'invoices');
       const total = visit.invoice.totalPaise;
-      if (s.pay === 'full') await payInvoice(ctx, visit.invoice.id, total, PAYMENT_METHODS[i % 4]!, act.cashier, `t${today}-${i}`);
-      if (s.pay === 'partial') await payInvoice(ctx, visit.invoice.id, Math.max(1, Math.round(total / 3)), 'upi', act.cashier, `t${today}-${i}p`);
+      if (s.pay === 'full')
+        await payInvoice(
+          ctx,
+          visit.invoice.id,
+          total,
+          PAYMENT_METHODS[i % 4]!,
+          act.cashier,
+          `t${today}-${i}`,
+        );
+      if (s.pay === 'partial')
+        await payInvoice(
+          ctx,
+          visit.invoice.id,
+          Math.max(1, Math.round(total / 3)),
+          'upi',
+          act.cashier,
+          `t${today}-${i}p`,
+        );
     }
 
     if (s.cancel) {
@@ -1292,7 +1662,8 @@ async function seedTodayQueue(ctx: Ctx, act: Act): Promise<void> {
       criticalLab: s.critical,
       dispense: s.dispense,
     });
-    if (s.settle) await settleVisitBalance(ctx, visit.id, 'upi', act.cashier, `t${today}-${i}-settle`);
+    if (s.settle)
+      await settleVisitBalance(ctx, visit.id, 'upi', act.cashier, `t${today}-${i}-settle`);
   }
 }
 
@@ -1338,7 +1709,14 @@ async function seedTodayArrivals(ctx: Ctx, spec: SeedTenantSpec, act: Act): Prom
     try {
       const appointment = await bookAppointment(
         ctx.tenantId,
-        { patientId, providerId, scheduledAt: at.toISOString(), durationMinutes: 15, reason: 'Announced at the entrance', branchId: ctx.branchIds[0] ?? null },
+        {
+          patientId,
+          providerId,
+          scheduledAt: at.toISOString(),
+          durationMinutes: 15,
+          reason: 'Announced at the entrance',
+          branchId: ctx.branchIds[0] ?? null,
+        },
         act.reception,
       );
       appointmentId = appointment.id;
@@ -1347,7 +1725,10 @@ async function seedTodayArrivals(ctx: Ctx, spec: SeedTenantSpec, act: Act): Prom
       bump(ctx.counts, 'arrivalsWithoutAppointment');
     }
 
-    const phone = await firstId(ctx.tenantId, sql`select phone as id from patients where id = ${patientId}`);
+    const phone = await firstId(
+      ctx.tenantId,
+      sql`select phone as id from patients where id = ${patientId}`,
+    );
     await runWithTenant(ctx.tenantId, (tx) =>
       tx.insert(selfCheckinRequests).values({
         tenantId: ctx.tenantId,
@@ -1364,7 +1745,12 @@ async function seedTodayArrivals(ctx: Ctx, spec: SeedTenantSpec, act: Act): Prom
   }
 }
 
-async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan, act: Act): Promise<void> {
+async function seedClinicalStory(
+  ctx: Ctx,
+  spec: SeedTenantSpec,
+  plan: StoryPlan,
+  act: Act,
+): Promise<void> {
   if (ctx.providerIds.length === 0 || ctx.patientIds.length === 0) return;
 
   /**
@@ -1421,7 +1807,14 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
       if ((d + i) % 4 !== 0) {
         const appt = await bookAppointment(
           ctx.tenantId,
-          { patientId, providerId, scheduledAt: when.toISOString(), durationMinutes: 15, reason: presentation.complaint, branchId },
+          {
+            patientId,
+            providerId,
+            scheduledAt: when.toISOString(),
+            durationMinutes: 15,
+            reason: presentation.complaint,
+            branchId,
+          },
           act.reception,
         );
         appointmentId = appt.id;
@@ -1431,13 +1824,27 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
 
       const visit = await checkIn(
         ctx.tenantId,
-        { patientId, appointmentId, providerId, branchId, departmentId, reason: presentation.complaint },
+        {
+          patientId,
+          appointmentId,
+          providerId,
+          branchId,
+          departmentId,
+          reason: presentation.complaint,
+        },
         act.reception,
       );
       bump(ctx.counts, 'visits');
       if (visit.invoice) {
         bump(ctx.counts, 'invoices');
-        await payInvoice(ctx, visit.invoice.id, visit.invoice.totalPaise, PAYMENT_METHODS[(d + i) % 4]!, act.cashier, `h${d}-${i}`);
+        await payInvoice(
+          ctx,
+          visit.invoice.id,
+          visit.invoice.totalPaise,
+          PAYMENT_METHODS[(d + i) % 4]!,
+          act.cashier,
+          `h${d}-${i}`,
+        );
       }
 
       // Rotate the whole lab lifecycle through the history, so the worklist's every status
@@ -1445,9 +1852,18 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
       // Weighted, not evenly spread: most orders are seen through to a signed-off result, a few
       // are still moving, and a cancelled order is the exception it is in a real lab.
       const LAB_ROTATION: LabStage[] = [
-        'verified', 'resulted', 'none', 'verified',
-        'collected', 'none', 'verified', 'ordered',
-        'none', 'verified', 'cancelled', 'none',
+        'verified',
+        'resulted',
+        'none',
+        'verified',
+        'collected',
+        'none',
+        'verified',
+        'ordered',
+        'none',
+        'verified',
+        'cancelled',
+        'none',
       ];
       const labStage = LAB_ROTATION[(d + i) % LAB_ROTATION.length]!;
       await runConsultation(ctx, act, visit.id, {
@@ -1461,7 +1877,13 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
       // Most patients settle before they leave; the rest walk out owing the balance, which is
       // what puts rows on both sides of the Billing status filter.
       if ((d + i) % 3 !== 0) {
-        await settleVisitBalance(ctx, visit.id, PAYMENT_METHODS[(d + i + 2) % 4]!, act.cashier, `h${d}-${i}-settle`);
+        await settleVisitBalance(
+          ctx,
+          visit.id,
+          PAYMENT_METHODS[(d + i + 2) % 4]!,
+          act.cashier,
+          `h${d}-${i}-settle`,
+        );
       }
       await backdateVisitTree(ctx.tenantId, visit.id, when, true, i + 1);
     }
@@ -1505,7 +1927,10 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
     // No product action marks a no-show yet (BACKLOG): the status is a filter value the
     // Appointments table already offers, so the row is written directly.
     await runWithTenant(ctx.tenantId, (tx) =>
-      tx.update(appointments).set({ status: 'no_show', updatedAt: new Date() }).where(eq(appointments.id, appt.id)),
+      tx
+        .update(appointments)
+        .set({ status: 'no_show', updatedAt: new Date() })
+        .where(eq(appointments.id, appt.id)),
     );
     bump(ctx.counts, 'appointments');
     bump(ctx.counts, 'appointmentsNoShow');
@@ -1522,7 +1947,13 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
         providerId: ctx.providerIds[k % ctx.providerIds.length]!,
         scheduledAt: dayOffset(day, hour, k % 2 === 0 ? 0 : 30).toISOString(),
         durationMinutes: 15,
-        reason: pick(r, ['Follow-up consultation', 'New consultation', 'Report review', 'Vaccination', 'Health check-up']),
+        reason: pick(r, [
+          'Follow-up consultation',
+          'New consultation',
+          'Report review',
+          'Vaccination',
+          'Health check-up',
+        ]),
         branchId: k % 2 === 0 ? branchA : branchB,
       },
       act.reception,
@@ -1556,7 +1987,11 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
       bump(ctx.counts, 'referrals');
       if (k === 0) {
         // Consumed: checking in against a referral is what completes it and links the visit.
-        const followUp = await checkIn(ctx.tenantId, { referralId: referral.id, patientId: referral.patientId, branchId: branchA }, act.reception);
+        const followUp = await checkIn(
+          ctx.tenantId,
+          { referralId: referral.id, patientId: referral.patientId, branchId: branchA },
+          act.reception,
+        );
         bump(ctx.counts, 'visits');
         bump(ctx.counts, 'referralsCompleted');
         if (followUp.invoice) bump(ctx.counts, 'invoices');
@@ -1593,11 +2028,19 @@ async function seedClinicalStory(ctx: Ctx, spec: SeedTenantSpec, plan: StoryPlan
 
   // Marked only now: a run that died half-way through leaves no marker, so the next deployment
   // finishes the job rather than declaring a partial history complete (ADR-122).
-  await once('history.clinical', ctx.code, async () => ({ historyDays: plan.historyDays, visitsPerDay: plan.visitsPerDay }));
+  await once('history.clinical', ctx.code, async () => ({
+    historyDays: plan.historyDays,
+    visitsPerDay: plan.visitsPerDay,
+  }));
 }
 
 /** Cancelling is ordinary, but a double-cancel is a conflict — keep the seed idempotent. */
-async function cancelAppointmentSafely(ctx: Ctx, appointmentId: string, reason: string, actorUserId?: string): Promise<void> {
+async function cancelAppointmentSafely(
+  ctx: Ctx,
+  appointmentId: string,
+  reason: string,
+  actorUserId?: string,
+): Promise<void> {
   try {
     await cancelAppointment(ctx.tenantId, appointmentId, reason, actorUserId);
   } catch {
@@ -1617,7 +2060,12 @@ async function seedBillingEdgeCases(ctx: Ctx, act: Act, r: () => number): Promis
   if (!ctx.modules.includes('billing')) return;
   const catalogue = await runWithTenant(ctx.tenantId, (tx) =>
     tx
-      .select({ id: servicesTable.id, name: servicesTable.name, price: servicesTable.pricePaise, tax: servicesTable.taxRateBps })
+      .select({
+        id: servicesTable.id,
+        name: servicesTable.name,
+        price: servicesTable.pricePaise,
+        tax: servicesTable.taxRateBps,
+      })
       .from(servicesTable)
       .where(and(eq(servicesTable.tenantId, ctx.tenantId), eq(servicesTable.isActive, true)))
       .orderBy(asc(servicesTable.code)),
@@ -1640,20 +2088,51 @@ async function seedBillingEdgeCases(ctx: Ctx, act: Act, r: () => number): Promis
 
     const invoice = await createInvoice(
       ctx.tenantId,
-      { patientId, branchId: ctx.branchIds[k % Math.max(1, ctx.branchIds.length)] ?? null, notes: pick(r, ['Day-care procedure', 'Dressing and injection', 'Health check-up package', 'Physiotherapy session']), lineItems: items },
+      {
+        patientId,
+        branchId: ctx.branchIds[k % Math.max(1, ctx.branchIds.length)] ?? null,
+        notes: pick(r, [
+          'Day-care procedure',
+          'Dressing and injection',
+          'Health check-up package',
+          'Physiotherapy session',
+        ]),
+        lineItems: items,
+      },
       act.cashier ?? act.admin,
     );
     bump(ctx.counts, 'invoices');
 
     if (outcome === 'partially_paid') {
-      await payInvoice(ctx, invoice.id, Math.max(1, Math.round(invoice.totalPaise / 2)), 'upi', act.cashier, `edge${k}`);
+      await payInvoice(
+        ctx,
+        invoice.id,
+        Math.max(1, Math.round(invoice.totalPaise / 2)),
+        'upi',
+        act.cashier,
+        `edge${k}`,
+      );
     }
     if (outcome === 'paid' || outcome === 'refunded') {
-      await payInvoice(ctx, invoice.id, invoice.totalPaise, k % 2 === 0 ? 'card' : 'cash', act.cashier, `edge${k}`);
+      await payInvoice(
+        ctx,
+        invoice.id,
+        invoice.totalPaise,
+        k % 2 === 0 ? 'card' : 'cash',
+        act.cashier,
+        `edge${k}`,
+      );
     }
     if (outcome === 'void') {
       await runWithTenant(ctx.tenantId, (tx) =>
-        tx.update(invoices).set({ status: 'void', notes: 'Cancelled before the procedure was performed', updatedAt: new Date() }).where(eq(invoices.id, invoice.id)),
+        tx
+          .update(invoices)
+          .set({
+            status: 'void',
+            notes: 'Cancelled before the procedure was performed',
+            updatedAt: new Date(),
+          })
+          .where(eq(invoices.id, invoice.id)),
       );
       bump(ctx.counts, 'invoicesVoid');
     }
@@ -1692,7 +2171,11 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
       await ensure(
         ctx.counts,
         `registrationRequests.${q.decision}`,
-        () => firstId(ctx.tenantId, sql`select id from registration_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`),
+        () =>
+          firstId(
+            ctx.tenantId,
+            sql`select id from registration_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`,
+          ),
         async () => {
           const inserted = await runWithTenant(ctx.tenantId, (tx) =>
             tx
@@ -1708,11 +2191,16 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
                 city: q.city ?? null,
                 note: q.note ?? null,
                 status: q.decision,
-                patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
+                patientId:
+                  q.decision === 'approved'
+                    ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null)
+                    : null,
                 reviewedBy: reviewed ? (act.reception ?? null) : null,
                 reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
                 rejectionReason:
-                  q.decision === 'rejected' ? (q.rejectionReason ?? 'Could not be reached on the number provided') : null,
+                  q.decision === 'rejected'
+                    ? (q.rejectionReason ?? 'Could not be reached on the number provided')
+                    : null,
                 createdAt: dayOffset(-(2 + i), 18, 20),
               })
               .returning({ id: registrationRequests.id }),
@@ -1730,7 +2218,11 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
       await ensure(
         ctx.counts,
         `bookingRequests.${q.decision}`,
-        () => firstId(ctx.tenantId, sql`select id from appointment_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`),
+        () =>
+          firstId(
+            ctx.tenantId,
+            sql`select id from appointment_requests where tenant_id = ${ctx.tenantId} and phone = ${q.phone} limit 1`,
+          ),
         async () => {
           const inserted = await runWithTenant(ctx.tenantId, (tx) =>
             tx
@@ -1747,11 +2239,16 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
                 providerId: ctx.providerIds[i % Math.max(1, ctx.providerIds.length)] ?? null,
                 note: q.note ?? null,
                 status: q.decision,
-                patientId: q.decision === 'approved' ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null) : null,
+                patientId:
+                  q.decision === 'approved'
+                    ? (ctx.patientIds[i % Math.max(1, ctx.patientIds.length)] ?? null)
+                    : null,
                 reviewedBy: reviewed ? (act.reception ?? null) : null,
                 reviewedAt: reviewed ? dayOffset(-(1 + i)) : null,
                 rejectionReason:
-                  q.decision === 'rejected' ? (q.rejectionReason ?? 'No slot available on the requested day') : null,
+                  q.decision === 'rejected'
+                    ? (q.rejectionReason ?? 'No slot available on the requested day')
+                    : null,
                 createdAt: dayOffset(-(1 + i), 20, 5),
               })
               .returning({ id: appointmentRequests.id }),
@@ -1771,13 +2268,55 @@ async function seedPublicRequests(ctx: Ctx, spec: SeedTenantSpec, act: Act): Pro
  */
 async function seedNotificationLog(ctx: Ctx): Promise<void> {
   const rows = [
-    { channel: 'email', templateKey: 'appointment_confirmed', subject: 'Your appointment is confirmed', status: 'sent', provider: 'msg91' },
-    { channel: 'email', templateKey: 'payment_receipt', subject: 'Receipt for your payment', status: 'sent', provider: 'msg91' },
-    { channel: 'email', templateKey: 'lab_report_ready', subject: 'Your lab report is ready', status: 'queued', provider: 'msg91' },
-    { channel: 'email', templateKey: 'appointment_cancelled', subject: 'Your appointment was cancelled', status: 'sent', provider: 'msg91' },
-    { channel: 'sms', templateKey: 'appointment_reminder', subject: null, status: 'queued', provider: 'msg91' },
-    { channel: 'sms', templateKey: 'otp_verification', subject: null, status: 'failed', provider: 'msg91' },
-    { channel: 'email', templateKey: 'staff_welcome', subject: 'Welcome to Nirogix', status: 'sent', provider: 'msg91' },
+    {
+      channel: 'email',
+      templateKey: 'appointment_confirmed',
+      subject: 'Your appointment is confirmed',
+      status: 'sent',
+      provider: 'msg91',
+    },
+    {
+      channel: 'email',
+      templateKey: 'payment_receipt',
+      subject: 'Receipt for your payment',
+      status: 'sent',
+      provider: 'msg91',
+    },
+    {
+      channel: 'email',
+      templateKey: 'lab_report_ready',
+      subject: 'Your lab report is ready',
+      status: 'queued',
+      provider: 'msg91',
+    },
+    {
+      channel: 'email',
+      templateKey: 'appointment_cancelled',
+      subject: 'Your appointment was cancelled',
+      status: 'sent',
+      provider: 'msg91',
+    },
+    {
+      channel: 'sms',
+      templateKey: 'appointment_reminder',
+      subject: null,
+      status: 'queued',
+      provider: 'msg91',
+    },
+    {
+      channel: 'sms',
+      templateKey: 'otp_verification',
+      subject: null,
+      status: 'failed',
+      provider: 'msg91',
+    },
+    {
+      channel: 'email',
+      templateKey: 'staff_welcome',
+      subject: 'Welcome to Nirogix',
+      status: 'sent',
+      provider: 'msg91',
+    },
   ];
   // Each line already carries an idempotency key — the log's own stable identifier — so that is
   // what decides whether it is there (ADR-122). A line added to this list later reaches a tenant
@@ -1788,7 +2327,11 @@ async function seedNotificationLog(ctx: Ctx): Promise<void> {
     await ensure(
       ctx.counts,
       'notifications',
-      () => firstId(ctx.tenantId, sql`select id from notification_log where tenant_id = ${ctx.tenantId} and idempotency_key = ${key} limit 1`),
+      () =>
+        firstId(
+          ctx.tenantId,
+          sql`select id from notification_log where tenant_id = ${ctx.tenantId} and idempotency_key = ${key} limit 1`,
+        ),
       async () => {
         const created = await runWithTenant(ctx.tenantId, (tx) =>
           tx
@@ -1796,7 +2339,10 @@ async function seedNotificationLog(ctx: Ctx): Promise<void> {
             .values({
               tenantId: ctx.tenantId,
               channel: row.channel,
-              recipient: row.channel === 'sms' ? `+9190000000${String(10 + i).slice(-2)}` : `demo.contact${i + 1}@example.com`,
+              recipient:
+                row.channel === 'sms'
+                  ? `+9190000000${String(10 + i).slice(-2)}`
+                  : `demo.contact${i + 1}@example.com`,
               templateKey: row.templateKey,
               subject: row.subject,
               status: row.status,
@@ -1836,14 +2382,24 @@ async function seedAuditHistory(ctx: Ctx, act: Act, days: number): Promise<void>
   );
   if (already.length > 0) return;
 
-  const sample: Array<{ action: string; resourceType: string; severity: 'info' | 'notice' | 'warning' | 'critical'; actor?: string }> = [
+  const sample: Array<{
+    action: string;
+    resourceType: string;
+    severity: 'info' | 'notice' | 'warning' | 'critical';
+    actor?: string;
+  }> = [
     { action: 'user.login', resourceType: 'session', severity: 'info', actor: act.reception },
     { action: 'user.login', resourceType: 'session', severity: 'info', actor: act.doctor },
     { action: 'user.login.failed', resourceType: 'session', severity: 'warning' },
     { action: 'patient.view', resourceType: 'patient', severity: 'info', actor: act.doctor },
     { action: 'invoice.print', resourceType: 'invoice', severity: 'info', actor: act.cashier },
     { action: 'rbac.override.grant', resourceType: 'user', severity: 'notice', actor: act.admin },
-    { action: 'entitlement.revoked', resourceType: 'tenant', severity: 'critical', actor: act.admin },
+    {
+      action: 'entitlement.revoked',
+      resourceType: 'tenant',
+      severity: 'critical',
+      actor: act.admin,
+    },
   ];
 
   let n = 0;
@@ -1936,7 +2492,12 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
       tx
         .select({ id: providers.id })
         .from(providers)
-        .where(and(eq(providers.tenantId, ctx.tenantId), eq(providers.registrationNumber, p.registrationNumber)))
+        .where(
+          and(
+            eq(providers.tenantId, ctx.tenantId),
+            eq(providers.registrationNumber, p.registrationNumber),
+          ),
+        )
         .limit(1),
     );
     let providerId = existing[0]?.id;
@@ -1950,14 +2511,19 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
         consultationFeePaise: p.consultationFeePaise ?? null,
       });
       providerId = madeProvider.id;
-      await assignSpecialty(ctx.tenantId, providerId, { specialtyCode: p.specialty, isPrimary: true });
+      await assignSpecialty(ctx.tenantId, providerId, {
+        specialtyCode: p.specialty,
+        isPrimary: true,
+      });
       bump(ctx.counts, 'providers');
     } else {
       bump(ctx.counts, 'providers.kept');
     }
     if (p.schedule?.length) {
       const current = await runWithTenant(ctx.tenantId, (tx) =>
-        tx.execute<{ id: string }>(sql`select id from provider_schedules where tenant_id = ${ctx.tenantId} and provider_id = ${providerId} limit 1`),
+        tx.execute<{ id: string }>(
+          sql`select id from provider_schedules where tenant_id = ${ctx.tenantId} and provider_id = ${providerId} limit 1`,
+        ),
       );
       if (current.rows.length === 0) {
         await setSchedules(ctx.tenantId, providerId, p.schedule, act.admin);
@@ -1968,7 +2534,10 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
     // Applied at creation only: if staging reactivated them by hand, that stands (ADR-122).
     if (p.isActive === false && created) {
       await runWithTenant(ctx.tenantId, (tx) =>
-        tx.update(providers).set({ isActive: false, updatedAt: new Date() }).where(eq(providers.id, providerId!)),
+        tx
+          .update(providers)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(eq(providers.id, providerId!)),
       );
       bump(ctx.counts, 'providersInactive');
     }
@@ -1984,7 +2553,12 @@ async function seedProviders(ctx: Ctx, spec: SeedTenantSpec, act: Act): Promise<
   ctx.providerIds = rows.map((x) => x.id);
 }
 
-async function seedPatients(ctx: Ctx, spec: SeedTenantSpec, act: Act, historyDays: number): Promise<void> {
+async function seedPatients(
+  ctx: Ctx,
+  spec: SeedTenantSpec,
+  act: Act,
+  historyDays: number,
+): Promise<void> {
   const list = spec.patients ?? [];
   if (list.length === 0) return;
 
@@ -1999,7 +2573,10 @@ async function seedPatients(ctx: Ctx, spec: SeedTenantSpec, act: Act, historyDay
       'patients',
       async () =>
         input.phone
-          ? firstId(ctx.tenantId, sql`select id from patients where tenant_id = ${ctx.tenantId} and phone = ${input.phone} limit 1`)
+          ? firstId(
+              ctx.tenantId,
+              sql`select id from patients where tenant_id = ${ctx.tenantId} and phone = ${input.phone} limit 1`,
+            )
           : null,
       async () => {
         const created = await createPatient(
@@ -2012,17 +2589,27 @@ async function seedPatients(ctx: Ctx, spec: SeedTenantSpec, act: Act, historyDay
         // cut on — and so nobody has a visit older than the day they registered. The last two are
         // deliberately recent *and* activity-free: that is the brand-new-patient case.
         const isFresh = i >= list.length - 2;
-        const registeredAt = isFresh ? dayOffset(-(1 + (i % 3)), 12, 30) : dayOffset(-(historyDays + 15 + i * 9), 11, 0);
+        const registeredAt = isFresh
+          ? dayOffset(-(1 + (i % 3)), 12, 30)
+          : dayOffset(-(historyDays + 15 + i * 9), 11, 0);
         await backdatePatient(ctx.tenantId, created.id, registeredAt);
 
         if (status === 'inactive') {
           await runWithTenant(ctx.tenantId, (tx) =>
-            tx.update(patientsTable).set({ status: 'inactive', updatedAt: new Date() }).where(eq(patientsTable.id, created.id)),
+            tx
+              .update(patientsTable)
+              .set({ status: 'inactive', updatedAt: new Date() })
+              .where(eq(patientsTable.id, created.id)),
           );
           bump(ctx.counts, 'patientsInactive');
         }
         for (const im of immunizations ?? []) {
-          await addImmunization(ctx.tenantId, created.id, { ...im, source: 'system' }, act.doctor ?? act.reception);
+          await addImmunization(
+            ctx.tenantId,
+            created.id,
+            { ...im, source: 'system' },
+            act.doctor ?? act.reception,
+          );
           bump(ctx.counts, 'immunizations');
         }
         return created.id;
@@ -2075,7 +2662,8 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   // The vendor's own org is not a hospital: no modules, no branches, no clinical data (ADR-022).
   if (spec.kind === 'platform') return { tenant: spec.name, code: spec.code, counts: ctx.counts };
 
-  for (const m of ctx.modules) await grantModule(tenantId, m, { reason: `${dataset.environment} seed` });
+  for (const m of ctx.modules)
+    await grantModule(tenantId, m, { reason: `${dataset.environment} seed` });
   bump(ctx.counts, 'modules', ctx.modules.length);
 
   for (const b of spec.branches ?? []) {
@@ -2086,7 +2674,11 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   }
   // An inactive branch cannot take a visit, so it is not part of the story rotation.
   const activeBranchFlags = await runWithTenant(tenantId, (tx) =>
-    tx.select({ id: branches.id }).from(branches).where(and(eq(branches.tenantId, tenantId), eq(branches.isActive, true))).orderBy(asc(branches.code)),
+    tx
+      .select({ id: branches.id })
+      .from(branches)
+      .where(and(eq(branches.tenantId, tenantId), eq(branches.isActive, true)))
+      .orderBy(asc(branches.code)),
   );
   ctx.branchIds = activeBranchFlags.map((b) => b.id);
 
@@ -2113,7 +2705,11 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
   const adminId = act.admin;
   if (spec.profile && adminId) {
     const applied = await once('config.organizationProfile', spec.code, async () => {
-      await updateOrganizationProfile(tenantId, spec.profile as Parameters<typeof updateOrganizationProfile>[1], adminId);
+      await updateOrganizationProfile(
+        tenantId,
+        spec.profile as Parameters<typeof updateOrganizationProfile>[1],
+        adminId,
+      );
     });
     if (applied) bump(ctx.counts, 'organizationProfile');
   }
@@ -2146,7 +2742,12 @@ async function seedTenant(spec: SeedTenantSpec, dataset: SeedDataset): Promise<S
       // Optimistic locking: read the current version rather than assuming 1, so seeding a hospital
       // whose workflow somebody has already edited does not fail on a stale-version conflict.
       const current = await getWorkflowConfig(tenantId, null);
-      await updateWorkflowConfig(tenantId, null, { ...spec.workflow!, version: current.version }, adminId);
+      await updateWorkflowConfig(
+        tenantId,
+        null,
+        { ...spec.workflow!, version: current.version },
+        adminId,
+      );
     });
     if (applied) bump(ctx.counts, 'workflowConfig');
   }
@@ -2249,7 +2850,17 @@ export async function runSeed(dataset: SeedDataset): Promise<SeedReport[]> {
 }
 
 function summarise(counts: SeedCounts): string {
-  const keys = ['users', 'branches', 'departments', 'providers', 'patients', 'appointments', 'visits', 'invoices', 'payments'];
+  const keys = [
+    'users',
+    'branches',
+    'departments',
+    'providers',
+    'patients',
+    'appointments',
+    'visits',
+    'invoices',
+    'payments',
+  ];
   const parts = keys.filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`);
   // Everything a run left untouched, counted together. A deployment that reports "created
   // nothing, kept 214" is the healthy case, and the log has to be able to say so (ADR-122).
@@ -2266,7 +2877,8 @@ export function printReport(reports: SeedReport[]): void {
     const rows = Object.entries(r.counts).filter(([, v]) => v > 0);
     if (rows.length === 0) continue;
     console.log(`\n${r.tenant} (${r.code})`);
-    for (const [k, v] of rows.sort(([a], [b]) => a.localeCompare(b))) console.log(`  ${String(v).padStart(4)}  ${k}`);
+    for (const [k, v] of rows.sort(([a], [b]) => a.localeCompare(b)))
+      console.log(`  ${String(v).padStart(4)}  ${k}`);
   }
 }
 

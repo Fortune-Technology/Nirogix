@@ -1,6 +1,12 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
-import { abdmFacilityConfig, abdmTransactions, patients, type AbdmTransaction, type Patient } from '../../db/schema';
+import {
+  abdmFacilityConfig,
+  abdmTransactions,
+  patients,
+  type AbdmTransaction,
+  type Patient,
+} from '../../db/schema';
 import { AppError, Errors } from '../../http/error';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
@@ -8,7 +14,12 @@ import { writeAudit } from '../audit/audit.service';
 import { encryptSecret, isEncryptionConfigured, tryDecryptSecret } from '../../security/encryption';
 import { maskAadhaar, maskMobile, scrubAadhaar } from '../../security/redaction';
 import { abdmProvider } from './providers';
-import { AbdmGatewayError, type AbdmProfile, type AbdmProfilePatch, type AbdmTokens } from './providers/types';
+import {
+  AbdmGatewayError,
+  type AbdmProfile,
+  type AbdmProfilePatch,
+  type AbdmTokens,
+} from './providers/types';
 import { encryptForAbdm } from './abdm.crypto';
 import { ABDM_SCOPES, LOGIN_HINTS, OTP_SYSTEMS } from './abdm.constants';
 
@@ -46,7 +57,9 @@ export async function getFacilityConfig(tenantId: string, branchId?: string | nu
       .where(
         and(
           eq(abdmFacilityConfig.tenantId, tenantId),
-          branchId ? eq(abdmFacilityConfig.branchId, branchId) : isNull(abdmFacilityConfig.branchId),
+          branchId
+            ? eq(abdmFacilityConfig.branchId, branchId)
+            : isNull(abdmFacilityConfig.branchId),
         ),
       )
       .limit(1);
@@ -62,7 +75,11 @@ export async function getFacilityConfig(tenantId: string, branchId?: string | nu
   });
 }
 
-export async function upsertFacilityConfig(tenantId: string, data: FacilityConfigInput, actorUserId?: string) {
+export async function upsertFacilityConfig(
+  tenantId: string,
+  data: FacilityConfigInput,
+  actorUserId?: string,
+) {
   const row = await runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .insert(abdmFacilityConfig)
@@ -155,12 +172,20 @@ async function loadTransaction(tenantId: string, id: string): Promise<AbdmTransa
   });
   if (!row) throw Errors.notFound('This ABDM verification was not found');
   if (row.expiresAt.getTime() < Date.now() && row.state !== 'completed') {
-    throw new AppError(410, 'ABDM_TXN_EXPIRED', 'This verification has expired. Please start again.');
+    throw new AppError(
+      410,
+      'ABDM_TXN_EXPIRED',
+      'This verification has expired. Please start again.',
+    );
   }
   return row;
 }
 
-async function updateTransaction(tenantId: string, id: string, patch: Partial<AbdmTransaction>): Promise<AbdmTransaction> {
+async function updateTransaction(
+  tenantId: string,
+  id: string,
+  patch: Partial<AbdmTransaction>,
+): Promise<AbdmTransaction> {
   return runWithTenant(tenantId, async (tx) => {
     const rows = await tx
       .update(abdmTransactions)
@@ -206,7 +231,11 @@ function encryptToken(token: string | undefined, label: string): string | null {
 function profileToken(txn: AbdmTransaction): string {
   const token = tryDecryptSecret(txn.xTokenEnc);
   if (!token) {
-    throw new AppError(422, 'ABDM_NO_PROFILE_TOKEN', 'This verification cannot be continued. Please verify the ABHA again.');
+    throw new AppError(
+      422,
+      'ABDM_NO_PROFILE_TOKEN',
+      'This verification cannot be continued. Please verify the ABHA again.',
+    );
   }
   return token;
 }
@@ -303,7 +332,8 @@ export async function matchPatient(tenantId: string, profile: AbdmProfile): Prom
   }));
 
   if (candidates.length === 0) return { outcome: 'new', candidates };
-  if (rows.reason === 'exact_abha' && candidates.length === 1) return { outcome: 'returning', candidates };
+  if (rows.reason === 'exact_abha' && candidates.length === 1)
+    return { outcome: 'returning', candidates };
   return { outcome: 'ambiguous', candidates };
 }
 
@@ -363,7 +393,13 @@ export type VerificationResult = {
   requiresAbhaAddress?: boolean;
   /** Present only when several ABHA accounts share the identifier and one must be chosen. */
   /** The demographics the list carries are kept: they are what fills the form when one is picked (ADR-130). */
-  accounts?: Array<{ abhaNumber: string; abhaAddress?: string; name?: string; gender?: string; dateOfBirth?: string }>;
+  accounts?: Array<{
+    abhaNumber: string;
+    abhaAddress?: string;
+    name?: string;
+    gender?: string;
+    dateOfBirth?: string;
+  }>;
 };
 
 /**
@@ -454,7 +490,11 @@ function toAppError(err: unknown): AppError {
   }
   if (err instanceof AppError) return err;
   logger.error({ err }, 'Unexpected ABDM failure');
-  return new AppError(502, 'ABDM_UNAVAILABLE', 'ABDM is not responding. Continue with manual registration.');
+  return new AppError(
+    502,
+    'ABDM_UNAVAILABLE',
+    'ABDM is not responding. Continue with manual registration.',
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -483,7 +523,11 @@ export async function startAadhaarEnrolment(
   actorUserId?: string,
 ): Promise<{ transactionId: string; mobileHint?: string; devOtp?: string }> {
   if (!input.consentGiven) {
-    throw new AppError(422, 'ABDM_CONSENT_REQUIRED', "Record the patient's consent before sending an Aadhaar OTP");
+    throw new AppError(
+      422,
+      'ABDM_CONSENT_REQUIRED',
+      "Record the patient's consent before sending an Aadhaar OTP",
+    );
   }
   const aadhaarDigits = input.aadhaar.replace(/\D/g, '');
   if (!/^\d{12}$/.test(aadhaarDigits)) {
@@ -562,12 +606,20 @@ export async function verifyAadhaarOtp(
     const requestedMobile = input.mobile?.replace(/\D/g, '') || undefined;
     const mobileOnRecord = result.profile.mobile?.replace(/\D/g, '') || undefined;
     const requiresMobileVerification =
-      Boolean(requestedMobile) && requestedMobile !== mobileOnRecord && result.mobileMatchesAadhaar !== true;
-    return await completeWithProfile(tenantId, { ...txn, txnId: result.txnId || txn.txnId }, result.profile, result.tokens, {
-      isNewAbha: result.isNewAbha,
-      requiresMobileVerification,
-      actorUserId,
-    });
+      Boolean(requestedMobile) &&
+      requestedMobile !== mobileOnRecord &&
+      result.mobileMatchesAadhaar !== true;
+    return await completeWithProfile(
+      tenantId,
+      { ...txn, txnId: result.txnId || txn.txnId },
+      result.profile,
+      result.tokens,
+      {
+        isNewAbha: result.isNewAbha,
+        requiresMobileVerification,
+        actorUserId,
+      },
+    );
   } catch (err) {
     await updateTransaction(tenantId, txn.id, { state: 'failed', failureCode: errCode(err) });
     throw toAppError(err);
@@ -597,7 +649,7 @@ export async function verifyAadhaarOtp(
  */
 export async function resendOtp(
   tenantId: string,
-  input: { transactionId: string; aadhaar?: string; mobile?: string },
+  input: { transactionId: string; aadhaar?: string; mobile?: string; identifier?: string },
   actorUserId?: string,
 ): Promise<{ transactionId: string; mobileHint?: string; devOtp?: string; resendsLeft: number }> {
   const txn = await loadTransaction(tenantId, input.transactionId);
@@ -606,7 +658,11 @@ export async function resendOtp(
     throw new AppError(409, 'ABDM_TXN_ALREADY_USED', 'This verification is already finished');
   }
   if (txn.expiresAt && txn.expiresAt <= new Date()) {
-    throw new AppError(410, 'ABDM_TXN_EXPIRED', 'This verification has expired. Please start again.');
+    throw new AppError(
+      410,
+      'ABDM_TXN_EXPIRED',
+      'This verification has expired. Please start again.',
+    );
   }
 
   const sent = txn.otpSends ?? 1;
@@ -620,25 +676,67 @@ export async function resendOtp(
   const since = txn.lastOtpAt ? Date.now() - txn.lastOtpAt.getTime() : Number.POSITIVE_INFINITY;
   if (since < OTP_RESEND_GAP_MS) {
     const wait = Math.ceil((OTP_RESEND_GAP_MS - since) / 1000);
-    throw new AppError(429, 'ABDM_OTP_TOO_SOON', `Please wait ${wait} more second${wait === 1 ? '' : 's'} before resending`);
+    throw new AppError(
+      429,
+      'ABDM_OTP_TOO_SOON',
+      `Please wait ${wait} more second${wait === 1 ? '' : 's'} before resending`,
+    );
   }
 
   let result: { transactionId: string; mobileHint?: string; devOtp?: string };
   if (txn.flow === 'enrol_aadhaar' && input.aadhaar) {
     // A fresh send against the SAME transaction — see the note above on why the number is re-supplied.
     const digits = input.aadhaar.replace(/\D/g, '');
-    if (!/^\d{12}$/.test(digits)) throw new AppError(422, 'ABDM_INVALID_AADHAAR', 'Enter a 12-digit Aadhaar number');
+    if (!/^\d{12}$/.test(digits))
+      throw new AppError(422, 'ABDM_INVALID_AADHAAR', 'Enter a 12-digit Aadhaar number');
     const provider = abdmProvider();
     const hipId = await hipIdFor(tenantId, txn.branchId);
     const encrypted = await encryptForAbdm(provider, digits);
     const otp = await provider.enrolRequestOtp({ encryptedAadhaar: encrypted, hipId });
     await updateTransaction(tenantId, txn.id, { txnId: otp.txnId });
     result = { transactionId: txn.id, mobileHint: otp.mobileHint, devOtp: otp.devOtp };
+  } else if (txn.flow.startsWith('login_')) {
+    // A VERIFICATION resend (`VRFY_ABHA_305`, `_405`, and the resend clause on every other
+    // verification case). It repeats the ORIGINAL login OTP request — same identifier, same
+    // family, same OTP system — rather than the enrolment mobile-update call below, which is a
+    // different endpoint and would answer with a transaction this flow cannot verify against.
+    const identifier = (input.identifier ?? input.mobile ?? '').trim();
+    if (!identifier) {
+      throw new AppError(
+        422,
+        'ABDM_RESEND_NEEDS_IDENTIFIER',
+        'Re-enter the identifier to resend the code',
+      );
+    }
+    const type = flowToType(txn.flow);
+    const config = HINT_BY_TYPE[type];
+    const value = type === 'abha_address' ? identifier : identifier.replace(/[^0-9]/g, '');
+    const provider = abdmProvider();
+    const hipId = await hipIdFor(tenantId, txn.branchId);
+    const encrypted = await encryptForAbdm(provider, value);
+    const otp = await provider.loginRequestOtp({
+      scope: config.scope,
+      loginHint: config.hint,
+      encryptedLoginId: encrypted,
+      otpSystem: otpSystemOfFlow(txn.flow, type),
+      family: config.family,
+      hipId,
+    });
+    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId });
+    result = { transactionId: txn.id, mobileHint: otp.mobileHint, devOtp: otp.devOtp };
   } else if (input.mobile) {
     // The mobile flow needs no re-entry: ABDM keys it on the transaction, not on the number.
-    result = await requestMobileOtp(tenantId, { transactionId: txn.id, mobile: input.mobile }, actorUserId);
+    result = await requestMobileOtp(
+      tenantId,
+      { transactionId: txn.id, mobile: input.mobile },
+      actorUserId,
+    );
   } else {
-    throw new AppError(422, 'ABDM_RESEND_NEEDS_IDENTIFIER', 'Re-enter the Aadhaar or mobile number to resend the code');
+    throw new AppError(
+      422,
+      'ABDM_RESEND_NEEDS_IDENTIFIER',
+      'Re-enter the Aadhaar or mobile number to resend the code',
+    );
   }
 
   await updateTransaction(tenantId, txn.id, { otpSends: sent + 1, lastOtpAt: new Date() });
@@ -665,12 +763,21 @@ export async function requestMobileOtp(
   const provider = abdmProvider();
   const hipId = await hipIdFor(tenantId, txn.branchId);
   const digits = input.mobile.replace(/\D/g, '');
-  if (!/^\d{10}$/.test(digits)) throw new AppError(422, 'ABDM_INVALID_MOBILE', 'Enter a 10-digit mobile number');
+  if (!/^\d{10}$/.test(digits))
+    throw new AppError(422, 'ABDM_INVALID_MOBILE', 'Enter a 10-digit mobile number');
 
   try {
     const encrypted = await encryptForAbdm(provider, digits);
-    const otp = await provider.enrolMobileRequestOtp({ txnId: txn.txnId ?? '', encryptedMobile: encrypted, hipId });
-    await updateTransaction(tenantId, txn.id, { txnId: otp.txnId, identifierHint: maskMobile(digits), lastOtpAt: new Date() });
+    const otp = await provider.enrolMobileRequestOtp({
+      txnId: txn.txnId ?? '',
+      encryptedMobile: encrypted,
+      hipId,
+    });
+    await updateTransaction(tenantId, txn.id, {
+      txnId: otp.txnId,
+      identifierHint: maskMobile(digits),
+      lastOtpAt: new Date(),
+    });
     await writeAudit({
       tenantId,
       actorUserId: actorUserId ?? null,
@@ -695,7 +802,11 @@ export async function verifyMobileOtp(
   const hipId = await hipIdFor(tenantId, txn.branchId);
   try {
     const encryptedOtp = await encryptForAbdm(provider, input.otp);
-    const result = await provider.enrolMobileVerifyOtp({ txnId: txn.txnId ?? '', encryptedOtp, hipId });
+    const result = await provider.enrolMobileVerifyOtp({
+      txnId: txn.txnId ?? '',
+      encryptedOtp,
+      hipId,
+    });
     return await completeWithProfile(tenantId, txn, result.profile, result.tokens, { actorUserId });
   } catch (err) {
     throw toAppError(err);
@@ -706,10 +817,16 @@ export async function verifyMobileOtp(
 // ABHA address (the human-readable @ handle) — mandatory for a newly created ABHA
 // ---------------------------------------------------------------------------------------------
 
-export async function suggestAbhaAddresses(tenantId: string, transactionId: string): Promise<string[]> {
+export async function suggestAbhaAddresses(
+  tenantId: string,
+  transactionId: string,
+): Promise<string[]> {
   const txn = await loadTransaction(tenantId, transactionId);
   try {
-    return await abdmProvider().suggestAbhaAddress({ txnId: txn.txnId ?? '', hipId: await hipIdFor(tenantId, txn.branchId) });
+    return await abdmProvider().suggestAbhaAddress({
+      txnId: txn.txnId ?? '',
+      hipId: await hipIdFor(tenantId, txn.branchId),
+    });
   } catch (err) {
     throw toAppError(err);
   }
@@ -752,10 +869,18 @@ export async function createAbhaAddress(
  * Never persisted: it is a rendering of data we already hold, it carries the patient's photo,
  * and a copy on our disk is one more place a health identity can leak from.
  */
-export async function downloadAbhaCard(tenantId: string, transactionId: string): Promise<{ contentType: string; data: Buffer }> {
+export async function downloadAbhaCard(
+  tenantId: string,
+  transactionId: string,
+): Promise<{ contentType: string; data: Buffer }> {
   const txn = await loadTransaction(tenantId, transactionId);
   try {
-    return await abdmProvider().getAbhaCard({ xToken: profileToken(txn), hipId: await hipIdFor(tenantId, txn.branchId) });
+    return await abdmProvider().getAbhaCard({
+      xToken: profileToken(txn),
+      hipId: await hipIdFor(tenantId, txn.branchId),
+      // An address-verified holder's card is served by the PHR family and only to its own token.
+      family: txn.flow.startsWith('login_abha_address') ? 'phr' : 'profile',
+    });
   } catch (err) {
     throw toAppError(err);
   }
@@ -807,13 +932,21 @@ export async function updateAbhaProfile(
       resourceId: txn.id,
       severity: 'notice',
       // WHICH fields changed, never their values — this is a patient's national identity record.
-      metadata: { fields: Object.keys(input.patch).filter((k) => input.patch[k as keyof AbdmProfilePatch] !== undefined) },
+      metadata: {
+        fields: Object.keys(input.patch).filter(
+          (k) => input.patch[k as keyof AbdmProfilePatch] !== undefined,
+        ),
+      },
     });
 
     return {
       transactionId: updated.id,
       state: updated.state,
-      prefill: { ...toPrefill(profile), abhaNumber: updated.abhaNumber ?? undefined, abhaAddress: updated.abhaAddress ?? undefined },
+      prefill: {
+        ...toPrefill(profile),
+        abhaNumber: updated.abhaNumber ?? undefined,
+        abhaAddress: updated.abhaAddress ?? undefined,
+      },
       match: await matchPatient(tenantId, profile),
     };
   } catch (err) {
@@ -835,58 +968,133 @@ export type VerifyIdentifierType = 'abha_number' | 'abha_address' | 'mobile' | '
  * profile login at all — it goes through the separate PHR web-login family, which is what
  * `family` selects.
  */
+/** Which system delivers the OTP: UIDAI (`aadhaar`) or the ABHA-linked mobile (`abdm`). */
+export type VerifyOtpSystem = 'aadhaar' | 'abdm';
+
 const HINT_BY_TYPE: Record<
   VerifyIdentifierType,
-  { hint: string; scope: string; verifyScope: string; otpSystem: string; family: 'profile' | 'phr'; flow: string }
+  {
+    hint: string;
+    scope: string;
+    family: 'profile' | 'phr';
+    flow: string;
+    /** The OTP systems this identifier accepts. The first is the default. */
+    otpSystems: readonly [VerifyOtpSystem, ...VerifyOtpSystem[]];
+  }
 > = {
+  /**
+   * An ABHA number takes EITHER OTP system, and NHA requires both to be demonstrated:
+   * `VRFY_ABHA_101` is the Aadhaar-OTP route and `VRFY_ABHA_201` the ABHA-linked-mobile one.
+   * Wiring only the mobile route leaves a mandatory case with no way to run it at all.
+   */
   abha_number: {
     hint: LOGIN_HINTS.abhaNumber,
     scope: ABDM_SCOPES.abhaLogin,
-    verifyScope: ABDM_SCOPES.mobileVerify,
-    otpSystem: OTP_SYSTEMS.abdm,
     family: 'profile',
     flow: 'login_abha_number',
+    otpSystems: [OTP_SYSTEMS.abdm, OTP_SYSTEMS.aadhaar],
   },
+  /** Same pair, on the PHR family: `VRFY_ABHA_102` (Aadhaar OTP) and `VRFY_ABHA_202` (mobile). */
   abha_address: {
     hint: LOGIN_HINTS.abhaAddress,
     scope: ABDM_SCOPES.abhaAddressLogin,
-    verifyScope: ABDM_SCOPES.mobileVerify,
-    otpSystem: OTP_SYSTEMS.abdm,
     family: 'phr',
     flow: 'login_abha_address',
+    otpSystems: [OTP_SYSTEMS.abdm, OTP_SYSTEMS.aadhaar],
   },
   mobile: {
     hint: LOGIN_HINTS.mobile,
     scope: ABDM_SCOPES.abhaLogin,
-    verifyScope: ABDM_SCOPES.mobileVerify,
-    otpSystem: OTP_SYSTEMS.abdm,
     family: 'profile',
     flow: 'login_mobile',
+    otpSystems: [OTP_SYSTEMS.abdm],
   },
   // Aadhaar-keyed lookup goes to UIDAI for the OTP, which is why it needs consent like enrolment.
   aadhaar: {
     hint: LOGIN_HINTS.aadhaar,
     scope: ABDM_SCOPES.abhaLogin,
-    verifyScope: ABDM_SCOPES.aadhaarVerify,
-    otpSystem: OTP_SYSTEMS.aadhaar,
     family: 'profile',
     flow: 'login_aadhaar',
+    otpSystems: [OTP_SYSTEMS.aadhaar],
   },
 };
 
+/** The verify-half scope that pairs with an OTP system. NHA rejects a single-element array. */
+function verifyScopeFor(otpSystem: VerifyOtpSystem): string {
+  return otpSystem === OTP_SYSTEMS.aadhaar ? ABDM_SCOPES.aadhaarVerify : ABDM_SCOPES.mobileVerify;
+}
+
+/**
+ * The OTP system is carried on the transaction's `flow`, as a suffix on the non-default route.
+ *
+ * `login_abha_number` still means what it always meant. `login_abha_number_aadhaar` is the same
+ * identifier verified through UIDAI instead — and the distinction has to survive to the verify
+ * call, because the scope pair sent there must match the one the OTP was requested with.
+ */
+function flowFor(type: VerifyIdentifierType, otpSystem: VerifyOtpSystem): string {
+  const base = HINT_BY_TYPE[type].flow;
+  return otpSystem === HINT_BY_TYPE[type].otpSystems[0] ? base : `${base}_${otpSystem}`;
+}
+
+function otpSystemOfFlow(flow: string, type: VerifyIdentifierType): VerifyOtpSystem {
+  return flow.endsWith('_aadhaar') && type !== 'aadhaar'
+    ? OTP_SYSTEMS.aadhaar
+    : HINT_BY_TYPE[type].otpSystems[0];
+}
+
 export async function startVerification(
   tenantId: string,
-  input: { identifierType: VerifyIdentifierType; identifier: string; consentGiven: boolean; branchId?: string | null },
+  input: {
+    identifierType: VerifyIdentifierType;
+    identifier: string;
+    consentGiven: boolean;
+    branchId?: string | null;
+    /** Defaults to the identifier's first supported system; see `HINT_BY_TYPE`. */
+    otpSystem?: VerifyOtpSystem;
+  },
   actorUserId?: string,
-): Promise<{ transactionId: string; mobileHint?: string; devOtp?: string }> {
+): Promise<{
+  transactionId: string;
+  mobileHint?: string;
+  devOtp?: string;
+  authMethods?: string[];
+}> {
   if (!input.consentGiven) {
-    throw new AppError(422, 'ABDM_CONSENT_REQUIRED', "Record the patient's consent before sending an OTP");
+    throw new AppError(
+      422,
+      'ABDM_CONSENT_REQUIRED',
+      "Record the patient's consent before sending an OTP",
+    );
   }
   const config = HINT_BY_TYPE[input.identifierType];
-  const identifier = input.identifierType === 'abha_address' ? input.identifier.trim() : input.identifier.replace(/\D/g, '');
-  if (!identifier) throw new AppError(422, 'ABDM_INVALID_IDENTIFIER', 'Enter the identifier to verify');
+  const otpSystem = input.otpSystem ?? config.otpSystems[0];
+  if (!config.otpSystems.includes(otpSystem)) {
+    throw new AppError(
+      422,
+      'ABDM_OTP_SYSTEM_UNSUPPORTED',
+      `This identifier cannot be verified with an ${otpSystem === 'aadhaar' ? 'Aadhaar' : 'ABHA-linked mobile'} OTP`,
+    );
+  }
+  const identifier =
+    input.identifierType === 'abha_address'
+      ? input.identifier.trim()
+      : input.identifier.replace(/\D/g, '');
+  if (!identifier)
+    throw new AppError(422, 'ABDM_INVALID_IDENTIFIER', 'Enter the identifier to verify');
+  // The shape of each identifier, checked HERE and not only in the form.
+  //
+  // NHA tests the refusal, not the acceptance: `VRFY_ABHA_301` is "enter an invalid mobile number,
+  // see 'Please enter a valid mobile number'", and `VRFY_ABHA_401` the same for an Aadhaar. A
+  // malformed identifier that reaches the registry comes back as a generic upstream failure, which
+  // is not the message the case asks for and is a wasted round trip against a national service.
   if (input.identifierType === 'aadhaar' && !/^\d{12}$/.test(identifier)) {
     throw new AppError(422, 'ABDM_INVALID_AADHAAR', 'Enter a 12-digit Aadhaar number');
+  }
+  if (input.identifierType === 'mobile' && !/^[6-9]\d{9}$/.test(identifier)) {
+    throw new AppError(422, 'ABDM_INVALID_MOBILE', 'Please enter a valid mobile number');
+  }
+  if (input.identifierType === 'abha_number' && !/^\d{14}$/.test(identifier)) {
+    throw new AppError(422, 'ABDM_INVALID_ABHA_NUMBER', 'Enter a 14-digit ABHA number');
   }
 
   const provider = abdmProvider();
@@ -901,7 +1109,7 @@ export async function startVerification(
   const txn = await createTransaction({
     tenantId,
     branchId: input.branchId,
-    flow: config.flow,
+    flow: flowFor(input.identifierType, otpSystem),
     identifierHint: hint,
     consentAt: new Date(),
     actorUserId,
@@ -909,11 +1117,43 @@ export async function startVerification(
 
   try {
     const encrypted = await encryptForAbdm(provider, identifier);
+
+    // An ABHA ADDRESS is asked about before it is texted (NHA's M1 workbook lists
+    // `phr/web/login/abha/search` as the first call of VRFY_ABHA_102 and _202). The registry
+    // answers with the methods that address actually supports, so an address it does not hold
+    // fails here — at the desk, before the operator has promised the patient a message — and an
+    // Aadhaar OTP is never requested for a holder who has no Aadhaar-linked mobile.
+    let authMethods: string[] | undefined;
+    if (config.family === 'phr') {
+      const found = await provider.phrSearchAuthMethods({ encryptedAbhaAddress: encrypted, hipId });
+      authMethods = found.authMethods;
+      // Probed against the sandbox on 03/09/2026: an address nobody holds comes back as
+      // `400 ABDM-9999 Invalid ABHA Address`, which `toAppError` already surfaces with NHA's own
+      // wording. This branch is the other shape — a 200 carrying nothing — which the registry has
+      // not been seen to send but which would otherwise fall through to an OTP request for an
+      // account that does not exist.
+      if (found.authMethods.length === 0) {
+        throw new AppError(
+          404,
+          'ABDM_ABHA_ADDRESS_NOT_FOUND',
+          'No ABHA was found for that ABHA address',
+        );
+      }
+      const wanted = otpSystem === OTP_SYSTEMS.aadhaar ? 'AADHAAR' : 'MOBILE';
+      if (!found.authMethods.some((m) => m.includes(wanted))) {
+        throw new AppError(
+          422,
+          'ABDM_OTP_SYSTEM_UNSUPPORTED',
+          `This ABHA address cannot be verified with an ${wanted === 'AADHAAR' ? 'Aadhaar' : 'ABHA-linked mobile'} OTP`,
+        );
+      }
+    }
+
     const otp = await provider.loginRequestOtp({
       scope: config.scope,
       loginHint: config.hint,
       encryptedLoginId: encrypted,
-      otpSystem: config.otpSystem,
+      otpSystem,
       family: config.family,
       hipId,
     });
@@ -925,9 +1165,9 @@ export async function startVerification(
       resourceType: 'abdm_transaction',
       resourceId: txn.id,
       severity: 'notice',
-      metadata: { identifierType: input.identifierType, identifierHint: hint },
+      metadata: { identifierType: input.identifierType, identifierHint: hint, otpSystem },
     });
-    return { transactionId: txn.id, mobileHint: otp.mobileHint, devOtp: otp.devOtp };
+    return { transactionId: txn.id, mobileHint: otp.mobileHint, devOtp: otp.devOtp, authMethods };
   } catch (err) {
     await updateTransaction(tenantId, txn.id, { state: 'failed', failureCode: errCode(err) });
     throw toAppError(err);
@@ -942,15 +1182,18 @@ export async function verifyIdentifierOtp(
   const txn = await loadTransaction(tenantId, input.transactionId);
   const provider = abdmProvider();
   const hipId = await hipIdFor(tenantId, txn.branchId);
-  const config = HINT_BY_TYPE[flowToType(txn.flow)];
+  const type = flowToType(txn.flow);
+  const config = HINT_BY_TYPE[type];
+  const otpSystem = otpSystemOfFlow(txn.flow, type);
 
   try {
     const encryptedOtp = await encryptForAbdm(provider, input.otp);
     const result = await provider.loginVerify({
       txnId: txn.txnId ?? '',
       encryptedOtp,
-      // The same pair the OTP was requested with — NHA rejects a single-element scope.
-      scope: [config.scope, config.verifyScope],
+      // The same pair the OTP was requested with — NHA rejects a single-element scope, and it
+      // rejects a pair whose verify half does not match the system that sent the OTP.
+      scope: [config.scope, verifyScopeFor(otpSystem)],
       family: config.family,
       hipId,
     });
@@ -967,7 +1210,10 @@ export async function verifyIdentifierOtp(
         state: 'verified',
         linkingTokenEnc: encryptLinkingToken(result.tokens),
         xTokenEnc: encryptToken(result.tokens.xToken, 'profile token'),
-        profile: scrubAadhaar({ candidateAccounts: result.accounts } as unknown as Record<string, unknown>),
+        profile: scrubAadhaar({ candidateAccounts: result.accounts } as unknown as Record<
+          string,
+          unknown
+        >),
       } as Partial<AbdmTransaction>);
       return {
         transactionId: txn.id,
@@ -977,8 +1223,32 @@ export async function verifyIdentifierOtp(
         accounts: result.accounts,
       };
     }
-    if (!result.profile) throw new AppError(502, 'ABDM_NO_PROFILE', 'ABDM returned no profile for this identifier');
-    return await completeWithProfile(tenantId, txn, result.profile, result.tokens, { actorUserId });
+    // The PHR web-login family verifies and returns a token — the demographics are a second call,
+    // to that family's own profile path. Treating the empty verify response as 'no such ABHA'
+    // would fail every ABHA-address verification (VRFY_ABHA_102, VRFY_ABHA_202) at the last step.
+    let profile = result.profile;
+    if (!profile && config.family === 'phr' && result.tokens.xToken) {
+      profile = await provider.getProfile({ xToken: result.tokens.xToken, hipId, family: 'phr' });
+    }
+
+    // No accounts AND no profile is not an upstream failure — it is a valid answer meaning "no
+    // ABHA is registered against this identifier" (`VRFY_ABHA_302`, `_403`). A 502 said the wrong
+    // thing twice over: it blamed ABDM for working correctly, and it gave the operator no reason
+    // to move to the create-ABHA flow, which is what the workbook says must stay open.
+    if (!profile) {
+      const kind =
+        type === 'mobile'
+          ? 'this mobile number. Please use the ABHA-linked mobile number'
+          : type === 'aadhaar'
+            ? 'this Aadhaar number'
+            : 'this identifier';
+      throw new AppError(
+        404,
+        'ABDM_NO_ABHA_FOUND',
+        `No ABHA number is linked to ${kind}. An ABHA can be created instead.`,
+      );
+    }
+    return await completeWithProfile(tenantId, txn, profile, result.tokens, { actorUserId });
   } catch (err) {
     await updateTransaction(tenantId, txn.id, { state: 'failed', failureCode: errCode(err) });
     throw toAppError(err);
@@ -986,9 +1256,12 @@ export async function verifyIdentifierOtp(
 }
 
 function flowToType(flow: string): VerifyIdentifierType {
-  if (flow === 'login_abha_address') return 'abha_address';
-  if (flow === 'login_mobile') return 'mobile';
+  // `login_aadhaar` is checked FIRST and on the whole string: `login_abha_number_aadhaar` is an
+  // ABHA number verified by Aadhaar OTP, not an Aadhaar-keyed lookup, and a `startsWith` here
+  // would silently swap one mandatory case for another.
   if (flow === 'login_aadhaar') return 'aadhaar';
+  if (flow.startsWith('login_abha_address')) return 'abha_address';
+  if (flow.startsWith('login_mobile')) return 'mobile';
   return 'abha_number';
 }
 
@@ -1030,7 +1303,9 @@ export async function selectAbhaAccount(
  * as the first name and the operator adjusts, which is a correction rather than an invention.
  */
 function chosenAccountProfile(txn: AbdmTransaction, abhaNumber: string): AbdmProfile {
-  const stored = (txn as { profile?: { candidateAccounts?: Array<Record<string, string | undefined>> } }).profile;
+  const stored = (
+    txn as { profile?: { candidateAccounts?: Array<Record<string, string | undefined>> } }
+  ).profile;
   const found = (stored?.candidateAccounts ?? []).find((a) => a.abhaNumber === abhaNumber);
   if (!found) return { abhaNumber };
   return {
@@ -1069,7 +1344,10 @@ export async function handleProfileShare(input: {
   // Unknown facility, or Scan-and-Share not switched on: accept and drop. Any other answer tells
   // an unauthenticated caller which facility ids are real.
   if (!config || !config.scanShareEnabled) {
-    logger.warn({ hipId: input.hipId }, 'Profile share received for an unknown or disabled facility');
+    logger.warn(
+      { hipId: input.hipId },
+      'Profile share received for an unknown or disabled facility',
+    );
     return { accepted: true };
   }
 
@@ -1115,7 +1393,9 @@ export async function handleProfileShare(input: {
     context: input.context,
     requestId: input.requestId,
     tokenNumber: await nextTokenNumber(tenantId),
-  }).catch((err) => logger.error({ err, hipId: input.hipId }, 'ABDM on-share acknowledgement failed'));
+  }).catch((err) =>
+    logger.error({ err, hipId: input.hipId }, 'ABDM on-share acknowledgement failed'),
+  );
 
   return { accepted: true };
 }
@@ -1157,7 +1437,10 @@ async function sendOnShare(input: {
   tokenNumber: number;
 }): Promise<void> {
   if (env.ABDM_PROVIDER !== 'gateway') {
-    logger.info({ tokenNumber: input.tokenNumber }, 'ABDM on-share skipped — not running against the gateway');
+    logger.info(
+      { tokenNumber: input.tokenNumber },
+      'ABDM on-share skipped — not running against the gateway',
+    );
     return;
   }
   const { getAccessToken, baseHeaders } = await import('./abdm.session');
@@ -1172,13 +1455,21 @@ async function sendOnShare(input: {
       acknowledgement: {
         status: 'SUCCESS',
         abhaAddress: input.abhaAddress,
-        profile: { context: input.context ?? '1', tokenNumber: String(input.tokenNumber), expiry: '1800' },
+        profile: {
+          context: input.context ?? '1',
+          tokenNumber: String(input.tokenNumber),
+          expiry: '1800',
+        },
       },
       response: { requestId: input.requestId },
     }),
   });
   if (!res.ok) {
-    throw new AbdmGatewayError(res.status, 'ABDM_ON_SHARE_FAILED', `on-share rejected (${res.status})`);
+    throw new AbdmGatewayError(
+      res.status,
+      'ABDM_ON_SHARE_FAILED',
+      `on-share rejected (${res.status})`,
+    );
   }
   logger.info({ tokenNumber: input.tokenNumber }, 'ABDM on-share acknowledged');
 }
@@ -1188,7 +1479,11 @@ async function findFacilityByHipId(hipId: string) {
   // request belongs to, so it cannot itself be tenant-scoped. It reads a configuration table
   // only — no clinical data is reachable from here.
   const { db } = await import('../../db/client');
-  const rows = await db.select().from(abdmFacilityConfig).where(eq(abdmFacilityConfig.hipId, hipId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmFacilityConfig)
+    .where(eq(abdmFacilityConfig.hipId, hipId))
+    .limit(1);
   return rows[0] ?? null;
 }
 
@@ -1230,14 +1525,21 @@ export async function listPendingShares(tenantId: string, limit = 10) {
 }
 
 /** The stored result of a transaction, for a screen that reloads mid-flow. */
-export async function getVerification(tenantId: string, transactionId: string): Promise<VerificationResult> {
+export async function getVerification(
+  tenantId: string,
+  transactionId: string,
+): Promise<VerificationResult> {
   const txn = await loadTransaction(tenantId, transactionId);
   const profile = (txn.profile ?? {}) as AbdmProfile;
   return {
     transactionId: txn.id,
     state: txn.state,
     // Identifiers from their own columns — see `listPendingShares` for why.
-    prefill: { ...toPrefill(profile), abhaNumber: txn.abhaNumber ?? undefined, abhaAddress: txn.abhaAddress ?? undefined },
+    prefill: {
+      ...toPrefill(profile),
+      abhaNumber: txn.abhaNumber ?? undefined,
+      abhaAddress: txn.abhaAddress ?? undefined,
+    },
     match: txn.profile ? await matchPatient(tenantId, profile) : { outcome: 'new', candidates: [] },
   };
 }
@@ -1276,7 +1578,11 @@ export async function linkToPatient(
       )
       .limit(1);
     if (clash[0]) {
-      throw new AppError(409, 'ABHA_ALREADY_LINKED', `This ABHA is already linked to ${clash[0].uhid}`);
+      throw new AppError(
+        409,
+        'ABHA_ALREADY_LINKED',
+        `This ABHA is already linked to ${clash[0].uhid}`,
+      );
     }
 
     const rows = await tx
@@ -1285,7 +1591,12 @@ export async function linkToPatient(
         abhaNumber: txn.abhaNumber ?? undefined,
         abhaAddress: txn.abhaAddress ?? undefined,
         abhaVerifiedAt: new Date(),
-        abhaSource: txn.flow === 'scan_share' ? 'scan_share' : txn.flow.startsWith('enrol') ? 'aadhaar_otp' : 'abha_login',
+        abhaSource:
+          txn.flow === 'scan_share'
+            ? 'scan_share'
+            : txn.flow.startsWith('enrol')
+              ? 'aadhaar_otp'
+              : 'abha_login',
         abhaLinkingTokenEnc: txn.linkingTokenEnc ?? undefined,
         abhaConsentAt: txn.consentAt ?? undefined,
         updatedAt: new Date(),
@@ -1308,13 +1619,22 @@ export async function linkToPatient(
     resourceType: 'patient',
     resourceId: input.patientId,
     severity: 'notice',
-    metadata: { transactionId: txn.id, flow: txn.flow, abhaNumber: txn.abhaNumber, matchOutcome: txn.matchOutcome },
+    metadata: {
+      transactionId: txn.id,
+      flow: txn.flow,
+      abhaNumber: txn.abhaNumber,
+      matchOutcome: txn.matchOutcome,
+    },
   });
   return patient;
 }
 
 /** Marks a transaction finished without linking — the operator fell back to the manual form. */
-export async function dismissTransaction(tenantId: string, transactionId: string, actorUserId?: string): Promise<void> {
+export async function dismissTransaction(
+  tenantId: string,
+  transactionId: string,
+  actorUserId?: string,
+): Promise<void> {
   const txn = await loadTransaction(tenantId, transactionId);
   await updateTransaction(tenantId, txn.id, { state: 'consumed', consumedAt: new Date() });
   await writeAudit({

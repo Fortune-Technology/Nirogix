@@ -73,7 +73,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   // eslint-disable-next-line no-console
-  console.log('Now set FILE_STORAGE_PROVIDER=r2 and restart the API — existing ids resolve from R2.');
+  console.log(
+    'Now set FILE_STORAGE_PROVIDER=r2 and restart the API — existing ids resolve from R2.',
+  );
   await pool.end();
 }
 

@@ -30,6 +30,9 @@ export type FileCategory =
   | 'platform-branding'
   | 'letterhead'
   | 'lab-reports'
+  // A person's own signature image (ADR-137). Its own folder so ops can give signatures their
+  // own lifecycle rule without touching clinical documents.
+  | 'signatures'
   | 'documents';
 
 const FILE_CATEGORIES: readonly FileCategory[] = [
@@ -37,12 +40,15 @@ const FILE_CATEGORIES: readonly FileCategory[] = [
   'platform-branding',
   'letterhead',
   'lab-reports',
+  'signatures',
   'documents',
 ];
 
 /** Never trust a category string into a storage key — whitelist it, default `documents`. */
 export function resolveCategory(value?: string): FileCategory {
-  return (FILE_CATEGORIES as readonly string[]).includes(value ?? '') ? (value as FileCategory) : 'documents';
+  return (FILE_CATEGORIES as readonly string[]).includes(value ?? '')
+    ? (value as FileCategory)
+    : 'documents';
 }
 
 function sanitizeFilename(name: string): string {
@@ -91,7 +97,14 @@ export async function uploadFile(input: UploadInput): Promise<FileMetadata> {
     action: 'file.upload',
     resourceType: 'file',
     resourceId: meta.id,
-    metadata: { filename: safe, size, originalSize: input.size, optimized: opt.optimized, checksum, provider: provider.name },
+    metadata: {
+      filename: safe,
+      size,
+      originalSize: input.size,
+      optimized: opt.optimized,
+      checksum,
+      provider: provider.name,
+    },
   });
   return meta;
 }
@@ -119,7 +132,11 @@ export async function getDownloadUrl(
   const meta = await getFileMetadata(tenantId, id);
   if (!meta) return null;
   const provider = getFileStorageProvider();
-  const signed = await provider.getSignedDownloadUrl(meta.storageKey, meta.filename, opts?.disposition);
+  const signed = await provider.getSignedDownloadUrl(
+    meta.storageKey,
+    meta.filename,
+    opts?.disposition,
+  );
   if (signed) return { url: signed, expiresInSeconds: 600 };
 
   const token = signFileToken(meta.id, tenantId);

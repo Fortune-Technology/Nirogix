@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Button } from "../ui/Button";
-import { Container } from "../ui/primitives";
+import Link from 'next/link';
+import { Button } from '../ui/Button';
+import { Container } from '../ui/primitives';
 
 /**
  * Reusable closing CTA — inverted charcoal banner. Primary intent is always
@@ -8,10 +8,10 @@ import { Container } from "../ui/primitives";
  * varies per page.
  */
 export function CtaSection({
-  title = "See it running with your own workflows.",
-  body = "Book a walkthrough and we will map your clinic or hospital onto the platform, module by module.",
-  secondaryLabel = "Explore the platform",
-  secondaryHref = "/platform",
+  title = 'See it running with your own workflows.',
+  body = 'Book a walkthrough and we will map your clinic or hospital onto the platform, module by module.',
+  secondaryLabel = 'Explore the platform',
+  secondaryHref = '/platform',
 }: {
   title?: string;
   body?: string;

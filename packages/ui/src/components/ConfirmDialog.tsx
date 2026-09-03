@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
-import { cn } from "../cn";
-import { Dialog } from "./Dialog";
+import type { ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { cn } from '../cn';
+import { Dialog } from './Dialog';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -12,7 +12,7 @@ export interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   /** `danger` for anything that deletes, revokes, cancels, or discharges. */
-  tone?: "danger" | "default";
+  tone?: 'danger' | 'default';
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -36,9 +36,9 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
-  tone = "danger",
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  tone = 'danger',
   busy = false,
   onConfirm,
   onCancel,
@@ -56,16 +56,21 @@ export function ConfirmDialog({
       icon={<AlertTriangle size={18} strokeWidth={1.75} />}
       footer={
         <>
-          <button type="button" className="hms-btn hms-btn--secondary" onClick={onCancel} disabled={busy}>
+          <button
+            type="button"
+            className="hms-btn hms-btn--secondary"
+            onClick={onCancel}
+            disabled={busy}
+          >
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={cn("hms-btn", tone === "danger" ? "hms-btn--danger" : "hms-btn--primary")}
+            className={cn('hms-btn', tone === 'danger' ? 'hms-btn--danger' : 'hms-btn--primary')}
             onClick={onConfirm}
             disabled={busy}
           >
-            {busy ? "Working…" : confirmLabel}
+            {busy ? 'Working…' : confirmLabel}
           </button>
         </>
       }

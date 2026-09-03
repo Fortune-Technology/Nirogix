@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { Button, Dialog, Field } from "@hms/ui";
+import { useEffect, useState, type FormEvent } from 'react';
+import { Button, Dialog, Field } from '@hms/ui';
 
 /**
  * The edit surface for a **simple** record (ADR-060).
@@ -54,7 +54,7 @@ export function EditRecordDialog<T extends object>({
     if (!record) return;
     const next: Record<string, string> = {};
     const source = record as Record<string, unknown>;
-    for (const f of fields) next[f.key] = String(source[f.key] ?? "");
+    for (const f of fields) next[f.key] = String(source[f.key] ?? '');
     setValues(next);
     setErrors({});
     // `fields` is a module-level constant at every call site.
@@ -63,13 +63,13 @@ export function EditRecordDialog<T extends object>({
 
   if (!record) return null;
 
-  const original = (key: string) => String((record as Record<string, unknown>)[key] ?? "");
+  const original = (key: string) => String((record as Record<string, unknown>)[key] ?? '');
   const changed = fields.filter((f) => values[f.key] !== original(f.key));
 
   function validate(): boolean {
     const found: Record<string, string> = {};
     for (const f of fields) {
-      const value = (values[f.key] ?? "").trim();
+      const value = (values[f.key] ?? '').trim();
       if (f.required && !value) found[f.key] = `${f.label} is required.`;
       else if (f.validate) {
         const message = f.validate(value);
@@ -88,7 +88,7 @@ export function EditRecordDialog<T extends object>({
       // Only what the user actually altered. The server treats an omitted field as
       // "leave it alone", so a dialog can never blank a column it does not show.
       const patch: Record<string, string> = {};
-      for (const f of changed) patch[f.key] = (values[f.key] ?? "").trim();
+      for (const f of changed) patch[f.key] = (values[f.key] ?? '').trim();
       await onSave(patch);
       onClose();
     } catch {
@@ -111,7 +111,12 @@ export function EditRecordDialog<T extends object>({
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form="hms-edit-record" loading={saving} disabled={changed.length === 0}>
+          <Button
+            type="submit"
+            form="hms-edit-record"
+            loading={saving}
+            disabled={changed.length === 0}
+          >
             Save changes
           </Button>
         </>
@@ -125,7 +130,7 @@ export function EditRecordDialog<T extends object>({
             hint={f.hint}
             error={errors[f.key]}
             required={f.required}
-            value={values[f.key] ?? ""}
+            value={values[f.key] ?? ''}
             onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
           />
         ))}

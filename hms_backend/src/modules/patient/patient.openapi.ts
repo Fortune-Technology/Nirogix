@@ -6,12 +6,20 @@ import {
   PatientDocumentListSchema,
 } from './document.schema';
 import { ErrorResponseSchema } from '../../openapi/schemas';
-import { CreatePatientBody, UpdatePatientBody, PatientSchema, PatientsPageSchema } from './patient.schema';
+import {
+  CreatePatientBody,
+  UpdatePatientBody,
+  PatientSchema,
+  PatientsPageSchema,
+} from './patient.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const idParam = { params: z.object({ id: z.string().uuid() }) };
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the patient module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the patient module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 const invalid = { description: 'Validation error', ...json(ErrorResponseSchema) };
 
@@ -30,13 +38,26 @@ registry.registerPath({
       pageSize: z.coerce.number().int().min(1).max(100).optional(),
       search: z.string().optional(),
       gender: z.string().optional().openapi({ description: 'Comma-separated: male,female,other' }),
-      status: z.string().optional().openapi({ description: 'Comma-separated patient status values' }),
+      status: z
+        .string()
+        .optional()
+        .openapi({ description: 'Comma-separated patient status values' }),
       city: z.string().optional().openapi({ description: 'Comma-separated city names' }),
-      registeredFrom: z.string().optional().openapi({ description: 'Registration date lower bound (YYYY-MM-DD)' }),
-      registeredTo: z.string().optional().openapi({ description: 'Registration date upper bound (YYYY-MM-DD)' }),
+      registeredFrom: z
+        .string()
+        .optional()
+        .openapi({ description: 'Registration date lower bound (YYYY-MM-DD)' }),
+      registeredTo: z
+        .string()
+        .optional()
+        .openapi({ description: 'Registration date upper bound (YYYY-MM-DD)' }),
     }),
   },
-  responses: { 200: { description: 'Patients', ...json(PatientsPageSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Patients', ...json(PatientsPageSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -52,7 +73,8 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     409: {
-      description: 'DUPLICATE_PATIENT — matching charts in error.details.candidates; review, then link or resend with allowDuplicate',
+      description:
+        'DUPLICATE_PATIENT — matching charts in error.details.candidates; review, then link or resend with allowDuplicate',
       ...json(ErrorResponseSchema),
     },
     422: invalid,
@@ -140,7 +162,10 @@ registry.registerPath({
     401: notAuthed,
     403: notEntitled,
     404: { description: 'Patient, file, visit or case not found', ...json(ErrorResponseSchema) },
-    422: { description: 'The visit or case belongs to a different patient', ...json(ErrorResponseSchema) },
+    422: {
+      description: 'The visit or case belongs to a different patient',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 

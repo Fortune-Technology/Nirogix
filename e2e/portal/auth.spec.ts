@@ -86,7 +86,11 @@ test.describe('quick-login helper (ADR-080)', () => {
     await page.goto('/login');
     await page.getByRole('button', { name: /test credentials/i }).click();
 
-    await page.getByRole('dialog').getByText(/doctor/i).first().click();
+    await page
+      .getByRole('dialog')
+      .getByText(/doctor/i)
+      .first()
+      .click();
 
     // Filling the real form (not a second auth path) is the documented behaviour.
     await expect(page.getByLabel('Email')).not.toHaveValue('');
@@ -109,7 +113,9 @@ test.describe('session boundaries', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('the signed-in user sees their own hospital, and the session survives a reload', async ({ page }) => {
+  test('the signed-in user sees their own hospital, and the session survives a reload', async ({
+    page,
+  }) => {
     await signIn(page, 'doctor');
     const url = page.url();
 

@@ -29,7 +29,10 @@ import { AbdmGatewayError } from './providers/types';
  */
 
 /** GET is used heavily here: most of M4's surface is master data the forms need. */
-export async function registryGet<T = unknown>(path: string, query?: Record<string, string | number>): Promise<T> {
+export async function registryGet<T = unknown>(
+  path: string,
+  query?: Record<string, string | number>,
+): Promise<T> {
   const url = new URL(`${env.ABDM_HFR_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) url.searchParams.set(key, String(value));
   return registryCall<T>(url.toString(), 'GET');
@@ -49,7 +52,12 @@ export async function registryPut<T = unknown>(path: string, body: unknown): Pro
  * NHA can invalidate a session before its stated expiry; the right answer to their 401 is a fresh
  * token and one more attempt, not a failure surfaced to an administrator mid-form.
  */
-async function registryCall<T>(url: string, method: string, body?: unknown, retryOn401 = true): Promise<T> {
+async function registryCall<T>(
+  url: string,
+  method: string,
+  body?: unknown,
+  retryOn401 = true,
+): Promise<T> {
   const headers: Record<string, string> = {
     accept: 'application/json',
     'Content-Type': 'application/json',
@@ -74,7 +82,10 @@ async function registryCall<T>(url: string, method: string, body?: unknown, retr
     const { code, message } = parseAbdmError(text, res.status);
     // The path, never the body: a registry request can carry an encrypted Aadhaar and a
     // professional's identity details, and neither belongs in a log line.
-    logger.error({ path: new URL(url).pathname, status: res.status, abdmCode: code }, 'ABDM registry rejected a call');
+    logger.error(
+      { path: new URL(url).pathname, status: res.status, abdmCode: code },
+      'ABDM registry rejected a call',
+    );
     throw new AbdmGatewayError(res.status, code, message);
   }
 

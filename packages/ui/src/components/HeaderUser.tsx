@@ -1,5 +1,5 @@
-import type { ElementType } from "react";
-import { cn } from "../cn";
+import type { ElementType } from 'react';
+import { cn } from '../cn';
 
 export interface HeaderUserProps {
   /** The signed-in user's full name. */
@@ -20,11 +20,11 @@ export interface HeaderUserProps {
 
 function initials(name: string): string {
   return name
-    .split(" ")
+    .split(' ')
     .map((p) => p[0])
     .filter(Boolean)
     .slice(0, 2)
-    .join("")
+    .join('')
     .toUpperCase();
 }
 
@@ -40,7 +40,7 @@ function initials(name: string): string {
  */
 export function HeaderUser({ name, email, role, href, linkAs, className }: HeaderUserProps) {
   const secondary = [role, email].filter(Boolean) as string[];
-  const title = secondary.length > 0 ? `${name} · ${secondary.join(" · ")}` : name;
+  const title = secondary.length > 0 ? `${name} · ${secondary.join(' · ')}` : name;
 
   const inner = (
     <>
@@ -66,13 +66,13 @@ export function HeaderUser({ name, email, role, href, linkAs, className }: Heade
   );
 
   const classes = cn(
-    "flex min-w-0 items-center gap-2.5 rounded-token px-1.5 py-1",
-    href && "transition-colors hover:bg-surface-2",
+    'flex min-w-0 items-center gap-2.5 rounded-token px-1.5 py-1',
+    href && 'transition-colors hover:bg-surface-2',
     className,
   );
 
   if (href) {
-    const Link = (linkAs ?? "a") as ElementType;
+    const Link = (linkAs ?? 'a') as ElementType;
     return (
       <Link href={href} className={classes} title={title}>
         {inner}

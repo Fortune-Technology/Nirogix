@@ -48,7 +48,11 @@ describe('series', () => {
 
   test('rows created before the window seed the cumulative, not the first bar', () => {
     const series = toSeries(
-      [new Date('2024-01-05T00:00:00Z'), new Date('2025-11-05T00:00:00Z'), new Date('2026-07-05T00:00:00Z')],
+      [
+        new Date('2024-01-05T00:00:00Z'),
+        new Date('2025-11-05T00:00:00Z'),
+        new Date('2026-07-05T00:00:00Z'),
+      ],
       window,
     );
     // Two rows predate the window: they count in the running total from the start,

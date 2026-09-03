@@ -10,7 +10,12 @@ export async function list(req: Request, res: Response): Promise<void> {
 }
 
 export async function createCustomVaccine(req: Request, res: Response): Promise<void> {
-  const item = await svc.createCustomItem(req.auth!.tenantId, 'vaccine', req.body, req.auth!.userId);
+  const item = await svc.createCustomItem(
+    req.auth!.tenantId,
+    'vaccine',
+    req.body,
+    req.auth!.userId,
+  );
   res.status(201).json(item);
 }
 

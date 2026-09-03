@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Plus, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Select, Skeleton } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Plus, X } from 'lucide-react';
+import { Alert, Badge, Button, Card, Field, Select, Skeleton } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
 import {
   VITAL_PARAMETERS,
   type Branch,
@@ -11,10 +11,10 @@ import {
   type PaymentTiming,
   type VitalParameter,
   type VitalsMode,
-} from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { useCan } from "../../../../lib/auth";
+} from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { useCan } from '../../../../lib/auth';
 
 /**
  * How this hospital runs its workflow (ADR-113).
@@ -29,66 +29,71 @@ import { useCan } from "../../../../lib/auth";
 
 const VITALS_MODE_OPTIONS: Array<{ value: VitalsMode; label: string; description: string }> = [
   {
-    value: "consultation_only",
-    label: "In the consultation",
-    description: "The doctor records vitals while seeing the patient. This is the default.",
+    value: 'consultation_only',
+    label: 'In the consultation',
+    description: 'The doctor records vitals while seeing the patient. This is the default.',
   },
   {
-    value: "during_checkin",
-    label: "At the front desk, during check-in",
-    description: "The receptionist records them on the check-in form itself.",
+    value: 'during_checkin',
+    label: 'At the front desk, during check-in',
+    description: 'The receptionist records them on the check-in form itself.',
   },
   {
-    value: "after_checkin",
-    label: "In a separate vitals step, after check-in",
-    description: "The patient joins a vitals queue; a nurse or assistant records them before the consultation.",
+    value: 'after_checkin',
+    label: 'In a separate vitals step, after check-in',
+    description:
+      'The patient joins a vitals queue; a nurse or assistant records them before the consultation.',
   },
   {
-    value: "disabled",
-    label: "Not at all",
-    description: "This hospital does not record vitals.",
+    value: 'disabled',
+    label: 'Not at all',
+    description: 'This hospital does not record vitals.',
   },
 ];
 
-const PAYMENT_TIMING_OPTIONS: Array<{ value: PaymentTiming; label: string; description: string }> = [
-  {
-    value: "before_consultation",
-    label: "Before the consultation starts",
-    description: "The doctor cannot open the consultation until the fee is settled. This is the default.",
-  },
-  {
-    value: "at_checkin",
-    label: "At the front desk, during check-in",
-    description: "The same rule; the desk collects immediately rather than sending the patient to a counter.",
-  },
-  {
-    value: "after_consultation",
-    label: "After the consultation",
-    description: "No gate — the patient is seen and settles on the way out. For employer or insurer billing.",
-  },
-];
+const PAYMENT_TIMING_OPTIONS: Array<{ value: PaymentTiming; label: string; description: string }> =
+  [
+    {
+      value: 'before_consultation',
+      label: 'Before the consultation starts',
+      description:
+        'The doctor cannot open the consultation until the fee is settled. This is the default.',
+    },
+    {
+      value: 'at_checkin',
+      label: 'At the front desk, during check-in',
+      description:
+        'The same rule; the desk collects immediately rather than sending the patient to a counter.',
+    },
+    {
+      value: 'after_consultation',
+      label: 'After the consultation',
+      description:
+        'No gate — the patient is seen and settles on the way out. For employer or insurer billing.',
+    },
+  ];
 
 const PARAM_LABELS: Record<VitalParameter, string> = {
-  bloodPressure: "Blood pressure",
-  pulse: "Pulse",
-  spo2: "SpO₂",
-  respRate: "Respiratory rate",
-  tempC: "Temperature",
-  weightKg: "Weight",
-  heightCm: "Height",
-  bloodSugar: "Blood sugar",
+  bloodPressure: 'Blood pressure',
+  pulse: 'Pulse',
+  spo2: 'SpO₂',
+  respRate: 'Respiratory rate',
+  tempC: 'Temperature',
+  weightKg: 'Weight',
+  heightCm: 'Height',
+  bloodSugar: 'Blood sugar',
 };
 
 /** What a parameter is set to. Three states, because "offered" and "insisted on" are different. */
-type ParamState = "off" | "optional" | "required";
+type ParamState = 'off' | 'optional' | 'required';
 
 const PARAM_STATE_OPTIONS = [
-  { value: "off", label: "Not collected" },
-  { value: "optional", label: "Offered" },
-  { value: "required", label: "Required" },
+  { value: 'off', label: 'Not collected' },
+  { value: 'optional', label: 'Offered' },
+  { value: 'required', label: 'Required' },
 ];
 
-const ORG_SCOPE = "__org__";
+const ORG_SCOPE = '__org__';
 
 /**
  * A short list of the hospital's own words (ADR-121).
@@ -116,14 +121,14 @@ function TypeListEditor({
   placeholder: string;
   disabled?: boolean;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const trimmed = draft.trim();
   const duplicate = values.some((v) => v.toLowerCase() === trimmed.toLowerCase());
 
   function add() {
     if (!trimmed || duplicate) return;
     onChange([...values, trimmed]);
-    setDraft("");
+    setDraft('');
   }
 
   return (
@@ -154,7 +159,7 @@ function TypeListEditor({
       {!disabled && (
         <div className="flex items-end gap-2">
           <Field
-            label={`Add a ${label.toLowerCase().replace(/s$/, "")}`}
+            label={`Add a ${label.toLowerCase().replace(/s$/, '')}`}
             value={draft}
             maxLength={40}
             placeholder={placeholder}
@@ -162,12 +167,12 @@ function TypeListEditor({
             // Enter adds the entry rather than submitting the form — a half-typed word must not
             // save the whole page.
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === 'Enter') {
                 e.preventDefault();
                 add();
               }
             }}
-            error={trimmed && duplicate ? "Already in the list." : undefined}
+            error={trimmed && duplicate ? 'Already in the list.' : undefined}
             className="flex-1"
           />
           <Button type="button" variant="secondary" onClick={add} disabled={!trimmed || duplicate}>
@@ -190,16 +195,23 @@ function WorkflowSettings() {
   const [error, setError] = useState<string | null>(null);
 
   // Draft state, so nothing is written until Save.
-  const [vitalsMode, setVitalsMode] = useState<VitalsMode>("consultation_only");
+  const [vitalsMode, setVitalsMode] = useState<VitalsMode>('consultation_only');
   const [paramStates, setParamStates] = useState<Record<VitalParameter, ParamState>>(
-    () => Object.fromEntries(VITAL_PARAMETERS.map((p) => [p, "off"])) as Record<VitalParameter, ParamState>,
+    () =>
+      Object.fromEntries(VITAL_PARAMETERS.map((p) => [p, 'off'])) as Record<
+        VitalParameter,
+        ParamState
+      >,
   );
-  const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>("before_consultation");
+  const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>('before_consultation');
   const [consultationTypes, setConsultationTypes] = useState<string[]>([]);
   const [caseTypes, setCaseTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    api.listBranches().then(setBranches).catch(() => setBranches([]));
+    api
+      .listBranches()
+      .then(setBranches)
+      .catch(() => setBranches([]));
   }, []);
 
   const branchId = scope === ORG_SCOPE ? null : scope;
@@ -218,12 +230,18 @@ function WorkflowSettings() {
         Object.fromEntries(
           VITAL_PARAMETERS.map((p) => [
             p,
-            c.vitalsRequiredParams.includes(p) ? "required" : c.vitalsOptionalParams.includes(p) ? "optional" : "off",
+            c.vitalsRequiredParams.includes(p)
+              ? 'required'
+              : c.vitalsOptionalParams.includes(p)
+                ? 'optional'
+                : 'off',
           ]),
         ) as Record<VitalParameter, ParamState>,
       );
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not load the workflow settings.");
+      setError(
+        e instanceof api.ApiRequestError ? e.message : 'Could not load the workflow settings.',
+      );
     } finally {
       setLoading(false);
     }
@@ -235,8 +253,16 @@ function WorkflowSettings() {
 
   const scopeOptions = useMemo(
     () => [
-      { value: ORG_SCOPE, label: "Whole organization", description: "The default every hospital inherits" },
-      ...branches.map((b) => ({ value: b.id, label: b.name, description: "Override for this hospital only" })),
+      {
+        value: ORG_SCOPE,
+        label: 'Whole organization',
+        description: 'The default every hospital inherits',
+      },
+      ...branches.map((b) => ({
+        value: b.id,
+        label: b.name,
+        description: 'Override for this hospital only',
+      })),
     ],
     [branches],
   );
@@ -250,15 +276,17 @@ function WorkflowSettings() {
       const updated = await api.updateWorkflowConfig(branchId, {
         version: config.version,
         vitalsMode,
-        vitalsRequiredParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === "required"),
-        vitalsOptionalParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === "optional"),
+        vitalsRequiredParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === 'required'),
+        vitalsOptionalParams: VITAL_PARAMETERS.filter((p) => paramStates[p] === 'optional'),
         paymentTiming,
         consultationTypes,
         caseTypes,
       });
       setConfig(updated);
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "Could not save the workflow settings.");
+      setError(
+        err instanceof api.ApiRequestError ? err.message : 'Could not save the workflow settings.',
+      );
     } finally {
       setSaving(false);
     }
@@ -266,7 +294,7 @@ function WorkflowSettings() {
 
   if (loading) return <Skeleton className="h-64" />;
 
-  const vitalsOff = vitalsMode === "disabled";
+  const vitalsOff = vitalsMode === 'disabled';
 
   return (
     <form className="flex max-w-3xl flex-col gap-5" onSubmit={handleSubmit}>
@@ -282,14 +310,15 @@ function WorkflowSettings() {
         />
         {config?.inheritedFromOrganization && (
           <Alert tone="neutral" className="mt-4">
-            {config.branchName} has no settings of its own and is following the organization default. Saving here
-            creates an override for {config.branchName} alone.
+            {config.branchName} has no settings of its own and is following the organization
+            default. Saving here creates an override for {config.branchName} alone.
           </Alert>
         )}
         {config?.isDefault && (
           <Alert tone="neutral" className="mt-4">
-            Nothing has been configured yet, so the platform defaults are shown: vitals in the consultation, and the
-            fee settled before the consultation starts. That is exactly how the product behaves today.
+            Nothing has been configured yet, so the platform defaults are shown: vitals in the
+            consultation, and the fee settled before the consultation starts. That is exactly how
+            the product behaves today.
           </Alert>
         )}
       </Card>
@@ -306,11 +335,12 @@ function WorkflowSettings() {
             hint="The doctor can always amend a reading during the consultation, whichever option is chosen."
           />
 
-          {vitalsMode === "after_checkin" && (
+          {vitalsMode === 'after_checkin' && (
             <Alert tone="neutral">
-              Patients appear on the <strong className="font-medium text-fg">Vitals queue</strong> after check-in, and
-              move on to the consultation once their readings are taken. Staff who record them need the
-              &ldquo;record vitals&rdquo; permission — receptionists and doctors have it by default.
+              Patients appear on the <strong className="font-medium text-fg">Vitals queue</strong>{' '}
+              after check-in, and move on to the consultation once their readings are taken. Staff
+              who record them need the &ldquo;record vitals&rdquo; permission — receptionists and
+              doctors have it by default.
             </Alert>
           )}
 
@@ -318,15 +348,15 @@ function WorkflowSettings() {
             <p className="hms-label mb-1">Which vitals</p>
             <p className="mb-3 text-sm text-fg-muted">
               {vitalsOff
-                ? "Switched off — no vitals are collected anywhere in the workflow."
-                : "A required vital must be entered before the form can be submitted. An offered one is shown but may be left blank."}
+                ? 'Switched off — no vitals are collected anywhere in the workflow.'
+                : 'A required vital must be entered before the form can be submitted. An offered one is shown but may be left blank.'}
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {VITAL_PARAMETERS.map((p) => (
                 <Select
                   key={p}
                   label={PARAM_LABELS[p]}
-                  value={vitalsOff ? "off" : paramStates[p]}
+                  value={vitalsOff ? 'off' : paramStates[p]}
                   onChange={(v) => setParamStates((prev) => ({ ...prev, [p]: v as ParamState }))}
                   options={PARAM_STATE_OPTIONS}
                   searchable={false}
@@ -340,8 +370,9 @@ function WorkflowSettings() {
 
       <Card header="Consultation and case types">
         <p className="mb-4 text-sm text-fg-muted">
-          Your own words for the kinds of consultation you offer and the kinds of case you treat under. Both are
-          optional. Leave them empty and neither question is asked anywhere — nothing changes.
+          Your own words for the kinds of consultation you offer and the kinds of case you treat
+          under. Both are optional. Leave them empty and neither question is asked anywhere —
+          nothing changes.
         </p>
         <div className="flex flex-col gap-6">
           <TypeListEditor
@@ -362,9 +393,9 @@ function WorkflowSettings() {
           />
         </div>
         <Alert tone="neutral" className="mt-4">
-          Removing a type does not change any visit or case already recorded under it. If the fee schedule still
-          prices that type, saving is refused until you retire the rule — otherwise the price would stay on the
-          screen while never applying again.
+          Removing a type does not change any visit or case already recorded under it. If the fee
+          schedule still prices that type, saving is refused until you retire the rule — otherwise
+          the price would stay on the screen while never applying again.
         </Alert>
       </Card>
 
@@ -377,10 +408,11 @@ function WorkflowSettings() {
           searchable={false}
           disabled={!canManage}
         />
-        {paymentTiming === "after_consultation" && (
+        {paymentTiming === 'after_consultation' && (
           <Alert tone="neutral" className="mt-4">
-            The consultation will no longer wait for payment. The invoice is still raised at check-in and still has to
-            be settled — nothing is written off, and the balance stays visible on the visit and in Billing.
+            The consultation will no longer wait for payment. The invoice is still raised at
+            check-in and still has to be settled — nothing is written off, and the balance stays
+            visible on the visit and in Billing.
           </Alert>
         )}
       </Card>

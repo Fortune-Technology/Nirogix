@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { cn } from "../cn";
+import type { ReactNode } from 'react';
+import { cn } from '../cn';
 
 export interface PageHeaderProps {
   title: ReactNode;
@@ -27,15 +27,22 @@ export interface PageHeaderProps {
  * right that wraps below on a narrow viewport. Every tab reads the same because the
  * typography, spacing and responsive behaviour live here, not on the page.
  */
-export function PageHeader({ title, description, actions, sticky = false, className }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  sticky = false,
+  className,
+}: PageHeaderProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-start justify-between gap-3",
+        'flex flex-wrap items-start justify-between gap-3',
         // The negative inline margin + padding lets the sticky bar's background span the
         // page gutter, so content scrolling underneath is covered rather than showing
         // through beside the title.
-        sticky && "sticky top-14 z-10 -mx-4 border-b border-border bg-surface px-4 py-3 sm:-mx-6 sm:px-6",
+        sticky &&
+          'sticky top-14 z-10 -mx-4 border-b border-border bg-surface px-4 py-3 sm:-mx-6 sm:px-6',
         className,
       )}
     >

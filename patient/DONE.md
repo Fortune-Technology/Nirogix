@@ -9,6 +9,7 @@ Append-only implementation log for the Nirogix patient portal.
 **Its own session context, not the shared one.** `@hms/client`'s `AuthProvider` is built for staff: organization code, password, and an effective permission set from `/rbac/permissions`. A patient has none of those. Reusing it would have meant putting the difference between two principals inside a component that is about neither, so the portal has a small `SessionProvider` and still shares the HTTP core, error classification and feedback rules.
 
 **Copy decisions that are really security decisions:**
+
 - The sign-in screen advances to the code step **whether or not the contact is registered**, because the server answers uniformly. "We don't recognise that number" would turn sign-in into a way to ask who is a patient somewhere.
 - It states plainly that **there is no signup** and that the hospital grants access, rather than leaving someone hunting for a button that does not exist.
 - Lab results carry a line saying a value outside the usual range is not a diagnosis. The portal shows the lab's own flag and interprets nothing.
@@ -23,7 +24,7 @@ Append-only implementation log for the Nirogix patient portal.
 
 **What:** The known limitation is gone. `SessionProvider` now exchanges an httpOnly refresh cookie for a new access token on mount, so a reload keeps the patient signed in. The access token still lives **in memory only** — never `localStorage`, which is the right default for a surface carrying medical records — and the cookie is scoped to `/api/v1/patient/auth`, so it is not even sent to a staff endpoint.
 
-**The layout had to learn to wait.** It previously redirected the moment `signedIn` was false, which after this change would have bounced every reload to sign-in before the restore attempt finished — undoing the whole point. It now distinguishes *restoring* from *signed out* and only redirects on the latter.
+**The layout had to learn to wait.** It previously redirected the moment `signedIn` was false, which after this change would have bounced every reload to sign-in before the restore attempt finished — undoing the whole point. It now distinguishes _restoring_ from _signed out_ and only redirects on the latter.
 
 Signing out calls the server, so the refresh token is **revoked** rather than merely dropped by the browser.
 
@@ -53,7 +54,7 @@ The copy does the work the security model needs it to do. Submitting sends detai
 
 **What:** the patient portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
 order, every one live and uncommented, so copying the example gives a boot-ready file where only
-values change (CLAUDE.md → *Environment files*).
+values change (CLAUDE.md → _Environment files_).
 
 **Changed:** `.env.example` trimmed to 1–2 line comments with its key uncommented; the gitignored
 `.env` mirrors it exactly.
@@ -100,8 +101,8 @@ forms a **patient** fills in on their own phone, where a native `<select>` hands
 surface where that branding is the only thing telling them whose form this is.
 
 The gender list now comes from `@hms/utils` rather than a local copy, but the **placeholder stays
-this page's own**: *Prefer not to say* is the right words on a form somebody fills in about
-themselves, where *Not specified* is right at a hospital counter. The shared thing is the list, not
+this page's own**: _Prefer not to say_ is the right words on a form somebody fills in about
+themselves, where _Not specified_ is right at a hospital counter. The shared thing is the list, not
 the tone.
 
 **Testing status:** typecheck and build clean; no native `<select>` remains in the patient portal.

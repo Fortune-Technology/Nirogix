@@ -35,14 +35,19 @@ let providerId = '';
 const bundle = (date = '2026-03-04T10:00:00.000Z') => ({
   resourceType: 'Bundle',
   timestamp: date,
-  entry: [{ resource: { resourceType: 'Composition', date, type: { text: 'OP Consultation Document' } } }],
+  entry: [
+    { resource: { resourceType: 'Composition', date, type: { text: 'OP Consultation Document' } } },
+  ],
 });
 
 /** The mock cipher's envelope — the exact inverse of what `decryptFromHip` unwraps. */
-const sealed = (plaintext: string) => Buffer.from(`MOCK-NOT-ENCRYPTED:${plaintext}`).toString('base64');
+const sealed = (plaintext: string) =>
+  Buffer.from(`MOCK-NOT-ENCRYPTED:${plaintext}`).toString('base64');
 
 /** A granted consent plus a data request, leaving a transfer waiting for its push. */
-async function readyToReceive(consentId: string): Promise<{ transactionId: string; consentRowId: string }> {
+async function readyToReceive(
+  consentId: string,
+): Promise<{ transactionId: string; consentRowId: string }> {
   const request = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
   await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', [
     `cr-${consentId}`,
@@ -63,7 +68,11 @@ async function readyToReceive(consentId: string): Promise<{ transactionId: strin
 }
 
 const storedRecords = async (): Promise<number> =>
-  (await pool.query('SELECT count(*)::int AS n FROM abdm_hiu_records WHERE tenant_id = $1', [tenantId])).rows[0].n;
+  (
+    await pool.query('SELECT count(*)::int AS n FROM abdm_hiu_records WHERE tenant_id = $1', [
+      tenantId,
+    ])
+  ).rows[0].n;
 
 beforeAll(async () => {
   ready = await dbReady();
@@ -74,9 +83,16 @@ beforeAll(async () => {
   await grantModule(tenantId, 'abdm');
   await upsertFacilityConfig(tenantId, { hipId: HIP_ID, facilityName: 'HIU Transfer Test' });
 
-  const patient = await createPatient(tenantId, { firstName: 'Sunil', lastName: 'Nair', phone: '9700007777' });
+  const patient = await createPatient(tenantId, {
+    firstName: 'Sunil',
+    lastName: 'Nair',
+    phone: '9700007777',
+  });
   patientId = patient.id;
-  await pool.query("UPDATE patients SET abha_address = 'hiux@sbx', abha_verified_at = now() WHERE id = $1", [patientId]);
+  await pool.query(
+    "UPDATE patients SET abha_address = 'hiux@sbx', abha_verified_at = now() WHERE id = $1",
+    [patientId],
+  );
 
   const doctor = await pool.query(
     `INSERT INTO providers (tenant_id, full_name, registration_number, is_active)
@@ -123,10 +139,16 @@ describe('asking for records', () => {
   test('the request carries our PUBLIC key and our own push URL', async ({ skip }) => {
     if (!ready) return skip();
     await readyToReceive('hiux-req-1');
-    const body = recordedHipCalls().find((c) => c.path.includes('health-information/request'))?.body as {
-      hiRequest: { dataPushUrl: string; keyMaterial: { curve: string; dhPublicKey: { keyValue: string } } };
+    const body = recordedHipCalls().find((c) => c.path.includes('health-information/request'))
+      ?.body as {
+      hiRequest: {
+        dataPushUrl: string;
+        keyMaterial: { curve: string; dhPublicKey: { keyValue: string } };
+      };
     };
-    expect(body.hiRequest.dataPushUrl).toBe('https://api-test.example.org/api-hiu/data/notification');
+    expect(body.hiRequest.dataPushUrl).toBe(
+      'https://api-test.example.org/api-hiu/data/notification',
+    );
     expect(body.hiRequest.keyMaterial.curve).toBe('Curve25519');
     expect(body.hiRequest.keyMaterial.dhPublicKey.keyValue).not.toContain('PRIVATE');
   });
@@ -134,7 +156,10 @@ describe('asking for records', () => {
   test('an expired consent cannot be used to ask', async ({ skip }) => {
     if (!ready) return skip();
     const request = await hiu.requestPatientHistory(tenantId, null, { patientId, providerId });
-    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', ['cr-dead', request.id]);
+    await pool.query('UPDATE abdm_hiu_consent_requests SET consent_request_id = $1 WHERE id = $2', [
+      'cr-dead',
+      request.id,
+    ]);
     const consent = await hiu.storeConsentArtefact({
       consentId: 'hiux-dead',
       consentRequestId: 'cr-dead',
@@ -158,7 +183,13 @@ describe('receiving records', () => {
       transactionId,
       pageNumber: 1,
       pageCount: 1,
-      entries: [{ content: sealed(plaintext), checksum: contentChecksum(plaintext), careContextReference: 'cc-1' }],
+      entries: [
+        {
+          content: sealed(plaintext),
+          checksum: contentChecksum(plaintext),
+          careContextReference: 'cc-1',
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
@@ -183,7 +214,13 @@ describe('receiving records', () => {
     const result = await transfer.receivePushedRecords({
       transactionId,
       pageCount: 1,
-      entries: [{ content: sealed(JSON.stringify(bundle())), checksum: 'not-the-right-checksum', careContextReference: 'cc-bad' }],
+      entries: [
+        {
+          content: sealed(JSON.stringify(bundle())),
+          checksum: 'not-the-right-checksum',
+          careContextReference: 'cc-bad',
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
@@ -203,7 +240,11 @@ describe('receiving records', () => {
       pageCount: 1,
       entries: [
         { content: sealed(good), checksum: contentChecksum(good), careContextReference: 'cc-good' },
-        { content: 'not-even-base64-of-an-envelope', checksum: 'x', careContextReference: 'cc-broken' },
+        {
+          content: 'not-even-base64-of-an-envelope',
+          checksum: 'x',
+          careContextReference: 'cc-broken',
+        },
         { careContextReference: 'cc-link-only', link: 'https://elsewhere.example/report.pdf' },
       ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
@@ -211,9 +252,10 @@ describe('receiving records', () => {
 
     expect(result.stored).toBe(1);
     expect(result.failed).toBe(2);
-    const status = await pool.query('SELECT status, reason FROM abdm_hiu_data_transfers WHERE transaction_id = $1', [
-      transactionId,
-    ]);
+    const status = await pool.query(
+      'SELECT status, reason FROM abdm_hiu_data_transfers WHERE transaction_id = $1',
+      [transactionId],
+    );
     // Reported honestly rather than as a clean success — the doctor must be able to tell.
     expect(status.rows[0].status).toBe('partial');
     expect(status.rows[0].reason).toMatch(/could not be read/);
@@ -242,7 +284,13 @@ describe('receiving records', () => {
     const plaintext = JSON.stringify(bundle());
     const result = await transfer.receivePushedRecords({
       transactionId,
-      entries: [{ content: sealed(plaintext), checksum: contentChecksum(plaintext), careContextReference: 'cc-late' }],
+      entries: [
+        {
+          content: sealed(plaintext),
+          checksum: contentChecksum(plaintext),
+          careContextReference: 'cc-late',
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
@@ -259,13 +307,22 @@ describe('receiving records', () => {
     await transfer.receivePushedRecords({
       transactionId,
       pageCount: 1,
-      entries: [{ content: sealed(plaintext), checksum: contentChecksum(plaintext), careContextReference: 'cc-n' }],
+      entries: [
+        {
+          content: sealed(plaintext),
+          checksum: contentChecksum(plaintext),
+          careContextReference: 'cc-n',
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
     const notify = recordedHipCalls().find((c) => c.path.includes('health-information/notify'));
     const body = notify?.body as {
-      notification: { notifier: { type: string }; statusNotification: { statusResponses: Array<{ hiStatus: string }> } };
+      notification: {
+        notifier: { type: string };
+        statusNotification: { statusResponses: Array<{ hiStatus: string }> };
+      };
     };
     // The one field that differs from M2's notify: here we are the HIU, not the HIP.
     expect(body.notification.notifier.type).toBe('HIU');
@@ -280,12 +337,21 @@ describe('receiving records', () => {
       transactionId,
       pageNumber: n,
       pageCount: 2,
-      entries: [{ content: sealed(plaintext), checksum: contentChecksum(plaintext), careContextReference: `cc-p${n}` }],
+      entries: [
+        {
+          content: sealed(plaintext),
+          checksum: contentChecksum(plaintext),
+          careContextReference: `cc-p${n}`,
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
     await transfer.receivePushedRecords(page(1));
-    let status = await pool.query('SELECT status FROM abdm_hiu_data_transfers WHERE transaction_id = $1', [transactionId]);
+    let status = await pool.query(
+      'SELECT status FROM abdm_hiu_data_transfers WHERE transaction_id = $1',
+      [transactionId],
+    );
     // Still receiving: telling ABDM it is done here would end a flow that has more to deliver.
     expect(status.rows[0].status).toBe('receiving');
 
@@ -307,16 +373,28 @@ describe('purge reaches the pulled records', () => {
     await transfer.receivePushedRecords({
       transactionId,
       pageCount: 1,
-      entries: [{ content: sealed(plaintext), checksum: contentChecksum(plaintext), careContextReference: 'cc-purge' }],
+      entries: [
+        {
+          content: sealed(plaintext),
+          checksum: contentChecksum(plaintext),
+          careContextReference: 'cc-purge',
+        },
+      ],
       keyMaterial: { dhPublicKey: { keyValue: 'HIP-PUBLIC' }, nonce: 'HIP-NONCE' },
     });
 
     await hiu.handleConsentNotification({ consentId: 'hiux-purge-1', status: 'REVOKED' });
 
-    const records = await pool.query('SELECT id FROM abdm_hiu_records WHERE care_context_reference = $1', ['cc-purge']);
+    const records = await pool.query(
+      'SELECT id FROM abdm_hiu_records WHERE care_context_reference = $1',
+      ['cc-purge'],
+    );
     expect(records.rowCount).toBe(0);
     // The key cascades too, so nothing left behind could decrypt a later re-delivery.
-    const keys = await pool.query('SELECT id FROM abdm_hiu_data_transfers WHERE transaction_id = $1', [transactionId]);
+    const keys = await pool.query(
+      'SELECT id FROM abdm_hiu_data_transfers WHERE transaction_id = $1',
+      [transactionId],
+    );
     expect(keys.rowCount).toBe(0);
   });
 });

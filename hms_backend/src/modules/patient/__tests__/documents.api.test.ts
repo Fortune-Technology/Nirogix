@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 
@@ -56,16 +64,26 @@ beforeAll(async () => {
     sessions[role] = await login(CODE, tenant.users[role]!);
   }
 
-  providerId = (await createProvider(tenant.tenantId, { fullName: 'Dr. Neha Joshi', consultationFeePaise: 0 })).id;
+  providerId = (
+    await createProvider(tenant.tenantId, { fullName: 'Dr. Neha Joshi', consultationFeePaise: 0 })
+  ).id;
 
-  const a = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Suresh', lastName: 'Bhat', gender: 'male', dateOfBirth: '1970-01-20', phone: '9812345601' });
+  const a = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Suresh',
+    lastName: 'Bhat',
+    gender: 'male',
+    dateOfBirth: '1970-01-20',
+    phone: '9812345601',
+  });
   patientId = a.body.id;
 
-  const b = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Latha', lastName: 'Nair', gender: 'female', dateOfBirth: '1991-07-07', phone: '9812345602' });
+  const b = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Latha',
+    lastName: 'Nair',
+    gender: 'female',
+    dateOfBirth: '1991-07-07',
+    phone: '9812345602',
+  });
   otherPatientId = b.body.id;
 
   const kase = await authed(sessions.receptionist!)
@@ -85,7 +103,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -106,7 +126,13 @@ describe('attaching', () => {
     if (!ready) return skip();
     const res = await authed(sessions.receptionist!)
       .post(`/api/v1/patients/${patientId}/documents`)
-      .send({ fileId, title: 'Referral from Dr Rao', documentType: 'referral_letter', visitId, caseId });
+      .send({
+        fileId,
+        title: 'Referral from Dr Rao',
+        documentType: 'referral_letter',
+        visitId,
+        caseId,
+      });
     expect(res.status).toBe(201);
     expect(res.body.title).toBe('Referral from Dr Rao');
     expect(res.body.documentType).toBe('referral_letter');
@@ -131,7 +157,7 @@ describe('attaching', () => {
     expect(res.body.documentType).toBe('other');
   });
 
-  test("🔒 a visit belonging to someone else is refused", async ({ skip }) => {
+  test('🔒 a visit belonging to someone else is refused', async ({ skip }) => {
     if (!ready) return skip();
     const another = await uploadFile(sessions.receptionist!);
     const res = await authed(sessions.receptionist!)
@@ -141,7 +167,7 @@ describe('attaching', () => {
     expect(res.body.error.message).toMatch(/different patient/i);
   });
 
-  test("🔒 a case belonging to someone else is refused", async ({ skip }) => {
+  test('🔒 a case belonging to someone else is refused', async ({ skip }) => {
     if (!ready) return skip();
     const another = await uploadFile(sessions.receptionist!);
     const res = await authed(sessions.receptionist!)
@@ -151,7 +177,7 @@ describe('attaching', () => {
     expect(res.body.error.message).toMatch(/different patient/i);
   });
 
-  test("🔒 a file from another hospital cannot be attached here", async ({ skip }) => {
+  test('🔒 a file from another hospital cannot be attached here', async ({ skip }) => {
     if (!ready) return skip();
     const otherCode = 'PATDOCSB';
     await cleanupTenant(otherCode);
@@ -194,7 +220,9 @@ describe('attaching', () => {
     expect(rows.rows[0].metadata.documentType).toBe('referral_letter');
   });
 
-  test('archiving needs a reason, keeps the row, and hides it from the default list', async ({ skip }) => {
+  test('archiving needs a reason, keeps the row, and hides it from the default list', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const noReason = await authed(sessions.receptionist!)
       .post(`/api/v1/patients/${patientId}/documents/${documentId}/archive`)
@@ -208,7 +236,9 @@ describe('attaching', () => {
     expect(res.body.status).toBe('archived');
     expect(res.body.archiveReason).toBe('Attached to the wrong chart');
 
-    const active = await authed(sessions.receptionist!).get(`/api/v1/patients/${patientId}/documents`);
+    const active = await authed(sessions.receptionist!).get(
+      `/api/v1/patients/${patientId}/documents`,
+    );
     expect(active.body.some((d: { id: string }) => d.id === documentId)).toBe(false);
 
     // Kept, never deleted: that it was once attached is part of the record (invariant #6).
@@ -244,11 +274,17 @@ describe('reading', () => {
     expect(res.status).toBe(200);
   });
 
-  test("🔒 the pharmacist holds no file permission and is refused", async ({ skip }) => {
+  test('🔒 the pharmacist holds no file permission and is refused', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await authed(sessions.pharmacist!).get(`/api/v1/patients/${patientId}/documents`)).status).toBe(403);
     expect(
-      (await authed(sessions.pharmacist!).post(`/api/v1/patients/${patientId}/documents`).send({ fileId })).status,
+      (await authed(sessions.pharmacist!).get(`/api/v1/patients/${patientId}/documents`)).status,
+    ).toBe(403);
+    expect(
+      (
+        await authed(sessions.pharmacist!)
+          .post(`/api/v1/patients/${patientId}/documents`)
+          .send({ fileId })
+      ).status,
     ).toBe(403);
   });
 

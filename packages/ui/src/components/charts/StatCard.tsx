@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { cn } from "../../cn";
-import { compact, domain, linePath } from "./geometry";
+import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { cn } from '../../cn';
+import { compact, domain, linePath } from './geometry';
 
 export interface StatCardProps {
   label: string;
@@ -40,7 +40,7 @@ export interface StatCardProps {
    */
   linkLabel?: string;
   /** `highlight` tints the tile with the brand accent for the one figure that leads a dashboard. */
-  variant?: "default" | "highlight";
+  variant?: 'default' | 'highlight';
   className?: string;
 }
 
@@ -69,19 +69,19 @@ export function StatCard({
   href,
   onClick,
   linkLabel,
-  variant = "default",
+  variant = 'default',
   className,
 }: StatCardProps) {
   const loading = value === null;
-  const dir = delta ? (delta.value > 0 ? "up" : delta.value < 0 ? "down" : "flat") : null;
-  const good = dir === "flat" ? null : invertDelta ? dir === "down" : dir === "up";
-  const DeltaIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
+  const dir = delta ? (delta.value > 0 ? 'up' : delta.value < 0 ? 'down' : 'flat') : null;
+  const good = dir === 'flat' ? null : invertDelta ? dir === 'down' : dir === 'up';
+  const DeltaIcon = dir === 'up' ? ArrowUpRight : dir === 'down' ? ArrowDownRight : Minus;
 
   const clickable = Boolean(href) || Boolean(onClick);
   const rootClass = cn(
-    "hms-stat",
-    variant === "highlight" && "hms-stat--highlight",
-    clickable && "hms-stat--link",
+    'hms-stat',
+    variant === 'highlight' && 'hms-stat--highlight',
+    clickable && 'hms-stat--link',
     className,
   );
 
@@ -92,7 +92,9 @@ export function StatCard({
         {icon || clickable ? (
           <span className="hms-stat__head-end">
             {icon ? <span className="hms-stat__icon">{icon}</span> : null}
-            {clickable ? <ArrowUpRight className="hms-stat__go" size={15} strokeWidth={2} aria-hidden /> : null}
+            {clickable ? (
+              <ArrowUpRight className="hms-stat__go" size={15} strokeWidth={2} aria-hidden />
+            ) : null}
           </span>
         ) : null}
       </div>
@@ -101,7 +103,7 @@ export function StatCard({
         <span className="hms-skeleton hms-stat__skeleton" aria-hidden />
       ) : (
         <div className="hms-stat__value">
-          <span>{typeof value === "number" ? value.toLocaleString("en-IN") : value}</span>
+          <span>{typeof value === 'number' ? value.toLocaleString('en-IN') : value}</span>
           {unit ? <span className="hms-stat__unit">{unit}</span> : null}
         </div>
       )}
@@ -110,13 +112,13 @@ export function StatCard({
         {delta ? (
           <span
             className={cn(
-              "hms-stat__delta",
-              good === true && "hms-stat__delta--good",
-              good === false && "hms-stat__delta--bad",
+              'hms-stat__delta',
+              good === true && 'hms-stat__delta--good',
+              good === false && 'hms-stat__delta--bad',
             )}
           >
             <DeltaIcon size={14} strokeWidth={2} aria-hidden />
-            {delta.value > 0 ? "+" : ""}
+            {delta.value > 0 ? '+' : ''}
             {compact(delta.value)} {delta.label}
           </span>
         ) : hint ? (
@@ -124,7 +126,12 @@ export function StatCard({
         ) : null}
 
         {spark && spark.values.length > 1 ? (
-          <svg className="hms-stat__spark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+          <svg
+            className="hms-stat__spark"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden
+          >
             <path
               d={linePath(spark.values, domain(spark.values))}
               fill="none"

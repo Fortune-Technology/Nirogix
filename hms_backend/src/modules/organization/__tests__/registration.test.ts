@@ -93,8 +93,10 @@ beforeAll(async () => {
     });
     tenantA = a.tenant.id;
     tenantB = b.tenant.id;
-    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@regtesta.example'])).rows[0].id;
-    adminB = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@regtestb.example'])).rows[0].id;
+    adminA = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@regtesta.example']))
+      .rows[0].id;
+    adminB = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@regtestb.example']))
+      .rows[0].id;
     ready = true;
   } catch (err) {
     ready = false;
@@ -129,7 +131,9 @@ describe('self-registration settings', () => {
     expect(a.token).not.toBe(b.token);
   });
 
-  test('disabling keeps the token, so pausing does not mean reprinting posters', async ({ skip }) => {
+  test('disabling keeps the token, so pausing does not mean reprinting posters', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const before = await getRegistrationSettings(tenantA);
     const off = await setSelfRegistration(tenantA, false, adminA);
@@ -175,7 +179,10 @@ describe('token resolution', () => {
   /** The invariant the whole feature exists to hold: QR A can never reach Tenant B. */
   test('a hospital’s token never resolves to another hospital', async ({ skip }) => {
     if (!ready) return skip();
-    const [a, b] = await Promise.all([getRegistrationSettings(tenantA), getRegistrationSettings(tenantB)]);
+    const [a, b] = await Promise.all([
+      getRegistrationSettings(tenantA),
+      getRegistrationSettings(tenantB),
+    ]);
     expect((await resolveRegistrationToken(a.token!)).tenantId).toBe(tenantA);
     expect((await resolveRegistrationToken(b.token!)).tenantId).toBe(tenantB);
     expect(a.token).not.toBe(b.token);
@@ -193,7 +200,11 @@ describe('public submission', () => {
   test('creates a request and no patient', async ({ skip }) => {
     if (!ready) return skip();
     const { token } = await getRegistrationSettings(tenantA);
-    await submitRegistrationRequest(token!, { firstName: 'Meera', lastName: 'Joshi', phone: '+919820000001' });
+    await submitRegistrationRequest(token!, {
+      firstName: 'Meera',
+      lastName: 'Joshi',
+      phone: '+919820000001',
+    });
 
     const pending = await listRegistrationRequests(tenantA, 'pending');
     expect(pending).toHaveLength(1);
@@ -211,19 +222,26 @@ describe('public submission', () => {
   test('is refused while the hospital has self-registration switched off', async ({ skip }) => {
     if (!ready) return skip();
     const { token } = await setSelfRegistration(tenantA, false, adminA);
-    await expectStatus(submitRegistrationRequest(token!, { firstName: 'Should', phone: '+919820000002' }), 404);
+    await expectStatus(
+      submitRegistrationRequest(token!, { firstName: 'Should', phone: '+919820000002' }),
+      404,
+    );
     expect(await listRegistrationRequests(tenantA, 'pending')).toHaveLength(1);
     await setSelfRegistration(tenantA, true, adminA);
   });
 });
 
 describe('review', () => {
-  test('approving creates the patient and keeps the request as its provenance', async ({ skip }) => {
+  test('approving creates the patient and keeps the request as its provenance', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const req = await onlyRequest(tenantA, 'pending');
     const { patientId } = await approveRegistrationRequest(tenantA, req.id, adminA);
 
-    const patient = await pool.query('SELECT tenant_id, first_name FROM patients WHERE id = $1', [patientId]);
+    const patient = await pool.query('SELECT tenant_id, first_name FROM patients WHERE id = $1', [
+      patientId,
+    ]);
     expect(patient.rows[0].tenant_id).toBe(tenantA);
     expect(patient.rows[0].first_name).toBe('Meera');
 
@@ -252,7 +270,10 @@ describe('review', () => {
   test('rejecting keeps the row, marks it, and creates no patient', async ({ skip }) => {
     if (!ready) return skip();
     const req = await onlyRequest(tenantA, 'pending');
-    const before = await pool.query('SELECT count(*)::int AS n FROM patients WHERE tenant_id = $1', [tenantA]);
+    const before = await pool.query(
+      'SELECT count(*)::int AS n FROM patients WHERE tenant_id = $1',
+      [tenantA],
+    );
 
     await rejectRegistrationRequest(tenantA, req.id, 'Duplicate of an existing record', adminA);
 
@@ -260,7 +281,9 @@ describe('review', () => {
     expect(rejected.map((r) => r.id)).toContain(req.id);
     expect(rejected[0]?.rejectionReason).toBe('Duplicate of an existing record');
 
-    const after = await pool.query('SELECT count(*)::int AS n FROM patients WHERE tenant_id = $1', [tenantA]);
+    const after = await pool.query('SELECT count(*)::int AS n FROM patients WHERE tenant_id = $1', [
+      tenantA,
+    ]);
     expect(after.rows[0].n).toBe(before.rows[0].n);
   });
 

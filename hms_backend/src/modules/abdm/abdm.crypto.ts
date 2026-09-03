@@ -42,7 +42,11 @@ let inFlight: Promise<string> | null = null;
 function toPem(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.includes('BEGIN PUBLIC KEY') || trimmed.includes('BEGIN CERTIFICATE')) return trimmed;
-  const body = trimmed.replace(/\s+/g, '').match(/.{1,64}/g)?.join('\n') ?? trimmed;
+  const body =
+    trimmed
+      .replace(/\s+/g, '')
+      .match(/.{1,64}/g)
+      ?.join('\n') ?? trimmed;
   return `-----BEGIN PUBLIC KEY-----\n${body}\n-----END PUBLIC KEY-----`;
 }
 

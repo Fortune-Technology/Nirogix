@@ -66,7 +66,10 @@ describe('tenant branding', () => {
 
   test('a colour update persists and is read back', async ({ skip }) => {
     if (!ready) return skip();
-    const updated = await updateBranding(tenantId, { brandColor: '#123456', secondaryColor: '#abcdef' });
+    const updated = await updateBranding(tenantId, {
+      brandColor: '#123456',
+      secondaryColor: '#abcdef',
+    });
     expect(updated.brandColor).toBe('#123456');
     const read = await getCurrentBranding(tenantId);
     expect(read.brandColor).toBe('#123456');

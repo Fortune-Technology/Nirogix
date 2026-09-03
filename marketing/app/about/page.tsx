@@ -1,15 +1,15 @@
-import type { Metadata } from "next";
-import { Target, ShieldCheck, Layers, MapPin } from "lucide-react";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Container, SectionHeading } from "../../components/ui/primitives";
-import { SITE } from "../../lib/site";
-import { JsonLd } from "../../components/site/JsonLd";
-import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from "../../lib/seo";
+import type { Metadata } from 'next';
+import { Target, ShieldCheck, Layers, MapPin } from 'lucide-react';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Container, SectionHeading } from '../../components/ui/primitives';
+import { SITE } from '../../lib/site';
+import { JsonLd } from '../../components/site/JsonLd';
+import { COMPANY, breadcrumbJsonLd, localBusinessJsonLd, pageMetadata } from '../../lib/seo';
 
 // Company intent, including where the team is based.
 export const metadata: Metadata = pageMetadata({
-  path: "/about",
+  path: '/about',
   title: `About ${SITE.legalName}`,
   description: `${SITE.legalName} builds a multi-tenant, India-resident hospital management system from ${COMPANY.city}, ${COMPANY.region}, so hospitals buy and run only the modules they need.`,
 });
@@ -17,30 +17,35 @@ export const metadata: Metadata = pageMetadata({
 const PRINCIPLES = [
   {
     icon: Layers,
-    title: "Buy what you need",
+    title: 'Buy what you need',
     body: "Modules are independently sellable. A clinic should not pay for a hospital's feature set, and a hospital should not be held back by a clinic's.",
   },
   {
     icon: ShieldCheck,
-    title: "Isolation is not optional",
+    title: 'Isolation is not optional',
     body: "One tenant can never see another's data. We test that on every module, because in healthcare it is the whole promise.",
   },
   {
     icon: MapPin,
-    title: "Built for India",
-    body: "India-resident hosting, Indian clinical coding and compliance frameworks, and rupee billing built around how Indian hospitals collect, with room to expand later.",
+    title: 'Built for India',
+    body: 'India-resident hosting, Indian clinical coding and compliance frameworks, and rupee billing built around how Indian hospitals collect, with room to expand later.',
   },
   {
     icon: Target,
-    title: "One platform, many hospitals",
-    body: "We build the core once and let each hospital configure it, so improvements reach everyone from the same codebase.",
+    title: 'One platform, many hospitals',
+    body: 'We build the core once and let each hospital configure it, so improvements reach everyone from the same codebase.',
   },
 ];
 
 export default function AboutPage() {
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "About", path: "/about" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'About', path: '/about' },
+        ])}
+      />
       {/* Rendered only once a verified postal address + phone exist (lib/seo.ts). */}
       <JsonLd data={localBusinessJsonLd()} />
       <PageHeader

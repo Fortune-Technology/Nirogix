@@ -46,11 +46,17 @@ export async function sweepOnce(): Promise<{ consents: number; records: number }
     for (const row of tenants) hip += await purgeExpiredConsents(row.tenantId);
 
     if (hiu.consents > 0 || hip > 0) {
-      logger.info({ hiuConsents: hiu.consents, hiuRecords: hiu.records, hipConsents: hip }, 'ABDM consent sweep purged');
+      logger.info(
+        { hiuConsents: hiu.consents, hiuRecords: hiu.records, hipConsents: hip },
+        'ABDM consent sweep purged',
+      );
     }
     return hiu;
   } catch (err) {
-    logger.error({ err }, 'ABDM consent sweep failed — records may still be held past their erase date');
+    logger.error(
+      { err },
+      'ABDM consent sweep failed — records may still be held past their erase date',
+    );
     return { consents: 0, records: 0 };
   }
 }

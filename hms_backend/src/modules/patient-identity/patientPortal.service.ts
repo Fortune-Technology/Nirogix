@@ -46,12 +46,22 @@ export async function patientProfile(identityId: string, tenantId: string) {
   };
 }
 
-export async function patientAppointments(identityId: string, tenantId: string, page = 1, pageSize = 20) {
+export async function patientAppointments(
+  identityId: string,
+  tenantId: string,
+  page = 1,
+  pageSize = 20,
+) {
   const patientId = await scope(identityId, tenantId);
   return listAppointments(tenantId, { page, pageSize, patientId });
 }
 
-export async function patientInvoices(identityId: string, tenantId: string, page = 1, pageSize = 20) {
+export async function patientInvoices(
+  identityId: string,
+  tenantId: string,
+  page = 1,
+  pageSize = 20,
+) {
   const patientId = await scope(identityId, tenantId);
   return listInvoices(tenantId, { page, pageSize, patientId });
 }
@@ -103,7 +113,9 @@ export async function patientLabReports(identityId: string, tenantId: string) {
         resultedAt: r.resultedAt ? r.resultedAt.toISOString() : null,
         verifiedAt: r.verifiedAt ? r.verifiedAt.toISOString() : null,
         fileId: undefined,
-        reportUrl: r.fileId ? ((await getDownloadUrl(tenantId, r.fileId).catch(() => null))?.url ?? null) : null,
+        reportUrl: r.fileId
+          ? ((await getDownloadUrl(tenantId, r.fileId).catch(() => null))?.url ?? null)
+          : null,
       })),
     );
   });

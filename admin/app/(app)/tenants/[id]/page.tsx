@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Ban, LifeBuoy, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Ban, LifeBuoy, SlidersHorizontal } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -18,22 +18,22 @@ import {
   TableActions,
   actionsColumn,
   type Column,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { ModuleCatalogItem, TenantDetail } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { PORTAL_ORIGIN, PORTAL_SUPPORT_ENTER_URL } from "../../../../lib/portal";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { ModuleCatalogItem, TenantDetail } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { PORTAL_ORIGIN, PORTAL_SUPPORT_ENTER_URL } from '../../../../lib/portal';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
 
-const STATUSES = ["active", "suspended", "cancelled", "deactivated"];
+const STATUSES = ['active', 'suspended', 'cancelled', 'deactivated'];
 
 function Detail({ id }: { id: string }) {
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   // Support session (ADR-037)
-  const [targetUser, setTargetUser] = useState("");
-  const [reason, setReason] = useState("");
-  const [ticketRef, setTicketRef] = useState("");
+  const [targetUser, setTargetUser] = useState('');
+  const [reason, setReason] = useState('');
+  const [ticketRef, setTicketRef] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [starting, setStarting] = useState(false);
   const [popupBlocked, setPopupBlocked] = useState(false);
@@ -41,7 +41,7 @@ function Detail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [grantKey, setGrantKey] = useState("");
+  const [grantKey, setGrantKey] = useState('');
 
   const load = useCallback(async () => {
     setError(null);
@@ -50,7 +50,7 @@ function Detail({ id }: { id: string }) {
       setTenant(t);
       setCatalog(c);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load tenant.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load tenant.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ function Detail({ id }: { id: string }) {
       await action();
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Action failed.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Action failed.');
     } finally {
       setBusy(false);
     }
@@ -97,7 +97,7 @@ function Detail({ id }: { id: string }) {
   async function startSession() {
     if (!tenant) return;
     setStarting(true);
-    const tab = window.open(PORTAL_SUPPORT_ENTER_URL, "_blank");
+    const tab = window.open(PORTAL_SUPPORT_ENTER_URL, '_blank');
     try {
       const res = await api.startSupportSession({
         tenantId: tenant.id,
@@ -116,16 +116,19 @@ function Detail({ id }: { id: string }) {
       const handOver = (event: MessageEvent) => {
         // Only the Portal may announce itself, and the token is only ever posted there.
         if (event.origin !== PORTAL_ORIGIN) return;
-        if ((event.data as { type?: string })?.type !== "hms:support-ready") return;
-        tab.postMessage({ type: "hms:support-session", accessToken: res.accessToken }, PORTAL_ORIGIN);
-        window.removeEventListener("message", handOver);
+        if ((event.data as { type?: string })?.type !== 'hms:support-ready') return;
+        tab.postMessage(
+          { type: 'hms:support-session', accessToken: res.accessToken },
+          PORTAL_ORIGIN,
+        );
+        window.removeEventListener('message', handOver);
       };
-      window.addEventListener("message", handOver);
+      window.addEventListener('message', handOver);
 
       setConfirming(false);
-      setTargetUser("");
-      setReason("");
-      setTicketRef("");
+      setTargetUser('');
+      setReason('');
+      setTicketRef('');
     } catch {
       tab?.close();
       /* reported by the shared API-feedback layer */
@@ -133,7 +136,6 @@ function Detail({ id }: { id: string }) {
       setStarting(false);
     }
   }
-
 
   if (error && !tenant) return <Alert tone="danger">{error}</Alert>;
   if (!tenant) return null;
@@ -148,15 +150,15 @@ function Detail({ id }: { id: string }) {
   }));
   const moduleColumns: Array<Column<{ key: string; name: string }>> = [
     {
-      key: "name",
-      header: "Module",
+      key: 'name',
+      header: 'Module',
       hideable: false,
       accessor: (m) => m.name,
       cell: (m) => <span className="text-fg">{m.name}</span>,
     },
     {
-      key: "code",
-      header: "Key",
+      key: 'code',
+      header: 'Key',
       accessor: (m) => m.key,
       cell: (m) => <span className="font-mono text-xs text-fg-muted">{m.key}</span>,
     },
@@ -170,8 +172,8 @@ function Detail({ id }: { id: string }) {
           confirm={{
             title: `Revoke ${m.name}?`,
             description:
-              "Everyone in this hospital loses access to the module immediately. The entitlement record is kept and the module can be granted again.",
-            confirmLabel: "Revoke",
+              'Everyone in this hospital loses access to the module immediately. The entitlement record is kept and the module can be granted again.',
+            confirmLabel: 'Revoke',
           }}
           onSelect={() => void run(() => api.revokeTenantModule(id, m.key))}
         />
@@ -180,7 +182,9 @@ function Detail({ id }: { id: string }) {
   ];
   // Support-session targets: a platform operator can never be impersonated (the
   // server refuses it too — this only keeps them out of the picker).
-  const targets = (tenant.users ?? []).filter((u) => u.status === "active" && !u.roles.includes("super_admin"));
+  const targets = (tenant.users ?? []).filter(
+    (u) => u.status === 'active' && !u.roles.includes('super_admin'),
+  );
 
   return (
     <>
@@ -189,7 +193,9 @@ function Detail({ id }: { id: string }) {
         description={`Org code ${tenant.code} · ${tenant.userCount} user(s)`}
         actions={
           <Link href="/tenants">
-            <Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All tenants</Button>
+            <Button variant="ghost">
+              <ArrowLeft size={16} strokeWidth={2} /> All tenants
+            </Button>
           </Link>
         }
       />
@@ -197,7 +203,7 @@ function Detail({ id }: { id: string }) {
 
       <Card header="Account status">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge tone={tenant.status === "active" ? "success" : "warning"}>{tenant.status}</Badge>
+          <Badge tone={tenant.status === 'active' ? 'success' : 'warning'}>{tenant.status}</Badge>
           <Select
             aria-label="Account status"
             className="max-w-[12rem]"
@@ -227,11 +233,25 @@ function Detail({ id }: { id: string }) {
               className="max-w-[16rem]"
               value={grantKey}
               onChange={setGrantKey}
-              options={grantable.map((m) => ({ value: m.key, label: m.name, description: m.key, keywords: m.key }))}
+              options={grantable.map((m) => ({
+                value: m.key,
+                label: m.name,
+                description: m.key,
+                keywords: m.key,
+              }))}
               placeholder="Grant a module…"
               emptyMessage="No module left to grant."
             />
-            <Button size="sm" disabled={!grantKey || busy} onClick={() => run(async () => { await api.grantTenantModule(id, grantKey); setGrantKey(""); })}>
+            <Button
+              size="sm"
+              disabled={!grantKey || busy}
+              onClick={() =>
+                run(async () => {
+                  await api.grantTenantModule(id, grantKey);
+                  setGrantKey('');
+                })
+              }
+            >
               Grant
             </Button>
           </div>
@@ -253,9 +273,10 @@ function Detail({ id }: { id: string }) {
         }
       >
         <p className="text-sm text-fg-muted">
-          Enter this hospital as one of its users to reproduce a problem. You never see or need their password. The
-          session grants exactly that user&apos;s permissions, and both its start and its end are written to this
-          tenant&apos;s audit trail with your name and the reason you give.
+          Enter this hospital as one of its users to reproduce a problem. You never see or need
+          their password. The session grants exactly that user&apos;s permissions, and both its
+          start and its end are written to this tenant&apos;s audit trail with your name and the
+          reason you give.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -267,8 +288,8 @@ function Detail({ id }: { id: string }) {
               value: u.id,
               label: u.fullName,
               description: u.email,
-              meta: u.roles.length ? u.roles.join(", ") : undefined,
-              keywords: `${u.email} ${u.roles.join(" ")}`,
+              meta: u.roles.length ? u.roles.join(', ') : undefined,
+              keywords: `${u.email} ${u.roles.join(' ')}`,
             }))}
             placeholder="Select a user…"
             emptyMessage="No user matches."
@@ -286,14 +307,19 @@ function Detail({ id }: { id: string }) {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Why do you need to enter this hospital?"
-              error={reason.length > 0 && reason.trim().length < 10 ? "At least 10 characters." : undefined}
+              error={
+                reason.length > 0 && reason.trim().length < 10
+                  ? 'At least 10 characters.'
+                  : undefined
+              }
             />
           </div>
         </div>
 
         {popupBlocked ? (
           <Alert tone="danger">
-            Your browser blocked the new tab. Allow pop-ups for this site and start the session again.
+            Your browser blocked the new tab. Allow pop-ups for this site and start the session
+            again.
           </Alert>
         ) : null}
 
@@ -324,7 +350,7 @@ function Detail({ id }: { id: string }) {
           <ul className="flex flex-col gap-2 text-sm">
             {tenant.branches.map((b) => (
               <li key={b.id} className="flex items-center gap-2">
-                <Badge tone={b.isActive ? "success" : "neutral"}>{b.code}</Badge>
+                <Badge tone={b.isActive ? 'success' : 'neutral'}>{b.code}</Badge>
                 <span className="text-fg">{b.name}</span>
               </li>
             ))}

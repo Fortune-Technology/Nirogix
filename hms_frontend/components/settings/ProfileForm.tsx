@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Alert, Button, Card, Field, Skeleton, Textarea } from "@hms/ui";
-import type { OrganizationProfile, UpdateOrganizationProfileRequest } from "@hms/types";
-import * as api from "../../lib/api";
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Alert, Button, Card, Field, Skeleton, Textarea } from '@hms/ui';
+import type { OrganizationProfile, UpdateOrganizationProfileRequest } from '@hms/types';
+import * as api from '../../lib/api';
 
 /**
  * Hospital identity is **one record** edited from more than one screen (ADR-056).
@@ -27,7 +27,8 @@ type FormState = Record<string, string>;
 
 function toForm(p: OrganizationProfile, fields: ProfileField[]): FormState {
   const state: FormState = {};
-  for (const f of fields) state[f.key as string] = (p[f.key as keyof OrganizationProfile] as string | null) ?? "";
+  for (const f of fields)
+    state[f.key as string] = (p[f.key as keyof OrganizationProfile] as string | null) ?? '';
   return state;
 }
 
@@ -56,7 +57,9 @@ export function ProfileForm({
         setForm(toForm(p, fields));
       })
       .catch((e) =>
-        setLoadError(e instanceof api.ApiRequestError ? e.message : "Could not load your hospital's details."),
+        setLoadError(
+          e instanceof api.ApiRequestError ? e.message : "Could not load your hospital's details.",
+        ),
       );
     // `fields` is a module-level constant at every call site; re-running on identity would
     // refetch on each render.
@@ -84,7 +87,9 @@ export function ProfileForm({
 
   const saved = profile;
   const dirty = fields.some(
-    (f) => form[f.key as string] !== ((saved[f.key as keyof OrganizationProfile] as string | null) ?? ""),
+    (f) =>
+      form[f.key as string] !==
+      ((saved[f.key as keyof OrganizationProfile] as string | null) ?? ''),
   );
 
   return (
@@ -96,13 +101,13 @@ export function ProfileForm({
             {fields.map((f) => {
               const props = {
                 label: f.label,
-                value: form[f.key as string] ?? "",
+                value: form[f.key as string] ?? '',
                 hint: f.hint,
                 onChange: (e: { target: { value: string } }) =>
                   setForm((s) => ({ ...s, [f.key as string]: e.target.value })),
               };
               return (
-                <div key={f.key as string} className={f.wide ? "sm:col-span-2" : undefined}>
+                <div key={f.key as string} className={f.wide ? 'sm:col-span-2' : undefined}>
                   {f.multiline ? <Textarea {...props} rows={3} /> : <Field {...props} />}
                 </div>
               );
@@ -113,7 +118,12 @@ export function ProfileForm({
             <Button type="submit" loading={saving} disabled={!dirty}>
               Save
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setForm(toForm(saved, fields))} disabled={!dirty}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setForm(toForm(saved, fields))}
+              disabled={!dirty}
+            >
               Cancel
             </Button>
           </div>

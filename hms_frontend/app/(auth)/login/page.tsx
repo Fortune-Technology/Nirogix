@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
-import { useAuth } from "../../../lib/auth";
-import { QuickLogin } from "../../../components/auth/QuickLogin";
-import type { DevUser } from "../../../lib/devUsers";
+import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Alert, BrandMark, Button, Card, Field, PasswordField } from '@hms/ui';
+import { useAuth } from '../../../lib/auth';
+import { QuickLogin } from '../../../components/auth/QuickLogin';
+import type { DevUser } from '../../../lib/devUsers';
 
 // Build-time gate. `NEXT_PUBLIC_ENVIRONMENT` is one of the three canonical environments —
 // `development` | `staging` | `production` (ADR-071) — inlined as a string literal at build, so in
@@ -17,16 +17,16 @@ import type { DevUser } from "../../../lib/devUsers";
 // (Verified by grepping the built `.next/static` + `.next/server` chunks — see DONE.md.)
 // Default (unset) is also `false` → safe.
 const QUICK_LOGIN_ENABLED =
-  process.env.NEXT_PUBLIC_ENVIRONMENT === "development" ||
-  process.env.NEXT_PUBLIC_ENVIRONMENT === "staging";
+  process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' ||
+  process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
 export default function LoginPage() {
   const { status, login } = useAuth();
   const router = useRouter();
 
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [orgCode, setOrgCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // The account the dev quick-login last filled, shown as a confirmation until the user edits a
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   // Already signed in → skip the form.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
+    if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
   // The one authentication path — the form and the dev quick-login both go through it, so there
@@ -49,7 +49,7 @@ export default function LoginPage() {
       password: creds.password,
     });
     setSubmitting(false);
-    if (result.ok) router.replace("/dashboard");
+    if (result.ok) router.replace('/dashboard');
     else setError(result.error);
   }
 
@@ -71,7 +71,10 @@ export default function LoginPage() {
 
   // The confirmation only holds while the filled values are untouched; a manual edit hides it.
   const showFilled =
-    filled !== null && orgCode === filled.orgCode && email === filled.email && password === filled.password;
+    filled !== null &&
+    orgCode === filled.orgCode &&
+    email === filled.email &&
+    password === filled.password;
 
   return (
     <Card>

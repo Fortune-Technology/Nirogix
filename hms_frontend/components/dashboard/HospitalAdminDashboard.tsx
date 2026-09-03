@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   ArrowRight,
@@ -14,14 +14,32 @@ import {
   UserPlus,
   Users,
   Wallet,
-} from "lucide-react";
-import { AreaChart, BarChart, Button, Card, PeriodFilter, StatCard, UsageBar, usePeriodParam, type PeriodValue, type Series } from "@hms/ui";
-import type { DashboardOverview, OrgSummary } from "@hms/types";
-import * as api from "../../lib/api";
-import { formatDate, formatDayLabel, formatWeekday } from "@hms/utils";
-import { formatPaise } from "../../lib/money";
-import { DashboardRow, DashboardShell, KpiGrid, PanelEmpty, PanelRow, firstName } from "./DashboardShell";
-import { SetupProgressCard } from "../settings/SetupChecklist";
+} from 'lucide-react';
+import {
+  AreaChart,
+  BarChart,
+  Button,
+  Card,
+  PeriodFilter,
+  StatCard,
+  UsageBar,
+  usePeriodParam,
+  type PeriodValue,
+  type Series,
+} from '@hms/ui';
+import type { DashboardOverview, OrgSummary } from '@hms/types';
+import * as api from '../../lib/api';
+import { formatDate, formatDayLabel, formatWeekday } from '@hms/utils';
+import { formatPaise } from '../../lib/money';
+import {
+  DashboardRow,
+  DashboardShell,
+  KpiGrid,
+  PanelEmpty,
+  PanelRow,
+  firstName,
+} from './DashboardShell';
+import { SetupProgressCard } from '../settings/SetupChecklist';
 
 /**
  * The Hospital Admin dashboard (ADR-044) — one hospital's day and its trend,
@@ -35,28 +53,28 @@ import { SetupProgressCard } from "../settings/SetupChecklist";
  * invented numbers is the one thing a dashboard must never do (ADR-043).
  */
 
-const BRAND = "var(--hms-brand)";
-const INFO = "var(--hms-info)";
-const SUCCESS = "var(--hms-success)";
+const BRAND = 'var(--hms-brand)';
+const INFO = 'var(--hms-info)';
+const SUCCESS = 'var(--hms-success)';
 
 // Daily buckets: the Portal dashboard reads best over days-to-months, so it offers the
 // day/short-period presets. Longer windows live on the platform console's monthly view.
 const DASHBOARD_PRESETS = [
-  "today",
-  "thisWeek",
-  "last7Days",
-  "last30Days",
-  "last90Days",
-  "thisMonth",
-  "lastMonth",
-  "custom",
+  'today',
+  'thisWeek',
+  'last7Days',
+  'last30Days',
+  'last90Days',
+  'thisMonth',
+  'lastMonth',
+  'custom',
 ] as const;
 
 /** Clinic hours only: a 24-bar axis of mostly zeros hides the shape of the day. */
 const CLINIC_HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 … 20:00
 
 export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
-  const [period, setPeriod] = usePeriodParam("last30Days");
+  const [period, setPeriod] = usePeriodParam('last30Days');
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [summary, setSummary] = useState<OrgSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +90,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
       setSummary(s);
       setError(null);
     } catch {
-      setError("Could not load the dashboard.");
+      setError('Could not load the dashboard.');
     }
   }, []);
 
@@ -80,13 +98,21 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
     void load(period);
   }, [load, period]);
 
-  const revenueLabels = useMemo(() => (overview?.revenue ?? []).map((p) => formatDayLabel(p.period)), [overview]);
+  const revenueLabels = useMemo(
+    () => (overview?.revenue ?? []).map((p) => formatDayLabel(p.period)),
+    [overview],
+  );
   const revenueSeries: Series[] = useMemo(
     () => [
-      { key: "billed", label: "Billed", values: (overview?.revenue ?? []).map((p) => p.billed / 100), color: BRAND },
       {
-        key: "collected",
-        label: "Collected",
+        key: 'billed',
+        label: 'Billed',
+        values: (overview?.revenue ?? []).map((p) => p.billed / 100),
+        color: BRAND,
+      },
+      {
+        key: 'collected',
+        label: 'Collected',
         values: (overview?.revenue ?? []).map((p) => p.collected / 100),
         color: SUCCESS,
       },
@@ -97,17 +123,22 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
   const hourSeries: Series[] = useMemo(() => {
     const rows = CLINIC_HOURS.map((h) => overview?.loadByHour.find((p) => p.hour === h));
     return [
-      { key: "scheduled", label: "Scheduled", values: rows.map((r) => r?.scheduled ?? 0), color: BRAND },
-      { key: "walkIn", label: "Walk-in", values: rows.map((r) => r?.walkIn ?? 0), color: INFO },
+      {
+        key: 'scheduled',
+        label: 'Scheduled',
+        values: rows.map((r) => r?.scheduled ?? 0),
+        color: BRAND,
+      },
+      { key: 'walkIn', label: 'Walk-in', values: rows.map((r) => r?.walkIn ?? 0), color: INFO },
     ];
   }, [overview]);
-  const hourLabels = CLINIC_HOURS.map((h) => `${String(h).padStart(2, "0")}:00`);
+  const hourLabels = CLINIC_HOURS.map((h) => `${String(h).padStart(2, '0')}:00`);
 
   const registrationSeries: Series[] = useMemo(
     () => [
       {
-        key: "registrations",
-        label: "New patients",
+        key: 'registrations',
+        label: 'New patients',
         // The one series on this chart leads with the brand accent (tenant-overridable,
         // Light/Dark-aware) so it matches Revenue and the rest of the dashboard, rather
         // than the fixed info-blue it used before. `INFO` stays for genuine second
@@ -132,8 +163,16 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           ? `${formatWeekday(overview.today)} · ${formatDate(overview.today)} · today's clinic`
           : "Loading today's clinic…"
       }
-      title={`Hospital operations${firstName(fullName) ? `, ${firstName(fullName)}` : ""}`}
-      controls={<PeriodFilter value={period} onChange={setPeriod} presets={[...DASHBOARD_PRESETS]} label="Period" align="end" />}
+      title={`Hospital operations${firstName(fullName) ? `, ${firstName(fullName)}` : ''}`}
+      controls={
+        <PeriodFilter
+          value={period}
+          onChange={setPeriod}
+          presets={[...DASHBOARD_PRESETS]}
+          label="Period"
+          align="end"
+        />
+      }
       actions={
         <Link href="/patients/new">
           <Button>
@@ -152,7 +191,9 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           label="In the queue now"
           value={counts ? counts.checkedIn + counts.inConsultation : null}
           icon={<ClipboardList size={16} strokeWidth={1.75} aria-hidden />}
-          hint={counts ? `${counts.checkedIn} waiting · ${counts.inConsultation} in consult` : undefined}
+          hint={
+            counts ? `${counts.checkedIn} waiting · ${counts.inConsultation} in consult` : undefined
+          }
           href="/opd"
           linkLabel="In the queue now, open the OPD queue"
         />
@@ -160,7 +201,11 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
           label="Seen today"
           value={counts ? counts.completed : null}
           icon={<Stethoscope size={16} strokeWidth={1.75} aria-hidden />}
-          hint={counts ? `${counts.appointments} appointment${counts.appointments === 1 ? "" : "s"} booked today` : undefined}
+          hint={
+            counts
+              ? `${counts.appointments} appointment${counts.appointments === 1 ? '' : 's'} booked today`
+              : undefined
+          }
         />
         <StatCard
           label="Collected"
@@ -192,19 +237,23 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
             </div>
           }
         >
-          <p className="mb-3 text-sm text-fg-muted">Rupees invoiced against rupees actually collected, per day.</p>
+          <p className="mb-3 text-sm text-fg-muted">
+            Rupees invoiced against rupees actually collected, per day.
+          </p>
           <AreaChart
             series={revenueSeries}
             labels={revenueLabels}
             height={230}
-            format={(v) => `₹${Math.round(v).toLocaleString("en-IN")}`}
+            format={(v) => `₹${Math.round(v).toLocaleString('en-IN')}`}
             ariaLabel="Billed and collected per day"
             emptyMessage="No invoices raised in this period."
           />
         </Card>
 
         <Card header="Today's OPD load">
-          <p className="mb-3 text-sm text-fg-muted">Check-ins by hour, split by whether the patient had a booking.</p>
+          <p className="mb-3 text-sm text-fg-muted">
+            Check-ins by hour, split by whether the patient had a booking.
+          </p>
           <BarChart
             series={hourSeries}
             labels={hourLabels}
@@ -234,7 +283,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
                   key={p.providerId}
                   icon={<Stethoscope size={15} strokeWidth={1.75} aria-hidden />}
                   title={p.name}
-                  meta={p.inProgress > 0 ? "In consultation now" : `${p.seen} completed`}
+                  meta={p.inProgress > 0 ? 'In consultation now' : `${p.seen} completed`}
                   value={`${p.seen}/${p.booked}`}
                 />
               ))}
@@ -249,7 +298,9 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
             <div className="flex items-center justify-between gap-2">
               <span>Low stock</span>
               {overview && overview.lowStock.length > 0 ? (
-                <span className="text-xs font-normal text-warning">{overview.lowStock.length} at or below reorder</span>
+                <span className="text-xs font-normal text-warning">
+                  {overview.lowStock.length} at or below reorder
+                </span>
               ) : null}
             </div>
           }
@@ -260,7 +311,7 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
                 <PanelRow
                   key={d.id}
                   icon={<Package size={15} strokeWidth={1.75} aria-hidden />}
-                  tone={d.onHand === 0 ? "danger" : "warning"}
+                  tone={d.onHand === 0 ? 'danger' : 'warning'}
                   title={d.name}
                   meta={`Reorder level ${d.reorderLevel}`}
                   value={`${d.onHand} left`}
@@ -320,11 +371,31 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
 
         <Card header="Quick actions">
           <div className="flex flex-col gap-2">
-            <QuickAction href="/patients/new" icon={<UserPlus size={15} strokeWidth={2} aria-hidden />} label="Register a patient" />
-            <QuickAction href="/appointments/new" icon={<CalendarDays size={15} strokeWidth={2} aria-hidden />} label="Book an appointment" />
-            <QuickAction href="/opd/check-in" icon={<ClipboardList size={15} strokeWidth={2} aria-hidden />} label="Check a patient in" />
-            <QuickAction href="/users" icon={<Users size={15} strokeWidth={2} aria-hidden />} label="Manage staff accounts" />
-            <QuickAction href="/reports" icon={<FlaskConical size={15} strokeWidth={2} aria-hidden />} label="Open reports" />
+            <QuickAction
+              href="/patients/new"
+              icon={<UserPlus size={15} strokeWidth={2} aria-hidden />}
+              label="Register a patient"
+            />
+            <QuickAction
+              href="/appointments/new"
+              icon={<CalendarDays size={15} strokeWidth={2} aria-hidden />}
+              label="Book an appointment"
+            />
+            <QuickAction
+              href="/opd/check-in"
+              icon={<ClipboardList size={15} strokeWidth={2} aria-hidden />}
+              label="Check a patient in"
+            />
+            <QuickAction
+              href="/users"
+              icon={<Users size={15} strokeWidth={2} aria-hidden />}
+              label="Manage staff accounts"
+            />
+            <QuickAction
+              href="/reports"
+              icon={<FlaskConical size={15} strokeWidth={2} aria-hidden />}
+              label="Open reports"
+            />
           </div>
         </Card>
       </DashboardRow>
@@ -335,13 +406,25 @@ export function HospitalAdminDashboard({ fullName }: { fullName?: string }) {
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} aria-hidden />
+      <span
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: color }}
+        aria-hidden
+      />
       {label}
     </span>
   );
 }
 
-function QuickAction({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function QuickAction({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
     <Link
       href={href}

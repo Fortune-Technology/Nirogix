@@ -14,8 +14,18 @@ import { requirePermission } from '../../http/requirePermission';
 import { authLimiter, sensitiveLimiter } from '../../http/rateLimit';
 import { uploadSingle } from '../file/file.upload';
 import { UpdateOrganizationProfileBody } from './organization.schema';
-import { SubmitRegistrationBody, SetSelfRegistrationBody, RejectRegistrationBody, ApproveRegistrationBody } from './registration.schema';
-import { SubmitBookingBody, ApproveBookingBody, RejectBookingBody, SetOnlineBookingBody } from './booking.schema';
+import {
+  SubmitRegistrationBody,
+  SetSelfRegistrationBody,
+  RejectRegistrationBody,
+  ApproveRegistrationBody,
+} from './registration.schema';
+import {
+  SubmitBookingBody,
+  ApproveBookingBody,
+  RejectBookingBody,
+  SetOnlineBookingBody,
+} from './booking.schema';
 import * as c from './organization.controller';
 import * as reg from './registration.controller';
 import * as bkg from './booking.controller';

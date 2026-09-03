@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState, type ReactNode } from "react";
-import { MoreHorizontal } from "lucide-react";
-import { Menu, MenuItem, MenuSeparator } from "../Menu";
-import { ConfirmDialog } from "../ConfirmDialog";
+import { useState, type ReactNode } from 'react';
+import { MoreHorizontal } from 'lucide-react';
+import { Menu, MenuItem, MenuSeparator } from '../Menu';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 export interface MoreAction {
   /** Menu label — "Duplicate", "Reset password", "Archive", … */
@@ -13,7 +13,7 @@ export interface MoreAction {
   disabled?: boolean;
   /** Permission gate — hidden entirely when false. */
   permitted?: boolean;
-  tone?: "default" | "danger";
+  tone?: 'default' | 'danger';
   /** Destructive items confirm first; pass `true` for the default copy or override it. */
   confirm?: boolean | { title: string; description?: ReactNode; confirmLabel?: string };
   /** Draws a divider above this item. */
@@ -23,7 +23,7 @@ export interface MoreAction {
 export interface MoreActionsProps {
   actions: MoreAction[];
   label?: string;
-  align?: "start" | "end";
+  align?: 'start' | 'end';
 }
 
 /**
@@ -34,15 +34,15 @@ export interface MoreActionsProps {
  *
  * Renders nothing when the user is permitted none of the actions.
  */
-export function MoreActions({ actions, label = "More actions", align = "end" }: MoreActionsProps) {
+export function MoreActions({ actions, label = 'More actions', align = 'end' }: MoreActionsProps) {
   const [pending, setPending] = useState<MoreAction | null>(null);
   const visible = actions.filter((a) => a.permitted !== false);
   if (visible.length === 0) return null;
 
   const confirmCopy =
-    pending && typeof pending.confirm === "object"
+    pending && typeof pending.confirm === 'object'
       ? pending.confirm
-      : { title: `${pending?.label ?? "Confirm"}?`, description: "This action cannot be undone." };
+      : { title: `${pending?.label ?? 'Confirm'}?`, description: 'This action cannot be undone.' };
 
   return (
     <>
@@ -80,7 +80,7 @@ export function MoreActions({ actions, label = "More actions", align = "end" }: 
         title={confirmCopy.title}
         description={confirmCopy.description}
         confirmLabel={confirmCopy.confirmLabel ?? pending?.label}
-        tone={pending?.tone === "danger" ? "danger" : "default"}
+        tone={pending?.tone === 'danger' ? 'danger' : 'default'}
         onCancel={() => setPending(null)}
         onConfirm={() => {
           const action = pending;

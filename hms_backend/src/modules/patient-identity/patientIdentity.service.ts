@@ -12,7 +12,13 @@ import {
   type PatientIdentity,
 } from '../../db/schema';
 import { Errors } from '../../http/error';
-import { hashToken, signAccessToken, signRefreshToken, tokenExpiry, verifyRefreshToken } from '../auth/tokens';
+import {
+  hashToken,
+  signAccessToken,
+  signRefreshToken,
+  tokenExpiry,
+  verifyRefreshToken,
+} from '../auth/tokens';
 import { writeAudit } from '../audit/audit.service';
 import {
   sendOtp,
@@ -48,7 +54,9 @@ import {
 function verificationStore(identityId: string): OtpStore {
   return {
     async save({ destination, channel, codeHash, expiresAt }) {
-      await db.insert(patientVerification).values({ identityId, channel, destination, codeHash, expiresAt });
+      await db
+        .insert(patientVerification)
+        .values({ identityId, channel, destination, codeHash, expiresAt });
     },
 
     async findActive({ destination }) {
@@ -71,7 +79,10 @@ function verificationStore(identityId: string): OtpStore {
     },
 
     async consume(id) {
-      await db.update(patientVerification).set({ consumedAt: new Date() }).where(eq(patientVerification.id, id));
+      await db
+        .update(patientVerification)
+        .set({ consumedAt: new Date() })
+        .where(eq(patientVerification.id, id));
     },
 
     async recordFailedAttempt(id) {
@@ -105,11 +116,19 @@ async function findIdentityByContact(c: Contact): Promise<PatientIdentity | null
   const mobile = c.mobile ? normaliseMobile(c.mobile) : null;
   const email = c.email ? normaliseEmail(c.email) : null;
   if (mobile) {
-    const rows = await db.select().from(patientIdentity).where(eq(patientIdentity.mobile, mobile)).limit(1);
+    const rows = await db
+      .select()
+      .from(patientIdentity)
+      .where(eq(patientIdentity.mobile, mobile))
+      .limit(1);
     if (rows[0]) return rows[0];
   }
   if (email) {
-    const rows = await db.select().from(patientIdentity).where(eq(patientIdentity.email, email)).limit(1);
+    const rows = await db
+      .select()
+      .from(patientIdentity)
+      .where(eq(patientIdentity.email, email))
+      .limit(1);
     if (rows[0]) return rows[0];
   }
   return null;
@@ -152,7 +171,12 @@ export async function linkPatientToIdentity(
     tx
       .select({ id: patientIdentityLink.id, identityId: patientIdentityLink.identityId })
       .from(patientIdentityLink)
-      .where(and(eq(patientIdentityLink.tenantId, tenantId), eq(patientIdentityLink.patientId, patientId)))
+      .where(
+        and(
+          eq(patientIdentityLink.tenantId, tenantId),
+          eq(patientIdentityLink.patientId, patientId),
+        ),
+      )
       .limit(1),
   );
   if (existing[0]) {
@@ -197,7 +221,6 @@ export async function requestPatientCode(contact: Contact): Promise<void> {
   const identity = await findIdentityByContact(contact);
   if (!identity || identity.status !== 'active') return; // silent, on purpose
 
-
   // Sent from the PLATFORM tenant, not from a hospital (ADR-052). Two reasons: the
   // message is from Nirogix about platform access, not from a hospital about care; and
   // logging it against a hospital would tell that hospital's staff, in their own
@@ -218,9 +241,14 @@ export async function requestPatientCode(contact: Contact): Promise<void> {
  * logged. Resolved by code rather than configured, so it cannot drift from the seed.
  */
 async function platformTenantId(): Promise<string> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.code, 'NIROGIX')).limit(1);
+  const rows = await db
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.code, 'NIROGIX'))
+    .limit(1);
   const id = rows[0]?.id;
-  if (!id) // No canonical `internal` helper — this is a deployment fault, not a user error.
+  if (!id)
+    // No canonical `internal` helper — this is a deployment fault, not a user error.
     throw new Error('The PLATFORM organization is missing; patient verification cannot be sent');
   return id;
 }
@@ -236,7 +264,11 @@ export async function verifyPatientCode(
   contact: Contact,
   code: string,
   meta: ClientMeta = {},
-): Promise<{ accessToken: string; refreshToken: string; identity: { id: string; fullName: string | null } }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  identity: { id: string; fullName: string | null };
+}> {
   const { destination } = requireOneContact(contact);
   const identity = await findIdentityByContact(contact);
   // Uniform failure: a wrong code and an unknown contact are indistinguishable.
@@ -257,7 +289,11 @@ export async function verifyPatientCode(
   const now = new Date();
   await db
     .update(patientIdentity)
-    .set({ verifiedAt: identity.verifiedAt ?? now, activatedAt: identity.activatedAt ?? now, lastLoginAt: now })
+    .set({
+      verifiedAt: identity.verifiedAt ?? now,
+      activatedAt: identity.activatedAt ?? now,
+      lastLoginAt: now,
+    })
     .where(eq(patientIdentity.id, identity.id));
 
   // No tenant on either token — the patient picks a hospital afterwards, and the tenant
@@ -279,7 +315,11 @@ export async function verifyPatientCode(
 async function issuePatientSession(
   identity: PatientIdentity,
   meta: ClientMeta = {},
-): Promise<{ accessToken: string; refreshToken: string; identity: { id: string; fullName: string | null } }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  identity: { id: string; fullName: string | null };
+}> {
   const sid = randomUUID();
   const accessToken = signAccessToken({ sub: identity.id, tid: '', roles: [], pt: 'patient' });
   const refreshToken = signRefreshToken({ sub: identity.id, tid: '', sid, pt: 'patient' });
@@ -309,7 +349,11 @@ export type ClientMeta = { userAgent?: string; ip?: string };
 export async function refreshPatientSession(
   refreshTokenRaw: string,
   meta: ClientMeta = {},
-): Promise<{ accessToken: string; refreshToken: string; identity: { id: string; fullName: string | null } }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  identity: { id: string; fullName: string | null };
+}> {
   const invalid = Errors.unauthorized('Invalid or expired session');
   let claims;
   try {
@@ -319,7 +363,11 @@ export async function refreshPatientSession(
   }
   if (claims.pt !== 'patient') throw invalid; // a staff refresh token is not accepted here
 
-  const rows = await db.select().from(patientSessions).where(eq(patientSessions.id, claims.sid)).limit(1);
+  const rows = await db
+    .select()
+    .from(patientSessions)
+    .where(eq(patientSessions.id, claims.sid))
+    .limit(1);
   const session = rows[0];
   if (
     !session ||
@@ -340,7 +388,12 @@ export async function refreshPatientSession(
   if (!identity || identity.status !== 'active' || !identity.verifiedAt) throw invalid;
 
   const accessToken = signAccessToken({ sub: identity.id, tid: '', roles: [], pt: 'patient' });
-  const refreshToken = signRefreshToken({ sub: identity.id, tid: '', sid: session.id, pt: 'patient' });
+  const refreshToken = signRefreshToken({
+    sub: identity.id,
+    tid: '',
+    sid: session.id,
+    pt: 'patient',
+  });
   await db
     .update(patientSessions)
     .set({
@@ -373,7 +426,9 @@ export async function endPatientSession(refreshTokenRaw: string | undefined): Pr
 export async function listMyHospitals(
   identityId: string,
 ): Promise<Array<{ tenantId: string; name: string; patientId: string }>> {
-  const identity = (await db.select().from(patientIdentity).where(eq(patientIdentity.id, identityId)).limit(1))[0];
+  const identity = (
+    await db.select().from(patientIdentity).where(eq(patientIdentity.id, identityId)).limit(1)
+  )[0];
   if (!identity || !identity.verifiedAt || identity.status !== 'active') return [];
 
   // Cross-tenant by nature — this is the one query that legitimately spans tenants, and
@@ -386,7 +441,9 @@ export async function listMyHospitals(
     })
     .from(patientIdentityLink)
     .innerJoin(tenants, eq(tenants.id, patientIdentityLink.tenantId))
-    .where(and(eq(patientIdentityLink.identityId, identityId), eq(patientIdentityLink.isActive, true)));
+    .where(
+      and(eq(patientIdentityLink.identityId, identityId), eq(patientIdentityLink.isActive, true)),
+    );
   return rows;
 }
 
@@ -425,7 +482,12 @@ export async function revokePatientAccess(
     tx
       .update(patientIdentityLink)
       .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(patientIdentityLink.tenantId, tenantId), eq(patientIdentityLink.patientId, patientId))),
+      .where(
+        and(
+          eq(patientIdentityLink.tenantId, tenantId),
+          eq(patientIdentityLink.patientId, patientId),
+        ),
+      ),
   );
   await writeAudit({
     tenantId,

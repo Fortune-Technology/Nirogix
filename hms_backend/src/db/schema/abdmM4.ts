@@ -91,7 +91,9 @@ export const abdmFacilityRegistry = pgTable(
     // unique constraint by default, so the plain form would have allowed unlimited rows for exactly
     // the commonest case — a single-site hospital, whose `branch_id` is NULL. The upsert would then
     // never find a conflict to update and would duplicate on every save.
-    tenantBranchUnique: unique('abdm_facility_registry_tenant_branch_unique').on(t.tenantId, t.branchId).nullsNotDistinct(),
+    tenantBranchUnique: unique('abdm_facility_registry_tenant_branch_unique')
+      .on(t.tenantId, t.branchId)
+      .nullsNotDistinct(),
     trackingIdx: index('abdm_facility_registry_tracking_idx').on(t.trackingId),
     statusIdx: index('abdm_facility_registry_status_idx').on(t.tenantId, t.status),
   }),

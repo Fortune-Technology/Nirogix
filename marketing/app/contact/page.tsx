@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import { CalendarClock, Route, Headset } from "lucide-react";
-import { Container } from "../../components/ui/primitives";
-import { ContactForm } from "../../components/site/ContactForm";
-import { PORTAL_LOGIN_URL } from "../../lib/portal";
-import { JsonLd } from "../../components/site/JsonLd";
+import type { Metadata } from 'next';
+import { CalendarClock, Route, Headset } from 'lucide-react';
+import { Container } from '../../components/ui/primitives';
+import { ContactForm } from '../../components/site/ContactForm';
+import { PORTAL_LOGIN_URL } from '../../lib/portal';
+import { JsonLd } from '../../components/site/JsonLd';
 import {
   COMPANY,
   breadcrumbJsonLd,
@@ -11,11 +11,11 @@ import {
   localBusinessJsonLd,
   pageMetadata,
   telHref,
-} from "../../lib/seo";
+} from '../../lib/seo';
 
 // Location intent: hospital software buyers searching locally (Ahmedabad / Gujarat).
 export const metadata: Metadata = pageMetadata({
-  path: "/contact",
+  path: '/contact',
   title: `Book a Demo: Hospital Software in ${COMPANY.city}`,
   description: `Book a walkthrough of Nirogix with our team in ${COMPANY.city}, ${COMPANY.region}. We map your clinic or hospital onto the platform module by module. Onboarding is guided, not self-serve.`,
 });
@@ -23,18 +23,18 @@ export const metadata: Metadata = pageMetadata({
 const STEPS = [
   {
     icon: CalendarClock,
-    title: "A walkthrough, not a sales pitch",
-    body: "We show the platform running the modules that fit your facility, with your workflows in mind.",
+    title: 'A walkthrough, not a sales pitch',
+    body: 'We show the platform running the modules that fit your facility, with your workflows in mind.',
   },
   {
     icon: Route,
-    title: "A mapping of your hospital",
-    body: "Branches, roles, and modules, laid out so you can see exactly what your setup would look like.",
+    title: 'A mapping of your hospital',
+    body: 'Branches, roles, and modules, laid out so you can see exactly what your setup would look like.',
   },
   {
     icon: Headset,
-    title: "Guided onboarding",
-    body: "If it is a fit, our team sets up your tenant, branches, users, and modules with you.",
+    title: 'Guided onboarding',
+    body: 'If it is a fit, our team sets up your tenant, branches, users, and modules with you.',
   },
 ];
 
@@ -43,7 +43,12 @@ export default function ContactPage() {
 
   return (
     <section className="bg-canvas">
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Contact", path: "/contact" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Contact', path: '/contact' },
+        ])}
+      />
       {/* Rendered only once a verified postal address + phone exist (lib/seo.ts). */}
       <JsonLd data={localBusinessJsonLd()} />
       <Container className="py-16 sm:py-20">
@@ -84,12 +89,18 @@ export default function ContactPage() {
                   <span key={line}>{line}</span>
                 ))}
                 {COMPANY.telephone ? (
-                  <a href={telHref(COMPANY.telephone)} className="text-accent hover:text-accent-hover">
+                  <a
+                    href={telHref(COMPANY.telephone)}
+                    className="text-accent hover:text-accent-hover"
+                  >
                     {COMPANY.telephone}
                   </a>
                 ) : null}
                 {COMPANY.email ? (
-                  <a href={`mailto:${COMPANY.email}`} className="text-accent hover:text-accent-hover">
+                  <a
+                    href={`mailto:${COMPANY.email}`}
+                    className="text-accent hover:text-accent-hover"
+                  >
                     {COMPANY.email}
                   </a>
                 ) : null}
@@ -98,8 +109,11 @@ export default function ContactPage() {
 
             <div className="mt-8 border-t border-hairline pt-6">
               <p className="text-sm text-ink-subtle">
-                Already a customer?{" "}
-                <a href={PORTAL_LOGIN_URL} className="font-medium text-accent hover:text-accent-hover">
+                Already a customer?{' '}
+                <a
+                  href={PORTAL_LOGIN_URL}
+                  className="font-medium text-accent hover:text-accent-hover"
+                >
                   Sign in to the Portal
                 </a>
                 .

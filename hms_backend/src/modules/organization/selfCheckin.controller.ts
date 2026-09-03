@@ -10,7 +10,7 @@ import * as svc from './selfCheckin.service';
  * attendance, to a caller who proved nothing.
  */
 const UNIFORM_REPLY = {
-  message: "Thanks. If you have an appointment today, the front desk has been told you are here.",
+  message: 'Thanks. If you have an appointment today, the front desk has been told you are here.',
 };
 
 export async function publicContext(req: Request, res: Response): Promise<void> {
@@ -51,7 +51,9 @@ export async function confirmArrival(req: Request, res: Response): Promise<void>
 }
 
 export async function dismissArrival(req: Request, res: Response): Promise<void> {
-  res.json(await svc.dismissArrival(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await svc.dismissArrival(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }
 
 // ---- Hospital configuration -------------------------------------------------

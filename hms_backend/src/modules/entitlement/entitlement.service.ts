@@ -7,12 +7,7 @@ import { writeAudit } from '../audit/audit.service';
 const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIAL']);
 
 export type ModuleStatus =
-  | 'TRIAL'
-  | 'ACTIVE'
-  | 'SUSPENDED'
-  | 'EXPIRED'
-  | 'CANCELLED'
-  | 'DEACTIVATED';
+  'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELLED' | 'DEACTIVATED';
 
 /**
  * The effectiveness window, evaluated **by the database**.
@@ -41,7 +36,10 @@ const effectiveNow = () =>
   and(
     inArray(tenantEntitlements.status, [...ACTIVE_STATUSES]),
     or(isNull(tenantEntitlements.effectiveFrom), lte(tenantEntitlements.effectiveFrom, sql`now()`)),
-    or(isNull(tenantEntitlements.effectiveUntil), gt(tenantEntitlements.effectiveUntil, sql`now()`)),
+    or(
+      isNull(tenantEntitlements.effectiveUntil),
+      gt(tenantEntitlements.effectiveUntil, sql`now()`),
+    ),
   );
 
 /**
@@ -57,7 +55,8 @@ const CLOCK_SKEW_TOLERANCE_MS = 5_000;
 function isEffective(row: TenantEntitlement): boolean {
   if (!ACTIVE_STATUSES.has(row.status)) return false;
   const now = Date.now();
-  if (row.effectiveFrom && row.effectiveFrom.getTime() - CLOCK_SKEW_TOLERANCE_MS > now) return false;
+  if (row.effectiveFrom && row.effectiveFrom.getTime() - CLOCK_SKEW_TOLERANCE_MS > now)
+    return false;
   if (row.effectiveUntil && row.effectiveUntil.getTime() <= now) return false;
   return true;
 }
@@ -117,9 +116,7 @@ export async function grantModule(
   if (ACTIVE_STATUSES.has(status)) {
     for (const dep of def.hardDependencies) {
       if (!(await isModuleEntitled(tenantId, dep))) {
-        throw new Error(
-          `Cannot activate "${moduleKey}": hard dependency "${dep}" is not entitled`,
-        );
+        throw new Error(`Cannot activate "${moduleKey}": hard dependency "${dep}" is not entitled`);
       }
     }
   }

@@ -44,12 +44,22 @@ export async function dbReady(): Promise<boolean> {
  * rather than minting a token directly: an API test that forges its own token would not
  * notice if login itself broke.
  */
-export async function login(orgCode: string, email: string, password = TEST_PASSWORD): Promise<Session> {
+export async function login(
+  orgCode: string,
+  email: string,
+  password = TEST_PASSWORD,
+): Promise<Session> {
   const res = await api().post('/api/v1/auth/login').send({ orgCode, email, password });
   if (res.status !== 200) {
-    throw new Error(`login failed for ${email}@${orgCode}: ${res.status} ${JSON.stringify(res.body)}`);
+    throw new Error(
+      `login failed for ${email}@${orgCode}: ${res.status} ${JSON.stringify(res.body)}`,
+    );
   }
-  return { token: res.body.accessToken, userId: res.body.user.id, tenantId: res.body.user.tenantId };
+  return {
+    token: res.body.accessToken,
+    userId: res.body.user.id,
+    tenantId: res.body.user.tenantId,
+  };
 }
 
 /** `authed(session).get('/api/v1/...')` — attaches the Bearer header. */
@@ -89,7 +99,10 @@ export type StaffRole = (typeof STAFF_ROLES)[number];
  * Onboards a tenant and creates one account per staff role, all with `TEST_PASSWORD`.
  * Emails are derived from the tenant code so two tenants in the same test never collide.
  */
-export async function makeTenant(code: string, name = `${code} Test Hospital`): Promise<TestTenant> {
+export async function makeTenant(
+  code: string,
+  name = `${code} Test Hospital`,
+): Promise<TestTenant> {
   // Idempotent by design: remove any tenant already holding this code before creating it.
   //
   // Eleven tests create a scratch tenant mid-test and clean it up on the line after their last
@@ -148,7 +161,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -174,14 +189,33 @@ export async function cleanupTenant(code: string): Promise<void> {
     'notification_log',
     // ABDM first: `abdm_transactions.patient_id` is ON DELETE RESTRICT, so it has to go before
     // the charts it points at (ADR-084).
-    'abdm_staff_hpr', 'abdm_facility_registry',
-    'abdm_hiu_records', 'abdm_hiu_data_transfers', 'abdm_hiu_consents', 'abdm_hiu_consent_requests',
-    'abdm_data_transfers', 'abdm_link_requests', 'abdm_care_contexts', 'abdm_consents', 'abdm_link_tokens', 'abdm_transactions', 'abdm_facility_config',
-    'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
-    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses',
+    'abdm_staff_hpr',
+    'abdm_facility_registry',
+    'abdm_hiu_records',
+    'abdm_hiu_data_transfers',
+    'abdm_hiu_consents',
+    'abdm_hiu_consent_requests',
+    'abdm_data_transfers',
+    'abdm_link_requests',
+    'abdm_care_contexts',
+    'abdm_consents',
+    'abdm_link_tokens',
+    'abdm_transactions',
+    'abdm_facility_config',
+    'payments',
+    'invoice_line_items',
+    'dispenses',
+    'drug_batches',
+    'drugs',
+    'lab_results',
+    'lab_orders',
+    'lab_tests',
+    'prescriptions',
+    'diagnoses',
     // Before 'encounters': the amendment trail is ON DELETE RESTRICT so an encounter cannot
     // take its own correction history with it (ADR-134).
-    'encounter_amendments', 'encounters',
+    'encounter_amendments',
+    'encounters',
     // Vitals reference the visit ON DELETE RESTRICT (ADR-113), so they go before it.
     'patient_vitals',
     // Referrals point at both the visit they came from and the one they were consumed by
@@ -192,19 +226,31 @@ export async function cleanupTenant(code: string): Promise<void> {
     'self_checkin_requests',
     // Document attachments reference the patient, visit and case (ADR-119); the files themselves
     // follow, now that a harness tenant can upload one.
-    'patient_documents', 'file_metadata',
+    'patient_documents',
+    'file_metadata',
     // Cases are referenced BY visits and reference patients, so they sit between the two
     // (ADR-116) — both directions are ON DELETE RESTRICT.
-    'visits', 'patient_cases', 'invoices', 'appointments', 'patients',
+    'visits',
+    'patient_cases',
+    'invoices',
+    'appointments',
+    'patients',
     // Fee rules reference providers, departments and branches, all RESTRICT (ADR-117).
     'consultation_fee_rules',
-    'practitioner_roles', 'providers', 'departments',
+    'practitioner_roles',
+    'providers',
+    'departments',
     // Workflow configuration references branches, so it goes before them.
     'hospital_workflow_config',
     // A profile row now appears whenever a public surface is switched on (ADR-118), which no
     // harness tenant used to have.
     'organization_profile',
-    'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users',
+    'user_roles',
+    'role_permissions',
+    'roles',
+    'tenant_entitlements',
+    'branches',
+    'users',
   ]) {
     await pool.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [t.id]);
   }

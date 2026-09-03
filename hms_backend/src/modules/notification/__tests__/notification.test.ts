@@ -21,7 +21,10 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['Notif Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'Notif Test',
+        CODE,
+      ])
     ).rows[0].id;
     ready = true;
   } catch (err) {
@@ -53,11 +56,25 @@ describe('notification service', () => {
     expect(total).toBeGreaterThanOrEqual(1);
   });
 
-  test('idempotencyKey makes a repeated send return the original (no duplicate)', async ({ skip }) => {
+  test('idempotencyKey makes a repeated send return the original (no duplicate)', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const key = 'idem-123';
-    const first = await sendEmail({ tenantId, to: 'c@d.example', subject: 'X', body: 'Y', idempotencyKey: key });
-    const second = await sendEmail({ tenantId, to: 'c@d.example', subject: 'X', body: 'Y', idempotencyKey: key });
+    const first = await sendEmail({
+      tenantId,
+      to: 'c@d.example',
+      subject: 'X',
+      body: 'Y',
+      idempotencyKey: key,
+    });
+    const second = await sendEmail({
+      tenantId,
+      to: 'c@d.example',
+      subject: 'X',
+      body: 'Y',
+      idempotencyKey: key,
+    });
     expect(second.id).toBe(first.id);
   });
 });

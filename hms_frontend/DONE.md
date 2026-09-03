@@ -9,12 +9,14 @@ Append-only implementation log. Newest at the bottom.
 **What:** The Portal foundation on Next.js 16 (App Router, Turbopack, React 19): a design system, client-side authentication, an RBAC-driven shell, the Standard DataTable, and Light/Dark + tenant branding — the base every role's screens build on.
 
 **Added — `@hms/ui` (design system):**
+
 - `src/styles.css` — the single design-token layer (`--hms-*`: colour, radius, type, shadow) with **Light default (`:root`) + Dark (`[data-theme="dark"]`)** and overridable brand tokens, plus canonical component classes.
 - Primitives (token-only, no hardcoded values): `Button`, `Field` (labelled input), **`PasswordField`** (labelled input with a built-in show/hide **eye toggle** — the required control for every password input across the platform), `Card`, `Badge`, `Alert`, `Spinner`, and the **Standard `DataTable`** (columns + rows + rowKey; built-in loading/error/empty + horizontal overflow). `cn` helper. Barrel `index.ts`; `./styles.css` + `.` exports; React 19 peer dep.
 
 **Added — `@hms/types`:** shared API contracts mirroring the backend controllers (`ApiError`, `Paginated<T>`, `AuthUser`, `LoginResponse`, `MyPermissionsResponse`, `Provider`, `Specialty`, `AuditEntry`, …).
 
 **Added — `hms_frontend`:**
+
 - Root `layout.tsx` (fonts, `@hms/ui/styles.css`, no-flash theme script, `<Providers>`), `providers.tsx` (Theme + Auth), `globals.css` (Tailwind + maps `--hms-*` into `@theme`). `next.config.ts` `transpilePackages`.
 - `lib/api.ts` — typed fetch client: `credentials:'include'`, `Bearer`, **silent refresh-on-401 + retry**, canonical `{error}` unwrap into `ApiRequestError`.
 - `lib/auth.tsx` — `AuthProvider` + `useAuth` + `useCan`: cookie-based session bootstrap (`/auth/refresh` → `/auth/me` → `/rbac/permissions`), login/logout, effective-permission capabilities.
@@ -37,6 +39,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The Portal Super-Admin surface for operator-driven onboarding (development-plan §20A, ADR-020) — create and manage tenants from the UI instead of `seed.ts`.
 
 **Added:**
+
 - `app/(app)/admin/tenants/page.tsx` — Tenants list (Standard DataTable: code→detail link, name, status badge, created) + "Onboard tenant".
 - `app/(app)/admin/tenants/new/page.tsx` — Create-Tenant wizard: org code/name, a **module checklist** loaded from `GET /admin/module-catalog` (7 MVP pre-selected, 16 total), first-admin email/name, optional initial branch. On success shows a **one-time temp-password reveal** card with links to the tenant / list.
 - `app/(app)/admin/tenants/[id]/page.tsx` — tenant detail: account-status control, module list with per-module **revoke** + a **grant** dropdown (catalog minus entitled), branches, user count. Reloads after each mutation.
@@ -55,6 +58,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The Portal Org-Admin surface — manage staff, roles, overrides, and branches inside the tenant (development-plan §20A).
 
 **Added:**
+
 - `app/(app)/users/page.tsx` — Users list (DataTable: email→detail, name, role badges, status) with an inline **New user** form (`<Can platform.users.manage>`) that shows the one-time temp password on create.
 - `app/(app)/users/[id]/page.tsx` — user detail: account status control; **Roles** (assign from role list / remove); **Effective permissions** (wildcard note or the resolved list); **Permission overrides** (add GRANT/DENY from the `@hms/permissions` catalog, revoke) — role/override controls gated by `platform.rbac.manage`.
 - `app/(app)/branches/page.tsx` — Branches list with inline **New branch** + per-row active toggle (`<Can platform.branches.manage>`).
@@ -73,6 +77,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The real tenant-branding editor (development-plan §20A, ADR-021) — replaces the Phase-0 localStorage preset demo with server-persisted branding applied at session bootstrap.
 
 **Added / changed:**
+
 - `lib/theme.tsx` reworked: brand is now **server-driven**. `applyBranding(b)` sets `--hms-brand`/`--hms-brand-hover`, swaps the `<link rel=icon>`, tracks `logoUrl`, and caches the brand colour to `localStorage` (paint-cache for the no-flash script). `previewBrandColor(hex)` gives a live preview while editing. Removed the old `brand`/`setBrand` localStorage demo.
 - `components/BrandingLoader` (mounted in `app/(app)/layout.tsx`) fetches `GET /branding/current` once authenticated and applies it. `AppShell` renders the uploaded logo when present.
 - `app/(app)/settings/page.tsx` rewritten as the **Branding admin** (`<Can platform.branding.manage>`): colour picker + hex for primary/secondary, logo + favicon upload, **live preview**, **reset to default**. `lib/api` branding wrappers incl. a multipart upload helper; `@hms/types` `Branding`. No-flash script now also seeds `--hms-brand-hover`.
@@ -90,6 +95,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Replaced the placeholder dashboard with real metric tiles that adapt to the signed-in role (development-plan §20B, user-journeys.md §1.3/§2.5).
 
 **Added / changed:**
+
 - `app/(app)/dashboard/page.tsx`: if the user holds `platform.tenants.manage` → **platform roll-up** (`GET /admin/stats`: organizations/hospitals active-inactive, branches, doctors, staff, module adoption); otherwise → **org roll-up** (`GET /dashboard/summary`: the caller's own tenant). A small `StatTile` (Card-based, token-styled); Stage-1-only metrics (patients/appointments) render "— (Stage 1)" so tiles degrade gracefully. Quick-links row retained.
 - `lib/api` `getPlatformStats`/`getOrgSummary`; `@hms/types` `PlatformStats`/`OrgSummary`.
 
@@ -106,6 +112,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The Portal side of the first clinical module — the patient directory, registration, and profile (development-plan §21). On branch `feat/phase-1-clinic-pilot`.
 
 **Added:**
+
 - `app/(app)/patients/page.tsx` — directory (Standard DataTable: UHID→detail, name, gender, **age computed from DOB**, phone, city, status) with **debounced server-side search** (UHID/name/phone) + pagination + "Register patient" (`<Can patient.record.create>`).
 - `app/(app)/patients/new/page.tsx` — registration form (identity / contact / emergency; gender + blood-group selects, DOB picker, ABHA field); on save redirects to the new profile. `<RequirePermission patient.record.create>`.
 - `app/(app)/patients/[id]/page.tsx` — profile (read cards) with an inline **Edit** mode (`<Can patient.record.update>`) that PATCHes; empty inputs are coerced to `null` so nullable fields validate.
@@ -121,14 +128,15 @@ Append-only implementation log. Newest at the bottom.
 
 ## 2026-08-14 — Appointment screens: list, booking, cancel (Phase 1 / MVP 0 / Task AP2)
 
-**What:** The Portal side of Appointments — the schedule list, a booking form, and cancellation — completing the clinic spine *register patient → book → cancel* (development-plan §21).
+**What:** The Portal side of Appointments — the schedule list, a booking form, and cancellation — completing the clinic spine _register patient → book → cancel_ (development-plan §21).
 
 **Added:**
+
 - `app/(app)/appointments/page.tsx` — schedule (DataTable: when, patient→profile link, provider, duration, status) with a **status filter**, pagination, and a per-row **Cancel** (`<Can appointment.booking.cancel>`, booked rows only) + "Book appointment" (`<Can appointment.booking.create>`).
 - `app/(app)/appointments/new/page.tsx` — booking form: **patient picker** (debounced search → pick), provider select, `datetime-local`, duration, reason; supports `?patientId=` prefill; surfaces the **double-booking 409** as an inline error. Wrapped in `<Suspense>` (uses `useSearchParams`).
 - Nav "Appointments" (`appointment.booking.view`); `lib/api` + `@hms/types` appointment contracts. **`@hms/permissions`: receptionist granted `providers.view`** so the front desk can pick a provider when booking (re-seed applies it to existing tenants).
 
-**Testing status:** typecheck green (7 workspaces) · `next build` green (18 routes). **Live-verified (receptionist):** the seeded appointment lists with patient+provider names; booking a **free slot** succeeds → appears in the list; booking the **already-booked provider slot** shows *"The provider already has an appointment in this time slot"* (409); **Cancel** flips the row to `cancelled` and removes its Cancel action. Test appointment removed afterward.
+**Testing status:** typecheck green (7 workspaces) · `next build` green (18 routes). **Live-verified (receptionist):** the seeded appointment lists with patient+provider names; booking a **free slot** succeeds → appears in the list; booking the **already-booked provider slot** shows _"The provider already has an appointment in this time slot"_ (409); **Cancel** flips the row to `cancelled` and removes its Cancel action. Test appointment removed afterward.
 
 **Decisions:** Reception needs provider visibility to book, so `providers.view` was added to the receptionist role (domain-correct front-desk capability) rather than exposing a parallel endpoint. Patient picker reuses the paginated patient search. Booking converts the local `datetime-local` to ISO before sending.
 
@@ -141,6 +149,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The Portal adopts the approved custom **HMS Design System** (`resources/DESIGN.md`) via the reskinned `@hms/ui` tokens, and completes the project-wide switch to **Lucide** icons.
 
 **Changed:**
+
 - Colour/theme come entirely from the reskinned `--hms-*` tokens (see `packages/ui` DONE) — no page markup changed for the palette; the whole Portal re-skins to cool-neutral + deep-teal in Light and Dark.
 - `lib/nav.ts` + `components/AppShell.tsx` — every sidebar item now carries a Lucide icon.
 - `components/ThemeToggle.tsx` — the ☀/☾ emoji replaced with Lucide `Sun` / `Moon`.
@@ -156,6 +165,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Applied the permanent frontend rules (`resources/DESIGN.md` §9) to the Portal.
 
 **Changed:**
+
 - `app/layout.tsx` — wrapped the app in the shared `SmoothScroll` (Lenis + route scroll-to-top) with a global `BackToTop`, both from `@hms/ui`.
 - `app/(app)/users/[id]/page.tsx` — the scrollable effective-permissions list marked `data-lenis-prevent` so its wheel scroll is not hijacked by Lenis.
 
@@ -168,6 +178,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-14 — Platform branding admin + layered BrandingLoader (ADR-024)
 
 **Added:**
+
 - `app/(app)/admin/branding/page.tsx` — Super-Admin screen (gated `PLATFORM_BRANDING_MANAGE`) with **two independent panels** (Marketing / HMS Portal default).
 - `components/PlatformBrandingPanel.tsx` — per-scope editor: brand-family colour inputs (primary / secondary / accent / button bg + text), live preview, Save / Reset. (Neutral surfaces stay theme-managed for Light/Dark, so they are not exposed.)
 - `lib/api.ts` — `getPlatformBranding` / `updatePlatformBranding` / `resetPlatformBranding` / `uploadPlatformBrandingAsset`.
@@ -181,6 +192,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-14 — Global ambulance preloader
 
 **Changed:**
+
 - `public/animations/ambulance.json` — added (the shared preloader asset).
 - `app/layout.tsx` — added the shared `@hms/ui` `LottiePreloader` (`src="/animations/ambulance.json"`) at the app root, replacing the plain initial loading state.
 
@@ -191,6 +203,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-14 — MVP-0 slice 1.3 screens: OPD queue + Billing/receipt
 
 **Added:**
+
 - `app/(app)/opd/page.tsx` — front-desk **queue/token board**: today's visits in token order (patient, provider, status, checked-in time, invoice status + balance), per-row **Start consult / Complete** (OPD_UPDATE), **Check in** button.
 - `app/(app)/opd/check-in/page.tsx` — check-in form (patient search-picker + provider + consultation fee ₹ + reason); pre-fillable from an appointment (`?appointmentId=&patientId=&providerId=`), Suspense-wrapped.
 - `app/(app)/billing/page.tsx` — invoice list (invoice#, patient, total, balance, status) + status filter + pagination.
@@ -204,6 +217,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-14 — MVP-0 slice 1.4 screen: doctor consultation
 
 **Added:**
+
 - `app/(app)/opd/[id]/page.tsx` — the consultation screen: vitals grid, SOAP notes, **ICD-10 diagnosis picker** (debounced search + primary toggle + remove), prescription writer + lab-order rows (add/remove), **Save** + **Sign & complete** (optimistic `version`; the whole screen goes read-only once signed).
 - OPD queue gains a clinician-only **Open / View** consultation link; `lib/api` EMR functions (open / save / sign / ICD-10 search).
 
@@ -214,6 +228,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — MVP-1 slice 1.5 screens: pharmacy dispensing + stock
 
 **Added:**
+
 - `app/(app)/pharmacy/page.tsx` — dispensing **worklist**: pending prescriptions, each with a drug picker (from the master, showing on-hand + price, out-of-stock disabled) + qty → **Dispense**.
 - `app/(app)/pharmacy/stock/page.tsx` — drug list (on-hand + **low-stock** badge, price, reorder) + **Add drug** + per-row **Receive stock**.
 - `lib/api` pharmacy functions; `lib/nav` Pharmacy item (permission-filtered).
@@ -225,6 +240,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — MVP-1 slice 1.6 screens: lab worklist + result + report
 
 **Added:**
+
 - `app/(app)/laboratory/page.tsx` — lab **worklist**: orders by status (ordered → **Collect**; collected → inline **result entry** with a test picker; resulted → flag badge + **Report** link).
 - `app/(app)/laboratory/tests/page.tsx` — **test master** (list + add: LOINC, reference range, price).
 - `app/(app)/laboratory/[id]/page.tsx` — printable **lab report** (result + abnormal flag + reference range), shared with the doctor (LAB_ORDER_VIEW).
@@ -237,6 +253,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — MVP-1 slice 1.7 screens: reports + CSV export (Phase 1 complete)
 
 **Added:**
+
 - `app/(app)/reports/page.tsx` — reports hub: tabs (**OPD register / Collections / Pending labs**), date-range filter, tables, and **client-side CSV export**. Collections shows a total + by-method summary above the detail table.
 - `lib/csv.ts` (client-side CSV download), `lib/api` report functions, `lib/nav` Reports item (permission-filtered).
 
@@ -249,11 +266,13 @@ Append-only implementation log. Newest at the bottom.
 **What:** Every API outcome now reaches the user through the one shared `@hms/ui` toast, raised inside the API client — and the Portal is explicitly uncrawlable.
 
 **Added:**
+
 - `lib/apiErrors.ts` — `ApiRequestError` (moved out of `api.ts`), plus `NetworkError` and `TimeoutError`. Separate module so `api.ts` and `feedback.ts` share them without a cycle; `api.ts` re-exports them, so the ~20 pages importing `ApiRequestError` from `@/lib/api` are unchanged.
 - `lib/feedback.ts` — the single classifier. `describeError()` → user-safe title/description per failure mode (timeout, offline, 401, 403, 404, 409, 400/422, 429, 5xx, unknown), preferring the backend's message when usable and **always** using generic copy for 5xx. `notifyError()` / `notifySuccess()` raise the toast; `successMessage()` resolves API `message` → call-supplied copy or formatter → `Saved.`/`Removed.`.
 - `app/robots.ts` — `disallow: "/"` for the whole origin.
 
 **Changed:**
+
 - `lib/api.ts` — `send()` wraps `fetch` with a 30s `AbortController` timeout (stalled → `TimeoutError`, dead connection → `NetworkError`); `request()` notifies on every failure and on every mutating success; new per-call `feedback` option (`false` / `{ success: false }` / `{ success: string | (payload) => string }` / `{ error: false }`). 32 call sites given intent-specific success copy (e.g. "Patient checked in.", "Payment recorded.", dispensing reports drug × qty + amount added to the bill). The two multipart uploads now route through `send()` + the same notifications. `login()` opts out entirely (the form renders failure inline).
 - `lib/auth.tsx` — the login error string now comes from `describeError()`, so inline and toast copy can never drift.
 - `app/layout.tsx` — mounts `<Toaster />`; metadata gains `robots: { index: false, follow: false, nocache: true, googleBot: { noimageindex } }` + `referrer: strict-origin-when-cross-origin`.
@@ -271,6 +290,7 @@ Append-only implementation log. Newest at the bottom.
 **Added:** `components.json` (template `next`, base `base` = Base UI, preset `nova`, Lucide, CSS variables), `lib/utils.ts`, `components/ui/` as the add-target. Dependencies `@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`; the `shadcn` CLI moved to **devDependencies** (init put it in `dependencies`).
 
 **Changed — `app/globals.css`, reconciled by hand after init:**
+
 - Init's regressions reverted: `--font-sans` restored to `var(--hms-font-sans)` (it had been repointed at itself), and the generated demo `components/ui/button.tsx` deleted rather than left unused.
 - shadcn's neutral **OKLCH palette and its `.dark` block removed**; every semantic variable it needs is now a reference to `--hms-*` (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--sidebar-*`, `--chart-*`).
 - `@custom-variant dark` redefined from `(&:is(.dark *))` to `[data-theme="dark"]` — the switch this app actually uses — so `dark:` utilities and the mapped variables track the real theme.
@@ -287,6 +307,7 @@ Append-only implementation log. Newest at the bottom.
 **Dates:** all ten locale-dependent renders (`toLocaleDateString` / `toLocaleString` / `toLocaleTimeString` in tenants, appointments, audit, billing ×2, opd ×2, reports ×2, user overrides) now go through `formatDate` / `formatDateTime` / `formatTime` from `@hms/utils`; `@hms/utils` added as a workspace dependency. No locale-dependent date formatting remains in the app.
 
 **Tables:** the shared `DataTable` gained sorting/search/filters/column-visibility/pagination (ADR-029) with a backwards-compatible column API, so all 12 existing screens compiled untouched. Two were then upgraded to real configurations:
+
 - **Patients** — server mode (`server` + `urlState`): the API owns paging and search, the toolbar's search is debounced into one request, `?q=`/`?page=` make a view linkable. Columns gained sortable UHID/Name/Registered, faceted Gender/City/Status filters, a default-hidden "Registered" column, and a right-aligned actions column using the shared `ActionMenu` (View record / Edit details, the latter permission-gated). The page's hand-rolled search box and Previous/Next buttons were deleted.
 - **Providers** — client mode: sortable Name, faceted Specialties and Status filters, search placeholder, 20-row pages, and an empty-state description.
 
@@ -298,10 +319,11 @@ Append-only implementation log. Newest at the bottom.
 
 **Reported:** on the audit screen, choosing "100 rows per page" still showed 20; no column could be sorted; no search box; no filters.
 
-**Cause:** those screens were still passing the *minimal* column shape (`{ key, header, cell }`) the old table accepted. Without an `accessor` a column has no comparable value, so the table could not sort, search, or facet it — and their pages still owned paging themselves, so the table's rows-per-page control changed nothing the API was asked for.
+**Cause:** those screens were still passing the _minimal_ column shape (`{ key, header, cell }`) the old table accepted. Without an `accessor` a column has no comparable value, so the table could not sort, search, or facet it — and their pages still owned paging themselves, so the table's rows-per-page control changed nothing the API was asked for.
 
 **Fixed:**
-- `@hms/ui` — a column with an `accessor` is now **sortable and searchable by default** (opt out with `sortable: false`), so configuring a table no longer means repeating flags. Server-mode sorting now computes the next sort state and emits *that* (it previously read the pre-click state back through a `setTimeout`, so the API received the wrong sort). The toolbar no longer renders an empty bar for tables with no filters.
+
+- `@hms/ui` — a column with an `accessor` is now **sortable and searchable by default** (opt out with `sortable: false`), so configuring a table no longer means repeating flags. Server-mode sorting now computes the next sort state and emits _that_ (it previously read the pre-click state back through a `setTimeout`, so the API received the wrong sort). The toolbar no longer renders an empty bar for tables with no filters.
 - **Converted every remaining table** with accessors, faceted filters, aligned numeric columns, sensible default-hidden columns, and shared row actions: audit, appointments, billing, opd, users, branches, admin/tenants, laboratory/tests, pharmacy/stock, and all three reports tables (OPD register, pending labs, collections).
 - **Server mode** wired where the API paginates — **audit**, **appointments**, **billing** (joining patients) — so rows-per-page, page changes, search and filters all reach the API. Their hand-rolled Previous/Next blocks and stand-alone status `<select>`s were deleted; the status filters now live in the table toolbar.
 - The audit table drives the new backend query surface (`search`, `severity`, `sortBy`/`sortDir` — see `hms_backend/DONE.md`).
@@ -320,13 +342,13 @@ The Base UI toast lives in `@hms/ui`, so the scaffolding `shadcn init` left in t
 
 Swept the whole repo for other orphans in the same pass — files nothing references, unused `public/` assets, and unused runtime dependencies across all four workspaces: **none found**.
 
-**Testing status:** `typecheck` green (7 workspaces) · both apps `next build` green *after* the removals — which is the proof the code was dead.
+**Testing status:** `typecheck` green (7 workspaces) · both apps `next build` green _after_ the removals — which is the proof the code was dead.
 
 ---
 
 ## 2026-08-15 — App-like mobile navigation (ADR-033)
 
-- `lib/nav.ts` — `MOBILE_PRIMARY_ORDER` + `mobilePrimaryNav(can)`: ranks the permission-filtered nav by day-to-day use, so the bottom bar shows what *this* user actually works with (receptionist → OPD/Appointments/Patients; pharmacist → Pharmacy; super-admin falls through to Tenants).
+- `lib/nav.ts` — `MOBILE_PRIMARY_ORDER` + `mobilePrimaryNav(can)`: ranks the permission-filtered nav by day-to-day use, so the bottom bar shows what _this_ user actually works with (receptionist → OPD/Appointments/Patients; pharmacist → Pharmacy; super-admin falls through to Tenants).
 - `components/AppShell.tsx` — renders the shared `BottomNav` (five slots, mobile only) plus a top-right hamburger opening the shared `NavDrawer` with every permitted module. `main` carries `.hms-bottomnav-offset`. The desktop sidebar is untouched and the bar never renders above `md`.
 
 **Testing status:** `typecheck` + `next build` green. **Live-verified at 375px** as CITYCARE org_admin: bar renders the permitted destinations with the active one marked, sidebar hidden, drawer lists all 11 permitted modules, `body` scroll locks while open and restores on close, `data-lenis-prevent` set, focus trapped inside, Esc closes.
@@ -335,7 +357,7 @@ Swept the whole repo for other orphans in the same pass — files nothing refere
 
 ## 2026-08-15 — Tests for the API feedback classifier
 
-Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.ts` — the layer every API failure passes through (ADR-026). They pin what the user is *told*, which is a security boundary as much as a UX one:
+Vitest added (`npm run test -w hms_frontend`), with 12 tests over `lib/feedback.ts` — the layer every API failure passes through (ADR-026). They pin what the user is _told_, which is a security boundary as much as a UX one:
 
 - A 5xx carrying `relation "users" does not exist…` never reaches the screen; generic copy is used instead.
 - Stack-shaped messages and bare error codes are rejected as user-facing copy.
@@ -402,7 +424,7 @@ The login card and the app shell (desktop sidebar fallback and mobile header) we
 
 ## 2026-08-16 — One dashboard layout for every role (ADR-044)
 
-**Added a shared dashboard layout** (`components/dashboard/DashboardShell`) — context line, title, range chips, KPI grid, panel rows, panel rows and empty states — and rebuilt every hospital dashboard as a *configuration* of it, matching the shape `/platform` already used.
+**Added a shared dashboard layout** (`components/dashboard/DashboardShell`) — context line, title, range chips, KPI grid, panel rows, panel rows and empty states — and rebuilt every hospital dashboard as a _configuration_ of it, matching the shape `/platform` already used.
 
 - **Hospital admin** (`HospitalAdminDashboard`): revenue billed vs collected per day, today's OPD load by hour split scheduled/walk-in, doctors on duty with seen/booked, low stock, registrations per day, capacity bars, quick actions.
 - **Clinical roles** (`ClinicalDashboard`): doctor, receptionist, pharmacist and lab technician from **one** component parameterised by role — same skeleton, different work. Each fetches only what its own panels show.
@@ -414,6 +436,7 @@ The reference design's bed board, IPD admissions, theatre list, department table
 **Shell scrolling fixed.** The sidebar is now `sticky top-0 h-screen overflow-y-auto` with `data-lenis-prevent`, so a long menu scrolls **inside itself** rather than dragging with the page; the topbar sticks as well. Sidebar sections gained an "Overview" label and a hairline divider above each group, so Overview / Clinical / Revenue / Organization / Account read as separate blocks.
 
 **Two defects found and fixed while verifying:**
+
 1. **`tryRefresh()` was not de-duplicated.** A dashboard fires several requests at once, so one expired access token produced one `POST /auth/refresh` per request; each rotated the same `sessions` row in its own transaction, serialised on that row lock, and drained the connection pool until everything timed out. Refreshes now share one in-flight promise. The server-side half is logged in `BACKLOG.md`.
 2. **The staff fallback listed routes the user could not open** — every tenant nav item rather than the permitted ones, so a cashier saw Pharmacy, Users and Branches links that would only 403.
 
@@ -467,7 +490,7 @@ Printed documents now carry the hospital's address, phone, registration number a
 
 **What:** `/departments` — the Standard DataTable with code, department, branch, head of department, doctor count and status; a create form whose branch and head pickers offer only this hospital's own records; and a single row action. That action is a **toggle, not a delete**: departments are never deleted because visits reference them, and the confirmation states how many doctors are attached so the effect is visible before it is accepted.
 
-Joined the sidebar's *Organization* group and the Hospital Configuration console's area grid. Check-in gained a department picker that offers **active departments only** — the server refuses a retired one regardless, so the form simply never presents an invalid choice.
+Joined the sidebar's _Organization_ group and the Hospital Configuration console's area grid. Check-in gained a department picker that offers **active departments only** — the server refuses a retired one regardless, so the form simply never presents an invalid choice.
 
 **Testing status:** typecheck clean, `next build` clean (`/departments` prerendered), 12 frontend tests pass. Lint reports the repo-wide `react-hooks/set-state-in-effect` on the data-loading effect — the same shape every other Portal list page has, and tracked in `BACKLOG.md` as repo-wide debt rather than solved differently on one screen. Manual cases DEPT-01…DEPT-21 added to `testcases.md`.
 
@@ -480,9 +503,10 @@ The point is not tidiness: while those lived here, a platform operator and a rec
 **`navGroupsForContext` became `navGroupsForUser`.** There is no context to switch between any more — the Portal always renders the hospital's navigation, including for an operator inside a support session, which is exactly right: they are working as a hospital user and the banner says so.
 
 **What stayed, and why:**
-- **`/support/enter`** — it *receives* a support session the admin console mints. Its origin check is no longer `window.location.origin` (the sender is now a different origin); it accepts only `NEXT_PUBLIC_ADMIN_ORIGIN`, in the new `lib/adminOrigin.ts`.
+
+- **`/support/enter`** — it _receives_ a support session the admin console mints. Its origin check is no longer `window.location.origin` (the sender is now a different origin); it accepts only `NEXT_PUBLIC_ADMIN_ORIGIN`, in the new `lib/adminOrigin.ts`.
 - **`getPlatformBranding`** — a public GET the Portal uses at bootstrap to apply the platform default before tenant branding. Only the writes are operator-only. This was removed by mistake and restored when the typechecker caught `BrandingLoader`.
-- **The support-session banner** in `AppShell` — an operator inside a hospital is in *this* app, so the banner belongs here.
+- **The support-session banner** in `AppShell` — an operator inside a hospital is in _this_ app, so the banner belongs here.
 
 **Testing status:** typecheck clean, `next build` clean (31 routes, `/support/enter` present, no `/platform` or `/admin/*`), 12 tests pass.
 
@@ -500,7 +524,7 @@ The screen is emphatic about one thing: nothing is added to the patient list aut
 
 **Review queue** (`/patients/registrations`, Clinical → Registration requests) — a Standard DataTable configuration with approve/reject through `TableAction` and the shared confirmation. Approving routes straight to the new patient, because the desk almost always corrects something typed on a phone.
 
-**A permission bug caught in review, not by a test.** The queue was gated on `patient.record.create` end to end. `org_admin` does not hold it — so the administrator who turns registration on, prints the QR and puts it on the wall got no nav item and no screen. Reading the queue is now `patient.record.view`; approving and rejecting stay `patient.record.create` and their buttons simply do not render without it. The lesson is the ordinary one: the person who *configures* a feature and the person who *works* it are often not the same, and gating the whole screen on the working permission hides it from the configurer.
+**A permission bug caught in review, not by a test.** The queue was gated on `patient.record.create` end to end. `org_admin` does not hold it — so the administrator who turns registration on, prints the QR and puts it on the wall got no nav item and no screen. Reading the queue is now `patient.record.view`; approving and rejecting stay `patient.record.create` and their buttons simply do not render without it. The lesson is the ordinary one: the person who _configures_ a feature and the person who _works_ it are often not the same, and gating the whole screen on the working permission hides it from the configurer.
 
 **Also:** `Textarea` added to `@hms/ui` (there was no multi-line field), and `packages/client/tsconfig.json` gained the `jsx`/`DOM` settings it always needed — `npm run typecheck` had been failing there since the package was created.
 
@@ -510,19 +534,19 @@ The screen is emphatic about one thing: nothing is added to the patient list aut
 
 **Every table's heading was misaligned with its own column.** Reported against Patients → Age, but it was in the shared DataTable and therefore everywhere: the `align` class landed on the sort control inside the `th` rather than on the `th`, so cells moved and headings did not. Fixed in `@hms/ui` — one change, every table.
 
-While there, the columns using `align: "right"` were audited against what right alignment is *for* — magnitudes a reader compares down a column. Money and stock counts keep it. **Age**, **Duration**, the audit **Status** code and the printed lab **Result** value move to the default left: each is a label that happens to contain a digit, and reads better next to its heading. `resources/rules.md` now states the rule so the next column does not have to guess.
+While there, the columns using `align: "right"` were audited against what right alignment is _for_ — magnitudes a reader compares down a column. Money and stock counts keep it. **Age**, **Duration**, the audit **Status** code and the printed lab **Result** value move to the default left: each is a label that happens to contain a digit, and reads better next to its heading. `resources/rules.md` now states the rule so the next column does not have to guess.
 
-**Two nav items lit up at once.** `/patients/registrations` is a prefix match for both *Patients* and *Registration requests*, and the active test was a plain `startsWith`. `activeNavHref` in `lib/nav.ts` now picks the **longest** matching href, so the specific destination wins while `/patients/{id}` — which has no item of its own — still highlights *Patients*. Sidebar, bottom bar and drawer all derive from it.
+**Two nav items lit up at once.** `/patients/registrations` is a prefix match for both _Patients_ and _Registration requests_, and the active test was a plain `startsWith`. `activeNavHref` in `lib/nav.ts` now picks the **longest** matching href, so the specific destination wins while `/patients/{id}` — which has no item of its own — still highlights _Patients_. Sidebar, bottom bar and drawer all derive from it.
 
 **The QR is the hospital's colour, and the poster is a real document.** The code is drawn in the tenant's accent through `ensureContrast` from `@hms/utils`, which darkens a pale accent until it scans while keeping its hue — a QR is read by a camera off a photocopy, so a colour that looks right and does not scan is worse than no colour at all. Light modules stay pure white; narrowing the reflectance difference would buy nothing anyone would notice.
 
-The Print poster action now opens **`/print/registration-qr`**, a route under `(print)` built from the document kit, carrying the hospital's logo, name, address and accent from the same `useDocumentBrand` an invoice uses. It replaces a `window.open` with hand-written HTML that I should not have written — ADR-047 says print prints the *document*, and that popup was a printed screenshot with none of the hospital's identity on it. The route reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**, and `useRegistrationQr` is shared by the screen and the poster so a preview cannot differ from the paper.
+The Print poster action now opens **`/print/registration-qr`**, a route under `(print)` built from the document kit, carrying the hospital's logo, name, address and accent from the same `useDocumentBrand` an invoice uses. It replaces a `window.open` with hand-written HTML that I should not have written — ADR-047 says print prints the _document_, and that popup was a printed screenshot with none of the hospital's identity on it. The route reads the registration settings itself under `platform.organization.manage`, so **no token travels in the URL**, and `useRegistrationQr` is shared by the screen and the poster so a preview cannot differ from the paper.
 
 **Testing status:** typecheck and build clean (`/print/registration-qr` present); 31 `@hms/utils` tests (11 new), 68 `@hms/ui`, 119 backend. 12 new manual cases in `testcases.md` (QR-27…QR-32, TBL-01…TBL-04, NAV-01…NAV-03).
 
 ## 2026-08-16 — The dashboard setup reminder is dismissible
 
-**What:** A close control on *Finish setting up your hospital*. The card already removed itself once setup was complete; what was missing was a way to say "not now" — and a nudge that cannot be dismissed stops being a nudge and becomes furniture.
+**What:** A close control on _Finish setting up your hospital_. The card already removed itself once setup was complete; what was missing was a way to say "not now" — and a nudge that cannot be dismissed stops being a nudge and becomes furniture.
 
 Three decisions worth recording:
 
@@ -530,7 +554,7 @@ Three decisions worth recording:
 - **`localStorage`, not the database.** This is a view preference on one device that changes nothing anyone else can see — the same reasoning the theme preference already uses. It does not deserve a column, a migration, or a call on every dashboard load.
 - **`useSyncExternalStore`, not an effect.** Storage is genuinely an external store: reading it this way keeps the server render honest (it has none, and says so) rather than papering over a hydration mismatch, and it means dismissing in one tab hides the card in another — which is what someone with the dashboard open twice expects.
 
-Dismissing hides the *reminder*, never the work: the full checklist stays under Hospital configuration, which is in the sidebar, and the close control's tooltip says so. An in-memory fallback covers a browser with storage disabled, so the click always does something visible — swallowing it silently would be worse than not offering the button.
+Dismissing hides the _reminder_, never the work: the full checklist stays under Hospital configuration, which is in the sidebar, and the close control's tooltip says so. An in-memory fallback covers a browser with storage disabled, so the click always does something visible — swallowing it silently would be worse than not offering the button.
 
 **Testing status:** typecheck, lint and build clean. Six manual cases added (`SETUP-D1`…`SETUP-D6`), including the per-user and cross-tab behaviour. Not verified in a running browser — the card needs an authenticated org_admin session, and I do not sign in on the user's behalf.
 
@@ -548,7 +572,7 @@ Two pairs **swap**, which is the part that matters: a sequential find-and-replac
 
 **A port belongs to the application, not to the environment.** It is pinned in that workspace's `dev` **and** `start` scripts, mirrored in `.claude/launch.json`, and matched by the Nginx upstreams in `deploy/`. Changing one without the others gives a preview tool that watches the wrong port, or an Nginx that proxies to nothing. All four now move together, and `README.md` and `domains.md` say so.
 
-**The bug this would have caused if only `launch.json` had changed:** `hms_frontend/lib/origins.ts` defaults `ADMIN_ORIGIN` to `:3002` and `PATIENT_ORIGIN` to `:3003` — exactly the two that swapped. The Portal would have accepted a support-session handover from the *patient* app's origin and printed QR posters pointing at the *admin* console. `aiportal/lib/links.ts` had the same shape for portal and marketing.
+**The bug this would have caused if only `launch.json` had changed:** `hms_frontend/lib/origins.ts` defaults `ADMIN_ORIGIN` to `:3002` and `PATIENT_ORIGIN` to `:3003` — exactly the two that swapped. The Portal would have accepted a support-session handover from the _patient_ app's origin and printed QR posters pointing at the _admin_ console. `aiportal/lib/links.ts` had the same shape for portal and marketing.
 
 26 files updated mechanically, then hand-tidied where the swap left tables out of numeric order.
 
@@ -567,7 +591,7 @@ Two pairs **swap**, which is the part that matters: a sequential find-and-replac
 
 Both use the existing `updatePatient` / `updateUser` endpoints, so the server re-checks permission regardless of what the row rendered, and both changes are audited like any other update.
 
-**A correction to my own audit.** I first reported that `appointments` and `pharmacy/stock` had *no row actions at all*. That was wrong — I had grepped for `TableAction ` with a trailing space and missed every generic action. They have Check in / Cancel and Receive stock respectively. The real gaps were the two above, plus edit-in-place for `branches` and `departments`, which is still open because it needs a `Dialog` primitive `@hms/ui` does not yet have.
+**A correction to my own audit.** I first reported that `appointments` and `pharmacy/stock` had _no row actions at all_. That was wrong — I had grepped for `TableAction ` with a trailing space and missed every generic action. They have Check in / Cancel and Receive stock respectively. The real gaps were the two above, plus edit-in-place for `branches` and `departments`, which is still open because it needs a `Dialog` primitive `@hms/ui` does not yet have.
 
 **Testing status:** typecheck and build clean across all six workspaces. The two lint warnings on these files are the pre-existing repo-wide `set-state-in-effect` on data-loading effects, already recorded in `BACKLOG.md`.
 
@@ -700,6 +724,7 @@ New copy written for issues #10 and #12 was authored to the same rule, so the pa
 ## 2026-08-18 — Predefined catalogue pickers + patient immunisations (ADR-072, issue #13)
 
 Hospital Admins now pick standardised items instead of re-typing them, while keeping full custom freedom.
+
 - **`components/catalog/CatalogPicker`** — one reusable, searchable picker over `GET /catalog/:category`, tagging each item System or **Custom**, with a `CatalogPickerButton` ("Choose from catalogue") that opens it in the shared `Dialog`.
 - **Retrofitted the four setup screens**: the lab-test master, drug master, services catalogue, and departments each gained "Start from a standard … / Choose from catalogue", which pre-fills the standardised fields (name, code, sample/form/strength/unit, specialty). **Price, tax and stock always stay the hospital's own** and are never seeded. Adopting a lab test / drug / service records its `catalogCode`; "add custom" is the unchanged free-text flow.
 - **Immunisations** (new): `components/patients/ImmunizationsCard` on the patient record lists a patient's vaccinations and records a new one by picking from the predefined India schedule (17 vaccines) — or adding a hospital-specific **custom vaccine** inline — then a date, dose and notes. Permission-gated (`clinical.immunization.view` / `.manage`).
@@ -767,8 +792,8 @@ a tenant without the module gets no panel at all (the capabilities probe is deli
 explanation until the hospital has both a facility id and a QR payload. Test mode says so on screen,
 including the fixed OTP, so nobody mistakes a mock profile for a real ABHA.
 
-**A returning patient is presented as one.** An exact ABHA match is badged *Already registered here*
-with a link to the existing chart; a demographic look-alike is shown as *similar charts to check* —
+**A returning patient is presented as one.** An exact ABHA match is badged _Already registered here_
+with a link to the existing chart; a demographic look-alike is shown as _similar charts to check_ —
 never merged automatically, because two people share a name, a gender and a birth year.
 
 **New screen:** Hospital configuration → **ABDM / ABHA** (`app/(app)/hospital-setup/abdm/page.tsx`),
@@ -791,7 +816,7 @@ the browser walk-through is `docs/manual-testing-guide.md` §5.1a and `testcases
 
 **What:** the Nirogix Portal's `.env.example` and its gitignored `.env` now hold the same keys in the same
 order, every one live and uncommented, so copying the example gives a boot-ready file where only
-values change (CLAUDE.md → *Environment files*).
+values change (CLAUDE.md → _Environment files_).
 
 **Changed:** `.env.example` now lists every `NEXT_PUBLIC_*` the app actually reads, all uncommented,
 with 1–2 line comments — including `NEXT_PUBLIC_DEV_LOGIN_PASSWORD`, which `lib/devUsers.ts` reads
@@ -1098,9 +1123,9 @@ session and were not visually verified here. Cases FEE-01…FEE-17 and OVR-01…
 
 - **`/opd/arrivals`** — patients who have said they are here. A matched arrival shows the
   appointment it belongs to and checks in with one click; an **unmatched** one stays on the board
-  marked *Needs a human*, with no check-in action and a pointer to the search screen. Dropping it
+  marked _Needs a human_, with no check-in action and a pointer to the search screen. Dropping it
   would be hiding a person standing in the lobby because a lookup failed.
-  *Already checked in* appears where a colleague beat the kiosk to it, turning a confusing double
+  _Already checked in_ appears where a colleague beat the kiosk to it, turning a confusing double
   entry into an obvious dismissal.
 - **Hospital configuration → Self check-in**, and a printable poster, both built as configurations
   of the same `PublicAccessPanel` / `PublicQrPoster` / `usePublicQr` the registration and booking
@@ -1179,7 +1204,7 @@ are stored on every visit and case that uses them and are matched by the fee sch
 "Corporate," with a trailing comma has to be impossible to create rather than merely discouraged.
 
 `CasePicker` asks for the case type **once, when the case is opened**, and then shows it on the
-chosen case: *"This is a Corporate case, and that is what prices this visit."* The desk sees why
+chosen case: _"This is a Corporate case, and that is what prices this visit."_ The desk sees why
 the number is what it is instead of wondering.
 
 **Testing status:** monorepo typecheck 13/13; **944 tests pass**. Not visually verified — the
@@ -1219,7 +1244,7 @@ schedule decides), a user with no roles is **None**. Empty `<option>` labels bec
 `departmentName` from a real left join; the dataset had simply never named a department for a
 seeded service, so every row was genuinely unassigned. Fixed where it was broken — the dataset now
 names a department per service and a backfill fills existing rows (ADR-122) — after which the
-column reads *General Medicine*, *Cardiology*, *Orthopaedics*, and **Not assigned** on the one
+column reads _General Medicine_, _Cardiology_, _Orthopaedics_, and **Not assigned** on the one
 service deliberately left unfiled.
 
 The accessor now carries the same words as the cell, so the Department filter offers "Not assigned"
@@ -1227,7 +1252,7 @@ as a value and a search finds those rows. Two dashboard tiles that showed `—` 
 arrived now show `0`, which is what a count of nothing is.
 
 **Three settings tabs became one: `/hospital-setup/public-access` — "Patient self-service"**
-(ADR-124). *Patient registration*, *Online booking* and *Self check-in* rendered the same
+(ADR-124). _Patient registration_, _Online booking_ and _Self check-in_ rendered the same
 `PublicAccessPanel` with different words, and an administrator could not tell from the screen which
 one they were on. They are now three sections of one page, under an explainer that states the thing
 everyone gets wrong once: none of the three writes to the hospital's records. **Nothing behind the
@@ -1251,7 +1276,7 @@ Portal: desktop `20px` on all four sides, mobile `20px / 20px / 88px / 20px` —
 68 of bar clearance.
 
 **Missing action buttons were the role, not the UI** (ADR-125). An Organization Admin saw one eye
-icon in the Patients Actions column and no *New appointment* button, because `org_admin` held
+icon in the Patients Actions column and no _New appointment_ button, because `org_admin` held
 `patient.record.view` and `appointment.booking.view` and nothing else. The role now covers every
 action inside its own hospital. **No frontend change was needed** — every button and row action was
 already gated on a permission key rather than on a role, so widening the role revealed them. That
@@ -1272,25 +1297,25 @@ Measured after: document height equals shell height exactly.
 it. This matters now that an administrator holds nearly every key (ADR-125): typing
 `/pharmacy/stock` in a hospital with no Pharmacy module would otherwise have rendered the screen
 and let it fail against the API. A permission the registry does not claim is Platform Core and is
-never module-gated, and an entitlement set that has not loaded yet is *not* read as "this hospital
+never module-gated, and an entitlement set that has not loaded yet is _not_ read as "this hospital
 has nothing".
 
 **The `Forbidden` panel now answers the three questions a bare 403 cannot** — which permission (in
-words *and* as a key), which of this hospital's roles hold it (read from the tenant's own tables,
+words _and_ as a key), which of this hospital's roles hold it (read from the tenant's own tables,
 so a custom role appears without being hard-coded), and whether the hospital even has the module.
 The module case gets its own headline and no role list, because "your hospital has not enabled
 this" is not something an administrator can grant their way past.
 
 Verified in the running Portal: the two pages the report named — `/patients/new` and
-`/opd/check-in` — render for an Organization Admin; a hospital without Pharmacy sees *This feature
-is not available for your hospital*; a receptionist opening `/audit` sees *View the audit log ·
-`audit.log.view`* with *Super Admin, Organization Admin* listed as the roles that hold it.
+`/opd/check-in` — render for an Organization Admin; a hospital without Pharmacy sees _This feature
+is not available for your hospital_; a receptionist opening `/audit` sees _View the audit log ·
+`audit.log.view`_ with _Super Admin, Organization Admin_ listed as the roles that hold it.
 
 ## 2026-09-02 — The patient chart in the order staff read it (ADR-127)
 
 **The old page made people hunt.** Name and UHID sat in the header; below them a two-column grid of
-*Identity / Contact / Emergency contact / Portal access*. Age appeared nowhere, blood group was the
-third row of a card called "Identity", *Patient portal access* — a desk task — shared the top tier
+_Identity / Contact / Emergency contact / Portal access_. Age appeared nowhere, blood group was the
+third row of a card called "Identity", _Patient portal access_ — a desk task — shared the top tier
 with a phone number, and visits and consultations came last, below immunisations.
 
 **Five tiers now, ordered by what somebody reaches for:**
@@ -1328,7 +1353,7 @@ desktop and at 375px.
 
 ## 2026-09-02 — One place for a page's primary action (ADR-128)
 
-*Book appointment* and *Check in* sat top-right in the page header. *Register patient* sat one row
+_Book appointment_ and _Check in_ sat top-right in the page header. _Register patient_ sat one row
 lower, inside the table's filter toolbar beside **Columns** — one screen out of twenty-one, and the
 one a receptionist opens most. It now matches every other list.
 
@@ -1339,16 +1364,16 @@ is an available way to be inconsistent. It is **deleted**, along with the `actio
 create button has nowhere else to go. A rule you cannot break beats one you have to remember.
 
 Written down with it: supporting actions first and the primary **last** (right-most) — `ghost` for
-navigating away, `secondary` for a side task like *Print / PDF*, the default variant for the action
+navigating away, `secondary` for a side task like _Print / PDF_, the default variant for the action
 the page exists for. That is what every multi-action header already did.
 
 **Testing status:** 107 `@hms/ui` component tests pass unchanged; frontend typecheck clean.
-Verified in the running Portal — *Register patient* now sits level with the page title, and the
+Verified in the running Portal — _Register patient_ now sits level with the page title, and the
 filter row holds only search, filters and Columns.
 
 ## 2026-09-02 — The desk could not read the workflow that draws its own form (ADR-129)
 
-A receptionist opening **Book appointment** got *Not permitted*, beside a form that then worked.
+A receptionist opening **Book appointment** got _Not permitted_, beside a form that then worked.
 `GET /workflow-config` requires `platform.workflow.view`, which the receptionist did not hold — and
 the workflow configuration is what that form is built from (ADR-113): where vitals are taken decides
 whether the vitals fields render, when the fee is due decides whether payment gates the
@@ -1360,7 +1385,7 @@ and the fee schedule — and only the last belongs to an administrator.
 
 **`platform.workflow.view` now goes to receptionist, doctor, branch_admin and cashier** as well as
 the administrator; not to the pharmacist or lab technician, who reach none of those screens. The
-split that matters is untouched: *view* is reading how the hospital runs, **`platform.workflow.manage`
+split that matters is untouched: _view_ is reading how the hospital runs, **`platform.workflow.manage`
 is deciding it**, and only the administrator holds the second. Widening the route to any
 authenticated session was the alternative and was rejected — it would leave the permission enforced
 by nothing, and a page guard on a key no endpoint checks is a boundary in name only.
@@ -1384,7 +1409,7 @@ number, ABHA address, gender and date of birth, and the `select-account` after i
 `prefill: { gender: null }`. `enrolment/aadhaar/verify` returned the whole demographic record —
 name, gender, DOB, phone, address, city, state, pincode, ABHA number — and the
 `enrolment/mobile/verify` after it returned `prefill: { gender: null }`. The desk watched a filled
-card become *Unnamed · Not specified · DOB unknown · no phone*, above a blank form.
+card become _Unnamed · Not specified · DOB unknown · no phone_, above a blank form.
 
 `completeWithProfile` treated **the newest response as the whole profile**. A verification is
 several calls answering different amounts — Aadhaar returns everything, the mobile OTP after it
@@ -1423,21 +1448,23 @@ birth, phone, full address, ABHA number.
 **The form stayed empty.** The panel saw `requiresMobileVerification: true` and `return`ed into the
 mobile-OTP step without handing the profile up. Every field the desk needed was on the screen above
 an empty form, held behind another OTP. It now calls `onVerified(res)` first: a further step that
-confirms *a phone number* is not permission to withhold the other ten fields, and an operator whose
+confirms _a phone number_ is not permission to withhold the other ten fields, and an operator whose
 second OTP never arrives is left holding a complete, editable form instead of a blank one.
 
 **"User not found" appeared under the Verify button** on a step that had just succeeded, because
 the mobile-OTP request shared the verification's `try`. It has its own now, and its own message —
-*"The details below are verified and filled in. Confirming the mobile number failed: …"*.
+_"The details below are verified and filled in. Confirming the mobile number failed: …"_.
 
 **A second OTP went to the phone that had just received the first.** The gateway adapter read the
 flag as `Boolean(pick(...) ?? undefined)`, which cannot produce `undefined`, so ABDM omitting
-`mobileMatchesAadhaar` — which it usually does — was recorded as *does not match*, and
+`mobileMatchesAadhaar` — which it usually does — was recorded as _does not match_, and
 `Boolean(input.mobile) && matches === false` then demanded a second OTP whenever a mobile was typed
 at all. The adapter now keeps the flag tri-state, and the service decides from the **numbers**:
 
 ```ts
-Boolean(requestedMobile) && requestedMobile !== mobileOnRecord && result.mobileMatchesAadhaar !== true
+Boolean(requestedMobile) &&
+  requestedMobile !== mobileOnRecord &&
+  result.mobileMatchesAadhaar !== true;
 ```
 
 If the desk asked for the mobile ABDM already holds there is nothing to prove; where they differ,
@@ -1458,7 +1485,7 @@ local backend is `ABDM_PROVIDER=gateway` and a real run needs a real Aadhaar and
 
 Reported as "staging has no data". It was not volume. Three screens were empty, each for its own
 reason, and the same three were empty on a developer machine seeded last week — the reporter's own
-dashboard showed *In the queue now 0 · Seen today 0* above six weeks of history.
+dashboard showed _In the queue now 0 · Seen today 0_ above six weeks of history.
 
 **The OPD queue, "in the queue now" and "seen today" are relative to the day the seeder ran.**
 `seedTodayQueue` builds its ten live visits at `dayOffset(0, …)`, and the clinical story runs once
@@ -1466,7 +1493,7 @@ per tenant (ADR-122), so it never rebuilt. Staging is seeded on deployment and t
 next morning the board was blank until somebody reset the environment.
 
 It is now **extracted from the story and run on every seed**, guarded on the only question that
-matters — *does this hospital already have a visit dated today?* Nothing else. Re-running is free,
+matters — _does this hospital already have a visit dated today?_ Nothing else. Re-running is free,
 a queue somebody is working through is untouched, and a QA environment has a live board every
 morning rather than on the morning it was deployed. The story writes a past and a past is written
 once; the board is the present, and the present moves.
@@ -1499,13 +1526,13 @@ Reported as "the Save button has an issue". It had several, and they were all th
 different places: the page was built as a form and a consultation is a record.
 
 **The vitals configuration was never fetched.** `workflow` was declared, read in three places, and
-never assigned — so every hospital saw *This hospital has not configured any vitals to record*,
+never assigned — so every hospital saw _This hospital has not configured any vitals to record_,
 whatever it had configured. The doctor holds `platform.workflow.view` precisely so this screen can
 read it (ADR-129); nothing was reading it. One `api.getWorkflowConfig()`.
 
 **Save scrolled out of reach.** The primary action belongs in the `PageHeader` (ADR-128) and it
 still does — but this page's work runs several screens below it. `PageHeader` gains `sticky`, and
-beside Save the header now **states what it knows**: *Unsaved changes* or *All changes saved*,
+beside Save the header now **states what it knows**: _Unsaved changes_ or _All changes saved_,
 computed by comparing the form against the server's last answer rather than a dirty flag, so
 typing something and undoing it correctly reports saved. `beforeunload` covers reload and tab
 close. An in-app navigation guard is **not** done; the header saying so is what covers it.
@@ -1532,7 +1559,7 @@ a hint made its neighbours taller than themselves — which is what the screensh
 `items-start` plus a label per field fixes it; `[&>*]:min-w-0` stops one long dictated line
 scrolling the page sideways (ADR-127).
 
-**Add moved to the card footer.** *Add medicine* and *Add test* sit at the end of the list they
+**Add moved to the card footer.** _Add medicine_ and _Add test_ sit at the end of the list they
 extend, not above a row the doctor has not finished, and the footer states how many blank rows will
 not be saved rather than dropping them silently.
 
@@ -1570,18 +1597,18 @@ therefore around twenty HFR fields at once.
 **Two were more than a swap.**
 
 - **The permission-override picker** listed ~200 raw keys with no search. It is now grouped by
-  module, labelled with what the permission *means*, and searchable on the key as well — an
+  module, labelled with what the permission _means_, and searchable on the key as well — an
   administrator looking for "who can take money" does not know it is `billing.payment.collect`.
 - **`RegistryMasterSelect`** kept all three behaviours it exists for and stated them better: a
-  saved code whose list has not arrived leads the options with *"Saved earlier; the registry list
-  is still loading"* instead of disappearing behind a placeholder, and a registry that **failed**
+  saved code whose list has not arrived leads the options with _"Saved earlier; the registry list
+  is still loading"_ instead of disappearing behind a placeholder, and a registry that **failed**
   now reads differently from one that returned **nothing** and from a search matching nothing.
 
 **Three vocabularies moved to `@hms/utils`.** Gender had been written out four times in four orders
 with four different words for the empty answer; blood group twice; record status once as raw
-column values (*active* / *archived*) shown to a person. The patient portal keeps its own wording
-for the blank gender — *Prefer not to say* is right on a form a patient fills in themselves, where
-*Not specified* is right at a hospital counter — because that is the placeholder, not the list.
+column values (_active_ / _archived_) shown to a person. The patient portal keeps its own wording
+for the blank gender — _Prefer not to say_ is right on a form a patient fills in themselves, where
+_Not specified_ is right at a hospital counter — because that is the placeholder, not the list.
 
 **A flourish was reverted during verification.** The shared blood-group list briefly used a
 typographic minus (`AB−`) against the stored `AB-`. Every other surface renders the stored value,
@@ -1592,4 +1619,64 @@ so the picker would have spelled it differently from the chart beside it.
 on `/patients/new`, `/providers`, `/services`, `/departments`, `/users`, `/referrals`,
 `/laboratory`, `/pharmacy` and the patient chart. The decisive check was the wire, not the markup —
 registering a patient sent `{"bloodGroup":"AB-","gender":"female"}`, and reopening that record
-mapped the stored codes back to *AB-* and *Female*. The test patient was archived afterwards.
+mapped the stored codes back to _AB-_ and _Female_. The test patient was archived afterwards.
+
+## 2026-09-03 — Import from a spreadsheet, sign without printing, and lists that lead with the work
+
+Portal side of ADR-136, ADR-137 and ADR-138.
+
+**The sort control now does something.** Appointments and Billing are server-mode tables that
+offered sorting and dropped the parameter: the arrow moved, the URL changed, the rows did not.
+`api.sortParam()` turns the DataTable's sort state into the `key:dir` string both ends already
+use, and the two pages send it.
+
+**`components/import/BulkImportDialog.tsx` is the whole import experience**, for every module.
+Four steps in the order somebody needs them: download a sample CSV with real columns and two real
+rows; choose the file; **check the columns** — shown always, not only on failure, because a person
+needs to see that `MRP` went to _Selling price_ before trusting the import; then the counts, the
+duplicate strategy, and only the rows that need a decision. A table of 500 correct rows is not a
+preview, it is the file they already have.
+
+Wired into six pages — drug master, test master, services, doctors, departments, patients — as an
+**Import** action in the `PageHeader` _before_ the page's primary action (ADR-128), gated by the
+same permission as creating one record. Six lines of page code; the behaviour is identical
+everywhere because it is written once.
+
+**`components/profile/SignatureCard.tsx`** lets a person manage their own signature, and is
+careful about three things that would otherwise mislead: it says on the card that this is an
+image and not a certified cryptographic signature; it says that replacing does not change a
+document already signed, at the moment somebody is deciding; and its remove dialog says "new
+documents will print a blank line" rather than implying a purge. Earlier versions are listed, not
+hidden — they are what past documents still show.
+
+The prescription document renders the signature the encounter **pinned**, with the signing date
+under the name. An unsigned one, or a clinician who has uploaded none, prints a blank line exactly
+as before.
+
+**Testing status:** typecheck 13/13, build 8/8, lint 0 errors. Verified against the running Portal
+end to end: a CSV using another system's headers (`Drug Name` / `SKU` / `MRP`) auto-mapped, a bad
+price and an in-file duplicate reported with the row numbers Excel shows, two rows imported with a
+counted toast, and a re-import with **update** raising the price without creating a second row.
+
+---
+
+## The ABHA panel's OTP route and resend button (ADR-139) · 03/09/2026
+
+Two controls added to `components/abdm/AbhaVerificationPanel.tsx`, both because an NHA certification
+case asks for something a screen has to show.
+
+**Send the OTP to.** An ABHA number and an ABHA address can each be verified by an Aadhaar OTP or by
+the ABHA-linked mobile, and NHA makes all four combinations mandatory (`VRFY_ABHA_101`, `_102`,
+`_201`, `_202`). The control appears only for those two identifiers — a mobile number and an Aadhaar
+number have one sensible route each and get no control rather than a control with one option.
+
+**Resend OTP.** `CRT_ABHA_106`, `VRFY_ABHA_305` and `_405` all say _"System may activate the Resend
+OTP button maximum 2 times after 60 seconds"_. The endpoint had existed since ADR-084 and **nothing
+in the Portal called it**, so the case was satisfied by a service and by no screen. `ResendOtpButton`
+sits beside Verify on the Aadhaar creation step, the secondary-mobile step and every verification
+route, counts down from sixty, allows two, and then says to start again. Each flow passes what it
+must re-supply — the transaction stores a masked hint and nothing else, so there is no identifier
+there to resend to.
+
+Verified in the running Portal against the live API: the route control shows both options for ABHA
+number and ABHA address and is absent for Mobile number; no new console errors and every ABDM request 200.

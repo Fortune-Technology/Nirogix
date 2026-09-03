@@ -12,7 +12,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the OPD module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the OPD module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 
 registry.registerPath({
@@ -30,7 +33,11 @@ registry.registerPath({
       status: z.string().optional(),
     }),
   },
-  responses: { 200: { description: 'Visits (queue)', ...json(VisitListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Visits (queue)', ...json(VisitListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -61,7 +68,10 @@ registry.registerPath({
     201: { description: 'Checked-in visit', ...json(VisitSchema) },
     401: notAuthed,
     403: forbidden,
-    404: { description: 'Patient / provider / appointment not found', ...json(ErrorResponseSchema) },
+    404: {
+      description: 'Patient / provider / appointment not found',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
@@ -79,7 +89,10 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Invalid status transition / version conflict', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Invalid status transition / version conflict',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
@@ -105,7 +118,11 @@ registry.registerPath({
       status: z.enum(['open', 'closed']).optional(),
     }),
   },
-  responses: { 200: { description: 'Cases', ...json(CaseListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Cases', ...json(CaseListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -177,7 +194,10 @@ registry.registerPath({
     200: { description: 'Closed', ...json(CaseSchema) },
     401: notAuthed,
     403: notEntitled,
-    409: { description: 'Already closed, a live visit remains, or changed elsewhere', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Already closed, a live visit remains, or changed elsewhere',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 

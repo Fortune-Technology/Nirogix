@@ -9,7 +9,11 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Alert({ tone = 'neutral', className, children, ...rest }: AlertProps) {
   return (
-    <div role="alert" className={cn('hms-alert', tone !== 'neutral' && `hms-alert--${tone}`, className)} {...rest}>
+    <div
+      role="alert"
+      className={cn('hms-alert', tone !== 'neutral' && `hms-alert--${tone}`, className)}
+      {...rest}
+    >
       {children}
     </div>
   );

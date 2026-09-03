@@ -32,14 +32,14 @@ hospital never contains a System Super Admin.
 ## ⭐ Tier 0 — Platform Super-Admins — start here
 
 The Nirogix operator accounts that onboard new hospitals and operate **across all tenants**. They
-live in their **own `NIROGIX` org** — *not* inside any hospital — and hold no clinical data. There
+live in their **own `NIROGIX` org** — _not_ inside any hospital — and hold no clinical data. There
 are **two** (so the platform is never down to a single operator account):
 
-| Field | Value |
-|---|---|
-| Organization code | `NIROGIX` |
-| Emails | `jaivik@thefortunetech.com` · `nishant@thefortunetech.com` |
-| Password | `ChangeMe#123` (dev/staging default) |
+| Field             | Value                                                      |
+| ----------------- | ---------------------------------------------------------- |
+| Organization code | `NIROGIX`                                                  |
+| Emails            | `jaivik@thefortunetech.com` · `nishant@thefortunetech.com` |
+| Password          | `ChangeMe#123` (dev/staging default)                       |
 
 Signed in you get the **Tenants** menu (nobody else does). From there you can:
 
@@ -65,19 +65,19 @@ Each hospital's top role is **Org Admin** (there is no super-admin inside a hosp
 Kothrud (Main), Baner, Hadapsar (**inactive**). Departments: General Medicine, Cardiology,
 Orthopaedics, Paediatrics, Dermatology, ENT, Psychiatry (**inactive**).
 
-| Role | Email | Name | Portal menu visible |
-|---|---|---|---|
-| org_admin | `admin@citycare.example` | Dr. Ananya Sharma | Dashboard · Providers · Users · Branches · Audit · Settings (**+ edit Branding**) |
-| branch_admin | `branchadmin@citycare.example` | Suresh Iyer | Dashboard · Users · Branches · Settings |
-| doctor | `doctor@citycare.example` | Dr. Rajesh Gupta | Dashboard · Providers · Settings |
-| doctor | `doctor2@citycare.example` | Dr. Neelam Kulkarni | (paediatrics — a second doctor to filter by) |
-| doctor | `doctor3@citycare.example` | Dr. Faisal Ahmed | (orthopaedics) |
-| receptionist | `reception@citycare.example` | Rahul Verma | Dashboard · Settings |
-| receptionist | `reception2@citycare.example` | Snehal Jadhav | (a second desk account) |
-| pharmacist | `pharmacist@citycare.example` | Meena Nair | Dashboard · Settings |
-| lab_technician | `lab@citycare.example` | Karthik Menon | Dashboard · Settings |
-| cashier | `cashier@citycare.example` | Pooja Deshmukh | Dashboard · Settings |
-| receptionist (**disabled**) | `former.staff@citycare.example` | Vikas Bhosale | Cannot sign in — the inactive side of the Users filter |
+| Role                        | Email                           | Name                | Portal menu visible                                                               |
+| --------------------------- | ------------------------------- | ------------------- | --------------------------------------------------------------------------------- |
+| org_admin                   | `admin@citycare.example`        | Dr. Ananya Sharma   | Dashboard · Providers · Users · Branches · Audit · Settings (**+ edit Branding**) |
+| branch_admin                | `branchadmin@citycare.example`  | Suresh Iyer         | Dashboard · Users · Branches · Settings                                           |
+| doctor                      | `doctor@citycare.example`       | Dr. Rajesh Gupta    | Dashboard · Providers · Settings                                                  |
+| doctor                      | `doctor2@citycare.example`      | Dr. Neelam Kulkarni | (paediatrics — a second doctor to filter by)                                      |
+| doctor                      | `doctor3@citycare.example`      | Dr. Faisal Ahmed    | (orthopaedics)                                                                    |
+| receptionist                | `reception@citycare.example`    | Rahul Verma         | Dashboard · Settings                                                              |
+| receptionist                | `reception2@citycare.example`   | Snehal Jadhav       | (a second desk account)                                                           |
+| pharmacist                  | `pharmacist@citycare.example`   | Meena Nair          | Dashboard · Settings                                                              |
+| lab_technician              | `lab@citycare.example`          | Karthik Menon       | Dashboard · Settings                                                              |
+| cashier                     | `cashier@citycare.example`      | Pooja Deshmukh      | Dashboard · Settings                                                              |
+| receptionist (**disabled**) | `former.staff@citycare.example` | Vikas Bhosale       | Cannot sign in — the inactive side of the Users filter                            |
 
 Also seeded here: a doctor with **no roster** (Dr. Shalini Rao — free-form booking) and an
 **inactive** doctor (Dr. Mohan Kelkar), a time-bound **GRANT** override on the receptionist and a
@@ -88,29 +88,29 @@ Also seeded here: a doctor with **no roster** (Dr. Shalini Rao — free-form boo
 **The second tenant — use it for isolation checks and to prove nothing is hard-coded to CityCare.**
 Branches: Satellite (Main), Maninagar. Online booking is **off** here, self-registration **on**.
 
-| Role | Email | Name | Portal menu visible |
-|---|---|---|---|
-| org_admin | `admin@sunrise.example` | Dr. Priya Patel | Dashboard · Providers · Users · Branches · Audit · Settings (**+ edit Branding**) |
-| branch_admin | `branchadmin@sunrise.example` | Amit Shah | Dashboard · Users · Branches · Settings |
-| doctor | `doctor@sunrise.example` | Dr. Sanjay Desai | Dashboard · Providers · Settings |
-| doctor | `doctor2@sunrise.example` | Dr. Hetal Bhatt | (gynaecology) |
-| receptionist | `reception@sunrise.example` | Neha Joshi | Dashboard · Settings |
-| pharmacist | `pharmacist@sunrise.example` | Kiran Modi | Dashboard · Settings |
-| lab_technician | `lab@sunrise.example` | Harish Trivedi | Dashboard · Settings |
-| cashier | `cashier@sunrise.example` | Divya Mehta | Dashboard · Settings |
+| Role           | Email                         | Name             | Portal menu visible                                                               |
+| -------------- | ----------------------------- | ---------------- | --------------------------------------------------------------------------------- |
+| org_admin      | `admin@sunrise.example`       | Dr. Priya Patel  | Dashboard · Providers · Users · Branches · Audit · Settings (**+ edit Branding**) |
+| branch_admin   | `branchadmin@sunrise.example` | Amit Shah        | Dashboard · Users · Branches · Settings                                           |
+| doctor         | `doctor@sunrise.example`      | Dr. Sanjay Desai | Dashboard · Providers · Settings                                                  |
+| doctor         | `doctor2@sunrise.example`     | Dr. Hetal Bhatt  | (gynaecology)                                                                     |
+| receptionist   | `reception@sunrise.example`   | Neha Joshi       | Dashboard · Settings                                                              |
+| pharmacist     | `pharmacist@sunrise.example`  | Kiran Modi       | Dashboard · Settings                                                              |
+| lab_technician | `lab@sunrise.example`         | Harish Trivedi   | Dashboard · Settings                                                              |
+| cashier        | `cashier@sunrise.example`     | Divya Mehta      | Dashboard · Settings                                                              |
 
 ## Tenant 3 — `LOTUS` (Lotus Family Clinic, Bengaluru)
 
 **Pharmacy and Laboratory are switched off.** Use it to check that a disabled module disappears from
-the navigation *and* is refused by the API — and to see the empty states (self-registration is off,
+the navigation _and_ is refused by the API — and to see the empty states (self-registration is off,
 so the Patient registrations screen has nothing in it).
 
-| Role | Email | Name |
-|---|---|---|
-| org_admin | `admin@lotus.example` | Dr. Latha Srinivas |
-| doctor | `doctor@lotus.example` | Dr. Girish Rao |
-| receptionist | `reception@lotus.example` | Deepa Krishnan |
-| cashier | `cashier@lotus.example` | Manoj Hegde |
+| Role         | Email                     | Name               |
+| ------------ | ------------------------- | ------------------ |
+| org_admin    | `admin@lotus.example`     | Dr. Latha Srinivas |
+| doctor       | `doctor@lotus.example`    | Dr. Girish Rao     |
+| receptionist | `reception@lotus.example` | Deepa Krishnan     |
+| cashier      | `cashier@lotus.example`   | Manoj Hegde        |
 
 ## Tenant 4 — `GREENLEAF` (Greenleaf Wellness Centre, Indore) — **suspended**
 
@@ -118,10 +118,10 @@ Configured and then switched off. It exists so the Admin console's tenant status
 the other side, and so a suspended hospital can be checked to render everywhere it appears. No
 clinical history.
 
-| Role | Email | Name |
-|---|---|---|
-| org_admin | `admin@greenleaf.example` | Dr. Sameera Qureshi |
-| receptionist | `reception@greenleaf.example` | Ajay Malviya |
+| Role         | Email                         | Name                |
+| ------------ | ----------------------------- | ------------------- |
+| org_admin    | `admin@greenleaf.example`     | Dr. Sameera Qureshi |
+| receptionist | `reception@greenleaf.example` | Ajay Malviya        |
 
 ---
 

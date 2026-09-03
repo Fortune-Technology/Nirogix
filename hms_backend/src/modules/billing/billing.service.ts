@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from 'drizzle-orm';
+import { parseSort, resolveSort, type SortableColumns } from '../../db/sort';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   invoices,
@@ -59,8 +60,16 @@ export async function getInvoice(tenantId: string, invoiceId: string) {
     if (!row) throw Errors.notFound('Invoice not found');
 
     const [lines, pays] = await Promise.all([
-      tx.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, invoiceId)).orderBy(invoiceLineItems.createdAt),
-      tx.select().from(payments).where(eq(payments.invoiceId, invoiceId)).orderBy(payments.collectedAt),
+      tx
+        .select()
+        .from(invoiceLineItems)
+        .where(eq(invoiceLineItems.invoiceId, invoiceId))
+        .orderBy(invoiceLineItems.createdAt),
+      tx
+        .select()
+        .from(payments)
+        .where(eq(payments.invoiceId, invoiceId))
+        .orderBy(payments.collectedAt),
     ]);
 
     const inv = row.inv;
@@ -110,11 +119,19 @@ export interface CreateInvoiceInput {
   lineItems: LineItemInput[];
 }
 
-export async function createInvoice(tenantId: string, input: CreateInvoiceInput, actorUserId?: string) {
-  if (input.lineItems.length === 0) throw Errors.validation(undefined, 'An invoice needs at least one line item');
+export async function createInvoice(
+  tenantId: string,
+  input: CreateInvoiceInput,
+  actorUserId?: string,
+) {
+  if (input.lineItems.length === 0)
+    throw Errors.validation(undefined, 'An invoice needs at least one line item');
 
   const computed = input.lineItems.map((li) => ({ li, ...computeLine(li) }));
-  const subtotalPaise = computed.reduce((s, c) => s + c.li.unitPricePaise * (c.li.quantity ?? 1), 0);
+  const subtotalPaise = computed.reduce(
+    (s, c) => s + c.li.unitPricePaise * (c.li.quantity ?? 1),
+    0,
+  );
   const taxPaise = computed.reduce((s, c) => s + c.taxPaise, 0);
   const totalPaise = subtotalPaise + taxPaise;
 
@@ -129,7 +146,10 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
     // Serialize number allocation per tenant (transaction-scoped advisory lock), then allocate a
     // tenant-monotonic invoice number — the unique-conflict retry stays as the belt-and-braces.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${tenantId}:invoice_no`}))`);
-    const existing = Number((await tx.select({ c: count() }).from(invoices).where(eq(invoices.tenantId, tenantId)))[0]?.c ?? 0);
+    const existing = Number(
+      (await tx.select({ c: count() }).from(invoices).where(eq(invoices.tenantId, tenantId)))[0]
+        ?.c ?? 0,
+    );
     let row: InvoiceRow | undefined;
     for (let i = 1; i <= 8; i++) {
       const invoiceNumber = `INV-${String(existing + i).padStart(6, '0')}`;
@@ -189,7 +209,11 @@ export async function createInvoice(tenantId: string, input: CreateInvoiceInput,
 
 // Has this clinical record already been billed (on any invoice)? Revenue modules use this to
 // keep "bill once" idempotent across their retry paths; the DB unique index is the backstop.
-export async function hasSourceLine(tenantId: string, sourceModule: string, sourceRef: string): Promise<boolean> {
+export async function hasSourceLine(
+  tenantId: string,
+  sourceModule: string,
+  sourceRef: string,
+): Promise<boolean> {
   return runWithTenant(tenantId, async (tx) => {
     const row = (
       await tx
@@ -210,12 +234,22 @@ export async function hasSourceLine(tenantId: string, sourceModule: string, sour
 
 // Billing-Core extension point (invariant #8): a revenue module (Pharmacy, Lab, …) adds a line
 // to an existing invoice and totals are recomputed from the ledger. Never reimplemented downstream.
-export async function addInvoiceLine(tenantId: string, invoiceId: string, item: LineItemInput, actorUserId?: string) {
+export async function addInvoiceLine(
+  tenantId: string,
+  invoiceId: string,
+  item: LineItemInput,
+  actorUserId?: string,
+) {
   const { taxPaise, lineTotalPaise } = computeLine(item);
   await runWithTenant(tenantId, async (tx) => {
     // Lock the invoice row: concurrent line adds would otherwise race the total recompute.
     const inv = (
-      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1).for('update')
+      await tx
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!inv) throw Errors.notFound('Invoice not found');
     if (inv.status === 'void') throw Errors.conflict('Cannot add a line to a void invoice');
@@ -288,6 +322,21 @@ export async function addInvoiceLine(tenantId: string, invoiceId: string, item: 
   return getInvoice(tenantId, invoiceId);
 }
 
+/**
+ * The sort keys the invoice list publishes (ADR-136), keyed by the Portal's column keys.
+ *
+ * `balance` is an expression rather than a column — what is owed is `total - paid`, and a
+ * cashier sorting by it is asking the most useful question the screen can answer.
+ */
+const INVOICE_SORT: SortableColumns = {
+  number: invoices.invoiceNumber,
+  patient: patients.firstName,
+  total: invoices.totalPaise,
+  balance: sql`${invoices.totalPaise} - ${invoices.amountPaidPaise}`,
+  status: invoices.status,
+  date: invoices.createdAt,
+};
+
 export interface ListInvoicesFilter {
   patientId?: string;
   status?: readonly string[];
@@ -296,6 +345,8 @@ export interface ListInvoicesFilter {
   amountTo?: number;
   page: number;
   pageSize: number;
+  /** `key:dir` pairs from the table header. Unknown keys fall back to the default order. */
+  sort?: string;
 }
 
 export async function listInvoices(tenantId: string, filter: ListInvoicesFilter) {
@@ -317,7 +368,16 @@ export async function listInvoices(tenantId: string, filter: ListInvoicesFilter)
         .from(invoices)
         .innerJoin(patients, eq(patients.id, invoices.patientId))
         .where(where)
-        .orderBy(desc(invoices.createdAt))
+        // Money still owed, first (ADR-136). A billing list exists to be worked through, and a
+        // settled invoice is a receipt — it is read on purpose, by number, not found by scrolling.
+        // `void` counts as finished whatever its arithmetic says, so a voided bill never leads the
+        // list. Within each half, newest first.
+        .orderBy(
+          ...(resolveSort(parseSort(filter.sort), INVOICE_SORT) ?? [
+            sql`case when ${invoices.status} <> 'void' and ${invoices.totalPaise} - ${invoices.amountPaidPaise} > 0 then 0 else 1 end`,
+            desc(invoices.createdAt),
+          ]),
+        )
         .limit(filter.pageSize)
         .offset((filter.page - 1) * filter.pageSize),
       tx.select({ c: count() }).from(invoices).where(where),
@@ -388,7 +448,12 @@ export async function listServices(
   });
   // Per-hospital availability (ADR-073): filter to what this branch offers, with any price override.
   if (!opts.branchId) return list;
-  const overrides = await resolveOverrides(tenantId, opts.branchId, 'service', list.map((s) => s.id));
+  const overrides = await resolveOverrides(
+    tenantId,
+    opts.branchId,
+    'service',
+    list.map((s) => s.id),
+  );
   return list
     .filter((s) => isRefAvailable(overrides, s.id))
     .map((s) => ({ ...s, pricePaise: priceFor(overrides, s.id, s.pricePaise) }));
@@ -404,7 +469,8 @@ export async function createService(tenantId: string, input: ServiceInput, actor
           .where(and(eq(departments.tenantId, tenantId), eq(departments.id, input.departmentId)))
           .limit(1)
       )[0];
-      if (!dept) throw Errors.validation(undefined, 'That department does not belong to your organization');
+      if (!dept)
+        throw Errors.validation(undefined, 'That department does not belong to your organization');
     }
     const rows = await tx
       .insert(services)
@@ -442,13 +508,26 @@ export async function updateService(
   actorUserId?: string,
 ) {
   const set: Record<string, unknown> = { updatedAt: new Date() };
-  for (const f of ['code', 'name', 'description', 'departmentId', 'pricePaise', 'taxRateBps', 'isActive'] as const) {
-    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+  for (const f of [
+    'code',
+    'name',
+    'description',
+    'departmentId',
+    'pricePaise',
+    'taxRateBps',
+    'isActive',
+  ] as const) {
+    if ((patch as Record<string, unknown>)[f] !== undefined)
+      set[f] = (patch as Record<string, unknown>)[f];
   }
   if (typeof set.code === 'string') set.code = set.code.trim().toUpperCase();
   const updated = (
     await runWithTenant(tenantId, (tx) =>
-      tx.update(services).set(set).where(and(eq(services.tenantId, tenantId), eq(services.id, serviceId))).returning(),
+      tx
+        .update(services)
+        .set(set)
+        .where(and(eq(services.tenantId, tenantId), eq(services.id, serviceId)))
+        .returning(),
     )
   )[0];
   if (!updated) throw Errors.notFound('Service not found');
@@ -473,14 +552,24 @@ export async function updateService(
 export async function addServiceLine(
   tenantId: string,
   invoiceId: string,
-  input: { serviceId?: string; quantity?: number; description?: string; unitPricePaise?: number; taxRateBps?: number },
+  input: {
+    serviceId?: string;
+    quantity?: number;
+    description?: string;
+    unitPricePaise?: number;
+    taxRateBps?: number;
+  },
   actorUserId?: string,
 ) {
   let line: LineItemInput;
   if (input.serviceId) {
     const svc = (
       await runWithTenant(tenantId, (tx) =>
-        tx.select().from(services).where(and(eq(services.tenantId, tenantId), eq(services.id, input.serviceId!))).limit(1),
+        tx
+          .select()
+          .from(services)
+          .where(and(eq(services.tenantId, tenantId), eq(services.id, input.serviceId!)))
+          .limit(1),
       )
     )[0];
     if (!svc) throw Errors.notFound('Service not found');
@@ -511,14 +600,24 @@ export interface RecordPaymentInput {
   idempotencyKey: string;
 }
 
-export async function recordPayment(tenantId: string, invoiceId: string, input: RecordPaymentInput, actorUserId?: string) {
+export async function recordPayment(
+  tenantId: string,
+  invoiceId: string,
+  input: RecordPaymentInput,
+  actorUserId?: string,
+) {
   if (input.amountPaise <= 0) throw Errors.validation(undefined, 'Payment amount must be positive');
 
   const { paymentId, deduped } = await runWithTenant(tenantId, async (tx) => {
     // Lock the invoice row: serializes concurrent collections so the balance check below cannot
     // be raced past by a second cashier (two fresh idempotency keys would otherwise overpay).
     const inv = (
-      await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1).for('update')
+      await tx
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!inv) throw Errors.notFound('Invoice not found');
     if (inv.status === 'void') throw Errors.conflict('Cannot collect against a void invoice');
@@ -529,7 +628,9 @@ export async function recordPayment(tenantId: string, invoiceId: string, input: 
       await tx
         .select({ id: payments.id })
         .from(payments)
-        .where(and(eq(payments.tenantId, tenantId), eq(payments.idempotencyKey, input.idempotencyKey)))
+        .where(
+          and(eq(payments.tenantId, tenantId), eq(payments.idempotencyKey, input.idempotencyKey)),
+        )
         .limit(1)
     )[0];
     if (priorForKey) return { paymentId: null as string | null, deduped: true };
@@ -574,7 +675,12 @@ export async function recordPayment(tenantId: string, invoiceId: string, input: 
 
     await tx
       .update(invoices)
-      .set({ amountPaidPaise, status, version: sql`${invoices.version} + 1`, updatedAt: new Date() })
+      .set({
+        amountPaidPaise,
+        status,
+        version: sql`${invoices.version} + 1`,
+        updatedAt: new Date(),
+      })
       .where(eq(invoices.id, invoiceId));
 
     return { paymentId: inserted[0].id, deduped: false };

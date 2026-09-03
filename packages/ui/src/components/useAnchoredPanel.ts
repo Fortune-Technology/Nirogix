@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 /** Room the panel wants below the anchor before it gives up and flips above it. */
 const PANEL_SPACE = 260;
@@ -26,7 +26,10 @@ export interface PanelRect {
  * While open it re-measures on scroll (capture phase, so an ancestor's scroll counts, not
  * just the window's) and on resize. Closed, it holds no listeners and no rect.
  */
-export function useAnchoredPanel<T extends HTMLElement>(anchorRef: RefObject<T | null>, open: boolean) {
+export function useAnchoredPanel<T extends HTMLElement>(
+  anchorRef: RefObject<T | null>,
+  open: boolean,
+) {
   const [rect, setRect] = useState<PanelRect | null>(null);
   // The anchor ref is read inside a stable callback; keeping it in a ref of its own means
   // `measure` never changes identity and the scroll listener is armed exactly once.
@@ -59,11 +62,11 @@ export function useAnchoredPanel<T extends HTMLElement>(anchorRef: RefObject<T |
   useEffect(() => {
     if (!open) return;
     const onScrollOrResize = () => measure();
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
     return () => {
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
     };
   }, [open, measure]);
 

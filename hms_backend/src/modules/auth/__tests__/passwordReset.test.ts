@@ -88,7 +88,9 @@ async function mintResetToken(userId: string, expiresAt?: Date): Promise<string>
 }
 
 describe('forgot-password flow (ADR-081)', () => {
-  test('a request for a real active user creates a hashed token row and audits it', async ({ skip }) => {
+  test('a request for a real active user creates a hashed token row and audits it', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await requestPasswordReset({ orgCode: CODE, email: ADMIN_EMAIL, client: 'portal' }, {});
     const rows = await runWithTenant(tenantId, (tx) =>
@@ -108,7 +110,10 @@ describe('forgot-password flow (ADR-081)', () => {
     if (!ready) return skip();
     const before = await runWithTenant(tenantId, (tx) => tx.select().from(passwordResetTokens));
     await expect(
-      requestPasswordReset({ orgCode: CODE, email: 'nobody@a2reset.example', client: 'portal' }, {}),
+      requestPasswordReset(
+        { orgCode: CODE, email: 'nobody@a2reset.example', client: 'portal' },
+        {},
+      ),
     ).resolves.toBeUndefined();
     await expect(
       requestPasswordReset({ orgCode: 'NO-SUCH-ORG', email: ADMIN_EMAIL, client: 'portal' }, {}),
@@ -117,7 +122,9 @@ describe('forgot-password flow (ADR-081)', () => {
     expect(after.length).toBe(before.length);
   });
 
-  test('a valid link sets the new password once, then dies: sessions revoked, reuse refused', async ({ skip }) => {
+  test('a valid link sets the new password once, then dies: sessions revoked, reuse refused', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // A live session that the reset must kill.
     await login({ orgCode: CODE, email: ADMIN_EMAIL, password: tempPassword }, {});
@@ -130,7 +137,9 @@ describe('forgot-password flow (ADR-081)', () => {
     await resetPassword({ token, newPassword: NEW_PASSWORD }, {});
 
     // Old password refused, new one works.
-    await expect(login({ orgCode: CODE, email: ADMIN_EMAIL, password: tempPassword }, {})).rejects.toMatchObject({
+    await expect(
+      login({ orgCode: CODE, email: ADMIN_EMAIL, password: tempPassword }, {}),
+    ).rejects.toMatchObject({
       statusCode: 401,
     });
     const result = await login({ orgCode: CODE, email: ADMIN_EMAIL, password: NEW_PASSWORD }, {});
@@ -143,7 +152,9 @@ describe('forgot-password flow (ADR-081)', () => {
     expect(revoked.filter((s) => s.revokedAt !== null).length).toBeGreaterThan(0);
 
     // Single-use: the same link again is refused with the uniform message.
-    await expect(resetPassword({ token, newPassword: 'AnotherPass#2026' }, {})).rejects.toMatchObject({
+    await expect(
+      resetPassword({ token, newPassword: 'AnotherPass#2026' }, {}),
+    ).rejects.toMatchObject({
       statusCode: 401,
     });
 
@@ -157,24 +168,32 @@ describe('forgot-password flow (ADR-081)', () => {
   test('an expired row is refused even when the JWT itself is still valid', async ({ skip }) => {
     if (!ready) return skip();
     const token = await mintResetToken(adminUserId, new Date(Date.now() - 60_000));
-    await expect(resetPassword({ token, newPassword: 'ExpiredPass#2026' }, {})).rejects.toMatchObject({
+    await expect(
+      resetPassword({ token, newPassword: 'ExpiredPass#2026' }, {}),
+    ).rejects.toMatchObject({
       statusCode: 401,
     });
   });
 
   test('garbage and non-reset tokens are refused with the uniform message', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(resetPassword({ token: 'not-a-real-token-at-all', newPassword: 'GarbagePass#2026' }, {})).rejects.toMatchObject({
+    await expect(
+      resetPassword({ token: 'not-a-real-token-at-all', newPassword: 'GarbagePass#2026' }, {}),
+    ).rejects.toMatchObject({
       statusCode: 401,
     });
   });
 
-  test('the reset path enforces the password policy, including the account holder’s own details', async ({ skip }) => {
+  test('the reset path enforces the password policy, including the account holder’s own details', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // A reset link is exactly where a weak password would otherwise slip in: the user is
     // locked out, in a hurry, and nobody is looking (ADR-082, SECURITY-AUDIT.md M-6).
     const weak = await mintResetToken(adminUserId);
-    await expect(resetPassword({ token: weak, newPassword: 'password1234' }, {})).rejects.toMatchObject({
+    await expect(
+      resetPassword({ token: weak, newPassword: 'password1234' }, {}),
+    ).rejects.toMatchObject({
       statusCode: 422,
     });
 

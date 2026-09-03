@@ -96,11 +96,19 @@ export async function updateProvider(
 ): Promise<Provider> {
   const set: Record<string, unknown> = { updatedAt: new Date() };
   const fields = [
-    'fullName', 'gender', 'registrationNumber', 'qualification', 'email', 'phone',
-    'userId', 'consultationFeePaise', 'isActive',
+    'fullName',
+    'gender',
+    'registrationNumber',
+    'qualification',
+    'email',
+    'phone',
+    'userId',
+    'consultationFeePaise',
+    'isActive',
   ] as const;
   for (const f of fields) {
-    if ((patch as Record<string, unknown>)[f] !== undefined) set[f] = (patch as Record<string, unknown>)[f];
+    if ((patch as Record<string, unknown>)[f] !== undefined)
+      set[f] = (patch as Record<string, unknown>)[f];
   }
   const updated = (
     await runWithTenant(tenantId, (tx) =>
@@ -128,7 +136,13 @@ export async function updateProvider(
 export async function assignSpecialty(
   tenantId: string,
   providerId: string,
-  data: { specialtyCode: string; branchId?: string; departmentId?: string; role?: string; isPrimary?: boolean },
+  data: {
+    specialtyCode: string;
+    branchId?: string;
+    departmentId?: string;
+    role?: string;
+    isPrimary?: boolean;
+  },
   actorUserId?: string,
 ): Promise<PractitionerRole | null> {
   if (!SPECIALTY_CODES.has(data.specialtyCode)) {
@@ -153,7 +167,8 @@ export async function assignSpecialty(
           .where(and(eq(departments.tenantId, tenantId), eq(departments.id, data.departmentId)))
           .limit(1)
       )[0];
-      if (!dept) throw Errors.validation(undefined, 'That department does not belong to your organization');
+      if (!dept)
+        throw Errors.validation(undefined, 'That department does not belong to your organization');
       if (!dept.isActive) throw Errors.validation(undefined, 'That department is no longer active');
     }
     const rows = await tx
@@ -239,12 +254,21 @@ function minutes(s: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
-export async function listSchedules(tenantId: string, providerId: string): Promise<ProviderSchedule[]> {
+export async function listSchedules(
+  tenantId: string,
+  providerId: string,
+): Promise<ProviderSchedule[]> {
   return runWithTenant(tenantId, (tx) =>
     tx
       .select()
       .from(providerSchedules)
-      .where(and(eq(providerSchedules.tenantId, tenantId), eq(providerSchedules.providerId, providerId), eq(providerSchedules.isActive, true)))
+      .where(
+        and(
+          eq(providerSchedules.tenantId, tenantId),
+          eq(providerSchedules.providerId, providerId),
+          eq(providerSchedules.isActive, true),
+        ),
+      )
       .orderBy(asc(providerSchedules.weekday), asc(providerSchedules.startTime)),
   );
 }
@@ -262,9 +286,12 @@ export async function setSchedules(
   actorUserId?: string,
 ): Promise<ProviderSchedule[]> {
   for (const w of windows) {
-    if (!Number.isInteger(w.weekday) || w.weekday < 0 || w.weekday > 6) throw Errors.validation(undefined, 'weekday must be 0–6');
-    if (!HHMM.test(w.startTime) || !HHMM.test(w.endTime)) throw Errors.validation(undefined, 'Times must be HH:mm');
-    if (minutes(w.startTime) >= minutes(w.endTime)) throw Errors.validation(undefined, 'A window must end after it starts');
+    if (!Number.isInteger(w.weekday) || w.weekday < 0 || w.weekday > 6)
+      throw Errors.validation(undefined, 'weekday must be 0–6');
+    if (!HHMM.test(w.startTime) || !HHMM.test(w.endTime))
+      throw Errors.validation(undefined, 'Times must be HH:mm');
+    if (minutes(w.startTime) >= minutes(w.endTime))
+      throw Errors.validation(undefined, 'A window must end after it starts');
   }
   for (const a of windows) {
     for (const b of windows) {
@@ -277,11 +304,19 @@ export async function setSchedules(
 
   const rows = await runWithTenant(tenantId, async (tx) => {
     const prov = (
-      await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId))).limit(1)
+      await tx
+        .select({ id: providers.id })
+        .from(providers)
+        .where(and(eq(providers.tenantId, tenantId), eq(providers.id, providerId)))
+        .limit(1)
     )[0];
     if (!prov) throw Errors.notFound('Provider not found');
 
-    await tx.delete(providerSchedules).where(and(eq(providerSchedules.tenantId, tenantId), eq(providerSchedules.providerId, providerId)));
+    await tx
+      .delete(providerSchedules)
+      .where(
+        and(eq(providerSchedules.tenantId, tenantId), eq(providerSchedules.providerId, providerId)),
+      );
     if (windows.length === 0) return [];
     return tx
       .insert(providerSchedules)
@@ -316,7 +351,8 @@ export async function setSchedules(
  * the caller falls back to free-form time entry.
  */
 export async function listFreeSlots(tenantId: string, providerId: string, date: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Errors.validation(undefined, 'date must be YYYY-MM-DD');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    throw Errors.validation(undefined, 'date must be YYYY-MM-DD');
   return runWithTenant(tenantId, async (tx) => {
     const weekday = new Date(`${date}T00:00:00`).getDay();
     const windows = await tx
@@ -331,19 +367,38 @@ export async function listFreeSlots(tenantId: string, providerId: string, date: 
         ),
       )
       .orderBy(asc(providerSchedules.startTime));
-    if (windows.length === 0) return { hasRoster: false, slots: [] as Array<{ startsAt: string; label: string }> };
+    if (windows.length === 0)
+      return { hasRoster: false, slots: [] as Array<{ startsAt: string; label: string }> };
 
     const booked = await tx
-      .select({ scheduledAt: appointments.scheduledAt, durationMinutes: appointments.durationMinutes })
+      .select({
+        scheduledAt: appointments.scheduledAt,
+        durationMinutes: appointments.durationMinutes,
+      })
       .from(appointments)
-      .where(and(eq(appointments.tenantId, tenantId), eq(appointments.providerId, providerId), eq(appointments.status, 'booked')));
-    const taken = booked.map((b) => ({ start: b.scheduledAt.getTime(), end: b.scheduledAt.getTime() + b.durationMinutes * 60_000 }));
+      .where(
+        and(
+          eq(appointments.tenantId, tenantId),
+          eq(appointments.providerId, providerId),
+          eq(appointments.status, 'booked'),
+        ),
+      );
+    const taken = booked.map((b) => ({
+      start: b.scheduledAt.getTime(),
+      end: b.scheduledAt.getTime() + b.durationMinutes * 60_000,
+    }));
 
     const now = Date.now();
     const slots: Array<{ startsAt: string; label: string }> = [];
     for (const w of windows) {
-      for (let m = minutes(w.startTime); m + w.slotMinutes <= minutes(w.endTime); m += w.slotMinutes) {
-        const start = new Date(`${date}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`);
+      for (
+        let m = minutes(w.startTime);
+        m + w.slotMinutes <= minutes(w.endTime);
+        m += w.slotMinutes
+      ) {
+        const start = new Date(
+          `${date}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`,
+        );
         const end = start.getTime() + w.slotMinutes * 60_000;
         if (end <= now) continue; // the past is not bookable
         if (taken.some((t) => start.getTime() < t.end && t.start < end)) continue;

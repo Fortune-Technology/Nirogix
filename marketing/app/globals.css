@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 /* Compile the Tailwind classes inside @hms/ui too — the shared components
  * (shadcn Toast) live there, and node_modules is not scanned by default. */
@@ -88,7 +88,7 @@
 /* Dark theme — the cool-neutral palette's dark counterpart (resources/DESIGN.md §2).
  * Applied by `data-theme="dark"` on <html>; framed @hms/ui product previews follow
  * suit because their --hms-* dark tokens key off the same attribute. */
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --mk-canvas: #0b1418;
   --mk-surface: #112128;
   --mk-surface-2: #16272e;
@@ -135,7 +135,7 @@
  * `--hms-*` locally and are unaffected.
  */
 :root,
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --hms-brand: var(--mk-accent);
   --hms-brand-hover: var(--mk-accent-hover);
   --hms-brand-fg: var(--mk-accent-ink);
@@ -189,9 +189,10 @@
   --radius-xl: var(--mk-radius-xl);
   --radius-2xl: var(--mk-radius-2xl);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
+    sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', Menlo, monospace;
   --font-heading: var(--font-sans);
 
   /* shadcn's scale, resolved from the marketing tokens (see :root below). */
@@ -306,7 +307,8 @@ summary:focus-visible {
   [data-reveal] {
     opacity: 0;
     transform: translateY(16px);
-    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transition:
+      opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
       transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     transition-delay: var(--reveal-delay, 0ms);
     will-change: opacity, transform;

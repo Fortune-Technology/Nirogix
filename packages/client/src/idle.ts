@@ -11,7 +11,7 @@
 // tab is not signed out by another tab's idle timer; whichever tab notices the whole browser
 // has been idle is the one that ends the session.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 /** Default idle window. Long enough not to interrupt a consultation, short enough to matter. */
 export const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60_000;
@@ -23,19 +23,14 @@ export const IDLE_CHECK_INTERVAL_MS = 30_000;
 export const ACTIVITY_WRITE_THROTTLE_MS = 10_000;
 
 /** Shared across tabs of the same origin. */
-export const ACTIVITY_STORAGE_KEY = "hms-last-activity";
+export const ACTIVITY_STORAGE_KEY = 'hms-last-activity';
 
 /** The interactions that count as "someone is still here". */
-export const ACTIVITY_EVENTS = [
-  "pointerdown",
-  "keydown",
-  "wheel",
-  "touchstart",
-] as const;
+export const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
 /** Reads the newest activity stamp any tab has written; 0 when there is none or it is unusable. */
 export function readStoredActivity(): number {
-  if (typeof window === "undefined") return 0;
+  if (typeof window === 'undefined') return 0;
   try {
     const raw = window.localStorage.getItem(ACTIVITY_STORAGE_KEY);
     const parsed = raw ? Number.parseInt(raw, 10) : 0;
@@ -47,7 +42,7 @@ export function readStoredActivity(): number {
 }
 
 export function writeStoredActivity(at: number): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(ACTIVITY_STORAGE_KEY, String(at));
   } catch {
@@ -56,7 +51,7 @@ export function writeStoredActivity(at: number): void {
 }
 
 export function clearStoredActivity(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
     window.localStorage.removeItem(ACTIVITY_STORAGE_KEY);
   } catch {
@@ -93,7 +88,7 @@ export function useIdleSignOut({
   handler.current = onIdle;
 
   useEffect(() => {
-    if (!active || timeoutMs <= 0 || typeof window === "undefined") return;
+    if (!active || timeoutMs <= 0 || typeof window === 'undefined') return;
 
     let lastActivity = Date.now();
     let lastWrite = 0;
@@ -120,12 +115,12 @@ export function useIdleSignOut({
       window.addEventListener(event, markActivity, { passive: true });
     }
     // Returning to the tab is the moment a long absence is most likely to be discovered.
-    document.addEventListener("visibilitychange", check);
+    document.addEventListener('visibilitychange', check);
     const interval = window.setInterval(check, IDLE_CHECK_INTERVAL_MS);
 
     return () => {
       for (const event of ACTIVITY_EVENTS) window.removeEventListener(event, markActivity);
-      document.removeEventListener("visibilitychange", check);
+      document.removeEventListener('visibilitychange', check);
       window.clearInterval(interval);
     };
   }, [active, timeoutMs]);

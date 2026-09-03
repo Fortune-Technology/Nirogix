@@ -16,11 +16,11 @@ code hard-codes one — every URL comes from that environment's configuration.
 
 The application has exactly three environments — **development | staging | production** (ADR-071).
 
-| Env | Purpose | Hosts | Deploy trigger |
-|---|---|---|---|
-| **Development** | A developer's local machine | `localhost` (marketing :3000, portal :3001, patient :3002, admin :3003, aiportal :3004, api :4000) | `npm run dev` |
-| **Staging** | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, GoDaddy DNS, Let's Encrypt TLS, basic auth (ADR-045) | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
-| **Production** | Live | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB | controlled, reviewed promotion |
+| Env             | Purpose                                   | Hosts                                                                                                                                                                                         | Deploy trigger                                                      |
+| --------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Development** | A developer's local machine               | `localhost` (marketing :3000, portal :3001, patient :3002, admin :3003, aiportal :3004, api :4000)                                                                                            | `npm run dev`                                                       |
+| **Staging**     | Milestone demos + tenant-isolation checks | `staging.nirogix.com` · `portal-staging.nirogix.com` · `api-staging.nirogix.com` — E2E VM, Nginx + PM2, managed PostgreSQL, Redis-on-VM, GoDaddy DNS, Let's Encrypt TLS, basic auth (ADR-045) | auto on merge to `staging` (`.github/workflows/deploy-staging.yml`) |
+| **Production**  | Live                                      | `nirogix.com` (+ `www` → 301) · `portal.nirogix.com` · `api.nirogix.com` — same shape as staging, separate VM + DB                                                                            | controlled, reviewed promotion                                      |
 
 Staging carries its own database, object-storage bucket, secrets, and notification sender, sits
 behind access control, and adds `X-Robots-Tag: noindex, nofollow` at Nginx. It never shares
@@ -52,11 +52,11 @@ touch a production document.
 The application has exactly three environments — **development | staging | production** (ADR-071).
 `FILE_STORAGE_PROVIDER=local` below is the on-disk storage backend, not an environment.
 
-| Environment | `FILE_STORAGE_PROVIDER` | `R2_BUCKET` |
-|---|---|---|
-| **Development** (localhost; and the test runner) | `local` (disk) — or `r2` for parity | *(none on disk;* `nirogix-documents-staging` *on r2)* |
-| **Staging** | `r2` | **`nirogix-documents-staging`** (shared with development) |
-| **Production** | `r2` | **`nirogix-documents`** (its own) |
+| Environment                                      | `FILE_STORAGE_PROVIDER`             | `R2_BUCKET`                                               |
+| ------------------------------------------------ | ----------------------------------- | --------------------------------------------------------- |
+| **Development** (localhost; and the test runner) | `local` (disk) — or `r2` for parity | _(none on disk;_ `nirogix-documents-staging` _on r2)_     |
+| **Staging**                                      | `r2`                                | **`nirogix-documents-staging`** (shared with development) |
+| **Production**                                   | `r2`                                | **`nirogix-documents`** (its own)                         |
 
 - Create **two** buckets in Cloudflare R2, both **private** (no public access — the API serves
   signed URLs), both pinned to an **Asia-Pacific** jurisdiction (India-resident PHI).
@@ -200,15 +200,15 @@ systemctl list-units --type=service --state=running | grep -iE "node|next|pm2"
 8. `pm2 start deploy/ecosystem.config.cjs --env staging && pm2 save && pm2 startup` **as the
    Nirogix service user** (so `pm2 save` snapshots only our apps), then
    `ss -tulpn | grep -E "<the six ports>"` to confirm each app bound where expected.
-8. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
+9. Install the Nginx site from `deploy/nginx/nirogix.conf.template` (substitute hosts + cert paths),
    `nginx -t && systemctl reload nginx`.
-9. Point the GoDaddy `A` records at the VM, then issue certificates on the box:
-   `certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com`
-   (HTTP-01 needs port 80 open). Add basic auth + `X-Robots-Tag: noindex` on the staging
-   hosts, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app serves
-   `Disallow: /`. Verify
-   Universal SSL covers each host — all of them are second-level, so `*.nirogix.com` does.
-10. Work `resources/domains.md` §9 (cutover checklist): `CORS_ORIGINS` for the environment, the
+10. Point the GoDaddy `A` records at the VM, then issue certificates on the box:
+    `certbot --nginx -d staging.nirogix.com -d portal-staging.nirogix.com -d api-staging.nirogix.com`
+    (HTTP-01 needs port 80 open). Add basic auth + `X-Robots-Tag: noindex` on the staging
+    hosts, and set `NEXT_PUBLIC_ENVIRONMENT=staging` so the marketing app serves
+    `Disallow: /`. Verify
+    Universal SSL covers each host — all of them are second-level, so `*.nirogix.com` does.
+11. Work `resources/domains.md` §9 (cutover checklist): `CORS_ORIGINS` for the environment, the
     `www` → apex redirect in production, access control + `noindex` on staging, and the refresh
     cookie arriving `Secure; HttpOnly; SameSite=Lax` with **no** `Domain` attribute.
 
@@ -222,7 +222,7 @@ runner has the memory the VM does not. The **VM** then deploys affected-only:
    a fully successful deploy — as "what is live right now"; first run falls back to the
    checked-out HEAD read before `git reset`. An unusable baseline (commit vanished — force-push
    or gc) or a **same-commit redeploy** (`workflow_dispatch` recovery) falls back to a full build
-   + full reload.
+   - full reload.
 2. **Build.** `npx turbo run build --filter=...[<baseline>] --concurrency=2` — only workspaces
    changed since the baseline **plus everything that depends on them** (a `packages/types` edit
    rebuilds `hms_backend` and every portal importing it; a docs-only push builds nothing).
@@ -255,7 +255,7 @@ Required GitHub **staging environment** secrets: `STAGING_HOST`, `STAGING_USER`,
 
 ### Bringing a NEW workspace online — affected-only will not do it for you
 
-Affected-only (step 2) diffs the *files* changed since the last deployed commit. A change that
+Affected-only (step 2) diffs the _files_ changed since the last deployed commit. A change that
 only **enables** a workspace — uncommenting its `ecosystem.config.cjs` entry, adding its Nginx
 block — touches none of that workspace's own files, so Turbo reports it as unaffected, builds
 nothing, and the deploy prints `No deployed app affected — PM2 untouched`. The new app never
@@ -277,7 +277,7 @@ Order matters, because each step depends on the one before it:
    Confirm the listener exists before touching Nginx, or the proxy has nothing to reach.
 3. **Nginx** — install the updated template, `nginx -t`, reload. Proxying to a dead port is a
    502; proxying to a port that was never built is a 502 that looks like an app bug.
-4. **Certificate** — `certbot --nginx --expand` with the full host list. This must come *after*
+4. **Certificate** — `certbot --nginx --expand` with the full host list. This must come _after_
    step 3, because HTTP-01 reaches the challenge through the port-80 block, which only answers
    for a hostname once that hostname is in its `server_name`.
 5. **Backend `CORS_ORIGINS`** — add the new origin to the API's `.env` on the VM and restart the
@@ -405,9 +405,9 @@ real in source so a fresh clone is correct without hand-patching.
   restores the latest dump into a throwaway scratch DB and sanity-checks row counts. Run it on a
   schedule and **record the measured RTO** below.
 
-| Objective | Target | Validated |
-|---|---|---|
-| **RPO** (max data loss) | ≤ 24h (daily dump) / minutes (PITR) | _pending Stage 3 drill_ |
+| Objective                 | Target                                  | Validated               |
+| ------------------------- | --------------------------------------- | ----------------------- |
+| **RPO** (max data loss)   | ≤ 24h (daily dump) / minutes (PITR)     | _pending Stage 3 drill_ |
 | **RTO** (time to restore) | _define + measure via restore-drill.sh_ | _pending Stage 3 drill_ |
 
 > RPO/RTO are formally defined and validated in Stage 3 (Production-Readiness Hardening) before

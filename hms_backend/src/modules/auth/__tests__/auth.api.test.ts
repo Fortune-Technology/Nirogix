@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, authed, cleanupTenant, dbReady, login, makeTenant, TEST_PASSWORD, type TestTenant } from '../../../test-api';
+import {
+  api,
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  TEST_PASSWORD,
+  type TestTenant,
+} from '../../../test-api';
 
 /**
  * Authentication over HTTP (testcases.md §1 AUTH-*, manual guide §1).
@@ -63,7 +72,9 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.headers['set-cookie']).toBeUndefined();
   });
 
-  test('an unknown email and an unknown org fail identically — no account enumeration', async ({ skip }) => {
+  test('an unknown email and an unknown org fail identically — no account enumeration', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const unknownEmail = await api()
       .post('/api/v1/auth/login')
@@ -126,7 +137,9 @@ describe('GET /api/v1/auth/me', () => {
     if (!ready) return skip();
     const none = await api().get('/api/v1/auth/me');
     const malformed = await api().get('/api/v1/auth/me').set('Authorization', 'Bearer');
-    const forged = await api().get('/api/v1/auth/me').set('Authorization', 'Bearer not.a.real.token');
+    const forged = await api()
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer not.a.real.token');
 
     expect(none.status).toBe(401);
     expect(malformed.status).toBe(401);

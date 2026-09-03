@@ -36,12 +36,11 @@ Append-only implementation log. Newest at the bottom.
 
 **Testing status:** `typecheck` green; gates verified live (receptionist 200 on read / 403 on create, pharmacist 403 on both).
 
-
 ## 2026-08-16 — `ai.portal.access` widened to every staff role (ADR-055)
 
 **What:** The key moved from "held by no role, granted per person" (ADR-053) to **held by every system role** — org_admin, branch_admin, doctor, receptionist, pharmacist, lab_technician, cashier, with super_admin covered by WILDCARD.
 
-**Why the original was wrong in practice:** it made the portal unreachable for the people it is for. Every seeded role hit the *Access restricted* screen; only super_admin got in, and only incidentally through WILDCARD. It also mis-identified the risk — the thing that must never happen is a **patient** reaching AI tooling, and that is enforced by the principal-type check, not by this key. Keeping it narrow bought no protection against the actual threat while guaranteeing a refusal on first use.
+**Why the original was wrong in practice:** it made the portal unreachable for the people it is for. Every seeded role hit the _Access restricted_ screen; only super_admin got in, and only incidentally through WILDCARD. It also mis-identified the risk — the thing that must never happen is a **patient** reaching AI tooling, and that is enforced by the principal-type check, not by this key. Keeping it narrow bought no protection against the actual threat while guaranteeing a refusal on first use.
 
 **The lever survives.** An org_admin can still DENY the key for an individual, and an explicit deny beats a role grant. Widening a default is not the same as removing control.
 
@@ -102,13 +101,13 @@ suite 351 green.
 **What:** `MODULE_REGISTRY` grew from the 17 legacy entitlement keys to the whole functional
 decomposition — **11 domains · 42 modules · 246 capabilities**. Compact `mod()` / `cap()` builders
 keep it readable. Added `alwaysOn` to `ModuleRegistryDef` for Platform Core (Platform Services),
-which is never sold or switched off per tenant and so renders as *Required* rather than togglable.
+which is never sold or switched off per tenant and so renders as _Required_ rather than togglable.
 
 The **seventeen pre-existing keys keep their exact key, name and hard dependencies** (a test pins
 this) — changing one would change what an existing tenant can be granted. Everything new lands as
 `AVAILABLE`.
 
-**Honesty rule, enforced by a test:** an unbuilt module may now *describe* its capabilities so the
+**Honesty rule, enforced by a test:** an unbuilt module may now _describe_ its capabilities so the
 architecture, dependency graph and admin surface are complete, but **a non-`BUILT` module may not
 declare a `BUILT` capability** — nothing unbuilt is ever enforced, advertised, or shown as working.
 Only the 9 `BUILT` modules (patient, appointment, emr, opd, abdm, billing, pharmacy, laboratory,
@@ -204,7 +203,7 @@ the new route documented.
 
 ## 2026-09-02 — The desk could not read the workflow that draws its own form (ADR-129)
 
-A receptionist opening **Book appointment** got *Not permitted*, beside a form that then worked.
+A receptionist opening **Book appointment** got _Not permitted_, beside a form that then worked.
 `GET /workflow-config` requires `platform.workflow.view`, which the receptionist did not hold — and
 the workflow configuration is what that form is built from (ADR-113): where vitals are taken decides
 whether the vitals fields render, when the fee is due decides whether payment gates the
@@ -216,7 +215,7 @@ and the fee schedule — and only the last belongs to an administrator.
 
 **`platform.workflow.view` now goes to receptionist, doctor, branch_admin and cashier** as well as
 the administrator; not to the pharmacist or lab technician, who reach none of those screens. The
-split that matters is untouched: *view* is reading how the hospital runs, **`platform.workflow.manage`
+split that matters is untouched: _view_ is reading how the hospital runs, **`platform.workflow.manage`
 is deciding it**, and only the administrator holds the second. Widening the route to any
 authenticated session was the alternative and was rejected — it would leave the permission enforced
 by nothing, and a page guard on a key no endpoint checks is a boundary in name only.

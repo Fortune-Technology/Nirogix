@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "../../cn";
-import { Select } from "../Select";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '../../cn';
+import { Select } from '../Select';
 
 export interface DataTablePaginationProps {
   page: number;
@@ -17,14 +17,14 @@ export interface DataTablePaginationProps {
 }
 
 /** Windowed page numbers: 1 … 4 5 [6] 7 8 … 20 — never an unbounded strip. */
-function pageWindow(page: number, pageCount: number): Array<number | "gap"> {
+function pageWindow(page: number, pageCount: number): Array<number | 'gap'> {
   if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
-  const pages: Array<number | "gap"> = [1];
+  const pages: Array<number | 'gap'> = [1];
   const from = Math.max(2, page - 1);
   const to = Math.min(pageCount - 1, page + 1);
-  if (from > 2) pages.push("gap");
+  if (from > 2) pages.push('gap');
   for (let p = from; p <= to; p++) pages.push(p);
-  if (to < pageCount - 1) pages.push("gap");
+  if (to < pageCount - 1) pages.push('gap');
   pages.push(pageCount);
   return pages;
 }
@@ -53,7 +53,9 @@ export function DataTablePagination({
         <span>
           Showing <strong>{first}</strong>–<strong>{last}</strong> of <strong>{total}</strong>
         </span>
-        {selectedCount ? <span className="hms-pagination__selected">{selectedCount} selected</span> : null}
+        {selectedCount ? (
+          <span className="hms-pagination__selected">{selectedCount} selected</span>
+        ) : null}
       </div>
 
       <div className="hms-pagination__controls">
@@ -85,7 +87,7 @@ export function DataTablePagination({
           </button>
 
           {pageWindow(page, Math.max(pageCount, 1)).map((p, i) =>
-            p === "gap" ? (
+            p === 'gap' ? (
               <span key={`gap-${i}`} className="hms-pagination__gap" aria-hidden>
                 …
               </span>
@@ -93,8 +95,8 @@ export function DataTablePagination({
               <button
                 key={p}
                 type="button"
-                className={cn("hms-pagination__btn", p === page && "hms-pagination__btn--active")}
-                aria-current={p === page ? "page" : undefined}
+                className={cn('hms-pagination__btn', p === page && 'hms-pagination__btn--active')}
+                aria-current={p === page ? 'page' : undefined}
                 aria-label={`Page ${p}`}
                 onClick={() => onPageChange(p)}
               >

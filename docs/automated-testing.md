@@ -6,10 +6,10 @@
 > **Purpose.** What is automated, at which level, how to run it, and what deliberately stays
 > manual. The goal is a safety net that catches regressions in the **core hospital workflow,
 > authentication, roles, permissions, tenant isolation, payments, pharmacy, lab and the patient
-> journey** *before* a human starts a manual pass — not to replace manual testing.
+> journey** _before_ a human starts a manual pass — not to replace manual testing.
 
-> **Maintenance rule (binding).** A feature ships as *implement → automated tests → manual cases
-> in `testcases.md` → verify → complete*. When you automate a manual case, mark it in the
+> **Maintenance rule (binding).** A feature ships as _implement → automated tests → manual cases
+> in `testcases.md` → verify → complete_. When you automate a manual case, mark it in the
 > mapping below **in the same change**.
 
 ---
@@ -18,18 +18,18 @@
 
 One runner per job. No competing frameworks.
 
-| Level | Tool | Location | What belongs here |
-|---|---|---|---|
-| **Unit** | vitest | `hms_backend/src/**/__tests__`, `packages/*/src/__tests__` | Pure logic with no I/O — token round-trips, date/colour helpers, month-window math, permission resolution |
-| **Integration** | vitest + real PostgreSQL | `hms_backend/src/modules/*/__tests__/*.test.ts` | Service functions against a real database, so RLS, constraints and transactions are exercised |
-| **API (HTTP)** | vitest + supertest | `hms_backend/src/**/__tests__/*.api.test.ts` | The boundary: Bearer/principal checks, `requireModule` → `requirePermission`, Zod validation, error→status mapping, cross-tenant refusals |
-| **Component** | vitest + jsdom + Testing Library | `packages/ui/src/__tests__` | Shared primitives — DataTable, date fields, toasts, table actions |
-| **E2E / smoke** | Playwright | `e2e/` | What genuinely needs a browser: multi-role journeys, route guards as the user meets them, five-app smoke, viewport/theme, scroll restoration |
+| Level           | Tool                             | Location                                                   | What belongs here                                                                                                                            |
+| --------------- | -------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**        | vitest                           | `hms_backend/src/**/__tests__`, `packages/*/src/__tests__` | Pure logic with no I/O — token round-trips, date/colour helpers, month-window math, permission resolution                                    |
+| **Integration** | vitest + real PostgreSQL         | `hms_backend/src/modules/*/__tests__/*.test.ts`            | Service functions against a real database, so RLS, constraints and transactions are exercised                                                |
+| **API (HTTP)**  | vitest + supertest               | `hms_backend/src/**/__tests__/*.api.test.ts`               | The boundary: Bearer/principal checks, `requireModule` → `requirePermission`, Zod validation, error→status mapping, cross-tenant refusals    |
+| **Component**   | vitest + jsdom + Testing Library | `packages/ui/src/__tests__`                                | Shared primitives — DataTable, date fields, toasts, table actions                                                                            |
+| **E2E / smoke** | Playwright                       | `e2e/`                                                     | What genuinely needs a browser: multi-role journeys, route guards as the user meets them, five-app smoke, viewport/theme, scroll restoration |
 
 **Why the API level exists.** The service tests prove the business rules but call functions
 directly with an explicit `tenantId` — they skip every guard a real attacker meets. The
 `*.api.test.ts` suites go through Express, so a permission or entitlement regression fails here
-even when the service is correct. *A frontend guard is UX; the API is the boundary.*
+even when the service is correct. _A frontend guard is UX; the API is the boundary._
 
 ---
 
@@ -39,16 +39,16 @@ even when the service is correct. *A frontend guard is UX; the API is the bounda
 npm run test            # everything vitest: unit + integration + API (turbo, all workspaces)
 ```
 
-| Command | Runs |
-|---|---|
-| `npm run test` | All vitest suites across every workspace |
-| `npm run test:backend` | Backend only (unit + integration + API) |
-| `npm run test:api` | The HTTP-boundary suites only (`*.api.test.ts`) |
-| `npm run test:unit` | The shared packages' suites (`@hms/*`) |
-| `npm run test:e2e` | Playwright, all projects (starts the dev servers itself) |
-| `npm run test:e2e:ui` | Playwright in watch/inspector mode |
-| `npm run test:smoke` | The five-app smoke project only — safe against a deployed environment |
-| `npm run test:regression` | `test` then `test:e2e` — the full pre-staging gate |
+| Command                   | Runs                                                                  |
+| ------------------------- | --------------------------------------------------------------------- |
+| `npm run test`            | All vitest suites across every workspace                              |
+| `npm run test:backend`    | Backend only (unit + integration + API)                               |
+| `npm run test:api`        | The HTTP-boundary suites only (`*.api.test.ts`)                       |
+| `npm run test:unit`       | The shared packages' suites (`@hms/*`)                                |
+| `npm run test:e2e`        | Playwright, all projects (starts the dev servers itself)              |
+| `npm run test:e2e:ui`     | Playwright in watch/inspector mode                                    |
+| `npm run test:smoke`      | The five-app smoke project only — safe against a deployed environment |
+| `npm run test:regression` | `test` then `test:e2e` — the full pre-staging gate                    |
 
 Targeting an environment (E2E):
 
@@ -86,54 +86,54 @@ is not) · **☐ manual only**.
 
 ### Core workflow and security
 
-| Area | Manual source | Automated | Level | File |
-|---|---|---|---|---|
-| Login (valid / invalid / missing / role + tenant context) | AUTH-01…09, guide §1 | ✅ | API + E2E | `auth.api.test.ts`, `e2e/portal/auth.spec.ts` |
-| No account enumeration (unknown email == unknown org) | AUTH-02/03 | ✅ | API | `auth.api.test.ts` |
-| Refresh cookie flags + path scope | AUTH-06, FE-06 | ✅ | API | `auth.api.test.ts` |
-| Forgot password (token single-use, expiry, revocation) | AUTH-30…37 | ✅ | Integration | `passwordReset.test.ts` |
-| Quick-login gating (roles offered, no platform operator) | guide §0.3, §17 | ✅ | E2E | `e2e/portal/auth.spec.ts` |
-| Role → permission enforcement per module | RBAC-02…05, guide §13 | ✅ | API | `permissions.api.test.ts` |
-| Direct API call refused for unpermitted role | ACT-03, OPD-05, EMR-08, PHR-07… | ✅ | API | `permissions.api.test.ts` |
-| Module entitlement precedes permission (`MODULE_NOT_ENTITLED`) | ADM-04, SETUP-09 | ✅ | API | `permissions.api.test.ts` |
-| Unauthenticated access is 401 | AUTH-08, guide §14 | ✅ | API + E2E | `permissions.api.test.ts`, `e2e/smoke/apps.spec.ts` |
-| **Tenant isolation — cross-tenant read by id** | TEN-01/02, guide §12 | ✅ | API | `tenant-isolation.api.test.ts` |
-| **Tenant isolation — cross-tenant write blocked, record unmutated** | TEN-02, guide §12 | ✅ | API | `tenant-isolation.api.test.ts` |
-| Tenant isolation at the database (RLS) | TEN-03 | ✅ | Integration | `db/__tests__/tenant-isolation.test.ts` |
-| Session tenant cannot be overridden by client headers | TEN-01 | ✅ | API | `tenant-isolation.api.test.ts` |
-| Full clinical journey — state transitions | guide §10, OPD/EMR/PHR/LAB/BIL | ◐ | Integration + API | `opd/__tests__/clinical-journey.test.ts`, `critical-path.api.test.ts` |
-| Payment: cash, paid status, no overpay, idempotent retry | BIL-01…10, guide §6 | ✅ | Integration + API | `clinical-journey.test.ts`, `critical-path.api.test.ts` |
-| Unpaid-consultation gate | OPD-08, EMR-08, guide §7.1 | ✅ | Integration + API | as above |
-| Prescription → pharmacy, no double dispense | PHR-06…08, guide §8 | ✅ | Integration + API | as above |
-| Lab order → collect → result, billed once | LAB-04…08, guide §9 | ✅ | Integration + API | as above |
-| Encounter sign locks the record | EMR-11, guide §7.7 | ✅ | Integration | `clinical-journey.test.ts` |
-| Patient registration, UHID, duplicate handling, search | PAT-01…13 | ✅ | Integration | `patient/__tests__/patient.test.ts` |
-| Master data: seeded catalogue, custom items, cross-org isolation | MD-01…08, AVAIL-01…07 | ✅ | Integration | `catalog.test.ts`, `branchAvailability.test.ts` |
-| Audit on mutations and sign-in; append-only | AUD-01…07 | ✅ | Integration | `audit/__tests__/audit.test.ts` |
-| **Account lockout** — threshold, backoff, expiry, per-account scope, audit | AUTH-40…47 | ✅ | Unit + API | `auth/__tests__/lockout.test.ts`, `lockout.api.test.ts` |
-| **Password policy** — length, classes, blocklist, own-details, generated temp passwords | AUTH-48…50 | ✅ | Unit + Integration | `passwordPolicy.test.ts`, `passwordReset.test.ts` |
-| **Upload content validation** (magic bytes vs declared type) | UPLOAD-01…03 | ✅ | Unit | `file/__tests__/fileSniff.test.ts` |
-| **Request correlation id** — header, uniqueness, audit row, untrusted input | REQID-01…03 | ✅ | API | `audit/__tests__/requestId.api.test.ts` |
-| **Access refusals** — module before permission, roles from the tenant's own tables, closed response shape, 401 without a session | DENY-01…09 | ✅ | API | `rbac/__tests__/accessExplain.api.test.ts` |
-| **Seeding twice changes nothing** — a hand edit survives, no duplicates, a newly added record still reaches an old database | SEED-26…28 | ✅ | Integration | `scripts/__tests__/seedIdempotency.test.ts` |
+| Area                                                                                                                             | Manual source                   | Automated | Level              | File                                                                  |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------- | ------------------ | --------------------------------------------------------------------- |
+| Login (valid / invalid / missing / role + tenant context)                                                                        | AUTH-01…09, guide §1            | ✅        | API + E2E          | `auth.api.test.ts`, `e2e/portal/auth.spec.ts`                         |
+| No account enumeration (unknown email == unknown org)                                                                            | AUTH-02/03                      | ✅        | API                | `auth.api.test.ts`                                                    |
+| Refresh cookie flags + path scope                                                                                                | AUTH-06, FE-06                  | ✅        | API                | `auth.api.test.ts`                                                    |
+| Forgot password (token single-use, expiry, revocation)                                                                           | AUTH-30…37                      | ✅        | Integration        | `passwordReset.test.ts`                                               |
+| Quick-login gating (roles offered, no platform operator)                                                                         | guide §0.3, §17                 | ✅        | E2E                | `e2e/portal/auth.spec.ts`                                             |
+| Role → permission enforcement per module                                                                                         | RBAC-02…05, guide §13           | ✅        | API                | `permissions.api.test.ts`                                             |
+| Direct API call refused for unpermitted role                                                                                     | ACT-03, OPD-05, EMR-08, PHR-07… | ✅        | API                | `permissions.api.test.ts`                                             |
+| Module entitlement precedes permission (`MODULE_NOT_ENTITLED`)                                                                   | ADM-04, SETUP-09                | ✅        | API                | `permissions.api.test.ts`                                             |
+| Unauthenticated access is 401                                                                                                    | AUTH-08, guide §14              | ✅        | API + E2E          | `permissions.api.test.ts`, `e2e/smoke/apps.spec.ts`                   |
+| **Tenant isolation — cross-tenant read by id**                                                                                   | TEN-01/02, guide §12            | ✅        | API                | `tenant-isolation.api.test.ts`                                        |
+| **Tenant isolation — cross-tenant write blocked, record unmutated**                                                              | TEN-02, guide §12               | ✅        | API                | `tenant-isolation.api.test.ts`                                        |
+| Tenant isolation at the database (RLS)                                                                                           | TEN-03                          | ✅        | Integration        | `db/__tests__/tenant-isolation.test.ts`                               |
+| Session tenant cannot be overridden by client headers                                                                            | TEN-01                          | ✅        | API                | `tenant-isolation.api.test.ts`                                        |
+| Full clinical journey — state transitions                                                                                        | guide §10, OPD/EMR/PHR/LAB/BIL  | ◐         | Integration + API  | `opd/__tests__/clinical-journey.test.ts`, `critical-path.api.test.ts` |
+| Payment: cash, paid status, no overpay, idempotent retry                                                                         | BIL-01…10, guide §6             | ✅        | Integration + API  | `clinical-journey.test.ts`, `critical-path.api.test.ts`               |
+| Unpaid-consultation gate                                                                                                         | OPD-08, EMR-08, guide §7.1      | ✅        | Integration + API  | as above                                                              |
+| Prescription → pharmacy, no double dispense                                                                                      | PHR-06…08, guide §8             | ✅        | Integration + API  | as above                                                              |
+| Lab order → collect → result, billed once                                                                                        | LAB-04…08, guide §9             | ✅        | Integration + API  | as above                                                              |
+| Encounter sign locks the record                                                                                                  | EMR-11, guide §7.7              | ✅        | Integration        | `clinical-journey.test.ts`                                            |
+| Patient registration, UHID, duplicate handling, search                                                                           | PAT-01…13                       | ✅        | Integration        | `patient/__tests__/patient.test.ts`                                   |
+| Master data: seeded catalogue, custom items, cross-org isolation                                                                 | MD-01…08, AVAIL-01…07           | ✅        | Integration        | `catalog.test.ts`, `branchAvailability.test.ts`                       |
+| Audit on mutations and sign-in; append-only                                                                                      | AUD-01…07                       | ✅        | Integration        | `audit/__tests__/audit.test.ts`                                       |
+| **Account lockout** — threshold, backoff, expiry, per-account scope, audit                                                       | AUTH-40…47                      | ✅        | Unit + API         | `auth/__tests__/lockout.test.ts`, `lockout.api.test.ts`               |
+| **Password policy** — length, classes, blocklist, own-details, generated temp passwords                                          | AUTH-48…50                      | ✅        | Unit + Integration | `passwordPolicy.test.ts`, `passwordReset.test.ts`                     |
+| **Upload content validation** (magic bytes vs declared type)                                                                     | UPLOAD-01…03                    | ✅        | Unit               | `file/__tests__/fileSniff.test.ts`                                    |
+| **Request correlation id** — header, uniqueness, audit row, untrusted input                                                      | REQID-01…03                     | ✅        | API                | `audit/__tests__/requestId.api.test.ts`                               |
+| **Access refusals** — module before permission, roles from the tenant's own tables, closed response shape, 401 without a session | DENY-01…09                      | ✅        | API                | `rbac/__tests__/accessExplain.api.test.ts`                            |
+| **Seeding twice changes nothing** — a hand edit survives, no duplicates, a newly added record still reaches an old database      | SEED-26…28                      | ✅        | Integration        | `scripts/__tests__/seedIdempotency.test.ts`                           |
 
 ### Frontend
 
-| Area | Manual source | Automated | Level | File |
-|---|---|---|---|---|
-| All five apps load, own `<title>`, no runtime errors | FE-01…21, guide §15 | ✅ | E2E | `e2e/smoke/apps.spec.ts` |
-| Four product apps are `noindex`; marketing is indexable | MKT-*, ADR-027 | ✅ | E2E | `e2e/smoke/apps.spec.ts` |
-| Protected route redirects to sign-in (Portal + Admin) | RBAC-06, guide §14 | ✅ | E2E | `e2e/smoke/apps.spec.ts` |
-| Admin console exposes no quick-login | ADR-080 | ✅ | E2E | `e2e/smoke/apps.spec.ts` |
-| **Route-change scroll starts at top** | guide §15 | ✅ | E2E | `e2e/marketing/navigation.spec.ts` |
-| One `<h1>` + unique meta description per marketing page | MKT-01/02 | ✅ | E2E | `e2e/marketing/navigation.spec.ts` |
-| Branded 404 without a stack trace | 404-01…03 | ✅ | E2E | `e2e/marketing/navigation.spec.ts` |
-| DataTable sort/filter/paging/column visibility | TBL-01…18 | ✅ | Component | `packages/ui/src/__tests__/DataTable.test.tsx` |
-| Date/time display + entry (`DD/MM/YYYY`, `hh:mm AM/PM`) | FMT-01…11, DATE-01/02 | ✅ | Component + Unit | `datetime.test.tsx`, `datefields.test.tsx`, `utils/date.test.ts` |
-| Toast system (variants, a11y roles) | TOAST-01…16 | ◐ | Component | `packages/ui/src/__tests__/toast.test.tsx` |
-| Row actions + confirmation | ACT-01…10 | ◐ | Component | `TableActions.test.tsx` |
-| **Content-Security-Policy builder** (nonce vs static, dev vs production, allowed origins) | CSP-01…05 | ◐ | Unit | `packages/utils/src/__tests__/security.test.ts` |
-| **Idle-session policy** (window, cross-tab activity, corrupt/unavailable storage) | AUTH-51…53 | ◐ | Unit | `packages/client/src/__tests__/idle.test.ts` |
+| Area                                                                                      | Manual source         | Automated | Level            | File                                                             |
+| ----------------------------------------------------------------------------------------- | --------------------- | --------- | ---------------- | ---------------------------------------------------------------- |
+| All five apps load, own `<title>`, no runtime errors                                      | FE-01…21, guide §15   | ✅        | E2E              | `e2e/smoke/apps.spec.ts`                                         |
+| Four product apps are `noindex`; marketing is indexable                                   | MKT-*, ADR-027        | ✅        | E2E              | `e2e/smoke/apps.spec.ts`                                         |
+| Protected route redirects to sign-in (Portal + Admin)                                     | RBAC-06, guide §14    | ✅        | E2E              | `e2e/smoke/apps.spec.ts`                                         |
+| Admin console exposes no quick-login                                                      | ADR-080               | ✅        | E2E              | `e2e/smoke/apps.spec.ts`                                         |
+| **Route-change scroll starts at top**                                                     | guide §15             | ✅        | E2E              | `e2e/marketing/navigation.spec.ts`                               |
+| One `<h1>` + unique meta description per marketing page                                   | MKT-01/02             | ✅        | E2E              | `e2e/marketing/navigation.spec.ts`                               |
+| Branded 404 without a stack trace                                                         | 404-01…03             | ✅        | E2E              | `e2e/marketing/navigation.spec.ts`                               |
+| DataTable sort/filter/paging/column visibility                                            | TBL-01…18             | ✅        | Component        | `packages/ui/src/__tests__/DataTable.test.tsx`                   |
+| Date/time display + entry (`DD/MM/YYYY`, `hh:mm AM/PM`)                                   | FMT-01…11, DATE-01/02 | ✅        | Component + Unit | `datetime.test.tsx`, `datefields.test.tsx`, `utils/date.test.ts` |
+| Toast system (variants, a11y roles)                                                       | TOAST-01…16           | ◐         | Component        | `packages/ui/src/__tests__/toast.test.tsx`                       |
+| Row actions + confirmation                                                                | ACT-01…10             | ◐         | Component        | `TableActions.test.tsx`                                          |
+| **Content-Security-Policy builder** (nonce vs static, dev vs production, allowed origins) | CSP-01…05             | ◐         | Unit             | `packages/utils/src/__tests__/security.test.ts`                  |
+| **Idle-session policy** (window, cross-tab activity, corrupt/unavailable storage)         | AUTH-51…53            | ◐         | Unit             | `packages/client/src/__tests__/idle.test.ts`                     |
 
 ---
 
@@ -195,7 +195,7 @@ nightly workflow rather than on every push, so it cannot slow down or block ordi
 
 - **A stale `.next` cache produces a convincing false alarm.** A corrupted Turbopack cache in
   `aiportal/.next` made the app return **500** with `SyntaxError: Expected double-quoted property
-  name in JSON ... package.json`, which reads exactly like a broken `package.json` — the file was
+name in JSON ... package.json`, which reads exactly like a broken `package.json` — the file was
   valid, and every other app compiled against it. `rm -rf <app>/.next` fixed it. Suspect the cache
   before the source when one app fails and its siblings, with identical config, do not.
 - **`getByLabel('Password')` matches two elements.** `PasswordField`'s visibility toggle is

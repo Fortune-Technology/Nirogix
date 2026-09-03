@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { CalendarClock, Plus, Stethoscope, X } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { CalendarClock, Plus, Stethoscope, X } from 'lucide-react';
 import {
   actionsColumn,
   Badge,
@@ -20,14 +20,15 @@ import {
   type Column,
   valueLabel,
   ValueOrEmpty,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { GENDER_OPTIONS } from "@hms/utils";
-import type { Provider, ScheduleWindow, Specialty, Department, UserListItem } from "@hms/types";
-import * as api from "../../../lib/api";
-import { RequirePermission, Can } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { useCan } from "../../../lib/auth";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import { GENDER_OPTIONS } from '@hms/utils';
+import type { Provider, ScheduleWindow, Specialty, Department, UserListItem } from '@hms/types';
+import * as api from '../../../lib/api';
+import { RequirePermission, Can } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { BulkImportAction } from '../../../components/import/BulkImportDialog';
+import { useCan } from '../../../lib/auth';
 
 type ProviderForm = {
   fullName: string;
@@ -44,20 +45,20 @@ type ProviderForm = {
 };
 
 const EMPTY_FORM: ProviderForm = {
-  fullName: "",
-  gender: "",
-  registrationNumber: "",
-  qualification: "",
-  email: "",
-  phone: "",
-  userId: "",
-  feeRupees: "",
-  specialtyCode: "",
-  departmentId: "",
+  fullName: '',
+  gender: '',
+  registrationNumber: '',
+  qualification: '',
+  email: '',
+  phone: '',
+  userId: '',
+  feeRupees: '',
+  specialtyCode: '',
+  departmentId: '',
 };
 
 function feeToPaise(feeRupees: string): number | null | undefined {
-  if (feeRupees.trim() === "") return null;
+  if (feeRupees.trim() === '') return null;
   const n = Number(feeRupees);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : undefined; // undefined = invalid
 }
@@ -72,11 +73,12 @@ type ScheduleRow = {
   branchId: string | null | undefined;
 };
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 /** Wall-clock `HH:mm`, 24-hour — a roster time is a string, never a Date (ADR-048). */
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const SCHEDULE_GRID = "grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2";
+const SCHEDULE_GRID =
+  'grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2';
 
 function ProvidersTable() {
   const canManage = useCan(PERMISSIONS.PROVIDER_MANAGE);
@@ -98,8 +100,8 @@ function ProvidersTable() {
 
   // Assign-specialty dialog.
   const [specialtyFor, setSpecialtyFor] = useState<Provider | null>(null);
-  const [specialtyCode, setSpecialtyCode] = useState("");
-  const [specialtyDept, setSpecialtyDept] = useState("");
+  const [specialtyCode, setSpecialtyCode] = useState('');
+  const [specialtyDept, setSpecialtyDept] = useState('');
 
   // Weekly-schedule dialog (ADR-069).
   const [scheduleFor, setScheduleFor] = useState<Provider | null>(null);
@@ -116,7 +118,7 @@ function ProvidersTable() {
       setRows(await api.listProviders());
       setError(null);
     } catch (err) {
-      setError(err instanceof api.ApiRequestError ? err.message : "Failed to load providers.");
+      setError(err instanceof api.ApiRequestError ? err.message : 'Failed to load providers.');
     } finally {
       setLoading(false);
     }
@@ -128,9 +130,18 @@ function ProvidersTable() {
 
   useEffect(() => {
     if (!canManage) return;
-    api.listSpecialties().then(setSpecialties).catch(() => setSpecialties([]));
-    api.listDepartments({ activeOnly: true }).then(setDepartments).catch(() => setDepartments([]));
-    api.listUsers().then(setUsers).catch(() => setUsers([]));
+    api
+      .listSpecialties()
+      .then(setSpecialties)
+      .catch(() => setSpecialties([]));
+    api
+      .listDepartments({ activeOnly: true })
+      .then(setDepartments)
+      .catch(() => setDepartments([]));
+    api
+      .listUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
   }, [canManage]);
 
   function startCreate() {
@@ -144,15 +155,15 @@ function ProvidersTable() {
     setEditing(p);
     setForm({
       fullName: p.fullName,
-      gender: p.gender ?? "",
-      registrationNumber: p.registrationNumber ?? "",
-      qualification: p.qualification ?? "",
-      email: p.email ?? "",
-      phone: p.phone ?? "",
-      userId: p.userId ?? "",
-      feeRupees: p.consultationFeePaise != null ? String(p.consultationFeePaise / 100) : "",
-      specialtyCode: "",
-      departmentId: "",
+      gender: p.gender ?? '',
+      registrationNumber: p.registrationNumber ?? '',
+      qualification: p.qualification ?? '',
+      email: p.email ?? '',
+      phone: p.phone ?? '',
+      userId: p.userId ?? '',
+      feeRupees: p.consultationFeePaise != null ? String(p.consultationFeePaise / 100) : '',
+      specialtyCode: '',
+      departmentId: '',
     });
     setFormError(null);
     setOpen(true);
@@ -171,7 +182,7 @@ function ProvidersTable() {
     }
     const feePaise = feeToPaise(form.feeRupees);
     if (feePaise === undefined) {
-      setFormError("Enter a valid consultation fee.");
+      setFormError('Enter a valid consultation fee.');
       return;
     }
     setSavingForm(true);
@@ -209,7 +220,7 @@ function ProvidersTable() {
       setOpen(false);
       await load();
     } catch (err) {
-      setFormError(err instanceof api.ApiRequestError ? err.message : "Could not save the doctor.");
+      setFormError(err instanceof api.ApiRequestError ? err.message : 'Could not save the doctor.');
     } finally {
       setSavingForm(false);
     }
@@ -255,7 +266,9 @@ function ProvidersTable() {
         setScheduleReady(true);
       })
       .catch((err) => {
-        setScheduleError(err instanceof api.ApiRequestError ? err.message : "Could not load the schedule.");
+        setScheduleError(
+          err instanceof api.ApiRequestError ? err.message : 'Could not load the schedule.',
+        );
       })
       .finally(() => setScheduleLoading(false));
   }
@@ -283,7 +296,7 @@ function ProvidersTable() {
         setScheduleError(`Window ${i + 1}: the end time must be after the start time.`);
         return;
       }
-      const slotMinutes = row.slotMinutes.trim() === "" ? 15 : Number(row.slotMinutes);
+      const slotMinutes = row.slotMinutes.trim() === '' ? 15 : Number(row.slotMinutes);
       if (!Number.isInteger(slotMinutes) || slotMinutes < 1) {
         setScheduleError(`Window ${i + 1}: slot minutes must be a whole number of minutes.`);
         return;
@@ -299,7 +312,9 @@ function ProvidersTable() {
       await api.setProviderSchedules(scheduleFor.id, windows);
       setScheduleFor(null);
     } catch (err) {
-      setScheduleError(err instanceof api.ApiRequestError ? err.message : "Could not save the schedule.");
+      setScheduleError(
+        err instanceof api.ApiRequestError ? err.message : 'Could not save the schedule.',
+      );
     } finally {
       setSavingSchedule(false);
     }
@@ -316,36 +331,37 @@ function ProvidersTable() {
 
   const columns: Array<Column<Provider>> = [
     {
-      key: "name",
-      header: "Name",
+      key: 'name',
+      header: 'Name',
       sortable: true,
       hideable: false,
       accessor: (p) => p.fullName,
       cell: (p) => <span className="font-medium text-fg">{p.fullName}</span>,
     },
     {
-      key: "reg",
-      header: "Registration",
-      accessor: (p) => valueLabel(p.registrationNumber, "unspecified"),
+      key: 'reg',
+      header: 'Registration',
+      accessor: (p) => valueLabel(p.registrationNumber, 'unspecified'),
       cell: (p) => <ValueOrEmpty value={p.registrationNumber} reason="unspecified" />,
     },
     {
-      key: "qual",
-      header: "Qualification",
-      accessor: (p) => valueLabel(p.qualification, "unspecified"),
+      key: 'qual',
+      header: 'Qualification',
+      accessor: (p) => valueLabel(p.qualification, 'unspecified'),
       cell: (p) => <ValueOrEmpty value={p.qualification} reason="unspecified" />,
     },
     {
-      key: "specialties",
-      header: "Specialties",
+      key: 'specialties',
+      header: 'Specialties',
       filterable: true,
-      accessor: (p) => p.specialties.map((s) => s.replace(/_/g, " ")).join(", ") || emptyLabel("none"),
+      accessor: (p) =>
+        p.specialties.map((s) => s.replace(/_/g, ' ')).join(', ') || emptyLabel('none'),
       cell: (p) =>
         p.specialties.length ? (
           <div className="flex flex-wrap gap-1">
             {p.specialties.map((s) => (
               <Badge key={s} tone="brand">
-                {s.replace(/_/g, " ")}
+                {s.replace(/_/g, ' ')}
               </Badge>
             ))}
           </div>
@@ -354,19 +370,24 @@ function ProvidersTable() {
         ),
     },
     {
-      key: "fee",
-      header: "Consultation fee",
+      key: 'fee',
+      header: 'Consultation fee',
       accessor: (p) => p.consultationFeePaise,
       // No fee on the doctor means the hospital's fee schedule decides it (ADR-117).
       cell: (p) =>
-        p.consultationFeePaise != null ? `₹${p.consultationFeePaise / 100}` : <EmptyValue reason="notConfigured" />,
+        p.consultationFeePaise != null ? (
+          `₹${p.consultationFeePaise / 100}`
+        ) : (
+          <EmptyValue reason="notConfigured" />
+        ),
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       filterable: true,
-      accessor: (p) => (p.isActive ? "Active" : "Inactive"),
-      cell: (p) => (p.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>),
+      accessor: (p) => (p.isActive ? 'Active' : 'Inactive'),
+      cell: (p) =>
+        p.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>,
     },
     actionsColumn<Provider>((p) => (
       <TableActions label={`Actions for ${p.fullName}`}>
@@ -377,8 +398,8 @@ function ProvidersTable() {
           permitted={canManage}
           onSelect={() => {
             setSpecialtyFor(p);
-            setSpecialtyCode("");
-            setSpecialtyDept("");
+            setSpecialtyCode('');
+            setSpecialtyDept('');
           }}
         />
         <TableAction
@@ -396,8 +417,8 @@ function ProvidersTable() {
           confirm={{
             title: `Deactivate ${p.fullName}?`,
             description:
-              "Past consultations and records keep their author. The doctor stops appearing for new check-ins and appointments until reactivated.",
-            confirmLabel: "Deactivate",
+              'Past consultations and records keep their author. The doctor stops appearing for new check-ins and appointments until reactivated.',
+            confirmLabel: 'Deactivate',
           }}
           onToggle={() => void toggleActive(p)}
         />
@@ -407,34 +428,59 @@ function ProvidersTable() {
 
   const formFields = (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Full name" required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
-      <Field label="Qualification" value={form.qualification} onChange={(e) => set("qualification", e.target.value)} placeholder="MBBS, MD" />
-      <Field label="Registration no." value={form.registrationNumber} onChange={(e) => set("registrationNumber", e.target.value)} placeholder="MMC-…" />
+      <Field
+        label="Full name"
+        required
+        value={form.fullName}
+        onChange={(e) => set('fullName', e.target.value)}
+      />
+      <Field
+        label="Qualification"
+        value={form.qualification}
+        onChange={(e) => set('qualification', e.target.value)}
+        placeholder="MBBS, MD"
+      />
+      <Field
+        label="Registration no."
+        value={form.registrationNumber}
+        onChange={(e) => set('registrationNumber', e.target.value)}
+        placeholder="MMC-…"
+      />
       <Select
         label="Gender"
         value={form.gender}
-        onChange={(v) => set("gender", v)}
+        onChange={(v) => set('gender', v)}
         options={GENDER_OPTIONS}
         placeholder="Not specified"
         clearable
       />
-      <Field label="Email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-      <PhoneField label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
+      <Field
+        label="Email"
+        type="email"
+        value={form.email}
+        onChange={(e) => set('email', e.target.value)}
+      />
+      <PhoneField label="Phone" value={form.phone} onChange={(v) => set('phone', v)} />
       <Field
         label="Consultation fee (₹)"
         type="number"
         min={0}
         step="0.01"
         value={form.feeRupees}
-        onChange={(e) => set("feeRupees", e.target.value)}
+        onChange={(e) => set('feeRupees', e.target.value)}
         placeholder="500"
       />
       {users.length > 0 && (
         <Select
           label="Login account (for their own queue)"
           value={form.userId}
-          onChange={(v) => set("userId", v)}
-          options={users.map((u) => ({ value: u.id, label: u.fullName, description: u.email, keywords: u.email }))}
+          onChange={(v) => set('userId', v)}
+          options={users.map((u) => ({
+            value: u.id,
+            label: u.fullName,
+            description: u.email,
+            keywords: u.email,
+          }))}
           placeholder="Not linked"
           emptyMessage="No staff account matches."
           clearable
@@ -445,8 +491,13 @@ function ProvidersTable() {
           <Select
             label="Specialty"
             value={form.specialtyCode}
-            onChange={(v) => set("specialtyCode", v)}
-            options={specialties.map((s) => ({ value: s.code, label: s.name, description: s.code, keywords: s.code }))}
+            onChange={(v) => set('specialtyCode', v)}
+            options={specialties.map((s) => ({
+              value: s.code,
+              label: s.name,
+              description: s.code,
+              keywords: s.code,
+            }))}
             placeholder="Assign later"
             emptyMessage="No specialty matches."
             clearable
@@ -454,7 +505,7 @@ function ProvidersTable() {
           <Select
             label="Department"
             value={form.departmentId}
-            onChange={(v) => set("departmentId", v)}
+            onChange={(v) => set('departmentId', v)}
             options={departments.map((d) => ({ value: d.id, label: d.name }))}
             disabled={!form.specialtyCode}
             placeholder="Not specified"
@@ -473,6 +524,7 @@ function ProvidersTable() {
         description="Practitioners and their specialties (FHIR Practitioner / PractitionerRole)."
         actions={
           <Can perm={PERMISSIONS.PROVIDER_MANAGE}>
+            <BulkImportAction moduleKey="providers" onImported={() => void load()} />
             <Button onClick={startCreate}>
               <Plus size={16} strokeWidth={2} /> Add doctor
             </Button>
@@ -502,17 +554,26 @@ function ProvidersTable() {
       <Dialog
         open={open}
         onClose={() => !savingForm && setOpen(false)}
-        title={editing ? `Edit ${editing.fullName}` : "Add doctor"}
-        description={editing ? undefined : "Creates the practitioner record used by appointments, check-in and consultations."}
+        title={editing ? `Edit ${editing.fullName}` : 'Add doctor'}
+        description={
+          editing
+            ? undefined
+            : 'Creates the practitioner record used by appointments, check-in and consultations.'
+        }
         size="lg"
         busy={savingForm}
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" type="button" disabled={savingForm} onClick={() => setOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={savingForm}
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="provider-form" loading={savingForm}>
-              {editing ? "Save changes" : "Add doctor"}
+              {editing ? 'Save changes' : 'Add doctor'}
             </Button>
           </div>
         }
@@ -526,15 +587,25 @@ function ProvidersTable() {
       <Dialog
         open={specialtyFor !== null}
         onClose={() => !savingForm && setSpecialtyFor(null)}
-        title={specialtyFor ? `Assign specialty: ${specialtyFor.fullName}` : "Assign specialty"}
+        title={specialtyFor ? `Assign specialty: ${specialtyFor.fullName}` : 'Assign specialty'}
         size="md"
         busy={savingForm}
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" type="button" disabled={savingForm} onClick={() => setSpecialtyFor(null)}>
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={savingForm}
+              onClick={() => setSpecialtyFor(null)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="specialty-form" loading={savingForm} disabled={!specialtyCode}>
+            <Button
+              type="submit"
+              form="specialty-form"
+              loading={savingForm}
+              disabled={!specialtyCode}
+            >
               Assign
             </Button>
           </div>
@@ -545,7 +616,12 @@ function ProvidersTable() {
             label="Specialty"
             value={specialtyCode}
             onChange={setSpecialtyCode}
-            options={specialties.map((s) => ({ value: s.code, label: s.name, description: s.code, keywords: s.code }))}
+            options={specialties.map((s) => ({
+              value: s.code,
+              label: s.name,
+              description: s.code,
+              keywords: s.code,
+            }))}
             placeholder="Choose…"
             emptyMessage="No specialty matches."
           />
@@ -564,16 +640,26 @@ function ProvidersTable() {
       <Dialog
         open={scheduleFor !== null}
         onClose={() => !savingSchedule && setScheduleFor(null)}
-        title={scheduleFor ? `Weekly schedule: ${scheduleFor.fullName}` : "Weekly schedule"}
+        title={scheduleFor ? `Weekly schedule: ${scheduleFor.fullName}` : 'Weekly schedule'}
         description="No windows = free-form booking; with windows, appointments must fall inside them."
         size="lg"
         busy={savingSchedule}
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" type="button" disabled={savingSchedule} onClick={() => setScheduleFor(null)}>
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={savingSchedule}
+              onClick={() => setScheduleFor(null)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="schedule-form" loading={savingSchedule} disabled={!scheduleReady}>
+            <Button
+              type="submit"
+              form="schedule-form"
+              loading={savingSchedule}
+              disabled={!scheduleReady}
+            >
               Save schedule
             </Button>
           </div>
@@ -587,8 +673,8 @@ function ProvidersTable() {
             <>
               {scheduleRows.length === 0 ? (
                 <p className="text-sm text-fg-muted">
-                  No windows yet. This doctor can be booked at any time. Add a window to limit bookings to roster
-                  hours.
+                  No windows yet. This doctor can be booked at any time. Add a window to limit
+                  bookings to roster hours.
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -605,7 +691,10 @@ function ProvidersTable() {
                         aria-label={`Window ${i + 1} weekday`}
                         value={String(row.weekday)}
                         onChange={(v) => setScheduleRow(i, { weekday: Number(v) })}
-                        options={WEEKDAYS.map((day, weekday) => ({ value: String(weekday), label: day }))}
+                        options={WEEKDAYS.map((day, weekday) => ({
+                          value: String(weekday),
+                          label: day,
+                        }))}
                       />
                       <input
                         className="hms-input"
@@ -639,7 +728,9 @@ function ProvidersTable() {
                         type="button"
                         aria-label={`Remove window ${i + 1}`}
                         className="px-2"
-                        onClick={() => setScheduleRows((rows) => rows.filter((_, idx) => idx !== i))}
+                        onClick={() =>
+                          setScheduleRows((rows) => rows.filter((_, idx) => idx !== i))
+                        }
                       >
                         <X size={16} strokeWidth={2} aria-hidden />
                       </Button>
@@ -656,13 +747,22 @@ function ProvidersTable() {
                   onClick={() =>
                     setScheduleRows((rows) => [
                       ...rows,
-                      { id: undefined, weekday: 1, startTime: "09:00", endTime: "17:00", slotMinutes: "15", branchId: undefined },
+                      {
+                        id: undefined,
+                        weekday: 1,
+                        startTime: '09:00',
+                        endTime: '17:00',
+                        slotMinutes: '15',
+                        branchId: undefined,
+                      },
                     ])
                   }
                 >
                   <Plus size={16} strokeWidth={2} /> Add window
                 </Button>
-                <p className="text-xs text-fg-subtle">Times are 24-hour HH:mm: 09:00, 13:30, 17:45.</p>
+                <p className="text-xs text-fg-subtle">
+                  Times are 24-hour HH:mm: 09:00, 13:30, 17:45.
+                </p>
               </div>
             </>
           )}

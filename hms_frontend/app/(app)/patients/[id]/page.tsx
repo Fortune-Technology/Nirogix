@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -17,18 +17,24 @@ import {
   Select,
   Spinner,
   ValueOrEmpty,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import { ageInYears, BLOOD_GROUP_OPTIONS, GENDER_OPTIONS, RECORD_STATUS_OPTIONS, todayApiDate } from "@hms/utils";
-import type { Patient, CreatePatientRequest } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission, Can } from "../../../../components/Can";
-import { PortalAccessCard } from "../../../../components/patients/PortalAccessCard";
-import { PatientHistory } from "../../../../components/patients/PatientHistory";
-import { ImmunizationsCard } from "../../../../components/patients/ImmunizationsCard";
-import { CasesCard } from "../../../../components/patients/CasesCard";
-import { ExternalHistoryCard } from "../../../../components/patients/ExternalHistoryCard";
-import { PageHeader } from "../../../../components/PageHeader";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import {
+  ageInYears,
+  BLOOD_GROUP_OPTIONS,
+  GENDER_OPTIONS,
+  RECORD_STATUS_OPTIONS,
+  todayApiDate,
+} from '@hms/utils';
+import type { Patient, CreatePatientRequest } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission, Can } from '../../../../components/Can';
+import { PortalAccessCard } from '../../../../components/patients/PortalAccessCard';
+import { PatientHistory } from '../../../../components/patients/PatientHistory';
+import { ImmunizationsCard } from '../../../../components/patients/ImmunizationsCard';
+import { CasesCard } from '../../../../components/patients/CasesCard';
+import { ExternalHistoryCard } from '../../../../components/patients/ExternalHistoryCard';
+import { PageHeader } from '../../../../components/PageHeader';
 
 /**
  * The identity strip — who this is, answered before anything else (ADR-127).
@@ -43,11 +49,11 @@ import { PageHeader } from "../../../../components/PageHeader";
  * placeholder would imply one is missing rather than never collected.
  */
 function IdentityStrip({ p }: { p: Patient }) {
-  const name = [p.firstName, p.lastName].filter(Boolean).join(" ");
+  const name = [p.firstName, p.lastName].filter(Boolean).join(' ');
   const initials = [p.firstName, p.lastName]
     .filter(Boolean)
-    .map((part) => part!.trim()[0]?.toUpperCase() ?? "")
-    .join("");
+    .map((part) => part!.trim()[0]?.toUpperCase() ?? '')
+    .join('');
   const years = ageInYears(p.dateOfBirth);
 
   return (
@@ -57,14 +63,14 @@ function IdentityStrip({ p }: { p: Patient }) {
           aria-hidden
           className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand-subtle text-lg font-semibold text-brand"
         >
-          {initials || "?"}
+          {initials || '?'}
         </span>
 
         <div className="min-w-0">
           <p className="text-lg font-semibold text-fg">{name}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
             <span className="font-mono text-fg">{p.uhid}</span>
-            <span>{years === null ? emptyLabel("notRecorded") : `${years} years`}</span>
+            <span>{years === null ? emptyLabel('notRecorded') : `${years} years`}</span>
             <ValueOrEmpty value={p.gender} reason="unspecified" />
             <span className="inline-flex items-center gap-1">
               <DateDisplay value={p.dateOfBirth} />
@@ -82,7 +88,7 @@ function IdentityStrip({ p }: { p: Patient }) {
           ) : (
             <Badge tone="neutral">Blood group not recorded</Badge>
           )}
-          <Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status}</Badge>
+          <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
         </div>
       </div>
     </Card>
@@ -115,20 +121,22 @@ function Profile({ id }: { id: string }) {
       const data = await api.getPatient(id);
       setP(data);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load patient.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load patient.');
     } finally {
       setLoading(false);
     }
   }, [id]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   // The patients-list "Edit details" action lands here with ?edit=1 — open the form as
   // soon as the record is in (once; closing it stays closed).
   const [autoEditDone, setAutoEditDone] = useState(false);
   useEffect(() => {
     if (!p || autoEditDone) return;
-    if (new URLSearchParams(window.location.search).get("edit") === "1") {
+    if (new URLSearchParams(window.location.search).get('edit') === '1') {
       setAutoEditDone(true);
       startEdit();
     }
@@ -138,10 +146,18 @@ function Profile({ id }: { id: string }) {
   function startEdit() {
     if (!p) return;
     setForm({
-      lastName: p.lastName ?? "", gender: p.gender ?? "", dateOfBirth: p.dateOfBirth ?? "",
-      phone: p.phone ?? "", email: p.email ?? "", bloodGroup: p.bloodGroup ?? "",
-      addressLine: p.addressLine ?? "", city: p.city ?? "", state: p.state ?? "", pincode: p.pincode ?? "",
-      emergencyContactName: p.emergencyContactName ?? "", emergencyContactPhone: p.emergencyContactPhone ?? "",
+      lastName: p.lastName ?? '',
+      gender: p.gender ?? '',
+      dateOfBirth: p.dateOfBirth ?? '',
+      phone: p.phone ?? '',
+      email: p.email ?? '',
+      bloodGroup: p.bloodGroup ?? '',
+      addressLine: p.addressLine ?? '',
+      city: p.city ?? '',
+      state: p.state ?? '',
+      pincode: p.pincode ?? '',
+      emergencyContactName: p.emergencyContactName ?? '',
+      emergencyContactPhone: p.emergencyContactPhone ?? '',
       status: p.status,
     });
     setEditing(true);
@@ -158,33 +174,44 @@ function Profile({ id }: { id: string }) {
     try {
       // Empty strings → null so nullable fields (email, pincode, enums) validate cleanly.
       const patch = Object.fromEntries(
-        Object.entries(form).map(([k, v]) => [k, v === "" ? null : v]),
+        Object.entries(form).map(([k, v]) => [k, v === '' ? null : v]),
       );
       await api.updatePatient(id, patch);
       setEditing(false);
       await load();
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Could not save.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Could not save.');
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div className="flex items-center gap-2 text-fg-muted"><Spinner /> Loading…</div>;
+  if (loading)
+    return (
+      <div className="flex items-center gap-2 text-fg-muted">
+        <Spinner /> Loading…
+      </div>
+    );
   if (error && !p) return <Alert tone="danger">{error}</Alert>;
   if (!p) return null;
 
   return (
     <>
       <PageHeader
-        title={[p.firstName, p.lastName].filter(Boolean).join(" ")}
+        title={[p.firstName, p.lastName].filter(Boolean).join(' ')}
         description={<span className="font-mono">{p.uhid}</span>}
         actions={
           <div className="flex items-center gap-2">
-            <Link href="/patients"><Button variant="ghost"><ArrowLeft size={16} strokeWidth={2} /> All patients</Button></Link>
+            <Link href="/patients">
+              <Button variant="ghost">
+                <ArrowLeft size={16} strokeWidth={2} /> All patients
+              </Button>
+            </Link>
             {!editing && (
               <Can perm={PERMISSIONS.PATIENT_UPDATE}>
-                <Button variant="secondary" onClick={startEdit}>Edit</Button>
+                <Button variant="secondary" onClick={startEdit}>
+                  Edit
+                </Button>
               </Can>
             )}
           </div>
@@ -198,11 +225,15 @@ function Profile({ id }: { id: string }) {
         <form className="flex max-w-3xl flex-col gap-5" onSubmit={save}>
           <Card header="Edit patient">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Last name" value={form.lastName ?? ""} onChange={(e) => set("lastName", e.target.value)} />
+              <Field
+                label="Last name"
+                value={form.lastName ?? ''}
+                onChange={(e) => set('lastName', e.target.value)}
+              />
               <Select
                 label="Gender"
-                value={form.gender ?? ""}
-                onChange={(v) => set("gender", v)}
+                value={form.gender ?? ''}
+                onChange={(v) => set('gender', v)}
                 options={GENDER_OPTIONS}
                 placeholder="Not specified"
                 clearable
@@ -211,36 +242,73 @@ function Profile({ id }: { id: string }) {
                 label="Date of birth"
                 value={form.dateOfBirth ?? null}
                 max={todayApiDate()}
-                onChange={(v) => set("dateOfBirth", v ?? "")}
+                onChange={(v) => set('dateOfBirth', v ?? '')}
               />
               <Select
                 label="Blood group"
-                value={form.bloodGroup ?? ""}
-                onChange={(v) => set("bloodGroup", v)}
+                value={form.bloodGroup ?? ''}
+                onChange={(v) => set('bloodGroup', v)}
                 options={BLOOD_GROUP_OPTIONS}
                 placeholder="Not recorded"
                 clearable
               />
-              <PhoneField label="Phone" value={form.phone ?? ""} onChange={(v) => set("phone", v)} />
-              <Field label="Email" type="email" value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} />
-              <Field label="Address" value={form.addressLine ?? ""} onChange={(e) => set("addressLine", e.target.value)} />
-              <Field label="City" value={form.city ?? ""} onChange={(e) => set("city", e.target.value)} />
-              <Field label="State" value={form.state ?? ""} onChange={(e) => set("state", e.target.value)} />
-              <Field label="PIN code" value={form.pincode ?? ""} onChange={(e) => set("pincode", e.target.value)} />
-              <Field label="Emergency contact" value={form.emergencyContactName ?? ""} onChange={(e) => set("emergencyContactName", e.target.value)} />
-              <Field label="Emergency phone" value={form.emergencyContactPhone ?? ""} onChange={(e) => set("emergencyContactPhone", e.target.value)} />
+              <PhoneField
+                label="Phone"
+                value={form.phone ?? ''}
+                onChange={(v) => set('phone', v)}
+              />
+              <Field
+                label="Email"
+                type="email"
+                value={form.email ?? ''}
+                onChange={(e) => set('email', e.target.value)}
+              />
+              <Field
+                label="Address"
+                value={form.addressLine ?? ''}
+                onChange={(e) => set('addressLine', e.target.value)}
+              />
+              <Field
+                label="City"
+                value={form.city ?? ''}
+                onChange={(e) => set('city', e.target.value)}
+              />
+              <Field
+                label="State"
+                value={form.state ?? ''}
+                onChange={(e) => set('state', e.target.value)}
+              />
+              <Field
+                label="PIN code"
+                value={form.pincode ?? ''}
+                onChange={(e) => set('pincode', e.target.value)}
+              />
+              <Field
+                label="Emergency contact"
+                value={form.emergencyContactName ?? ''}
+                onChange={(e) => set('emergencyContactName', e.target.value)}
+              />
+              <Field
+                label="Emergency phone"
+                value={form.emergencyContactPhone ?? ''}
+                onChange={(e) => set('emergencyContactPhone', e.target.value)}
+              />
               {/* Sentence case, not the raw column value: the two words are read by a person. */}
               <Select
                 label="Status"
-                value={form.status ?? "active"}
-                onChange={(v) => set("status", v || "active")}
+                value={form.status ?? 'active'}
+                onChange={(v) => set('status', v || 'active')}
                 options={RECORD_STATUS_OPTIONS}
               />
             </div>
           </Card>
           <div className="flex gap-3">
-            <Button type="submit" loading={saving}>Save</Button>
-            <Button variant="ghost" type="button" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button type="submit" loading={saving}>
+              Save
+            </Button>
+            <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
           </div>
         </form>
       ) : (

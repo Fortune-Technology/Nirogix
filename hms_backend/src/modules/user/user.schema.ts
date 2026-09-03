@@ -46,7 +46,9 @@ export const UserListItemSchema = z
   })
   .openapi('UserListItem');
 
-export const UsersResponseSchema = z.object({ users: z.array(UserListItemSchema) }).openapi('UsersResponse');
+export const UsersResponseSchema = z
+  .object({ users: z.array(UserListItemSchema) })
+  .openapi('UsersResponse');
 
 export const CreateUserResponseSchema = z
   .object({ id: z.string().uuid(), tempPassword: z.string().nullable() })

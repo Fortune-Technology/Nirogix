@@ -35,9 +35,7 @@ export const TenantStatusBody = z
   })
   .openapi('TenantStatusBody');
 
-export const GrantModuleBody = z
-  .object({ module: z.string().min(1) })
-  .openapi('GrantModuleBody');
+export const GrantModuleBody = z.object({ module: z.string().min(1) }).openapi('GrantModuleBody');
 
 // Toggle one capability of an entitled module on/off for a tenant (ADR-085). Deny-by-exception:
 // `enabled: true` clears any disable (ACTIVE); `enabled: false` writes a disable override.
@@ -129,7 +127,12 @@ export const TenantDetailSchema = z
     createdAt: z.string(),
     modules: z.array(z.string()),
     branches: z.array(
-      z.object({ id: z.string().uuid(), code: z.string(), name: z.string(), isActive: z.boolean() }),
+      z.object({
+        id: z.string().uuid(),
+        code: z.string(),
+        name: z.string(),
+        isActive: z.boolean(),
+      }),
     ),
     userCount: z.number().int(),
     // Identity only — never clinical data. Used for tenant administration and for

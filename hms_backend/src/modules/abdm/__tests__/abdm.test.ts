@@ -67,33 +67,51 @@ afterAll(async () => {
 /** Runs the Aadhaar creation flow end to end and returns the verification result. */
 async function runAadhaarFlow(aadhaar: string, mobile?: string) {
   const started = await abdm.startAadhaarEnrolment(tenantId, { aadhaar, consentGiven: true });
-  return abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP, mobile });
+  return abdm.verifyAadhaarOtp(tenantId, {
+    transactionId: started.transactionId,
+    otp: OTP,
+    mobile,
+  });
 }
 
 describe('consent', () => {
   test('an Aadhaar OTP is refused without recorded consent', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NEW, consentGiven: false })).rejects.toMatchObject({
+    await expect(
+      abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NEW, consentGiven: false }),
+    ).rejects.toMatchObject({
       statusCode: 422,
       code: 'ABDM_CONSENT_REQUIRED',
     });
     // Refused before anything was written: no transaction, so no OTP was ever sent.
-    const rows = await pool.query('SELECT count(*)::int AS c FROM abdm_transactions WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query(
+      'SELECT count(*)::int AS c FROM abdm_transactions WHERE tenant_id = $1',
+      [tenantId],
+    );
     expect(Number(rows.rows[0].c)).toBe(0);
   });
 
   test('an existing-ABHA verification is refused without consent too', async ({ skip }) => {
     if (!ready) return skip();
     await expect(
-      abdm.startVerification(tenantId, { identifierType: 'mobile', identifier: '9876543210', consentGiven: false }),
+      abdm.startVerification(tenantId, {
+        identifierType: 'mobile',
+        identifier: '9876543210',
+        consentGiven: false,
+      }),
     ).rejects.toMatchObject({ code: 'ABDM_CONSENT_REQUIRED' });
   });
 
   test('consent is stamped with its version when the flow starts', async ({ skip }) => {
     if (!ready) return skip();
-    const started = await abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NEW, consentGiven: true });
+    const started = await abdm.startAadhaarEnrolment(tenantId, {
+      aadhaar: AADHAAR_NEW,
+      consentGiven: true,
+    });
     const row = (
-      await pool.query('SELECT consent_at, consent_version FROM abdm_transactions WHERE id = $1', [started.transactionId])
+      await pool.query('SELECT consent_at, consent_version FROM abdm_transactions WHERE id = $1', [
+        started.transactionId,
+      ])
     ).rows[0];
     expect(row.consent_at).toBeTruthy();
     expect(row.consent_version).toBe('m1-v1');
@@ -115,11 +133,18 @@ describe('Aadhaar OTP flow', () => {
 
   test('a rejected OTP fails the transaction rather than half-completing it', async ({ skip }) => {
     if (!ready) return skip();
-    const started = await abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_OTP_FAILS, consentGiven: true });
-    await expect(abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP })).rejects.toMatchObject({
+    const started = await abdm.startAadhaarEnrolment(tenantId, {
+      aadhaar: AADHAAR_OTP_FAILS,
+      consentGiven: true,
+    });
+    await expect(
+      abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP }),
+    ).rejects.toMatchObject({
       code: 'ABDM_INVALID_OTP',
     });
-    const row = (await pool.query('SELECT state FROM abdm_transactions WHERE id = $1', [started.transactionId])).rows[0];
+    const row = (
+      await pool.query('SELECT state FROM abdm_transactions WHERE id = $1', [started.transactionId])
+    ).rows[0];
     expect(row.state).toBe('failed');
   });
 
@@ -127,18 +152,26 @@ describe('Aadhaar OTP flow', () => {
     if (!ready) return skip();
     // The receptionist needs to know it is the Aadhaar, not the system — generic copy would send
     // them to support instead of to the manual form.
-    await expect(abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NO_MOBILE, consentGiven: true })).rejects.toMatchObject(
-      { code: 'ABDM_NO_MOBILE_LINKED' },
-    );
+    await expect(
+      abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NO_MOBILE, consentGiven: true }),
+    ).rejects.toMatchObject({ code: 'ABDM_NO_MOBILE_LINKED' });
   });
 
-  test('the secondary mobile check runs when the mobile differs from the Aadhaar-linked one', async ({ skip }) => {
+  test('the secondary mobile check runs when the mobile differs from the Aadhaar-linked one', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const result = await runAadhaarFlow(AADHAAR_SECOND, '9000011111');
     expect(result.requiresMobileVerification).toBe(true);
 
-    const otp = await abdm.requestMobileOtp(tenantId, { transactionId: result.transactionId, mobile: '9000011111' });
-    const verified = await abdm.verifyMobileOtp(tenantId, { transactionId: otp.transactionId, otp: OTP });
+    const otp = await abdm.requestMobileOtp(tenantId, {
+      transactionId: result.transactionId,
+      mobile: '9000011111',
+    });
+    const verified = await abdm.verifyMobileOtp(tenantId, {
+      transactionId: otp.transactionId,
+      otp: OTP,
+    });
     expect(verified.state).toBe('verified');
     expect(verified.prefill.phone).toBe('9000011111');
   });
@@ -178,7 +211,10 @@ describe('Aadhaar OTP flow', () => {
     expect(card.data.length).toBeGreaterThan(0);
     expect(card.contentType).toContain('image/');
     // Nothing is written to the file store — the card is a rendering of data we already hold.
-    const files = await pool.query('SELECT count(*)::int AS c FROM file_metadata WHERE tenant_id = $1', [tenantId]);
+    const files = await pool.query(
+      'SELECT count(*)::int AS c FROM file_metadata WHERE tenant_id = $1',
+      [tenantId],
+    );
     expect(Number(files.rows[0].c)).toBe(0);
   });
 });
@@ -186,15 +222,22 @@ describe('Aadhaar OTP flow', () => {
 describe('a raw Aadhaar number never survives the request', () => {
   test('nothing in the transaction row contains the digits', async ({ skip }) => {
     if (!ready) return skip();
-    const started = await abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NEW, consentGiven: true });
+    const started = await abdm.startAadhaarEnrolment(tenantId, {
+      aadhaar: AADHAAR_NEW,
+      consentGiven: true,
+    });
     await abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
 
-    const row = (await pool.query('SELECT * FROM abdm_transactions WHERE id = $1', [started.transactionId])).rows[0];
+    const row = (
+      await pool.query('SELECT * FROM abdm_transactions WHERE id = $1', [started.transactionId])
+    ).rows[0];
     expect(JSON.stringify(row)).not.toContain(AADHAAR_NEW);
     expect(row.identifier_hint).toBe(`XXXXXXXX${AADHAAR_NEW.slice(-4)}`);
 
     // And nothing in the audit trail either — that is where a "helpful" metadata field would hide.
-    const audit = await pool.query('SELECT metadata FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const audit = await pool.query('SELECT metadata FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     expect(JSON.stringify(audit.rows)).not.toContain(AADHAAR_NEW);
   });
 
@@ -214,7 +257,10 @@ describe('a raw Aadhaar number never survives the request', () => {
     if (!ready) return skip();
     const result = await runAadhaarFlow(AADHAAR_NEW);
     const row = (
-      await pool.query('SELECT linking_token_enc, x_token_enc FROM abdm_transactions WHERE id = $1', [result.transactionId])
+      await pool.query(
+        'SELECT linking_token_enc, x_token_enc FROM abdm_transactions WHERE id = $1',
+        [result.transactionId],
+      )
     ).rows[0];
     expect(row.linking_token_enc).toMatch(/^v1\./);
     expect(row.linking_token_enc).not.toContain('mock-link-');
@@ -246,7 +292,12 @@ describe('new vs returning patient', () => {
     if (!ready) return skip();
     const first = await runAadhaarFlow(AADHAAR_SECOND);
     const bare = first.prefill.abhaNumber!.replace(/\D/g, '');
-    await createPatient(tenantId, { firstName: 'Bare', lastName: 'Format', phone: '9111100001', abhaNumber: bare });
+    await createPatient(tenantId, {
+      firstName: 'Bare',
+      lastName: 'Format',
+      phone: '9111100001',
+      abhaNumber: bare,
+    });
 
     const second = await runAadhaarFlow(AADHAAR_SECOND);
     expect(second.match.outcome).toBe('returning');
@@ -275,7 +326,11 @@ describe('new vs returning patient', () => {
 
   test('an unknown ABHA is a new patient', async ({ skip }) => {
     if (!ready) return skip();
-    const match = await abdm.matchPatient(tenantId, { abhaNumber: '99-9999-9999-9999', firstName: 'Nobody', dateOfBirth: '1990-01-01' });
+    const match = await abdm.matchPatient(tenantId, {
+      abhaNumber: '99-9999-9999-9999',
+      firstName: 'Nobody',
+      dateOfBirth: '1990-01-01',
+    });
     expect(match.outcome).toBe('new');
     expect(match.candidates).toHaveLength(0);
   });
@@ -292,7 +347,9 @@ describe('new vs returning patient', () => {
       abhaNumber: verified.prefill.abhaNumber,
     });
     // The other hospital holds no such chart, and RLS is what guarantees it cannot see this one.
-    const match = await abdm.matchPatient(otherTenantId, { abhaNumber: verified.prefill.abhaNumber });
+    const match = await abdm.matchPatient(otherTenantId, {
+      abhaNumber: verified.prefill.abhaNumber,
+    });
     expect(match.outcome).toBe('new');
   });
 });
@@ -301,15 +358,26 @@ describe('linking a verified ABHA to a chart', () => {
   test('marks the ABHA verified and records how it was obtained', async ({ skip }) => {
     if (!ready) return skip();
     const verified = await runAadhaarFlow(AADHAAR_LINK_A);
-    const patient = await createPatient(tenantId, { firstName: 'Link', lastName: 'Target', phone: '9222200000' });
+    const patient = await createPatient(tenantId, {
+      firstName: 'Link',
+      lastName: 'Target',
+      phone: '9222200000',
+    });
 
-    const linked = await abdm.linkToPatient(tenantId, { transactionId: verified.transactionId, patientId: patient.id });
+    const linked = await abdm.linkToPatient(tenantId, {
+      transactionId: verified.transactionId,
+      patientId: patient.id,
+    });
     expect(linked.abhaNumber).toBe(verified.prefill.abhaNumber);
     expect(linked.abhaVerifiedAt).toBeTruthy();
     expect(linked.abhaSource).toBe('aadhaar_otp');
     expect(linked.abhaConsentAt).toBeTruthy();
 
-    const row = (await pool.query('SELECT state, patient_id FROM abdm_transactions WHERE id = $1', [verified.transactionId])).rows[0];
+    const row = (
+      await pool.query('SELECT state, patient_id FROM abdm_transactions WHERE id = $1', [
+        verified.transactionId,
+      ])
+    ).rows[0];
     expect(row.state).toBe('completed');
     expect(row.patient_id).toBe(patient.id);
   });
@@ -318,11 +386,16 @@ describe('linking a verified ABHA to a chart', () => {
     if (!ready) return skip();
     const verified = await runAadhaarFlow(AADHAAR_LINK_B);
     const first = await createPatient(tenantId, { firstName: 'First', phone: '9222200001' });
-    await abdm.linkToPatient(tenantId, { transactionId: verified.transactionId, patientId: first.id });
+    await abdm.linkToPatient(tenantId, {
+      transactionId: verified.transactionId,
+      patientId: first.id,
+    });
 
     const again = await runAadhaarFlow(AADHAAR_LINK_B);
     const second = await createPatient(tenantId, { firstName: 'Second', phone: '9222200002' });
-    await expect(abdm.linkToPatient(tenantId, { transactionId: again.transactionId, patientId: second.id })).rejects.toMatchObject({
+    await expect(
+      abdm.linkToPatient(tenantId, { transactionId: again.transactionId, patientId: second.id }),
+    ).rejects.toMatchObject({
       code: 'ABHA_ALREADY_LINKED',
     });
   });
@@ -331,7 +404,10 @@ describe('linking a verified ABHA to a chart', () => {
     if (!ready) return skip();
     const verified = await runAadhaarFlow(AADHAAR_LINK_C);
     const patient = await createPatient(tenantId, { firstName: 'Retyped', phone: '9222200003' });
-    await abdm.linkToPatient(tenantId, { transactionId: verified.transactionId, patientId: patient.id });
+    await abdm.linkToPatient(tenantId, {
+      transactionId: verified.transactionId,
+      patientId: patient.id,
+    });
 
     await updatePatient(tenantId, patient.id, { abhaNumber: '11-1111-1111-1111' });
     const after = await getPatient(tenantId, patient.id);
@@ -349,7 +425,10 @@ describe('verify an existing ABHA', () => {
       identifier: '12-3456-7890-1234',
       consentGiven: true,
     });
-    const verified = await abdm.verifyIdentifierOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
+    const verified = await abdm.verifyIdentifierOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
     expect(verified.state).toBe('verified');
     expect(verified.prefill.abhaAddress).toContain('@');
   });
@@ -361,7 +440,10 @@ describe('verify an existing ABHA', () => {
       identifier: 'ramesh.kumar@sbx',
       consentGiven: true,
     });
-    const verified = await abdm.verifyIdentifierOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
+    const verified = await abdm.verifyIdentifierOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
     expect(verified.prefill.firstName).toBeTruthy();
   });
 
@@ -373,7 +455,10 @@ describe('verify an existing ABHA', () => {
       consentGiven: true,
     });
     expect(started.mobileHint).toMatch(/^XXXXXX/);
-    const verified = await abdm.verifyIdentifierOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
+    const verified = await abdm.verifyIdentifierOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
     expect(verified.prefill.abhaNumber).toBeTruthy();
   });
 
@@ -384,13 +469,22 @@ describe('verify an existing ABHA', () => {
       identifier: AADHAAR_NEW,
       consentGiven: true,
     });
-    const row = (await pool.query('SELECT identifier_hint FROM abdm_transactions WHERE id = $1', [started.transactionId])).rows[0];
+    const row = (
+      await pool.query('SELECT identifier_hint FROM abdm_transactions WHERE id = $1', [
+        started.transactionId,
+      ])
+    ).rows[0];
     expect(row.identifier_hint).toBe(`XXXXXXXX${AADHAAR_NEW.slice(-4)}`);
-    const verified = await abdm.verifyIdentifierOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
+    const verified = await abdm.verifyIdentifierOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
     expect(verified.prefill.abhaNumber).toBeTruthy();
   });
 
-  test('one identifier holding several ABHA accounts asks which one, then loads it', async ({ skip }) => {
+  test('one identifier holding several ABHA accounts asks which one, then loads it', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // The mock returns two accounts for an identifier whose digits end in 5 — the shared family
     // mobile case a real desk hits regularly.
@@ -399,7 +493,10 @@ describe('verify an existing ABHA', () => {
       identifier: '9876543215',
       consentGiven: true,
     });
-    const verified = await abdm.verifyIdentifierOtp(tenantId, { transactionId: started.transactionId, otp: OTP });
+    const verified = await abdm.verifyIdentifierOtp(tenantId, {
+      transactionId: started.transactionId,
+      otp: OTP,
+    });
     expect(verified.accounts?.length).toBe(2);
     expect(verified.prefill.abhaNumber).toBeUndefined();
 
@@ -435,7 +532,10 @@ describe('verify an existing ABHA', () => {
     expect(afterAadhaar.prefill.firstName).toBeTruthy();
     expect(afterAadhaar.prefill.dateOfBirth).toBeTruthy();
 
-    await abdm.requestMobileOtp(tenantId, { transactionId: started.transactionId, mobile: '9812345678' });
+    await abdm.requestMobileOtp(tenantId, {
+      transactionId: started.transactionId,
+      mobile: '9812345678',
+    });
     const afterMobile = await abdm.verifyMobileOtp(tenantId, {
       transactionId: started.transactionId,
       otp: OTP,
@@ -453,7 +553,9 @@ describe('verify an existing ABHA', () => {
 });
 
 describe('Scan and Share', () => {
-  test('a pushed profile resolves the tenant from the facility id and waits at the desk', async ({ skip }) => {
+  test('a pushed profile resolves the tenant from the facility id and waits at the desk', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     await abdm.upsertFacilityConfig(tenantId, {
       hipId: 'HFR-ABDMTEST-001',
@@ -464,7 +566,14 @@ describe('Scan and Share', () => {
 
     const accepted = await abdm.handleProfileShare({
       hipId: 'HFR-ABDMTEST-001',
-      profile: { abhaNumber: '12-3456-7890-9999', abhaAddress: 'scanned@sbx', firstName: 'Scanned', lastName: 'Patient', gender: 'F', dateOfBirth: '1992-03-04' },
+      profile: {
+        abhaNumber: '12-3456-7890-9999',
+        abhaAddress: 'scanned@sbx',
+        firstName: 'Scanned',
+        lastName: 'Patient',
+        gender: 'F',
+        dateOfBirth: '1992-03-04',
+      },
       linkingToken: 'link-token-from-abdm',
       context: '1',
       requestId: 'req-1',
@@ -489,20 +598,35 @@ describe('Scan and Share', () => {
     expect(row.linking_token_enc).not.toContain('link-token-from-abdm');
   });
 
-  test('an unknown facility is accepted and dropped, so the endpoint cannot enumerate hospitals', async ({ skip }) => {
+  test('an unknown facility is accepted and dropped, so the endpoint cannot enumerate hospitals', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const before = Number((await pool.query('SELECT count(*)::int AS c FROM abdm_transactions')).rows[0].c);
-    const result = await abdm.handleProfileShare({ hipId: 'HFR-DOES-NOT-EXIST', profile: { firstName: 'Nobody' } });
+    const before = Number(
+      (await pool.query('SELECT count(*)::int AS c FROM abdm_transactions')).rows[0].c,
+    );
+    const result = await abdm.handleProfileShare({
+      hipId: 'HFR-DOES-NOT-EXIST',
+      profile: { firstName: 'Nobody' },
+    });
     // Identical answer to the accepted case above — that is the whole point.
     expect(result.accepted).toBe(true);
-    const after = Number((await pool.query('SELECT count(*)::int AS c FROM abdm_transactions')).rows[0].c);
+    const after = Number(
+      (await pool.query('SELECT count(*)::int AS c FROM abdm_transactions')).rows[0].c,
+    );
     expect(after).toBe(before);
   });
 
   test('a facility with Scan and Share switched off drops the push', async ({ skip }) => {
     if (!ready) return skip();
-    await abdm.upsertFacilityConfig(otherTenantId, { hipId: 'HFR-ABDMOTHER-001', scanShareEnabled: false });
-    await abdm.handleProfileShare({ hipId: 'HFR-ABDMOTHER-001', profile: { firstName: 'Ignored' } });
+    await abdm.upsertFacilityConfig(otherTenantId, {
+      hipId: 'HFR-ABDMOTHER-001',
+      scanShareEnabled: false,
+    });
+    await abdm.handleProfileShare({
+      hipId: 'HFR-ABDMOTHER-001',
+      profile: { firstName: 'Ignored' },
+    });
     expect(await abdm.listPendingShares(otherTenantId)).toHaveLength(0);
   });
 
@@ -534,11 +658,17 @@ describe('capabilities and fallback', () => {
 
   test('an expired verification cannot be continued', async ({ skip }) => {
     if (!ready) return skip();
-    const started = await abdm.startAadhaarEnrolment(tenantId, { aadhaar: AADHAAR_NEW, consentGiven: true });
-    await pool.query("UPDATE abdm_transactions SET expires_at = now() - interval '1 minute' WHERE id = $1", [
-      started.transactionId,
-    ]);
-    await expect(abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP })).rejects.toMatchObject({
+    const started = await abdm.startAadhaarEnrolment(tenantId, {
+      aadhaar: AADHAAR_NEW,
+      consentGiven: true,
+    });
+    await pool.query(
+      "UPDATE abdm_transactions SET expires_at = now() - interval '1 minute' WHERE id = $1",
+      [started.transactionId],
+    );
+    await expect(
+      abdm.verifyAadhaarOtp(tenantId, { transactionId: started.transactionId, otp: OTP }),
+    ).rejects.toMatchObject({
       statusCode: 410,
       code: 'ABDM_TXN_EXPIRED',
     });
@@ -564,7 +694,11 @@ describe('capabilities and fallback', () => {
     if (!ready) return skip();
     const verified = await runAadhaarFlow(AADHAAR_SECOND);
     await abdm.dismissTransaction(tenantId, verified.transactionId);
-    const row = (await pool.query('SELECT state, patient_id FROM abdm_transactions WHERE id = $1', [verified.transactionId])).rows[0];
+    const row = (
+      await pool.query('SELECT state, patient_id FROM abdm_transactions WHERE id = $1', [
+        verified.transactionId,
+      ])
+    ).rows[0];
     expect(row.state).toBe('consumed');
     expect(row.patient_id).toBeNull();
   });
@@ -573,7 +707,9 @@ describe('capabilities and fallback', () => {
 describe('the mock provider itself', () => {
   test('refuses a malformed Aadhaar before any transaction exists', async ({ skip }) => {
     if (!ready) return skip();
-    await expect(abdm.startAadhaarEnrolment(tenantId, { aadhaar: '12345', consentGiven: true })).rejects.toMatchObject({
+    await expect(
+      abdm.startAadhaarEnrolment(tenantId, { aadhaar: '12345', consentGiven: true }),
+    ).rejects.toMatchObject({
       code: 'ABDM_INVALID_AADHAAR',
     });
   });
@@ -637,18 +773,21 @@ describe("reading ABDM's error bodies", () => {
   });
 
   test('a details array — the field-level reason', () => {
-    const body = '{"code":"ABDM-1030","details":[{"code":"ABDM-1030","message":"ABHA not found for the given mobile","attribute":"loginId"}]}';
+    const body =
+      '{"code":"ABDM-1030","details":[{"code":"ABDM-1030","message":"ABHA not found for the given mobile","attribute":"loginId"}]}';
     expect(parseAbdmError(body, 400).message).toBe('ABHA not found for the given mobile');
   });
 
   test('a nested error object', () => {
-    expect(parseAbdmError('{"error":{"code":1000,"message":"Session expired"}}', 401).message).toBe('Session expired');
+    expect(parseAbdmError('{"error":{"code":1000,"message":"Session expired"}}', 401).message).toBe(
+      'Session expired',
+    );
   });
 
   test('an errors array', () => {
-    expect(parseAbdmError('{"errors":[{"message":"Encrypted value could not be read"}]}', 400).message).toBe(
-      'Encrypted value could not be read',
-    );
+    expect(
+      parseAbdmError('{"errors":[{"message":"Encrypted value could not be read"}]}', 400).message,
+    ).toBe('Encrypted value could not be read');
   });
 
   test('a field-keyed body — the shape the enrolment endpoints really use', () => {
@@ -658,10 +797,14 @@ describe("reading ABDM's error bodies", () => {
   });
 
   test('a timestamp is never mistaken for the reason', () => {
-    expect(parseAbdmError('{"timestamp":"2026-08-25 19:31:06"}', 400).message).toBe('ABDM request failed (400)');
+    expect(parseAbdmError('{"timestamp":"2026-08-25 19:31:06"}', 400).message).toBe(
+      'ABDM request failed (400)',
+    );
   });
 
   test('a non-JSON body falls back without throwing', () => {
-    expect(parseAbdmError('<html>502 Bad Gateway</html>', 502).message).toBe('ABDM request failed (502)');
+    expect(parseAbdmError('<html>502 Bad Gateway</html>', 502).message).toBe(
+      'ABDM request failed (502)',
+    );
   });
 });

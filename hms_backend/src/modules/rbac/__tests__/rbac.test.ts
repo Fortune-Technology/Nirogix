@@ -42,13 +42,23 @@ beforeAll(async () => {
     await seedPermissionCatalog();
     await cleanup();
 
-    const t = (await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['RBAC Test', CODE])).rows[0];
+    const t = (
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'RBAC Test',
+        CODE,
+      ])
+    ).rows[0];
     tenantId = t.id;
     await provisionTenantRbac(tenantId);
     userId = await runWithTenant(tenantId, async (tx) => {
       const rows = await tx
         .insert(users)
-        .values({ tenantId, email: 'doc@rbactest.example', passwordHash: 'x', fullName: 'Test Doc' })
+        .values({
+          tenantId,
+          email: 'doc@rbactest.example',
+          passwordHash: 'x',
+          fullName: 'Test Doc',
+        })
         .returning();
       return rows[0]!.id;
     });
@@ -85,8 +95,18 @@ describe('RBAC effective-permission resolution', () => {
     if (!ready) return skip();
     const future = new Date(Date.now() + 60 * 60 * 1000);
     const past = new Date(Date.now() - 60 * 60 * 1000);
-    await setOverride(tenantId, { userId, permission: PERMISSIONS.BILLING_CREATE, effect: 'GRANT', validUntil: future });
-    await setOverride(tenantId, { userId, permission: PERMISSIONS.USERS_MANAGE, effect: 'GRANT', validUntil: past });
+    await setOverride(tenantId, {
+      userId,
+      permission: PERMISSIONS.BILLING_CREATE,
+      effect: 'GRANT',
+      validUntil: future,
+    });
+    await setOverride(tenantId, {
+      userId,
+      permission: PERMISSIONS.USERS_MANAGE,
+      effect: 'GRANT',
+      validUntil: past,
+    });
     const resolved = await resolvePermissions(tenantId, userId);
     expect(hasPermission(resolved, PERMISSIONS.BILLING_CREATE)).toBe(true); // within window
     expect(hasPermission(resolved, PERMISSIONS.USERS_MANAGE)).toBe(false); // expired

@@ -11,7 +11,7 @@ export type Rgb = { r: number; g: number; b: number };
 
 /** Accepts `#rgb` and `#rrggbb`, with or without the hash. Returns null if it is neither. */
 export function parseHexColor(value: string): Rgb | null {
-  const hex = value.trim().replace(/^#/, "");
+  const hex = value.trim().replace(/^#/, '');
   const full = hex.length === 3 ? hex.replace(/./g, (c) => c + c) : hex;
   if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
   return {
@@ -22,7 +22,10 @@ export function parseHexColor(value: string): Rgb | null {
 }
 
 export function toHexColor({ r, g, b }: Rgb): string {
-  const part = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  const part = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n)))
+      .toString(16)
+      .padStart(2, '0');
   return `#${part(r)}${part(g)}${part(b)}`;
 }
 
@@ -60,7 +63,7 @@ export function contrastRatio(a: Rgb, b: Rgb): number {
  */
 export function ensureContrast(
   color: string,
-  { against = "#ffffff", minContrast = 5 }: { against?: string; minContrast?: number } = {},
+  { against = '#ffffff', minContrast = 5 }: { against?: string; minContrast?: number } = {},
 ): string | null {
   const rgb = parseHexColor(color);
   const bg = parseHexColor(against);
@@ -74,5 +77,5 @@ export function ensureContrast(
     const darker: Rgb = { r: rgb.r * factor, g: rgb.g * factor, b: rgb.b * factor };
     if (contrastRatio(darker, bg) >= minContrast) return toHexColor(darker);
   }
-  return "#000000";
+  return '#000000';
 }

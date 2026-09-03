@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { Badge, Button, Card, Field } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import * as api from "../../../../lib/api";
-import { useTheme } from "../../../../lib/theme";
-import { RequirePermission } from "../../../../components/Can";
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { Badge, Button, Card, Field } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import * as api from '../../../../lib/api';
+import { useTheme } from '../../../../lib/theme';
+import { RequirePermission } from '../../../../components/Can';
 
-const DEFAULT_BRAND = "#0e7490";
-const DEFAULT_SECONDARY = "#334155";
+const DEFAULT_BRAND = '#0e7490';
+const DEFAULT_SECONDARY = '#334155';
 
 /**
  * Tenant branding (ADR-021, ADR-040). One accent token drives hover, pressed, subtle
@@ -49,7 +49,7 @@ function BrandingEditor() {
     }
   }
 
-  async function upload(kind: "logo" | "favicon", file: File | undefined) {
+  async function upload(kind: 'logo' | 'favicon', file: File | undefined) {
     if (!file) return;
     try {
       applyBranding(await api.uploadBrandingAsset(kind, file));
@@ -72,8 +72,9 @@ function BrandingEditor() {
   return (
     <Card header="Branding">
       <p className="mb-4 text-sm text-fg-muted">
-        The accent colour is a single token. Pick one and every button, link, badge and highlight updates instantly, in
-        both themes. Persisted for your whole organization, and carried onto the invoices and reports you print.
+        The accent colour is a single token. Pick one and every button, link, badge and highlight
+        updates instantly, in both themes. Persisted for your whole organization, and carried onto
+        the invoices and reports you print.
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -110,7 +111,11 @@ function BrandingEditor() {
               className="h-10 w-14 cursor-pointer rounded-token border border-border bg-surface"
               aria-label="Secondary colour"
             />
-            <Field value={secondary} onChange={(e) => setSecondary(e.target.value)} className="font-mono" />
+            <Field
+              value={secondary}
+              onChange={(e) => setSecondary(e.target.value)}
+              className="font-mono"
+            />
           </div>
         </div>
       </div>
@@ -149,7 +154,7 @@ function BrandingEditor() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => upload("logo", e.target.files?.[0])}
+              onChange={(e) => upload('logo', e.target.files?.[0])}
             />
             <Button variant="secondary" size="sm" onClick={() => logoInput.current?.click()}>
               Upload logo
@@ -164,7 +169,7 @@ function BrandingEditor() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => upload("favicon", e.target.files?.[0])}
+              onChange={(e) => upload('favicon', e.target.files?.[0])}
             />
             <Button variant="secondary" size="sm" onClick={() => faviconInput.current?.click()}>
               Upload favicon

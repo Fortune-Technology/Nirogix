@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Plus, Trash2 } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -19,26 +19,26 @@ import {
   type Column,
   type DataTableQuery,
   type NumberRangeValue,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { CreateInvoiceRequest, InvoiceListItem, Patient, Service } from "@hms/types";
-import { formatDate } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { RequirePermission, Can } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
-import { formatPaise, rupeesToPaise } from "../../../lib/money";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { CreateInvoiceRequest, InvoiceListItem, Patient, Service } from '@hms/types';
+import { formatDate } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { RequirePermission, Can } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
+import { formatPaise, rupeesToPaise } from '../../../lib/money';
 
-function statusTone(s: string): "success" | "warning" | "neutral" | "danger" {
-  if (s === "paid") return "success";
-  if (s === "partially_paid") return "warning";
-  if (s === "void") return "neutral";
-  return "danger"; // draft = unpaid
+function statusTone(s: string): 'success' | 'warning' | 'neutral' | 'danger' {
+  if (s === 'paid') return 'success';
+  if (s === 'partially_paid') return 'warning';
+  if (s === 'void') return 'neutral';
+  return 'danger'; // draft = unpaid
 }
 
 /** One row of the new-invoice line editor — a catalogue service or a custom item. */
 type LineRow = {
   key: number;
-  kind: "service" | "custom";
+  kind: 'service' | 'custom';
   serviceId: string;
   description: string;
   priceRupees: string;
@@ -50,7 +50,13 @@ function InvoicesTable() {
   // Server mode: the invoice list is paginated and filtered by the API, so the
   // table reports the view the user asked for instead of paging in the browser.
   const [rows, setRows] = useState<InvoiceListItem[]>([]);
-  const [query, setQuery] = useState<DataTableQuery>({ page: 1, pageSize: 20, search: "", sort: [], filters: {} });
+  const [query, setQuery] = useState<DataTableQuery>({
+    page: 1,
+    pageSize: 20,
+    search: '',
+    sort: [],
+    filters: {},
+  });
   // Total range in rupees; converted to paise at the API boundary. It is a numeric
   // range, not a facet, so it lives beside `query` rather than in `filters` (ADR-063).
   const [amount, setAmount] = useState<NumberRangeValue>({ min: null, max: null });
@@ -66,7 +72,7 @@ function InvoicesTable() {
   const [creating, setCreating] = useState(false);
   const [services, setServices] = useState<Service[] | null>(null); // null = not loaded yet
   const [patient, setPatient] = useState<Patient | null>(null);
-  const [patientSearch, setPatientSearch] = useState("");
+  const [patientSearch, setPatientSearch] = useState('');
   const [patientResults, setPatientResults] = useState<Patient[]>([]);
   const [lines, setLines] = useState<LineRow[]>([]);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -78,15 +84,16 @@ function InvoicesTable() {
       const res = await api.listInvoices({
         page: query.page,
         pageSize: query.pageSize,
-        status: query.filters.status?.length ? query.filters.status.join(",") : undefined,
+        status: query.filters.status?.length ? query.filters.status.join(',') : undefined,
         amountFrom: amount.min !== null ? Math.round(amount.min * 100) : undefined,
         amountTo: amount.max !== null ? Math.round(amount.max * 100) : undefined,
+        sort: api.sortParam(query.sort),
       });
       setRows(res.data);
       setTotal(res.page.total);
       setError(null);
     } catch {
-      setError("Could not load invoices.");
+      setError('Could not load invoices.');
     } finally {
       setLoading(false);
     }
@@ -103,14 +110,25 @@ function InvoicesTable() {
       return;
     }
     const t = setTimeout(() => {
-      api.listPatients(1, 6, patientSearch).then((r) => setPatientResults(r.data)).catch(() => setPatientResults([]));
+      api
+        .listPatients(1, 6, patientSearch)
+        .then((r) => setPatientResults(r.data))
+        .catch(() => setPatientResults([]));
     }, 300);
     return () => clearTimeout(t);
   }, [creating, patientSearch, patient]);
 
-  function freshRow(kind: LineRow["kind"]): LineRow {
+  function freshRow(kind: LineRow['kind']): LineRow {
     keyRef.current += 1;
-    return { key: keyRef.current, kind, serviceId: "", description: "", priceRupees: "", qty: "1", taxPercent: "" };
+    return {
+      key: keyRef.current,
+      kind,
+      serviceId: '',
+      description: '',
+      priceRupees: '',
+      qty: '1',
+      taxPercent: '',
+    };
   }
 
   function patchLine(key: number, patch: Partial<LineRow>) {
@@ -123,13 +141,16 @@ function InvoicesTable() {
 
   function openCreate() {
     setPatient(null);
-    setPatientSearch("");
+    setPatientSearch('');
     setPatientResults([]);
-    setLines([freshRow("service")]);
+    setLines([freshRow('service')]);
     setCreateError(null);
     setCreating(true);
     if (services === null) {
-      api.listServices({ activeOnly: true }).then(setServices).catch(() => setServices([]));
+      api
+        .listServices({ activeOnly: true })
+        .then(setServices)
+        .catch(() => setServices([]));
     }
   }
 
@@ -137,14 +158,14 @@ function InvoicesTable() {
     e.preventDefault();
     setCreateError(null);
     if (!patient) {
-      setCreateError("Select a patient.");
+      setCreateError('Select a patient.');
       return;
     }
     if (lines.length === 0) {
-      setCreateError("Add at least one line.");
+      setCreateError('Add at least one line.');
       return;
     }
-    const lineItems: CreateInvoiceRequest["lineItems"] = [];
+    const lineItems: CreateInvoiceRequest['lineItems'] = [];
     for (const [idx, l] of lines.entries()) {
       const label = `Line ${idx + 1}`;
       const q = Number(l.qty);
@@ -152,14 +173,14 @@ function InvoicesTable() {
         setCreateError(`${label}: quantity must be a whole number of at least 1.`);
         return;
       }
-      if (l.kind === "service") {
+      if (l.kind === 'service') {
         const svc = (services ?? []).find((s) => s.id === l.serviceId);
         if (!svc) {
           setCreateError(`${label}: choose a service from the catalogue.`);
           return;
         }
         lineItems.push({
-          itemType: "service",
+          itemType: 'service',
           description: `${svc.name} (${svc.code})`,
           quantity: q,
           unitPricePaise: svc.pricePaise,
@@ -171,17 +192,17 @@ function InvoicesTable() {
           return;
         }
         const price = Number(l.priceRupees);
-        if (l.priceRupees.trim() === "" || !Number.isFinite(price) || price < 0) {
+        if (l.priceRupees.trim() === '' || !Number.isFinite(price) || price < 0) {
           setCreateError(`${label}: enter a valid unit price.`);
           return;
         }
-        const pct = l.taxPercent.trim() === "" ? 0 : Number(l.taxPercent);
+        const pct = l.taxPercent.trim() === '' ? 0 : Number(l.taxPercent);
         if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
           setCreateError(`${label}: enter a valid tax percentage (0–100).`);
           return;
         }
         lineItems.push({
-          itemType: "other",
+          itemType: 'other',
           description: l.description.trim(),
           quantity: q,
           unitPricePaise: rupeesToPaise(price),
@@ -195,15 +216,17 @@ function InvoicesTable() {
       router.push(`/billing/${created.id}`);
       // Stay busy through the navigation — the dialog unmounts with the page.
     } catch (err) {
-      setCreateError(err instanceof api.ApiRequestError ? err.message : "Could not create the invoice.");
+      setCreateError(
+        err instanceof api.ApiRequestError ? err.message : 'Could not create the invoice.',
+      );
       setCreatingBusy(false);
     }
   }
 
   const columns: Array<Column<InvoiceListItem>> = [
     {
-      key: "number",
-      header: "Invoice",
+      key: 'number',
+      header: 'Invoice',
       hideable: false,
       accessor: (i) => i.invoiceNumber,
       cell: (i) => (
@@ -213,8 +236,8 @@ function InvoicesTable() {
       ),
     },
     {
-      key: "patient",
-      header: "Patient",
+      key: 'patient',
+      header: 'Patient',
       hideable: false,
       accessor: (i) => `${i.patientName} ${i.patientUhid}`,
       cell: (i) => (
@@ -224,40 +247,44 @@ function InvoicesTable() {
       ),
     },
     {
-      key: "total",
-      header: "Total",
+      key: 'total',
+      header: 'Total',
       accessor: (i) => i.totalPaise,
-      cell: (i) => <span className="whitespace-nowrap text-fg">{formatPaise(i.totalPaise, i.currency)}</span>,
+      cell: (i) => (
+        <span className="whitespace-nowrap text-fg">{formatPaise(i.totalPaise, i.currency)}</span>
+      ),
     },
     {
-      key: "balance",
-      header: "Balance",
+      key: 'balance',
+      header: 'Balance',
       accessor: (i) => i.balancePaise,
       cell: (i) => (
-        <span className={`whitespace-nowrap ${i.balancePaise > 0 ? "text-fg" : "text-fg-muted"}`}>
+        <span className={`whitespace-nowrap ${i.balancePaise > 0 ? 'text-fg' : 'text-fg-muted'}`}>
           {formatPaise(i.balancePaise, i.currency)}
         </span>
       ),
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       filterable: true,
       filterOptions: [
-        { value: "draft", label: "unpaid (draft)" },
-        { value: "partially_paid", label: "partially paid" },
-        { value: "paid", label: "paid" },
-        { value: "void", label: "void" },
+        { value: 'draft', label: 'unpaid (draft)' },
+        { value: 'partially_paid', label: 'partially paid' },
+        { value: 'paid', label: 'paid' },
+        { value: 'void', label: 'void' },
       ],
       // Raw status is the filter/sort value; the pretty form is display only.
       accessor: (i) => i.status,
-      cell: (i) => <Badge tone={statusTone(i.status)}>{i.status.replace("_", " ")}</Badge>,
+      cell: (i) => <Badge tone={statusTone(i.status)}>{i.status.replace('_', ' ')}</Badge>,
     },
     {
-      key: "date",
-      header: "Created",
+      key: 'date',
+      header: 'Created',
       accessor: (i) => i.createdAt,
-      cell: (i) => <span className="whitespace-nowrap text-fg-muted">{formatDate(i.createdAt)}</span>,
+      cell: (i) => (
+        <span className="whitespace-nowrap text-fg-muted">{formatDate(i.createdAt)}</span>
+      ),
     },
     actionsColumn<InvoiceListItem>((i) => (
       <TableActions label={`Actions for invoice ${i.invoiceNumber}`}>
@@ -270,7 +297,7 @@ function InvoicesTable() {
     <>
       <PageHeader
         title="Billing"
-        description={`${total} invoice${total === 1 ? "" : "s"}`}
+        description={`${total} invoice${total === 1 ? '' : 's'}`}
         actions={
           <Can perm={PERMISSIONS.BILLING_CREATE}>
             <Button onClick={openCreate}>
@@ -286,7 +313,7 @@ function InvoicesTable() {
         loading={loading}
         error={error}
         onRetry={() => void load()}
-        emptyMessage={statusFilter?.length ? "No invoices with this status." : "No invoices yet."}
+        emptyMessage={statusFilter?.length ? 'No invoices with this status.' : 'No invoices yet.'}
         urlState
         filters={
           <NumberRangeFilter
@@ -318,7 +345,12 @@ function InvoicesTable() {
         busy={creatingBusy}
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" type="button" disabled={creatingBusy} onClick={() => setCreating(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={creatingBusy}
+              onClick={() => setCreating(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="new-invoice-form" loading={creatingBusy}>
@@ -335,7 +367,9 @@ function InvoicesTable() {
             {patient ? (
               <div className="flex items-center gap-3 rounded-token border border-border bg-surface px-3 py-2">
                 <Badge tone="brand">{patient.uhid}</Badge>
-                <span className="text-fg">{[patient.firstName, patient.lastName].filter(Boolean).join(" ")}</span>
+                <span className="text-fg">
+                  {[patient.firstName, patient.lastName].filter(Boolean).join(' ')}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -343,7 +377,7 @@ function InvoicesTable() {
                   className="ml-auto"
                   onClick={() => {
                     setPatient(null);
-                    setPatientSearch("");
+                    setPatientSearch('');
                   }}
                 >
                   Change
@@ -369,8 +403,12 @@ function InvoicesTable() {
                           }}
                         >
                           <span className="font-mono text-xs text-fg-muted">{p.uhid}</span>
-                          <span className="text-fg">{[p.firstName, p.lastName].filter(Boolean).join(" ")}</span>
-                          {p.phone && <span className="ml-auto text-xs text-fg-subtle">{p.phone}</span>}
+                          <span className="text-fg">
+                            {[p.firstName, p.lastName].filter(Boolean).join(' ')}
+                          </span>
+                          {p.phone && (
+                            <span className="ml-auto text-xs text-fg-subtle">{p.phone}</span>
+                          )}
                         </button>
                       </li>
                     ))}
@@ -383,26 +421,33 @@ function InvoicesTable() {
           <div className="flex flex-col gap-3">
             <span className="hms-label">Line items</span>
             {lines.length === 0 && (
-              <p className="text-sm text-fg-muted">No lines yet. Add a catalogue service or a custom item.</p>
+              <p className="text-sm text-fg-muted">
+                No lines yet. Add a catalogue service or a custom item.
+              </p>
             )}
             {lines.map((l, idx) => (
-              <div key={l.key} role="group" aria-label={`Line ${idx + 1}`} className="flex flex-col gap-3 rounded-token border border-border p-3">
+              <div
+                key={l.key}
+                role="group"
+                aria-label={`Line ${idx + 1}`}
+                className="flex flex-col gap-3 rounded-token border border-border p-3"
+              >
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant={l.kind === "service" ? "secondary" : "ghost"}
-                    aria-pressed={l.kind === "service"}
-                    onClick={() => patchLine(l.key, { kind: "service" })}
+                    variant={l.kind === 'service' ? 'secondary' : 'ghost'}
+                    aria-pressed={l.kind === 'service'}
+                    onClick={() => patchLine(l.key, { kind: 'service' })}
                   >
                     Catalogue
                   </Button>
                   <Button
                     type="button"
                     size="sm"
-                    variant={l.kind === "custom" ? "secondary" : "ghost"}
-                    aria-pressed={l.kind === "custom"}
-                    onClick={() => patchLine(l.key, { kind: "custom" })}
+                    variant={l.kind === 'custom' ? 'secondary' : 'ghost'}
+                    aria-pressed={l.kind === 'custom'}
+                    onClick={() => patchLine(l.key, { kind: 'custom' })}
                   >
                     Custom
                   </Button>
@@ -417,14 +462,14 @@ function InvoicesTable() {
                     <Trash2 size={15} strokeWidth={2} aria-hidden />
                   </Button>
                 </div>
-                {l.kind === "service" ? (
+                {l.kind === 'service' ? (
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_6rem]">
                     <Select
                       label="Service"
                       value={l.serviceId}
                       onChange={(v) => patchLine(l.key, { serviceId: v })}
                       loading={services === null}
-                      placeholder={services?.length ? "Choose a service…" : "No active services"}
+                      placeholder={services?.length ? 'Choose a service…' : 'No active services'}
                       emptyMessage="No service matches that search."
                       options={(services ?? []).map((s) => ({
                         value: s.id,
@@ -484,7 +529,12 @@ function InvoicesTable() {
               </div>
             ))}
             <div>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setLines((ls) => [...ls, freshRow("service")])}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setLines((ls) => [...ls, freshRow('service')])}
+              >
                 <Plus size={15} strokeWidth={2} /> Add line
               </Button>
             </div>

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useLenis } from "lenis/react";
-import { ArrowUp } from "lucide-react";
-import { cn } from "../cn";
+import { useEffect, useState } from 'react';
+import { useLenis } from 'lenis/react';
+import { ArrowUp } from 'lucide-react';
+import { cn } from '../cn';
 
 export interface BackToTopProps {
   /** Pixels the user must scroll before the button appears. */
@@ -33,13 +33,13 @@ export function BackToTop({ threshold = 600, className }: BackToTopProps) {
       setVisible((prev) => (prev === next ? prev : next));
     }
     onScroll(); // a restored scroll position must not need a wheel event to be noticed
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [threshold]);
 
   function toTop() {
     if (lenis) lenis.scrollTo(0);
-    else window.scrollTo({ top: 0, behavior: "smooth" });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
@@ -50,7 +50,7 @@ export function BackToTop({ threshold = 600, className }: BackToTopProps) {
       title="Back to top"
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
-      className={cn("hms-backtotop", visible && "hms-backtotop--visible", className)}
+      className={cn('hms-backtotop', visible && 'hms-backtotop--visible', className)}
     >
       <ArrowUp size={20} strokeWidth={2} aria-hidden />
     </button>

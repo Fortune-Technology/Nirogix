@@ -11,7 +11,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const forbidden = { description: 'Missing permission, module or capability', ...json(ErrorResponseSchema) };
+const forbidden = {
+  description: 'Missing permission, module or capability',
+  ...json(ErrorResponseSchema),
+};
 const invalid = { description: 'Validation failed', ...json(ErrorResponseSchema) };
 
 const branchQuery = z.object({
@@ -19,7 +22,9 @@ const branchQuery = z.object({
     .string()
     .uuid()
     .optional()
-    .describe('Omit for the organization-wide scope; supply a branch to read or override that hospital'),
+    .describe(
+      'Omit for the organization-wide scope; supply a branch to read or override that hospital',
+    ),
 });
 
 registry.registerPath({
@@ -79,7 +84,10 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Visit not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Not recordable at this stage for this hospital', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Not recordable at this stage for this hospital',
+      ...json(ErrorResponseSchema),
+    },
     422: invalid,
   },
 });
@@ -89,7 +97,7 @@ registry.registerPath({
   path: '/api/v1/visits/{visitId}/vitals',
   operationId: 'listVisitVitals',
   tags: ['Vitals'],
-  summary: "Every reading taken on a visit, newest first",
+  summary: 'Every reading taken on a visit, newest first',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ visitId: z.string().uuid() }) },
   responses: {

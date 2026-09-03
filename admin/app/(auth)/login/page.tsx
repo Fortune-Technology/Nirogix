@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Alert, BrandMark, Button, Card, Field, PasswordField } from "@hms/ui";
-import { useAuth } from "../../../lib/auth";
+import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Alert, BrandMark, Button, Card, Field, PasswordField } from '@hms/ui';
+import { useAuth } from '../../../lib/auth';
 
 /**
  * Platform operator sign-in (ADR-051).
@@ -23,14 +23,14 @@ export default function LoginPage() {
   const { status, login } = useAuth();
   const router = useRouter();
 
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [orgCode, setOrgCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
+    if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -39,7 +39,7 @@ export default function LoginPage() {
     setSubmitting(true);
     const result = await login({ orgCode: orgCode.trim(), email: email.trim(), password });
     setSubmitting(false);
-    if (result.ok) router.replace("/dashboard");
+    if (result.ok) router.replace('/dashboard');
     else setError(result.error);
   }
 
@@ -87,7 +87,8 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-5 text-center text-xs text-fg-subtle">
-        This console administers the Nirogix platform. Hospital staff sign in to the Nirogix Portal instead.
+        This console administers the Nirogix platform. Hospital staff sign in to the Nirogix Portal
+        instead.
       </p>
     </Card>
   );

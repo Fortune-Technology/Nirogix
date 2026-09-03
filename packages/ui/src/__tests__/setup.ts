@@ -1,4 +1,4 @@
-import "@testing-library/dom";
+import '@testing-library/dom';
 
 // jsdom does not implement these; Base UI's toast and our DataTable touch them.
 if (!window.matchMedia) {

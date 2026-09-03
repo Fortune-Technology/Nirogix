@@ -1,5 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { api, cleanupTenant, dbReady, makeTenant, TEST_PASSWORD, type TestTenant } from '../../../test-api';
+import {
+  api,
+  cleanupTenant,
+  dbReady,
+  makeTenant,
+  TEST_PASSWORD,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { LOCKOUT_THRESHOLD } from '../lockout';
 
@@ -21,7 +28,9 @@ let ready = false;
 let tenant: TestTenant;
 
 async function attempt(password: string) {
-  return api().post('/api/v1/auth/login').send({ orgCode: CODE, email: tenant.users.cashier, password });
+  return api()
+    .post('/api/v1/auth/login')
+    .send({ orgCode: CODE, email: tenant.users.cashier, password });
 }
 
 async function userRow() {
@@ -55,7 +64,9 @@ afterAll(async () => {
 });
 
 describe('account lockout', () => {
-  test('consecutive failures lock the account, and the lock survives a correct password', async ({ skip }) => {
+  test('consecutive failures lock the account, and the lock survives a correct password', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
 
     for (let i = 0; i < LOCKOUT_THRESHOLD; i += 1) {
@@ -75,7 +86,9 @@ describe('account lockout', () => {
     expect(locked.headers['set-cookie']).toBeUndefined();
   });
 
-  test('a wrong password during a lock gets the same generic 401 as any other wrong password', async ({ skip }) => {
+  test('a wrong password during a lock gets the same generic 401 as any other wrong password', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const res = await attempt(WRONG);
     expect(res.status).toBe(401);
@@ -99,7 +112,9 @@ describe('account lockout', () => {
     expect(actions).toContain('auth.login.blocked');
   });
 
-  test('once the lock expires, the right password works again and the streak is cleared', async ({ skip }) => {
+  test('once the lock expires, the right password works again and the streak is cleared', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     // Fast-forward rather than sleeping for the real lock duration.
     await pool.query(

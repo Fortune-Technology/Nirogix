@@ -1,6 +1,14 @@
-import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { parseSort, resolveSort, type SortableColumns } from '../../db/sort';
 import { runWithTenant } from '../../db/tenantContext';
-import { appointments, departments, patients, providers, providerSchedules, type Appointment } from '../../db/schema';
+import {
+  appointments,
+  departments,
+  patients,
+  providers,
+  providerSchedules,
+  type Appointment,
+} from '../../db/schema';
 import { Errors } from '../../http/error';
 import { writeAudit } from '../audit/audit.service';
 import { eventBus } from '../../events/eventBus';
@@ -28,6 +36,21 @@ export type BookInput = {
    * distinction survives the wait rather than having to be remembered at the desk.
    */
   arrivalType?: 'appointment' | 'follow_up' | null;
+};
+
+/**
+ * The sort keys this endpoint publishes, and what each one orders by (ADR-136).
+ *
+ * Keyed by the DataTable **column key** the Portal uses, so what a person clicks and what the
+ * server sorts on are the same name. A client never gets to name a column: an unlisted key is
+ * dropped and the workflow-aware default stands.
+ */
+const APPOINTMENT_SORT: SortableColumns = {
+  when: appointments.scheduledAt,
+  patient: patients.firstName,
+  provider: providers.fullName,
+  dur: appointments.durationMinutes,
+  status: appointments.status,
 };
 
 export type AppointmentView = {
@@ -64,11 +87,19 @@ export async function bookAppointment(
   const appointment = await runWithTenant(tenantId, async (tx) => {
     // Patient + provider must exist in this tenant.
     const patient = (
-      await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, input.patientId))).limit(1)
+      await tx
+        .select({ id: patients.id })
+        .from(patients)
+        .where(and(eq(patients.tenantId, tenantId), eq(patients.id, input.patientId)))
+        .limit(1)
     )[0];
     if (!patient) throw Errors.notFound('Patient not found');
     const provider = (
-      await tx.select({ id: providers.id }).from(providers).where(and(eq(providers.tenantId, tenantId), eq(providers.id, input.providerId))).limit(1)
+      await tx
+        .select({ id: providers.id })
+        .from(providers)
+        .where(and(eq(providers.tenantId, tenantId), eq(providers.id, input.providerId)))
+        .limit(1)
     )[0];
     if (!provider) throw Errors.notFound('Provider not found');
 
@@ -104,10 +135,15 @@ export async function bookAppointment(
       const weekday = local.getDay();
       const minutes = local.getHours() * 60 + local.getMinutes();
       const inWindow = windows.some(
-        (w) => w.weekday === weekday && minutes >= hhmmToMinutes(w.startTime) && minutes + duration <= hhmmToMinutes(w.endTime),
+        (w) =>
+          w.weekday === weekday &&
+          minutes >= hhmmToMinutes(w.startTime) &&
+          minutes + duration <= hhmmToMinutes(w.endTime),
       );
       if (!inWindow) {
-        throw Errors.conflict('The doctor is not available at that time. Pick a slot from their schedule');
+        throw Errors.conflict(
+          'The doctor is not available at that time. Pick a slot from their schedule',
+        );
       }
     }
 
@@ -148,14 +184,22 @@ export async function bookAppointment(
     return rows[0]!;
   });
 
-  eventBus.publish('appointment.booked', { tenantId, appointmentId: appointment.id, patientId: appointment.patientId });
+  eventBus.publish('appointment.booked', {
+    tenantId,
+    appointmentId: appointment.id,
+    patientId: appointment.patientId,
+  });
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
     action: 'appointment.book',
     resourceType: 'appointment',
     resourceId: appointment.id,
-    metadata: { providerId: input.providerId, patientId: input.patientId, scheduledAt: input.scheduledAt },
+    metadata: {
+      providerId: input.providerId,
+      patientId: input.patientId,
+      scheduledAt: input.scheduledAt,
+    },
   });
   return appointment;
 }
@@ -170,6 +214,8 @@ export async function listAppointments(
     providerId?: string;
     patientId?: string;
     status?: readonly string[];
+    /** `key:dir` pairs from the table header. Unknown keys fall back to the default order. */
+    sort?: string;
   },
 ): Promise<{ rows: AppointmentView[]; total: number }> {
   return runWithTenant(tenantId, async (tx) => {
@@ -203,11 +249,31 @@ export async function listAppointments(
       .innerJoin(providers, eq(providers.id, appointments.providerId))
       .leftJoin(departments, eq(departments.id, appointments.departmentId))
       .where(where)
-      .orderBy(desc(appointments.scheduledAt))
+      // What is coming, soonest first — then what has been, most recent first (ADR-136).
+      //
+      // Only when the user has not asked for something else. The table offers sorting on every
+      // column that knows its value, and this endpoint used to drop the parameter: the arrow
+      // moved, the URL changed, the rows did not.
+      //
+      // Plain `scheduledAt DESC` put the FURTHEST-AWAY appointment at the top, so a booking three
+      // months out sat above this morning's clinic and today's list was somewhere in the middle of
+      // page one. Nobody looks at a schedule to find out what happens in March.
+      //
+      // Two keys, not one: the first splits future from past, the second orders each half in its
+      // own direction. A date filter narrows the set; it does not change which end matters.
+      .orderBy(
+        ...(resolveSort(parseSort(opts.sort), APPOINTMENT_SORT) ?? [
+          sql`case when ${appointments.scheduledAt} >= now() then 0 else 1 end`,
+          sql`case when ${appointments.scheduledAt} >= now() then ${appointments.scheduledAt} end asc`,
+          sql`case when ${appointments.scheduledAt} < now() then ${appointments.scheduledAt} end desc`,
+        ]),
+      )
       .limit(opts.pageSize)
       .offset((opts.page - 1) * opts.pageSize);
 
-    const total = Number((await tx.select({ c: count() }).from(appointments).where(where))[0]?.c ?? 0);
+    const total = Number(
+      (await tx.select({ c: count() }).from(appointments).where(where))[0]?.c ?? 0,
+    );
 
     return {
       rows: rows.map((r) => ({
@@ -239,13 +305,22 @@ export async function cancelAppointment(
   const updated = (
     await runWithTenant(tenantId, async (tx) => {
       const current = (
-        await tx.select().from(appointments).where(and(eq(appointments.tenantId, tenantId), eq(appointments.id, id))).limit(1)
+        await tx
+          .select()
+          .from(appointments)
+          .where(and(eq(appointments.tenantId, tenantId), eq(appointments.id, id)))
+          .limit(1)
       )[0];
       if (!current) throw Errors.notFound('Appointment not found');
       if (current.status === 'cancelled') throw Errors.conflict('Appointment is already cancelled');
       return tx
         .update(appointments)
-        .set({ status: 'cancelled', cancelReason: reason ?? null, cancelledAt: new Date(), updatedAt: new Date() })
+        .set({
+          status: 'cancelled',
+          cancelReason: reason ?? null,
+          cancelledAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(appointments.id, id))
         .returning();
     })
@@ -266,7 +341,9 @@ export async function cancelAppointment(
 // Count for the dashboard tiles (all appointments, tenant-scoped).
 export async function countAppointments(tenantId: string): Promise<number> {
   return runWithTenant(tenantId, async (tx) => {
-    const c = (await tx.select({ c: count() }).from(appointments).where(eq(appointments.tenantId, tenantId)))[0];
+    const c = (
+      await tx.select({ c: count() }).from(appointments).where(eq(appointments.tenantId, tenantId))
+    )[0];
     return Number(c?.c ?? 0);
   });
 }

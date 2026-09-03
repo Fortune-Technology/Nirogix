@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { use, useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2 } from "lucide-react";
-import { Alert, BrandMark, Button, Card, PhoneField, Skeleton } from "@hms/ui";
-import type { PublicCheckinContext } from "@hms/types";
-import * as api from "../../../../lib/api";
+import { use, useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2 } from 'lucide-react';
+import { Alert, BrandMark, Button, Card, PhoneField, Skeleton } from '@hms/ui';
+import type { PublicCheckinContext } from '@hms/types';
+import * as api from '../../../../lib/api';
 
 /**
  * The hospital's self check-in screen (ADR-118) — a poster in the entrance, or a kiosk.
@@ -31,7 +31,7 @@ export default function SelfCheckinPage({ params }: { params: Promise<{ token: s
 
   const [ctx, setCtx] = useState<PublicCheckinContext | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -81,12 +81,21 @@ export default function SelfCheckinPage({ params }: { params: Promise<{ token: s
       <Card>
         <div className="flex flex-col items-center gap-4 py-8 text-center">
           <CheckCircle2 size={40} strokeWidth={1.5} className="text-success" aria-hidden />
-          <h1 className="text-lg font-semibold text-fg">Thanks — the front desk knows you are here</h1>
+          <h1 className="text-lg font-semibold text-fg">
+            Thanks — the front desk knows you are here
+          </h1>
           <p className="max-w-sm text-sm text-fg-muted">
             Please take a seat. If you do not hear your name shortly, or you are not sure your
             appointment is today, go to the desk and they will sort it out.
           </p>
-          <Button variant="secondary" type="button" onClick={() => { setDone(false); setPhone(""); }}>
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => {
+              setDone(false);
+              setPhone('');
+            }}
+          >
             Check someone else in
           </Button>
         </div>

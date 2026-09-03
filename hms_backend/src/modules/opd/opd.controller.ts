@@ -15,14 +15,21 @@ export async function listQueue(req: Request, res: Response): Promise<void> {
   // `mine=true` — a doctor's own worklist: resolve the provider linked to this login. A user
   // with no provider record has no personal queue (empty list, not everyone else's patients).
   if (q.mine === 'true') {
-    const own = await runWithTenant(req.auth!.tenantId, async (tx) =>
-      (
-        await tx
-          .select({ id: providers.id })
-          .from(providers)
-          .where(and(eq(providers.tenantId, req.auth!.tenantId), eq(providers.userId, req.auth!.userId)))
-          .limit(1)
-      )[0],
+    const own = await runWithTenant(
+      req.auth!.tenantId,
+      async (tx) =>
+        (
+          await tx
+            .select({ id: providers.id })
+            .from(providers)
+            .where(
+              and(
+                eq(providers.tenantId, req.auth!.tenantId),
+                eq(providers.userId, req.auth!.userId),
+              ),
+            )
+            .limit(1)
+        )[0],
     );
     if (!own) {
       res.json([]);
@@ -48,7 +55,15 @@ export async function checkIn(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateStatus(req: Request, res: Response): Promise<void> {
-  res.json(await svc.updateStatus(req.auth!.tenantId, req.params.id!, req.body.status, req.body.version, req.auth!.userId));
+  res.json(
+    await svc.updateStatus(
+      req.auth!.tenantId,
+      req.params.id!,
+      req.body.status,
+      req.body.version,
+      req.auth!.userId,
+    ),
+  );
 }
 
 // ---- Treatment cases (ADR-116) ---------------------------------------------
@@ -67,7 +82,9 @@ export async function openCase(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateCase(req: Request, res: Response): Promise<void> {
-  res.json(await caseSvc.updateCase(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await caseSvc.updateCase(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }
 
 export async function closeCase(req: Request, res: Response): Promise<void> {
@@ -75,5 +92,7 @@ export async function closeCase(req: Request, res: Response): Promise<void> {
 }
 
 export async function reopenCase(req: Request, res: Response): Promise<void> {
-  res.json(await caseSvc.reopenCase(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId));
+  res.json(
+    await caseSvc.reopenCase(req.auth!.tenantId, req.params.id!, req.body, req.auth!.userId),
+  );
 }

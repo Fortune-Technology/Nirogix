@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { Column } from "../data-table/types";
+import type { ReactNode } from 'react';
+import type { Column } from '../data-table/types';
 
 /**
  * The Action column, defined once (rules.md → Table Row Actions).
@@ -20,10 +20,10 @@ export function actionsColumn<Row>(
   options?: { header?: ReactNode; width?: string },
 ): Column<Row> {
   return {
-    key: "actions",
-    header: options?.header ?? "Actions",
+    key: 'actions',
+    header: options?.header ?? 'Actions',
     cell: render,
-    width: options?.width ?? "1%",
+    width: options?.width ?? '1%',
     sortable: false,
     searchable: false,
     hideable: false,

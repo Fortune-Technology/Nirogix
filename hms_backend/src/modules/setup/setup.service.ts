@@ -1,7 +1,17 @@
 import { and, count, eq, isNull, ne, sql } from 'drizzle-orm';
 import { PERMISSIONS } from '@hms/permissions';
 import { runWithTenant } from '../../db/tenantContext';
-import { branches, departments, drugs, labTests, providers, roles, tenantBranding, userRoles, users } from '../../db/schema';
+import {
+  branches,
+  departments,
+  drugs,
+  labTests,
+  providers,
+  roles,
+  tenantBranding,
+  userRoles,
+  users,
+} from '../../db/schema';
 import { listEntitledModules } from '../entitlement/entitlement.service';
 import { getOrganizationProfile } from '../organization/organization.service';
 
@@ -68,7 +78,13 @@ export type SetupStatus = {
  */
 async function countRows(
   tenantId: string,
-  table: typeof branches | typeof departments | typeof providers | typeof users | typeof labTests | typeof drugs,
+  table:
+    | typeof branches
+    | typeof departments
+    | typeof providers
+    | typeof users
+    | typeof labTests
+    | typeof drugs,
 ): Promise<number> {
   const rows = await runWithTenant(tenantId, (tx) =>
     tx.select({ n: count() }).from(table).where(eq(table.tenantId, tenantId)),
@@ -83,7 +99,13 @@ async function countStaffWithOperationalRole(tenantId: string): Promise<number> 
       .select({ n: count() })
       .from(userRoles)
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
-      .where(and(eq(userRoles.tenantId, tenantId), ne(roles.key, 'org_admin'), ne(roles.key, 'super_admin'))),
+      .where(
+        and(
+          eq(userRoles.tenantId, tenantId),
+          ne(roles.key, 'org_admin'),
+          ne(roles.key, 'super_admin'),
+        ),
+      ),
   );
   return Number(rows[0]?.n ?? 0);
 }
@@ -105,7 +127,16 @@ async function hasBranding(tenantId: string): Promise<boolean> {
 }
 
 export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
-  const [profile, branding, branchCount, departmentCount, providerCount, userCount, staffRoleCount, entitled] = await Promise.all([
+  const [
+    profile,
+    branding,
+    branchCount,
+    departmentCount,
+    providerCount,
+    userCount,
+    staffRoleCount,
+    entitled,
+  ] = await Promise.all([
     getOrganizationProfile(tenantId),
     hasBranding(tenantId),
     countRows(tenantId, branches),
@@ -140,7 +171,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     {
       key: 'branding',
       label: 'Branding',
-      description: 'Your logo, favicon and accent colour, applied across the Portal and your printed documents.',
+      description:
+        'Your logo, favicon and accent colour, applied across the Portal and your printed documents.',
       href: '/hospital-setup/branding',
       permission: PERMISSIONS.BRANDING_MANAGE,
       module: null,
@@ -152,7 +184,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     {
       key: 'branches',
       label: 'Branches',
-      description: 'At least one branch. Staff, providers and clinical records are organised under branches.',
+      description:
+        'At least one branch. Staff, providers and clinical records are organised under branches.',
       href: '/branches',
       permission: PERMISSIONS.BRANCHES_MANAGE,
       module: null,
@@ -177,7 +210,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     {
       key: 'providers',
       label: 'Doctors & specialties',
-      description: 'The provider directory appointments are booked against, with each doctor’s specialties and branch.',
+      description:
+        'The provider directory appointments are booked against, with each doctor’s specialties and branch.',
       href: '/providers',
       permission: PERMISSIONS.PROVIDER_MANAGE,
       module: null,
@@ -189,7 +223,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     {
       key: 'staff',
       label: 'Staff accounts',
-      description: 'Accounts for the people who will run the hospital: front desk, pharmacy, laboratory and billing.',
+      description:
+        'Accounts for the people who will run the hospital: front desk, pharmacy, laboratory and billing.',
       href: '/users',
       permission: PERMISSIONS.USERS_MANAGE,
       module: null,
@@ -217,7 +252,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     steps.push({
       key: 'lab_tests',
       label: 'Laboratory test master',
-      description: 'The tests you offer, with price and reference ranges. Orders and results are raised against them.',
+      description:
+        'The tests you offer, with price and reference ranges. Orders and results are raised against them.',
       href: '/laboratory/tests',
       permission: PERMISSIONS.LAB_MANAGE,
       module: 'laboratory',
@@ -232,7 +268,8 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     steps.push({
       key: 'drugs',
       label: 'Pharmacy drug master',
-      description: 'The medicines you stock, with unit price and reorder level. Stock is received in batches against them.',
+      description:
+        'The medicines you stock, with unit price and reorder level. Stock is received in batches against them.',
       href: '/pharmacy/stock',
       permission: PERMISSIONS.PHARMACY_MANAGE,
       module: 'pharmacy',

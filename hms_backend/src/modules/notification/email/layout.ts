@@ -108,7 +108,10 @@ function buttonHtml(button: EmailButton, brand: EmailBrand): string {
  * Render an email to `{ html, text }`. The HTML is the branded document; the text is the
  * accessible/plain-client fallback built from the same content, so the two never drift.
  */
-export function renderEmail(content: EmailContent, brand: EmailBrand = PLATFORM_BRAND): { html: string; text: string } {
+export function renderEmail(
+  content: EmailContent,
+  brand: EmailBrand = PLATFORM_BRAND,
+): { html: string; text: string } {
   const preheader = content.preheader ?? '';
   const bodyParts: string[] = [];
 
@@ -189,5 +192,11 @@ export function renderEmail(content: EmailContent, brand: EmailBrand = PLATFORM_
   if (content.footerNote) textParts.push(content.footerNote, '');
   textParts.push(`— ${brand.orgName}${brand.orgName === 'Nirogix' ? '' : ' (powered by Nirogix)'}`);
 
-  return { html, text: textParts.join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+  return {
+    html,
+    text: textParts
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+  };
 }

@@ -9,6 +9,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Built the shared design system — the single design-token layer, the core primitives, and the Standard DataTable — consumed by `hms_frontend` and `marketing`.
 
 **Added:**
+
 - `src/styles.css` — the `--hms-*` design-token layer (colour, radius, type, shadow) with **Light default (`:root`) + Dark (`[data-theme="dark"]`)** and overridable brand tokens, plus the canonical component CSS.
 - Primitives (token-only, no hardcoded values): `Button`, `Field`, **`PasswordField`** (labelled input with a built-in show/hide eye toggle — the required control for every password field platform-wide), `Card`, `Badge`, `Alert`, `Spinner`.
 - **`DataTable`** — the Standard DataTable (columns + rows + rowKey, built-in loading/error/empty + horizontal overflow).
@@ -25,6 +26,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Applied the approved custom **HMS Design System** (`resources/DESIGN.md`) to the shared token layer, and moved the last hand-rolled icons to Lucide.
 
 **Changed:**
+
 - `src/styles.css` — retooled `--hms-*` for Light + Dark to the new palette: cool-neutral surfaces (canvas `#f4f7f7` / dark `#0b1418`), ink `#0f1e24` / `#e7eff0`, deep-teal accent `#0e7490` (dark `#22b8cf`), teal-tinted hairlines and soft shadows, radius sm 4→6. `--hms-brand-subtle` is now **derived from `--hms-brand` via `color-mix`**, so a per-tenant accent override also re-skins active nav, badges, and tints. Focus ring follows the accent. The DataTable gained `tabular-nums`.
 - `src/components/PasswordField.tsx` — replaced the inline eye SVGs with Lucide `Eye` / `EyeOff`; added `lucide-react` as a dependency of `@hms/ui`.
 
@@ -39,6 +41,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Reusable scroll infrastructure shared by the Portal and the marketing site, per the new permanent frontend rules (`resources/DESIGN.md` §9).
 
 **Added:**
+
 - `src/components/SmoothScroll.tsx` — Lenis (https://lenis.dev) root wrapper + route-change scroll-to-top (`usePathname` → `lenis.scrollTo(0, immediate)`). Wrap the app once in the root layout. `next` added as a peer dependency (both consumers are Next apps).
 - `src/components/BackToTop.tsx` — reusable button, appears past a scroll threshold, smooth-scrolls to top through Lenis, token-styled `.hms-backtotop`, accessible (removed from tab order while hidden).
 - `src/useScrollLock.ts` — `useScrollLock(locked)`: stops Lenis + pins the background while an overlay is open, restores on close. Overlay inner scroll regions use `data-lenis-prevent`.
@@ -51,6 +54,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-14 — Shared Lottie player + preloader
 
 **Added (`lottie-react` dependency):**
+
 - `src/components/LottiePlayer.tsx` — renders a Lottie from a `src` URL (lazy `fetch`, keeps large JSON out of the JS bundle) or bundled `animationData`; loop/autoplay; **honours `prefers-reduced-motion`** (holds a static frame).
 - `src/components/LottiePreloader.tsx` — shared full-screen loading overlay for both apps. Opaque, blocks scroll/interaction, plays the Lottie, then fades out after `window.load` (with a small minimum so it never flashes and a hard cap so it never blocks). Leaving→gone is a deterministic **timer** (not `transitionend`, which is a no-op under reduced motion / unstyled states).
 - `styles.css` — `.hms-preloader` overlay (token-driven `--hms-bg`, fade, reduced-motion aware).
@@ -64,6 +68,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** Both Lottie animations recolour to the brand accent at runtime, following the theme and platform branding.
 
 **Added:**
+
 - `src/lottieRecolor.ts` — `recolorLottie(data, brand)`: remaps the "brand-adjacent" colour family (saturated blues, ~185–255°) to the brand's **hue + saturation + lightness** (the solid accent lands on the brand's exact shade; lighter/darker shades keep their offset, so shading survives). **Pale backgrounds (l ≥ 0.75, e.g. the tint circle behind the doctor) keep their lightness and get only a gentle tint** — they stay a soft wash, not a saturated fill. **Neutral brands (black/white/grey) desaturate to grayscale** instead of collapsing to hue-0 red. Skin/white/black/red are left untouched. Pure colour math (no deps).
 - `LottiePlayer` gained `tintCssVar` — reads the brand colour from a CSS var (e.g. `--mk-accent` / `--hms-brand`), recolours (memoised), and re-applies on theme / branding change via a `MutationObserver` on `<html>`. `LottiePreloader` forwards it.
 
@@ -78,12 +83,13 @@ Append-only implementation log. Newest at the bottom.
 **What:** The one API-feedback surface for the whole platform. Until now `@hms/ui` shipped `Alert` only, so every page invented its own success/error copy.
 
 **Added:**
+
 - `src/toast.ts` — framework-free pub/sub store so `toast()` works from the apps' shared API client (outside React). `toast()` + `.success|.error|.warning|.info|.loading|.dismiss|.update`; de-duplication by `dedupeKey` (a repeat refreshes the existing toast and restarts its timer instead of stacking); visible stack capped at 4; per-variant default durations (success/info 5s, warning 7s, error/loading persist).
 - `src/components/Toaster.tsx` — the viewport (mount once per app). Portals to `document.body`; timers pause on pointer/focus inside the stack; **Esc** dismisses the newest; per-toast dismiss button; optional action button. `role="alert"`/assertive for error+warning, `role="status"`/polite otherwise, inside a labelled `region`.
 - `styles.css` — `--hms-info` / `--hms-info-subtle` tokens (Light + Dark; the palette had success/warning/danger only) and the `.hms-toast*` block: token-driven variants, Lucide icons, radius `lg`, `--hms-shadow-md`, mobile top-full-width → desktop bottom-right at `bottom: 5.5rem` (clears `BackToTop`), `z-index: 1000`, entrance animation disabled under `prefers-reduced-motion`.
 - Exported `Toaster`, `toast`, `subscribeToasts`, `getToasts` + types from `src/index.ts`.
 
-**Design reference:** shadcn/ui Toast as a *pattern* only — no shadcn/Radix dependency (Dependency Rules: no second UI library).
+**Design reference:** shadcn/ui Toast as a _pattern_ only — no shadcn/Radix dependency (Dependency Rules: no second UI library).
 
 **Testing status:** `typecheck` green · both apps `next build` green. **Live-verified in the Portal:** a branding save raised `hms-toast--success` (`role="status"`, "Branding saved."); a 404 raised `hms-toast--error` (`role="alert"`, `aria-live="assertive"`, backend message "User not found") which persists until dismissed. Positioned bottom-right (352×67 at y=573 in a 1280×720 viewport, `bottom: 88px`) clear of `BackToTop`; Dark theme re-checked via `data-theme="dark"` (bg `#2a1512`, fg `#e7eff0`, icon `#f0776a`).
 
@@ -94,6 +100,7 @@ Append-only implementation log. Newest at the bottom.
 **What:** The 83-line `DataTable` (columns/rows + three states) became the platform's full table system, and the patterns every module was about to duplicate now exist once.
 
 **Added — `src/components/data-table/`** (dependency: `@tanstack/react-table` ^8.21.3, headless, following the shadcn/ui Data Table pattern):
+
 - `DataTable.tsx` — sorting (multi-level via Shift+click), toolbar search, faceted filters, column visibility, row selection with select-all, configurable pagination (10/20/50/100), sticky header, contained horizontal scroll, skeleton/empty/error states, optional **URL state** (`?page/size/q/sort`), and a **`server` mode** that reports `{ page, pageSize, search, sort }` to the caller (debounced search) instead of paging in the browser.
 - `DataTableToolbar` (Search → Filters → Columns → Actions), `DataTablePagination` (rows-per-page + windowed page numbers + "Showing X–Y of Z"), `DataTableColumnHeader` (three-state Lucide sort indicator + multi-sort order badge), `DataTableViewOptions` (show/hide/restore columns), `DataTableFacetedFilter` (multi-select built from a column's distinct values, with counts), `types.ts`.
 - **Column API is a superset of the old one** — `{ key, header, cell }` plus optional `accessor`, `sortable`, `filterable`, `filterLabel`, `searchable`, `hideable`, `defaultHidden`, `align`, `width` — so all 12 existing Portal screens compiled unchanged and opt into features by adding flags.
@@ -111,10 +118,12 @@ Append-only implementation log. Newest at the bottom.
 **What:** The hand-written notification system was swapped for the real registry component, at the owner's direction (superseding ADR-031, which had kept ours).
 
 **Added:**
+
 - `src/components/toast/toast.tsx` — generated with `shadcn add @shadcn/toast` (base-nova) and moved here so both apps still share **one** implementation. Three annotated adaptations: `cn` from this package; shadcn's `Button` dependency replaced with our `.hms-btn` classes (the shared kit must not carry a second button); Base UI's `className`-as-a-function state API merged instead of dropped. Desktop viewport lifted (`sm:bottom-22 sm:right-7`) so it clears `BackToTop`.
 - `@base-ui/react` as a real dependency of `@hms/ui` (it was installed in the apps but unused).
 
 **Changed:**
+
 - `src/toast.ts` — no longer a bespoke store; now a thin adapter over Base UI's `createToastManager()` that preserves the existing call-site API (`toast.success(...)`, `toast.error({title, description})`, `dismiss`, `update`), maps our variants → Base UI `type` and durations → `timeout` (success/info 5s, warning 7s, error/loading persist), and keeps **de-duplication** so a retried request refreshes its toast. Plain TypeScript, because the shared API client raises notifications from outside React.
 - `src/components/Toaster.tsx` — wraps the generated `Toaster` (stack limit 4).
 - `styles.css` — the whole `.hms-toast*` block **deleted**; only `.hms-toast-close-btn` remains (shadcn's close renders its own Button, which we replaced). `src/index.ts` drops `subscribeToasts` / `getToasts` / `ToastRecord`, which the store no longer provides.
@@ -129,6 +138,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — Shared app-like mobile navigation (ADR-033)
 
 `src/components/MobileNav.tsx` — one implementation for both apps:
+
 - **`BottomNav`** — fixed bottom bar, capped at five items (`BOTTOM_NAV_MAX_ITEMS`), icon + label, active state with `aria-current`, safe-area padding, ≥3rem touch targets, optional trailing slot, and a `linkAs` prop so each app passes `next/link` and navigation stays client-side.
 - **`NavDrawer`** / **`NavDrawerItem`** / **`NavDrawerSection`** — portalled slide-out drawer: background scroll locked through the shared `useScrollLock`, its own scroll region marked `data-lenis-prevent`, focus trapped and returned to the trigger, closes on Esc and backdrop press.
 - `styles.css` gained `.hms-bottomnav*`, `.hms-drawer*` and `.hms-bottomnav-offset` (the padding that keeps page content clear of the fixed bar), all token-driven, animations disabled under `prefers-reduced-motion`.
@@ -140,6 +150,7 @@ Append-only implementation log. Newest at the bottom.
 ## 2026-08-15 — Component tests, and the accessibility defect they found
 
 **Added:** Vitest + Testing Library (jsdom) with `test` / `test:watch` scripts. 27 tests:
+
 - `toast.test.ts` (14) — variant → Base UI `type` mapping, per-variant durations (success/info 5s, warning 7s, error/loading persist), explicit-duration override, and **de-duplication**: three identical calls produce one toast and two updates, different variants of the same text stay separate, an explicit `dedupeKey` collapses differing text, and a dismissed message can be raised again.
 - `DataTable.test.tsx` (13) — the full sort cycle (unsorted → asc → desc → unsorted), numeric-not-lexical sorting, no sort control on a column without an accessor, search across searchable columns, client pagination with a true total, and the **server-mode contract**: rows are not re-paginated locally, page changes report `{ page, pageSize }`, and a header click emits the sort the user just asked for.
 
@@ -155,7 +166,7 @@ Append-only implementation log. Newest at the bottom.
 
 **Migrated and deleted:** `ActionMenu` became `MoreActions` (its `RowAction` type is now `MoreAction`, with `visible` renamed to `permitted`), and `ActionMenu.tsx` was removed rather than left alongside. `Menu` gained `triggerBase` so the "…" trigger can wear the row-action shape instead of the secondary-button one.
 
-**Fixed — branding held at rest and broke on interaction.** `--hms-brand-hover` was a second literal in both themes, and the Portal's tenant-branding path wrote the *same* hex into brand and brand-hover, so a branded control flattened on hover and had no pressed state. Hover and subtle now derive from `--hms-brand` via `color-mix` (darken on Light, lighten on Dark), `BackToTop` gained an `:active` state, and only `--hms-brand` is ever set at runtime.
+**Fixed — branding held at rest and broke on interaction.** `--hms-brand-hover` was a second literal in both themes, and the Portal's tenant-branding path wrote the _same_ hex into brand and brand-hover, so a branded control flattened on hover and had no pressed state. Hover and subtle now derive from `--hms-brand` via `color-mix` (darken on Light, lighten on Dark), `BackToTop` gained an `:active` state, and only `--hms-brand` is ever set at runtime.
 
 **Styles:** `.hms-rowactions` / `.hms-rowaction` (2rem icon button, accent-subtle hover, danger tint for destructive, ring focus, 45% disabled, spinner) and `.hms-switch` (brand-filled track, `brand-fg` thumb). `.hms-actions__trigger` was deleted with `ActionMenu`. All of it reduced-motion aware.
 
@@ -207,11 +218,11 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 
 **`react-day-picker` is the one new dependency**, and it belongs to this package rather than an app. It earns its place: an accessible month grid with roving focus, keyboard navigation and disabled ranges is hard to get right and expensive to get wrong. Its internal `date-fns` never formats anything the platform displays — that remains `@hms/utils` (ADR-046).
 
-**One defect found in the browser, not by the tests.** The calendar opened and never closed — not on selecting a day, not on the trigger, not on Escape. Base UI marks a closing popup with `data-ending-style` and unmounts it once the exit animation *completes*; our stylesheet declared no transition, so nothing ever completed. Adding one surfaced the second half: Base UI closes some interactions instantly (`data-instant`), leaving `data-ending-style` behind, which then rendered the **next** open invisible. The popup's visibility is now keyed off `data-closed` alone — the attribute that stays truthful — with `visibility: hidden` so a closed popup is out of the accessibility tree whether or not it has been unmounted yet. Worth remembering for the next Base UI surface we style.
+**One defect found in the browser, not by the tests.** The calendar opened and never closed — not on selecting a day, not on the trigger, not on Escape. Base UI marks a closing popup with `data-ending-style` and unmounts it once the exit animation _completes_; our stylesheet declared no transition, so nothing ever completed. Adding one surfaced the second half: Base UI closes some interactions instantly (`data-instant`), leaving `data-ending-style` behind, which then rendered the **next** open invisible. The popup's visibility is now keyed off `data-closed` alone — the attribute that stays truthful — with `visibility: hidden` so a closed popup is out of the accessibility tree whether or not it has been unmounted yet. Worth remembering for the next Base UI surface we style.
 
 **A second layout defect, also only visible in a browser.** The month arrows floated across the middle of the day grid, covering the first week. `react-day-picker` renders its `nav` as a **sibling of the month**, inside `months` — not inside the caption — so `position: absolute; inset: 0` resolved against the popup and stretched the nav over the whole calendar. `months` is now the containing block and the nav is pinned to the caption's own 2rem strip, with the caption padded so a long month name never runs under an arrow.
 
-**And a third: the calendar rendered *behind* the table.** `z-index: 70` sat on the popup — which Base UI leaves `position: static` — and z-index does nothing on a static element. The positioned box is the Positioner, so that is where the stacking layer belongs; a sticky table header was painting straight over an open calendar until it moved. Confirmed with `elementFromPoint` at four points across the calendar: all four now hit the popover.
+**And a third: the calendar rendered _behind_ the table.** `z-index: 70` sat on the popup — which Base UI leaves `position: static` — and z-index does nothing on a static element. The positioned box is the Positioner, so that is where the stacking layer belongs; a sticky table header was painting straight over an open calendar until it moved. Confirmed with `elementFromPoint` at four points across the calendar: all four now hit the popover.
 
 **Testing status:** 10 new tests (ISO ↔ DD/MM/YYYY both ways, clearing, impossible dates, range refusal, the labelled calendar trigger, meridiem conversion, the noon/midnight edges, incomplete entry). 68 pass. Verified in the running Portal: typing `32/13/2026` reverts to the last good date, a valid date commits, the calendar opens, picks, and closes.
 
@@ -222,7 +233,6 @@ Both apps now carry `app/icon.svg` with the same geometry (literal colours, sinc
 `error` replaces `hint` when both are present, so a field never shows two competing messages, and both are wired through `aria-describedby` so a screen reader announces the guidance with the field rather than leaving it as unattached text. The new `.hms-field__hint` class takes its colour from `--hms-fg-muted`, so it reads as help rather than as an error in both themes.
 
 **Testing status:** 68 tests pass (no behaviour change to existing usage — `hint` is optional and absent everywhere else). Rendered in the Portal's hospital-information form in Light and Dark.
-
 
 ## 2026-08-16 — `PasswordField` gains `hint`
 
@@ -258,15 +268,16 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 
 **What went away:** `src/components/toast/toast.tsx` (~200 lines of generated shadcn source) and its Tailwind-class styling, which resolved to `--hms-*` only indirectly through each app's shadcn token remap. `@base-ui/react` stays a dependency — `DateField` uses its Popover.
 
-**De-duplication got simpler and more correct.** The de-dupe key *is* the toast id now, and liveness is read back with `toast.isActive`, so the adapter keeps no state. The old version held its own key→id map that could retain an entry for a toast the user had already dismissed.
+**De-duplication got simpler and more correct.** The de-dupe key _is_ the toast id now, and liveness is read back with `toast.isActive`, so the adapter keeps no state. The old version held its own key→id map that could retain an entry for a toast the user had already dismissed.
 
 **Theming is one commented block.** Every `--toastify-*` variable points at a `--hms-*` token, and the library's own `theme` prop is pinned and neutralised so Light/Dark is one definition rather than two. Verified in the browser with `data-theme="dark"` and an accent of `#c026d3`: surface `#112128`, text `#e7eff0`, border `#22353c`, and the icon, accent edge and progress bar all `rgb(192,38,211)` — the whole chain, tenant brand → tokens → toast, with no colour at any call site.
 
 **Two things found by looking rather than assuming:**
+
 - React Toastify's own `<=480px` rule sets `top`, `left` and `width` as **literal values, not through its variables** — so overriding the variables left a phone toast pinned at the very top, covering the app bar. The mobile block overrides the properties directly and keeps the safe-area inset.
 - At the same breakpoint the library forces `border-radius: 0`; the override needed container scoping to outrank it regardless of stylesheet order.
 
-**Accessibility:** each variant renders a distinct icon *and* a title in words, so status never rests on colour; errors and warnings take `role="alert"` and everything else `role="status"`; the region is labelled; the close control has an accessible name. Verified in the DOM.
+**Accessibility:** each variant renders a distinct icon _and_ a title in words, so status never rests on colour; errors and warnings take `role="alert"` and everything else `role="status"`; the region is labelled; the close control has an accessible name. Verified in the DOM.
 
 **Testing status:** 19 tests (was 14), covering variant and role mapping, durations, de-duplication, the loading → outcome transition, and dismissal — 73 in this package. Verified live in the Portal across all five variants, a four-deep stack, an action button, Light and Dark, a non-default accent, and a 375px viewport.
 
@@ -276,7 +287,7 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 
 `Dialog` is that shell extracted: portal to `document.body`, `useScrollLock`, Tab trap, Esc, backdrop close, focus restore, `sm`/`md`/`lg` sizes, and a scrolling body so a long form doesn't overflow a short viewport. **`ConfirmDialog` is now built on it** rather than beside it — migrate, verify, delete, not two systems side by side. What's left in it is only what makes a confirmation one: the warning icon, two buttons, `role="alertdialog"`, and no close × because a confirmation is answered rather than dismissed.
 
-**One thing the browser caught that the typecheck could not.** Focus opened on the **close ×**, not the first field — the close control sits in the header and therefore comes first in DOM order, so "focus the first focusable" did exactly the wrong thing for an edit dialog: the user's next keystroke would have dismissed the thing they opened to type into. Focus now targets the first control in the *body*, falling back to the panel for a confirmation that has none. My own code comment had claimed the correct behaviour while the code did the opposite, which is the kind of thing only rendering it finds.
+**One thing the browser caught that the typecheck could not.** Focus opened on the **close ×**, not the first field — the close control sits in the header and therefore comes first in DOM order, so "focus the first focusable" did exactly the wrong thing for an edit dialog: the user's next keystroke would have dismissed the thing they opened to type into. Focus now targets the first control in the _body_, falling back to the panel for a confirmation that has none. My own code comment had claimed the correct behaviour while the code did the opposite, which is the kind of thing only rendering it finds.
 
 **Verified in the browser**, not by inspection: portalled to body; `role`, `aria-modal`, and both `aria-labelledby` and `aria-describedby` resolving to real elements; the field prefilled and focused; Save disabled until something actually changes; the submitted patch containing **only the changed field**; the dialog closing after save; scroll unlocking; and Esc closing.
 
@@ -284,9 +295,9 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 
 ## 2026-08-17 — Clickable stat cards, server-side DataTable filters, and a date-range control (ADR-062, ADR-063)
 
-**Stat cards act now.** `StatCard` already coloured a trend by what it *means* (`invertDelta`) and skeletoned a loading value; what it could not do was be a destination, so dashboards had begun hand-rolling clickable tiles around it. It now takes an optional `href` (Next `Link`) or `onClick` and renders a link/button with hover, `focus-visible`, keyboard and active states, a persistent arrow affordance, an accessible name (`linkLabel`), and a `highlight` variant — or stays a plain `div` when there is nowhere useful to go. One tile for every dashboard; none is made clickable for uniformity.
+**Stat cards act now.** `StatCard` already coloured a trend by what it _means_ (`invertDelta`) and skeletoned a loading value; what it could not do was be a destination, so dashboards had begun hand-rolling clickable tiles around it. It now takes an optional `href` (Next `Link`) or `onClick` and renders a link/button with hover, `focus-visible`, keyboard and active states, a persistent arrow affordance, an accessible name (`linkLabel`), and a `highlight` variant — or stays a plain `div` when there is nowhere useful to go. One tile for every dashboard; none is made clickable for uniformity.
 
-**The DataTable server contract now carries filters.** The bug ADR-063 names: `server.onChange` emitted only page/size/search/sort, so a faceted filter on a server-paged table narrowed only the rows already in the browser. `DataTableQuery`/`ServerMode` gained a `filters` map; the table seeds it on mount, re-emits on change and on Clear, and resolves the filter updater *outside* `setColumnFilters` so the request fires once, not twice under StrictMode. Callers that filter client-side are unaffected; the five server-mode tables just needed `filters: {}` in their initial query.
+**The DataTable server contract now carries filters.** The bug ADR-063 names: `server.onChange` emitted only page/size/search/sort, so a faceted filter on a server-paged table narrowed only the rows already in the browser. `DataTableQuery`/`ServerMode` gained a `filters` map; the table seeds it on mount, re-emits on change and on Clear, and resolves the filter updater _outside_ `setColumnFilters` so the request fires once, not twice under StrictMode. Callers that filter client-side are unaffected; the five server-mode tables just needed `filters: {}` in their initial query.
 
 **`DateRangeFilter`** — the structured control a bare search box cannot replace for a date column. Two `DateField`s (so `DD/MM/YYYY` display, ISO value), each bounding the other, plus a clear control; it drops into the toolbar's `filters` slot and the module owns the value.
 
@@ -300,7 +311,7 @@ Also added `.hms-qr-poster` to the document kit, for the patient-registration po
 
 ## 2026-08-17 — Shared `PageHeader` and `PhoneField`
 
-**`PageHeader` moved into `@hms/ui`.** The Portal and the Admin console each carried an identical local `PageHeader`, and the Portal's role dashboards used a *different* title block (a context line above a `text-2xl` title) via `DashboardShell`. There is now one `PageHeader` here — title, optional muted description beneath, optional right-aligned actions that wrap on a narrow screen — and both apps' local files re-export it, so every tab reads the same and cannot drift. `DashboardShell` renders it too (the day/shift context becomes the description, the range chips and primary action the actions), so a dashboard's header now matches Patients, Reports and every other page. `/reports` gained the description it was missing.
+**`PageHeader` moved into `@hms/ui`.** The Portal and the Admin console each carried an identical local `PageHeader`, and the Portal's role dashboards used a _different_ title block (a context line above a `text-2xl` title) via `DashboardShell`. There is now one `PageHeader` here — title, optional muted description beneath, optional right-aligned actions that wrap on a narrow screen — and both apps' local files re-export it, so every tab reads the same and cannot drift. `DashboardShell` renders it too (the day/shift context becomes the description, the range chips and primary action the actions), so a dashboard's header now matches Patients, Reports and every other page. `/reports` gained the description it was missing.
 
 **`PhoneField` — the Indian-mobile input.** `+91` is a fixed, non-editable prefix, so the user types only their 10 digits; the value crossing the boundary is always canonical `+91XXXXXXXXXX` (or `""` while incomplete), matching what the backend stores and what the SMS provider needs. Paste is taken over so a pasted `+91…`/`91…`/`+91+91…` collapses to the last ten digits instead of doubling the country code; a legacy value in any format seeds the display leniently. `localIndianMobile` / `canonicalIndianMobile` are exported for reuse. Built on the `.hms-input` tokens, verified in both themes.
 
@@ -329,6 +340,7 @@ The DataTable's per-column `align` option is **gone** — removed from the `Colu
 `ScrollTopOnRoute` (renamed `ScrollOnRouteChange`) was resetting scroll on every pathname change via `useEffect` → `lenis.scrollTo(0, { immediate: true })`. Two problems: (1) it ran **after** paint, so a new page could flash at the previous scroll position, and (2) it force-scrolled to the top on **every** route change — including navigations that carry a hash (`/security#residency`), so cross-page anchors were yanked to the top instead of landing on the anchor.
 
 Now it runs in a **pre-paint** isomorphic layout effect and branches on the URL hash:
+
 - **No hash** → `lenis.scrollTo(0, { immediate: true, force: true })` (native `window.scrollTo(0,0)` fallback for the first mount before the Lenis instance exists). The previous page's scroll never carries over.
 - **Hash** → scrolls to that element, offset by the sticky-nav height read from CSS `scroll-padding-top`, so the anchor clears a fixed header. Unknown/stale hash falls through to the top.
 
@@ -428,7 +440,7 @@ the Doctor dropdown after one character. Both now keep the current callback in a
 "wrap your `onClose` in `useCallback` or the dialog misbehaves" is a rule that gets broken.
 
 **`NumberInputGuard`** — one document-level wheel listener, mounted beside the providers in each
-app. When the pointer is over a *focused* `input[type=number]` it cancels the wheel and **forwards
+app. When the pointer is over a _focused_ `input[type=number]` it cancels the wheel and **forwards
 the scroll** to the nearest scrollable ancestor, so the value holds still and the page still moves.
 Cancelling alone would have frozen the page. It is a document listener because React registers
 `onWheel` passively and a passive listener may not `preventDefault`, and it is not a prop on an
@@ -443,7 +455,7 @@ over it leaves the value at `500`.
 
 ## 2026-09-02 — One place for a page's primary action (ADR-128)
 
-*Book appointment* and *Check in* sat top-right in the page header. *Register patient* sat one row
+_Book appointment_ and _Check in_ sat top-right in the page header. _Register patient_ sat one row
 lower, inside the table's filter toolbar beside **Columns** — one screen out of twenty-one, and the
 one a receptionist opens most. It now matches every other list.
 
@@ -454,18 +466,18 @@ is an available way to be inconsistent. It is **deleted**, along with the `actio
 create button has nowhere else to go. A rule you cannot break beats one you have to remember.
 
 Written down with it: supporting actions first and the primary **last** (right-most) — `ghost` for
-navigating away, `secondary` for a side task like *Print / PDF*, the default variant for the action
+navigating away, `secondary` for a side task like _Print / PDF_, the default variant for the action
 the page exists for. That is what every multi-action header already did.
 
 **Testing status:** 107 `@hms/ui` component tests pass unchanged; frontend typecheck clean.
-Verified in the running Portal — *Register patient* now sits level with the page title, and the
+Verified in the running Portal — _Register patient_ now sits level with the page title, and the
 filter row holds only search, filters and Columns.
 
 ## 2026-09-03 — The picker that also accepts an answer the list does not have (ADR-134)
 
-`Select` has been the one dropdown since ADR-112, and it is the right control for *choose one of
-these*. The consultation screen needed the other question — *choose one of these, or write your
-own* — and had been answering it with `<input list>` + `<datalist>`, which shows no price and no
+`Select` has been the one dropdown since ADR-112, and it is the right control for _choose one of
+these_. The consultation screen needed the other question — _choose one of these, or write your
+own_ — and had been answering it with `<input list>` + `<datalist>`, which shows no price and no
 stock, cannot be styled at all, and gives no way to distinguish a drug the doctor **picked** from a
 string that happens to match one. A prescription that carries no `drugId` is a prescription the
 pharmacy has to match by hand.
@@ -488,7 +500,7 @@ panel that closes on blur eats the click that was meant to choose something. Sam
 button.
 
 Three smaller gaps closed in the same change, each because a page was about to work around it:
-`Card` gains a **`footer`** for a repeatable form's *Add another*; `Alert` gains the **`warning`**
+`Card` gains a **`footer`** for a repeatable form's _Add another_; `Alert` gains the **`warning`**
 tone `Badge` already had; `PageHeader` gains **`sticky`** for a page whose work runs past the fold.
 
 **Testing status:** 20 new `Combobox` tests (filtering, keywords, keyboard including wrap and
@@ -498,8 +510,8 @@ covered by its own 107 unchanged tests.
 
 ## 2026-09-03 — The design system stops being the last place with a native dropdown (ADR-135)
 
-`Select`'s own docstring has said *reach for it before writing another
-`<select className="hms-input">`* since ADR-112. `DataTablePagination` was writing exactly that —
+`Select`'s own docstring has said _reach for it before writing another
+`<select className="hms-input">`_ since ADR-112. `DataTablePagination` was writing exactly that —
 so the one component on **every table in the product** was the one ignoring the tokens: the
 browser's chrome instead of Light/Dark, an OS wheel on a phone.
 
@@ -510,12 +522,12 @@ and a control two pixels taller than its neighbours is what makes a toolbar look
 than designed.
 
 The kit grew one thing here — that compact trigger modifier. Everything else in this change is the
-kit being *used*.
+kit being _used_.
 
 **Testing status:** 127 `@hms/ui` tests pass unchanged, including the DataTable suite that renders
-the pagination row. Verified live on `/patients`: the trigger reads *20* with an accessible name of
-*Rows per page*, the panel is portalled with 10/20/50/100 and no search box, and picking *50*
-re-rendered the table to 29 rows above *Showing 1–29 of 29*.
+the pagination row. Verified live on `/patients`: the trigger reads _20_ with an accessible name of
+_Rows per page_, the panel is portalled with 10/20/50/100 and no search box, and picking _50_
+re-rendered the table to 29 rows above _Showing 1–29 of 29_.
 
 **A latent bug in `Select`, found by the first caller to trip it.** Group runs were keyed by
 name, so a caller whose options are not sorted by group — the permission catalog visits
@@ -524,3 +536,17 @@ stale, duplicated options and stopped responding to the search box. Keyed by pos
 `Combobox` too, with a regression test in each that was **confirmed to fail** against the old key.
 The docstring said the caller controls grouping by ordering the options; that was an assumption
 doing a guarantee’s job. 129 `@hms/ui` tests pass.
+
+## 2026-09-03 — A signature above the line, not just a line (ADR-137)
+
+`PrintSignatures` took a label and a name and drew a rule for somebody to sign by hand. It now
+takes an optional `imageUrl` and a `signedAt`, so a document can carry the signature it was
+signed with.
+
+Two details that decide whether it looks printed or assembled. The image sits in a **fixed-height
+box** whether or not there is an image, so a page with one signed line beside one blank line does
+not step down the middle. And `mix-blend-mode: multiply` drops the white rectangle around a
+signature scanned without transparency — common, and otherwise it sits on the letterhead like a
+sticker.
+
+**Testing status:** 129 `@hms/ui` tests pass unchanged.

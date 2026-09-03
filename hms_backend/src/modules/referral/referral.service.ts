@@ -59,10 +59,18 @@ function toDto(row: {
   };
 }
 
-export async function createReferral(tenantId: string, input: CreateReferralInput, actorUserId?: string) {
+export async function createReferral(
+  tenantId: string,
+  input: CreateReferralInput,
+  actorUserId?: string,
+) {
   const created = await runWithTenant(tenantId, async (tx) => {
     const visit = (
-      await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, input.visitId))).limit(1)
+      await tx
+        .select()
+        .from(visits)
+        .where(and(eq(visits.tenantId, tenantId), eq(visits.id, input.visitId)))
+        .limit(1)
     )[0];
     if (!visit) throw Errors.notFound('Visit not found');
     if (visit.status === 'cancelled') throw Errors.conflict('Cannot refer from a cancelled visit');
@@ -125,7 +133,11 @@ export async function createReferral(tenantId: string, input: CreateReferralInpu
     action: 'referral.create',
     resourceType: 'referral',
     resourceId: created.id,
-    metadata: { visitId: input.visitId, toDepartmentId: input.toDepartmentId, patientId: created.patientId },
+    metadata: {
+      visitId: input.visitId,
+      toDepartmentId: input.toDepartmentId,
+      patientId: created.patientId,
+    },
   });
   return getReferral(tenantId, created.id);
 }
@@ -196,11 +208,21 @@ export async function cancelReferral(tenantId: string, referralId: string, actor
     const moved = await tx
       .update(referrals)
       .set({ status: 'cancelled', cancelledAt: new Date() })
-      .where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, referralId), eq(referrals.status, 'pending')))
+      .where(
+        and(
+          eq(referrals.tenantId, tenantId),
+          eq(referrals.id, referralId),
+          eq(referrals.status, 'pending'),
+        ),
+      )
       .returning({ id: referrals.id });
     if (!moved[0]) {
       const exists = (
-        await tx.select({ id: referrals.id }).from(referrals).where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, referralId))).limit(1)
+        await tx
+          .select({ id: referrals.id })
+          .from(referrals)
+          .where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, referralId)))
+          .limit(1)
       )[0];
       if (!exists) throw Errors.notFound('Referral not found');
       throw Errors.conflict('Only a pending referral can be cancelled');
@@ -231,7 +253,13 @@ export async function completeReferralTx(
   const moved = await tx
     .update(referrals)
     .set({ status: 'completed', completedAt: new Date(), resultingVisitId })
-    .where(and(eq(referrals.tenantId, tenantId), eq(referrals.id, referralId), eq(referrals.status, 'pending')))
+    .where(
+      and(
+        eq(referrals.tenantId, tenantId),
+        eq(referrals.id, referralId),
+        eq(referrals.status, 'pending'),
+      ),
+    )
     .returning({ id: referrals.id });
   if (!moved[0]) throw Errors.conflict('This referral has already been used or cancelled');
 }

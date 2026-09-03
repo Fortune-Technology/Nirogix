@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { Eye, Loader2, Pencil, Trash2 } from "lucide-react";
-import { cn } from "../../cn";
-import { ConfirmDialog } from "../ConfirmDialog";
+import Link from 'next/link';
+import { useState, type ReactNode } from 'react';
+import { Eye, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { cn } from '../../cn';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 /** Confirmation copy for an action that asks before it runs. */
 export interface ActionConfirm {
@@ -35,7 +35,7 @@ export interface TableActionProps {
   confirm?: boolean | ActionConfirm;
   /** Override the default icon. Sizing and colour still come from the shared styles. */
   icon?: ReactNode;
-  tone?: "default" | "danger";
+  tone?: 'default' | 'danger';
   className?: string;
 }
 
@@ -60,7 +60,7 @@ function RowAction({
   loading = false,
   confirm,
   icon,
-  tone = "default",
+  tone = 'default',
   className,
 }: TableActionProps & { defaultLabel: string; defaultIcon: ReactNode }) {
   const [asking, setAsking] = useState(false);
@@ -75,16 +75,16 @@ function RowAction({
     (icon ?? defaultIcon)
   );
   const classes = cn(
-    "hms-rowaction",
-    tone === "danger" && "hms-rowaction--danger",
-    inert && "hms-rowaction--inert",
+    'hms-rowaction',
+    tone === 'danger' && 'hms-rowaction--danger',
+    inert && 'hms-rowaction--inert',
     className,
   );
 
   const copy: ActionConfirm =
-    typeof confirm === "object"
+    typeof confirm === 'object'
       ? confirm
-      : { title: `${name}?`, description: "This action cannot be undone.", confirmLabel: name };
+      : { title: `${name}?`, description: 'This action cannot be undone.', confirmLabel: name };
 
   return (
     <>
@@ -112,7 +112,7 @@ function RowAction({
           title={copy.title}
           description={copy.description}
           confirmLabel={copy.confirmLabel ?? name}
-          tone={tone === "danger" ? "danger" : "default"}
+          tone={tone === 'danger' ? 'danger' : 'default'}
           busy={loading}
           onCancel={() => setAsking(false)}
           onConfirm={() => {
@@ -137,9 +137,9 @@ export interface TableActionsProps {
  * and evenly spaced. Keep it to three inline actions and move the rest into
  * `MoreActions` (rules.md → Table Row Actions).
  */
-export function TableActions({ children, label = "Actions", className }: TableActionsProps) {
+export function TableActions({ children, label = 'Actions', className }: TableActionsProps) {
   return (
-    <div className={cn("hms-rowactions", className)} role="group" aria-label={label}>
+    <div className={cn('hms-rowactions', className)} role="group" aria-label={label}>
       {children}
     </div>
   );
@@ -163,15 +163,27 @@ export function TableAction({ label, icon, ...rest }: GenericTableActionProps) {
 
 /** View / Details — the eye. Pass `href` for a detail route, `onSelect` for a drawer or dialog. */
 export function ViewAction(props: TableActionProps) {
-  return <RowAction {...props} defaultLabel="View" defaultIcon={<Eye size={16} strokeWidth={2} aria-hidden />} />;
+  return (
+    <RowAction
+      {...props}
+      defaultLabel="View"
+      defaultIcon={<Eye size={16} strokeWidth={2} aria-hidden />}
+    />
+  );
 }
 
 /** Edit — the pencil. */
 export function EditAction(props: TableActionProps) {
-  return <RowAction {...props} defaultLabel="Edit" defaultIcon={<Pencil size={16} strokeWidth={2} aria-hidden />} />;
+  return (
+    <RowAction
+      {...props}
+      defaultLabel="Edit"
+      defaultIcon={<Pencil size={16} strokeWidth={2} aria-hidden />}
+    />
+  );
 }
 
-export interface DeleteActionProps extends Omit<TableActionProps, "tone"> {
+export interface DeleteActionProps extends Omit<TableActionProps, 'tone'> {
   /** Named in the confirmation so the user knows exactly what is going. */
   recordName?: string;
 }
@@ -182,9 +194,9 @@ export interface DeleteActionProps extends Omit<TableActionProps, "tone"> {
  */
 export function DeleteAction({ recordName, confirm, ...rest }: DeleteActionProps) {
   const fallback: ActionConfirm = {
-    title: recordName ? `Delete ${recordName}?` : "Delete this record?",
-    description: "This action cannot be undone.",
-    confirmLabel: "Delete",
+    title: recordName ? `Delete ${recordName}?` : 'Delete this record?',
+    description: 'This action cannot be undone.',
+    confirmLabel: 'Delete',
   };
   return (
     <RowAction
@@ -222,8 +234,8 @@ export interface ToggleActionProps {
 export function ToggleAction({
   on,
   onToggle,
-  onLabel = "Disable",
-  offLabel = "Enable",
+  onLabel = 'Disable',
+  offLabel = 'Enable',
   permitted = true,
   disabled = false,
   disabledReason,
@@ -237,7 +249,7 @@ export function ToggleAction({
   const name = on ? onLabel : offLabel;
   const inert = disabled || loading;
   const copy: ActionConfirm =
-    typeof confirm === "object" ? confirm : { title: `${name}?`, confirmLabel: name };
+    typeof confirm === 'object' ? confirm : { title: `${name}?`, confirmLabel: name };
 
   return (
     <>
@@ -250,7 +262,12 @@ export function ToggleAction({
         title={disabled && disabledReason ? disabledReason : name}
         disabled={inert}
         onClick={() => (confirm ? setAsking(true) : onToggle(!on))}
-        className={cn("hms-switch", on && "hms-switch--on", inert && "hms-switch--inert", className)}
+        className={cn(
+          'hms-switch',
+          on && 'hms-switch--on',
+          inert && 'hms-switch--inert',
+          className,
+        )}
       >
         <span className="hms-switch__thumb" aria-hidden />
       </button>

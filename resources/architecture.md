@@ -162,11 +162,11 @@ Everything in this list is built once, in Phase 0, and every business module in 
 
 ### Specialty-Aware Experience Layer (ADR-083)
 
-The specialty-agnostic *core* above (fixed entities, data-driven specialty catalog, form templates) is the storage and integrity story. On top of it sits a thin **experience layer** that makes the product feel purpose-built per specialty **without** hard-coding a workflow per doctor and **without** turning specialty into a second security boundary.
+The specialty-agnostic _core_ above (fixed entities, data-driven specialty catalog, form templates) is the storage and integrity story. On top of it sits a thin **experience layer** that makes the product feel purpose-built per specialty **without** hard-coding a workflow per doctor and **without** turning specialty into a second security boundary.
 
-- **Effective features = Tenant Enabled Modules ∩ Provider Specialty Module Set ∩ User Permissions.** The intersection matters: specialty *narrows* the view, it never widens access. A pediatrician at a clinic that never enabled Immunisation does not get Immunisation. The enforced boundary stays exactly the module-entitlement + RBAC chain (`authenticated → requireModule → requirePermission → business logic`); **specialty is never an enforcement point**, only a personalization key.
+- **Effective features = Tenant Enabled Modules ∩ Provider Specialty Module Set ∩ User Permissions.** The intersection matters: specialty _narrows_ the view, it never widens access. A pediatrician at a clinic that never enabled Immunisation does not get Immunisation. The enforced boundary stays exactly the module-entitlement + RBAC chain (`authenticated → requireModule → requirePermission → business logic`); **specialty is never an enforcement point**, only a personalization key.
 - **Layering:** `Organization → Facility Type / Enabled Modules (tenant-scoped, enforced) → Provider Specialty (personalizes) → Module Configuration (org overrides + form templates) → Permissions (RBAC) → UI + API + Workflow`.
-- **Specialty sets defaults, the organization overrides.** Each specialty maps (as seeded data — `SPECIALTY_MODULE_MAP`, beside the specialty and module catalogs) to **required / recommended / optional** modules. Choosing a specialty or facility type at onboarding expands into a module set fed through the existing hard-dependency closure and granted as normal tenant entitlements — a *starting preset*, after which the org admin may enable or disable any module within its dependencies.
+- **Specialty sets defaults, the organization overrides.** Each specialty maps (as seeded data — `SPECIALTY_MODULE_MAP`, beside the specialty and module catalogs) to **required / recommended / optional** modules. Choosing a specialty or facility type at onboarding expands into a module set fed through the existing hard-dependency closure and granted as normal tenant entitlements — a _starting preset_, after which the org admin may enable or disable any module within its dependencies.
 - **One typed module catalog, shared FE/BE.** The module catalog carries per-module UI metadata (display name, nav group, icon, the permission keys it unlocks) and exports a `ModuleKey` union, so the sidebar, the dashboard and the backend gate agree on one list. The tenant's entitled module set is delivered in the authenticated session, so the frontend aligns its menu with the already-enforced boundary rather than inferring it from permission prefixes.
 - **Personalization is consistent across surfaces** — sidebar, dashboard cards, quick actions, patient-screen sections, forms, search/filter options, reports, settings and notifications all read the same `{ tenant modules ∩ provider specialty ∩ permissions }` and a config-driven registry, never a per-specialty code branch.
 - **Specialty-specific clinical features are independent modules** (odontogram, antenatal/obstetric records, growth tracking, psychiatric assessment), each a module-catalog entry gated by `requireModule` + `requirePermission`, with structured fields captured through `specialty_form_templates` (no EAV on core entities). Adding a specialty later is a data change (a catalog row + a map row) plus, only when a genuinely new feature is needed, one new module — never a rewrite of the shared patient / appointment / OPD / EMR / prescription / billing / auth / user-management core.
@@ -200,14 +200,14 @@ The specialty-agnostic *core* above (fixed entities, data-driven specialty catal
 
 Every entitlement record moves through a defined state machine rather than a simple on/off flag.
 
-| State | Meaning |
-|---|---|
-| TRIAL | Module temporarily available during a trial period |
-| ACTIVE | Module is available |
-| SUSPENDED | Temporarily unavailable but not commercially cancelled |
-| EXPIRED | Entitlement reached its validity end |
-| CANCELLED | Commercial entitlement has been cancelled |
-| DEACTIVATED | Access intentionally disabled while preserving data |
+| State       | Meaning                                                |
+| ----------- | ------------------------------------------------------ |
+| TRIAL       | Module temporarily available during a trial period     |
+| ACTIVE      | Module is available                                    |
+| SUSPENDED   | Temporarily unavailable but not commercially cancelled |
+| EXPIRED     | Entitlement reached its validity end                   |
+| CANCELLED   | Commercial entitlement has been cancelled              |
+| DEACTIVATED | Access intentionally disabled while preserving data    |
 
 **Metadata**
 
@@ -226,12 +226,12 @@ Entitlement records are never physically deleted. Historical entitlement changes
 
 Three distinct layers, deliberately kept separate so that changing one never silently changes another.
 
-> **Layering:** Commercial Subscription / Purchase → Module Entitlement → User Authorization. A customer purchasing Pharmacy does not mean every user at that hospital can use Pharmacy — it means the *organization* is entitled to it; which *individual users* can act within it is a separate RBAC decision (Part IV).
+> **Layering:** Commercial Subscription / Purchase → Module Entitlement → User Authorization. A customer purchasing Pharmacy does not mean every user at that hospital can use Pharmacy — it means the _organization_ is entitled to it; which _individual users_ can act within it is a separate RBAC decision (Part IV).
 
 - Individual modules purchasable standalone, per the Module Capability Matrix
 - Bundles/packages composed of individual modules at a package price, without requiring separate code paths per bundle
 - Module activation/deactivation per organization, and optionally per branch, without redeployment
-- Branch-level entitlements supported from the schema level on day one (nullable — null means organization-wide, set means branch-specific), even though branch-scoped entitlement *management UI* is a later-phase build, not an MVP one
+- Branch-level entitlements supported from the schema level on day one (nullable — null means organization-wide, set means branch-specific), even though branch-scoped entitlement _management UI_ is a later-phase build, not an MVP one
 - Future usage-based pricing (e.g. per-transaction billing add-ons) is not precluded — entitlement records carry status and validity independent of how the commercial terms behind them are structured
 - Self-serve plan management and payment-integrated billing remain explicitly out of MVP scope; entitlement provisioning is operator-driven at launch, while the enforcement mechanism is fully automatic from day one
 
@@ -296,19 +296,19 @@ Extends the existing user_permission_overrides mechanism (Part IV) with an expli
 
 **user_permission_overrides — fields**
 
-| Field | Purpose |
-|---|---|
-| id | Unique override record identifier |
-| user_id | The user this override applies to |
-| permission | The permission key being granted or denied |
-| effect | GRANT or DENY |
-| valid_from | When the override becomes effective |
-| valid_until | When the override stops being effective |
-| reason | Why the override was granted |
-| created_by | Administrator who created the override |
-| created_at | Creation timestamp |
-| updated_at | Last modification timestamp |
-| revoked_at | When the override was manually revoked, if applicable |
+| Field       | Purpose                                               |
+| ----------- | ----------------------------------------------------- |
+| id          | Unique override record identifier                     |
+| user_id     | The user this override applies to                     |
+| permission  | The permission key being granted or denied            |
+| effect      | GRANT or DENY                                         |
+| valid_from  | When the override becomes effective                   |
+| valid_until | When the override stops being effective               |
+| reason      | Why the override was granted                          |
+| created_by  | Administrator who created the override                |
+| created_at  | Creation timestamp                                    |
+| updated_at  | Last modification timestamp                           |
+| revoked_at  | When the override was manually revoked, if applicable |
 
 **Behavior**
 
@@ -376,7 +376,7 @@ The authorization request flow (Part IV) already has a defined insertion point f
 
 ### Feature Configuration
 
-Distinct from entitlement. Entitlement decides *whether* a tenant has a module; Feature Configuration decides *how* that module behaves for them — without a code branch per tenant.
+Distinct from entitlement. Entitlement decides _whether_ a tenant has a module; Feature Configuration decides _how_ that module behaves for them — without a code branch per tenant.
 
 > **Example:** Pharmacy = ENABLED (entitlement) → Batch Tracking = ON, Barcode = ON, Multi-Store = ON, Generic Substitution = OFF, Purchase Workflow = OFF (feature configuration)
 
@@ -406,27 +406,27 @@ Built on the Financial Transaction Infrastructure in Platform Core (invoice/paym
 
 Each frontend serves **one audience** and owns nothing but rendering. The backend is the single source of truth for authentication, authorization, tenant resolution, permissions, business logic and audit; a frontend guard is UX and never security.
 
-| Application | Audience | Access rule |
-|---|---|---|
-| `marketing` | Public | None — no authentication logic at all |
-| `hms_frontend` (Nirogix Portal) | Hospital staff | Authenticated staff user, tenant-scoped |
-| `admin` | Vendor operators | Authenticated **and** `platform.tenants.manage`, held only by a super_admin in the PLATFORM org |
-| `patient` | Patients | A verified patient principal, never a staff `user` (ADR-052) |
-| `aiportal` | All staff + operators, never patients | `ai.portal.access`, held by **every staff role** (ADR-055); a hospital may DENY it for an individual. A patient principal is refused **by type** before the permission is read (ADR-052) — that, not the permission, is what keeps patients out. Entry is audited. **No AI capability exists behind it** (ADR-053) |
+| Application                     | Audience                              | Access rule                                                                                                                                                                                                                                                                                                        |
+| ------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `marketing`                     | Public                                | None — no authentication logic at all                                                                                                                                                                                                                                                                              |
+| `hms_frontend` (Nirogix Portal) | Hospital staff                        | Authenticated staff user, tenant-scoped                                                                                                                                                                                                                                                                            |
+| `admin`                         | Vendor operators                      | Authenticated **and** `platform.tenants.manage`, held only by a super_admin in the PLATFORM org                                                                                                                                                                                                                    |
+| `patient`                       | Patients                              | A verified patient principal, never a staff `user` (ADR-052)                                                                                                                                                                                                                                                       |
+| `aiportal`                      | All staff + operators, never patients | `ai.portal.access`, held by **every staff role** (ADR-055); a hospital may DENY it for an individual. A patient principal is refused **by type** before the permission is read (ADR-052) — that, not the permission, is what keeps patients out. Entry is audited. **No AI capability exists behind it** (ADR-053) |
 
 The AI Portal's access experience has three distinct states, because they are three different situations and one message cannot serve them:
 
-| State | What the person sees |
-|---|---|
-| Not signed in | The AI Portal sign-in landing: what the portal is, who it is for, the sign-in form, and that there is **no sign-up**. Links back to the Portal and the public site. |
-| Signed in, not authorised | A dedicated *Access restricted* screen naming the account they used, explaining that access is granted per account rather than by role, who to ask, and offering **Return to Nirogix Portal** and **Sign out**. |
-| Signed in and authorised | The portal, which states that **no AI capability is enabled yet**. |
+| State                     | What the person sees                                                                                                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Not signed in             | The AI Portal sign-in landing: what the portal is, who it is for, the sign-in form, and that there is **no sign-up**. Links back to the Portal and the public site.                                             |
+| Signed in, not authorised | A dedicated _Access restricted_ screen naming the account they used, explaining that access is granted per account rather than by role, who to ask, and offering **Return to Nirogix Portal** and **Sign out**. |
+| Signed in and authorised  | The portal, which states that **no AI capability is enabled yet**.                                                                                                                                              |
 
 None of these is a security control. The backend refuses the request in every unauthorised case regardless, and a patient principal never reaches any of them.
 
 - **One origin per audience.** A different audience is a different security boundary, a different release cadence and a different blast radius. The concrete host map is `resources/domains.md`.
 - **No shared session between applications.** The refresh cookie is host-only on the API origin, so one application's session cannot be replayed against another's. Each origin is listed individually in `CORS_ORIGINS` per environment.
-- **The platform surface is not in the Portal.** Tenant onboarding, module provisioning, platform analytics, support sessions and platform branding live only in `admin`, so operator code never ships in a hospital's bundle. The Portal keeps `/support/enter`, which *receives* a session the admin console mints.
+- **The platform surface is not in the Portal.** Tenant onboarding, module provisioning, platform analytics, support sessions and platform branding live only in `admin`, so operator code never ships in a hospital's bundle. The Portal keeps `/support/enter`, which _receives_ a session the admin console mints.
 - **The support-session handoff is cross-origin and explicit.** The token travels by `postMessage` — never a URL, which lands in history, referrers and logs — with each side naming the other's origin from configuration. The Portal accepts a session only from the configured admin origin.
 
 ### Notifications (ADR-026, ADR-057)
@@ -461,14 +461,14 @@ The product's **only unauthenticated write path**. Two properties carry it, and 
 - **The tenant comes from an opaque token in the URL path, resolved server-side on every call** — never from a body field, header or query parameter. There is no field in which a caller could name a different hospital, so "scan Hospital A's poster, land in Hospital B" is unrepresentable rather than merely validated against. The token is 24 random bytes, base64url, unique, indexed, and derived from nothing internal; a QR is printed in a public corridor, so anything encoded in it is published.
 - **A submission creates a `registration_request`, never a patient.** ADR-052 holds unchanged: the hospital still decides who enters its patient list. The front desk verifies the person, checks for a duplicate, and converts — that conversion is the moment a chart exists.
 
-| Concern | How it is handled |
-|---|---|
-| Unknown token / retired token / registration switched off | All fail identically with **404**, so the endpoint never reveals which hospitals exist or which are open |
-| Abuse | Rate-limited at the sign-in tier; a public form behind a printed poster is what a script finds |
-| Seeing the queue | `patient.record.view` — the administrator who switched registration on can tell whether anything arrived |
-| Approving / rejecting | `patient.record.create`, the same permission as registering a patient by hand. Both audited at **notice** |
-| Provenance | The request row is kept and marked `approved` / `rejected`, never deleted — it is the origin of a chart nobody on staff typed |
-| Retiring a printed QR | A separate, confirmed, audited `regenerate`. Disabling keeps the token, so pausing over a holiday does not mean reprinting posters |
+| Concern                                                   | How it is handled                                                                                                                  |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Unknown token / retired token / registration switched off | All fail identically with **404**, so the endpoint never reveals which hospitals exist or which are open                           |
+| Abuse                                                     | Rate-limited at the sign-in tier; a public form behind a printed poster is what a script finds                                     |
+| Seeing the queue                                          | `patient.record.view` — the administrator who switched registration on can tell whether anything arrived                           |
+| Approving / rejecting                                     | `patient.record.create`, the same permission as registering a patient by hand. Both audited at **notice**                          |
+| Provenance                                                | The request row is kept and marked `approved` / `rejected`, never deleted — it is the origin of a chart nobody on staff typed      |
+| Retiring a printed QR                                     | A separate, confirmed, audited `regenerate`. Disabling keeps the token, so pausing over a holiday does not mean reprinting posters |
 
 Letterhead (header line, footer text, default signatory) lives on the same `organization_profile` record as the address it prints above, so a hospital maintains one identity rather than two that can disagree.
 
@@ -511,7 +511,7 @@ Letterhead (header line, footer text, default signatory) lives on the same `orga
 - Every file access enforced by the same entitlement and RBAC checks defined in §38 and §40 — file storage does not carry its own separate authorization model
 - Access to and deletion of sensitive healthcare documents is audit-logged, consistent with §55; versioning retained for clinical documents subject to correction (e.g. amended reports)
 
-> **Regulatory language — verify before external use:** India-resident storage is adopted here as a deliberate, conservative *design decision*, not a claim of settled law. The DPDP Act does not currently impose blanket localization for general health data, and no country is currently restricted for cross-border transfer. Secondary sources describe an India-storage expectation for ABDM-integrated health data under the Health Data Management Policy; this has not been independently verified against a primary ABDM/MeitY source. Given healthcare is a plausible candidate for tighter future rules, and given the low cost of applying one storage policy platform-wide, India-resident storage remains the recommended default — pending formal legal/compliance verification before this is repeated in a customer-facing or regulatory context.
+> **Regulatory language — verify before external use:** India-resident storage is adopted here as a deliberate, conservative _design decision_, not a claim of settled law. The DPDP Act does not currently impose blanket localization for general health data, and no country is currently restricted for cross-border transfer. Secondary sources describe an India-storage expectation for ABDM-integrated health data under the Health Data Management Policy; this has not been independently verified against a primary ABDM/MeitY source. Given healthcare is a plausible candidate for tighter future rules, and given the low cost of applying one storage policy platform-wide, India-resident storage remains the recommended default — pending formal legal/compliance verification before this is repeated in a customer-facing or regulatory context.
 
 ### Domain Events & Background Jobs
 
@@ -617,19 +617,19 @@ Every regulatory statement in this document falls into exactly one of three cate
 
 Every regulatory area this platform touches, with its verification status tracked explicitly rather than assumed. Fields not yet confirmed are marked Pending verification rather than guessed.
 
-| Requirement | Area | Source | Verification Status | Owner | Last Verified | Notes |
-|---|---|---|---|---|---|---|
-| Data localization for general personal data | DPDP Act | Digital Personal Data Protection Act, 2023 | Pending verification | Pending verification | Pending verification | Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text |
-| Breach/incident reporting obligations | CERT-In directions | CERT-In cybersecurity directions | Pending verification | Pending verification | Pending verification | Referenced in Security & Compliance; specific timelines not independently verified |
-| Health record storage/localization for ABDM-integrated data | ABDM | Health Data Management Policy (ABDM) | Pending verification | Pending verification | Pending verification | Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI) |
-| Remote consultation requirements | Telemedicine Practice Guidelines | Telemedicine Practice Guidelines, 2020 | Pending verification | Pending verification | Pending verification | Applies to Telemedicine & Video Consultation, Part III |
-| Diagnostic technique restrictions (sex-determination) | PC-PNDT | Pre-Conception and Pre-Natal Diagnostic Techniques Act | Pending verification | Pending verification | Pending verification | Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology |
-| Segregation, handling, and disposal of clinical waste | Biomedical Waste | Bio-Medical Waste Management Rules, 2016 | Pending verification | Pending verification | Pending verification | Applies to Biomedical Waste Management, Part II |
-| Pharmacy licensing, storage, and dispensing rules | Drugs & Cosmetics Rules | Drugs and Cosmetics Act & Rules | Pending verification | Pending verification | Pending verification | Applies to Pharmacy Management, Part II |
-| Blood bank licensing and operational requirements | Blood Bank requirements | Drugs and Cosmetics Rules (Blood Bank provisions) | Pending verification | Pending verification | Pending verification | Applies to Blood Bank Management, Part II |
-| Tax invoicing, HSN/SAC, and filing requirements | GST | Goods and Services Tax Act | Pending verification | Pending verification | Pending verification | Applies to Billing & Payments and Financial Management, Part II |
-| Payment card data handling | PCI DSS | PCI Security Standards Council | Pending verification | Pending verification | Pending verification | Applies to the Payment Gateway add-on and Billing & Payments, Part II/III |
-| Medical device / software classification for AI-assisted features | CDSCO / SaMD | Central Drugs Standard Control Organisation | Pending verification | Pending verification | Pending verification | Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX |
+| Requirement                                                       | Area                             | Source                                                 | Verification Status  | Owner                | Last Verified        | Notes                                                                                                                                               |
+| ----------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------ | -------------------- | -------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data localization for general personal data                       | DPDP Act                         | Digital Personal Data Protection Act, 2023             | Pending verification | Pending verification | Pending verification | Architecture assumes no blanket localization mandate currently in force; not checked against primary Gazette text                                   |
+| Breach/incident reporting obligations                             | CERT-In directions               | CERT-In cybersecurity directions                       | Pending verification | Pending verification | Pending verification | Referenced in Security & Compliance; specific timelines not independently verified                                                                  |
+| Health record storage/localization for ABDM-integrated data       | ABDM                             | Health Data Management Policy (ABDM)                   | Pending verification | Pending verification | Pending verification | Secondary sources describe an India-storage expectation; not checked against a primary ABDM/MeitY document (see File Storage Architecture, Part VI) |
+| Remote consultation requirements                                  | Telemedicine Practice Guidelines | Telemedicine Practice Guidelines, 2020                 | Pending verification | Pending verification | Pending verification | Applies to Telemedicine & Video Consultation, Part III                                                                                              |
+| Diagnostic technique restrictions (sex-determination)             | PC-PNDT                          | Pre-Conception and Pre-Natal Diagnostic Techniques Act | Pending verification | Pending verification | Pending verification | Applies wherever ultrasound/prenatal imaging is offered, Part II Radiology                                                                          |
+| Segregation, handling, and disposal of clinical waste             | Biomedical Waste                 | Bio-Medical Waste Management Rules, 2016               | Pending verification | Pending verification | Pending verification | Applies to Biomedical Waste Management, Part II                                                                                                     |
+| Pharmacy licensing, storage, and dispensing rules                 | Drugs & Cosmetics Rules          | Drugs and Cosmetics Act & Rules                        | Pending verification | Pending verification | Pending verification | Applies to Pharmacy Management, Part II                                                                                                             |
+| Blood bank licensing and operational requirements                 | Blood Bank requirements          | Drugs and Cosmetics Rules (Blood Bank provisions)      | Pending verification | Pending verification | Pending verification | Applies to Blood Bank Management, Part II                                                                                                           |
+| Tax invoicing, HSN/SAC, and filing requirements                   | GST                              | Goods and Services Tax Act                             | Pending verification | Pending verification | Pending verification | Applies to Billing & Payments and Financial Management, Part II                                                                                     |
+| Payment card data handling                                        | PCI DSS                          | PCI Security Standards Council                         | Pending verification | Pending verification | Pending verification | Applies to the Payment Gateway add-on and Billing & Payments, Part II/III                                                                           |
+| Medical device / software classification for AI-assisted features | CDSCO / SaMD                     | Central Drugs Standard Control Organisation            | Pending verification | Pending verification | Pending verification | Required before any diagnostic-support AI feature is built — see Postponed / Build-as-Sold, Part IX                                                 |
 
 ### Performance & Scalability
 
@@ -695,7 +695,7 @@ Every regulatory area this platform touches, with its verification status tracke
 - packages/ui — shared design-system components used by portal and marketing
 - packages/config, packages/utils — shared lint/build configuration and common utilities
 - packages/permissions — dot-hierarchy permission keys shared front-end/back-end
-- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/*, per ADR-013; the frontends added in ADR-051 are named for their audience (admin / patient / aiportal). Shared libraries live under packages/*. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
+- App folder names (hms_backend / hms_frontend / marketing) are kept rather than nested under apps/_, per ADR-013; the frontends added in ADR-051 are named for their audience (admin / patient / aiportal). Shared libraries live under packages/_. Room reserved for a future root-level mobile/ workspace member (React Native/Expo) for the nursing, administrator, and field-staff native apps described in §6
 
 ### Technical Expectations
 
@@ -718,50 +718,51 @@ Every regulatory area this platform touches, with its verification status tracke
 
 Standalone = can be sold and run with no other business module entitled. Hard Dependencies = module will not activate without these already entitled. Optional Integrations = functions without these, gains capability with them.
 
-| Module | Standalone | Hard Dependencies | Optional Integrations |
-|---|---|---|---|
-| Patient Management | Yes | None | Appointment, EMR, Billing |
-| Appointment Management | Yes | Patient Management | EMR, Notifications |
-| OPD & Check-in | Partial | Patient, Appointment | EMR, Billing |
-| Clinical Workflow (EMR) | Partial/No | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology |
-| Nursing | No | IPD | EMR |
-| Laboratory | Yes | None | Patient, EMR, Billing |
-| Radiology & Imaging | Yes | None | Patient, EMR, Billing, PACS (add-on) |
-| Admission (IPD) | Partial | Patient | Billing, Nursing, Insurance |
-| Emergency (ER) | Yes | Patient | EMR, Billing, IPD |
-| Operation Theatre (OT) | No | IPD | EMR, Billing, Inventory |
-| CSSD | No | OT | Inventory |
-| Blood Bank | Yes/Partial | None | Patient, Billing |
-| Specialty Clinical Modules | No | EMR | Billing |
-| Pharmacy | Yes | None | Patient, EMR, Billing, Inventory |
-| Inventory, Stores & Procurement | Yes | None | Pharmacy, OT, Billing |
-| Billing & Payments | Yes | None | Patient, Pharmacy, Lab, IPD |
-| Insurance, TPA & Govt. Schemes | No | Billing | Patient, IPD |
-| Financial Management | Partial | Billing | Inventory, HR |
-| Dietary & Kitchen | Yes | None | IPD (diet-chart linkage) |
-| Housekeeping & Laundry | Yes | None | IPD (ward/bed linkage) |
-| Ambulance & Fleet | Yes | None | Patient, ER, Billing |
-| Biomedical Equipment & Asset Mgmt | Yes | None | OT, Laboratory, Radiology |
-| Biomedical Waste Management | Yes | None | None required |
-| HR, Payroll & Doctor Scheduling | Yes | None | Appointment, Financial Management |
-| CRM & Patient Engagement | Yes | None | Patient, Appointment, Notifications |
+| Module                            | Standalone  | Hard Dependencies            | Optional Integrations                |
+| --------------------------------- | ----------- | ---------------------------- | ------------------------------------ |
+| Patient Management                | Yes         | None                         | Appointment, EMR, Billing            |
+| Appointment Management            | Yes         | Patient Management           | EMR, Notifications                   |
+| OPD & Check-in                    | Partial     | Patient, Appointment         | EMR, Billing                         |
+| Clinical Workflow (EMR)           | Partial/No  | Patient, Encounter (OPD/IPD) | Lab, Pharmacy, Radiology             |
+| Nursing                           | No          | IPD                          | EMR                                  |
+| Laboratory                        | Yes         | None                         | Patient, EMR, Billing                |
+| Radiology & Imaging               | Yes         | None                         | Patient, EMR, Billing, PACS (add-on) |
+| Admission (IPD)                   | Partial     | Patient                      | Billing, Nursing, Insurance          |
+| Emergency (ER)                    | Yes         | Patient                      | EMR, Billing, IPD                    |
+| Operation Theatre (OT)            | No          | IPD                          | EMR, Billing, Inventory              |
+| CSSD                              | No          | OT                           | Inventory                            |
+| Blood Bank                        | Yes/Partial | None                         | Patient, Billing                     |
+| Specialty Clinical Modules        | No          | EMR                          | Billing                              |
+| Pharmacy                          | Yes         | None                         | Patient, EMR, Billing, Inventory     |
+| Inventory, Stores & Procurement   | Yes         | None                         | Pharmacy, OT, Billing                |
+| Billing & Payments                | Yes         | None                         | Patient, Pharmacy, Lab, IPD          |
+| Insurance, TPA & Govt. Schemes    | No          | Billing                      | Patient, IPD                         |
+| Financial Management              | Partial     | Billing                      | Inventory, HR                        |
+| Dietary & Kitchen                 | Yes         | None                         | IPD (diet-chart linkage)             |
+| Housekeeping & Laundry            | Yes         | None                         | IPD (ward/bed linkage)               |
+| Ambulance & Fleet                 | Yes         | None                         | Patient, ER, Billing                 |
+| Biomedical Equipment & Asset Mgmt | Yes         | None                         | OT, Laboratory, Radiology            |
+| Biomedical Waste Management       | Yes         | None                         | None required                        |
+| HR, Payroll & Doctor Scheduling   | Yes         | None                         | Appointment, Financial Management    |
+| CRM & Patient Engagement          | Yes         | None                         | Patient, Appointment, Notifications  |
 
 All 25 modules list **Platform Core** as an implicit prerequisite (omitted from the table for readability, per the Platform Core section) — every row above assumes it.
 
-"Standalone" in this matrix means *technically* standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
+"Standalone" in this matrix means _technically_ standalone (operates with no other business module entitled), which is the stricter of the two independence concepts defined above — commercial sale is available for every module regardless of this column, subject only to its listed Hard Dependencies.
 
 ### Dependency Map
 
 The critical path through the MVP, and how later phases attach to it.
 
-| Chain | Notes |
-|---|---|
-| Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports | The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists |
-| Patient + Billing Core → IPD → Nursing | Phase 2 branch |
-| IPD → OT → CSSD | Phase 4 branch, gated behind IPD |
-| Patient → Blood Bank | Mostly independent — can be pulled forward if a customer needs it early |
-| Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns | One shared service, reused by every later module — never rebuilt |
-| Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management | Every future revenue-generating module extends this same engine with a new line-item type |
+| Chain                                                                                    | Notes                                                                                     |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Foundation → Patient → Appointment → OPD+Billing Core → EMR → {Pharmacy ∥ Lab} → Reports | The Phase 1 critical path — Pharmacy and Lab can be built in parallel once EMR exists     |
+| Patient + Billing Core → IPD → Nursing                                                   | Phase 2 branch                                                                            |
+| IPD → OT → CSSD                                                                          | Phase 4 branch, gated behind IPD                                                          |
+| Patient → Blood Bank                                                                     | Mostly independent — can be pulled forward if a customer needs it early                   |
+| Notification Service (Phase 0) → Appointment reminders, Lab report alerts, CRM campaigns | One shared service, reused by every later module — never rebuilt                          |
+| Billing Core (1.3) → Pharmacy, Lab, IPD, Insurance/TPA, Financial Management             | Every future revenue-generating module extends this same engine with a new line-item type |
 
 ---
-*Architecture Document — v1.0 — Takoriya Technology LLP — August 2026*
+
+_Architecture Document — v1.0 — Takoriya Technology LLP — August 2026_

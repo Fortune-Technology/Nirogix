@@ -7,7 +7,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 // of the base signature, and dropping it for images both renders them in place and removes a
 // signing surface. See providers/r2Provider.ts.
 
-const { presignedGetObject } = vi.hoisted(() => ({ presignedGetObject: vi.fn().mockResolvedValue('https://signed.example/obj') }));
+const { presignedGetObject } = vi.hoisted(() => ({
+  presignedGetObject: vi.fn().mockResolvedValue('https://signed.example/obj'),
+}));
 
 // A real class, not `vi.fn().mockImplementation(...)`: r2Provider.ts does `new MinioClient(...)`,
 // and from Vitest 4 a mock function whose implementation is an arrow function has no [[Construct]],

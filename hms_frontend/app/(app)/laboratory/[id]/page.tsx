@@ -1,57 +1,79 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, EmptyValue, Spinner, type Column, ValueOrEmpty } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { LabOrder } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Printer } from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  EmptyValue,
+  Spinner,
+  type Column,
+  ValueOrEmpty,
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { LabOrder } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
 
-function flagTone(f: string): "success" | "warning" | "danger" | "neutral" {
-  if (f === "normal") return "success";
-  if (f === "critical") return "danger";
-  if (f === "high" || f === "low") return "warning";
-  return "neutral";
+function flagTone(f: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (f === 'normal') return 'success';
+  if (f === 'critical') return 'danger';
+  if (f === 'high' || f === 'low') return 'warning';
+  return 'neutral';
 }
 
 /** The signed report line — one row, rendered through the shared table (ADR-029). */
-type ResultRow = { order: LabOrder; result: NonNullable<LabOrder["result"]> };
+type ResultRow = { order: LabOrder; result: NonNullable<LabOrder['result']> };
 
 const resultColumns: Array<Column<ResultRow>> = [
   {
-    key: "test",
-    header: "Test",
+    key: 'test',
+    header: 'Test',
     cell: ({ order }) => (
       <span className="text-fg">
         {order.testName}
-        {order.testCode && <span className="ml-2 font-mono text-xs text-fg-subtle">{order.testCode}</span>}
+        {order.testCode && (
+          <span className="ml-2 font-mono text-xs text-fg-subtle">{order.testCode}</span>
+        )}
       </span>
     ),
   },
-  { key: "value", header: "Result", cell: ({ result }) => <span className="font-medium text-fg">{result.value}</span> },
   {
-    key: "unit",
-    header: "Unit",
-    cell: ({ result }) => <ValueOrEmpty value={result.unit} reason="notApplicable" className="text-fg-muted" />,
+    key: 'value',
+    header: 'Result',
+    cell: ({ result }) => <span className="font-medium text-fg">{result.value}</span>,
   },
   {
-    key: "reference",
-    header: "Reference",
+    key: 'unit',
+    header: 'Unit',
+    cell: ({ result }) => (
+      <ValueOrEmpty value={result.unit} reason="notApplicable" className="text-fg-muted" />
+    ),
+  },
+  {
+    key: 'reference',
+    header: 'Reference',
     cell: ({ result }) => (
       <span className="text-fg-muted">
         {result.refLow || result.refHigh ? (
-          `${result.refLow ?? ""}–${result.refHigh ?? ""}`
+          `${result.refLow ?? ''}–${result.refHigh ?? ''}`
         ) : (
           <EmptyValue reason="notApplicable" />
         )}
       </span>
     ),
   },
-  { key: "flag", header: "Flag", cell: ({ result }) => <Badge tone={flagTone(result.flag)}>{result.flag}</Badge> },
+  {
+    key: 'flag',
+    header: 'Flag',
+    cell: ({ result }) => <Badge tone={flagTone(result.flag)}>{result.flag}</Badge>,
+  },
 ];
 
 function Report({ id }: { id: string }) {
@@ -65,7 +87,7 @@ function Report({ id }: { id: string }) {
       setOrder(await api.getLabOrder(id));
       setError(null);
     } catch (e) {
-      setError(e instanceof api.ApiRequestError ? e.message : "Failed to load the report.");
+      setError(e instanceof api.ApiRequestError ? e.message : 'Failed to load the report.');
     } finally {
       setLoading(false);
     }
@@ -82,13 +104,16 @@ function Report({ id }: { id: string }) {
       </div>
     );
   }
-  if (!order) return <Alert tone="danger">{error ?? "Report not found."}</Alert>;
+  if (!order) return <Alert tone="danger">{error ?? 'Report not found.'}</Alert>;
 
   const r = order.result;
 
   return (
     <>
-      <Link href="/laboratory" className="print:hidden inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
+      <Link
+        href="/laboratory"
+        className="print:hidden inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
+      >
         <ArrowLeft size={15} strokeWidth={2} /> Laboratory
       </Link>
       <PageHeader

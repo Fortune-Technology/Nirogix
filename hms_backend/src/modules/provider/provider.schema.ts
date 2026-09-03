@@ -93,9 +93,7 @@ export const SetSchedulesBody = z
 
 export const ScheduleListSchema = z
   .object({
-    windows: z.array(
-      ScheduleWindowSchema.extend({ id: z.string() }),
-    ),
+    windows: z.array(ScheduleWindowSchema.extend({ id: z.string() })),
   })
   .openapi('ScheduleList');
 

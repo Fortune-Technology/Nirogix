@@ -32,7 +32,12 @@ import type { HiType } from './careContext.service';
 /** Roughly 4 MB of ciphertext per page — comfortably inside what gateways and HIUs accept. */
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 
-type TransferEntry = { careContextReference: string; content: string; checksum: string; media: string };
+type TransferEntry = {
+  careContextReference: string;
+  content: string;
+  checksum: string;
+  media: string;
+};
 
 export type HealthInformationRequest = {
   hipId: string;
@@ -54,7 +59,9 @@ export type HealthInformationRequest = {
  * `ACKNOWLEDGED`, and a gateway left waiting while we build FHIR for a year of records would time
  * out on a transfer that was going to succeed.
  */
-export async function receiveHealthInformationRequest(input: HealthInformationRequest): Promise<{ accepted: boolean; reason?: string }> {
+export async function receiveHealthInformationRequest(
+  input: HealthInformationRequest,
+): Promise<{ accepted: boolean; reason?: string }> {
   const tenantId = await tenantForHip(input.hipId);
   if (!tenantId) {
     logger.warn({ hipId: input.hipId }, 'Health information request for an unknown facility');
@@ -106,7 +113,11 @@ export async function receiveHealthInformationRequest(input: HealthInformationRe
     resourceType: 'abdm_data_transfer',
     resourceId: transfer.id,
     severity: 'notice',
-    metadata: { consentId: input.consentId, careContexts: input.careContextRefs.length, deadlineAt: deadlineAt.toISOString() },
+    metadata: {
+      consentId: input.consentId,
+      careContexts: input.careContextRefs.length,
+      deadlineAt: deadlineAt.toISOString(),
+    },
   });
   return { accepted: true };
 }
@@ -117,7 +128,10 @@ export async function receiveHealthInformationRequest(input: HealthInformationRe
  * Run from the queue. Every refusal path notifies the gateway rather than failing silently — a HIU
  * waiting on a transfer that will never arrive is worse than one told promptly that it will not.
  */
-export async function performTransfer(tenantId: string, transferId: string): Promise<{ sent: number; reason?: string }> {
+export async function performTransfer(
+  tenantId: string,
+  transferId: string,
+): Promise<{ sent: number; reason?: string }> {
   const transfer = await loadTransfer(tenantId, transferId);
   if (!transfer) return { sent: 0, reason: 'Unknown transfer' };
   if (transfer.status === 'transferred') return { sent: 0, reason: 'Already transferred' };
@@ -128,7 +142,8 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
     from: transfer.dateRangeFrom ?? undefined,
     to: transfer.dateRangeTo ?? undefined,
   });
-  if (!consent.allowed) return refuse(tenantId, transfer, consent.reason ?? 'Consent does not permit this transfer');
+  if (!consent.allowed)
+    return refuse(tenantId, transfer, consent.reason ?? 'Consent does not permit this transfer');
 
   // 2. Only contexts the consent actually covers, intersected with what we hold.
   const consented = consentedReferences(consent.consent?.careContexts);
@@ -143,7 +158,8 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
       transfer.careContextRefs.includes(c.referenceNumber) &&
       (consented.length === 0 || consented.includes(c.referenceNumber)),
   );
-  if (eligible.length === 0) return refuse(tenantId, transfer, 'No care context in this request is covered by the consent');
+  if (eligible.length === 0)
+    return refuse(tenantId, transfer, 'No care context in this request is covered by the consent');
 
   // 3. Only the HI types the patient allowed.
   const allowedTypes = new Set(consent.consent?.hiTypes ?? []);
@@ -158,7 +174,10 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
 
       let bundle;
       try {
-        bundle = await buildDocumentBundle(tenantId, { visitId: context.visitId, hiType: hiType as HiType });
+        bundle = await buildDocumentBundle(tenantId, {
+          visitId: context.visitId,
+          hiType: hiType as HiType,
+        });
       } catch (err) {
         // A context with nothing to share for this type is normal, not a failure of the transfer.
         logger.info({ tenantId, hiType, err }, 'Skipping a care context with nothing to share');
@@ -181,7 +200,12 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
       } catch (err) {
         // The one failure that stops everything. No plaintext, on any path.
         if (err instanceof EncryptionUnavailableError) {
-          return refuse(tenantId, transfer, `Records could not be encrypted: ${err.message}`, 'failed');
+          return refuse(
+            tenantId,
+            transfer,
+            `Records could not be encrypted: ${err.message}`,
+            'failed',
+          );
         }
         throw err;
       }
@@ -189,7 +213,11 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
   }
 
   if (entries.length === 0 || !keyMaterial) {
-    return refuse(tenantId, transfer, 'Nothing shareable was found for the consented period and record types');
+    return refuse(
+      tenantId,
+      transfer,
+      'Nothing shareable was found for the consented period and record types',
+    );
   }
 
   // 4. Push to the HIU, one page at a time. ABDM pages the transfer rather than allowing one
@@ -206,15 +234,30 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
     if (!pushed.ok) {
       // Partial delivery is a failed transfer, not a partial success: the HIU is told the flow
       // errored so it re-requests, rather than believing it holds a complete record.
-      return refuse(tenantId, transfer, `The HIU rejected page ${index + 1} of the data push (${pushed.status})`, 'failed');
+      return refuse(
+        tenantId,
+        transfer,
+        `The HIU rejected page ${index + 1} of the data push (${pushed.status})`,
+        'failed',
+      );
     }
   }
 
-  await notifyDataFlow(tenantId, transfer, entries.map((e) => e.careContextReference), 'OK');
+  await notifyDataFlow(
+    tenantId,
+    transfer,
+    entries.map((e) => e.careContextReference),
+    'OK',
+  );
   await runWithTenant(tenantId, (tx) =>
     tx
       .update(abdmDataTransfers)
-      .set({ status: 'transferred', entriesSent: entries.length, completedAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: 'transferred',
+        entriesSent: entries.length,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(abdmDataTransfers.id, transfer.id)),
   );
 
@@ -229,7 +272,11 @@ export async function performTransfer(tenantId: string, transferId: string): Pro
     // Recorded so a pattern of near-misses is visible before NHA notices it in certification.
     metadata: { entries: entries.length, consentId: transfer.consentId, withinSla: !late },
   });
-  if (late) logger.warn({ tenantId, transferId: transfer.id }, 'ABDM transfer completed after the SLA deadline');
+  if (late)
+    logger.warn(
+      { tenantId, transferId: transfer.id },
+      'ABDM transfer completed after the SLA deadline',
+    );
 
   return { sent: entries.length };
 }
@@ -254,8 +301,8 @@ async function refuse(
       .where(eq(abdmDataTransfers.id, transfer.id)),
   );
 
-  await notifyDataFlow(tenantId, transfer, transfer.careContextRefs, 'ERRORED').catch((err: unknown) =>
-    logger.error({ err }, 'Could not notify ABDM of a refused transfer'),
+  await notifyDataFlow(tenantId, transfer, transfer.careContextRefs, 'ERRORED').catch(
+    (err: unknown) => logger.error({ err }, 'Could not notify ABDM of a refused transfer'),
   );
 
   await writeAudit({
@@ -336,16 +383,26 @@ function consentedReferences(careContexts: unknown): string[] {
     .filter((r): r is string => typeof r === 'string');
 }
 
-async function loadTransfer(tenantId: string, transferId: string): Promise<AbdmDataTransfer | null> {
+async function loadTransfer(
+  tenantId: string,
+  transferId: string,
+): Promise<AbdmDataTransfer | null> {
   const rows = await runWithTenant(tenantId, (tx) =>
-    tx.select().from(abdmDataTransfers).where(and(eq(abdmDataTransfers.tenantId, tenantId), eq(abdmDataTransfers.id, transferId))).limit(1),
+    tx
+      .select()
+      .from(abdmDataTransfers)
+      .where(and(eq(abdmDataTransfers.tenantId, tenantId), eq(abdmDataTransfers.id, transferId)))
+      .limit(1),
   );
   return rows[0] ?? null;
 }
 
 async function setStatus(tenantId: string, transferId: string, status: string): Promise<void> {
   await runWithTenant(tenantId, (tx) =>
-    tx.update(abdmDataTransfers).set({ status, updatedAt: new Date() }).where(eq(abdmDataTransfers.id, transferId)),
+    tx
+      .update(abdmDataTransfers)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(abdmDataTransfers.id, transferId)),
   );
 }
 
@@ -357,6 +414,10 @@ async function facilityForTenant(tenantId: string): Promise<string | null> {
 async function tenantForHip(hipId: string): Promise<string | null> {
   const { db } = await import('../../db/client');
   const { abdmFacilityConfig } = await import('../../db/schema');
-  const rows = await db.select().from(abdmFacilityConfig).where(eq(abdmFacilityConfig.hipId, hipId)).limit(1);
+  const rows = await db
+    .select()
+    .from(abdmFacilityConfig)
+    .where(eq(abdmFacilityConfig.hipId, hipId))
+    .limit(1);
   return rows[0]?.tenantId ?? null;
 }

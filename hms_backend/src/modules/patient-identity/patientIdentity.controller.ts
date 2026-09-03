@@ -17,7 +17,11 @@ export async function requestCode(req: Request, res: Response): Promise<void> {
 export async function verifyCode(req: Request, res: Response): Promise<void> {
   const { code, ...contact } = req.body as { code: string; mobile?: string; email?: string };
   const meta = { userAgent: req.headers['user-agent'], ip: req.ip };
-  const { accessToken, refreshToken, identity: who } = await identity.verifyPatientCode(contact, code, meta);
+  const {
+    accessToken,
+    refreshToken,
+    identity: who,
+  } = await identity.verifyPatientCode(contact, code, meta);
   // The refresh token never reaches JavaScript — httpOnly, path-scoped to the patient
   // auth routes, so it is not even sent to a staff endpoint (F-8).
   setPatientRefreshCookie(res, refreshToken);
@@ -27,13 +31,19 @@ export async function verifyCode(req: Request, res: Response): Promise<void> {
 export async function refreshSession(req: Request, res: Response): Promise<void> {
   const token = (req.cookies as Record<string, string> | undefined)?.[PATIENT_REFRESH_COOKIE];
   const meta = { userAgent: req.headers['user-agent'], ip: req.ip };
-  const { accessToken, refreshToken, identity: who } = await identity.refreshPatientSession(token ?? '', meta);
+  const {
+    accessToken,
+    refreshToken,
+    identity: who,
+  } = await identity.refreshPatientSession(token ?? '', meta);
   setPatientRefreshCookie(res, refreshToken);
   res.json({ accessToken, identity: who });
 }
 
 export async function signOut(req: Request, res: Response): Promise<void> {
-  await identity.endPatientSession((req.cookies as Record<string, string> | undefined)?.[PATIENT_REFRESH_COOKIE]);
+  await identity.endPatientSession(
+    (req.cookies as Record<string, string> | undefined)?.[PATIENT_REFRESH_COOKIE],
+  );
   clearPatientRefreshCookie(res);
   res.status(204).end();
 }
@@ -48,7 +58,9 @@ export async function profile(req: Request, res: Response): Promise<void> {
 
 export async function appointments(req: Request, res: Response): Promise<void> {
   const { page, pageSize } = req.query as { page?: number; pageSize?: number };
-  res.json(await portal.patientAppointments(req.auth!.userId, req.params.tenantId!, page, pageSize));
+  res.json(
+    await portal.patientAppointments(req.auth!.userId, req.params.tenantId!, page, pageSize),
+  );
 }
 
 export async function invoices(req: Request, res: Response): Promise<void> {

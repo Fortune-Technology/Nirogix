@@ -78,7 +78,10 @@ export async function hipPost(
   const text = await res.text();
   if (!res.ok) {
     const { code, message } = parseAbdmError(text, res.status);
-    logger.error({ path, status: res.status, abdmCode: code, body: text.slice(0, 2000) }, 'ABDM rejected a HIP call');
+    logger.error(
+      { path, status: res.status, abdmCode: code, body: text.slice(0, 2000) },
+      'ABDM rejected a HIP call',
+    );
     throw new AbdmGatewayError(res.status, code, message);
   }
 
@@ -100,7 +103,10 @@ export async function hipPost(
  *
  * Recorded rather than sent in mock mode, for the same reason as every other M2 call.
  */
-export async function pushToHiu(url: string, body: unknown): Promise<{ ok: boolean; status: number }> {
+export async function pushToHiu(
+  url: string,
+  body: unknown,
+): Promise<{ ok: boolean; status: number }> {
   if (env.ABDM_PROVIDER !== 'gateway') {
     recorded.push({ path: url, body, headers: { 'Content-Type': 'application/json' } });
     logger.info({ url }, 'ABDM data push recorded (mock provider)');

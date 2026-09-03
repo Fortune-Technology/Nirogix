@@ -6,5 +6,14 @@ export async function list(req: Request, res: Response): Promise<void> {
 }
 
 export async function record(req: Request, res: Response): Promise<void> {
-  res.status(201).json(await svc.addImmunization(req.auth!.tenantId, req.params.patientId!, req.body, req.auth!.userId));
+  res
+    .status(201)
+    .json(
+      await svc.addImmunization(
+        req.auth!.tenantId,
+        req.params.patientId!,
+        req.body,
+        req.auth!.userId,
+      ),
+    );
 }

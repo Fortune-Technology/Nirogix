@@ -65,7 +65,10 @@ export const SupplierListSchema = z.array(SupplierSchema).openapi('SupplierList'
 export const AdjustStockBody = z
   .object({
     batchId: z.string().uuid().nullable().optional(),
-    delta: z.number().int().refine((n) => n !== 0, 'delta must be non-zero'),
+    delta: z
+      .number()
+      .int()
+      .refine((n) => n !== 0, 'delta must be non-zero'),
     reason: z.string().min(3).max(300),
   })
   .openapi('AdjustStockBody');
@@ -81,7 +84,9 @@ export const StockAdjustmentSchema = z
     createdAt: z.string(),
   })
   .openapi('StockAdjustment');
-export const StockAdjustmentListSchema = z.array(StockAdjustmentSchema).openapi('StockAdjustmentList');
+export const StockAdjustmentListSchema = z
+  .array(StockAdjustmentSchema)
+  .openapi('StockAdjustmentList');
 
 // ---- Responses -------------------------------------------------------------
 
@@ -122,7 +127,9 @@ export const PendingPrescriptionSchema = z
   })
   .openapi('PendingPrescription');
 
-export const PendingPrescriptionListSchema = z.array(PendingPrescriptionSchema).openapi('PendingPrescriptionList');
+export const PendingPrescriptionListSchema = z
+  .array(PendingPrescriptionSchema)
+  .openapi('PendingPrescriptionList');
 
 export const DispenseResultSchema = z
   .object({

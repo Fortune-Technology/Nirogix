@@ -46,7 +46,9 @@ beforeAll(async () => {
       admin: { email: 'admin@aiportaltest.example', fullName: 'AI Admin' },
     });
     tenantId = t.tenant.id;
-    adminId = (await pool.query('SELECT id FROM users WHERE email = $1', ['admin@aiportaltest.example'])).rows[0].id;
+    adminId = (
+      await pool.query('SELECT id FROM users WHERE email = $1', ['admin@aiportaltest.example'])
+    ).rows[0].id;
     ready = true;
   } catch (err) {
     ready = false;

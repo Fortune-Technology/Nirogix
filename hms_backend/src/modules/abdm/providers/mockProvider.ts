@@ -1,4 +1,10 @@
-import { constants, createHash, generateKeyPairSync, privateDecrypt, type KeyObject } from 'node:crypto';
+import {
+  constants,
+  createHash,
+  generateKeyPairSync,
+  privateDecrypt,
+  type KeyObject,
+} from 'node:crypto';
 import { logger } from '../../../config/logger';
 import { isProd } from '../../../config/env';
 import {
@@ -10,6 +16,7 @@ import {
   type AbdmProfile,
   type AbdmProfilePatch,
   type AbdmProvider,
+  type PhrAuthMethods,
 } from './types';
 
 /**
@@ -48,7 +55,11 @@ let keys: { publicKey: KeyObject; privateKey: KeyObject; pem: string } | null = 
 function keypair() {
   if (keys) return keys;
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-  keys = { publicKey, privateKey, pem: publicKey.export({ type: 'spki', format: 'pem' }).toString() };
+  keys = {
+    publicKey,
+    privateKey,
+    pem: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+  };
   return keys;
 }
 
@@ -74,7 +85,12 @@ function decrypt(value: string): string {
 
 /** Deterministic 14-digit ABHA number, formatted the way NHA presents it. */
 function abhaNumberFor(seed: string): string {
-  const digits = createHash('sha256').update(seed).digest('hex').replace(/\D/g, '').padEnd(14, '7').slice(0, 14);
+  const digits = createHash('sha256')
+    .update(seed)
+    .digest('hex')
+    .replace(/\D/g, '')
+    .padEnd(14, '7')
+    .slice(0, 14);
   return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}-${digits.slice(10, 14)}`;
 }
 
@@ -108,7 +124,9 @@ type MockTxn = {
 
 /** Drops the keys a caller left undefined, so a patch only overwrites what it actually set. */
 function stripUndefined(patch: AbdmProfilePatch): Partial<AbdmProfile> {
-  return Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<AbdmProfile>;
+  return Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== undefined),
+  ) as Partial<AbdmProfile>;
 }
 const txns = new Map<string, MockTxn>();
 
@@ -129,7 +147,9 @@ export class AbdmMockProvider implements AbdmProvider {
 
   constructor() {
     if (isProd) {
-      throw new Error('ABDM_PROVIDER=mock is refused in production — a simulated ABHA is a fabricated identity');
+      throw new Error(
+        'ABDM_PROVIDER=mock is refused in production — a simulated ABHA is a fabricated identity',
+      );
     }
     logger.warn('ABDM mock provider active — no ABDM calls will be made. Fixed OTP: 123456');
   }
@@ -145,7 +165,11 @@ export class AbdmMockProvider implements AbdmProvider {
     }
     const scenario = scenarioOf(aadhaar);
     if (scenario === 'no-mobile') {
-      throw new AbdmGatewayError(400, 'ABDM_NO_MOBILE_LINKED', 'No mobile number is linked to this Aadhaar');
+      throw new AbdmGatewayError(
+        400,
+        'ABDM_NO_MOBILE_LINKED',
+        'No mobile number is linked to this Aadhaar',
+      );
     }
     const txnId = newTxnId(aadhaar);
     txns.set(txnId, { aadhaar, scenario });
@@ -154,7 +178,12 @@ export class AbdmMockProvider implements AbdmProvider {
 
   private require(txnId: string): MockTxn {
     const txn = txns.get(txnId);
-    if (!txn) throw new AbdmGatewayError(404, 'ABDM_TXN_NOT_FOUND', 'This verification has expired. Start again.');
+    if (!txn)
+      throw new AbdmGatewayError(
+        404,
+        'ABDM_TXN_NOT_FOUND',
+        'This verification has expired. Start again.',
+      );
     return txn;
   }
 
@@ -165,7 +194,11 @@ export class AbdmMockProvider implements AbdmProvider {
     }
   }
 
-  async enrolByAadhaar(input: { txnId: string; encryptedOtp: string; mobile?: string }): Promise<AbdmEnrolResult> {
+  async enrolByAadhaar(input: {
+    txnId: string;
+    encryptedOtp: string;
+    mobile?: string;
+  }): Promise<AbdmEnrolResult> {
     const txn = this.require(input.txnId);
     this.checkOtp(txn, input.encryptedOtp);
     txn.mobile = input.mobile;
@@ -175,18 +208,26 @@ export class AbdmMockProvider implements AbdmProvider {
     // returns the linked number — the one the first OTP went to.
     const profile = profileFor(txn.aadhaar);
     const existing = txn.scenario === 'existing';
-    if (existing) profile.abhaAddress = `${profile.firstName?.toLowerCase()}${txn.aadhaar.slice(-4)}@sbx`;
+    if (existing)
+      profile.abhaAddress = `${profile.firstName?.toLowerCase()}${txn.aadhaar.slice(-4)}@sbx`;
     return {
       txnId: input.txnId,
       profile,
-      tokens: { xToken: `mock-x-${input.txnId}`, refreshToken: `mock-r-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` },
+      tokens: {
+        xToken: `mock-x-${input.txnId}`,
+        refreshToken: `mock-r-${input.txnId}`,
+        linkingToken: `mock-link-${input.txnId}`,
+      },
       isNewAbha: !existing,
       // Only the digits ABDM holds count as a match; a different number forces the second OTP.
       mobileMatchesAadhaar: !input.mobile || input.mobile.endsWith(txn.aadhaar.slice(-4)),
     };
   }
 
-  async enrolMobileRequestOtp(input: { txnId: string; encryptedMobile: string }): Promise<AbdmOtpResult> {
+  async enrolMobileRequestOtp(input: {
+    txnId: string;
+    encryptedMobile: string;
+  }): Promise<AbdmOtpResult> {
     const txn = this.require(input.txnId);
     txn.mobile = decrypt(input.encryptedMobile);
     return { txnId: input.txnId, mobileHint: `XXXXXX${txn.mobile.slice(-4)}`, devOtp: FIXED_OTP };
@@ -204,7 +245,10 @@ export class AbdmMockProvider implements AbdmProvider {
    *
    * The mobile the patient just proved is the one fact this call genuinely establishes.
    */
-  async enrolMobileVerifyOtp(input: { txnId: string; encryptedOtp: string }): Promise<AbdmEnrolResult> {
+  async enrolMobileVerifyOtp(input: {
+    txnId: string;
+    encryptedOtp: string;
+  }): Promise<AbdmEnrolResult> {
     const txn = this.require(input.txnId);
     this.checkOtp(txn, input.encryptedOtp);
     return {
@@ -220,7 +264,11 @@ export class AbdmMockProvider implements AbdmProvider {
     const txn = this.require(input.txnId);
     const p = profileFor(txn.aadhaar);
     const base = `${p.firstName?.toLowerCase()}${p.lastName?.toLowerCase()}`;
-    return [`${base}@sbx`, `${base}${txn.aadhaar.slice(-2)}@sbx`, `${base}.${p.dateOfBirth?.slice(0, 4)}@sbx`];
+    return [
+      `${base}@sbx`,
+      `${base}${txn.aadhaar.slice(-2)}@sbx`,
+      `${base}.${p.dateOfBirth?.slice(0, 4)}@sbx`,
+    ];
   }
 
   async createAbhaAddress(input: { txnId: string; abhaAddress: string }) {
@@ -229,7 +277,10 @@ export class AbdmMockProvider implements AbdmProvider {
       throw new AbdmGatewayError(409, 'ABDM_ADDRESS_TAKEN', 'That ABHA address is already in use');
     }
     txn.abhaAddress = input.abhaAddress;
-    return { abhaAddress: input.abhaAddress, tokens: { xToken: `mock-x-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` } };
+    return {
+      abhaAddress: input.abhaAddress,
+      tokens: { xToken: `mock-x-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` },
+    };
   }
 
   async loginRequestOtp(input: {
@@ -249,11 +300,32 @@ export class AbdmMockProvider implements AbdmProvider {
     return { txnId, mobileHint: `XXXXXX${seed.slice(-4)}`, devOtp: FIXED_OTP };
   }
 
-  async loginVerify(input: { txnId: string; encryptedOtp: string; scope: string[]; family?: 'profile' | 'phr' }): Promise<AbdmLoginVerifyResult> {
+  /**
+   * The PHR family answers with a TOKEN AND NO PROFILE, exactly as the sandbox does (ADR-130).
+   *
+   * An ABHA-address verification is completed by a second call to
+   * `/v3/phr/web/login/profile/abha-profile`. A mock that returned the demographics here would
+   * pass a service that never makes that call — and that service then 401s at NHA's own
+   * functional testing, which is precisely the defect this rule exists to catch.
+   */
+  async loginVerify(input: {
+    txnId: string;
+    encryptedOtp: string;
+    scope: string[];
+    family?: 'profile' | 'phr';
+  }): Promise<AbdmLoginVerifyResult> {
     const txn = this.require(input.txnId);
     this.checkOtp(txn, input.encryptedOtp);
     const profile = profileFor(txn.aadhaar);
     profile.abhaAddress = `${profile.firstName?.toLowerCase()}${txn.aadhaar.slice(-4)}@sbx`;
+    if (input.family === 'phr') {
+      return {
+        txnId: input.txnId,
+        tokens: { xToken: `mock-x-${input.txnId}`, linkingToken: `mock-link-${input.txnId}` },
+        accounts: [],
+        profile: undefined,
+      };
+    }
     // An Aadhaar ending in 5 resolves to two ABHA accounts — the shared-family-mobile case the
     // operator has to disambiguate. Everything else resolves to exactly one.
     const multiple = txn.aadhaar.endsWith('5');
@@ -275,6 +347,18 @@ export class AbdmMockProvider implements AbdmProvider {
   }
 
   /**
+   * Which methods this ABHA address supports.
+   *
+   * An address the registry does not hold offers nothing — the mock reproduces that for any
+   * address starting `unknown`, so the empty-list branch is exercised rather than assumed.
+   */
+  async phrSearchAuthMethods(input: { encryptedAbhaAddress: string }): Promise<PhrAuthMethods> {
+    const abhaAddress = decrypt(input.encryptedAbhaAddress);
+    if (abhaAddress.toLowerCase().startsWith('unknown')) return { authMethods: [] };
+    return { authMethods: ['AADHAAR_OTP', 'MOBILE_OTP'] };
+  }
+
+  /**
    * Sparse for the same reason as `enrolMobileVerifyOtp` (ADR-130): resolving a chosen ABHA
    * returns a token, and the demographics came from the account list one call earlier. Answering
    * with a full profile here hid the fact that the service was throwing that list away.
@@ -289,7 +373,7 @@ export class AbdmMockProvider implements AbdmProvider {
     };
   }
 
-  async getProfile(input: { xToken: string }): Promise<AbdmProfile> {
+  async getProfile(input: { xToken: string; family?: 'profile' | 'phr' }): Promise<AbdmProfile> {
     const txnId = input.xToken.replace(/^mock-x-/, '');
     const txn = this.require(txnId);
     return txn.profileOverride ?? profileFor(txn.aadhaar);
@@ -305,7 +389,7 @@ export class AbdmMockProvider implements AbdmProvider {
     return updated;
   }
 
-  async getAbhaCard(input: { xToken: string }): Promise<AbdmCard> {
+  async getAbhaCard(input: { xToken: string; family?: 'profile' | 'phr' }): Promise<AbdmCard> {
     const txnId = input.xToken.replace(/^mock-x-/, '');
     this.require(txnId);
     // A 1x1 PNG. Enough to prove the download path end to end without shipping a fake card that

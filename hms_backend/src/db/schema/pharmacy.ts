@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, integer, bigint, boolean, date, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  bigint,
+  boolean,
+  date,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 import { patients } from './patients';
@@ -9,7 +18,9 @@ import { patients } from './patients';
 // touches invoice/payment tables directly). Money is integer paise. All tenant-scoped → RLS.
 
 export const drugs = pgTable('drugs', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -34,7 +45,9 @@ export const drugs = pgTable('drugs', {
  * never delete — batches keep pointing at their source.
  */
 export const suppliers = pgTable('suppliers', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -49,7 +62,9 @@ export const suppliers = pgTable('suppliers', {
 });
 
 export const drugBatches = pgTable('drug_batches', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -72,7 +87,9 @@ export const drugBatches = pgTable('drug_batches', {
  * transaction; this table is why the number changed.
  */
 export const stockAdjustments = pgTable('stock_adjustments', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),
@@ -88,7 +105,9 @@ export const stockAdjustments = pgTable('stock_adjustments', {
 });
 
 export const dispenses = pgTable('dispenses', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'restrict' }),

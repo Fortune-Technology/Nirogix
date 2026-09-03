@@ -60,7 +60,10 @@ function fhirGender(gender?: string | null): FhirPatient['gender'] {
 }
 
 /** Phone and email, omitted entirely when absent rather than sent as empty entries. */
-function telecomFor(input: { phone?: string | null; email?: string | null }): FhirPatient['telecom'] {
+function telecomFor(input: {
+  phone?: string | null;
+  email?: string | null;
+}): FhirPatient['telecom'] {
   const telecom: NonNullable<FhirPatient['telecom']> = [];
   if (input.phone) telecom.push({ system: 'phone', value: input.phone, use: 'mobile' });
   if (input.email) telecom.push({ system: 'email', value: input.email });
@@ -86,13 +89,23 @@ export function patientResource(input: {
   const name = [input.firstName, input.lastName].filter(Boolean).join(' ');
   const identifier: FhirPatient['identifier'] = [
     {
-      type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR', display: 'Medical record number' }] },
+      type: {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+            code: 'MR',
+            display: 'Medical record number',
+          },
+        ],
+      },
       value: input.uhid,
     },
   ];
   // The ABHA address is the identifier ABDM actually routes on; the number is the national id.
-  if (input.abhaAddress) identifier.push({ system: 'https://healthid.ndhm.gov.in', value: input.abhaAddress });
-  if (input.abhaNumber) identifier.push({ system: 'https://healthid.abdm.gov.in', value: input.abhaNumber });
+  if (input.abhaAddress)
+    identifier.push({ system: 'https://healthid.ndhm.gov.in', value: input.abhaAddress });
+  if (input.abhaNumber)
+    identifier.push({ system: 'https://healthid.abdm.gov.in', value: input.abhaNumber });
 
   return compact({
     resourceType: 'Patient',
@@ -107,7 +120,9 @@ export function patientResource(input: {
       input.addressLine || input.city
         ? [
             compact({
-              text: [input.addressLine, input.city, input.state, input.pincode].filter(Boolean).join(', '),
+              text: [input.addressLine, input.city, input.state, input.pincode]
+                .filter(Boolean)
+                .join(', '),
               line: input.addressLine ? [input.addressLine] : undefined,
               city: input.city ?? undefined,
               state: input.state ?? undefined,
@@ -133,7 +148,15 @@ export function practitionerResource(input: {
     identifier: input.registrationNumber
       ? [
           {
-            type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MD', display: 'Medical License number' }] },
+            type: {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                  code: 'MD',
+                  display: 'Medical License number',
+                },
+              ],
+            },
             system: 'https://doctor.ndhm.gov.in',
             value: input.registrationNumber,
           },
@@ -160,7 +183,21 @@ export function organizationResource(input: {
     meta: { profile: [`${NRCES}/Organization`] },
     // The HFR facility id — the same identifier ABDM routes on elsewhere in this module.
     identifier: input.hipId
-      ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PRN', display: 'Provider number' }] }, system: 'https://facility.ndhm.gov.in', value: input.hipId }]
+      ? [
+          {
+            type: {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                  code: 'PRN',
+                  display: 'Provider number',
+                },
+              ],
+            },
+            system: 'https://facility.ndhm.gov.in',
+            value: input.hipId,
+          },
+        ]
       : undefined,
     name: input.name,
     telecom: [
@@ -169,19 +206,36 @@ export function organizationResource(input: {
     ].filter(Boolean) as FhirOrganization['telecom'],
     address:
       input.city || input.state
-        ? [compact({ city: input.city ?? undefined, state: input.state ?? undefined, postalCode: input.postalCode ?? undefined, country: 'India' })]
+        ? [
+            compact({
+              city: input.city ?? undefined,
+              state: input.state ?? undefined,
+              postalCode: input.postalCode ?? undefined,
+              country: 'India',
+            }),
+          ]
         : undefined,
   }) as FhirOrganization;
 }
 
-export function encounterResource(input: { id: string; subject: Reference; start?: string; end?: string; finished: boolean }): FhirEncounter {
+export function encounterResource(input: {
+  id: string;
+  subject: Reference;
+  start?: string;
+  end?: string;
+  finished: boolean;
+}): FhirEncounter {
   return compact({
     resourceType: 'Encounter',
     id: input.id,
     meta: { profile: [`${NRCES}/Encounter`] },
     status: input.finished ? 'finished' : 'in-progress',
     // Ambulatory: everything this product records today is outpatient (no IPD module yet).
-    class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
+    class: {
+      system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
+      code: 'AMB',
+      display: 'ambulatory',
+    },
     subject: input.subject,
     period: compact({ start: input.start, end: input.end }),
   }) as FhirEncounter;
@@ -201,8 +255,15 @@ export function conditionResource(input: {
     resourceType: 'Condition',
     id: input.id,
     meta: { profile: [`${NRCES}/Condition`] },
-    clinicalStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active' }] },
-    code: { coding: [{ system: ICD10, code: input.icd10Code, display: input.icd10Term }], text: input.icd10Term },
+    clinicalStatus: {
+      coding: [
+        { system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active' },
+      ],
+    },
+    code: {
+      coding: [{ system: ICD10, code: input.icd10Code, display: input.icd10Term }],
+      text: input.icd10Term,
+    },
     subject: input.subject,
     encounter: input.encounter,
     recordedDate: input.recordedDate,
@@ -240,7 +301,15 @@ export function medicationRequestResource(input: {
     encounter: input.encounter,
     authoredOn: input.authoredOn,
     requester: input.requester,
-    dosageInstruction: instruction || input.route ? [compact({ text: instruction || undefined, route: input.route ? { text: input.route } : undefined })] : undefined,
+    dosageInstruction:
+      instruction || input.route
+        ? [
+            compact({
+              text: instruction || undefined,
+              route: input.route ? { text: input.route } : undefined,
+            }),
+          ]
+        : undefined,
   }) as FhirMedicationRequest;
 }
 
@@ -266,16 +335,29 @@ export function labObservationResource(input: {
     id: input.id,
     meta: { profile: [`${NRCES}/Observation`] },
     status: 'final',
-    category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+    category: [
+      {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+            code: 'laboratory',
+          },
+        ],
+      },
+    ],
     code: compact({
-      coding: input.loincCode ? [{ system: LOINC, code: input.loincCode, display: input.testName }] : undefined,
+      coding: input.loincCode
+        ? [{ system: LOINC, code: input.loincCode, display: input.testName }]
+        : undefined,
       text: input.testName,
     }),
     subject: input.subject,
     encounter: input.encounter,
     effectiveDateTime: input.effective,
     // A numeric result becomes a Quantity; anything else stays a string rather than being coerced.
-    valueQuantity: isNumeric ? compact({ value: numeric, unit: input.unit ?? undefined }) : undefined,
+    valueQuantity: isNumeric
+      ? compact({ value: numeric, unit: input.unit ?? undefined })
+      : undefined,
     valueString: isNumeric ? undefined : input.value,
     interpretation: interpretationFor(input.flag),
     referenceRange:
@@ -295,17 +377,35 @@ function interpretationFor(flag?: string | null): CodeableConcept[] | undefined 
     critical: { code: 'AA', display: 'Critical abnormal' },
   };
   const hit = map[(flag ?? '').toLowerCase()];
-  return hit ? [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation', ...hit }] }] : undefined;
+  return hit
+    ? [
+        {
+          coding: [
+            {
+              system: 'http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation',
+              ...hit,
+            },
+          ],
+        },
+      ]
+    : undefined;
 }
 
 /** The vitals we store as discrete columns, each with its real LOINC code. */
-const VITALS: Array<{ key: string; loinc: string; display: string; unit?: string; ucum?: string }> = [
-  { key: 'pulse', loinc: '8867-4', display: 'Heart rate', unit: 'beats/minute', ucum: '/min' },
-  { key: 'respRate', loinc: '9279-1', display: 'Respiratory rate', unit: 'breaths/minute', ucum: '/min' },
-  { key: 'temperature', loinc: '8310-5', display: 'Body temperature', unit: 'C', ucum: 'Cel' },
-  { key: 'weight', loinc: '29463-7', display: 'Body weight', unit: 'kg', ucum: 'kg' },
-  { key: 'height', loinc: '8302-2', display: 'Body height', unit: 'cm', ucum: 'cm' },
-];
+const VITALS: Array<{ key: string; loinc: string; display: string; unit?: string; ucum?: string }> =
+  [
+    { key: 'pulse', loinc: '8867-4', display: 'Heart rate', unit: 'beats/minute', ucum: '/min' },
+    {
+      key: 'respRate',
+      loinc: '9279-1',
+      display: 'Respiratory rate',
+      unit: 'breaths/minute',
+      ucum: '/min',
+    },
+    { key: 'temperature', loinc: '8310-5', display: 'Body temperature', unit: 'C', ucum: 'Cel' },
+    { key: 'weight', loinc: '29463-7', display: 'Body weight', unit: 'kg', ucum: 'kg' },
+    { key: 'height', loinc: '8302-2', display: 'Body height', unit: 'cm', ucum: 'cm' },
+  ];
 
 export type VitalsInput = {
   systolic?: number | null;
@@ -343,17 +443,49 @@ export function vitalsObservations(input: {
         id: newId(),
         meta: { profile: [`${NRCES}/Observation`] },
         status: 'final',
-        category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
-        code: { coding: [{ system: LOINC, code: '85354-9', display: 'Blood pressure panel' }], text: 'Blood pressure' },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+                code: 'vital-signs',
+              },
+            ],
+          },
+        ],
+        code: {
+          coding: [{ system: LOINC, code: '85354-9', display: 'Blood pressure panel' }],
+          text: 'Blood pressure',
+        },
         subject: input.subject,
         encounter: input.encounter,
         effectiveDateTime: input.effective,
         component: [
           vitals.systolic != null
-            ? { code: { coding: [{ system: LOINC, code: '8480-6', display: 'Systolic blood pressure' }] }, valueQuantity: { value: vitals.systolic, unit: 'mm[Hg]', system: UCUM, code: 'mm[Hg]' } }
+            ? {
+                code: {
+                  coding: [{ system: LOINC, code: '8480-6', display: 'Systolic blood pressure' }],
+                },
+                valueQuantity: {
+                  value: vitals.systolic,
+                  unit: 'mm[Hg]',
+                  system: UCUM,
+                  code: 'mm[Hg]',
+                },
+              }
             : undefined,
           vitals.diastolic != null
-            ? { code: { coding: [{ system: LOINC, code: '8462-4', display: 'Diastolic blood pressure' }] }, valueQuantity: { value: vitals.diastolic, unit: 'mm[Hg]', system: UCUM, code: 'mm[Hg]' } }
+            ? {
+                code: {
+                  coding: [{ system: LOINC, code: '8462-4', display: 'Diastolic blood pressure' }],
+                },
+                valueQuantity: {
+                  value: vitals.diastolic,
+                  unit: 'mm[Hg]',
+                  system: UCUM,
+                  code: 'mm[Hg]',
+                },
+              }
             : undefined,
         ].filter(Boolean) as FhirObservation['component'],
       }) as FhirObservation,
@@ -377,8 +509,20 @@ export function vitalsObservations(input: {
         id: newId(),
         meta: { profile: [`${NRCES}/Observation`] },
         status: 'final',
-        category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
-        code: { coding: [{ system: LOINC, code: vital.loinc, display: vital.display }], text: vital.display },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+                code: 'vital-signs',
+              },
+            ],
+          },
+        ],
+        code: {
+          coding: [{ system: LOINC, code: vital.loinc, display: vital.display }],
+          text: vital.display,
+        },
         subject: input.subject,
         encounter: input.encounter,
         effectiveDateTime: input.effective,
@@ -404,7 +548,17 @@ export function diagnosticReportResource(input: {
     id: input.id,
     meta: { profile: [`${NRCES}/DiagnosticReportLab`] },
     status: 'final',
-    category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0074', code: 'LAB', display: 'Laboratory' }] }],
+    category: [
+      {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/v2-0074',
+            code: 'LAB',
+            display: 'Laboratory',
+          },
+        ],
+      },
+    ],
     code: { text: input.title },
     subject: input.subject,
     encounter: input.encounter,
@@ -412,7 +566,9 @@ export function diagnosticReportResource(input: {
     performer: input.performer ? [input.performer] : undefined,
     result: input.results,
     // The uploaded report, when the lab attached one — the picture beside the numbers.
-    presentedForm: input.attachmentUrl ? [{ url: input.attachmentUrl, title: input.title }] : undefined,
+    presentedForm: input.attachmentUrl
+      ? [{ url: input.attachmentUrl, title: input.title }]
+      : undefined,
   }) as FhirDiagnosticReport;
 }
 
@@ -453,17 +609,31 @@ export function documentReferenceResource(input: {
     meta: { profile: [`${NRCES}/DocumentReference`] },
     status: 'current',
     docStatus: 'final',
-    type: { coding: [{ system: SNOMED, code: '419891008', display: 'Record artifact' }], text: input.title },
+    type: {
+      coding: [{ system: SNOMED, code: '419891008', display: 'Record artifact' }],
+      text: input.title,
+    },
     subject: input.subject,
     date: input.created,
-    content: [{ attachment: compact({ contentType: input.contentType ?? undefined, url: input.url, title: input.title, creation: input.created }) }],
+    content: [
+      {
+        attachment: compact({
+          contentType: input.contentType ?? undefined,
+          url: input.url,
+          title: input.title,
+          creation: input.created,
+        }),
+      },
+    ],
   }) as FhirDocumentReference;
 }
 
 /** Money is stored in paise; FHIR wants a decimal amount, so the conversion happens here. */
 const rupees = (paise: number): number => Math.round(paise) / 100;
 
-type PriceComponent = NonNullable<NonNullable<FhirInvoice['lineItem']>[number]['priceComponent']>[number];
+type PriceComponent = NonNullable<
+  NonNullable<FhirInvoice['lineItem']>[number]['priceComponent']
+>[number];
 
 export function invoiceResource(input: {
   id: string;
@@ -489,10 +659,21 @@ export function invoiceResource(input: {
         { type: 'base', amount: { value: rupees(line.amountPaise), currency: input.currency } },
       ];
       // Tax is a separate component, not folded into the base — an invoice a patient can check.
-      if (line.taxPaise) priceComponent.push({ type: 'tax', amount: { value: rupees(line.taxPaise), currency: input.currency } });
-      return { sequence: i + 1, chargeItemCodeableConcept: { text: line.description }, priceComponent };
+      if (line.taxPaise)
+        priceComponent.push({
+          type: 'tax',
+          amount: { value: rupees(line.taxPaise), currency: input.currency },
+        });
+      return {
+        sequence: i + 1,
+        chargeItemCodeableConcept: { text: line.description },
+        priceComponent,
+      };
     }),
     totalGross: { value: rupees(input.totalPaise), currency: input.currency },
-    totalNet: input.totalNetPaise != null ? { value: rupees(input.totalNetPaise), currency: input.currency } : undefined,
+    totalNet:
+      input.totalNetPaise != null
+        ? { value: rupees(input.totalNetPaise), currency: input.currency }
+        : undefined,
   }) as FhirInvoice;
 }

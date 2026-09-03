@@ -18,7 +18,10 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the pharmacy module', ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the pharmacy module',
+  ...json(ErrorResponseSchema),
+};
 const forbidden = { description: 'Missing permission', ...json(ErrorResponseSchema) };
 
 registry.registerPath({
@@ -29,7 +32,11 @@ registry.registerPath({
   summary: 'Drug master with on-hand stock + low-stock flag',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ search: z.string().optional() }) },
-  responses: { 200: { description: 'Drugs', ...json(DrugListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Drugs', ...json(DrugListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -58,7 +65,11 @@ registry.registerPath({
   summary: 'The stock-correction ledger (latest 200, optionally per drug)',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ drugId: z.string().uuid().optional() }) },
-  responses: { 200: { description: 'Adjustments', ...json(StockAdjustmentListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Adjustments', ...json(StockAdjustmentListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -68,7 +79,11 @@ registry.registerPath({
   tags: ['Pharmacy'],
   summary: 'Supplier directory',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Suppliers', ...json(SupplierListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Suppliers', ...json(SupplierListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -112,7 +127,12 @@ registry.registerPath({
   summary: 'Add a drug to the master',
   security: [{ bearerAuth: [] }],
   request: { body: json(CreateDrugBody) },
-  responses: { 201: { description: 'Created drug', ...json(DrugSchema) }, 401: notAuthed, 403: forbidden, 422: { description: 'Validation error', ...json(ErrorResponseSchema) } },
+  responses: {
+    201: { description: 'Created drug', ...json(DrugSchema) },
+    401: notAuthed,
+    403: forbidden,
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
 });
 
 registry.registerPath({
@@ -139,7 +159,11 @@ registry.registerPath({
   tags: ['Pharmacy'],
   summary: 'Prescriptions awaiting dispense (the pharmacy worklist)',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Pending prescriptions', ...json(PendingPrescriptionListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Pending prescriptions', ...json(PendingPrescriptionListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -147,7 +171,8 @@ registry.registerPath({
   path: '/api/v1/dispense',
   operationId: 'dispense',
   tags: ['Pharmacy'],
-  summary: 'Dispense a prescription (FEFO stock deduction; adds a pharmacy line to the visit invoice)',
+  summary:
+    'Dispense a prescription (FEFO stock deduction; adds a pharmacy line to the visit invoice)',
   security: [{ bearerAuth: [] }],
   request: { body: json(DispenseBody) },
   responses: {

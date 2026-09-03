@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
-import { Alert, Button, Card, Field, Textarea } from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AbdmFacilityConfig } from "@hms/types";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { useQrDataUrl } from "../../../../lib/useQrDataUrl";
-import { ConsentsCard } from "../../../../components/abdm/ConsentsCard";
+import { useEffect, useState, type FormEvent } from 'react';
+import { Alert, Button, Card, Field, Textarea } from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { AbdmFacilityConfig } from '@hms/types';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { useQrDataUrl } from '../../../../lib/useQrDataUrl';
+import { ConsentsCard } from '../../../../components/abdm/ConsentsCard';
 
 /**
  * ABDM facility registration (ADR-084).
@@ -31,9 +31,9 @@ export default function AbdmSettingsPage() {
 
 function AbdmFacilityForm() {
   const [config, setConfig] = useState<AbdmFacilityConfig | null>(null);
-  const [hipId, setHipId] = useState("");
-  const [facilityName, setFacilityName] = useState("");
-  const [qrContent, setQrContent] = useState("");
+  const [hipId, setHipId] = useState('');
+  const [facilityName, setFacilityName] = useState('');
+  const [qrContent, setQrContent] = useState('');
   const [scanShareEnabled, setScanShareEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,11 +49,15 @@ function AbdmFacilityForm() {
         if (!alive || !c) return;
         setConfig(c);
         setHipId(c.hipId);
-        setFacilityName(c.facilityName ?? "");
-        setQrContent(c.qrContent ?? "");
+        setFacilityName(c.facilityName ?? '');
+        setQrContent(c.qrContent ?? '');
         setScanShareEnabled(c.scanShareEnabled);
       })
-      .catch((err: unknown) => alive && setError(err instanceof Error ? err.message : "Could not load the ABDM settings."))
+      .catch(
+        (err: unknown) =>
+          alive &&
+          setError(err instanceof Error ? err.message : 'Could not load the ABDM settings.'),
+      )
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -74,7 +78,7 @@ function AbdmFacilityForm() {
         }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the ABDM settings.");
+      setError(err instanceof Error ? err.message : 'Could not save the ABDM settings.');
     } finally {
       setSaving(false);
     }
@@ -88,8 +92,8 @@ function AbdmFacilityForm() {
 
       <Card header="Health Facility Registry">
         <p className="mb-4 text-sm text-fg-muted">
-          Your hospital&apos;s own ABDM registration. Issued to you by the National Health Authority — we cannot create it
-          for you.
+          Your hospital&apos;s own ABDM registration. Issued to you by the National Health Authority
+          — we cannot create it for you.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -111,8 +115,8 @@ function AbdmFacilityForm() {
       <Card header="Scan &amp; Share">
         <div className="flex flex-col gap-4">
           <p className="text-sm text-fg-muted">
-            The fastest way to register a patient: they scan your facility QR in their own ABHA app and their verified
-            details arrive at the desk. No OTP, no typing.
+            The fastest way to register a patient: they scan your facility QR in their own ABHA app
+            and their verified details arrive at the desk. No OTP, no typing.
           </p>
           <Textarea
             label="Facility QR content"
@@ -125,7 +129,11 @@ function AbdmFacilityForm() {
           {qr && (
             <div className="flex items-center gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- a data URL generated in the browser */}
-              <img src={qr} alt="Preview of the facility QR code patients will scan" className="h-32 w-32 rounded-md border border-border bg-white p-2" />
+              <img
+                src={qr}
+                alt="Preview of the facility QR code patients will scan"
+                className="h-32 w-32 rounded-md border border-border bg-white p-2"
+              />
               <p className="text-sm text-fg-muted">
                 Preview. Check it scans in a phone camera before you switch this on for the desk.
               </p>
@@ -141,8 +149,8 @@ function AbdmFacilityForm() {
               disabled={!qrContent.trim() || !hipId.trim()}
             />
             <span>
-              Offer Scan &amp; Share at the registration desk. Needs both a facility ID and a QR payload — until then the
-              desk sees the Aadhaar and ABHA-verification options only.
+              Offer Scan &amp; Share at the registration desk. Needs both a facility ID and a QR
+              payload — until then the desk sees the Aadhaar and ABHA-verification options only.
             </span>
           </label>
         </div>

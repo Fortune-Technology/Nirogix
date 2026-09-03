@@ -38,7 +38,13 @@ import {
   urn,
   vitalsObservations,
 } from './resources';
-import type { FhirBundle, FhirBundleEntry, FhirComposition, FhirResource, Reference } from './types';
+import type {
+  FhirBundle,
+  FhirBundleEntry,
+  FhirComposition,
+  FhirResource,
+  Reference,
+} from './types';
 
 /**
  * Health records as ABDM document bundles (ADR-088).
@@ -57,15 +63,47 @@ import type { FhirBundle, FhirBundleEntry, FhirComposition, FhirResource, Refere
  */
 
 /** The HI types this hospital can produce, with the codes ABDM's documentation specifies. */
-export const HI_TYPE_META: Record<HiType, { snomed?: string; display: string; profile: string; title: string }> = {
-  Prescription: { snomed: '440545006', display: 'Prescription record', profile: 'PrescriptionRecord', title: 'Prescription' },
-  DiagnosticReport: { snomed: '721981007', display: 'Diagnostic studies report', profile: 'DiagnosticReportRecord', title: 'Diagnostic report' },
-  OPConsultation: { snomed: '371530004', display: 'Clinical consultation report', profile: 'OPConsultRecord', title: 'OP consultation' },
-  ImmunizationRecord: { snomed: '41000179103', display: 'Immunization record', profile: 'ImmunizationRecord', title: 'Immunisation record' },
-  HealthDocumentRecord: { snomed: '419891008', display: 'Record artifact', profile: 'HealthDocumentRecord', title: 'Health document' },
+export const HI_TYPE_META: Record<
+  HiType,
+  { snomed?: string; display: string; profile: string; title: string }
+> = {
+  Prescription: {
+    snomed: '440545006',
+    display: 'Prescription record',
+    profile: 'PrescriptionRecord',
+    title: 'Prescription',
+  },
+  DiagnosticReport: {
+    snomed: '721981007',
+    display: 'Diagnostic studies report',
+    profile: 'DiagnosticReportRecord',
+    title: 'Diagnostic report',
+  },
+  OPConsultation: {
+    snomed: '371530004',
+    display: 'Clinical consultation report',
+    profile: 'OPConsultRecord',
+    title: 'OP consultation',
+  },
+  ImmunizationRecord: {
+    snomed: '41000179103',
+    display: 'Immunization record',
+    profile: 'ImmunizationRecord',
+    title: 'Immunisation record',
+  },
+  HealthDocumentRecord: {
+    snomed: '419891008',
+    display: 'Record artifact',
+    profile: 'HealthDocumentRecord',
+    title: 'Health document',
+  },
   // ABDM lists no SNOMED code for these two: the wellness type must match the exact text, and the
   // billing type is identified by name. Inventing a code for either would be a fabrication.
-  WellnessRecord: { display: 'Wellness record', profile: 'WellnessRecord', title: 'Wellness record' },
+  WellnessRecord: {
+    display: 'Wellness record',
+    profile: 'WellnessRecord',
+    title: 'Wellness record',
+  },
   Invoice: { display: 'Invoice', profile: 'InvoiceRecord', title: 'Invoice' },
 };
 
@@ -108,13 +146,34 @@ type ClinicalContext = Awaited<ReturnType<typeof loadContext>>;
 async function loadContext(tenantId: string, visitId: string) {
   return runWithTenant(tenantId, async (tx) => {
     const visitRow = (
-      await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))).limit(1)
+      await tx
+        .select()
+        .from(visits)
+        .where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId)))
+        .limit(1)
     )[0];
-    if (!visitRow) throw new AppError(404, 'ABDM_VISIT_NOT_FOUND', 'The visit for this care context no longer exists');
+    if (!visitRow)
+      throw new AppError(
+        404,
+        'ABDM_VISIT_NOT_FOUND',
+        'The visit for this care context no longer exists',
+      );
 
-    const [patientRow] = await tx.select().from(patients).where(eq(patients.id, visitRow.patientId)).limit(1);
-    const [org] = await tx.select().from(organizationProfile).where(eq(organizationProfile.tenantId, tenantId)).limit(1);
-    const [facility] = await tx.select().from(abdmFacilityConfig).where(eq(abdmFacilityConfig.tenantId, tenantId)).limit(1);
+    const [patientRow] = await tx
+      .select()
+      .from(patients)
+      .where(eq(patients.id, visitRow.patientId))
+      .limit(1);
+    const [org] = await tx
+      .select()
+      .from(organizationProfile)
+      .where(eq(organizationProfile.tenantId, tenantId))
+      .limit(1);
+    const [facility] = await tx
+      .select()
+      .from(abdmFacilityConfig)
+      .where(eq(abdmFacilityConfig.tenantId, tenantId))
+      .limit(1);
     const [encounterRow] = await tx
       .select()
       .from(encounters)
@@ -142,13 +201,23 @@ async function loadContext(tenantId: string, visitId: string) {
       ? await tx
           .select()
           .from(labResults)
-          .where(inArray(labResults.labOrderId, orderRows.map((o) => o.id)))
+          .where(
+            inArray(
+              labResults.labOrderId,
+              orderRows.map((o) => o.id),
+            ),
+          )
       : [];
     const testRows = resultRows.length
       ? await tx
           .select()
           .from(labTests)
-          .where(inArray(labTests.id, resultRows.map((r) => r.testId).filter((id): id is string => Boolean(id))))
+          .where(
+            inArray(
+              labTests.id,
+              resultRows.map((r) => r.testId).filter((id): id is string => Boolean(id)),
+            ),
+          )
       : [];
 
     const [invoiceRow] = await tx
@@ -157,13 +226,21 @@ async function loadContext(tenantId: string, visitId: string) {
       .where(and(eq(invoices.tenantId, tenantId), eq(invoices.visitId, visitId)))
       .limit(1);
     const lineRows = invoiceRow
-      ? await tx.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, invoiceRow.id))
+      ? await tx
+          .select()
+          .from(invoiceLineItems)
+          .where(eq(invoiceLineItems.invoiceId, invoiceRow.id))
       : [];
 
     const immunizationRows = await tx
       .select()
       .from(patientImmunizations)
-      .where(and(eq(patientImmunizations.tenantId, tenantId), eq(patientImmunizations.patientId, visitRow.patientId)));
+      .where(
+        and(
+          eq(patientImmunizations.tenantId, tenantId),
+          eq(patientImmunizations.patientId, visitRow.patientId),
+        ),
+      );
 
     // Vitals belong to the visit, not to the encounter (ADR-113): a reading taken at the desk or
     // in the vitals room is part of this episode and travels with it. Newest first, and the newest
@@ -247,7 +324,9 @@ function subjects(doc: Doc, ctx: ClinicalContext) {
     encounterResource({
       id: newId(),
       subject: patient,
-      start: ctx.visit.visitDate ? new Date(`${ctx.visit.visitDate}T00:00:00Z`).toISOString() : undefined,
+      start: ctx.visit.visitDate
+        ? new Date(`${ctx.visit.visitDate}T00:00:00Z`).toISOString()
+        : undefined,
       end: ctx.encounter?.signedAt?.toISOString(),
       finished: ctx.visit.status === 'completed' || Boolean(ctx.encounter?.signedAt),
     }),
@@ -273,7 +352,9 @@ function composition(input: {
     identifier: { system: 'https://nirogix.com/abdm/composition', value: newId() },
     status: 'final',
     type: compact({
-      coding: meta.snomed ? [{ system: 'http://snomed.info/sct', code: meta.snomed, display: meta.display }] : undefined,
+      coding: meta.snomed
+        ? [{ system: 'http://snomed.info/sct', code: meta.snomed, display: meta.display }]
+        : undefined,
       // The wellness type must match this text exactly — ABDM matches on it in the absence of a code.
       text: meta.display,
     }),
@@ -305,7 +386,11 @@ export async function buildDocumentBundle(
 
   const sections = buildSections(input.hiType, doc, ctx, { patient, encounter, practitioner });
   if (!sections || sections.every((s) => (s.entry ?? []).length === 0)) {
-    throw new AppError(422, 'ABDM_NOTHING_TO_SHARE', `This visit has no ${HI_TYPE_META[input.hiType].title} to share`);
+    throw new AppError(
+      422,
+      'ABDM_NOTHING_TO_SHARE',
+      `This visit has no ${HI_TYPE_META[input.hiType].title} to share`,
+    );
   }
 
   return doc.finish(
@@ -332,7 +417,15 @@ function buildSections(
       return [
         {
           title: 'Medications',
-          code: { coding: [{ system: 'http://snomed.info/sct', code: '440545006', display: 'Prescription record' }] },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '440545006',
+                display: 'Prescription record',
+              },
+            ],
+          },
           entry: doc.addAll(medicationResources(ctx, refs)),
         },
       ];
@@ -437,7 +530,10 @@ function buildSections(
   }
 }
 
-function medicationResources(ctx: ClinicalContext, refs: { patient: Reference; encounter: Reference; practitioner?: Reference }) {
+function medicationResources(
+  ctx: ClinicalContext,
+  refs: { patient: Reference; encounter: Reference; practitioner?: Reference },
+) {
   return ctx.prescriptions.map((p) =>
     medicationRequestResource({
       id: newId(),

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   Activity,
   AlertTriangle,
@@ -16,7 +16,7 @@ import {
   Stethoscope,
   UserPlus,
   Users,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   AreaChart,
   Badge,
@@ -31,13 +31,13 @@ import {
   type Column,
   type PeriodValue,
   type Series,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { AuditEntry, PlatformStats, PlatformTrends } from "@hms/types";
-import { formatDateTime, formatDayLabel, formatMonthLabel } from "@hms/utils";
-import * as api from "../../../lib/api";
-import { RequirePermission } from "../../../components/Can";
-import { PageHeader } from "../../../components/PageHeader";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { AuditEntry, PlatformStats, PlatformTrends } from '@hms/types';
+import { formatDateTime, formatDayLabel, formatMonthLabel } from '@hms/utils';
+import * as api from '../../../lib/api';
+import { RequirePermission } from '../../../components/Can';
+import { PageHeader } from '../../../components/PageHeader';
 
 /**
  * The System Admin dashboard (ADR-037, ADR-043) — the whole platform, never one
@@ -59,56 +59,73 @@ import { PageHeader } from "../../../components/PageHeader";
 // Monthly buckets: the platform growth story reads over months-to-years, so the console
 // offers the month/financial-year presets (the Portal's daily view carries the short ones).
 const TREND_PRESETS = [
-  "last3Months",
-  "last6Months",
-  "last12Months",
-  "last24Months",
-  "thisFinancialYear",
-  "lastFinancialYear",
-  "thisYear",
-  "lastYear",
-  "custom",
+  'last3Months',
+  'last6Months',
+  'last12Months',
+  'last24Months',
+  'thisFinancialYear',
+  'lastFinancialYear',
+  'thisYear',
+  'lastYear',
+  'custom',
 ] as const;
 
 /** Metrics the platform cannot report yet, named honestly instead of estimated. */
 const PENDING_METRICS = [
-  "Revenue, MRR and ARR",
-  "Subscription and plan distribution",
-  "Storage and infrastructure usage",
-  "Uptime percentage over time",
-  "Support tickets",
+  'Revenue, MRR and ARR',
+  'Subscription and plan distribution',
+  'Storage and infrastructure usage',
+  'Uptime percentage over time',
+  'Support tickets',
 ];
 
-const BRAND = "var(--hms-brand)";
-const INFO = "var(--hms-info)";
-const WARNING = "var(--hms-warning)";
-const DANGER = "var(--hms-danger)";
+const BRAND = 'var(--hms-brand)';
+const INFO = 'var(--hms-info)';
+const WARNING = 'var(--hms-warning)';
+const DANGER = 'var(--hms-danger)';
 
 const securityColumns: Array<Column<AuditEntry>> = [
   {
-    key: "createdAt",
-    header: "When",
+    key: 'createdAt',
+    header: 'When',
     hideable: false,
     accessor: (r) => r.createdAt,
-    cell: (r) => <span className="whitespace-nowrap text-fg-muted">{formatDateTime(r.createdAt)}</span>,
+    cell: (r) => (
+      <span className="whitespace-nowrap text-fg-muted">{formatDateTime(r.createdAt)}</span>
+    ),
   },
-  { key: "action", header: "Event", accessor: (r) => r.action, cell: (r) => <span className="text-fg">{r.action}</span> },
   {
-    key: "severity",
-    header: "Severity",
+    key: 'action',
+    header: 'Event',
+    accessor: (r) => r.action,
+    cell: (r) => <span className="text-fg">{r.action}</span>,
+  },
+  {
+    key: 'severity',
+    header: 'Severity',
     filterable: true,
     accessor: (r) => r.severity,
     cell: (r) => (
-      <Badge tone={r.severity === "critical" ? "danger" : r.severity === "warning" ? "warning" : "neutral"}>
+      <Badge
+        tone={
+          r.severity === 'critical' ? 'danger' : r.severity === 'warning' ? 'warning' : 'neutral'
+        }
+      >
         {r.severity}
       </Badge>
     ),
   },
-  { key: "path", header: "Request", sortable: false, accessor: (r) => r.path ?? "", cell: (r) => r.path ?? "—" },
+  {
+    key: 'path',
+    header: 'Request',
+    sortable: false,
+    accessor: (r) => r.path ?? '',
+    cell: (r) => r.path ?? '—',
+  },
 ];
 
 function PlatformOverview() {
-  const [period, setPeriod] = usePeriodParam("last12Months");
+  const [period, setPeriod] = usePeriodParam('last12Months');
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [trends, setTrends] = useState<PlatformTrends | null>(null);
   const [security, setSecurity] = useState<AuditEntry[]>([]);
@@ -127,8 +144,8 @@ function PlatformOverview() {
     try {
       const [s, sec, failed, h] = await Promise.all([
         api.getPlatformStats(),
-        api.listAudit({ pageSize: 8, severity: "warning", sortBy: "createdAt", sortDir: "desc" }),
-        api.listAudit({ pageSize: 1, search: "auth.login.failure" }),
+        api.listAudit({ pageSize: 8, severity: 'warning', sortBy: 'createdAt', sortDir: 'desc' }),
+        api.listAudit({ pageSize: 1, search: 'auth.login.failure' }),
         api.getSystemHealth(),
       ]);
       setStats(s);
@@ -137,7 +154,7 @@ function PlatformOverview() {
       setHealth(h);
       setError(null);
     } catch {
-      setError("Could not load platform metrics.");
+      setError('Could not load platform metrics.');
     } finally {
       setLoading(false);
     }
@@ -150,7 +167,7 @@ function PlatformOverview() {
     try {
       setTrends(await api.getPlatformTrends({ from: p.start, to: p.end }));
     } catch {
-      setError("Could not load platform metrics.");
+      setError('Could not load platform metrics.');
     }
   }, []);
 
@@ -162,28 +179,66 @@ function PlatformOverview() {
     void loadTrends(period);
   }, [loadTrends, period]);
 
-  const monthLabels = useMemo(() => (trends?.hospitals ?? []).map((p) => formatMonthLabel(p.period)), [trends]);
-  const dayLabels = useMemo(() => (trends?.events ?? []).map((p) => formatDayLabel(p.period)), [trends]);
+  const monthLabels = useMemo(
+    () => (trends?.hospitals ?? []).map((p) => formatMonthLabel(p.period)),
+    [trends],
+  );
+  const dayLabels = useMemo(
+    () => (trends?.events ?? []).map((p) => formatDayLabel(p.period)),
+    [trends],
+  );
 
   /** Growth of the customer base and the people in it — the platform's core story. */
   const growthSeries: Series[] = useMemo(
     () => [
-      { key: "hospitals", label: "Hospitals", values: (trends?.hospitals ?? []).map((p) => p.cumulative), color: BRAND },
-      { key: "users", label: "Staff accounts", values: (trends?.users ?? []).map((p) => p.cumulative), color: INFO },
+      {
+        key: 'hospitals',
+        label: 'Hospitals',
+        values: (trends?.hospitals ?? []).map((p) => p.cumulative),
+        color: BRAND,
+      },
+      {
+        key: 'users',
+        label: 'Staff accounts',
+        values: (trends?.users ?? []).map((p) => p.cumulative),
+        color: INFO,
+      },
     ],
     [trends],
   );
 
   const onboardingSeries: Series[] = useMemo(
-    () => [{ key: "new", label: "New hospitals", values: (trends?.hospitals ?? []).map((p) => p.created), color: BRAND }],
+    () => [
+      {
+        key: 'new',
+        label: 'New hospitals',
+        values: (trends?.hospitals ?? []).map((p) => p.created),
+        color: BRAND,
+      },
+    ],
     [trends],
   );
 
   const eventSeries: Series[] = useMemo(
     () => [
-      { key: "info", label: "Routine", values: (trends?.events ?? []).map((p) => p.info), color: INFO },
-      { key: "warning", label: "Warning", values: (trends?.events ?? []).map((p) => p.warning), color: WARNING },
-      { key: "critical", label: "Critical", values: (trends?.events ?? []).map((p) => p.critical), color: DANGER },
+      {
+        key: 'info',
+        label: 'Routine',
+        values: (trends?.events ?? []).map((p) => p.info),
+        color: INFO,
+      },
+      {
+        key: 'warning',
+        label: 'Warning',
+        values: (trends?.events ?? []).map((p) => p.warning),
+        color: WARNING,
+      },
+      {
+        key: 'critical',
+        label: 'Critical',
+        values: (trends?.events ?? []).map((p) => p.critical),
+        color: DANGER,
+      },
     ],
     [trends],
   );
@@ -205,7 +260,12 @@ function PlatformOverview() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-fg-muted">Showing</span>
-          <PeriodFilter value={period} onChange={setPeriod} presets={[...TREND_PRESETS]} align="start" />
+          <PeriodFilter
+            value={period}
+            onChange={setPeriod}
+            presets={[...TREND_PRESETS]}
+            align="start"
+          />
         </div>
         {trends ? (
           <span className="text-xs text-fg-subtle">
@@ -221,7 +281,7 @@ function PlatformOverview() {
           value={loading && !stats ? null : (stats?.hospitals.total ?? 0)}
           icon={<Building2 size={16} strokeWidth={1.75} aria-hidden />}
           hint={`${stats?.hospitals.active ?? 0} active · ${stats?.hospitals.inactive ?? 0} inactive`}
-          delta={newHospitals === null ? null : { value: newHospitals, label: "this month" }}
+          delta={newHospitals === null ? null : { value: newHospitals, label: 'this month' }}
           spark={{ values: (trends?.hospitals ?? []).map((p) => p.cumulative), color: BRAND }}
           href="/tenants"
           linkLabel="Hospitals, open the tenant list"
@@ -231,7 +291,7 @@ function PlatformOverview() {
           value={loading && !stats ? null : (stats?.users ?? 0)}
           icon={<Users size={16} strokeWidth={1.75} aria-hidden />}
           hint={`${stats?.doctors ?? 0} practitioners`}
-          delta={newUsers === null ? null : { value: newUsers, label: "this month" }}
+          delta={newUsers === null ? null : { value: newUsers, label: 'this month' }}
           spark={{ values: (trends?.users ?? []).map((p) => p.cumulative), color: INFO }}
         />
         <StatCard
@@ -263,11 +323,19 @@ function PlatformOverview() {
               <span>Platform growth</span>
               <span className="flex items-center gap-3 text-xs font-normal text-fg-subtle">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: BRAND }} aria-hidden />
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ background: BRAND }}
+                    aria-hidden
+                  />
                   Hospitals
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: INFO }} aria-hidden />
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ background: INFO }}
+                    aria-hidden
+                  />
                   Staff accounts
                 </span>
               </span>
@@ -298,11 +366,13 @@ function PlatformOverview() {
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
             <div>
               <div className="text-xs text-fg-subtle">Added this month</div>
-              <div className="text-lg font-semibold text-fg">{newHospitals ?? "—"}</div>
+              <div className="text-lg font-semibold text-fg">{newHospitals ?? '—'}</div>
             </div>
             <div>
               <div className="text-xs text-fg-subtle">Suspended or cancelled</div>
-              <div className="text-lg font-semibold text-fg">{stats?.hospitals.inactive ?? "—"}</div>
+              <div className="text-lg font-semibold text-fg">
+                {stats?.hospitals.inactive ?? '—'}
+              </div>
             </div>
           </div>
         </Card>
@@ -328,7 +398,7 @@ function PlatformOverview() {
                   label={m.name}
                   value={m.tenants}
                   total={Math.max(stats.hospitals.total, 1)}
-                  caption={`${m.tenants} of ${stats.hospitals.total} hospital${stats.hospitals.total === 1 ? "" : "s"}`}
+                  caption={`${m.tenants} of ${stats.hospitals.total} hospital${stats.hospitals.total === 1 ? '' : 's'}`}
                 />
               ))}
             </div>
@@ -347,19 +417,45 @@ function PlatformOverview() {
           >
             <div className="flex flex-col gap-2.5">
               <HealthRow label="API" ok={health?.api ?? null} detail="Liveness probe" />
-              <HealthRow label="Database" ok={health?.db ?? null} detail="Readiness probe" icon={<Database size={15} strokeWidth={1.75} aria-hidden />} />
+              <HealthRow
+                label="Database"
+                ok={health?.db ?? null}
+                detail="Readiness probe"
+                icon={<Database size={15} strokeWidth={1.75} aria-hidden />}
+              />
             </div>
             <p className="mt-3 text-xs text-fg-subtle">
-              Live probes, checked when this page loads. Uptime history needs a monitor the platform does not run yet.
+              Live probes, checked when this page loads. Uptime history needs a monitor the platform
+              does not run yet.
             </p>
           </Card>
 
           <Card header="Quick actions">
             <div className="flex flex-col gap-2">
-              <QuickAction href="/tenants/new" icon={<Plus size={15} strokeWidth={2} aria-hidden />} label="Onboard a hospital" meta="Create the tenant, grant modules, add its first admin" />
-              <QuickAction href="/tenants" icon={<Building2 size={15} strokeWidth={2} aria-hidden />} label="Manage hospitals" meta="Status, entitlements, support sessions" />
-              <QuickAction href="/branding" icon={<Stethoscope size={15} strokeWidth={2} aria-hidden />} label="Platform branding" meta="Marketing and Portal defaults" />
-              <QuickAction href="/audit" icon={<ScrollText size={15} strokeWidth={2} aria-hidden />} label="Audit trail" meta="Every security-relevant action, all tenants" />
+              <QuickAction
+                href="/tenants/new"
+                icon={<Plus size={15} strokeWidth={2} aria-hidden />}
+                label="Onboard a hospital"
+                meta="Create the tenant, grant modules, add its first admin"
+              />
+              <QuickAction
+                href="/tenants"
+                icon={<Building2 size={15} strokeWidth={2} aria-hidden />}
+                label="Manage hospitals"
+                meta="Status, entitlements, support sessions"
+              />
+              <QuickAction
+                href="/branding"
+                icon={<Stethoscope size={15} strokeWidth={2} aria-hidden />}
+                label="Platform branding"
+                meta="Marketing and Portal defaults"
+              />
+              <QuickAction
+                href="/audit"
+                icon={<ScrollText size={15} strokeWidth={2} aria-hidden />}
+                label="Audit trail"
+                meta="Every security-relevant action, all tenants"
+              />
             </div>
           </Card>
         </div>
@@ -373,7 +469,7 @@ function PlatformOverview() {
               <ShieldAlert size={16} strokeWidth={1.75} aria-hidden /> Security activity
             </span>
             <span className="text-xs font-normal text-fg-subtle">
-              {warningEvents} warning or critical event{warningEvents === 1 ? "" : "s"} in 30 days
+              {warningEvents} warning or critical event{warningEvents === 1 ? '' : 's'} in 30 days
             </span>
           </div>
         }
@@ -415,12 +511,15 @@ function PlatformOverview() {
         }
       >
         <p className="text-sm text-fg-muted">
-          These need a data source the platform does not have. They are shown as pending rather than estimated, because a
-          wrong number on this screen is worse than a missing one.
+          These need a data source the platform does not have. They are shown as pending rather than
+          estimated, because a wrong number on this screen is worse than a missing one.
         </p>
         <ul className="mt-3 flex flex-wrap gap-2">
           {PENDING_METRICS.map((m) => (
-            <li key={m} className="rounded-token border border-border bg-surface-2 px-3 py-1.5 text-sm text-fg-muted">
+            <li
+              key={m}
+              className="rounded-token border border-border bg-surface-2 px-3 py-1.5 text-sm text-fg-muted"
+            >
               {m}
             </li>
           ))}

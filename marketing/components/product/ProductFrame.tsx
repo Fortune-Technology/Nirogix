@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { cn } from "@hms/ui";
+import type { ReactNode } from 'react';
+import { cn } from '@hms/ui';
 
 /**
  * Frames a real slice of the Portal UI as the "product mockup" that leads a section
@@ -19,7 +19,7 @@ export function ProductFrame({
   return (
     <div
       className={cn(
-        "w-full min-w-0 overflow-hidden rounded-xl border border-hairline bg-surface",
+        'w-full min-w-0 overflow-hidden rounded-xl border border-hairline bg-surface',
         className,
       )}
     >
@@ -35,7 +35,7 @@ export function ProductFrame({
         </span>
       </div>
       {/* app canvas */}
-      <div className="p-4 sm:p-5" style={{ background: "var(--hms-bg)" }}>
+      <div className="p-4 sm:p-5" style={{ background: 'var(--hms-bg)' }}>
         {children}
       </div>
     </div>

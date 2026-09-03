@@ -1,10 +1,10 @@
-import Link from "next/link";
-import { FileQuestion, LayoutDashboard } from "lucide-react";
-import type { Metadata } from "next";
-import { Button } from "@hms/ui";
+import Link from 'next/link';
+import { FileQuestion, LayoutDashboard } from 'lucide-react';
+import type { Metadata } from 'next';
+import { Button } from '@hms/ui';
 
 export const metadata: Metadata = {
-  title: "Page not found",
+  title: 'Page not found',
   robots: { index: false, follow: false },
 };
 
@@ -24,8 +24,8 @@ export default function NotFound() {
         <p className="font-mono text-sm text-brand">404</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg">Page not found</h1>
         <p className="mt-3 text-[0.975rem] leading-relaxed text-fg-muted">
-          This page does not exist, or it moved. If you followed a link from inside the Portal, the record may have
-          been removed or you may not have access to it.
+          This page does not exist, or it moved. If you followed a link from inside the Portal, the
+          record may have been removed or you may not have access to it.
         </p>
       </div>
 

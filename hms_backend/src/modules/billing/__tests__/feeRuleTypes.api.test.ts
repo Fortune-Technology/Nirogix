@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { authed, cleanupTenant, dbReady, login, makeTenant, type Session, type TestTenant } from '../../../test-api';
+import {
+  authed,
+  cleanupTenant,
+  dbReady,
+  login,
+  makeTenant,
+  type Session,
+  type TestTenant,
+} from '../../../test-api';
 import { pool } from '../../../db/client';
 import { createProvider } from '../../provider/provider.service';
 
@@ -53,9 +61,13 @@ beforeAll(async () => {
     })
   ).id;
 
-  const created = await authed(sessions.receptionist!)
-    .post('/api/v1/patients')
-    .send({ firstName: 'Rohit', lastName: 'Menon', gender: 'male', dateOfBirth: '1979-04-04', phone: '9812345677' });
+  const created = await authed(sessions.receptionist!).post('/api/v1/patients').send({
+    firstName: 'Rohit',
+    lastName: 'Menon',
+    gender: 'male',
+    dateOfBirth: '1979-04-04',
+    phone: '9812345677',
+  });
   patientId = created.body.id;
 }, 180_000);
 
@@ -63,7 +75,9 @@ async function settleAuditWrites(tenantId: string): Promise<void> {
   let previous = -1;
   for (let i = 0; i < 40; i++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [tenantId]);
+    const rows = await pool.query('SELECT count(*)::int AS c FROM audit_log WHERE tenant_id = $1', [
+      tenantId,
+    ]);
     const current = Number(rows.rows[0].c);
     if (current === previous) return;
     previous = current;
@@ -94,7 +108,9 @@ async function setVocabulary(body: Record<string, unknown>) {
 }
 
 async function preview(q: Record<string, string>) {
-  return authed(sessions.receptionist!).get(`/api/v1/fee-rules/preview?${new URLSearchParams(q).toString()}`);
+  return authed(sessions.receptionist!).get(
+    `/api/v1/fee-rules/preview?${new URLSearchParams(q).toString()}`,
+  );
 }
 
 async function addRule(body: Record<string, unknown>) {
@@ -141,7 +157,9 @@ describe('the vocabulary the hospital does configure', () => {
 
   test('and a rule can price one', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ consultationType: 'Teleconsultation', feePaise: 30000 })).status).toBe(201);
+    expect((await addRule({ consultationType: 'Teleconsultation', feePaise: 30000 })).status).toBe(
+      201,
+    );
     const res = await preview({ providerId, consultationType: 'Teleconsultation' });
     expect(res.body.feePaise).toBe(30000);
     expect(res.body.source).toBe('rule');
@@ -149,9 +167,13 @@ describe('the vocabulary the hospital does configure', () => {
     expect((await preview({ providerId })).body.feePaise).toBe(DOCTOR_DEFAULT_PAISE);
   });
 
-  test('written in any case, stored in the hospital\'s spelling', async ({ skip }) => {
+  test("written in any case, stored in the hospital's spelling", async ({ skip }) => {
     if (!ready) return skip();
-    const res = await addRule({ caseType: 'corporate', feePaise: 0, label: 'Billed to the employer' });
+    const res = await addRule({
+      caseType: 'corporate',
+      feePaise: 0,
+      label: 'Billed to the employer',
+    });
     expect(res.status).toBe(201);
     expect(res.body.caseType).toBe('Corporate');
   });
@@ -169,20 +191,32 @@ describe('the resolution order across five dimensions', () => {
     if (!ready) return skip();
     // Both rules match a corporate teleconsultation. The corporate arrangement is the contract, and
     // it is meant to hold whatever kind of consultation happens inside it.
-    const res = await preview({ providerId, consultationType: 'Teleconsultation', caseType: 'Corporate' });
+    const res = await preview({
+      providerId,
+      consultationType: 'Teleconsultation',
+      caseType: 'Corporate',
+    });
     expect(res.body.feePaise).toBe(0);
   });
 
   test('and a named doctor outranks both', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ providerId, feePaise: 90000, label: 'Senior consultant' })).status).toBe(201);
-    const res = await preview({ providerId, consultationType: 'Teleconsultation', caseType: 'Corporate' });
+    expect(
+      (await addRule({ providerId, feePaise: 90000, label: 'Senior consultant' })).status,
+    ).toBe(201);
+    const res = await preview({
+      providerId,
+      consultationType: 'Teleconsultation',
+      caseType: 'Corporate',
+    });
     expect(res.body.feePaise).toBe(90000);
   });
 
   test('unless a rule names the doctor AND the case type', async ({ skip }) => {
     if (!ready) return skip();
-    expect((await addRule({ providerId, caseType: 'Corporate', feePaise: 45000 })).status).toBe(201);
+    expect((await addRule({ providerId, caseType: 'Corporate', feePaise: 45000 })).status).toBe(
+      201,
+    );
     expect((await preview({ providerId, caseType: 'Corporate' })).body.feePaise).toBe(45000);
     // The broader doctor rule still applies to everything else.
     expect((await preview({ providerId })).body.feePaise).toBe(90000);
@@ -193,7 +227,9 @@ describe('the resolution order across five dimensions', () => {
     const res = await addRule({ providerId, caseType: 'Corporate', feePaise: 55000 });
     expect(res.status).toBe(409);
     // But the same doctor with a different type is a different rule, not a duplicate.
-    expect((await addRule({ providerId, caseType: 'Insurance', feePaise: 70000 })).status).toBe(201);
+    expect((await addRule({ providerId, caseType: 'Insurance', feePaise: 70000 })).status).toBe(
+      201,
+    );
   });
 });
 
@@ -201,7 +237,9 @@ describe('what check-in actually charges', () => {
   test('a consultation type reaches the visit and prices it', async ({ skip }) => {
     if (!ready) return skip();
     // No case, so the doctor+consultation-type combination is not covered by any corporate rule.
-    expect((await addRule({ providerId, consultationType: 'Procedure', feePaise: 25000 })).status).toBe(201);
+    expect(
+      (await addRule({ providerId, consultationType: 'Procedure', feePaise: 25000 })).status,
+    ).toBe(201);
     const res = await checkIn({ consultationType: 'Procedure' });
     expect(res.status).toBe(201);
     expect(res.body.consultationType).toBe('Procedure');
@@ -210,10 +248,14 @@ describe('what check-in actually charges', () => {
 
   test('a type this hospital does not use is refused, and nothing is created', async ({ skip }) => {
     if (!ready) return skip();
-    const before = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [tenant.tenantId]);
+    const before = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [
+      tenant.tenantId,
+    ]);
     const res = await checkIn({ consultationType: 'Home visit' });
     expect(res.status).toBe(422);
-    const after = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [tenant.tenantId]);
+    const after = await pool.query('SELECT count(*)::int AS c FROM visits WHERE tenant_id = $1', [
+      tenant.tenantId,
+    ]);
     // Checked before the transaction opens: a rejected type must not leave a visit, a case or an
     // invoice behind.
     expect(after.rows[0].c).toBe(before.rows[0].c);
@@ -230,10 +272,16 @@ describe('what check-in actually charges', () => {
     expect(res.body.calculatedFeePaise).toBe(45000);
   });
 
-  test('🔒 and a later visit under that case is priced the same, without being asked again', async ({ skip }) => {
+  test('🔒 and a later visit under that case is priced the same, without being asked again', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const cases = await authed(sessions.receptionist!).get(`/api/v1/cases?patientId=${patientId}&status=open`);
-    const corporate = cases.body.find((c: { caseType: string | null }) => c.caseType === 'Corporate');
+    const cases = await authed(sessions.receptionist!).get(
+      `/api/v1/cases?patientId=${patientId}&status=open`,
+    );
+    const corporate = cases.body.find(
+      (c: { caseType: string | null }) => c.caseType === 'Corporate',
+    );
     expect(corporate).toBeTruthy();
 
     const res = await checkIn({ caseId: corporate.id, arrivalType: 'follow_up' });
@@ -258,7 +306,10 @@ describe('what check-in actually charges', () => {
 describe('removing a word from the vocabulary', () => {
   test('is refused while an active rule still prices it', async ({ skip }) => {
     if (!ready) return skip();
-    const res = await setVocabulary({ consultationTypes: ['Review'], caseTypes: ['Corporate', 'Insurance'] });
+    const res = await setVocabulary({
+      consultationTypes: ['Review'],
+      caseTypes: ['Corporate', 'Insurance'],
+    });
     expect(res.status).toBe(422);
     // Naming the types is what makes this actionable rather than a wall.
     expect(res.body.error.message).toMatch(/Teleconsultation|Procedure/);
@@ -278,7 +329,10 @@ describe('removing a word from the vocabulary', () => {
       expect(retired.status).toBe(200);
     }
 
-    const res = await setVocabulary({ consultationTypes: ['Review'], caseTypes: ['Corporate', 'Insurance'] });
+    const res = await setVocabulary({
+      consultationTypes: ['Review'],
+      caseTypes: ['Corporate', 'Insurance'],
+    });
     expect(res.status).toBe(200);
     expect(res.body.consultationTypes).toEqual(['Review']);
   });

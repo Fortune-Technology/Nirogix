@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { ToastContainer } from "react-toastify";
+import { ToastContainer } from 'react-toastify';
 // The library's own stylesheet. Imported here rather than by each app so a frontend
 // cannot forget it, and so the token overrides in this package's `styles.css` always
 // load after it.
-import "react-toastify/dist/ReactToastify.css";
-import { ToastCloseButton } from "./ToastBody";
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastCloseButton } from './ToastBody';
 
 export interface ToasterProps {
   /** Accessible label for the notification region. */
@@ -35,7 +35,7 @@ export interface ToasterProps {
  * and the live region. Everything visible — icon, title, description, action, close —
  * is this package's, so a toast looks like the rest of the product.
  */
-export function Toaster({ label = "Notifications", duration = 5000, limit = 4 }: ToasterProps) {
+export function Toaster({ label = 'Notifications', duration = 5000, limit = 4 }: ToasterProps) {
   return (
     <ToastContainer
       position="top-right"

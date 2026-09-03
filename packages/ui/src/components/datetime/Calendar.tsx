@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { DayPicker } from "react-day-picker";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "../../cn";
+import { DayPicker } from 'react-day-picker';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '../../cn';
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
@@ -21,41 +21,46 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>;
  * `date-fns` dependency stays internal — every date the *platform* renders still
  * goes through `@hms/utils` (ADR-046).
  */
-export function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+export function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
+}: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("hms-calendar", className)}
+      className={cn('hms-calendar', className)}
       components={{
         Chevron: ({ orientation, ...rest }) =>
-          orientation === "left" ? (
+          orientation === 'left' ? (
             <ChevronLeft size={16} strokeWidth={2} {...rest} />
           ) : (
             <ChevronRight size={16} strokeWidth={2} {...rest} />
           ),
       }}
       classNames={{
-        months: "hms-calendar__months",
-        month: "hms-calendar__month",
-        month_caption: "hms-calendar__caption",
-        caption_label: "hms-calendar__caption-label",
-        nav: "hms-calendar__nav",
-        button_previous: "hms-calendar__nav-btn",
-        button_next: "hms-calendar__nav-btn",
-        month_grid: "hms-calendar__grid",
-        weekdays: "hms-calendar__weekdays",
-        weekday: "hms-calendar__weekday",
-        week: "hms-calendar__week",
-        day: "hms-calendar__day",
-        day_button: "hms-calendar__day-btn",
-        selected: "hms-calendar__day--selected",
-        range_start: "hms-calendar__day--range-start",
-        range_middle: "hms-calendar__day--range-middle",
-        range_end: "hms-calendar__day--range-end",
-        today: "hms-calendar__day--today",
-        outside: "hms-calendar__day--outside",
-        disabled: "hms-calendar__day--disabled",
-        hidden: "hms-calendar__day--hidden",
+        months: 'hms-calendar__months',
+        month: 'hms-calendar__month',
+        month_caption: 'hms-calendar__caption',
+        caption_label: 'hms-calendar__caption-label',
+        nav: 'hms-calendar__nav',
+        button_previous: 'hms-calendar__nav-btn',
+        button_next: 'hms-calendar__nav-btn',
+        month_grid: 'hms-calendar__grid',
+        weekdays: 'hms-calendar__weekdays',
+        weekday: 'hms-calendar__weekday',
+        week: 'hms-calendar__week',
+        day: 'hms-calendar__day',
+        day_button: 'hms-calendar__day-btn',
+        selected: 'hms-calendar__day--selected',
+        range_start: 'hms-calendar__day--range-start',
+        range_middle: 'hms-calendar__day--range-middle',
+        range_end: 'hms-calendar__day--range-end',
+        today: 'hms-calendar__day--today',
+        outside: 'hms-calendar__day--outside',
+        disabled: 'hms-calendar__day--disabled',
+        hidden: 'hms-calendar__day--hidden',
         ...classNames,
       }}
       {...props}

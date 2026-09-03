@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Building2 } from "lucide-react";
-import { Alert, Card, EmptyState, ErrorState, Skeleton } from "@hms/ui";
-import type { PatientHospital } from "@hms/types";
-import * as api from "../../lib/api";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Building2 } from 'lucide-react';
+import { Alert, Card, EmptyState, ErrorState, Skeleton } from '@hms/ui';
+import type { PatientHospital } from '@hms/types';
+import * as api from '../../lib/api';
 
 /**
  * The hospital picker (ADR-052).
@@ -26,12 +26,15 @@ export default function HospitalsPage() {
         setHospitals(h);
         setError(null);
       })
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not load your hospitals."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not load your hospitals.'),
+      );
   };
 
   useEffect(load, []);
 
-  if (error) return <ErrorState title="Could not load your hospitals" message={error} onRetry={load} />;
+  if (error)
+    return <ErrorState title="Could not load your hospitals" message={error} onRetry={load} />;
   if (!hospitals) return <Skeleton height="12rem" />;
 
   return (
@@ -74,7 +77,8 @@ export default function HospitalsPage() {
       )}
 
       <Alert>
-        Nothing is stored on this device. Sign out when you are finished, especially on a shared computer.
+        Nothing is stored on this device. Sign out when you are finished, especially on a shared
+        computer.
       </Alert>
     </>
   );

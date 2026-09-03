@@ -29,9 +29,9 @@ export interface VocabularyOption {
  * value rather than an absent one.
  */
 export const GENDER_OPTIONS: readonly VocabularyOption[] = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
 ];
 
 /**
@@ -44,14 +44,14 @@ export const GENDER_OPTIONS: readonly VocabularyOption[] = [
  * like two different answers to the same question.
  */
 export const BLOOD_GROUP_OPTIONS: readonly VocabularyOption[] = [
-  { value: "A+", label: "A+" },
-  { value: "A-", label: "A-" },
-  { value: "B+", label: "B+" },
-  { value: "B-", label: "B-" },
-  { value: "AB+", label: "AB+" },
-  { value: "AB-", label: "AB-" },
-  { value: "O+", label: "O+" },
-  { value: "O-", label: "O-" },
+  { value: 'A+', label: 'A+' },
+  { value: 'A-', label: 'A-' },
+  { value: 'B+', label: 'B+' },
+  { value: 'B-', label: 'B-' },
+  { value: 'AB+', label: 'AB+' },
+  { value: 'AB-', label: 'AB-' },
+  { value: 'O+', label: 'O+' },
+  { value: 'O-', label: 'O-' },
 ];
 
 /**
@@ -59,6 +59,6 @@ export const BLOOD_GROUP_OPTIONS: readonly VocabularyOption[] = [
  * on screen has to be "archived" rather than anything that sounds like removal.
  */
 export const RECORD_STATUS_OPTIONS: readonly VocabularyOption[] = [
-  { value: "active", label: "Active" },
-  { value: "archived", label: "Archived", description: "Kept, but out of the working list" },
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived', description: 'Kept, but out of the working list' },
 ];

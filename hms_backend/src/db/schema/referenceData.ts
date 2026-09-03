@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, integer, boolean, jsonb, timestamp, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  boolean,
+  jsonb,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tenants } from './tenants';
 
@@ -28,14 +37,18 @@ export type ReferenceCategory = 'lab_test' | 'drug' | 'service' | 'vaccine' | 'd
 export const referenceCatalog = pgTable(
   'reference_catalog',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     category: varchar('category', { length: 40 }).notNull(),
     // Stable business code, unique within a category. This is what a tenant row references.
     code: varchar('code', { length: 64 }).notNull(),
     name: varchar('name', { length: 200 }).notNull(),
     // Category-specific pre-fill hints (lab_test: sampleType/unit/refLow/refHigh/loinc; drug:
     // form/strength/unit/hsnSac; vaccine: schedule; department: specialtyCode). Never clinical data.
-    attributes: jsonb('attributes').notNull().default(sql`'{}'::jsonb`),
+    attributes: jsonb('attributes')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     sortOrder: integer('sort_order').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -48,14 +61,18 @@ export const referenceCatalog = pgTable(
 export const tenantReferenceItems = pgTable(
   'tenant_reference_items',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'restrict' }),
     category: varchar('category', { length: 40 }).notNull(),
     code: varchar('code', { length: 64 }).notNull(),
     name: varchar('name', { length: 200 }).notNull(),
-    attributes: jsonb('attributes').notNull().default(sql`'{}'::jsonb`),
+    attributes: jsonb('attributes')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,10 +1,19 @@
-"use client";
+'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useIdleSignOut } from "@hms/client";
-import { toast } from "@hms/ui";
-import type { PatientSession } from "@hms/types";
-import * as api from "./api";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useIdleSignOut } from '@hms/client';
+import { toast } from '@hms/ui';
+import type { PatientSession } from '@hms/types';
+import * as api from './api';
 
 /**
  * The patient session (ADR-052, F-8).
@@ -22,11 +31,11 @@ import * as api from "./api";
  * endpoint.
  */
 
-type Status = "loading" | "signed-in" | "signed-out";
+type Status = 'loading' | 'signed-in' | 'signed-out';
 
 interface SessionContextValue {
   status: Status;
-  identity: PatientSession["identity"] | null;
+  identity: PatientSession['identity'] | null;
   signedIn: boolean;
   signIn: (session: PatientSession) => void;
   signOut: () => Promise<void>;
@@ -35,8 +44,8 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<Status>("loading");
-  const [identity, setIdentity] = useState<PatientSession["identity"] | null>(null);
+  const [status, setStatus] = useState<Status>('loading');
+  const [identity, setIdentity] = useState<PatientSession['identity'] | null>(null);
   const bootstrapped = useRef(false);
 
   // Re-establish an existing session once on load. No cookie is the ordinary first-visit
@@ -49,9 +58,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (session) {
         api.setAccessToken(session.accessToken);
         setIdentity(session.identity);
-        setStatus("signed-in");
+        setStatus('signed-in');
       } else {
-        setStatus("signed-out");
+        setStatus('signed-out');
       }
     })();
   }, []);
@@ -59,14 +68,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback((session: PatientSession) => {
     api.setAccessToken(session.accessToken);
     setIdentity(session.identity);
-    setStatus("signed-in");
+    setStatus('signed-in');
   }, []);
 
   const signOut = useCallback(async () => {
     // Revokes the session server-side, so the refresh token is dead rather than dropped.
     await api.signOut();
     setIdentity(null);
-    setStatus("signed-out");
+    setStatus('signed-out');
   }, []);
 
   /**
@@ -77,19 +86,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * its own principal (ADR-052).
    */
   useIdleSignOut({
-    active: status === "signed-in",
+    active: status === 'signed-in',
     onIdle: async () => {
       await signOut();
       toast.info({
-        title: "Signed out",
-        description: "You were signed out after a period of inactivity.",
-        dedupeKey: "session-idle",
+        title: 'Signed out',
+        description: 'You were signed out after a period of inactivity.',
+        dedupeKey: 'session-idle',
       });
     },
   });
 
   const value = useMemo<SessionContextValue>(
-    () => ({ status, identity, signedIn: status === "signed-in", signIn, signOut }),
+    () => ({ status, identity, signedIn: status === 'signed-in', signIn, signOut }),
     [status, identity, signIn, signOut],
   );
 
@@ -98,6 +107,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
 export function useSession(): SessionContextValue {
   const ctx = useContext(SessionContext);
-  if (!ctx) throw new Error("useSession must be used within <SessionProvider>");
+  if (!ctx) throw new Error('useSession must be used within <SessionProvider>');
   return ctx;
 }

@@ -1,4 +1,5 @@
-import { and, asc, eq, ilike } from 'drizzle-orm';
+import { and, asc, eq, ilike, sql } from 'drizzle-orm';
+import { getActiveSignature } from '../signature/signature.service';
 import { runWithTenant } from '../../db/tenantContext';
 import { labTests, labResults, labOrders, patients, visits } from '../../db/schema';
 import { Errors } from '../../http/error';
@@ -15,7 +16,11 @@ export async function listTests(tenantId: string, search?: string, branchId?: st
   const list = await runWithTenant(tenantId, async (tx) => {
     const conds = [eq(labTests.tenantId, tenantId)];
     if (search && search.trim()) conds.push(ilike(labTests.name, `%${search.trim()}%`));
-    const rows = await tx.select().from(labTests).where(and(...conds)).orderBy(asc(labTests.name));
+    const rows = await tx
+      .select()
+      .from(labTests)
+      .where(and(...conds))
+      .orderBy(asc(labTests.name));
     return rows.map((t) => ({
       id: t.id,
       name: t.name,
@@ -31,7 +36,12 @@ export async function listTests(tenantId: string, search?: string, branchId?: st
   });
   // Per-hospital availability (ADR-073): filter to what this branch offers, with any price override.
   if (!branchId) return list;
-  const overrides = await resolveOverrides(tenantId, branchId, 'lab_test', list.map((t) => t.id));
+  const overrides = await resolveOverrides(
+    tenantId,
+    branchId,
+    'lab_test',
+    list.map((t) => t.id),
+  );
   return list
     .filter((t) => isRefAvailable(overrides, t.id))
     .map((t) => ({ ...t, pricePaise: priceFor(overrides, t.id, t.pricePaise) }));
@@ -50,26 +60,35 @@ export interface CreateTestInput {
 }
 
 export async function createTest(tenantId: string, input: CreateTestInput, actorUserId?: string) {
-  const test = await runWithTenant(tenantId, async (tx) =>
-    (
-      await tx
-        .insert(labTests)
-        .values({
-          tenantId,
-          name: input.name,
-          code: input.code ?? null,
-          sampleType: input.sampleType ?? null,
-          unit: input.unit ?? null,
-          refLow: input.refLow ?? null,
-          refHigh: input.refHigh ?? null,
-          catalogCode: input.catalogCode ?? null,
-          pricePaise: input.pricePaise,
-          taxRateBps: input.taxRateBps ?? 0,
-        })
-        .returning()
-    )[0]!,
+  const test = await runWithTenant(
+    tenantId,
+    async (tx) =>
+      (
+        await tx
+          .insert(labTests)
+          .values({
+            tenantId,
+            name: input.name,
+            code: input.code ?? null,
+            sampleType: input.sampleType ?? null,
+            unit: input.unit ?? null,
+            refLow: input.refLow ?? null,
+            refHigh: input.refHigh ?? null,
+            catalogCode: input.catalogCode ?? null,
+            pricePaise: input.pricePaise,
+            taxRateBps: input.taxRateBps ?? 0,
+          })
+          .returning()
+      )[0]!,
   );
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab_test.create', resourceType: 'lab_test', resourceId: test.id, metadata: { name: test.name } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'lab_test.create',
+    resourceType: 'lab_test',
+    resourceId: test.id,
+    metadata: { name: test.name },
+  });
   return listTests(tenantId, test.name).then((t) => t.find((x) => x.id === test.id));
 }
 
@@ -143,7 +162,26 @@ export async function listWorklist(tenantId: string, status?: string, patientId?
       .innerJoin(patients, eq(patients.id, labOrders.patientId))
       .leftJoin(labResults, eq(labResults.labOrderId, labOrders.id))
       .where(and(...conds))
-      .orderBy(asc(labOrders.createdAt));
+      // By where the sample is in the workflow, then oldest-first inside each stage (ADR-136).
+      //
+      // Flat FIFO across every status meant a technician opening the worklist saw last week's
+      // verified reports before this morning's new orders — the finished work is the bulk of the
+      // table and it was sitting on top of the work. The stage order is the bench's own: something
+      // to collect, something to result, something to verify, then what is done.
+      //
+      // FIFO *within* a stage is deliberate and unchanged: the sample waiting longest is next.
+      // A status filter makes the first key constant, so a filtered worklist is still plain FIFO.
+      .orderBy(
+        sql`case ${labOrders.status}
+              when 'ordered' then 0
+              when 'collected' then 1
+              when 'resulted' then 2
+              when 'verified' then 3
+              when 'cancelled' then 4
+              else 5
+            end`,
+        asc(labOrders.createdAt),
+      );
     return rows.map(toWorklistRow);
   });
 }
@@ -184,15 +222,25 @@ async function billLabOrder(
     sourceRef: order.id,
   };
   const visitRow = await runWithTenant(tenantId, (tx) =>
-    tx.select({ invoiceId: visits.invoiceId }).from(visits).where(eq(visits.id, order.visitId)).limit(1),
+    tx
+      .select({ invoiceId: visits.invoiceId })
+      .from(visits)
+      .where(eq(visits.id, order.visitId))
+      .limit(1),
   );
   let invoiceId = visitRow[0]?.invoiceId ?? null;
   if (invoiceId) {
     await billing.addInvoiceLine(tenantId, invoiceId, line, actorUserId);
   } else {
-    const inv = await billing.createInvoice(tenantId, { patientId: order.patientId, visitId: order.visitId, lineItems: [line] }, actorUserId);
+    const inv = await billing.createInvoice(
+      tenantId,
+      { patientId: order.patientId, visitId: order.visitId, lineItems: [line] },
+      actorUserId,
+    );
     invoiceId = inv.id;
-    await runWithTenant(tenantId, (tx) => tx.update(visits).set({ invoiceId }).where(eq(visits.id, order.visitId)));
+    await runWithTenant(tenantId, (tx) =>
+      tx.update(visits).set({ invoiceId }).where(eq(visits.id, order.visitId)),
+    );
   }
 }
 
@@ -200,7 +248,12 @@ export async function collectSample(tenantId: string, labOrderId: string, actorU
   const ctx = await runWithTenant(tenantId, async (tx) => {
     // Row lock so two concurrent collects serialize on the status check.
     const order = (
-      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+      await tx
+        .select()
+        .from(labOrders)
+        .where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!order) throw Errors.notFound('Lab order not found');
     if (order.status !== 'ordered') throw Errors.conflict(`Cannot collect a ${order.status} order`);
@@ -210,19 +263,38 @@ export async function collectSample(tenantId: string, labOrderId: string, actorU
     // the lab charge land on the bill at collection, so payment can be taken before testing.
     let charge: { pricePaise: number; taxRateBps: number; testName: string } | null = null;
     if (order.testId) {
-      const test = (await tx.select().from(labTests).where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, order.testId))).limit(1))[0];
-      if (test) charge = { pricePaise: test.pricePaise, taxRateBps: test.taxRateBps, testName: test.name };
+      const test = (
+        await tx
+          .select()
+          .from(labTests)
+          .where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, order.testId)))
+          .limit(1)
+      )[0];
+      if (test)
+        charge = { pricePaise: test.pricePaise, taxRateBps: test.taxRateBps, testName: test.name };
     }
     return { order: { id: order.id, visitId: order.visitId, patientId: order.patientId }, charge };
   });
 
   if (ctx.charge) await billLabOrder(tenantId, ctx.order, ctx.charge, actorUserId);
 
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.collect', resourceType: 'lab_order', resourceId: labOrderId, metadata: {} });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'lab.collect',
+    resourceType: 'lab_order',
+    resourceId: labOrderId,
+    metadata: {},
+  });
   return getLabOrder(tenantId, labOrderId);
 }
 
-function computeFlag(value: string, refLow: string | null, refHigh: string | null, passed?: string): string {
+function computeFlag(
+  value: string,
+  refLow: string | null,
+  refHigh: string | null,
+  passed?: string,
+): string {
   const v = Number(value);
   const lo = refLow !== null && refLow !== '' ? Number(refLow) : NaN;
   const hi = refHigh !== null && refHigh !== '' ? Number(refHigh) : NaN;
@@ -246,17 +318,29 @@ export interface EnterResultInput {
   fileId?: string | null;
 }
 
-export async function enterResult(tenantId: string, labOrderId: string, input: EnterResultInput, actorUserId?: string) {
+export async function enterResult(
+  tenantId: string,
+  labOrderId: string,
+  input: EnterResultInput,
+  actorUserId?: string,
+) {
   const ctx = await runWithTenant(tenantId, async (tx) => {
     const order = (
-      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+      await tx
+        .select()
+        .from(labOrders)
+        .where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!order) throw Errors.notFound('Lab order not found');
     // Transition rule: results are entered on a collected sample, or re-entered to correct an
     // already-resulted/verified order (ADR-060 correction path — a corrected value drops back
     // to `resulted` and needs re-verification). Never on ordered/cancelled.
-    if (order.status === 'ordered') throw Errors.conflict('Collect the sample before entering a result');
-    if (order.status === 'cancelled') throw Errors.conflict('Cannot enter a result on a cancelled order');
+    if (order.status === 'ordered')
+      throw Errors.conflict('Collect the sample before entering a result');
+    if (order.status === 'cancelled')
+      throw Errors.conflict('Cannot enter a result on a cancelled order');
     const wasResulted = order.status === 'resulted' || order.status === 'verified';
 
     let pricePaise = 0;
@@ -269,7 +353,13 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     // test the doctor ordered from the catalogue.
     const effectiveTestId = input.testId ?? order.testId ?? null;
     if (effectiveTestId) {
-      const test = (await tx.select().from(labTests).where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, effectiveTestId))).limit(1))[0];
+      const test = (
+        await tx
+          .select()
+          .from(labTests)
+          .where(and(eq(labTests.tenantId, tenantId), eq(labTests.id, effectiveTestId)))
+          .limit(1)
+      )[0];
       if (!test) throw Errors.notFound('Lab test not found');
       pricePaise = test.pricePaise;
       taxRateBps = test.taxRateBps;
@@ -280,7 +370,9 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     }
     const flag = computeFlag(input.value, refLow, refHigh, input.flag ?? undefined);
 
-    await tx.delete(labResults).where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)));
+    await tx
+      .delete(labResults)
+      .where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)));
     await tx.insert(labResults).values({
       tenantId,
       labOrderId,
@@ -298,7 +390,15 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
     });
     await tx.update(labOrders).set({ status: 'resulted' }).where(eq(labOrders.id, labOrderId));
 
-    return { wasResulted, visitId: order.visitId, patientId: order.patientId, pricePaise, taxRateBps, testName, flag };
+    return {
+      wasResulted,
+      visitId: order.visitId,
+      patientId: order.patientId,
+      pricePaise,
+      taxRateBps,
+      testName,
+      flag,
+    };
   });
 
   // Bill once if not already billed at collection (free-text orders get priced here, when the
@@ -313,7 +413,14 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
   if (!ctx.wasResulted) {
     eventBus.publish('lab.result_ready', { tenantId, labOrderId, patientId: ctx.patientId });
   }
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.result', resourceType: 'lab_order', resourceId: labOrderId, metadata: { flag: ctx.flag } });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'lab.result',
+    resourceType: 'lab_order',
+    resourceId: labOrderId,
+    metadata: { flag: ctx.flag },
+  });
   return getLabOrder(tenantId, labOrderId);
 }
 
@@ -325,26 +432,48 @@ export async function enterResult(tenantId: string, labOrderId: string, input: E
 export async function verifyResult(tenantId: string, labOrderId: string, actorUserId?: string) {
   const patientId = await runWithTenant(tenantId, async (tx) => {
     const order = (
-      await tx.select().from(labOrders).where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId))).limit(1).for('update')
+      await tx
+        .select()
+        .from(labOrders)
+        .where(and(eq(labOrders.tenantId, tenantId), eq(labOrders.id, labOrderId)))
+        .limit(1)
+        .for('update')
     )[0];
     if (!order) throw Errors.notFound('Lab order not found');
     if (order.status !== 'resulted') throw Errors.conflict(`Cannot verify a ${order.status} order`);
+    // The verifier's signature AS IT IS NOW, pinned onto the result (ADR-137). A report says who
+    // stands behind it, and that must not change when they upload a new signature next year.
+    const signature = actorUserId ? await getActiveSignature(tenantId, actorUserId) : null;
     await tx.update(labOrders).set({ status: 'verified' }).where(eq(labOrders.id, labOrderId));
     await tx
       .update(labResults)
-      .set({ verifiedBy: actorUserId ?? null, verifiedAt: new Date() })
+      .set({
+        verifiedBy: actorUserId ?? null,
+        verifiedAt: new Date(),
+        signatureId: signature?.id ?? null,
+      })
       .where(and(eq(labResults.tenantId, tenantId), eq(labResults.labOrderId, labOrderId)));
     return order.patientId;
   });
   // Verification is what releases the report to the patient portal (ADR-070) — the point at which
   // the patient may be told it's ready. Published once, here (not on raw result entry).
   eventBus.publish('lab.result_verified', { tenantId, labOrderId, patientId });
-  await writeAudit({ tenantId, actorUserId: actorUserId ?? null, action: 'lab.verify', resourceType: 'lab_order', resourceId: labOrderId, metadata: {} });
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'lab.verify',
+    resourceType: 'lab_order',
+    resourceId: labOrderId,
+    metadata: {},
+  });
   return getLabOrder(tenantId, labOrderId);
 }
 
 /** Short-lived download URL for the attached report (staff side). */
-export async function getReportAttachmentUrl(tenantId: string, labOrderId: string): Promise<string | null> {
+export async function getReportAttachmentUrl(
+  tenantId: string,
+  labOrderId: string,
+): Promise<string | null> {
   const row = (
     await runWithTenant(tenantId, (tx) =>
       tx

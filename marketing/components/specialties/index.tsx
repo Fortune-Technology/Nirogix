@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
-import { Container, SectionHeading } from "../ui/primitives";
-import { Reveal } from "../ui/Reveal";
-import type { Specialty } from "../../lib/specialties";
+import Link from 'next/link';
+import { ArrowRight, Check } from 'lucide-react';
+import { Container, SectionHeading } from '../ui/primitives';
+import { Reveal } from '../ui/Reveal';
+import type { Specialty } from '../../lib/specialties';
 
 /**
  * The reusable specialization system (ADR-034): one set of components, many
@@ -30,7 +30,7 @@ export function SpecializationCard({ specialty }: { specialty: Specialty }) {
   );
 
   const className =
-    "group flex h-full flex-col rounded-xl border border-hairline bg-surface p-5 transition-colors hover:border-accent-border";
+    'group flex h-full flex-col rounded-xl border border-hairline bg-surface p-5 transition-colors hover:border-accent-border';
 
   return specialty.featured ? (
     <Link href={`/specialties/${specialty.slug}`} className={className}>
@@ -76,7 +76,7 @@ export function SpecializationWorkflow({ steps }: { steps: string[] }) {
     <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {steps.map((step, i) => (
         <li key={step} className="rounded-xl border border-hairline bg-surface p-5">
-          <span className="font-mono text-xs text-accent">{String(i + 1).padStart(2, "0")}</span>
+          <span className="font-mono text-xs text-accent">{String(i + 1).padStart(2, '0')}</span>
           <p className="mt-2 text-[0.975rem] leading-relaxed text-ink">{step}</p>
         </li>
       ))}

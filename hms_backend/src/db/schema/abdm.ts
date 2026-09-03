@@ -65,7 +65,9 @@ export const abdmFacilityConfig = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    tenantBranchUnique: unique('abdm_facility_config_tenant_branch_unique').on(t.tenantId, t.branchId).nullsNotDistinct(),
+    tenantBranchUnique: unique('abdm_facility_config_tenant_branch_unique')
+      .on(t.tenantId, t.branchId)
+      .nullsNotDistinct(),
   }),
 );
 

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Check, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Check, X } from 'lucide-react';
 import {
   actionsColumn,
   Alert,
@@ -22,20 +22,20 @@ import {
   type Column,
   valueLabel,
   ValueOrEmpty,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
 import type {
   ApproveBookingRequest,
   BookingRequestItem,
   DuplicatePatientCandidate,
   FreeSlots,
   Provider,
-} from "@hms/types";
-import { formatDate, formatDateTime, formatTime, todayApiDate } from "@hms/utils";
-import * as api from "../../../../lib/api";
-import { RequirePermission } from "../../../../components/Can";
-import { PageHeader } from "../../../../components/PageHeader";
-import { useCan } from "../../../../lib/auth";
+} from '@hms/types';
+import { formatDate, formatDateTime, formatTime, todayApiDate } from '@hms/utils';
+import * as api from '../../../../lib/api';
+import { RequirePermission } from '../../../../components/Can';
+import { PageHeader } from '../../../../components/PageHeader';
+import { useCan } from '../../../../lib/auth';
 
 /**
  * The online-booking review queue (ADR-069).
@@ -52,11 +52,11 @@ import { useCan } from "../../../../lib/auth";
  * booking by hand — and the server re-checks regardless.
  */
 
-const STATUSES = ["pending", "approved", "rejected"] as const;
+const STATUSES = ['pending', 'approved', 'rejected'] as const;
 type Status = (typeof STATUSES)[number];
 
 function name(r: BookingRequestItem): string {
-  return [r.firstName, r.lastName].filter(Boolean).join(" ");
+  return [r.firstName, r.lastName].filter(Boolean).join(' ');
 }
 
 /** The visitor's wish, shown per ADR-046 — the time is anchored to an arbitrary day
@@ -65,14 +65,14 @@ function preferredWhen(r: BookingRequestItem): string {
   const date = r.preferredDate ? formatDate(r.preferredDate) : null;
   const time = r.preferredTime ? formatTime(`2000-01-01T${r.preferredTime}:00`) : null;
   if (date && time) return `${date}, ${time}`;
-  return date ?? time ?? emptyLabel("unspecified");
+  return date ?? time ?? emptyLabel('unspecified');
 }
 
-function statusTone(s: string): "warning" | "success" | "danger" | "neutral" {
-  if (s === "pending") return "warning";
-  if (s === "approved") return "success";
-  if (s === "rejected") return "danger";
-  return "neutral";
+function statusTone(s: string): 'warning' | 'success' | 'danger' | 'neutral' {
+  if (s === 'pending') return 'warning';
+  if (s === 'approved') return 'success';
+  if (s === 'rejected') return 'danger';
+  return 'neutral';
 }
 
 function columns(
@@ -83,56 +83,56 @@ function columns(
 ): Array<Column<BookingRequestItem>> {
   return [
     {
-      key: "name",
-      header: "Name",
+      key: 'name',
+      header: 'Name',
       sortable: true,
       hideable: false,
       accessor: name,
       cell: (r) => <span className="font-medium text-fg">{name(r)}</span>,
     },
-    { key: "phone", header: "Phone", accessor: (r) => r.phone, cell: (r) => r.phone },
+    { key: 'phone', header: 'Phone', accessor: (r) => r.phone, cell: (r) => r.phone },
     {
-      key: "preferred",
-      header: "Preferred",
-      accessor: (r) => `${r.preferredDate ?? ""} ${r.preferredTime ?? ""}`.trim(),
+      key: 'preferred',
+      header: 'Preferred',
+      accessor: (r) => `${r.preferredDate ?? ''} ${r.preferredTime ?? ''}`.trim(),
       cell: (r) => preferredWhen(r),
     },
     {
-      key: "department",
-      header: "Department wish",
+      key: 'department',
+      header: 'Department wish',
       filterable: true,
       // The public form lets a patient ask for "any doctor, any department" — a blank here is
       // the patient's answer, not a gap in the data.
-      accessor: (r) => valueLabel(r.departmentName, "unspecified"),
+      accessor: (r) => valueLabel(r.departmentName, 'unspecified'),
       cell: (r) => <ValueOrEmpty value={r.departmentName} reason="unspecified" />,
     },
     {
-      key: "doctor",
-      header: "Doctor wish",
+      key: 'doctor',
+      header: 'Doctor wish',
       filterable: true,
-      accessor: (r) => valueLabel(r.providerName, "unspecified"),
+      accessor: (r) => valueLabel(r.providerName, 'unspecified'),
       cell: (r) => <ValueOrEmpty value={r.providerName} reason="unspecified" />,
     },
     {
-      key: "note",
-      header: "Note",
+      key: 'note',
+      header: 'Note',
       // A free-text note the visitor wrote; it can run long, so it is off by default
       // to keep the review queue scannable — the reviewer restores it from the Columns
       // menu (ADR-063: a hidden-by-default column must state why).
       defaultHidden: true,
-      accessor: (r) => r.note ?? "",
+      accessor: (r) => r.note ?? '',
       cell: (r) => <ValueOrEmpty value={r.note} reason="none" className="text-fg-muted" />,
     },
     {
-      key: "createdAt",
-      header: "Received",
+      key: 'createdAt',
+      header: 'Received',
       sortable: true,
       accessor: (r) => r.createdAt,
       cell: (r) => formatDateTime(r.createdAt),
     },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       accessor: (r) => r.status,
       cell: (r) => <Badge tone={statusTone(r.status)}>{r.status}</Badge>,
     },
@@ -141,7 +141,7 @@ function columns(
         <TableAction
           label="Approve & book"
           icon={<Check size={16} strokeWidth={2} aria-hidden />}
-          permitted={canReview && r.status === "pending"}
+          permitted={canReview && r.status === 'pending'}
           loading={busyId === r.id}
           onSelect={() => onApprove(r)}
         />
@@ -149,7 +149,7 @@ function columns(
           label="Reject"
           icon={<X size={16} strokeWidth={2} aria-hidden />}
           tone="danger"
-          permitted={canReview && r.status === "pending"}
+          permitted={canReview && r.status === 'pending'}
           loading={busyId === r.id}
           onSelect={() => onReject(r)}
         />
@@ -160,7 +160,7 @@ function columns(
 
 function RequestsQueue() {
   const canReview = useCan(PERMISSIONS.APPOINTMENT_CREATE);
-  const [status, setStatus] = useState<Status>("pending");
+  const [status, setStatus] = useState<Status>('pending');
   const [rows, setRows] = useState<BookingRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +173,7 @@ function RequestsQueue() {
       setRows(await api.listBookingRequests(status));
       setError(null);
     } catch {
-      setError("Could not load booking requests.");
+      setError('Could not load booking requests.');
     } finally {
       setLoading(false);
     }
@@ -196,25 +196,25 @@ function RequestsQueue() {
   // ---- Approve: pick the real doctor and the real slot -----------------------
 
   const [approveFor, setApproveFor] = useState<BookingRequestItem | null>(null);
-  const [providerId, setProviderId] = useState("");
-  const [date, setDate] = useState("");
+  const [providerId, setProviderId] = useState('');
+  const [date, setDate] = useState('');
   const [slots, setSlots] = useState<FreeSlots | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotIso, setSlotIso] = useState("");
+  const [slotIso, setSlotIso] = useState('');
   const [time, setTime] = useState<string | null>(null);
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   function openApprove(r: BookingRequestItem) {
     setApproveFor(r);
     // Start from the visitor's wish where it is still usable — the desk can change both.
-    setProviderId(r.providerId && providers.some((p) => p.id === r.providerId) ? r.providerId : "");
-    setDate(r.preferredDate && r.preferredDate >= todayApiDate() ? r.preferredDate : "");
+    setProviderId(r.providerId && providers.some((p) => p.id === r.providerId) ? r.providerId : '');
+    setDate(r.preferredDate && r.preferredDate >= todayApiDate() ? r.preferredDate : '');
     setSlots(null);
-    setSlotIso("");
+    setSlotIso('');
     setTime(r.preferredTime ?? null);
-    setDuration("");
+    setDuration('');
     setFormError(null);
   }
 
@@ -227,12 +227,12 @@ function RequestsQueue() {
   useEffect(() => {
     if (!approveFor || !providerId || !date) {
       setSlots(null);
-      setSlotIso("");
+      setSlotIso('');
       return;
     }
     let alive = true;
     setSlotsLoading(true);
-    setSlotIso("");
+    setSlotIso('');
     api
       .listProviderSlots(providerId, date)
       .then((s) => {
@@ -273,7 +273,7 @@ function RequestsQueue() {
       await load();
     } catch (err) {
       // A DUPLICATE_PATIENT 409 on approval: the person very likely already has a chart.
-      if (err instanceof api.ApiRequestError && err.code === "DUPLICATE_PATIENT") {
+      if (err instanceof api.ApiRequestError && err.code === 'DUPLICATE_PATIENT') {
         const details = err.details as { candidates?: DuplicatePatientCandidate[] } | undefined;
         setApproveFor(null);
         setDup({ request: r, payload, candidates: details?.candidates ?? [] });
@@ -289,20 +289,20 @@ function RequestsQueue() {
     if (!approveFor) return;
     setFormError(null);
     if (!providerId) {
-      setFormError("Select a doctor.");
+      setFormError('Select a doctor.');
       return;
     }
     if (!date) {
-      setFormError("Pick a date.");
+      setFormError('Pick a date.');
       return;
     }
     if (!scheduledAt) {
-      setFormError(slots?.hasRoster ? "Pick a free slot." : "Enter a time.");
+      setFormError(slots?.hasRoster ? 'Pick a free slot.' : 'Enter a time.');
       return;
     }
-    const dur = duration.trim() === "" ? undefined : Number(duration);
+    const dur = duration.trim() === '' ? undefined : Number(duration);
     if (dur !== undefined && (!Number.isInteger(dur) || dur < 5 || dur > 240)) {
-      setFormError("Duration must be a whole number of minutes between 5 and 240.");
+      setFormError('Duration must be a whole number of minutes between 5 and 240.');
       return;
     }
     void send(approveFor, { scheduledAt, providerId, durationMinutes: dur });
@@ -311,11 +311,11 @@ function RequestsQueue() {
   // ---- Reject: keep the request, marked, with the reason ---------------------
 
   const [rejectFor, setRejectFor] = useState<BookingRequestItem | null>(null);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
 
   function openReject(r: BookingRequestItem) {
     setRejectFor(r);
-    setReason("");
+    setReason('');
   }
 
   async function submitReject() {
@@ -325,7 +325,7 @@ function RequestsQueue() {
     try {
       await api.rejectBookingRequest(rejectFor.id, reason.trim() || undefined);
       setRejectFor(null);
-      setReason("");
+      setReason('');
       await load();
     } catch {
       /* reported by the shared API-feedback layer */
@@ -339,7 +339,7 @@ function RequestsQueue() {
     <>
       <PageHeader
         title="Booking requests"
-        description={loading ? "Loading…" : `${rows.length} ${status}`}
+        description={loading ? 'Loading…' : `${rows.length} ${status}`}
       />
       <Select
         label="Status"
@@ -352,11 +352,11 @@ function RequestsQueue() {
       />
 
       <Alert>
-        These people scanned your hospital&apos;s booking QR code or link and asked for an appointment. They are{" "}
-        <strong className="font-medium">not booked yet</strong>.{" "}
+        These people scanned your hospital&apos;s booking QR code or link and asked for an
+        appointment. They are <strong className="font-medium">not booked yet</strong>.{' '}
         {canReview
-          ? "Check the details, then approve with the real doctor and slot, or reject with a reason."
-          : "Your front desk reviews each one and books the actual appointment."}
+          ? 'Check the details, then approve with the real doctor and slot, or reject with a reason.'
+          : 'Your front desk reviews each one and books the actual appointment.'}
       </Alert>
 
       <DataTable
@@ -367,7 +367,7 @@ function RequestsQueue() {
         error={error}
         onRetry={() => void load()}
         searchPlaceholder="Search by name or phone…"
-        emptyMessage={status === "pending" ? "Nothing waiting" : `No ${status} requests`}
+        emptyMessage={status === 'pending' ? 'Nothing waiting' : `No ${status} requests`}
         emptyDescription="Requests appear here when someone scans your hospital's booking QR code and asks for an appointment."
         urlState
       />
@@ -377,7 +377,7 @@ function RequestsQueue() {
       <Dialog
         open={approveFor !== null}
         onClose={closeApprove}
-        title={approveFor ? `Book ${name(approveFor)}'s appointment` : "Book appointment"}
+        title={approveFor ? `Book ${name(approveFor)}'s appointment` : 'Book appointment'}
         description="Approving registers or links the patient and books a real appointment. The same roster and double-booking rules as booking by hand."
         size="md"
         busy={busy}
@@ -396,11 +396,14 @@ function RequestsQueue() {
           {formError && <Alert tone="danger">{formError}</Alert>}
 
           {approveFor &&
-          (approveFor.preferredDate || approveFor.preferredTime || approveFor.departmentName || approveFor.providerName) ? (
+          (approveFor.preferredDate ||
+            approveFor.preferredTime ||
+            approveFor.departmentName ||
+            approveFor.providerName) ? (
             <p className="text-xs text-fg-muted">
               They asked for {preferredWhen(approveFor)}
-              {approveFor.departmentName ? ` · ${approveFor.departmentName}` : ""}
-              {approveFor.providerName ? ` · ${approveFor.providerName}` : ""}.
+              {approveFor.departmentName ? ` · ${approveFor.departmentName}` : ''}
+              {approveFor.providerName ? ` · ${approveFor.providerName}` : ''}.
             </p>
           ) : null}
 
@@ -411,15 +414,24 @@ function RequestsQueue() {
             options={providers.map((p) => ({
               value: p.id,
               label: p.fullName,
-              description: p.specialties.length > 0 ? p.specialties.join(", ") : (p.qualification ?? undefined),
-              keywords: p.specialties.join(" "),
+              description:
+                p.specialties.length > 0
+                  ? p.specialties.join(', ')
+                  : (p.qualification ?? undefined),
+              keywords: p.specialties.join(' '),
             }))}
             placeholder="Select a doctor…"
             required
             emptyMessage="No doctors found."
           />
 
-          <DateField label="Date" value={date || null} min={todayApiDate()} onChange={(v) => setDate(v ?? "")} required />
+          <DateField
+            label="Date"
+            value={date || null}
+            min={todayApiDate()}
+            onChange={(v) => setDate(v ?? '')}
+            required
+          />
 
           {providerId && date ? (
             slotsLoading ? (
@@ -436,11 +448,11 @@ function RequestsQueue() {
                         aria-pressed={slotIso === s.startsAt}
                         onClick={() => setSlotIso(s.startsAt)}
                         className={[
-                          "rounded-token border px-3 py-1.5 text-sm transition-colors",
+                          'rounded-token border px-3 py-1.5 text-sm transition-colors',
                           slotIso === s.startsAt
-                            ? "border-brand bg-brand-subtle font-medium text-brand"
-                            : "border-border bg-surface text-fg hover:border-brand",
-                        ].join(" ")}
+                            ? 'border-brand bg-brand-subtle font-medium text-brand'
+                            : 'border-border bg-surface text-fg hover:border-brand',
+                        ].join(' ')}
                       >
                         {s.label}
                       </button>
@@ -506,10 +518,13 @@ function RequestsQueue() {
           {(dup?.candidates ?? []).map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <span className="font-medium text-fg">{[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>
+                <span className="font-medium text-fg">
+                  {[c.firstName, c.lastName].filter(Boolean).join(' ')}
+                </span>
                 <span className="ml-2 font-mono text-xs text-fg-muted">{c.uhid}</span>
                 <p className="text-xs text-fg-muted">
-                  {c.phone ?? "no phone"} · {c.dateOfBirth ? formatDate(c.dateOfBirth) : "DOB unknown"}
+                  {c.phone ?? 'no phone'} ·{' '}
+                  {c.dateOfBirth ? formatDate(c.dateOfBirth) : 'DOB unknown'}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -540,17 +555,27 @@ function RequestsQueue() {
         onClose={() => {
           if (!busy) setRejectFor(null);
         }}
-        title={rejectFor ? `Reject ${name(rejectFor)}'s request?` : "Reject request"}
+        title={rejectFor ? `Reject ${name(rejectFor)}'s request?` : 'Reject request'}
         description="No appointment is booked and no patient record is created. The request is kept, marked rejected."
         size="sm"
         tone="danger"
         busy={busy}
         footer={
           <div className="flex flex-wrap justify-end gap-3">
-            <Button variant="ghost" type="button" onClick={() => setRejectFor(null)} disabled={busy}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setRejectFor(null)}
+              disabled={busy}
+            >
               Cancel
             </Button>
-            <Button variant="danger" type="button" onClick={() => void submitReject()} loading={busy}>
+            <Button
+              variant="danger"
+              type="button"
+              onClick={() => void submitReject()}
+              loading={busy}
+            >
               Reject
             </Button>
           </div>

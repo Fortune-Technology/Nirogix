@@ -19,9 +19,9 @@ import type {
   MeResponse,
   MyEntitlementsResponse,
   MyPermissionsResponse,
-} from "@hms/types";
-import { ApiRequestError, NetworkError, TimeoutError } from "./errors";
-import { notifyError, notifySuccess, successMessage } from "./feedback";
+} from '@hms/types';
+import { ApiRequestError, NetworkError, TimeoutError } from './errors';
+import { notifyError, notifySuccess, successMessage } from './feedback';
 
 /** Requests that outlive this are aborted and reported as a timeout, never left hanging. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -75,8 +75,8 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
   let onSessionExpired: (() => void) | null = null;
 
   async function parseError(res: Response): Promise<ApiRequestError> {
-    let code = "ERROR";
-    let message = res.statusText || "Request failed";
+    let code = 'ERROR';
+    let message = res.statusText || 'Request failed';
     let details: unknown;
     try {
       const body = (await res.json()) as ApiError;
@@ -99,7 +99,7 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
       return await fetch(`${baseUrl}${path}`, { ...init, signal: controller.signal });
     } catch (err) {
       if (controller.signal.aborted) throw new TimeoutError();
-      throw new NetworkError("Network request failed", err);
+      throw new NetworkError('Network request failed', err);
     } finally {
       clearTimeout(timer);
     }
@@ -118,7 +118,10 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
     if (inFlightRefresh) return inFlightRefresh;
     inFlightRefresh = (async () => {
       try {
-        const res = await fetch(`${baseUrl}/auth/refresh`, { method: "POST", credentials: "include" });
+        const res = await fetch(`${baseUrl}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
         if (!res.ok) {
           accessToken = null;
           return false;
@@ -137,19 +140,19 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
   }
 
   async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-    const { method = "GET", body, _retry = false, refreshOn401 = true, feedback } = opts;
-    const mutating = method !== "GET" && method !== "HEAD";
+    const { method = 'GET', body, _retry = false, refreshOn401 = true, feedback } = opts;
+    const mutating = method !== 'GET' && method !== 'HEAD';
 
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers["Content-Type"] = "application/json";
-    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
     let res: Response;
     try {
       res = await send(path, {
         method,
         headers,
-        credentials: "include",
+        credentials: 'include',
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
     } catch (err) {
@@ -196,16 +199,21 @@ export function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
     // Sign-in renders its failure inline and navigates on success, so it opts out of
     // the toast — the screen itself is the feedback.
     login: (payload) =>
-      request<LoginResponse>("/auth/login", { method: "POST", body: payload, refreshOn401: false, feedback: false }),
+      request<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: payload,
+        refreshOn401: false,
+        feedback: false,
+      }),
     logout: async () => {
       try {
-        await request<void>("/auth/logout", { method: "POST", feedback: false });
+        await request<void>('/auth/logout', { method: 'POST', feedback: false });
       } finally {
         accessToken = null;
       }
     },
-    me: () => request<MeResponse>("/auth/me"),
-    myPermissions: () => request<MyPermissionsResponse>("/rbac/permissions"),
-    myEntitlements: () => request<MyEntitlementsResponse>("/entitlements"),
+    me: () => request<MeResponse>('/auth/me'),
+    myPermissions: () => request<MyPermissionsResponse>('/rbac/permissions'),
+    myEntitlements: () => request<MyEntitlementsResponse>('/entitlements'),
   };
 }

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   emptyLabel,
   PrintDocument,
@@ -12,13 +12,13 @@ import {
   PrintTable,
   PrintToolbar,
   Spinner,
-} from "@hms/ui";
-import { PERMISSIONS } from "@hms/permissions";
-import type { LabOrder } from "@hms/types";
-import { formatDateTime } from "@hms/utils";
-import * as api from "../../../../../lib/api";
-import { RequirePermission } from "../../../../../components/Can";
-import { useDocumentBrand } from "../../../../../components/print/useDocumentBrand";
+} from '@hms/ui';
+import { PERMISSIONS } from '@hms/permissions';
+import type { LabOrder } from '@hms/types';
+import { formatDateTime } from '@hms/utils';
+import * as api from '../../../../../lib/api';
+import { RequirePermission } from '../../../../../components/Can';
+import { useDocumentBrand } from '../../../../../components/print/useDocumentBrand';
 
 /**
  * The laboratory report (ADR-047). A different document type with a different
@@ -36,7 +36,9 @@ function LabReportDocument({ id }: { id: string }) {
     api
       .getLabOrder(id)
       .then(setOrder)
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not load the lab order."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not load the lab order.'),
+      );
   }, [id]);
 
   if (error) return <p className="mx-auto max-w-2xl text-center text-sm text-danger">{error}</p>;
@@ -51,8 +53,8 @@ function LabReportDocument({ id }: { id: string }) {
   const result = order.result;
   const range =
     result && (result.refLow || result.refHigh)
-      ? `${result.refLow ?? ""} – ${result.refHigh ?? ""}`
-      : emptyLabel("notApplicable");
+      ? `${result.refLow ?? ''} – ${result.refHigh ?? ''}`
+      : emptyLabel('notApplicable');
 
   return (
     <>
@@ -72,10 +74,10 @@ function LabReportDocument({ id }: { id: string }) {
         meta={
           <PrintFields
             fields={[
-              { label: "Patient", value: order.patientName },
-              { label: "UHID", value: order.patientUhid },
-              { label: "Test", value: order.testName },
-              { label: "Priority", value: order.priority },
+              { label: 'Patient', value: order.patientName },
+              { label: 'UHID', value: order.patientUhid },
+              { label: 'Test', value: order.testName },
+              { label: 'Priority', value: order.priority },
             ]}
           />
         }
@@ -85,16 +87,20 @@ function LabReportDocument({ id }: { id: string }) {
           {result ? (
             <PrintTable
               columns={[
-                { key: "test", header: "Investigation", cell: (r: typeof result) => order.testName },
-                { key: "value", header: "Result", cell: (r) => r.value },
-                { key: "unit", header: "Unit", cell: (r) => r.unit ?? emptyLabel("notApplicable") },
-                { key: "range", header: "Reference range", cell: () => range },
                 {
-                  key: "flag",
-                  header: "Flag",
+                  key: 'test',
+                  header: 'Investigation',
+                  cell: (r: typeof result) => order.testName,
+                },
+                { key: 'value', header: 'Result', cell: (r) => r.value },
+                { key: 'unit', header: 'Unit', cell: (r) => r.unit ?? emptyLabel('notApplicable') },
+                { key: 'range', header: 'Reference range', cell: () => range },
+                {
+                  key: 'flag',
+                  header: 'Flag',
                   cell: (r) => (
-                    <span style={{ fontWeight: r.flag === "normal" ? 400 : 700 }}>
-                      {r.flag === "normal" ? "Normal" : r.flag.toUpperCase()}
+                    <span style={{ fontWeight: r.flag === 'normal' ? 400 : 700 }}>
+                      {r.flag === 'normal' ? 'Normal' : r.flag.toUpperCase()}
                     </span>
                   ),
                 },
@@ -104,8 +110,8 @@ function LabReportDocument({ id }: { id: string }) {
             />
           ) : (
             <p className="hms-doc__empty">
-              No result has been entered yet. This order is {order.status}. A report is issued once the
-              result is recorded.
+              No result has been entered yet. This order is {order.status}. A report is issued once
+              the result is recorded.
             </p>
           )}
         </PrintSection>
@@ -114,11 +120,12 @@ function LabReportDocument({ id }: { id: string }) {
         {order.notes ? <PrintNote title="Clinical notes">{order.notes}</PrintNote> : null}
 
         <PrintNote title="Interpretation">
-          Reference ranges are those configured for this laboratory&apos;s test master and may differ between
-          laboratories. Results should be interpreted by the treating clinician alongside the clinical picture.
+          Reference ranges are those configured for this laboratory&apos;s test master and may
+          differ between laboratories. Results should be interpreted by the treating clinician
+          alongside the clinical picture.
         </PrintNote>
 
-        <PrintSignatures signatures={[{ label: "Performed by" }, { label: "Verified by" }]} />
+        <PrintSignatures signatures={[{ label: 'Performed by' }, { label: 'Verified by' }]} />
       </PrintDocument>
     </>
   );

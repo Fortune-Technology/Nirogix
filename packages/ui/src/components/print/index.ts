@@ -13,5 +13,5 @@ export {
   PrintSignatures,
   PrintNote,
 } from './PrintDocument';
-export type { PrintDocumentProps, DocumentBrand } from './PrintDocument';
+export type { PrintDocumentProps, DocumentBrand, PrintSignatureLine } from './PrintDocument';
 export { PrintToolbar } from './PrintToolbar';

@@ -26,7 +26,11 @@ import { MODULE_CATALOG, moduleDef } from '../entitlement/moduleCatalog';
 import { setCapabilityStatus } from '../entitlement/capability.service';
 import { capabilityDef } from '@hms/permissions';
 import { writeAudit } from '../audit/audit.service';
-import { issueImpersonatedSession, toPublicUserRow, issuePasswordSetupLink } from '../auth/auth.service';
+import {
+  issueImpersonatedSession,
+  toPublicUserRow,
+  issuePasswordSetupLink,
+} from '../auth/auth.service';
 import type { PublicUser } from '../auth/auth.schema';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
@@ -34,7 +38,15 @@ import { sendAppEmail } from '../notification/communication.service';
 
 // The MVP module set a new clinic gets by default (development-plan §20A). Order-independent;
 // dependency closure + hard-dependency ordering are handled below.
-const DEFAULT_MODULES = ['patient', 'appointment', 'opd', 'emr', 'pharmacy', 'laboratory', 'billing'];
+const DEFAULT_MODULES = [
+  'patient',
+  'appointment',
+  'opd',
+  'emr',
+  'pharmacy',
+  'laboratory',
+  'billing',
+];
 
 // Expand a requested module set to include every hard dependency (transitive), then order by the
 // catalog so grants never hit a missing-dependency error (you can't have `appointment` without
@@ -72,13 +84,20 @@ export type OnboardResult = {
 // create the first org_admin (temp password) → create initial branches. Cross-tenant: the tenant
 // row is created on the platform-level (no-RLS) `tenants` table; everything else runs in the NEW
 // tenant's context via runWithTenant, so RLS is satisfied and the data is isolated from birth.
-export async function onboardTenant(input: OnboardInput, actorUserId?: string): Promise<OnboardResult> {
-  const existing = (await db.select().from(tenants).where(eq(tenants.code, input.code)).limit(1))[0];
+export async function onboardTenant(
+  input: OnboardInput,
+  actorUserId?: string,
+): Promise<OnboardResult> {
+  const existing = (
+    await db.select().from(tenants).where(eq(tenants.code, input.code)).limit(1)
+  )[0];
   if (existing) throw Errors.conflict(`A tenant with code "${input.code}" already exists`);
 
   const moduleOrder = resolveModuleOrder(input.modules ?? DEFAULT_MODULES);
 
-  const tenant = (await db.insert(tenants).values({ code: input.code, name: input.name }).returning())[0]!;
+  const tenant = (
+    await db.insert(tenants).values({ code: input.code, name: input.name }).returning()
+  )[0]!;
 
   await provisionTenantRbac(tenant.id);
 
@@ -178,13 +197,8 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
 
   const modules = Array.from(await listEntitledModules(tenantId)).sort();
   const { branchRows, userCount, userRows } = await runWithTenant(tenantId, async (tx) => {
-    const branchRows = await tx
-      .select()
-      .from(branches)
-      .where(eq(branches.tenantId, tenantId));
-    const c = (
-      await tx.select({ c: count() }).from(users).where(eq(users.tenantId, tenantId))
-    )[0];
+    const branchRows = await tx.select().from(branches).where(eq(branches.tenantId, tenantId));
+    const c = (await tx.select({ c: count() }).from(users).where(eq(users.tenantId, tenantId)))[0];
     // Identity only — never clinical data. The operator needs this to choose a
     // support-session target (ADR-037) and to see who administers the tenant.
     const userRows = await tx
@@ -196,13 +210,21 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   });
 
   const withRoles = await Promise.all(
-    userRows.map(async (u) => ({ ...u, roles: (await listUserRoles(tenantId, u.id)).map((r) => r.key) })),
+    userRows.map(async (u) => ({
+      ...u,
+      roles: (await listUserRoles(tenantId, u.id)).map((r) => r.key),
+    })),
   );
 
   return {
     ...tenant,
     modules,
-    branches: branchRows.map((b) => ({ id: b.id, code: b.code, name: b.name, isActive: b.isActive })),
+    branches: branchRows.map((b) => ({
+      id: b.id,
+      code: b.code,
+      name: b.name,
+      isActive: b.isActive,
+    })),
     userCount,
     users: withRoles,
   };
@@ -290,11 +312,17 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     await runWithTenant(t.id, async (tx) => {
       const u = (await tx.select({ c: count() }).from(users).where(eq(users.tenantId, t.id)))[0];
       userTotal += Number(u?.c ?? 0);
-      const p = (await tx.select({ c: count() }).from(providers).where(eq(providers.tenantId, t.id)))[0];
+      const p = (
+        await tx.select({ c: count() }).from(providers).where(eq(providers.tenantId, t.id))
+      )[0];
       doctorTotal += Number(p?.c ?? 0);
-      const pt = (await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, t.id)))[0];
+      const pt = (
+        await tx.select({ c: count() }).from(patients).where(eq(patients.tenantId, t.id))
+      )[0];
       patientTotal += Number(pt?.c ?? 0);
-      const ap = (await tx.select({ c: count() }).from(appointments).where(eq(appointments.tenantId, t.id)))[0];
+      const ap = (
+        await tx.select({ c: count() }).from(appointments).where(eq(appointments.tenantId, t.id))
+      )[0];
       appointmentTotal += Number(ap?.c ?? 0);
       const brs = await tx.select().from(branches).where(eq(branches.tenantId, t.id));
       branchTotal += brs.length;
@@ -409,8 +437,12 @@ export function toSeries(dates: Date[], window: string[]): TrendPoint[] {
   });
 }
 
-export async function getPlatformTrends(range: TrendsRange, now = new Date()): Promise<PlatformTrends> {
-  const window = typeof range === 'object' ? monthWindowBetween(range.from, range.to) : monthWindow(range, now);
+export async function getPlatformTrends(
+  range: TrendsRange,
+  now = new Date(),
+): Promise<PlatformTrends> {
+  const window =
+    typeof range === 'object' ? monthWindowBetween(range.from, range.to) : monthWindow(range, now);
   const all = await db.select().from(tenants);
   const hospitalRows = all.filter((t) => t.code !== PLATFORM_CODE);
 
@@ -420,7 +452,10 @@ export async function getPlatformTrends(range: TrendsRange, now = new Date()): P
 
   for (const t of all) {
     await runWithTenant(t.id, async (tx) => {
-      const u = await tx.select({ at: users.createdAt }).from(users).where(eq(users.tenantId, t.id));
+      const u = await tx
+        .select({ at: users.createdAt })
+        .from(users)
+        .where(eq(users.tenantId, t.id));
       for (const r of u) if (r.at) userDates.push(new Date(r.at));
       const p = await tx
         .select({ at: patients.createdAt })
@@ -451,7 +486,9 @@ export async function getPlatformTrends(range: TrendsRange, now = new Date()): P
 
 /** Audit events per day for the trailing `days`, split by severity. */
 async function auditSeverityByDay(days: number, now: Date): Promise<SeverityPoint[]> {
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)));
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)),
+  );
   const rows = await db
     .select({ at: auditLog.createdAt, severity: auditLog.severity })
     .from(auditLog)
@@ -477,7 +514,9 @@ async function auditSeverityByDay(days: number, now: Date): Promise<SeverityPoin
 
 // Guard: does this tenant exist? (base db, no RLS)
 export async function tenantExists(tenantId: string): Promise<boolean> {
-  const row = (await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.id, tenantId)).limit(1))[0];
+  const row = (
+    await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  )[0];
   return !!row;
 }
 
@@ -507,7 +546,12 @@ export async function startSupportSession(
   operator: { userId: string; tenantId: string },
   input: SupportSessionInput,
   meta: { userAgent?: string; ip?: string },
-): Promise<{ accessToken: string; refreshToken: string; user: PublicUser; tenant: { id: string; name: string } }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  user: PublicUser;
+  tenant: { id: string; name: string };
+}> {
   const tenant = await getTenantRow(input.tenantId);
   if (!tenant) throw Errors.notFound('Tenant not found');
   if (tenant.status !== 'active') throw Errors.validation(undefined, 'That tenant is not active');
@@ -521,8 +565,10 @@ export async function startSupportSession(
     return rows[0] ?? null;
   });
   if (!target) throw Errors.notFound('User not found in that tenant');
-  if (target.status !== 'active') throw Errors.validation(undefined, 'That user account is not active');
-  if (target.id === operator.userId) throw Errors.validation(undefined, 'You cannot impersonate yourself');
+  if (target.status !== 'active')
+    throw Errors.validation(undefined, 'That user account is not active');
+  if (target.id === operator.userId)
+    throw Errors.validation(undefined, 'You cannot impersonate yourself');
 
   // No escalation: a support session may never target another platform operator.
   const targetRoles = (await listUserRoles(input.tenantId, target.id)).map((r) => r.key);

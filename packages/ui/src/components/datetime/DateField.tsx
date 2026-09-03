@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Popover } from "@base-ui/react/popover";
-import { CalendarDays } from "lucide-react";
-import { formatDate, parseDate, toApiDate } from "@hms/utils";
-import { cn } from "../../cn";
-import { Calendar } from "./Calendar";
+import { useEffect, useId, useRef, useState } from 'react';
+import { Popover } from '@base-ui/react/popover';
+import { CalendarDays } from 'lucide-react';
+import { formatDate, parseDate, toApiDate } from '@hms/utils';
+import { cn } from '../../cn';
+import { Calendar } from './Calendar';
 
 export interface DateFieldProps {
   label?: string;
@@ -46,13 +46,13 @@ export function DateField({
   disabled,
   min,
   max,
-  placeholder = "DD/MM/YYYY",
+  placeholder = 'DD/MM/YYYY',
   className,
   name,
 }: DateFieldProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState(() => (value ? formatDate(value, "") : ""));
+  const [text, setText] = useState(() => (value ? formatDate(value, '') : ''));
   const lastValue = useRef(value);
 
   // Keep the text in step when the value changes from outside (a form reset, a
@@ -60,7 +60,7 @@ export function DateField({
   useEffect(() => {
     if (lastValue.current !== value) {
       lastValue.current = value;
-      setText(value ? formatDate(value, "") : "");
+      setText(value ? formatDate(value, '') : '');
     }
   }, [value]);
 
@@ -68,7 +68,7 @@ export function DateField({
 
   function commitText(raw: string) {
     const trimmed = raw.trim();
-    if (trimmed === "") {
+    if (trimmed === '') {
       lastValue.current = null;
       onChange(null);
       return;
@@ -78,16 +78,16 @@ export function DateField({
     if (iso && (!min || iso >= min) && (!max || iso <= max)) {
       lastValue.current = iso;
       onChange(iso);
-      setText(formatDate(iso, ""));
+      setText(formatDate(iso, ''));
     } else {
       // Unparseable or out of range: restore the last good value rather than
       // silently keeping a half-typed date the form would submit.
-      setText(value ? formatDate(value, "") : "");
+      setText(value ? formatDate(value, '') : '');
     }
   }
 
   return (
-    <label className={cn("hms-field", className)} htmlFor={id}>
+    <label className={cn('hms-field', className)} htmlFor={id}>
       {label ? (
         <span className="hms-label">
           {label}
@@ -95,7 +95,13 @@ export function DateField({
         </span>
       ) : null}
 
-      <div className={cn("hms-datefield", disabled && "hms-datefield--disabled", error && "hms-datefield--error")}>
+      <div
+        className={cn(
+          'hms-datefield',
+          disabled && 'hms-datefield--disabled',
+          error && 'hms-datefield--error',
+        )}
+      >
         <input
           id={id}
           name={name}
@@ -111,7 +117,7 @@ export function DateField({
           onChange={(e) => setText(e.target.value)}
           onBlur={(e) => commitText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               e.preventDefault();
               commitText(text);
             }
@@ -123,7 +129,7 @@ export function DateField({
             type="button"
             className="hms-datefield__trigger"
             disabled={disabled}
-            aria-label={label ? `Choose ${label.toLowerCase()}` : "Choose a date"}
+            aria-label={label ? `Choose ${label.toLowerCase()}` : 'Choose a date'}
           >
             <CalendarDays size={16} strokeWidth={1.75} aria-hidden />
           </Popover.Trigger>
@@ -146,7 +152,7 @@ export function DateField({
                     const iso = d ? toApiDate(d) : null;
                     lastValue.current = iso;
                     onChange(iso);
-                    setText(iso ? formatDate(iso, "") : "");
+                    setText(iso ? formatDate(iso, '') : '');
                     setOpen(false);
                   }}
                   autoFocus

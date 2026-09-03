@@ -21,7 +21,14 @@ function toEntry(r: NotificationLog) {
 }
 
 export async function sendTest(req: Request, res: Response): Promise<void> {
-  const { channel, to, subject, body, idempotencyKey, async: asyncDeliver } = req.body as {
+  const {
+    channel,
+    to,
+    subject,
+    body,
+    idempotencyKey,
+    async: asyncDeliver,
+  } = req.body as {
     channel: 'email' | 'sms';
     to: string;
     subject?: string;

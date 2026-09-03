@@ -54,12 +54,16 @@ test.describe('page structure', () => {
         .locator('meta[name="description"]')
         .first()
         .getAttribute('content');
-      expect(description?.trim().length ?? 0, `${route} has no meta description`).toBeGreaterThan(20);
+      expect(description?.trim().length ?? 0, `${route} has no meta description`).toBeGreaterThan(
+        20,
+      );
     });
   }
 
   test('a missing page returns a branded 404, not a stack trace', async ({ page }) => {
-    const response = await page.goto('/definitely-not-a-real-page', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/definitely-not-a-real-page', {
+      waitUntil: 'domcontentloaded',
+    });
     expect(response?.status()).toBe(404);
     await expect(page.locator('body')).not.toContainText(/at Object\.|node_modules|webpack/i);
   });

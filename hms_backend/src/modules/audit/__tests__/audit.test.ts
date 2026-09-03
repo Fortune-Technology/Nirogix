@@ -25,7 +25,10 @@ beforeAll(async () => {
     await pool.query('SELECT 1');
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['Audit Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'Audit Test',
+        CODE,
+      ])
     ).rows[0].id;
     ready = true;
   } catch (err) {
@@ -62,16 +65,26 @@ describe('audit log', () => {
     const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
 
     // Today's window includes the entry written above; a future-only or past-only window excludes it.
-    const todayWin = await listAudit(tenantId, { page: 1, pageSize: 10, from: toISO(now), to: toISO(now) });
+    const todayWin = await listAudit(tenantId, {
+      page: 1,
+      pageSize: 10,
+      from: toISO(now),
+      to: toISO(now),
+    });
     expect(todayWin.rows.some((r) => r.action === 'test.event')).toBe(true);
-    expect((await listAudit(tenantId, { page: 1, pageSize: 10, from: toISO(tomorrow) })).total).toBe(0);
-    expect((await listAudit(tenantId, { page: 1, pageSize: 10, to: toISO(yesterday) })).total).toBe(0);
+    expect(
+      (await listAudit(tenantId, { page: 1, pageSize: 10, from: toISO(tomorrow) })).total,
+    ).toBe(0);
+    expect((await listAudit(tenantId, { page: 1, pageSize: 10, to: toISO(yesterday) })).total).toBe(
+      0,
+    );
   });
 
   test('audit_log is append-only: UPDATE and DELETE are blocked at the DB', async ({ skip }) => {
     if (!ready) return skip();
-    const id = (await pool.query('SELECT id FROM audit_log WHERE tenant_id = $1 LIMIT 1', [tenantId]))
-      .rows[0].id;
+    const id = (
+      await pool.query('SELECT id FROM audit_log WHERE tenant_id = $1 LIMIT 1', [tenantId])
+    ).rows[0].id;
     await expect(
       pool.query('UPDATE audit_log SET action = $1 WHERE id = $2', ['tampered', id]),
     ).rejects.toThrow(/append-only/);

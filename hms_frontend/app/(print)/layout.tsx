@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@hms/ui";
-import { useAuth } from "../../lib/auth";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Spinner } from '@hms/ui';
+import { useAuth } from '../../lib/auth';
 
 /**
  * The print context (ADR-047) — authenticated, but **without the application
@@ -25,10 +25,10 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "anonymous") router.replace("/login");
+    if (status === 'anonymous') router.replace('/login');
   }, [status, router]);
 
-  if (status !== "authenticated") {
+  if (status !== 'authenticated') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg text-fg-muted">
         <Spinner /> <span className="ml-2">Loading…</span>

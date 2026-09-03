@@ -49,7 +49,9 @@ beforeAll(async () => {
     );
     await adminPool.query(`CREATE ROLE ${APP_ROLE} LOGIN PASSWORD '${APP_PW}' NOSUPERUSER`);
     await adminPool.query(`GRANT USAGE ON SCHEMA public TO ${APP_ROLE}`);
-    await adminPool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, branches TO ${APP_ROLE}`);
+    await adminPool.query(
+      `GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, branches TO ${APP_ROLE}`,
+    );
 
     // Clean any leftovers from a prior run, then seed two tenants (admin bypasses RLS).
     await adminPool.query(`DELETE FROM branches WHERE code LIKE '${TEST_PREFIX}%'`);
@@ -113,12 +115,14 @@ describe('multi-tenant Row-Level Security', () => {
 
     await runWithTenant(
       tenantA,
-      (tx) => tx.insert(branches).values({ tenantId: tenantA, name: 'A Main', code: `${TEST_PREFIX}A1` }),
+      (tx) =>
+        tx.insert(branches).values({ tenantId: tenantA, name: 'A Main', code: `${TEST_PREFIX}A1` }),
       appPool,
     );
     await runWithTenant(
       tenantB,
-      (tx) => tx.insert(branches).values({ tenantId: tenantB, name: 'B Main', code: `${TEST_PREFIX}B1` }),
+      (tx) =>
+        tx.insert(branches).values({ tenantId: tenantB, name: 'B Main', code: `${TEST_PREFIX}B1` }),
       appPool,
     );
 
@@ -142,7 +146,10 @@ describe('multi-tenant Row-Level Security', () => {
     await expect(
       runWithTenant(
         tenantA,
-        (tx) => tx.insert(branches).values({ tenantId: tenantB, name: 'Sneaky', code: `${TEST_PREFIX}X1` }),
+        (tx) =>
+          tx
+            .insert(branches)
+            .values({ tenantId: tenantB, name: 'Sneaky', code: `${TEST_PREFIX}X1` }),
         appPool,
       ),
     ).rejects.toThrow();

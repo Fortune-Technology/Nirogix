@@ -37,7 +37,9 @@ function key(): Buffer {
   if (!raw) {
     // Generate one with:
     //   node -p "require('node:crypto').randomBytes(32).toString('base64')"
-    throw new Error('ENCRYPTION_KEY is not set — see hms_backend/.env.example for how to generate one');
+    throw new Error(
+      'ENCRYPTION_KEY is not set — see hms_backend/.env.example for how to generate one',
+    );
   }
   const buf = /^[0-9a-fA-F]{64}$/.test(raw) ? Buffer.from(raw, 'hex') : Buffer.from(raw, 'base64');
   if (buf.length !== KEY_BYTES) {
@@ -114,6 +116,9 @@ export function assertEncryptionReady(featureName: string): void {
   if (!isEncryptionConfigured()) {
     const message = `${featureName} requires ENCRYPTION_KEY to be configured`;
     if (isProd) throw new Error(message);
-    logger.warn({ feature: featureName }, `${message} — the feature will refuse requests until it is set.`);
+    logger.warn(
+      { feature: featureName },
+      `${message} — the feature will refuse requests until it is set.`,
+    );
   }
 }

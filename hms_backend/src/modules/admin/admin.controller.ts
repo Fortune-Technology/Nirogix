@@ -8,7 +8,12 @@ import {
   setCapabilityStatus,
 } from '../entitlement/capability.service';
 import * as svc from './admin.service';
-import { EMAIL_TEMPLATES, listEmailTemplates, renderEmailTemplateSample, type EmailTemplateKey } from '../notification/email';
+import {
+  EMAIL_TEMPLATES,
+  listEmailTemplates,
+  renderEmailTemplateSample,
+  type EmailTemplateKey,
+} from '../notification/email';
 import { MESSAGES } from '../notification/messages';
 
 export async function listModuleCatalog(_req: Request, res: Response): Promise<void> {
@@ -44,7 +49,8 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 // inclusive `from`/`to` (ISO, `to >= from`) drives the shared period filter's presets;
 // otherwise the legacy rolling `months` count is used (default 12, clamped 3–36).
 export async function getTrends(req: Request, res: Response): Promise<void> {
-  const from = typeof req.query.from === 'string' && ISO_DATE.test(req.query.from) ? req.query.from : null;
+  const from =
+    typeof req.query.from === 'string' && ISO_DATE.test(req.query.from) ? req.query.from : null;
   const to = typeof req.query.to === 'string' && ISO_DATE.test(req.query.to) ? req.query.to : null;
   if (from && to && to >= from) {
     res.json(await svc.getPlatformTrends({ from, to }));
@@ -56,7 +62,13 @@ export async function getTrends(req: Request, res: Response): Promise<void> {
 }
 
 function toTenant(t: { id: string; code: string; name: string; status: string; createdAt: Date }) {
-  return { id: t.id, code: t.code, name: t.name, status: t.status, createdAt: t.createdAt.toISOString() };
+  return {
+    id: t.id,
+    code: t.code,
+    name: t.name,
+    status: t.status,
+    createdAt: t.createdAt.toISOString(),
+  };
 }
 
 export async function onboardTenant(req: Request, res: Response): Promise<void> {
@@ -119,15 +131,15 @@ export async function getTenantCapabilities(req: Request, res: Response): Promis
 
 export async function setTenantCapability(req: Request, res: Response): Promise<void> {
   if (!(await svc.tenantExists(req.params.id!))) throw Errors.notFound('Tenant not found');
-  const { module, capability, enabled } = req.body as { module: string; capability: string; enabled: boolean };
+  const { module, capability, enabled } = req.body as {
+    module: string;
+    capability: string;
+    enabled: boolean;
+  };
   try {
-    await setCapabilityStatus(
-      req.params.id!,
-      module,
-      capability,
-      enabled ? 'ACTIVE' : 'DISABLED',
-      { changedBy: req.auth!.userId },
-    );
+    await setCapabilityStatus(req.params.id!, module, capability, enabled ? 'ACTIVE' : 'DISABLED', {
+      changedBy: req.auth!.userId,
+    });
   } catch (e) {
     // Dependency guards and unknown-capability checks throw plain Errors — surface the message
     // to the operator (409) rather than a 500, so the shared toast explains what to fix.

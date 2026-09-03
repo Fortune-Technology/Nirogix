@@ -30,7 +30,9 @@ beforeAll(async () => {
   await grantModule(tenantId, 'patient');
   await grantModule(tenantId, 'abdm');
   await upsertFacilityConfig(tenantId, { hipId: HIP_ID, facilityName: 'M2 Test Hospital' });
-  patientId = (await createPatient(tenantId, { firstName: 'Care', lastName: 'Context', phone: '9700000001' })).id;
+  patientId = (
+    await createPatient(tenantId, { firstName: 'Care', lastName: 'Context', phone: '9700000001' })
+  ).id;
 });
 
 afterAll(async () => {
@@ -51,8 +53,14 @@ describe('care contexts', () => {
     if (!ready) return skip();
     // The HIE-CM is data blind by design: a diagnosis in a display label is a disclosure that
     // cannot be taken back, so this fails loudly at the source instead of being sanitised.
-    for (const label of ['Diabetes follow-up 03/10/2026', 'OPD records — HIV screening', 'Report: positive']) {
-      expect(() => cc.assertNonClinicalLabel(label)).toThrowError(/must not contain clinical information/);
+    for (const label of [
+      'Diabetes follow-up 03/10/2026',
+      'OPD records — HIV screening',
+      'Report: positive',
+    ]) {
+      expect(() => cc.assertNonClinicalLabel(label)).toThrowError(
+        /must not contain clinical information/,
+      );
     }
     expect(() => cc.assertNonClinicalLabel('OPD records from 03/10/2026')).not.toThrow();
   });
@@ -83,7 +91,9 @@ describe('care contexts', () => {
       hiType: 'DiagnosticReport',
     });
 
-    const rows = (await cc.listCareContexts(tenantId, patientId)).filter((r) => r.referenceNumber === ref);
+    const rows = (await cc.listCareContexts(tenantId, patientId)).filter(
+      (r) => r.referenceNumber === ref,
+    );
     expect(rows).toHaveLength(1);
     expect([...rows[0]!.hiTypes].sort()).toEqual(['DiagnosticReport', 'OPConsultation']);
   });
@@ -121,7 +131,9 @@ describe('care contexts', () => {
     });
     await cc.markLinkResult(tenantId, created.id, { linked: false, error: 'gateway refused' });
 
-    const after = (await cc.listCareContexts(tenantId, patientId)).find((r) => r.id === created.id)!;
+    const after = (await cc.listCareContexts(tenantId, patientId)).find(
+      (r) => r.id === created.id,
+    )!;
     expect(after.status).toBe('failed');
     expect(after.lastError).toBe('gateway refused');
     expect(after.linkAttempts).toBe(1);
@@ -129,7 +141,10 @@ describe('care contexts', () => {
 });
 
 describe('consent artefacts', () => {
-  const artefact = (consentId: string, over: Partial<consent.ConsentNotification> = {}): consent.ConsentNotification => ({
+  const artefact = (
+    consentId: string,
+    over: Partial<consent.ConsentNotification> = {},
+  ): consent.ConsentNotification => ({
     consentId,
     abhaAddress: 'm2patient@sbx',
     hipId: HIP_ID,
@@ -143,7 +158,9 @@ describe('consent artefacts', () => {
     ...over,
   });
 
-  test('a grant is stored against the right hospital, resolved from the facility id', async ({ skip }) => {
+  test('a grant is stored against the right hospital, resolved from the facility id', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
     const saved = await consent.recordConsentGrant(artefact('consent-1'));
     expect(saved?.tenantId).toBe(tenantId);
@@ -153,7 +170,9 @@ describe('consent artefacts', () => {
   test('an unknown facility is dropped, not stored', async ({ skip }) => {
     if (!ready) return skip();
     // Same posture as the Scan-and-Share callback: never a different answer for an unknown facility.
-    expect(await consent.recordConsentGrant(artefact('consent-nope', { hipId: 'NOT-A-FACILITY' }))).toBeNull();
+    expect(
+      await consent.recordConsentGrant(artefact('consent-nope', { hipId: 'NOT-A-FACILITY' })),
+    ).toBeNull();
   });
 
   test('re-notification updates rather than duplicating', async ({ skip }) => {
@@ -171,7 +190,9 @@ describe('consent artefacts', () => {
     expect(await consent.revokeConsent(HIP_ID, 'consent-revoke')).toBe(true);
 
     // Gone from the table — NHA's test case checks exactly this, and a flag would not satisfy it.
-    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', ['consent-revoke']);
+    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', [
+      'consent-revoke',
+    ]);
     expect(rows.rowCount).toBe(0);
 
     // But the history survives: invariant #6 is about the audit trail, not the authorisation.
@@ -193,7 +214,9 @@ describe('consent artefacts', () => {
     if (!ready) return skip();
     await consent.recordConsentGrant(artefact('consent-expire'));
     await consent.expireConsent(HIP_ID, 'consent-expire');
-    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', ['consent-expire']);
+    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', [
+      'consent-expire',
+    ]);
     expect(rows.rowCount).toBe(0);
   });
 
@@ -205,13 +228,21 @@ describe('consent artefacts', () => {
     );
     const purged = await consent.purgeExpiredConsents(tenantId);
     expect(purged).toBeGreaterThan(0);
-    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', ['consent-stale']);
+    const rows = await pool.query('SELECT 1 FROM abdm_consents WHERE consent_id = $1', [
+      'consent-stale',
+    ]);
     expect(rows.rowCount).toBe(0);
   });
 
-  test('ABHA opt-out clears the identity and every consent, but keeps the chart', async ({ skip }) => {
+  test('ABHA opt-out clears the identity and every consent, but keeps the chart', async ({
+    skip,
+  }) => {
     if (!ready) return skip();
-    const patient = await createPatient(tenantId, { firstName: 'Opted', lastName: 'Out', phone: '9700000003' });
+    const patient = await createPatient(tenantId, {
+      firstName: 'Opted',
+      lastName: 'Out',
+      phone: '9700000003',
+    });
     await pool.query(
       "UPDATE patients SET abha_address = $1, abha_number = '91-0000-0000-0001', abha_verified_at = now() WHERE id = $2",
       ['optout@sbx', patient.id],
@@ -223,7 +254,10 @@ describe('consent artefacts', () => {
     expect(result.patients).toBe(1);
 
     // The identity is gone; the clinical record is NOT — it is the hospital's own (invariant #6).
-    const row = await pool.query('SELECT abha_address, abha_number, status FROM patients WHERE id = $1', [patient.id]);
+    const row = await pool.query(
+      'SELECT abha_address, abha_number, status FROM patients WHERE id = $1',
+      [patient.id],
+    );
     expect(row.rows[0].abha_address).toBeNull();
     expect(row.rows[0].abha_number).toBeNull();
     expect(row.rows[0].status).toBe('active');
@@ -260,7 +294,10 @@ describe('the consent gate every transfer passes', () => {
 
   test('refuses a record type outside the consent', async ({ skip }) => {
     if (!ready) return skip();
-    const check = await consent.checkConsentForTransfer(tenantId, { ...base, hiTypes: ['DiagnosticReport'] });
+    const check = await consent.checkConsentForTransfer(tenantId, {
+      ...base,
+      hiTypes: ['DiagnosticReport'],
+    });
     expect(check.allowed).toBe(false);
     expect(check.reason).toContain('DiagnosticReport');
   });
@@ -268,15 +305,24 @@ describe('the consent gate every transfer passes', () => {
   test('refuses a window wider than the consent', async ({ skip }) => {
     if (!ready) return skip();
     // The request must sit INSIDE the granted range, not merely overlap it.
-    const early = await consent.checkConsentForTransfer(tenantId, { ...base, from: new Date('2025-12-01') });
+    const early = await consent.checkConsentForTransfer(tenantId, {
+      ...base,
+      from: new Date('2025-12-01'),
+    });
     expect(early.allowed).toBe(false);
-    const late = await consent.checkConsentForTransfer(tenantId, { ...base, to: new Date('2026-08-01') });
+    const late = await consent.checkConsentForTransfer(tenantId, {
+      ...base,
+      to: new Date('2026-08-01'),
+    });
     expect(late.allowed).toBe(false);
   });
 
   test('refuses a different requester', async ({ skip }) => {
     if (!ready) return skip();
-    const check = await consent.checkConsentForTransfer(tenantId, { ...base, hiuId: 'HIU-SOMEONE-ELSE' });
+    const check = await consent.checkConsentForTransfer(tenantId, {
+      ...base,
+      hiuId: 'HIU-SOMEONE-ELSE',
+    });
     expect(check.allowed).toBe(false);
     expect(check.reason).toContain('different requester');
   });

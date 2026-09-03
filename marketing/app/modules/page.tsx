@@ -1,21 +1,21 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "../../components/site/PageHeader";
-import { CtaSection } from "../../components/site/CtaSection";
-import { Container } from "../../components/ui/primitives";
-import { MODULE_GROUPS, CATALOGUE_ADDONS } from "../../lib/catalogue";
-import { COUNTS, type ModuleEntry } from "../../lib/site";
-import { AvailabilityBadge, ReleaseNote } from "../../components/site/AvailabilityBadge";
-import { JsonLd } from "../../components/site/JsonLd";
-import { breadcrumbJsonLd, pageMetadata } from "../../lib/seo";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { PageHeader } from '../../components/site/PageHeader';
+import { CtaSection } from '../../components/site/CtaSection';
+import { Container } from '../../components/ui/primitives';
+import { MODULE_GROUPS, CATALOGUE_ADDONS } from '../../lib/catalogue';
+import { COUNTS, type ModuleEntry } from '../../lib/site';
+import { AvailabilityBadge, ReleaseNote } from '../../components/site/AvailabilityBadge';
+import { JsonLd } from '../../components/site/JsonLd';
+import { breadcrumbJsonLd, pageMetadata } from '../../lib/seo';
 
 // Primary intent: "HMS software for hospitals" — the catalogue page.
 export const metadata: Metadata = pageMetadata({
-  path: "/modules",
-  title: "HMS Software Modules for Hospitals",
+  path: '/modules',
+  title: 'HMS Software Modules for Hospitals',
   description:
-    "The full Nirogix module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, and hospital billing, plus the hospital-grade and operational modules and ABDM add-ons.",
+    'The full Nirogix module catalogue: patient management, appointments, OPD, EMR, pharmacy, laboratory, and hospital billing, plus the hospital-grade and operational modules and ABDM add-ons.',
 });
 
 function CatalogueCard({ module }: { module: ModuleEntry }) {
@@ -24,10 +24,10 @@ function CatalogueCard({ module }: { module: ModuleEntry }) {
     <>
       <span
         className={
-          "grid h-11 w-11 place-items-center rounded-lg transition-colors " +
+          'grid h-11 w-11 place-items-center rounded-lg transition-colors ' +
           (module.flagship
-            ? "bg-surface-2 text-ink group-hover:bg-accent-subtle group-hover:text-accent"
-            : "bg-surface-2 text-ink-muted")
+            ? 'bg-surface-2 text-ink group-hover:bg-accent-subtle group-hover:text-accent'
+            : 'bg-surface-2 text-ink-muted')
         }
       >
         <Icon size={22} strokeWidth={1.6} />
@@ -46,10 +46,13 @@ function CatalogueCard({ module }: { module: ModuleEntry }) {
   );
 
   const cardClass =
-    "flex flex-col rounded-xl border border-hairline bg-surface p-6 transition-colors";
+    'flex flex-col rounded-xl border border-hairline bg-surface p-6 transition-colors';
 
   return module.flagship ? (
-    <Link href={`/modules/${module.slug}`} className={`group ${cardClass} hover:border-accent-border`}>
+    <Link
+      href={`/modules/${module.slug}`}
+      className={`group ${cardClass} hover:border-accent-border`}
+    >
       {inner}
     </Link>
   ) : (
@@ -60,7 +63,12 @@ function CatalogueCard({ module }: { module: ModuleEntry }) {
 export default function ModulesPage() {
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Modules", path: "/modules" }])} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Modules', path: '/modules' },
+        ])}
+      />
       <PageHeader
         eyebrow="Modules"
         title={`${COUNTS.modules} modules. Turn on only what you need.`}
@@ -77,8 +85,8 @@ export default function ModulesPage() {
           id={group.id}
           className={
             i % 2 === 1
-              ? "border-t border-hairline bg-surface"
-              : "border-t border-hairline bg-canvas"
+              ? 'border-t border-hairline bg-surface'
+              : 'border-t border-hairline bg-canvas'
           }
         >
           <Container className="py-16 sm:py-20">

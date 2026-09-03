@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { ensureContrast } from "@hms/utils";
-import type { DocumentBrand } from "@hms/ui";
-import { useQrDataUrl } from "../../lib/useQrDataUrl";
+import { ensureContrast } from '@hms/utils';
+import type { DocumentBrand } from '@hms/ui';
+import { useQrDataUrl } from '../../lib/useQrDataUrl';
 
 /**
  * A public-link QR in the hospital's own colour — the drawing rules ADR-056
@@ -19,10 +19,13 @@ import { useQrDataUrl } from "../../lib/useQrDataUrl";
  * up enlarged on a poster and photographed at an angle. The drawing itself lives in
  * `useQrDataUrl`, shared with the ABDM Scan-and-Share QR (ADR-029).
  */
-export function usePublicQr(url: string | null, brand: DocumentBrand): { url: string | null; qr: string | null } {
+export function usePublicQr(
+  url: string | null,
+  brand: DocumentBrand,
+): { url: string | null; qr: string | null } {
   // A hospital that has configured no branding gets near-black, not the platform teal:
   // the poster is theirs, and printing a colour they never chose would be an invention.
-  const ink = ensureContrast(brand.accent ?? "") ?? "#111111";
-  const qr = useQrDataUrl(url, { ink, size: 1024, errorCorrectionLevel: "H" });
+  const ink = ensureContrast(brand.accent ?? '') ?? '#111111';
+  const qr = useQrDataUrl(url, { ink, size: 1024, errorCorrectionLevel: 'H' });
   return { url, qr };
 }

@@ -123,13 +123,16 @@ function characterClasses(password: string): number {
 /** Personal tokens worth blocking, from whatever context the caller has. */
 function contextTokens(ctx: PasswordContext): string[] {
   const raw: string[] = [];
-  if (ctx.email) raw.push(ctx.email.split('@')[0] ?? '', ctx.email.split('@')[1]?.split('.')[0] ?? '');
+  if (ctx.email)
+    raw.push(ctx.email.split('@')[0] ?? '', ctx.email.split('@')[1]?.split('.')[0] ?? '');
   if (ctx.fullName) raw.push(...ctx.fullName.split(/\s+/));
   if (ctx.orgCode) raw.push(ctx.orgCode);
-  return raw
-    .map((t) => normalise(t))
-    // Two- and three-letter fragments match far too much to be useful signal.
-    .filter((t) => t.length >= 4);
+  return (
+    raw
+      .map((t) => normalise(t))
+      // Two- and three-letter fragments match far too much to be useful signal.
+      .filter((t) => t.length >= 4)
+  );
 }
 
 /**
@@ -204,7 +207,7 @@ export const PasswordSchema = z
   .openapi({
     description:
       `At least ${PASSWORD_MIN_LENGTH} characters, at least three character classes, ` +
-      'not a commonly guessed password, and not built from the account holder\'s own details.',
+      "not a commonly guessed password, and not built from the account holder's own details.",
     example: 'Gulmohar-Clinic-42',
   });
 

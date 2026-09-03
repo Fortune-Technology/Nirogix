@@ -1,10 +1,10 @@
-import { CalendarCheck, ArrowRight } from "lucide-react";
-import { LottiePlayer } from "@hms/ui";
-import { Button } from "../ui/Button";
-import { Container, Pill } from "../ui/primitives";
-import { Reveal } from "../ui/Reveal";
-import { SITE } from "../../lib/site";
-import { PORTAL_LOGIN_URL } from "../../lib/portal";
+import { CalendarCheck, ArrowRight } from 'lucide-react';
+import { LottiePlayer } from '@hms/ui';
+import { Button } from '../ui/Button';
+import { Container, Pill } from '../ui/primitives';
+import { Reveal } from '../ui/Reveal';
+import { SITE } from '../../lib/site';
+import { PORTAL_LOGIN_URL } from '../../lib/portal';
 
 export function Hero() {
   return (
@@ -45,7 +45,7 @@ export function Hero() {
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-[7%] rounded-[3rem]"
-                style={{ background: "var(--mk-illustration-stage)" }}
+                style={{ background: 'var(--mk-illustration-stage)' }}
               />
               <LottiePlayer
                 src="/animations/doctor.json"

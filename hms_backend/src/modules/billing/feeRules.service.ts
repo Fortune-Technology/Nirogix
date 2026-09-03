@@ -82,7 +82,10 @@ export interface ResolvedFee {
  * Falls back to the doctor's own configured fee and then to zero, which is precisely what check-in
  * did before this table existed — so a hospital with no rules behaves exactly as it did.
  */
-export async function resolveConsultationFee(tenantId: string, ctx: FeeContext): Promise<ResolvedFee> {
+export async function resolveConsultationFee(
+  tenantId: string,
+  ctx: FeeContext,
+): Promise<ResolvedFee> {
   return runWithTenant(tenantId, (tx) => resolveConsultationFeeTx(tx, tenantId, ctx));
 }
 
@@ -111,16 +114,28 @@ export async function resolveConsultationFeeTx(
           eq(consultationFeeRules.tenantId, tenantId),
           eq(consultationFeeRules.isActive, true),
           ctx.branchId
-            ? or(isNull(consultationFeeRules.branchId), eq(consultationFeeRules.branchId, ctx.branchId))
+            ? or(
+                isNull(consultationFeeRules.branchId),
+                eq(consultationFeeRules.branchId, ctx.branchId),
+              )
             : isNull(consultationFeeRules.branchId),
           ctx.providerId
-            ? or(isNull(consultationFeeRules.providerId), eq(consultationFeeRules.providerId, ctx.providerId))
+            ? or(
+                isNull(consultationFeeRules.providerId),
+                eq(consultationFeeRules.providerId, ctx.providerId),
+              )
             : isNull(consultationFeeRules.providerId),
           ctx.departmentId
-            ? or(isNull(consultationFeeRules.departmentId), eq(consultationFeeRules.departmentId, ctx.departmentId))
+            ? or(
+                isNull(consultationFeeRules.departmentId),
+                eq(consultationFeeRules.departmentId, ctx.departmentId),
+              )
             : isNull(consultationFeeRules.departmentId),
           ctx.arrivalType
-            ? or(isNull(consultationFeeRules.arrivalType), eq(consultationFeeRules.arrivalType, ctx.arrivalType))
+            ? or(
+                isNull(consultationFeeRules.arrivalType),
+                eq(consultationFeeRules.arrivalType, ctx.arrivalType),
+              )
             : isNull(consultationFeeRules.arrivalType),
           ctx.consultationType
             ? or(
@@ -129,7 +144,10 @@ export async function resolveConsultationFeeTx(
               )
             : isNull(consultationFeeRules.consultationType),
           ctx.caseType
-            ? or(isNull(consultationFeeRules.caseType), eq(consultationFeeRules.caseType, ctx.caseType))
+            ? or(
+                isNull(consultationFeeRules.caseType),
+                eq(consultationFeeRules.caseType, ctx.caseType),
+              )
             : isNull(consultationFeeRules.caseType),
         ),
       );
@@ -142,7 +160,12 @@ export async function resolveConsultationFeeTx(
         const sb = specificity(b) * 2 + (b.branchId ? 1 : 0);
         return sb > sa ? b : a;
       });
-      return { feePaise: best.feePaise, ruleId: best.id, ruleLabel: best.label, source: 'rule' as const };
+      return {
+        feePaise: best.feePaise,
+        ruleId: best.id,
+        ruleLabel: best.label,
+        source: 'rule' as const,
+      };
     }
 
     if (ctx.providerId) {
@@ -154,7 +177,12 @@ export async function resolveConsultationFeeTx(
           .limit(1)
       )[0];
       if (provider?.fee != null) {
-        return { feePaise: provider.fee, ruleId: null, ruleLabel: null, source: 'provider_default' as const };
+        return {
+          feePaise: provider.fee,
+          ruleId: null,
+          ruleLabel: null,
+          source: 'provider_default' as const,
+        };
       }
     }
 
@@ -218,7 +246,10 @@ const ruleColumns = {
   departmentName: departments.name,
 };
 
-export async function listFeeRules(tenantId: string, opts: { includeInactive?: boolean } = {}): Promise<FeeRuleDto[]> {
+export async function listFeeRules(
+  tenantId: string,
+  opts: { includeInactive?: boolean } = {},
+): Promise<FeeRuleDto[]> {
   return runWithTenant(tenantId, async (tx) => {
     const conds = [eq(consultationFeeRules.tenantId, tenantId)];
     if (!opts.includeInactive) conds.push(eq(consultationFeeRules.isActive, true));
@@ -291,7 +322,9 @@ export async function createFeeRule(
   const consultationType = input.consultationType
     ? await assertConsultationType(tenantId, input.branchId, input.consultationType)
     : null;
-  const caseType = input.caseType ? await assertCaseType(tenantId, input.branchId, input.caseType) : null;
+  const caseType = input.caseType
+    ? await assertCaseType(tenantId, input.branchId, input.caseType)
+    : null;
   const normalised: CreateFeeRuleInput = { ...input, consultationType, caseType };
 
   const created = await runWithTenant(tenantId, async (tx) => {
@@ -346,7 +379,9 @@ export async function updateFeeRule(
   input: UpdateFeeRuleInput,
   actorUserId?: string,
 ): Promise<FeeRuleDto> {
-  const before = (await listFeeRules(tenantId, { includeInactive: true })).find((r) => r.id === ruleId);
+  const before = (await listFeeRules(tenantId, { includeInactive: true })).find(
+    (r) => r.id === ruleId,
+  );
   if (!before) throw Errors.notFound('Fee rule not found');
 
   await runWithTenant(tenantId, async (tx) => {
@@ -367,7 +402,8 @@ export async function updateFeeRule(
         ),
       )
       .returning({ id: consultationFeeRules.id });
-    if (!bumped[0]) throw Errors.conflict('This rule was changed by someone else. Reload and try again');
+    if (!bumped[0])
+      throw Errors.conflict('This rule was changed by someone else. Reload and try again');
   });
 
   // What a consultation costs is worth an audit trail with both numbers in it: "the fee changed"
@@ -398,4 +434,3 @@ export async function updateFeeRule(
 export async function previewFee(tenantId: string, ctx: FeeContext): Promise<ResolvedFee> {
   return resolveConsultationFee(tenantId, ctx);
 }
-

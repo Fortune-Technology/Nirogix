@@ -48,7 +48,9 @@ export const AvailabilityOverrideSchema = z
   })
   .openapi('AvailabilityOverride');
 
-export const AvailabilityOverrideListSchema = z.array(AvailabilityOverrideSchema).openapi('AvailabilityOverrideList');
+export const AvailabilityOverrideListSchema = z
+  .array(AvailabilityOverrideSchema)
+  .openapi('AvailabilityOverrideList');
 
 export const AvailabilityItemSchema = z
   .object({
@@ -60,4 +62,6 @@ export const AvailabilityItemSchema = z
   })
   .openapi('AvailabilityItem');
 
-export const AvailabilityItemListSchema = z.array(AvailabilityItemSchema).openapi('AvailabilityItemList');
+export const AvailabilityItemListSchema = z
+  .array(AvailabilityItemSchema)
+  .openapi('AvailabilityItemList');

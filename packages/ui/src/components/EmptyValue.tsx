@@ -56,7 +56,10 @@ export function emptyLabel(reason: EmptyReason = 'unspecified'): string {
  * A value, or the reason it is missing — the shape almost every call site actually wants.
  * Empty strings count as missing: a blank string in a database is a field nobody filled in.
  */
-export function valueLabel(value: string | number | null | undefined, reason: EmptyReason = 'unspecified'): string {
+export function valueLabel(
+  value: string | number | null | undefined,
+  reason: EmptyReason = 'unspecified',
+): string {
   if (value === null || value === undefined) return LABELS[reason];
   const text = String(value).trim();
   return text === '' ? LABELS[reason] : text;
@@ -85,6 +88,10 @@ export interface ValueOrEmptyProps extends EmptyValueProps {
  * otherwise each write their own — which is how the dashes got there in the first place.
  */
 export function ValueOrEmpty({ value, ...rest }: ValueOrEmptyProps) {
-  const missing = value === null || value === undefined || value === false || (typeof value === 'string' && value.trim() === '');
+  const missing =
+    value === null ||
+    value === undefined ||
+    value === false ||
+    (typeof value === 'string' && value.trim() === '');
   return missing ? <EmptyValue {...rest} /> : <>{value}</>;
 }

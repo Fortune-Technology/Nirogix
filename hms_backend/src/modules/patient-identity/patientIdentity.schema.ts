@@ -17,7 +17,10 @@ export const VerifyCodeBody = z
   .object({
     mobile: z.string().trim().min(6).max(20).optional(),
     email: z.string().trim().email().max(255).optional(),
-    code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'Enter the 6-digit code'),
   })
   .refine((c) => Boolean(c.mobile) !== Boolean(c.email), {
     message: 'Provide either a mobile number or an email address, not both',

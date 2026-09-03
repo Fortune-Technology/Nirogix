@@ -26,6 +26,7 @@ import {
   type VitalsInput,
 } from '../workflow/vitals.service';
 import { resolveConfig } from '../workflow/workflowConfig.service';
+import { getActiveSignature, resolveSignaturesForDocument } from '../signature/signature.service';
 
 export { searchIcd10 } from './icd10.data';
 
@@ -44,7 +45,12 @@ export interface SaveEncounterInput {
   assessment?: string | null;
   plan?: string | null;
   vitals?: VitalsInput;
-  diagnoses: Array<{ icd10Code: string; icd10Term: string; isPrimary?: boolean; notes?: string | null }>;
+  diagnoses: Array<{
+    icd10Code: string;
+    icd10Term: string;
+    isPrimary?: boolean;
+    notes?: string | null;
+  }>;
   prescriptions: Array<{
     /** Present when the row already exists — lets a re-save update in place instead of replacing. */
     id?: string | null;
@@ -102,9 +108,21 @@ async function buildDto(tenantId: string, encounterId: string) {
     const e = row.e;
 
     const [dx, rx, lab, amendmentRows] = await Promise.all([
-      tx.select().from(diagnoses).where(eq(diagnoses.encounterId, encounterId)).orderBy(diagnoses.createdAt),
-      tx.select().from(prescriptions).where(eq(prescriptions.encounterId, encounterId)).orderBy(prescriptions.createdAt),
-      tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId)).orderBy(labOrders.createdAt),
+      tx
+        .select()
+        .from(diagnoses)
+        .where(eq(diagnoses.encounterId, encounterId))
+        .orderBy(diagnoses.createdAt),
+      tx
+        .select()
+        .from(prescriptions)
+        .where(eq(prescriptions.encounterId, encounterId))
+        .orderBy(prescriptions.createdAt),
+      tx
+        .select()
+        .from(labOrders)
+        .where(eq(labOrders.encounterId, encounterId))
+        .orderBy(labOrders.createdAt),
       // The amendment trail (ADR-134), newest first. The snapshot column is deliberately not
       // selected: the trail is what a chart shows, and a frozen copy of every past note is far
       // more clinical data than the screen displays.
@@ -112,9 +130,22 @@ async function buildDto(tenantId: string, encounterId: string) {
         .select({ a: encounterAmendments, amenderName: users.fullName })
         .from(encounterAmendments)
         .leftJoin(users, eq(users.id, encounterAmendments.amendedBy))
-        .where(and(eq(encounterAmendments.tenantId, tenantId), eq(encounterAmendments.encounterId, encounterId)))
+        .where(
+          and(
+            eq(encounterAmendments.tenantId, tenantId),
+            eq(encounterAmendments.encounterId, encounterId),
+          ),
+        )
         .orderBy(desc(encounterAmendments.createdAt)),
     ]);
+
+    // The signature this note was signed with — resolved from what the encounter PINNED, not
+    // from whoever signed it and what they use today (ADR-137). Null for every note signed before
+    // signatures existed, and for a clinician who has uploaded none; the document then prints a
+    // blank line, which is what it always did.
+    const signature = e.signatureId
+      ? ((await resolveSignaturesForDocument(tenantId, [e.signatureId])).get(e.signatureId) ?? null)
+      : null;
 
     const amendments = amendmentRows.map((r) => ({
       id: r.a.id,
@@ -152,6 +183,7 @@ async function buildDto(tenantId: string, encounterId: string) {
       // A note being amended is editable but is NOT a first draft — the screen has to say
       // "signed, being corrected" rather than offering it as unwritten.
       wasSigned: e.signedAt !== null,
+      signature,
       amendments,
       openAmendment: amendments.find((a) => a.status === 'open') ?? null,
       chiefComplaint: e.chiefComplaint,
@@ -177,7 +209,13 @@ async function buildDto(tenantId: string, encounterId: string) {
         : { ...NO_VITALS },
       /** Every reading on this visit, newest first — the doctor sees who took what, and when. */
       vitalsHistory: allVitals,
-      diagnoses: dx.map((d) => ({ id: d.id, icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary, notes: d.notes })),
+      diagnoses: dx.map((d) => ({
+        id: d.id,
+        icd10Code: d.icd10Code,
+        icd10Term: d.icd10Term,
+        isPrimary: d.isPrimary,
+        notes: d.notes,
+      })),
       prescriptions: rx.map((p) => ({
         id: p.id,
         drugId: p.drugId,
@@ -206,12 +244,20 @@ async function buildDto(tenantId: string, encounterId: string) {
 export async function getEncounterByVisit(tenantId: string, visitId: string, actorUserId?: string) {
   const encounterId = await runWithTenant(tenantId, async (tx) => {
     const visit = (
-      await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId))).limit(1)
+      await tx
+        .select()
+        .from(visits)
+        .where(and(eq(visits.tenantId, tenantId), eq(visits.id, visitId)))
+        .limit(1)
     )[0];
     if (!visit) throw Errors.notFound('Visit not found');
 
     const existing = (
-      await tx.select({ id: encounters.id }).from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId))).limit(1)
+      await tx
+        .select({ id: encounters.id })
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId)))
+        .limit(1)
     )[0];
     if (existing) return existing.id;
 
@@ -236,7 +282,9 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
           .limit(1)
       )[0];
       if (inv && inv.totalPaise > inv.amountPaidPaise) {
-        throw Errors.conflict('Consultation fee is unpaid. Collect the payment before the consultation starts');
+        throw Errors.conflict(
+          'Consultation fee is unpaid. Collect the payment before the consultation starts',
+        );
       }
     }
 
@@ -256,7 +304,11 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
     if (created) return created.id;
     // lost a race — fetch the row the other request created
     const row = (
-      await tx.select({ id: encounters.id }).from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId))).limit(1)
+      await tx
+        .select({ id: encounters.id })
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId)))
+        .limit(1)
     )[0];
     if (!row) throw Errors.conflict('Could not open the encounter. Please retry');
     return row.id;
@@ -264,16 +316,27 @@ export async function getEncounterByVisit(tenantId: string, visitId: string, act
   return buildDto(tenantId, encounterId);
 }
 
-export async function saveEncounter(tenantId: string, encounterId: string, input: SaveEncounterInput, actorUserId?: string) {
+export async function saveEncounter(
+  tenantId: string,
+  encounterId: string,
+  input: SaveEncounterInput,
+  actorUserId?: string,
+) {
   await runWithTenant(tenantId, async (tx) => {
     const e = (
-      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+      await tx
+        .select()
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId)))
+        .limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
     // Signed is closed. The way to change it is to reopen it deliberately (ADR-134), which
     // preserves what was signed first and moves the encounter to `amending`.
     if (e.status === 'signed') {
-      throw Errors.conflict('A signed consultation cannot be edited. Amend it to record a correction');
+      throw Errors.conflict(
+        'A signed consultation cannot be edited. Amend it to record a correction',
+      );
     }
     if (e.status === 'amending') {
       // An amendment belongs to whoever opened it and stated the reason — including an
@@ -319,7 +382,9 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
     if (!bumped[0]) throw Errors.conflict('This encounter was updated elsewhere. Please refresh');
 
     // Validate master-data links before writing anything that carries them.
-    const rxDrugIds = [...new Set(input.prescriptions.map((p) => p.drugId).filter((x): x is string => Boolean(x)))];
+    const rxDrugIds = [
+      ...new Set(input.prescriptions.map((p) => p.drugId).filter((x): x is string => Boolean(x))),
+    ];
     const drugById = new Map<string, { id: string; name: string }>();
     if (rxDrugIds.length > 0) {
       const rows = await tx
@@ -328,9 +393,12 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
         .where(and(eq(drugs.tenantId, tenantId), inArray(drugs.id, rxDrugIds)));
       for (const r of rows) drugById.set(r.id, r);
       const missing = rxDrugIds.filter((id) => !drugById.has(id));
-      if (missing.length > 0) throw Errors.validation({ drugIds: missing }, 'Unknown drug selected');
+      if (missing.length > 0)
+        throw Errors.validation({ drugIds: missing }, 'Unknown drug selected');
     }
-    const orderTestIds = [...new Set(input.labOrders.map((l) => l.testId).filter((x): x is string => Boolean(x)))];
+    const orderTestIds = [
+      ...new Set(input.labOrders.map((l) => l.testId).filter((x): x is string => Boolean(x))),
+    ];
     const testById = new Map<string, { id: string; name: string; code: string | null }>();
     if (orderTestIds.length > 0) {
       const rows = await tx
@@ -339,7 +407,8 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
         .where(and(eq(labTests.tenantId, tenantId), inArray(labTests.id, orderTestIds)));
       for (const r of rows) testById.set(r.id, r);
       const missing = orderTestIds.filter((id) => !testById.has(id));
-      if (missing.length > 0) throw Errors.validation({ testIds: missing }, 'Unknown lab test selected');
+      if (missing.length > 0)
+        throw Errors.validation({ testIds: missing }, 'Unknown lab test selected');
     }
 
     // Diagnoses have no downstream consumers — replacing them wholesale is safe.
@@ -362,8 +431,13 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
     // never replace a row the downstream has progressed: rows still `ordered` are synced
     // against the input (update by id / insert new / delete removed); anything past
     // `ordered` is immutable clinical history and survives every save untouched.
-    const existingRx = await tx.select().from(prescriptions).where(eq(prescriptions.encounterId, encounterId));
-    const openRxById = new Map(existingRx.filter((r) => r.status === 'ordered').map((r) => [r.id, r]));
+    const existingRx = await tx
+      .select()
+      .from(prescriptions)
+      .where(eq(prescriptions.encounterId, encounterId));
+    const openRxById = new Map(
+      existingRx.filter((r) => r.status === 'ordered').map((r) => [r.id, r]),
+    );
     const keptRxIds = new Set<string>();
     for (const p of input.prescriptions) {
       const masterName = p.drugId ? drugById.get(p.drugId)!.name : null;
@@ -392,10 +466,16 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
       // p.id pointing at a dispensed/cancelled (or foreign) row: ignored — that row is history.
     }
     const rxToDelete = [...openRxById.keys()].filter((id) => !keptRxIds.has(id));
-    if (rxToDelete.length > 0) await tx.delete(prescriptions).where(inArray(prescriptions.id, rxToDelete));
+    if (rxToDelete.length > 0)
+      await tx.delete(prescriptions).where(inArray(prescriptions.id, rxToDelete));
 
-    const existingOrders = await tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId));
-    const openOrderById = new Map(existingOrders.filter((o) => o.status === 'ordered').map((o) => [o.id, o]));
+    const existingOrders = await tx
+      .select()
+      .from(labOrders)
+      .where(eq(labOrders.encounterId, encounterId));
+    const openOrderById = new Map(
+      existingOrders.filter((o) => o.status === 'ordered').map((o) => [o.id, o]),
+    );
     const keptOrderIds = new Set<string>();
     for (const l of input.labOrders) {
       const master = l.testId ? testById.get(l.testId)! : null;
@@ -421,7 +501,8 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
       }
     }
     const ordersToDelete = [...openOrderById.keys()].filter((id) => !keptOrderIds.has(id));
-    if (ordersToDelete.length > 0) await tx.delete(labOrders).where(inArray(labOrders.id, ordersToDelete));
+    if (ordersToDelete.length > 0)
+      await tx.delete(labOrders).where(inArray(labOrders.id, ordersToDelete));
   });
 
   if (input.vitals) {
@@ -434,7 +515,11 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
     action: 'encounter.save',
     resourceType: 'encounter',
     resourceId: encounterId,
-    metadata: { diagnoses: input.diagnoses.length, prescriptions: input.prescriptions.length, labOrders: input.labOrders.length },
+    metadata: {
+      diagnoses: input.diagnoses.length,
+      prescriptions: input.prescriptions.length,
+      labOrders: input.labOrders.length,
+    },
   });
   return buildDto(tenantId, encounterId);
 }
@@ -495,12 +580,32 @@ async function recordConsultationVitals(
 async function readNoteContent(
   tx: Parameters<Parameters<typeof runWithTenant>[1]>[0],
   encounterId: string,
-  e: { chiefComplaint: string | null; subjective: string | null; objective: string | null; assessment: string | null; plan: string | null; version: number; signedAt: Date | null },
+  e: {
+    chiefComplaint: string | null;
+    subjective: string | null;
+    objective: string | null;
+    assessment: string | null;
+    plan: string | null;
+    version: number;
+    signedAt: Date | null;
+  },
 ) {
   const [dx, rx, lab] = await Promise.all([
-    tx.select().from(diagnoses).where(eq(diagnoses.encounterId, encounterId)).orderBy(diagnoses.createdAt),
-    tx.select().from(prescriptions).where(eq(prescriptions.encounterId, encounterId)).orderBy(prescriptions.createdAt),
-    tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId)).orderBy(labOrders.createdAt),
+    tx
+      .select()
+      .from(diagnoses)
+      .where(eq(diagnoses.encounterId, encounterId))
+      .orderBy(diagnoses.createdAt),
+    tx
+      .select()
+      .from(prescriptions)
+      .where(eq(prescriptions.encounterId, encounterId))
+      .orderBy(prescriptions.createdAt),
+    tx
+      .select()
+      .from(labOrders)
+      .where(eq(labOrders.encounterId, encounterId))
+      .orderBy(labOrders.createdAt),
   ]);
   return {
     chiefComplaint: e.chiefComplaint,
@@ -508,7 +613,12 @@ async function readNoteContent(
     objective: e.objective,
     assessment: e.assessment,
     plan: e.plan,
-    diagnoses: dx.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary, notes: d.notes })),
+    diagnoses: dx.map((d) => ({
+      icd10Code: d.icd10Code,
+      icd10Term: d.icd10Term,
+      isPrimary: d.isPrimary,
+      notes: d.notes,
+    })),
     prescriptions: rx.map((p) => ({
       drugId: p.drugId,
       drugName: p.drugName,
@@ -547,7 +657,9 @@ type NoteContent = Awaited<ReturnType<typeof readNoteContent>>;
 function canonical(value: unknown): string {
   return JSON.stringify(value, (_key, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+        )
       : v,
   );
 }
@@ -573,7 +685,11 @@ function diffNote(before: NoteContent, after: NoteContent): string[] {
 export async function signEncounter(tenantId: string, encounterId: string, actorUserId?: string) {
   const result = await runWithTenant(tenantId, async (tx) => {
     const e = (
-      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+      await tx
+        .select()
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId)))
+        .limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
     if (e.status === 'signed') throw Errors.conflict('Encounter is already signed');
@@ -614,7 +730,11 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
     let visit: typeof visits.$inferSelect | undefined;
     if (!amending) {
       visit = (
-        await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, e.visitId))).limit(1)
+        await tx
+          .select()
+          .from(visits)
+          .where(and(eq(visits.tenantId, tenantId), eq(visits.id, e.visitId)))
+          .limit(1)
       )[0];
       if (!visit) throw Errors.notFound('Visit not found');
       if (visit.status !== 'checked_in' && visit.status !== 'in_consultation') {
@@ -624,12 +744,29 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
 
     // What the note says now — read before the status flips, and compared against the frozen
     // original so the amendment can record which parts were actually corrected.
-    const changedFields = amending ? diffNote(open!.snapshot as NoteContent, await readNoteContent(tx, encounterId, e)) : null;
+    const changedFields = amending
+      ? diffNote(open!.snapshot as NoteContent, await readNoteContent(tx, encounterId, e))
+      : null;
+
+    // The signer's signature AS IT IS NOW, pinned onto the encounter (ADR-137). Resolved at the
+    // moment of signing and never again: a clinician who uploads a new signature next year must
+    // not change what this prescription printed today. A clinician with none pins nothing, and
+    // the document prints a blank signature line exactly as it did before the feature existed.
+    const signature = actorUserId ? await getActiveSignature(tenantId, actorUserId) : null;
 
     // CAS on status so two sign requests cannot both win.
     const signed = await tx
       .update(encounters)
-      .set({ status: 'signed', signedAt: new Date(), version: e.version + 1, updatedAt: new Date() })
+      .set({
+        status: 'signed',
+        signedAt: new Date(),
+        version: e.version + 1,
+        updatedAt: new Date(),
+        // Re-signing an amendment re-pins: the corrected note is signed now, by whoever corrected
+        // it, so it carries their signature as it stands today. The ORIGINAL is preserved in the
+        // amendment snapshot, which is where the previous state lives (ADR-134).
+        signatureId: signature?.id ?? null,
+      })
       .where(and(eq(encounters.id, encounterId), eq(encounters.status, e.status)))
       .returning({ id: encounters.id });
     if (!signed[0]) throw Errors.conflict('Encounter is already signed');
@@ -644,7 +781,12 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
 
     const moved = await tx
       .update(visits)
-      .set({ status: 'completed', completedAt: new Date(), version: visit!.version + 1, updatedAt: new Date() })
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        version: visit!.version + 1,
+        updatedAt: new Date(),
+      })
       .where(and(eq(visits.id, e.visitId), eq(visits.version, visit!.version)))
       .returning({ id: visits.id });
     if (!moved[0]) throw Errors.conflict('This visit was updated by someone else. Please refresh');
@@ -662,7 +804,8 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
   // Downstream consumers (billing, pharmacy, lab, ABDM) act on a consultation being finished.
   // A re-signed amendment is not a second consultation, so it does not republish the event —
   // it has its own audited action instead.
-  if (!result.amending) eventBus.publish('encounter.signed', { tenantId, encounterId, visitId: result.visitId });
+  if (!result.amending)
+    eventBus.publish('encounter.signed', { tenantId, encounterId, visitId: result.visitId });
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
@@ -670,7 +813,11 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
     resourceType: 'encounter',
     resourceId: encounterId,
     metadata: result.amending
-      ? { visitId: result.visitId, amendmentId: result.amendmentId, changedFields: result.changedFields }
+      ? {
+          visitId: result.visitId,
+          amendmentId: result.amendmentId,
+          changedFields: result.changedFields,
+        }
       : { visitId: result.visitId },
   });
   return buildDto(tenantId, encounterId);
@@ -684,13 +831,23 @@ export async function signEncounter(tenantId: string, encounterId: string, actor
  * permanent. The encounter then behaves like a draft until it is re-signed, at which point the
  * amendment closes carrying the list of fields that actually differ.
  */
-export async function openAmendment(tenantId: string, encounterId: string, reason: string, actorUserId?: string) {
+export async function openAmendment(
+  tenantId: string,
+  encounterId: string,
+  reason: string,
+  actorUserId?: string,
+) {
   const amendmentId = await runWithTenant(tenantId, async (tx) => {
     const e = (
-      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+      await tx
+        .select()
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId)))
+        .limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
-    if (e.status === 'amending') throw Errors.conflict('This consultation is already open for amendment');
+    if (e.status === 'amending')
+      throw Errors.conflict('This consultation is already open for amendment');
     if (e.status !== 'signed') throw Errors.conflict('Only a signed consultation can be amended');
 
     const snapshot = await readNoteContent(tx, encounterId, e);
@@ -746,10 +903,15 @@ export async function openAmendment(tenantId: string, encounterId: string, reaso
 export async function cancelAmendment(tenantId: string, encounterId: string, actorUserId?: string) {
   const amendmentId = await runWithTenant(tenantId, async (tx) => {
     const e = (
-      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+      await tx
+        .select()
+        .from(encounters)
+        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId)))
+        .limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
-    if (e.status !== 'amending') throw Errors.conflict('This consultation is not open for amendment');
+    if (e.status !== 'amending')
+      throw Errors.conflict('This consultation is not open for amendment');
 
     const open = (
       await tx
@@ -770,7 +932,9 @@ export async function cancelAmendment(tenantId: string, encounterId: string, act
     }
     // Opening bumped the version by one; anything beyond that is a save that has landed.
     if (e.version > open.openedAtVersion + 1) {
-      throw Errors.conflict('A correction has already been saved into this amendment. Sign it to record what changed');
+      throw Errors.conflict(
+        'A correction has already been saved into this amendment. Sign it to record what changed',
+      );
     }
 
     await tx
@@ -807,14 +971,16 @@ export async function getEncounter(tenantId: string, encounterId: string) {
 // Read the visit's encounter without creating one (the print document's read). 404 when the
 // consultation has not been opened yet — printing a chart that does not exist is not a thing.
 export async function getEncounterByVisitReadOnly(tenantId: string, visitId: string) {
-  const row = await runWithTenant(tenantId, async (tx) =>
-    (
-      await tx
-        .select({ id: encounters.id })
-        .from(encounters)
-        .where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId)))
-        .limit(1)
-    )[0],
+  const row = await runWithTenant(
+    tenantId,
+    async (tx) =>
+      (
+        await tx
+          .select({ id: encounters.id })
+          .from(encounters)
+          .where(and(eq(encounters.tenantId, tenantId), eq(encounters.visitId, visitId)))
+          .limit(1)
+      )[0],
   );
   if (!row) throw Errors.notFound('No consultation exists for this visit yet');
   return buildDto(tenantId, row.id);
@@ -825,7 +991,11 @@ export async function getEncounterByVisitReadOnly(tenantId: string, visitId: str
 export async function listPatientEncounters(tenantId: string, patientId: string) {
   return runWithTenant(tenantId, async (tx) => {
     const patient = (
-      await tx.select({ id: patients.id }).from(patients).where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId))).limit(1)
+      await tx
+        .select({ id: patients.id })
+        .from(patients)
+        .where(and(eq(patients.tenantId, tenantId), eq(patients.id, patientId)))
+        .limit(1)
     )[0];
     if (!patient) throw Errors.notFound('Patient not found');
 
@@ -851,17 +1021,31 @@ export async function listPatientEncounters(tenantId: string, patientId: string)
       .orderBy(desc(encounters.signedAt));
 
     const ids = rows.map((r) => r.e.id);
-    const dxByEncounter = new Map<string, Array<{ icd10Code: string; icd10Term: string; isPrimary: boolean }>>();
+    const dxByEncounter = new Map<
+      string,
+      Array<{ icd10Code: string; icd10Term: string; isPrimary: boolean }>
+    >();
     const rxCount = new Map<string, number>();
     const labCount = new Map<string, number>();
     if (ids.length > 0) {
       const [dx, rx, lab] = await Promise.all([
         tx
-          .select({ encounterId: diagnoses.encounterId, icd10Code: diagnoses.icd10Code, icd10Term: diagnoses.icd10Term, isPrimary: diagnoses.isPrimary })
+          .select({
+            encounterId: diagnoses.encounterId,
+            icd10Code: diagnoses.icd10Code,
+            icd10Term: diagnoses.icd10Term,
+            isPrimary: diagnoses.isPrimary,
+          })
           .from(diagnoses)
           .where(inArray(diagnoses.encounterId, ids)),
-        tx.select({ encounterId: prescriptions.encounterId }).from(prescriptions).where(inArray(prescriptions.encounterId, ids)),
-        tx.select({ encounterId: labOrders.encounterId }).from(labOrders).where(inArray(labOrders.encounterId, ids)),
+        tx
+          .select({ encounterId: prescriptions.encounterId })
+          .from(prescriptions)
+          .where(inArray(prescriptions.encounterId, ids)),
+        tx
+          .select({ encounterId: labOrders.encounterId })
+          .from(labOrders)
+          .where(inArray(labOrders.encounterId, ids)),
       ]);
       for (const d of dx) {
         const list = dxByEncounter.get(d.encounterId) ?? [];
@@ -880,7 +1064,9 @@ export async function listPatientEncounters(tenantId: string, patientId: string)
       providerName: r.providerName,
       signedAt: r.e.signedAt ? r.e.signedAt.toISOString() : null,
       chiefComplaint: r.e.chiefComplaint,
-      diagnoses: (dxByEncounter.get(r.e.id) ?? []).sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)),
+      diagnoses: (dxByEncounter.get(r.e.id) ?? []).sort(
+        (a, b) => Number(b.isPrimary) - Number(a.isPrimary),
+      ),
       prescriptionCount: rxCount.get(r.e.id) ?? 0,
       labOrderCount: labCount.get(r.e.id) ?? 0,
     }));

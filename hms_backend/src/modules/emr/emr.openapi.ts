@@ -14,8 +14,14 @@ import {
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const notAuthed = { description: 'Not authenticated', ...json(ErrorResponseSchema) };
-const notEntitled = { description: 'Tenant not entitled to the EMR module', ...json(ErrorResponseSchema) };
-const forbidden = { description: "Missing permission / not this clinician's note", ...json(ErrorResponseSchema) };
+const notEntitled = {
+  description: 'Tenant not entitled to the EMR module',
+  ...json(ErrorResponseSchema),
+};
+const forbidden = {
+  description: "Missing permission / not this clinician's note",
+  ...json(ErrorResponseSchema),
+};
 
 registry.registerPath({
   method: 'get',
@@ -25,7 +31,11 @@ registry.registerPath({
   summary: 'Search the ICD-10 diagnosis lookup',
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ q: z.string().optional() }) },
-  responses: { 200: { description: 'Matching codes', ...json(Icd10ListSchema) }, 401: notAuthed, 403: notEntitled },
+  responses: {
+    200: { description: 'Matching codes', ...json(Icd10ListSchema) },
+    401: notAuthed,
+    403: notEntitled,
+  },
 });
 
 registry.registerPath({
@@ -65,7 +75,8 @@ registry.registerPath({
   path: '/api/v1/encounters/open',
   operationId: 'openEncounter',
   tags: ['EMR'],
-  summary: 'Open (or resume) the consultation for a visit — creates a draft encounter if none exists',
+  summary:
+    'Open (or resume) the consultation for a visit — creates a draft encounter if none exists',
   security: [{ bearerAuth: [] }],
   request: { body: json(OpenEncounterBody) },
   responses: {
@@ -73,7 +84,10 @@ registry.registerPath({
     401: notAuthed,
     403: notEntitled,
     404: { description: 'Visit not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Visit not live, or the consultation fee is still unpaid', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Visit not live, or the consultation fee is still unpaid',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'Validation error', ...json(ErrorResponseSchema) },
   },
 });
@@ -83,7 +97,8 @@ registry.registerPath({
   path: '/api/v1/encounters/{id}',
   operationId: 'saveEncounter',
   tags: ['EMR'],
-  summary: 'Save the encounter (notes, vitals, diagnoses, prescriptions, lab orders) — draft only, author only',
+  summary:
+    'Save the encounter (notes, vitals, diagnoses, prescriptions, lab orders) — draft only, author only',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }), body: json(SaveEncounterBody) },
   responses: {
@@ -118,7 +133,8 @@ registry.registerPath({
   path: '/api/v1/encounters/{id}/amend',
   operationId: 'amendEncounter',
   tags: ['EMR'],
-  summary: 'Reopen a signed consultation for correction — preserves the signed note and records the reason',
+  summary:
+    'Reopen a signed consultation for correction — preserves the signed note and records the reason',
   description:
     'Copies the signed note into an amendment record, then moves the encounter to `amending` so it can be ' +
     'corrected through the ordinary save path. Re-signing closes the amendment with the fields that changed. ' +
@@ -151,7 +167,10 @@ registry.registerPath({
     401: notAuthed,
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
-    409: { description: 'Not being amended, or corrections already saved', ...json(ErrorResponseSchema) },
+    409: {
+      description: 'Not being amended, or corrections already saved',
+      ...json(ErrorResponseSchema),
+    },
   },
 });
 
@@ -162,7 +181,10 @@ registry.registerPath({
   tags: ['EMR'],
   summary: 'Which AI assists this deployment has (absent key = feature absent, never stubbed)',
   security: [{ bearerAuth: [] }],
-  responses: { 200: { description: 'Capability flags', ...json(AiCapabilitiesSchema) }, 401: notAuthed },
+  responses: {
+    200: { description: 'Capability flags', ...json(AiCapabilitiesSchema) },
+    401: notAuthed,
+  },
 });
 
 registry.registerPath({
@@ -170,7 +192,8 @@ registry.registerPath({
   path: '/api/v1/ai/prescription-draft',
   operationId: 'aiPrescriptionDraft',
   tags: ['EMR'],
-  summary: 'Draft prescription rows from the clinical context — a suggestion the doctor edits, never an order',
+  summary:
+    'Draft prescription rows from the clinical context — a suggestion the doctor edits, never an order',
   description:
     'Formulary-aware (prefers the drug master, returns drugId when matched). Sends the clinical minimum and no patient identifiers. 502 when the AI service is unavailable.',
   security: [{ bearerAuth: [] }],
@@ -179,7 +202,10 @@ registry.registerPath({
     200: { description: 'Draft rows + optional caution note', ...json(AiDraftResponseSchema) },
     401: notAuthed,
     403: forbidden,
-    404: { description: 'AI drafting not enabled on this deployment', ...json(ErrorResponseSchema) },
+    404: {
+      description: 'AI drafting not enabled on this deployment',
+      ...json(ErrorResponseSchema),
+    },
     422: { description: 'No clinical context yet', ...json(ErrorResponseSchema) },
     502: { description: 'AI service unavailable', ...json(ErrorResponseSchema) },
   },

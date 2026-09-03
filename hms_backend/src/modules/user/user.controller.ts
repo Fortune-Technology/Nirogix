@@ -14,7 +14,11 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { userId, tempPassword } = await svc.createUser(req.auth!.tenantId, req.body, req.auth!.userId);
+  const { userId, tempPassword } = await svc.createUser(
+    req.auth!.tenantId,
+    req.body,
+    req.auth!.userId,
+  );
   res.status(201).json({ id: userId, tempPassword, message: MESSAGES.user.created });
 }
 

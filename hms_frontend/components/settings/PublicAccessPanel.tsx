@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Copy, Download, ExternalLink, Printer, RefreshCw } from "lucide-react";
-import { Alert, Badge, Button, Card, ConfirmDialog, ErrorState, Skeleton } from "@hms/ui";
-import * as api from "../../lib/api";
-import { notifySuccess } from "../../lib/feedback";
-import { useDocumentBrand } from "../print/useDocumentBrand";
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Copy, Download, ExternalLink, Printer, RefreshCw } from 'lucide-react';
+import { Alert, Badge, Button, Card, ConfirmDialog, ErrorState, Skeleton } from '@hms/ui';
+import * as api from '../../lib/api';
+import { notifySuccess } from '../../lib/feedback';
+import { useDocumentBrand } from '../print/useDocumentBrand';
 
 /**
  * One settings panel for every ADR-056-pattern public surface (self-registration,
@@ -24,7 +24,7 @@ export interface PublicAccessSettings {
   pendingCount: number;
 }
 
-type Brand = ReturnType<typeof useDocumentBrand>["brand"];
+type Brand = ReturnType<typeof useDocumentBrand>['brand'];
 
 export interface PublicAccessPanelProps {
   /** Card title, e.g. "Patient self-registration". */
@@ -76,7 +76,9 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
         setSettings(s);
         setError(null);
       })
-      .catch((e) => setError(e instanceof api.ApiRequestError ? e.message : "Could not load these settings."));
+      .catch((e) =>
+        setError(e instanceof api.ApiRequestError ? e.message : 'Could not load these settings.'),
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- props.load is a module-level fn
   }, [props.load]);
 
@@ -102,13 +104,20 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
 
   function download() {
     if (!qrImage) return;
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = qrImage;
     a.download = props.downloadName;
     a.click();
   }
 
-  if (error) return <ErrorState title={`Could not load ${props.title.toLowerCase()} settings`} message={error} onRetry={load} />;
+  if (error)
+    return (
+      <ErrorState
+        title={`Could not load ${props.title.toLowerCase()} settings`}
+        message={error}
+        onRetry={load}
+      />
+    );
   if (!settings) return <Skeleton height="20rem" />;
 
   const pendingBadge = <Badge tone="warning">{settings.pendingCount} awaiting review</Badge>;
@@ -117,20 +126,22 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
     <>
       <Card header={props.title}>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge tone={settings.enabled ? "success" : "neutral"}>{settings.enabled ? "Enabled" : "Disabled"}</Badge>
-          {settings.pendingCount > 0
-            ? props.pendingHref
-              ? (
-                  <Link
-                    href={props.pendingHref}
-                    className="inline-flex"
-                    aria-label={`${settings.pendingCount} requests awaiting review`}
-                  >
-                    {pendingBadge}
-                  </Link>
-                )
-              : pendingBadge
-            : null}
+          <Badge tone={settings.enabled ? 'success' : 'neutral'}>
+            {settings.enabled ? 'Enabled' : 'Disabled'}
+          </Badge>
+          {settings.pendingCount > 0 ? (
+            props.pendingHref ? (
+              <Link
+                href={props.pendingHref}
+                className="inline-flex"
+                aria-label={`${settings.pendingCount} requests awaiting review`}
+              >
+                {pendingBadge}
+              </Link>
+            ) : (
+              pendingBadge
+            )
+          ) : null}
           <span className="flex-1" />
           {settings.enabled ? (
             <Button variant="secondary" onClick={() => setConfirmDisable(true)} disabled={busy}>
@@ -152,7 +163,11 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
             <div className="shrink-0">
               {qrImage ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a generated data: URI, not a remote asset
-                <img src={qrImage} alt={props.qrAlt} className="h-44 w-44 rounded-token border border-border bg-white p-2" />
+                <img
+                  src={qrImage}
+                  alt={props.qrAlt}
+                  className="h-44 w-44 rounded-token border border-border bg-white p-2"
+                />
               ) : (
                 <Skeleton height="11rem" width="11rem" />
               )}
@@ -174,18 +189,28 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
                 <Button variant="secondary" size="sm" onClick={() => router.push(props.printHref)}>
                   <Printer size={15} strokeWidth={2} /> Print poster
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => window.open(url, "_blank", "noopener,noreferrer")}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                >
                   <ExternalLink size={15} strokeWidth={2} /> Preview form
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => setConfirmRegen(true)} disabled={busy}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmRegen(true)}
+                  disabled={busy}
+                >
                   <RefreshCw size={15} strokeWidth={2} /> Regenerate
                 </Button>
               </div>
 
               <p className="mt-3 text-xs text-fg-subtle">
-                Print or display this at reception, the entrance, the waiting area or on your website. The code carries
-                only a link. No patient or hospital information is stored in it. It is drawn in your hospital&apos;s
-                colour, darkened only if that is needed to keep it scannable.
+                Print or display this at reception, the entrance, the waiting area or on your
+                website. The code carries only a link. No patient or hospital information is stored
+                in it. It is drawn in your hospital&apos;s colour, darkened only if that is needed
+                to keep it scannable.
               </p>
             </div>
           </div>
@@ -194,8 +219,9 @@ export function PublicAccessPanel(props: PublicAccessPanelProps) {
 
       {!settings.enabled ? (
         <Alert>
-          While {props.disabledNoun} is off, the link and QR code stop working. Your existing posters will start
-          working again if you turn it back on. The code does not change unless you regenerate it.
+          While {props.disabledNoun} is off, the link and QR code stop working. Your existing
+          posters will start working again if you turn it back on. The code does not change unless
+          you regenerate it.
         </Alert>
       ) : null}
 

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Badge, Button, Card, PasswordField } from "@hms/ui";
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Badge, Button, Card, PasswordField } from '@hms/ui';
 
 /**
  * Profile pieces for the operator console — shared with the Portal **by copy, not by
@@ -40,7 +40,7 @@ export function ProfileHeader({
                 </Badge>
               ))
             )}
-            <Badge tone={status === "active" ? "success" : "warning"}>{status}</Badge>
+            <Badge tone={status === 'active' ? 'success' : 'warning'}>{status}</Badge>
           </div>
         </div>
       </div>
@@ -51,11 +51,11 @@ export function ProfileHeader({
 /** Initials stand in until avatar upload exists (same reasoning as the Portal's copy). */
 export function ProfileAvatar({ name, size = 56 }: { name: string; size?: number }) {
   const initials = name
-    .split(" ")
+    .split(' ')
     .map((p) => p[0])
     .filter(Boolean)
     .slice(0, 2)
-    .join("")
+    .join('')
     .toUpperCase();
   return (
     <span
@@ -73,7 +73,7 @@ export function ProfileField({ label, children }: { label: string; children: Rea
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-fg-subtle">{label}</dt>
-      <dd className="mt-1 text-[0.975rem] text-fg">{children || "—"}</dd>
+      <dd className="mt-1 text-[0.975rem] text-fg">{children || '—'}</dd>
     </div>
   );
 }
@@ -99,9 +99,9 @@ export function ProfileSecurityCard({
   onSubmit: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   busy?: boolean;
 }) {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const tooShort = next.length > 0 && next.length < 10;
@@ -110,19 +110,20 @@ export function ProfileSecurityCard({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (next.length < 10) return setError("Use at least 10 characters for the new password.");
-    if (next !== confirm) return setError("The two new passwords do not match.");
+    if (next.length < 10) return setError('Use at least 10 characters for the new password.');
+    if (next !== confirm) return setError('The two new passwords do not match.');
     await onSubmit({ currentPassword: current, newPassword: next });
-    setCurrent("");
-    setNext("");
-    setConfirm("");
+    setCurrent('');
+    setNext('');
+    setConfirm('');
   }
 
   return (
     <Card header="Password">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
-          Changing your password signs you out of every device, including this one, so sign in again afterwards.
+          Changing your password signs you out of every device, including this one, so sign in again
+          afterwards.
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
           <PasswordField
@@ -135,14 +136,14 @@ export function ProfileSecurityCard({
             label="New password"
             value={next}
             autoComplete="new-password"
-            error={tooShort ? "At least 10 characters." : undefined}
+            error={tooShort ? 'At least 10 characters.' : undefined}
             onChange={(e) => setNext(e.target.value)}
           />
           <PasswordField
             label="Confirm new password"
             value={confirm}
             autoComplete="new-password"
-            error={mismatch ? "Does not match." : undefined}
+            error={mismatch ? 'Does not match.' : undefined}
             onChange={(e) => setConfirm(e.target.value)}
           />
         </div>

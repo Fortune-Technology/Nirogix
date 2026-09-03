@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { AlertTriangle, Inbox, RotateCcw } from "lucide-react";
-import { cn } from "../cn";
+import type { ReactNode } from 'react';
+import { AlertTriangle, Inbox, RotateCcw } from 'lucide-react';
+import { cn } from '../cn';
 
 /**
  * The shared empty / error / skeleton states (resources/rules.md → Reusable UI
@@ -20,9 +20,15 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({ title = "Nothing here yet", description, action, icon, className }: EmptyStateProps) {
+export function EmptyState({
+  title = 'Nothing here yet',
+  description,
+  action,
+  icon,
+  className,
+}: EmptyStateProps) {
   return (
-    <div className={cn("hms-state", className)}>
+    <div className={cn('hms-state', className)}>
       <span className="hms-state__icon" aria-hidden>
         {icon ?? <Inbox size={22} strokeWidth={1.75} />}
       </span>
@@ -43,14 +49,14 @@ export interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = "Could not load this",
+  title = 'Could not load this',
   message,
   onRetry,
-  retryLabel = "Try again",
+  retryLabel = 'Try again',
   className,
 }: ErrorStateProps) {
   return (
-    <div className={cn("hms-state hms-state--error", className)}>
+    <div className={cn('hms-state hms-state--error', className)}>
       <span className="hms-state__icon" aria-hidden>
         <AlertTriangle size={22} strokeWidth={1.75} />
       </span>
@@ -58,7 +64,11 @@ export function ErrorState({
       {message ? <p className="hms-state__desc">{message}</p> : null}
       {onRetry ? (
         <div className="hms-state__action">
-          <button type="button" className="hms-btn hms-btn--secondary hms-btn--sm" onClick={onRetry}>
+          <button
+            type="button"
+            className="hms-btn hms-btn--secondary hms-btn--sm"
+            onClick={onRetry}
+          >
             <RotateCcw size={15} strokeWidth={2} aria-hidden /> {retryLabel}
           </button>
         </div>
@@ -79,7 +89,7 @@ export interface SkeletonProps {
 export function Skeleton({ width, height, radius, className }: SkeletonProps) {
   return (
     <span
-      className={cn("hms-skeleton", className)}
+      className={cn('hms-skeleton', className)}
       style={{ width, height, borderRadius: radius }}
       aria-hidden
     />

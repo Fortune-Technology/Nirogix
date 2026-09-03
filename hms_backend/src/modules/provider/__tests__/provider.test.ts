@@ -37,7 +37,10 @@ beforeAll(async () => {
     await seedSpecialtyCatalog();
     await cleanup();
     tenantId = (
-      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', ['Prov Test', CODE])
+      await pool.query('INSERT INTO tenants (name, code) VALUES ($1,$2) RETURNING id', [
+        'Prov Test',
+        CODE,
+      ])
     ).rows[0].id;
     ready = true;
   } catch (err) {
@@ -61,7 +64,10 @@ describe('provider / specialty core', () => {
 
   test('assigning a specialty is a data change (PractitionerRole)', async ({ skip }) => {
     if (!ready) return skip();
-    const role = await assignSpecialty(tenantId, provider.id, { specialtyCode: 'cardiology', isPrimary: true });
+    const role = await assignSpecialty(tenantId, provider.id, {
+      specialtyCode: 'cardiology',
+      isPrimary: true,
+    });
     expect(role?.specialtyCode).toBe('cardiology');
     const list = await listProvidersWithRoles(tenantId);
     const p = list.find((x) => x.id === provider.id);
