@@ -1680,3 +1680,25 @@ there to resend to.
 
 Verified in the running Portal against the live API: the route control shows both options for ABHA
 number and ABHA address and is absent for Mobile number; no new console errors and every ABDM request 200.
+
+---
+
+## The page that asks for a Facility ID now says where one comes from · 03/09/2026
+
+`/hospital-setup/abdm` asks for the HFR Facility ID and said only that the National Health
+Authority issues it and "we cannot create it for you". True, and a dead end: the screen that applies
+for one is `/hospital-setup/registry`, which has **no tab** in the Hospital configuration strip — it
+is reached from the Setup overview card, which is not where anybody looking at this field is
+standing.
+
+An administrator hitting that card either has a Facility ID or needs one, and the second case had
+nowhere to go. Found the way these things are always found: someone opened the ABDM / ABHA tab to
+start the registration and there was nothing there to start.
+
+The card now links straight to the registries and says NHA verifies each facility by hand, so the
+wait is expected rather than a surprise. **Fixed where the question is asked**, not by adding a
+tenth tab — the tab strip deliberately leaves out areas that have their own screen (`SettingsTabs`
+says so), and one more tab would not have helped the person already reading the hint.
+
+Verified in the running Portal: the link renders in the card and resolves to the registry hub, which
+correctly reads "This hospital is not registered yet".

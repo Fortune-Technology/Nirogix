@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { Alert, Button, Card, Field, Textarea } from '@hms/ui';
 import { PERMISSIONS } from '@hms/permissions';
 import type { AbdmFacilityConfig } from '@hms/types';
@@ -93,7 +94,17 @@ function AbdmFacilityForm() {
       <Card header="Health Facility Registry">
         <p className="mb-4 text-sm text-fg-muted">
           Your hospital&apos;s own ABDM registration. Issued to you by the National Health Authority
-          — we cannot create it for you.
+          — we cannot create it for you. If you do not have one yet,{' '}
+          {/*
+            The link belongs HERE, beside the field that asks for the id, not only on the console
+            overview. An administrator who reaches this card either has a Facility ID or needs one,
+            and the second case had nowhere to go: the registration wizard is a real screen with no
+            tab, so the page asked for a value and did not say where a value comes from.
+          */}
+          <Link href="/hospital-setup/registry" className="text-brand underline">
+            apply for one in the National Registries
+          </Link>
+          . NHA verifies each facility by hand, so allow time.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field

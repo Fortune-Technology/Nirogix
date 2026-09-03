@@ -2929,3 +2929,28 @@ that no longer exists — the apex now returns the default Nginx page over HTTP 
 is `BACKLOG.md` I-7) and §9 item 1 (still instructing a repoint that is finished),
 `deploy/e2e-provisioning.md` Step 7 (same), and `deploy/README.md`'s shared-VM pre-flight (the new
 node is dedicated to Nirogix; the port audit stays mandatory because production may be shared).
+
+---
+
+## Staging is technically ready for M2/M3 (ADR-141, ADR-142) · 03/09/2026
+
+Verified on the node itself (`e2e-131-182`, E2E Networks India), not inferred:
+
+- **Outbound** — session issued (1441 chars), ABHA public certificate fetched, HFR master data
+  reachable. M1's foundation works from the deployed host.
+- **Inbound — 16/16 callback routes answer 401.** Every route ABDM calls is mounted and guarded; the
+  control probe 404s, so the host distinguishes a real route from a missing one; nothing accepted an
+  unauthenticated POST. This is the check that did not exist before ADR-141 and the reason four
+  missing callbacks were invisible.
+- **Fidelius round-trips on this node.** OpenJDK 17 plus `fidelius-cli-1.2.0` at `/opt`: key material
+  with the X.509 form, a 23,253-character bundle encrypted to 31,188, plaintext checksum carried,
+  curve named as ABDM expects, decrypted back **byte for byte**, and the parameter file removed. The
+  earlier proof (30/08) was on the host that has since been replaced, so this is a fresh one on the
+  machine that will actually transact.
+
+`BACKLOG.md`'s "no JRE on the node" is closed with it.
+
+**One item remains, and it is not code:** the bridge holds `services: []`. Attaching a HIP/HIU
+service needs an HFR-issued facility id, so HFR registration is the whole of the remaining critical
+path. Until then every `abdm:staging` run exits 1 on that one finding — correctly, because the
+system is not reachable — while the other 21 checks pass.
