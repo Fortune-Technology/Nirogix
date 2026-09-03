@@ -999,6 +999,15 @@ Sign in as the **Doctor** (Test credentials → Doctor).
 - [ ] **7.3 Consultation.** Record chief complaint, notes/SOAP, vitals where supported, an **ICD-10
   diagnosis** (type-ahead), and follow-up instructions. Save. **Verify:** persists on refresh; a *Past
   consultations* panel shows earlier signed encounters.
+- [ ] **7.3b Save is always reachable, and says what it knows.** Scroll to the very bottom of a
+  consultation carrying several prescriptions and lab orders. **Verify:** the title bar stays pinned
+  under the app bar with **Save**, the sign action, and a plain statement of state — *Unsaved changes*
+  while you are typing, *All changes saved* after saving. Type something and undo it by hand: it goes
+  back to *All changes saved*, because the state is what the note says, not what you touched.
+- [ ] **7.3c One click, one save.** Click **Save** twice as fast as you can. **Verify:** one success
+  toast and the version advances once. Two saves, two toasts, or a duplicated row is a defect.
+- [ ] **7.3d Unsaved work is not lost silently.** With an unsaved edit on screen, reload the tab.
+  **Verify:** the browser asks before discarding, and cancelling keeps what you typed.
 
 #### 7.3a Vitals in the consultation (ADR-113)
 
@@ -1016,15 +1025,78 @@ Sign in as the **Doctor** (Test credentials → Doctor).
   doctor, and the earlier one is still there.
 - [ ] **7.3a.5** Where the hospital has vitals switched off entirely, **verify** the Vitals card is
   absent from the consultation.
-- [ ] **7.4 Prescription.** Add a prescription line: **medicine** (from the drug master picker; free text is
-  allowed), dosage, frequency, duration, quantity, instructions. Save. **Verify:** linked to the correct
-  patient and encounter.
-- [ ] **7.5 Lab order.** Add at least one **lab order** (from the test master picker). **Verify:** linked to
-  the patient + encounter; it becomes visible to lab staff (§9).
+- [ ] **7.4 Prescription.** Use **Add medicine** — it is in the **card footer**, at the end of the list it
+  extends, not in the card header. Fill the line: **medicine**, dose, frequency, route, duration,
+  instructions. **Verify:** the medicine field is the shared searchable picker — type three letters and
+  the list filters, showing strength, price and stock; arrow keys move, Enter selects, Esc closes.
+  Now type a medicine that is **not** in the master. **Verify:** it is accepted, with *Not in the drug
+  master; pharmacy will match it by hand* beneath it. Save. **Verify:** linked to the correct patient and
+  encounter.
+- [ ] **7.4a Alignment.** With one matched and one free-text medicine on screen, look along the row.
+  **Verify:** labels and inputs sit on one baseline, a row carrying a hint does not stretch its
+  neighbours taller than themselves, and the page never scrolls sideways — at desktop, tablet and
+  mobile widths.
+- [ ] **7.4b Deleting a line.** Remove a prescription you have **already saved**. **Verify:** the
+  application's own *Delete prescription?* dialog appears, naming the medicine, with Cancel and Delete —
+  never the browser's grey box. Cancel keeps it. Now add a fresh row and remove it before saving:
+  **verify** it just goes, with no dialog. Nothing was in the record to destroy.
+- [ ] **7.5 Lab order.** Use **Add test** in the card footer. **Verify:** the test field behaves exactly
+  like the medicine field — same control, same keyboard, same free-text fallback — and picking a test
+  from the master fills the code and shows the price. **Verify:** the order is linked to the patient +
+  encounter and becomes visible to lab staff (§9).
 - [ ] **7.6 Referral (optional).** Refer to a department; **Verify** it appears in the referrals worklist and
   the front desk can check the patient in against it.
-- [ ] **7.7 Sign-off.** Sign the encounter. **Verify:** it locks for editing; **Print prescription** produces
-  a branded Rx document.
+- [ ] **7.7 Sign-off.** Press **Sign & complete**. **Verify:** the application's own confirmation appears
+  first — *Sign this consultation?*, saying the note locks and the visit is marked completed — and that it
+  is **not** the browser's dialog (no *localhost says*, and it follows Light/Dark). Cancel, then do it
+  again and confirm. **Verify:** the record locks for editing, the visit completes, and **Print
+  prescription** produces a branded Rx document.
+
+#### 7.8 Correcting a signed consultation (ADR-134)
+
+The rule being tested is that the signed note is **never overwritten**. Everything below is about what
+the record looks like afterwards, not about whether the edit went through.
+
+- [ ] **7.8.1 A signed note is closed.** On the consultation you just signed, **verify** every field is
+  read-only and the header offers *Signed …*, *Print prescription* and **Amend consultation**.
+- [ ] **7.8.2 🔒 Without the permission, the screen says which one.** Sign in as the **Receptionist** and
+  open the same consultation (they hold `emr.encounter.view`). **Verify:** there is **no** Amend button,
+  and a panel names the missing permission in words *and* as `emr.encounter.amend`, and says who can
+  grant it. A dead or disabled button here is a defect.
+- [ ] **7.8.3 A reason is required.** Back as the **Doctor**, press **Amend consultation**. **Verify:** the
+  dialog says the signed note is preserved and that your name, the time, the reason and the changed
+  fields will be recorded. Submit with the reason empty, then with one word. **Verify:** both are refused
+  in place and the consultation is still signed.
+- [ ] **7.8.4 Reopening.** Give a real reason ("Cough is productive, not dry — the subjective note was
+  wrong"). **Verify:** the fields become editable, a banner names the reason, its author and the original
+  signing time, and the header now offers **Save**, **Sign amendment** and **Discard amendment**.
+- [ ] **7.8.5 The note has not left the hospital.** While it is open for amendment, **verify** it is still
+  listed in the patient's clinical history, and (as the **Pharmacist**) that its undispensed prescription
+  is **still waiting** at the counter. A correction upstairs does not take a patient's medicine off the
+  counter.
+- [ ] **7.8.6 🔒 The amendment belongs to whoever opened it.** As the **Org Admin** — who holds every
+  permission — try to save a change to this consultation. **Verify:** refused with *Another user is
+  amending this consultation*. Try **Amend** again: refused, because one is already open. Exactly one
+  amendment is on the record.
+- [ ] **7.8.7 Discarding, before and after.** As the **Doctor**, press **Discard amendment** before
+  changing anything. **Verify:** it returns to signed, the note is untouched, and the discarded attempt
+  is still listed in the trail — reopening a signed record is worth knowing about even when nothing came
+  of it. Now amend again, change the **Subjective** text, and try to discard. **Verify:** refused, telling
+  you to sign it instead.
+- [ ] **7.8.8 Re-signing records what changed.** Save, then **Sign amendment** and confirm. **Verify:** the
+  record locks again, and the **Amendments** card lists this amendment as *Recorded*, with the author, the
+  time, the reason, and *Changed: Subjective* — naming **only** the field you actually changed. If it
+  claims fields you did not touch, that is a defect.
+- [ ] **7.8.9 Changing nothing is still an answer.** As the **Org Admin**, amend with a reason
+  ("Reviewed after a complaint"), change nothing, and sign. **Verify:** it is recorded as *Reopened and
+  re-signed without changing anything* — not as a blank or missing entry.
+- [ ] **7.8.10 The visit completed once.** **Verify** the visit is still *completed* with its original
+  completion time, and in the **Audit log** (§13) that the encounter has exactly **one**
+  `encounter.sign` alongside `encounter.amend_open` and `encounter.amend_sign`. An amendment is a
+  correction, not a second consultation.
+- [ ] **7.8.11 The trail is append-only.** **Verify** the Amendments card lists every amendment — the
+  recorded one, the unchanged one and the discarded one — newest first, each with its own status, author,
+  time and reason, and that nothing in the UI removes one.
 
 **⚠ AI draft:** a *Draft with AI* control appears **only** on deployments where the AI key is configured;
 otherwise it is absent by design. When present, drafted lines land in the same editable form and the

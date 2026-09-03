@@ -14,11 +14,12 @@ import {
   emptyLabel,
   Field,
   PhoneField,
+  Select,
   Spinner,
   ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import { ageInYears, todayApiDate } from "@hms/utils";
+import { ageInYears, BLOOD_GROUP_OPTIONS, GENDER_OPTIONS, RECORD_STATUS_OPTIONS, todayApiDate } from "@hms/utils";
 import type { Patient, CreatePatientRequest } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { RequirePermission, Can } from "../../../../components/Can";
@@ -28,8 +29,6 @@ import { ImmunizationsCard } from "../../../../components/patients/Immunizations
 import { CasesCard } from "../../../../components/patients/CasesCard";
 import { ExternalHistoryCard } from "../../../../components/patients/ExternalHistoryCard";
 import { PageHeader } from "../../../../components/PageHeader";
-
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 /**
  * The identity strip — who this is, answered before anything else (ADR-127).
@@ -200,22 +199,28 @@ function Profile({ id }: { id: string }) {
           <Card header="Edit patient">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Last name" value={form.lastName ?? ""} onChange={(e) => set("lastName", e.target.value)} />
-              <label className="hms-field"><span className="hms-label">Gender</span>
-                <select className="hms-input" value={form.gender ?? ""} onChange={(e) => set("gender", e.target.value)}>
-                  <option value="">Not specified</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
-                </select>
-              </label>
+              <Select
+                label="Gender"
+                value={form.gender ?? ""}
+                onChange={(v) => set("gender", v)}
+                options={GENDER_OPTIONS}
+                placeholder="Not specified"
+                clearable
+              />
               <DateField
                 label="Date of birth"
                 value={form.dateOfBirth ?? null}
                 max={todayApiDate()}
                 onChange={(v) => set("dateOfBirth", v ?? "")}
               />
-              <label className="hms-field"><span className="hms-label">Blood group</span>
-                <select className="hms-input" value={form.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>
-                  <option value="">Not recorded</option>{BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </label>
+              <Select
+                label="Blood group"
+                value={form.bloodGroup ?? ""}
+                onChange={(v) => set("bloodGroup", v)}
+                options={BLOOD_GROUP_OPTIONS}
+                placeholder="Not recorded"
+                clearable
+              />
               <PhoneField label="Phone" value={form.phone ?? ""} onChange={(v) => set("phone", v)} />
               <Field label="Email" type="email" value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} />
               <Field label="Address" value={form.addressLine ?? ""} onChange={(e) => set("addressLine", e.target.value)} />
@@ -224,11 +229,13 @@ function Profile({ id }: { id: string }) {
               <Field label="PIN code" value={form.pincode ?? ""} onChange={(e) => set("pincode", e.target.value)} />
               <Field label="Emergency contact" value={form.emergencyContactName ?? ""} onChange={(e) => set("emergencyContactName", e.target.value)} />
               <Field label="Emergency phone" value={form.emergencyContactPhone ?? ""} onChange={(e) => set("emergencyContactPhone", e.target.value)} />
-              <label className="hms-field"><span className="hms-label">Status</span>
-                <select className="hms-input" value={form.status ?? "active"} onChange={(e) => set("status", e.target.value)}>
-                  <option value="active">active</option><option value="archived">archived</option>
-                </select>
-              </label>
+              {/* Sentence case, not the raw column value: the two words are read by a person. */}
+              <Select
+                label="Status"
+                value={form.status ?? "active"}
+                onChange={(v) => set("status", v || "active")}
+                options={RECORD_STATUS_OPTIONS}
+              />
             </div>
           </Card>
           <div className="flex gap-3">

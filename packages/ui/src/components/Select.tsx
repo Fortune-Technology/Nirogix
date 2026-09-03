@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "../cn";
+import { useAnchoredPanel } from "./useAnchoredPanel";
 
 export interface SelectOption<V extends string = string> {
   value: V;
@@ -67,8 +67,6 @@ export interface SelectProps<V extends string = string> {
 }
 
 const DEFAULT_SEARCH_THRESHOLD = 7;
-/** Room the panel wants below the trigger before it gives up and flips above it. */
-const PANEL_SPACE = 260;
 
 function matches(option: SelectOption, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -77,14 +75,6 @@ function matches(option: SelectOption, query: string): boolean {
   // Every whitespace-separated term must appear, so "sharma cardio" finds a cardiologist
   // named Sharma without the user having to remember the order they are written in.
   return q.split(/\s+/).every((term) => haystack.includes(term));
-}
-
-interface PanelRect {
-  left: number;
-  width: number;
-  top: number | null;
-  bottom: number | null;
-  maxHeight: number;
 }
 
 /**
@@ -139,12 +129,13 @@ export function Select<V extends string = string>({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [rect, setRect] = useState<PanelRect | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const { rect, measure, clear: clearRect } = useAnchoredPanel(triggerRef, open);
 
   const showSearch = searchable === true || (searchable === "auto" && options.length > searchThreshold);
 
@@ -168,31 +159,16 @@ export function Select<V extends string = string>({
     return out;
   }, [visible]);
 
-  const measure = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const gap = 4;
-    const spaceBelow = window.innerHeight - r.bottom - gap;
-    const spaceAbove = r.top - gap;
-    const up = spaceBelow < PANEL_SPACE && spaceAbove > spaceBelow;
-    setRect({
-      left: r.left,
-      width: r.width,
-      top: up ? null : r.bottom + gap,
-      bottom: up ? window.innerHeight - r.top + gap : null,
-      // Never taller than the room actually available, so the panel cannot run off-screen.
-      maxHeight: Math.max(140, Math.min(PANEL_SPACE + 60, up ? spaceAbove : spaceBelow) - 8),
-    });
-  }, []);
-
-  const close = useCallback((returnFocus = true) => {
-    setOpen(false);
-    setQuery("");
-    setActiveIndex(-1);
-    setRect(null);
-    if (returnFocus) triggerRef.current?.focus();
-  }, []);
+  const close = useCallback(
+    (returnFocus = true) => {
+      setOpen(false);
+      setQuery("");
+      setActiveIndex(-1);
+      clearRect();
+      if (returnFocus) triggerRef.current?.focus();
+    },
+    [clearRect],
+  );
 
   const commit = useCallback(
     (option: SelectOption<V>) => {
@@ -213,10 +189,6 @@ export function Select<V extends string = string>({
     setOpen(true);
   }, [disabled, measure, options, value]);
 
-  useLayoutEffect(() => {
-    if (open) measure();
-  }, [open, measure]);
-
   useEffect(() => {
     if (!open) return;
     if (showSearch) searchRef.current?.focus();
@@ -227,19 +199,6 @@ export function Select<V extends string = string>({
   useEffect(() => {
     if (open && activeIndex >= visible.length) setActiveIndex(visible.length - 1);
   }, [open, activeIndex, visible.length]);
-
-  // The panel lives in a portal, so it follows the trigger only if it is told to.
-  // Capture-phase catches scrolling in any ancestor, not just the window.
-  useEffect(() => {
-    if (!open) return;
-    const onScrollOrResize = () => measure();
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
-    return () => {
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
-  }, [open, measure]);
 
   useEffect(() => {
     if (!open) return;
@@ -367,8 +326,13 @@ export function Select<V extends string = string>({
           ) : visible.length === 0 ? (
             <p className="hms-select__empty">{emptyMessage}</p>
           ) : (
-            groups.map((group) => (
-              <div key={group.name ?? "__ungrouped"} role="group" aria-label={group.name ?? undefined}>
+            groups.map((group, groupIndex) => (
+              // Keyed by POSITION, not by name. A caller whose options are not sorted by group
+              // produces the same name in two non-adjacent runs — `platform … opd … platform` —
+              // and keying on the name gives React two siblings with one key. The symptom is not
+              // a warning anyone notices: the list renders stale and duplicated options and stops
+              // responding to the search. The heading is still the name; only the key differs.
+              <div key={`group-${groupIndex}`} role="group" aria-label={group.name ?? undefined}>
                 {group.name && <p className="hms-select__group">{group.name}</p>}
                 {group.items.map(({ option, index }) => (
                   <div

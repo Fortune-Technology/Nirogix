@@ -460,3 +460,67 @@ the page exists for. That is what every multi-action header already did.
 **Testing status:** 107 `@hms/ui` component tests pass unchanged; frontend typecheck clean.
 Verified in the running Portal — *Register patient* now sits level with the page title, and the
 filter row holds only search, filters and Columns.
+
+## 2026-09-03 — The picker that also accepts an answer the list does not have (ADR-134)
+
+`Select` has been the one dropdown since ADR-112, and it is the right control for *choose one of
+these*. The consultation screen needed the other question — *choose one of these, or write your
+own* — and had been answering it with `<input list>` + `<datalist>`, which shows no price and no
+stock, cannot be styled at all, and gives no way to distinguish a drug the doctor **picked** from a
+string that happens to match one. A prescription that carries no `drugId` is a prescription the
+pharmacy has to match by hand.
+
+**`Combobox`** now sits beside `Select`. `onChange(text, option | null)` hands back exactly the
+pair a caller stores, and `option` becomes non-null again the moment the typed text matches a row.
+Three modes cover the cases that were being re-implemented per page: `filter={false}` + `onSearch`
+for a server-backed search (ICD-10), `onSelect` for a search-and-add control that adds a row rather
+than binding a value, and `allowCustomValue={false}` where an unmatched string must not be left
+looking like a selection.
+
+**One panel, not two.** The positioning `Select` had — portal to the body, viewport coordinates,
+re-measure on capture-phase scroll, flip above when the space below is short — is extracted to
+`useAnchoredPanel` and used by both, and `Combobox` reuses `.hms-select__panel` rather than
+growing a second list. A pattern that appears twice gets extracted (ADR-029); this one appeared
+twice on the day it was written.
+
+**An option is committed on `pointerdown`, not `click`.** The field's own blur fires first, and a
+panel that closes on blur eats the click that was meant to choose something. Same for the clear
+button.
+
+Three smaller gaps closed in the same change, each because a page was about to work around it:
+`Card` gains a **`footer`** for a repeatable form's *Add another*; `Alert` gains the **`warning`**
+tone `Badge` already had; `PageHeader` gains **`sticky`** for a page whose work runs past the fold.
+
+**Testing status:** 20 new `Combobox` tests (filtering, keywords, keyboard including wrap and
+disabled-skip, server-search mode, search-and-add, free-text vs matched, blur behaviour, loading,
+empty, clear, disabled) — 127 `@hms/ui` tests pass. The `Select` refactor onto the shared hook is
+covered by its own 107 unchanged tests.
+
+## 2026-09-03 — The design system stops being the last place with a native dropdown (ADR-135)
+
+`Select`'s own docstring has said *reach for it before writing another
+`<select className="hms-input">`* since ADR-112. `DataTablePagination` was writing exactly that —
+so the one component on **every table in the product** was the one ignoring the tokens: the
+browser's chrome instead of Light/Dark, an OS wheel on a phone.
+
+It is `Select` now, with `searchable={false}` (four numbers do not need a search box) and a new
+`.hms-select__trigger--sm` sized to land on the same **30px** as the `.hms-pagination__btn` beside
+it. That number was measured in the running app, not guessed: the first attempt came out at 32px,
+and a control two pixels taller than its neighbours is what makes a toolbar look assembled rather
+than designed.
+
+The kit grew one thing here — that compact trigger modifier. Everything else in this change is the
+kit being *used*.
+
+**Testing status:** 127 `@hms/ui` tests pass unchanged, including the DataTable suite that renders
+the pagination row. Verified live on `/patients`: the trigger reads *20* with an accessible name of
+*Rows per page*, the panel is portalled with 10/20/50/100 and no search box, and picking *50*
+re-rendered the table to 29 rows above *Showing 1–29 of 29*.
+
+**A latent bug in `Select`, found by the first caller to trip it.** Group runs were keyed by
+name, so a caller whose options are not sorted by group — the permission catalog visits
+`platform` twice — handed React two siblings with one key. No console warning: the list rendered
+stale, duplicated options and stopped responding to the search box. Keyed by position now, in
+`Combobox` too, with a regression test in each that was **confirmed to fail** against the old key.
+The docstring said the caller controls grouping by ordering the options; that was an assumption
+doing a guarantee’s job. 129 `@hms/ui` tests pass.

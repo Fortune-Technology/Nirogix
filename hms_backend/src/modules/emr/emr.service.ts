@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   encounters,
+  encounterAmendments,
   diagnoses,
   prescriptions,
   labOrders,
@@ -100,11 +101,31 @@ async function buildDto(tenantId: string, encounterId: string) {
     if (!row) throw Errors.notFound('Encounter not found');
     const e = row.e;
 
-    const [dx, rx, lab] = await Promise.all([
+    const [dx, rx, lab, amendmentRows] = await Promise.all([
       tx.select().from(diagnoses).where(eq(diagnoses.encounterId, encounterId)).orderBy(diagnoses.createdAt),
       tx.select().from(prescriptions).where(eq(prescriptions.encounterId, encounterId)).orderBy(prescriptions.createdAt),
       tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId)).orderBy(labOrders.createdAt),
+      // The amendment trail (ADR-134), newest first. The snapshot column is deliberately not
+      // selected: the trail is what a chart shows, and a frozen copy of every past note is far
+      // more clinical data than the screen displays.
+      tx
+        .select({ a: encounterAmendments, amenderName: users.fullName })
+        .from(encounterAmendments)
+        .leftJoin(users, eq(users.id, encounterAmendments.amendedBy))
+        .where(and(eq(encounterAmendments.tenantId, tenantId), eq(encounterAmendments.encounterId, encounterId)))
+        .orderBy(desc(encounterAmendments.createdAt)),
     ]);
+
+    const amendments = amendmentRows.map((r) => ({
+      id: r.a.id,
+      status: r.a.status,
+      reason: r.a.reason,
+      changedFields: (r.a.changedFields as string[] | null) ?? null,
+      amendedById: r.a.amendedBy,
+      amendedByName: r.amenderName ?? null,
+      createdAt: r.a.createdAt.toISOString(),
+      completedAt: r.a.completedAt ? r.a.completedAt.toISOString() : null,
+    }));
 
     // Readings belong to the VISIT, so they are fetched by visit and converted by the vitals
     // module — the unit arithmetic must never live in a second place.
@@ -128,6 +149,11 @@ async function buildDto(tenantId: string, encounterId: string) {
       status: e.status,
       version: e.version,
       signedAt: e.signedAt ? e.signedAt.toISOString() : null,
+      // A note being amended is editable but is NOT a first draft — the screen has to say
+      // "signed, being corrected" rather than offering it as unwritten.
+      wasSigned: e.signedAt !== null,
+      amendments,
+      openAmendment: amendments.find((a) => a.status === 'open') ?? null,
       chiefComplaint: e.chiefComplaint,
       subjective: e.subjective,
       objective: e.objective,
@@ -244,8 +270,34 @@ export async function saveEncounter(tenantId: string, encounterId: string, input
       await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
-    if (e.status === 'signed') throw Errors.conflict('A signed encounter cannot be edited');
-    if (e.authoredBy && actorUserId && e.authoredBy !== actorUserId) {
+    // Signed is closed. The way to change it is to reopen it deliberately (ADR-134), which
+    // preserves what was signed first and moves the encounter to `amending`.
+    if (e.status === 'signed') {
+      throw Errors.conflict('A signed consultation cannot be edited. Amend it to record a correction');
+    }
+    if (e.status === 'amending') {
+      // An amendment belongs to whoever opened it and stated the reason — including an
+      // administrator correcting someone else's note, which is exactly the case the plain
+      // author check would refuse. Anyone else is still refused, so two people cannot edit
+      // through one person's stated reason.
+      const open = (
+        await tx
+          .select()
+          .from(encounterAmendments)
+          .where(
+            and(
+              eq(encounterAmendments.tenantId, tenantId),
+              eq(encounterAmendments.encounterId, encounterId),
+              eq(encounterAmendments.status, 'open'),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (!open) throw Errors.conflict('This consultation is not open for amendment');
+      if (open.amendedBy && actorUserId && open.amendedBy !== actorUserId) {
+        throw Errors.forbidden('Another user is amending this consultation');
+      }
+    } else if (e.authoredBy && actorUserId && e.authoredBy !== actorUserId) {
       throw Errors.forbidden("You cannot edit another clinician's notes");
     }
 
@@ -432,60 +484,317 @@ async function recordConsultationVitals(
   );
 }
 
+/**
+ * The note's content as one comparable value — what an amendment freezes when it opens, and
+ * what the re-sign is compared against to say which parts actually changed (ADR-134).
+ *
+ * Vitals are deliberately absent: they belong to the visit, not to this row (ADR-113), they
+ * carry their own recorder and timestamp per reading, and a vitals correction is already a
+ * new reading rather than an edit of an old one.
+ */
+async function readNoteContent(
+  tx: Parameters<Parameters<typeof runWithTenant>[1]>[0],
+  encounterId: string,
+  e: { chiefComplaint: string | null; subjective: string | null; objective: string | null; assessment: string | null; plan: string | null; version: number; signedAt: Date | null },
+) {
+  const [dx, rx, lab] = await Promise.all([
+    tx.select().from(diagnoses).where(eq(diagnoses.encounterId, encounterId)).orderBy(diagnoses.createdAt),
+    tx.select().from(prescriptions).where(eq(prescriptions.encounterId, encounterId)).orderBy(prescriptions.createdAt),
+    tx.select().from(labOrders).where(eq(labOrders.encounterId, encounterId)).orderBy(labOrders.createdAt),
+  ]);
+  return {
+    chiefComplaint: e.chiefComplaint,
+    subjective: e.subjective,
+    objective: e.objective,
+    assessment: e.assessment,
+    plan: e.plan,
+    diagnoses: dx.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary, notes: d.notes })),
+    prescriptions: rx.map((p) => ({
+      drugId: p.drugId,
+      drugName: p.drugName,
+      dose: p.dose,
+      frequency: p.frequency,
+      duration: p.duration,
+      route: p.route,
+      instructions: p.instructions,
+      status: p.status,
+    })),
+    labOrders: lab.map((l) => ({
+      testId: l.testId,
+      testName: l.testName,
+      testCode: l.testCode,
+      priority: l.priority,
+      status: l.status,
+      notes: l.notes,
+    })),
+    signedAtVersion: e.version,
+    signedAt: e.signedAt ? e.signedAt.toISOString() : null,
+  };
+}
+
+type NoteContent = Awaited<ReturnType<typeof readNoteContent>>;
+
+/**
+ * A value serialised so that two equal values always produce the same string.
+ *
+ * `JSON.stringify` is key-order sensitive, and one side of this comparison has been through
+ * `jsonb`, which does not preserve key order — it stores keys sorted. Comparing the raw
+ * stringifications therefore reported every collection as changed on every amendment, including
+ * ones where nothing had been touched. Sorting keys on both sides is what makes the comparison
+ * about the values. Array order is left alone: it is meaningful here, since the rows come back
+ * ordered by creation and a reordered prescription list is a real difference.
+ */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
+}
+
+/**
+ * Which parts of the note differ. Named fields, not a character diff: what a person reading
+ * the chart needs is "the plan and the prescriptions changed", and the two full versions are
+ * both preserved for anyone who needs the detail.
+ *
+ * An empty list is a real answer — someone reopened the record, looked, and changed nothing.
+ */
+function diffNote(before: NoteContent, after: NoteContent): string[] {
+  const changed: string[] = [];
+  for (const key of ['chiefComplaint', 'subjective', 'objective', 'assessment', 'plan'] as const) {
+    if ((before[key] ?? '') !== (after[key] ?? '')) changed.push(key);
+  }
+  for (const key of ['diagnoses', 'prescriptions', 'labOrders'] as const) {
+    if (canonical(before[key]) !== canonical(after[key])) changed.push(key);
+  }
+  return changed;
+}
+
 export async function signEncounter(tenantId: string, encounterId: string, actorUserId?: string) {
-  const visitId = await runWithTenant(tenantId, async (tx) => {
+  const result = await runWithTenant(tenantId, async (tx) => {
     const e = (
       await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
     )[0];
     if (!e) throw Errors.notFound('Encounter not found');
     if (e.status === 'signed') throw Errors.conflict('Encounter is already signed');
-    if (e.authoredBy && actorUserId && e.authoredBy !== actorUserId) {
+
+    // Re-signing an amendment closes the correction; a first signature also completes the visit.
+    // The two share the signature and nothing else, so the visit state machine is only consulted
+    // on the path that actually moves it.
+    const amending = e.status === 'amending';
+
+    const open = amending
+      ? (
+          await tx
+            .select()
+            .from(encounterAmendments)
+            .where(
+              and(
+                eq(encounterAmendments.tenantId, tenantId),
+                eq(encounterAmendments.encounterId, encounterId),
+                eq(encounterAmendments.status, 'open'),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : undefined;
+    if (amending && !open) throw Errors.conflict('This consultation is not open for amendment');
+
+    if (amending) {
+      if (open!.amendedBy && actorUserId && open!.amendedBy !== actorUserId) {
+        throw Errors.forbidden('Another user is amending this consultation');
+      }
+    } else if (e.authoredBy && actorUserId && e.authoredBy !== actorUserId) {
       throw Errors.forbidden("You cannot sign another clinician's encounter");
     }
 
     // Signing completes the visit, so it must respect the visit state machine: only a live
-    // visit can complete — never a cancelled (or already completed) one.
-    const visit = (
-      await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, e.visitId))).limit(1)
-    )[0];
-    if (!visit) throw Errors.notFound('Visit not found');
-    if (visit.status !== 'checked_in' && visit.status !== 'in_consultation') {
-      throw Errors.conflict(`Cannot sign the consultation of a ${visit.status} visit`);
+    // visit can complete — never a cancelled (or already completed) one. An amendment never
+    // touches the visit, which completed when the note was first signed.
+    let visit: typeof visits.$inferSelect | undefined;
+    if (!amending) {
+      visit = (
+        await tx.select().from(visits).where(and(eq(visits.tenantId, tenantId), eq(visits.id, e.visitId))).limit(1)
+      )[0];
+      if (!visit) throw Errors.notFound('Visit not found');
+      if (visit.status !== 'checked_in' && visit.status !== 'in_consultation') {
+        throw Errors.conflict(`Cannot sign the consultation of a ${visit.status} visit`);
+      }
     }
+
+    // What the note says now — read before the status flips, and compared against the frozen
+    // original so the amendment can record which parts were actually corrected.
+    const changedFields = amending ? diffNote(open!.snapshot as NoteContent, await readNoteContent(tx, encounterId, e)) : null;
 
     // CAS on status so two sign requests cannot both win.
     const signed = await tx
       .update(encounters)
       .set({ status: 'signed', signedAt: new Date(), version: e.version + 1, updatedAt: new Date() })
-      .where(and(eq(encounters.id, encounterId), eq(encounters.status, 'draft')))
+      .where(and(eq(encounters.id, encounterId), eq(encounters.status, e.status)))
       .returning({ id: encounters.id });
     if (!signed[0]) throw Errors.conflict('Encounter is already signed');
 
+    if (amending) {
+      await tx
+        .update(encounterAmendments)
+        .set({ status: 'completed', changedFields, completedAt: new Date() })
+        .where(eq(encounterAmendments.id, open!.id));
+      return { visitId: e.visitId, amending: true, amendmentId: open!.id, changedFields };
+    }
+
     const moved = await tx
       .update(visits)
-      .set({ status: 'completed', completedAt: new Date(), version: visit.version + 1, updatedAt: new Date() })
-      .where(and(eq(visits.id, e.visitId), eq(visits.version, visit.version)))
+      .set({ status: 'completed', completedAt: new Date(), version: visit!.version + 1, updatedAt: new Date() })
+      .where(and(eq(visits.id, e.visitId), eq(visits.version, visit!.version)))
       .returning({ id: visits.id });
     if (!moved[0]) throw Errors.conflict('This visit was updated by someone else. Please refresh');
 
     // The originating appointment (if any) is fulfilled once the consultation is signed.
-    if (visit.appointmentId) {
+    if (visit!.appointmentId) {
       await tx
         .update(appointments)
         .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(appointments.id, visit.appointmentId), eq(appointments.status, 'booked')));
+        .where(and(eq(appointments.id, visit!.appointmentId), eq(appointments.status, 'booked')));
     }
-    return e.visitId;
+    return { visitId: e.visitId, amending: false, amendmentId: null, changedFields: null };
   });
 
-  eventBus.publish('encounter.signed', { tenantId, encounterId, visitId });
+  // Downstream consumers (billing, pharmacy, lab, ABDM) act on a consultation being finished.
+  // A re-signed amendment is not a second consultation, so it does not republish the event —
+  // it has its own audited action instead.
+  if (!result.amending) eventBus.publish('encounter.signed', { tenantId, encounterId, visitId: result.visitId });
   await writeAudit({
     tenantId,
     actorUserId: actorUserId ?? null,
-    action: 'encounter.sign',
+    action: result.amending ? 'encounter.amend_sign' : 'encounter.sign',
     resourceType: 'encounter',
     resourceId: encounterId,
-    metadata: { visitId },
+    metadata: result.amending
+      ? { visitId: result.visitId, amendmentId: result.amendmentId, changedFields: result.changedFields }
+      : { visitId: result.visitId },
+  });
+  return buildDto(tenantId, encounterId);
+}
+
+/**
+ * Reopen a signed consultation for correction (ADR-134). `emr.encounter.amend`.
+ *
+ * The signed note is copied into the amendment row **before** anything becomes editable, so the
+ * record the hospital signed survives whatever happens next. The reason is required and
+ * permanent. The encounter then behaves like a draft until it is re-signed, at which point the
+ * amendment closes carrying the list of fields that actually differ.
+ */
+export async function openAmendment(tenantId: string, encounterId: string, reason: string, actorUserId?: string) {
+  const amendmentId = await runWithTenant(tenantId, async (tx) => {
+    const e = (
+      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+    )[0];
+    if (!e) throw Errors.notFound('Encounter not found');
+    if (e.status === 'amending') throw Errors.conflict('This consultation is already open for amendment');
+    if (e.status !== 'signed') throw Errors.conflict('Only a signed consultation can be amended');
+
+    const snapshot = await readNoteContent(tx, encounterId, e);
+
+    // Written before the status moves: if this insert fails, nothing became editable. The
+    // partial unique index is what makes a second concurrent open fail rather than overwrite
+    // the first amendment's idea of the original.
+    const inserted = await tx
+      .insert(encounterAmendments)
+      .values({
+        tenantId,
+        encounterId,
+        status: 'open',
+        reason: reason.trim(),
+        snapshot,
+        openedAtVersion: e.version,
+        amendedBy: actorUserId ?? null,
+      })
+      .returning({ id: encounterAmendments.id });
+
+    const moved = await tx
+      .update(encounters)
+      .set({ status: 'amending', version: e.version + 1, updatedAt: new Date() })
+      .where(and(eq(encounters.id, encounterId), eq(encounters.status, 'signed')))
+      .returning({ id: encounters.id });
+    if (!moved[0]) throw Errors.conflict('This consultation was updated elsewhere. Please refresh');
+
+    return inserted[0]!.id;
+  });
+
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'encounter.amend_open',
+    resourceType: 'encounter',
+    resourceId: encounterId,
+    metadata: { amendmentId, reason: reason.trim() },
+  });
+  return buildDto(tenantId, encounterId);
+}
+
+/**
+ * Abandon an amendment that has changed nothing, returning the note to `signed`.
+ *
+ * Only while nothing has been edited — the encounter's version is still the one the amendment
+ * recorded at open. Once a save has landed, the note on screen is no longer the signed one and
+ * quietly "cancelling" would either discard a real correction or leave the record disagreeing
+ * with itself; the way out of that is to re-sign, which is what the caller is told.
+ *
+ * The amendment row is kept and marked `cancelled`, never deleted (invariant #6): that somebody
+ * reopened a signed record is itself worth knowing.
+ */
+export async function cancelAmendment(tenantId: string, encounterId: string, actorUserId?: string) {
+  const amendmentId = await runWithTenant(tenantId, async (tx) => {
+    const e = (
+      await tx.select().from(encounters).where(and(eq(encounters.tenantId, tenantId), eq(encounters.id, encounterId))).limit(1)
+    )[0];
+    if (!e) throw Errors.notFound('Encounter not found');
+    if (e.status !== 'amending') throw Errors.conflict('This consultation is not open for amendment');
+
+    const open = (
+      await tx
+        .select()
+        .from(encounterAmendments)
+        .where(
+          and(
+            eq(encounterAmendments.tenantId, tenantId),
+            eq(encounterAmendments.encounterId, encounterId),
+            eq(encounterAmendments.status, 'open'),
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (!open) throw Errors.conflict('This consultation is not open for amendment');
+    if (open.amendedBy && actorUserId && open.amendedBy !== actorUserId) {
+      throw Errors.forbidden('Another user is amending this consultation');
+    }
+    // Opening bumped the version by one; anything beyond that is a save that has landed.
+    if (e.version > open.openedAtVersion + 1) {
+      throw Errors.conflict('A correction has already been saved into this amendment. Sign it to record what changed');
+    }
+
+    await tx
+      .update(encounterAmendments)
+      .set({ status: 'cancelled', completedAt: new Date() })
+      .where(eq(encounterAmendments.id, open.id));
+
+    const moved = await tx
+      .update(encounters)
+      .set({ status: 'signed', version: e.version + 1, updatedAt: new Date() })
+      .where(and(eq(encounters.id, encounterId), eq(encounters.status, 'amending')))
+      .returning({ id: encounters.id });
+    if (!moved[0]) throw Errors.conflict('This consultation was updated elsewhere. Please refresh');
+
+    return open.id;
+  });
+
+  await writeAudit({
+    tenantId,
+    actorUserId: actorUserId ?? null,
+    action: 'encounter.amend_cancel',
+    resourceType: 'encounter',
+    resourceId: encounterId,
+    metadata: { amendmentId },
   });
   return buildDto(tenantId, encounterId);
 }
@@ -530,7 +839,15 @@ export async function listPatientEncounters(tenantId: string, patientId: string)
       .from(encounters)
       .innerJoin(visits, eq(visits.id, encounters.visitId))
       .leftJoin(providers, eq(providers.id, encounters.providerId))
-      .where(and(eq(encounters.tenantId, tenantId), eq(encounters.patientId, patientId), eq(encounters.status, 'signed')))
+      // HAS BEEN signed, not IS signed: a note being corrected (ADR-134) is still part of this
+      // patient's history, and dropping it for the length of an amendment makes the chart lie.
+      .where(
+        and(
+          eq(encounters.tenantId, tenantId),
+          eq(encounters.patientId, patientId),
+          inArray(encounters.status, ['signed', 'amending']),
+        ),
+      )
       .orderBy(desc(encounters.signedAt));
 
     const ids = rows.map((r) => r.e.id);

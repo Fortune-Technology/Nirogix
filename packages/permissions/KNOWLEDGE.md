@@ -32,3 +32,14 @@ The single source of truth for permission strings and the system-role catalog, s
 ## Verify
 
 - `npm run typecheck -w @hms/permissions` · `npm run build -w @hms/permissions`. Behaviour is exercised by the backend RBAC tests; runtime resolution by `node -e "require('@hms/permissions')"` from `hms_backend`.
+
+## `emr.encounter.amend` (ADR-134)
+
+Correcting a note that is already signed is not the same act as writing one, so it is not the same
+key. A signed consultation is the record the hospital stands behind; reopening it is deliberate,
+reason-bearing, and separately grantable — a hospital can let every clinician write freely and
+still choose who may reopen a closed record. Held by `doctor` (the service additionally holds them
+to an encounter that is theirs) and reaching `org_admin` by derivation (ADR-125, ADR-126).
+
+It is not a bypass. The amendment still records who, when, what changed and why, and **re-signing
+stays on `emr.encounter.write`** — the signature itself has not changed meaning.

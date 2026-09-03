@@ -65,6 +65,7 @@ import type {
   Encounter,
   EncounterSummary,
   SaveEncounterRequest,
+  AmendEncounterRequest,
   Icd10Code,
   CreateProviderRequest,
   UpdateProviderRequest,
@@ -862,6 +863,22 @@ export async function saveEncounter(id: string, body: SaveEncounterRequest): Pro
 
 export async function signEncounter(id: string): Promise<Encounter> {
   return request<Encounter>(`/encounters/${id}/sign`, { method: "POST", feedback: { success: "Consultation signed." } });
+}
+
+/** Reopen a signed consultation for correction (ADR-134) — `emr.encounter.amend`. */
+export async function amendEncounter(id: string, body: AmendEncounterRequest): Promise<Encounter> {
+  return request<Encounter>(`/encounters/${id}/amend`, {
+    method: "POST",
+    body,
+    feedback: { success: "Consultation reopened for amendment." },
+  });
+}
+
+export async function cancelEncounterAmendment(id: string): Promise<Encounter> {
+  return request<Encounter>(`/encounters/${id}/amend/cancel`, {
+    method: "POST",
+    feedback: { success: "Amendment discarded; the consultation is signed again." },
+  });
 }
 
 export async function searchIcd10(q: string): Promise<Icd10Code[]> {

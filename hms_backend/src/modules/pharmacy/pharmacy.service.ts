@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, ilike, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, inArray, sql } from 'drizzle-orm';
 import { runWithTenant } from '../../db/tenantContext';
 import {
   drugs,
@@ -272,7 +272,16 @@ export async function listPendingPrescriptions(tenantId: string) {
       .from(prescriptions)
       .innerJoin(patients, eq(patients.id, prescriptions.patientId))
       .innerJoin(encounters, eq(encounters.id, prescriptions.encounterId))
-      .where(and(eq(prescriptions.tenantId, tenantId), eq(prescriptions.status, 'ordered'), eq(encounters.status, 'signed')))
+      // A prescription reaches the counter once its consultation is signed. It stays there while
+      // that note is being amended (ADR-134) — the correction is the doctor's, and a patient does
+      // not stop waiting for their medicine because a typo is being fixed upstairs.
+      .where(
+        and(
+          eq(prescriptions.tenantId, tenantId),
+          eq(prescriptions.status, 'ordered'),
+          inArray(encounters.status, ['signed', 'amending']),
+        ),
+      )
       .orderBy(asc(prescriptions.createdAt));
     return rows.map((r) => ({
       id: r.p.id,

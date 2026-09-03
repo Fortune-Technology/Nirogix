@@ -57,6 +57,12 @@ export const PERMISSIONS = {
   // EMR
   EMR_VIEW: 'emr.encounter.view',
   EMR_WRITE: 'emr.encounter.write',
+  // Correcting a note that is already signed is NOT the same act as writing one (ADR-134). A
+  // signed consultation is the record the hospital stands behind; reopening it is deliberate,
+  // reason-bearing and separately grantable, so a hospital can let every doctor write freely
+  // while keeping the ability to reopen a closed record with whoever it chooses. The key is
+  // not a bypass: the amendment still records who, when, what changed and why.
+  EMR_AMEND: 'emr.encounter.amend',
   // Vitals are their own pair (ADR-113): they are recorded before a consultation exists, by
   // staff who must never be able to read or write a clinical note. Folding them into
   // `emr.encounter.*` would mean a hospital could not let its nurses take a blood pressure
@@ -207,6 +213,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   [PERMISSIONS.CASE_MANAGE]: 'Open and close treatment cases',
   [PERMISSIONS.EMR_VIEW]: 'Read the clinical record',
   [PERMISSIONS.EMR_WRITE]: 'Write the clinical record',
+  [PERMISSIONS.EMR_AMEND]: 'Amend a signed consultation',
   [PERMISSIONS.VITALS_VIEW]: 'View vitals',
   [PERMISSIONS.VITALS_RECORD]: 'Record vitals',
   [PERMISSIONS.PHARMACY_DISPENSE]: 'Dispense medicines',
@@ -392,6 +399,10 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       // A course of treatment is the clinician's to open, describe and declare finished.
       P.CASE_VIEW, P.CASE_MANAGE,
       P.EMR_VIEW, P.EMR_WRITE, P.LAB_ORDER_VIEW, P.FILE_VIEW, P.FILE_UPLOAD, P.PROVIDER_VIEW,
+      // A clinician corrects their own signed note through the amendment trail (ADR-134) — the
+      // service still holds them to their OWN encounter, so this grants the act, not other
+      // people's records. A hospital that wants correction centralised revokes it from the role.
+      P.EMR_AMEND,
       // Where vitals are taken, when the fee is due, and this hospital's own consultation and case
       // vocabularies (ADR-113) — the consultation screen is built from them, so it must read them
       // (ADR-129). Read only; the schedule itself is the administrator's.
@@ -660,7 +671,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
   mod('emr', 'Clinical Workflow (EMR)', 'CORE', 'BUILT', {
     defaultEnabled: true,
     hardDependencies: ['patient'],
-    permissions: [P.EMR_VIEW, P.EMR_WRITE],
+    permissions: [P.EMR_VIEW, P.EMR_WRITE, P.EMR_AMEND],
     capabilities: [
       cap('emr', 'consultation', 'Consultation', 'BUILT', { permissions: [P.EMR_WRITE] }),
       cap('emr', 'vitals', 'Vitals', 'BUILT', { permissions: [P.VITALS_VIEW, P.VITALS_RECORD] }),
@@ -669,6 +680,7 @@ export const MODULE_REGISTRY: readonly ModuleRegistryDef[] = [
       cap('emr', 'prescription', 'Prescription', 'BUILT'),
       cap('emr', 'investigations', 'Investigations / Orders', 'BUILT'),
       cap('emr', 'ai_assist', 'AI Clinical Drafting', 'BUILT', { permissions: [P.EMR_WRITE] }),
+      cap('emr', 'amendment', 'Signed-note Amendment', 'BUILT', { permissions: [P.EMR_AMEND] }),
       cap('emr', 'followup_plan', 'Follow-up Plan'),
     ],
   }),

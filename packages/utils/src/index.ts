@@ -45,3 +45,8 @@ export type { Rgb } from "./color";
 // calls, and whether it can carry a per-request nonce.
 export { buildContentSecurityPolicy, originOf, SECURITY_HEADERS } from "./security";
 export type { CspOptions } from "./security";
+
+// Closed vocabularies more than one screen asks for (ADR-029). Domain lists, not design-system
+// data — a hospital's OWN words (consultation types, case types) come from its configuration.
+export { GENDER_OPTIONS, BLOOD_GROUP_OPTIONS, RECORD_STATUS_OPTIONS } from "./vocabulary";
+export type { VocabularyOption } from "./vocabulary";

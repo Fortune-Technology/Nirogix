@@ -10,6 +10,7 @@ import {
   EditAction,
   EmptyValue,
   Field,
+  Select,
   TableActions,
   Textarea,
   ToggleAction,
@@ -295,17 +296,15 @@ function ServicesTable() {
           onChange={(e) => set("description", e.target.value)}
         />
       </div>
-      <label className="hms-field">
-        <span className="hms-label">Department</span>
-        <select className="hms-input" value={form.departmentId} onChange={(e) => set("departmentId", e.target.value)}>
-          <option value="">No department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="Department"
+        value={form.departmentId}
+        onChange={(v) => set("departmentId", v)}
+        options={departments.map((d) => ({ value: d.id, label: d.name }))}
+        placeholder="No department"
+        emptyMessage="No departments defined."
+        clearable
+      />
       <Field
         label="Price (₹)"
         required

@@ -14,6 +14,7 @@ import {
   Dialog,
   EmptyValue,
   Field,
+  Select,
   TableAction,
   TableActions,
   Textarea,
@@ -159,17 +160,16 @@ function ReceivePanel({
       <Field label="Quantity" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
       <Field label="Batch" value={batch} onChange={(e) => setBatch(e.target.value)} />
       <DateField label="Expiry" value={expiry || null} min={todayApiDate()} onChange={(v) => setExpiry(v ?? "")} />
-      <label className="hms-field">
-        <span className="hms-label">Supplier</span>
-        <select className="hms-input min-w-[12rem]" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-          <option value="">No supplier</option>
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="Supplier"
+        className="min-w-[12rem]"
+        value={supplierId}
+        onChange={setSupplierId}
+        options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+        placeholder="No supplier"
+        emptyMessage="No suppliers recorded."
+        clearable
+      />
       <Button type="submit" loading={busy}>Receive</Button>
     </form>
   );

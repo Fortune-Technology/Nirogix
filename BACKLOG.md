@@ -474,3 +474,19 @@ complaint, reception's billing access (ADR-110), and native scrolling across the
 - **Microservices / Kubernetes / message broker** — needs a new ADR (ADR-001).
 - **Named pricing tiers and published prices** on the marketing site — content guardrail until commercial terms exist.
 - **HIPAA / certification claims** — never asserted; see U-5.
+- **An in-app navigation guard on the consultation screen** (ADR-134). The screen guards a reload or a
+  closed tab with `beforeunload` and states *Unsaved changes* permanently in its sticky header, but
+  clicking a sidebar link with unsaved work still loses it silently. Next’s App Router has no
+  supported route-change guard, so doing it properly means a navigation-blocking pattern across the
+  whole Portal shell — one decision for every long form, not a patch on this page. Raise it if a real
+  user loses work this way.
+
+
+**Engineering — QA documentation**
+
+- **43 duplicate case IDs in `testcases.md`.** Found while adding the dropdown cases: `SEL-01` named
+  two different tests, and so do 42 other ids across `ABDM`, `DOC`, `ADMIN` and others, out of 974
+  cases. A tester reporting "SEL-01 failed" is ambiguous, and so is a fix that says it closed one.
+  Not renumbered here: ids may be referenced in run sheets or defect reports outside this repo, so
+  the renumbering needs a decision about what to preserve, not a script. The block added in this
+  change continues the existing sequence rather than restarting it.

@@ -91,3 +91,17 @@ termination, duplicate `server_name`, upstream/`proxy_pass` agreement); `nginx -
 the VM at install. **The first deploy of this workspace needs a manual `workflow_dispatch` run**
 — affected-only builds nothing when a change touches no file inside the workspace, and there is
 no `.next` output on the VM yet (deploy/README.md § Bringing a NEW workspace online).
+
+## 2026-09-03 — The two public forms use the shared dropdown (ADR-135)
+
+Department and doctor on the booking form, gender on the self-registration form. These are the
+forms a **patient** fills in on their own phone, where a native `<select>` hands them the OS wheel
+— rendered in the operating system's chrome, ignoring the hospital's branding entirely, on the one
+surface where that branding is the only thing telling them whose form this is.
+
+The gender list now comes from `@hms/utils` rather than a local copy, but the **placeholder stays
+this page's own**: *Prefer not to say* is the right words on a form somebody fills in about
+themselves, where *Not specified* is right at a hospital counter. The shared thing is the list, not
+the tone.
+
+**Testing status:** typecheck and build clean; no native `<select>` remains in the patient portal.

@@ -178,7 +178,10 @@ export async function cleanupTenant(code: string): Promise<void> {
     'abdm_hiu_records', 'abdm_hiu_data_transfers', 'abdm_hiu_consents', 'abdm_hiu_consent_requests',
     'abdm_data_transfers', 'abdm_link_requests', 'abdm_care_contexts', 'abdm_consents', 'abdm_link_tokens', 'abdm_transactions', 'abdm_facility_config',
     'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
-    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses', 'encounters',
+    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses',
+    // Before 'encounters': the amendment trail is ON DELETE RESTRICT so an encounter cannot
+    // take its own correction history with it (ADR-134).
+    'encounter_amendments', 'encounters',
     // Vitals reference the visit ON DELETE RESTRICT (ADR-113), so they go before it.
     'patient_vitals',
     // Referrals point at both the visit they came from and the one they were consumed by

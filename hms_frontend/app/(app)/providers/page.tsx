@@ -13,6 +13,7 @@ import {
   EmptyValue,
   Field,
   PhoneField,
+  Select,
   TableAction,
   TableActions,
   ToggleAction,
@@ -21,6 +22,7 @@ import {
   ValueOrEmpty,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
+import { GENDER_OPTIONS } from "@hms/utils";
 import type { Provider, ScheduleWindow, Specialty, Department, UserListItem } from "@hms/types";
 import * as api from "../../../lib/api";
 import { RequirePermission, Can } from "../../../components/Can";
@@ -408,15 +410,14 @@ function ProvidersTable() {
       <Field label="Full name" required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
       <Field label="Qualification" value={form.qualification} onChange={(e) => set("qualification", e.target.value)} placeholder="MBBS, MD" />
       <Field label="Registration no." value={form.registrationNumber} onChange={(e) => set("registrationNumber", e.target.value)} placeholder="MMC-…" />
-      <label className="hms-field">
-        <span className="hms-label">Gender</span>
-        <select className="hms-input" value={form.gender} onChange={(e) => set("gender", e.target.value)}>
-          <option value="">Not specified</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
+      <Select
+        label="Gender"
+        value={form.gender}
+        onChange={(v) => set("gender", v)}
+        options={GENDER_OPTIONS}
+        placeholder="Not specified"
+        clearable
+      />
       <Field label="Email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
       <PhoneField label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
       <Field
@@ -429,47 +430,37 @@ function ProvidersTable() {
         placeholder="500"
       />
       {users.length > 0 && (
-        <label className="hms-field">
-          <span className="hms-label">Login account (for their own queue)</span>
-          <select className="hms-input" value={form.userId} onChange={(e) => set("userId", e.target.value)}>
-            <option value="">Not linked</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}: {u.email}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Login account (for their own queue)"
+          value={form.userId}
+          onChange={(v) => set("userId", v)}
+          options={users.map((u) => ({ value: u.id, label: u.fullName, description: u.email, keywords: u.email }))}
+          placeholder="Not linked"
+          emptyMessage="No staff account matches."
+          clearable
+        />
       )}
       {!editing && (
         <>
-          <label className="hms-field">
-            <span className="hms-label">Specialty</span>
-            <select className="hms-input" value={form.specialtyCode} onChange={(e) => set("specialtyCode", e.target.value)}>
-              <option value="">Assign later</option>
-              {specialties.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="hms-field">
-            <span className="hms-label">Department</span>
-            <select
-              className="hms-input"
-              value={form.departmentId}
-              disabled={!form.specialtyCode}
-              onChange={(e) => set("departmentId", e.target.value)}
-            >
-              <option value="">Not specified</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Specialty"
+            value={form.specialtyCode}
+            onChange={(v) => set("specialtyCode", v)}
+            options={specialties.map((s) => ({ value: s.code, label: s.name, description: s.code, keywords: s.code }))}
+            placeholder="Assign later"
+            emptyMessage="No specialty matches."
+            clearable
+          />
+          <Select
+            label="Department"
+            value={form.departmentId}
+            onChange={(v) => set("departmentId", v)}
+            options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            disabled={!form.specialtyCode}
+            placeholder="Not specified"
+            emptyMessage="No departments defined."
+            clearable
+          />
         </>
       )}
     </div>
@@ -550,28 +541,23 @@ function ProvidersTable() {
         }
       >
         <form id="specialty-form" onSubmit={submitSpecialty} className="grid gap-4 sm:grid-cols-2">
-          <label className="hms-field">
-            <span className="hms-label">Specialty</span>
-            <select className="hms-input" value={specialtyCode} onChange={(e) => setSpecialtyCode(e.target.value)}>
-              <option value="">Choose…</option>
-              {specialties.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="hms-field">
-            <span className="hms-label">Department</span>
-            <select className="hms-input" value={specialtyDept} onChange={(e) => setSpecialtyDept(e.target.value)}>
-              <option value="">Not specified</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Specialty"
+            value={specialtyCode}
+            onChange={setSpecialtyCode}
+            options={specialties.map((s) => ({ value: s.code, label: s.name, description: s.code, keywords: s.code }))}
+            placeholder="Choose…"
+            emptyMessage="No specialty matches."
+          />
+          <Select
+            label="Department"
+            value={specialtyDept}
+            onChange={setSpecialtyDept}
+            options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            placeholder="Not specified"
+            emptyMessage="No departments defined."
+            clearable
+          />
         </form>
       </Dialog>
 
@@ -615,18 +601,12 @@ function ProvidersTable() {
                   </div>
                   {scheduleRows.map((row, i) => (
                     <div key={row.id ?? `new-${i}`} className={SCHEDULE_GRID}>
-                      <select
-                        className="hms-input"
+                      <Select
                         aria-label={`Window ${i + 1} weekday`}
-                        value={row.weekday}
-                        onChange={(e) => setScheduleRow(i, { weekday: Number(e.target.value) })}
-                      >
-                        {WEEKDAYS.map((day, weekday) => (
-                          <option key={day} value={weekday}>
-                            {day}
-                          </option>
-                        ))}
-                      </select>
+                        value={String(row.weekday)}
+                        onChange={(v) => setScheduleRow(i, { weekday: Number(v) })}
+                        options={WEEKDAYS.map((day, weekday) => ({ value: String(weekday), label: day }))}
+                      />
                       <input
                         className="hms-input"
                         aria-label={`Window ${i + 1} start time (HH:mm)`}

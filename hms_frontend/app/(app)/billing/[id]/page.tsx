@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Plus, Printer } from "lucide-react";
-import { Alert, Badge, Button, Card, DataTable, Dialog, Field, Spinner, type Column } from "@hms/ui";
+import { Alert, Badge, Button, Card, DataTable, Dialog, Field, Select, Spinner, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AddInvoiceLineRequest, Invoice, Service } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
@@ -253,14 +253,12 @@ function InvoiceDetail({ id }: { id: string }) {
                 value={amountRupees}
                 onChange={(e) => setAmountRupees(e.target.value)}
               />
-              <label className="hms-field">
-                <span className="hms-label">Method</span>
-                <select className="hms-input" value={method} onChange={(e) => setMethod(e.target.value)}>
-                  {METHODS.map((m) => (
-                    <option key={m} value={m}>{m.toUpperCase()}</option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label="Method"
+                value={method}
+                onChange={(v) => setMethod(v || METHODS[0]!)}
+                options={METHODS.map((m) => ({ value: m, label: m.toUpperCase() }))}
+              />
               <Field label="Reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} />
             </div>
             <div className="flex items-center gap-3">
@@ -373,19 +371,25 @@ function InvoiceDetail({ id }: { id: string }) {
           </div>
           {mode === "service" ? (
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
-              <label className="hms-field">
-                <span className="hms-label">Service</span>
-                <select className="hms-input" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-                  <option value="">
-                    {services === null ? "Loading catalogue…" : services.length ? "Choose a service…" : "No active services"}
-                  </option>
-                  {(services ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code}): {formatPaise(s.pricePaise)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* A hospital's service catalogue runs to hundreds of lines, so this is the shared
+                  searchable Select (ADR-029): the code and the fee are their own columns rather
+                  than punctuation inside one truncated line of native-select text. */}
+              <Select
+                label="Service"
+                value={serviceId}
+                onChange={setServiceId}
+                options={(services ?? []).map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  description: s.code,
+                  keywords: s.code,
+                  meta: formatPaise(s.pricePaise),
+                }))}
+                loading={services === null}
+                placeholder={services === null ? "Loading catalogue…" : "Choose a service…"}
+                emptyMessage="No active services."
+                clearable
+              />
               <Field label="Qty" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
             </div>
           ) : (

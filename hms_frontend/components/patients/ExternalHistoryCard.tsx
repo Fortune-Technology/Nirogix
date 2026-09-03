@@ -9,6 +9,7 @@ import {
   DateDisplay,
   DateTimeDisplay,
   EmptyState,
+  Select,
   Spinner,
   toast,
 } from "@hms/ui";
@@ -211,17 +212,18 @@ export function ExternalHistoryCard({ patient }: { patient: Patient }) {
           {canRequest && (
             <div className="flex flex-wrap items-end gap-2">
               {providers.length > 0 ? (
-                <label className="hms-field">
-                  <span className="hms-label">Requesting doctor</span>
-                  <select className="hms-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
-                    {providers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.fullName} ({p.registrationNumber})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="hms-hint">The patient sees this name and registration number</span>
-                </label>
+                <Select
+                  label="Requesting doctor"
+                  value={providerId}
+                  onChange={(v) => v && setProviderId(v)}
+                  options={providers.map((p) => ({
+                    value: p.id,
+                    label: p.fullName,
+                    description: p.registrationNumber ?? undefined,
+                    keywords: p.registrationNumber ?? undefined,
+                  }))}
+                  hint="The patient sees this name and registration number"
+                />
               ) : (
                 <Alert>
                   No doctor on record has a medical registration number. ABDM requires one — the patient reads it when

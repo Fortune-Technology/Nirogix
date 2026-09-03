@@ -167,6 +167,38 @@ describe("Select", () => {
     expect(headings).toEqual(["Clinical", "Administrative"]);
   });
 
+  /**
+   * A group name that appears in two non-adjacent runs used to hand React two siblings with the
+   * same key, and the failure was not a console warning anyone would notice: the list rendered
+   * stale, duplicated options and stopped responding to the search. Found with the real
+   * permission catalog, whose own order visits `platform` twice.
+   */
+  it("survives a group name that appears in two non-adjacent runs", () => {
+    const unsorted: SelectOption[] = [
+      { value: "p1", label: "Onboard hospitals", group: "platform" },
+      { value: "o1", label: "View the OPD queue", group: "opd" },
+      { value: "p2", label: "Manage branding", group: "platform" },
+      { value: "b1", label: "Collect payments", group: "billing" },
+    ];
+    render(<Select label="Permission" value="" onChange={() => {}} options={unsorted} searchable />);
+    open("Permission");
+
+    // Every option renders exactly once — four options, not the run repeated.
+    expect(screen.getAllByRole("option")).toHaveLength(4);
+    expect(screen.getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual([
+      "platform",
+      "opd",
+      "platform",
+      "billing",
+    ]);
+
+    // And the search still filters, which is what actually broke.
+    fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "payments" } });
+    const filtered = screen.getAllByRole("option");
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]!.textContent).toContain("Collect payments");
+  });
+
   it("wires the error to the control for a screen reader, and hides the hint behind it", () => {
     render(<Select label="Provider" value="" onChange={() => {}} options={DOCTORS} hint="Pick a doctor" error="Required" />);
     const trigger = screen.getByRole("combobox");

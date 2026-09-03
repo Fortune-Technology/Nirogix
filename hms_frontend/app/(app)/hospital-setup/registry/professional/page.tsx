@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Provider } from "@hms/types";
-import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, toast } from "@hms/ui";
+import { Alert, Badge, Button, Card, Field, PageHeader, Select, Spinner, toast } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import { ArrowLeft, Check, IdCard } from "lucide-react";
 import * as api from "../../../../../lib/api";
@@ -244,24 +244,18 @@ function HprEnrolment() {
       )}
 
       <Card header="Who is being enrolled?">
-        <label className="hms-field">
-          <span className="hms-label">Clinician</span>
-          <select className="hms-input" value={providerId} onChange={(e) => chooseProvider(e.target.value)}>
-            <option value="">Choose a clinician…</option>
-            {providers.map((p) => {
-              const e = enrolments.find((x) => x.providerId === p.id);
-              return (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                  {e?.hprId ? ` — ${e.hprId}` : ""}
-                </option>
-              );
-            })}
-          </select>
-          <span className="hms-hint">
-            Most clinicians already hold an HPR ID. The first step checks, so nobody is enrolled twice.
-          </span>
-        </label>
+        <Select
+          label="Clinician"
+          value={providerId}
+          onChange={chooseProvider}
+          options={providers.map((p) => {
+            const e = enrolments.find((x) => x.providerId === p.id);
+            return { value: p.id, label: p.fullName, meta: e?.hprId ?? undefined, keywords: e?.hprId ?? undefined };
+          })}
+          placeholder="Choose a clinician…"
+          hint="Most clinicians already hold an HPR ID. The first step checks, so nobody is enrolled twice."
+          emptyMessage="No clinician matches."
+        />
 
         {providers.length === 0 && (
           <Alert className="mt-3">
@@ -304,19 +298,18 @@ function HprEnrolment() {
                     The clinician needs to be here: the OTP goes to the phone linked to their Aadhaar, and the number is
                     not stored anywhere by us.
                   </Alert>
-                  <label className="hms-field">
-                    <span className="hms-label">Category *</span>
-                    <select
-                      className="hms-input"
-                      value={category}
-                      disabled={!canManage || busy}
-                      onChange={(e) => setCategory(e.target.value as typeof category)}
-                    >
-                      <option value="doctor">Doctor</option>
-                      <option value="nurse">Nurse</option>
-                      <option value="pharmacist">Pharmacist</option>
-                    </select>
-                  </label>
+                  <Select
+                    label="Category"
+                    required
+                    value={category}
+                    disabled={!canManage || busy}
+                    onChange={(v) => v && setCategory(v as typeof category)}
+                    options={[
+                      { value: "doctor", label: "Doctor" },
+                      { value: "nurse", label: "Nurse" },
+                      { value: "pharmacist", label: "Pharmacist" },
+                    ]}
+                  />
                   <Field
                     label="Aadhaar number *"
                     value={aadhaar}

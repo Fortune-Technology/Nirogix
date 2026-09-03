@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Button, Card, emptyLabel, Field, PhoneField, Spinner } from "@hms/ui";
+import { Alert, Badge, Button, Card, Combobox, emptyLabel, Field, PhoneField, Select, Spinner } from "@hms/ui";
 import { formatDate } from "@hms/utils";
 import { PERMISSIONS } from "@hms/permissions";
 import type { AbdmCapabilities, AbdmPendingShare, AbhaIdentifierType, AbhaPrefill, AbhaVerificationResult } from "@hms/types";
@@ -450,21 +450,16 @@ function VerifyExisting({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="hms-field">
-          <span className="hms-label">Verify using</span>
-          <select
-            className="hms-input"
-            value={identifierType}
-            onChange={(e) => setIdentifierType(e.target.value as AbhaIdentifierType)}
-            disabled={Boolean(sent)}
-          >
-            {(Object.keys(IDENTIFIER_LABELS) as AbhaIdentifierType[]).map((k) => (
-              <option key={k} value={k}>
-                {IDENTIFIER_LABELS[k]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Verify using"
+          value={identifierType}
+          onChange={(v) => v && setIdentifierType(v as AbhaIdentifierType)}
+          disabled={Boolean(sent)}
+          options={(Object.keys(IDENTIFIER_LABELS) as AbhaIdentifierType[]).map((k) => ({
+            value: k,
+            label: IDENTIFIER_LABELS[k],
+          }))}
+        />
         <Field
           label={IDENTIFIER_LABELS[identifierType]}
           value={identifier}
@@ -652,23 +647,21 @@ function CreateWithAadhaar({
           The ABHA was created. Choose the address the patient will use to sign in to their own health records.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="hms-field">
-            <span className="hms-label">Suggested addresses</span>
-            <select className="hms-input" value={chosenAddress} onChange={(e) => setChosenAddress(e.target.value)}>
-              {suggestions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-              {suggestions.length === 0 && <option value="">No suggestions available</option>}
-            </select>
-            {/* The registry offers three or more; saying how many arrived is honest when it offers fewer. */}
-            <span className="hms-hint">
-              {suggestions.length > 0
+          {/* The hint has always said "pick one, or type your own"; the control underneath it
+              was a native select, which cannot be typed into. This is what the copy promised. */}
+          <Combobox
+            label="Suggested addresses"
+            value={chosenAddress}
+            onChange={(text) => setChosenAddress(text)}
+            options={suggestions.map((s) => ({ value: s, label: s }))}
+            placeholder="ramesh.kumar@abdm"
+            emptyMessage="No suggestion matches — what you have typed will be used."
+            hint={
+              suggestions.length > 0
                 ? `${suggestions.length} available from ABDM. Pick one, or type your own.`
-                : "ABDM returned no suggestions. Type an address instead."}
-            </span>
-          </label>
+                : "ABDM returned no suggestions. Type an address instead."
+            }
+          />
           {/* CRT_ABHA_112 requires the policy to be printed beside this field, not merely enforced. */}
           <Field
             label="Or type one"

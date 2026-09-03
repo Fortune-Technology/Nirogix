@@ -12,6 +12,7 @@ import {
   ConfirmDialog,
   DataTable,
   Field,
+  Select,
   Spinner,
   TableAction,
   TableActions,
@@ -197,18 +198,14 @@ function Detail({ id }: { id: string }) {
       <Card header="Account status">
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone={tenant.status === "active" ? "success" : "warning"}>{tenant.status}</Badge>
-          <select
-            className="hms-input max-w-[12rem]"
+          <Select
+            aria-label="Account status"
+            className="max-w-[12rem]"
             value={tenant.status}
             disabled={busy}
-            onChange={(e) => run(() => api.setTenantStatus(id, e.target.value))}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => v && run(() => api.setTenantStatus(id, v))}
+            options={STATUSES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
       </Card>
 
@@ -225,14 +222,15 @@ function Detail({ id }: { id: string }) {
         />
         {grantable.length > 0 && (
           <div className="mt-4 flex items-center gap-2">
-            <select className="hms-input max-w-[16rem]" value={grantKey} onChange={(e) => setGrantKey(e.target.value)}>
-              <option value="">Grant a module…</option>
-              {grantable.map((m) => (
-                <option key={m.key} value={m.key}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              aria-label="Module to grant"
+              className="max-w-[16rem]"
+              value={grantKey}
+              onChange={setGrantKey}
+              options={grantable.map((m) => ({ value: m.key, label: m.name, description: m.key, keywords: m.key }))}
+              placeholder="Grant a module…"
+              emptyMessage="No module left to grant."
+            />
             <Button size="sm" disabled={!grantKey || busy} onClick={() => run(async () => { await api.grantTenantModule(id, grantKey); setGrantKey(""); })}>
               Grant
             </Button>
@@ -261,18 +259,21 @@ function Detail({ id }: { id: string }) {
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="hms-field">
-            <span className="hms-label">Act as</span>
-            <select className="hms-input" value={targetUser} onChange={(e) => setTargetUser(e.target.value)}>
-              <option value="">Select a user…</option>
-              {targets.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName} · {u.email}
-                  {u.roles.length ? ` (${u.roles.join(", ")})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Act as"
+            value={targetUser}
+            onChange={setTargetUser}
+            options={targets.map((u) => ({
+              value: u.id,
+              label: u.fullName,
+              description: u.email,
+              meta: u.roles.length ? u.roles.join(", ") : undefined,
+              keywords: `${u.email} ${u.roles.join(" ")}`,
+            }))}
+            placeholder="Select a user…"
+            emptyMessage="No user matches."
+            clearable
+          />
           <Field
             label="Ticket reference (optional)"
             value={ticketRef}

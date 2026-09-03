@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FlaskConical, FileText, Paperclip } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
+import { Alert, Badge, Button, Card, Field, Select, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { EnterResultRequest, LabOrder, LabTest } from "@hms/types";
 import * as api from "../../../lib/api";
@@ -59,18 +59,22 @@ function ResultForm({ order, tests, onDone, onError }: { order: LabOrder; tests:
 
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <label className="hms-field">
-        <span className="hms-label">Test (price + range)</span>
-        <select className="hms-input min-w-[13rem]" value={testId} onChange={(e) => setTestId(e.target.value)}>
-          <option value="">Not in master</option>
-          {tests.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-              {t.refLow || t.refHigh ? ` (${t.refLow ?? ""}–${t.refHigh ?? ""})` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* The test master is a large searchable list (ADR-029). The reference range keeps its en
+          dash — that one IS typography, not a missing value (ADR-123). */}
+      <Select
+        label="Test (price + range)"
+        className="min-w-[13rem]"
+        value={testId}
+        onChange={setTestId}
+        options={tests.map((t) => ({
+          value: t.id,
+          label: t.name,
+          description: t.refLow || t.refHigh ? `Reference ${t.refLow ?? ""}–${t.refHigh ?? ""}` : undefined,
+        }))}
+        placeholder="Not in master"
+        emptyMessage="No tests in the master."
+        clearable
+      />
       <Field label="Value" value={value} onChange={(e) => setValue(e.target.value)} />
       <Field label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       <div className="hms-field">

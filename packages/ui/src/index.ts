@@ -19,6 +19,10 @@ export { Textarea } from './components/Textarea';
 export type { TextareaFieldProps } from './components/Textarea';
 export { Select } from './components/Select';
 export type { SelectOption, SelectProps } from './components/Select';
+// `Select` = choose one of these. `Combobox` = choose one of these, or write your own —
+// the shape every clinical master picker has (ADR-029). Never `<input list>` + `<datalist>`.
+export { Combobox } from './components/Combobox';
+export type { ComboboxOption, ComboboxProps } from './components/Combobox';
 export { PasswordField } from './components/PasswordField';
 export type { PasswordFieldProps } from './components/PasswordField';
 export { Card } from './components/Card';

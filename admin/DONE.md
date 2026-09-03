@@ -226,3 +226,14 @@ sandboxed iframe with its subject and template key. Backed by `api.listEmailTemp
 developer verify email design and copy without triggering the business action that would send it.
 
 **Testing status:** `admin` typecheck green.
+
+## 2026-09-03 — The tenant console's dropdowns are the shared control (ADR-135)
+
+Three native `<select>`s on the tenant detail screen: account status, the module to grant, and
+**Act as** for a support session. The last one is the reason this was worth doing — it lists a
+hospital's entire staff, and it was one truncated line per person of
+`{name} · {email} (role, role)`. Name, email and roles are now three fields of one option, and the
+search matches all three, so an operator entering a hospital to reproduce a fault can find the
+person the ticket names.
+
+**Testing status:** typecheck and build clean; the console renders no native `<select>`.

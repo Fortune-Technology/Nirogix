@@ -14,6 +14,7 @@ import {
   emptyLabel,
   EmptyValue,
   Field,
+  Select,
   TableActions,
   ToggleAction,
   type Column,
@@ -203,17 +204,16 @@ function UsersTable() {
               <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               <Field label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             </div>
-            <label className="hms-field">
-              <span className="hms-label">Role (optional)</span>
-              <select className="hms-input max-w-sm" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-                <option value="">No role yet</option>
-                {roles.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Role (optional)"
+              className="max-w-sm"
+              value={roleKey}
+              onChange={setRoleKey}
+              options={roles.map((r) => ({ value: r.key, label: r.name, description: r.description || undefined }))}
+              placeholder="No role yet"
+              emptyMessage="No roles defined."
+              clearable
+            />
             <div>
               <Button type="submit" loading={submitting}>Create user</Button>
             </div>

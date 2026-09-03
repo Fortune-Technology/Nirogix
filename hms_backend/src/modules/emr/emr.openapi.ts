@@ -9,6 +9,7 @@ import {
   AiDraftBody,
   AiDraftResponseSchema,
   AiCapabilitiesSchema,
+  AmendEncounterBody,
 } from './emr.schema';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -100,7 +101,7 @@ registry.registerPath({
   path: '/api/v1/encounters/{id}/sign',
   operationId: 'signEncounter',
   tags: ['EMR'],
-  summary: 'Sign the encounter (locks it and completes the visit)',
+  summary: 'Sign the encounter (locks it and completes the visit; re-signing closes an amendment)',
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
@@ -109,6 +110,48 @@ registry.registerPath({
     403: forbidden,
     404: { description: 'Not found', ...json(ErrorResponseSchema) },
     409: { description: 'Already signed', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/encounters/{id}/amend',
+  operationId: 'amendEncounter',
+  tags: ['EMR'],
+  summary: 'Reopen a signed consultation for correction — preserves the signed note and records the reason',
+  description:
+    'Copies the signed note into an amendment record, then moves the encounter to `amending` so it can be ' +
+    'corrected through the ordinary save path. Re-signing closes the amendment with the fields that changed. ' +
+    'Requires `emr.encounter.amend`, which is separate from `emr.encounter.write`.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }), body: json(AmendEncounterBody) },
+  responses: {
+    200: { description: 'Encounter, now open for amendment', ...json(EncounterSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Not signed, or already being amended', ...json(ErrorResponseSchema) },
+    422: { description: 'Validation error', ...json(ErrorResponseSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/encounters/{id}/amend/cancel',
+  operationId: 'cancelEncounterAmendment',
+  tags: ['EMR'],
+  summary: 'Abandon an amendment that has changed nothing, returning the consultation to signed',
+  description:
+    'Only while no correction has been saved. Once a save has landed the way out is to re-sign, so that the ' +
+    'record and the amendment trail agree. The amendment row is kept, marked `cancelled`.',
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: { description: 'Encounter, signed again', ...json(EncounterSchema) },
+    401: notAuthed,
+    403: forbidden,
+    404: { description: 'Not found', ...json(ErrorResponseSchema) },
+    409: { description: 'Not being amended, or corrections already saved', ...json(ErrorResponseSchema) },
   },
 });
 

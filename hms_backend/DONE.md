@@ -2493,3 +2493,87 @@ reported `todayQueueAlreadyPresent` for all three hospitals and created nothing.
 
 **This one needs no reset.** The daily refresh carries no marker, so the next staging deploy gives
 `QAHOSP` a live board — and so does every deploy after it.
+
+## 2026-09-03 — The diagnosis picker learned the rest of the OPD day
+
+The curated ICD-10 list behind `GET /api/v1/icd10` held 40 codes — enough to demonstrate the
+picker, not enough to code a clinic. A doctor searching for tuberculosis, COPD, a UTI, anaemia in
+pregnancy or an ordinary follow-up encounter found nothing, and a diagnosis nobody can find is a
+diagnosis left blank.
+
+**Now 162 codes**, grouped by ICD chapter with a comment per chapter, chosen for what an Indian OPD
+actually sees: pulmonary TB, dengue haemorrhagic fever, falciparum and vivax malaria as separate
+codes, COVID-19, viral hepatitis, thalassaemia, vitamin D and B12 deficiency, moderate
+protein-calorie malnutrition, PCOS, dysmenorrhoea, anaemia complicating pregnancy, cataract and
+glaucoma, gout, osteoarthritis of knee, epilepsy, Bell's palsy, and the Z codes for a repeat
+prescription, a follow-up visit and a routine child examination.
+
+**Every existing entry keeps its code, term and position.** `searchIcd10` returns matches in array
+order and slices at 12, so re-sorting the list would silently change which twelve a doctor is
+offered for a query they have already learned. New codes are appended inside their chapter, and the
+header comment now says the order is load-bearing so the next person does not tidy it.
+
+**Terms carry the abbreviation the doctor actually types.** Searching `TB` returned nothing at all,
+because the term read *Tuberculosis*. Seventeen terms now carry the short form beside the ICD
+wording — TB, COPD, URI, GERD, IBS, UTI, BPH, PCOS, MI, CAD, AF, CKD, RA, OA, GAD, ADHD — the same
+parenthetical habit the list already used for *common cold* and *BPPV*.
+
+**Still one flat in-memory list with substring search**, which is the documented MVP shape: the
+full classification is ~70k codes and becomes a reference table behind the same contract when the
+product needs it. At 162 the naive ranking is visible on a one-letter query, where the twelve
+returned are simply the first twelve in the file. Ranking exact-code and prefix matches ahead of
+mid-word ones is what this deserves next, and is deliberately **not** done here.
+
+**Verified:** `tsc --noEmit` green, prettier clean, no duplicate code, no line over the 100-column
+budget, and the search run against the file itself for fever, diabetes, asthma, TB, COPD, UTI,
+GERD, PCOS, CKD, ADHD, COVID, pregnancy, anaemia and back pain — every query returning the right
+rows, and none but a single letter reaching the limit of 12.
+
+## 2026-09-03 — A signed consultation can be corrected, and the signed one survives it (ADR-134)
+
+The screen refused every edit after signing — `A signed encounter cannot be edited` — and that
+refusal was the whole answer. It is right about the record and wrong about the work: a weight typed
+as 7.2 kg instead of 72, a drug the doctor meant to add, a laterality on the wrong side. The doctor
+either left the wrong record standing or asked somebody to edit the database.
+
+**`encounter_amendments`, and a third status.** `POST /encounters/:id/amend` takes a required
+reason and copies the whole signed note into `snapshot` **before** anything becomes editable; the
+encounter moves to `amending` and edits like a draft. `/sign` re-signs it, closes the amendment,
+and stores the fields that actually differ. Append-only, `ON DELETE RESTRICT` from the encounter,
+and a partial unique index — at most one amendment open per encounter, enforced by the database
+rather than by the service remembering to look.
+
+**Its own permission.** `emr.encounter.amend`, not `emr.encounter.write`: writing a note and
+reopening a closed one are different acts. Granted to `doctor`, reaching `org_admin` by derivation
+(ADR-125). Re-signing stays on `emr.encounter.write` — the signature has not changed.
+
+**An open amendment belongs to whoever opened it**, not to whoever holds the key. The reason on the
+record is one person's, and a second person editing through it would have their change attributed
+to somebody else's stated reason. The administrator opens their own instead.
+
+**Cancelling only while nothing has changed.** Reopening by mistake has to be cheap to undo, so a
+cancel is allowed while the version is still the one the amendment recorded. After a save the way
+out is to re-sign; quietly cancelling would throw away a real correction or leave the record
+disagreeing with its own trail. The cancelled row is kept — that somebody reopened a signed record
+is worth knowing even when nothing came of it.
+
+**`amending` means "has been signed" downstream.** `listPatientEncounters` and the pharmacy's
+pending queue both filtered on `status = 'signed'`, which would have dropped the note from the
+chart and its prescription from the counter for the length of a correction. Both now ask whether it
+*has been* signed. `encounter.signed` is published once, by the first signature — billing, lab and
+ABDM consume a consultation being finished, and an amendment is not a second one; it has
+`encounter.amend_open` / `amend_sign` / `amend_cancel` in the audit instead.
+
+**A key-order defect, caught by the test that asserts nothing changed.** One side of the comparison
+has been through `jsonb`, which stores object keys sorted, so the raw `JSON.stringify` diff
+reported *every* collection as changed on *every* amendment — including one where nothing had been
+touched. The comparison is canonical on both sides now. Array order is still significant: a
+reordered prescription list is a real difference.
+
+**Testing status:** 14 new API tests (`emr/__tests__/amendment.api.test.ts`) — the signed refusal
+points at the way through, a receptionist is refused and the encounter does not move, a reason is
+required and a keystroke is not one, the history and the pharmacy queue both keep the note, a
+second amendment cannot open, another user cannot edit through the first, discarding works before a
+save and is refused after, re-signing names only the field that changed, an unchanged amendment
+records exactly that, and the visit completes once. `openapi:validate` green; migration applied and
+RLS picked the table up on its own (it has `tenant_id`, which is the whole mechanism).

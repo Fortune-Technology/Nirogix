@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Skeleton, Textarea, TimeField } from "@hms/ui";
+import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Select, Skeleton, Textarea, TimeField } from "@hms/ui";
 import { todayApiDate } from "@hms/utils";
 import * as api from "../../../../lib/api";
 
@@ -190,45 +190,28 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
             />
 
             {context.departments.length > 0 ? (
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="book-department">
-                  Department
-                </label>
-                <select
-                  id="book-department"
-                  className="hms-input"
-                  value={form.departmentId}
-                  onChange={(e) => set("departmentId", e.target.value)}
-                >
-                  <option value="">No preference</option>
-                  {context.departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                id="book-department"
+                label="Department"
+                value={form.departmentId}
+                onChange={(v) => set("departmentId", v)}
+                options={context.departments.map((d) => ({ value: d.id, label: d.name }))}
+                placeholder="No preference"
+                clearable
+              />
             ) : null}
 
             {context.providers.length > 0 ? (
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="book-doctor">
-                  Doctor
-                </label>
-                <select
-                  id="book-doctor"
-                  className="hms-input"
-                  value={form.providerId}
-                  onChange={(e) => set("providerId", e.target.value)}
-                >
-                  <option value="">No preference</option>
-                  {context.providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                id="book-doctor"
+                label="Doctor"
+                value={form.providerId}
+                onChange={(v) => set("providerId", v)}
+                options={context.providers.map((p) => ({ value: p.id, label: p.fullName }))}
+                placeholder="No preference"
+                emptyMessage="No doctor matches."
+                clearable
+              />
             ) : null}
 
             <div className="sm:col-span-2">

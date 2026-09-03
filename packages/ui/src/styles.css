@@ -368,6 +368,15 @@
   border-color: var(--hms-danger);
 }
 
+/* A compact trigger for a toolbar row, where the control sits beside buttons rather than
+   inside a form. Sized to land on the same 30px as `.hms-pagination__btn` beside it —
+   a control two pixels taller than its neighbours is what makes a toolbar look assembled
+   rather than designed. */
+.hms-select__trigger--sm {
+  font-size: var(--hms-text-sm);
+  padding: 0.25rem 0.5rem;
+}
+
 .hms-select__trigger--empty .hms-select__value {
   color: var(--hms-fg-subtle);
 }
@@ -551,6 +560,87 @@
 }
 
 /* --------------------------------------------------------------------------
+ * Combobox (ADR-029) — a searchable field that also accepts free text. Shares the
+ * Select panel above (one list, one option row, one empty state); only the control
+ * itself differs, because here the user types into the field rather than into a
+ * search box inside the panel. Sized to match `.hms-input` exactly, so a combobox
+ * and a text input sitting in the same grid row line up.
+ * ------------------------------------------------------------------------ */
+.hms-combobox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: var(--hms-surface);
+  border: 1px solid var(--hms-border);
+  border-radius: var(--hms-radius-md);
+  padding: 0 0.75rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.hms-combobox:focus-within {
+  border-color: var(--hms-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hms-ring) 25%, transparent);
+}
+
+.hms-combobox:has(.hms-combobox__input:disabled) {
+  background: var(--hms-surface-2);
+}
+
+.hms-combobox__icon {
+  flex-shrink: 0;
+  color: var(--hms-fg-muted);
+}
+
+/* Borderless inside the framed wrapper: the wrapper owns the border, the focus ring and
+   the disabled surface, so the control reads and focuses as one thing. The vertical
+   padding is `.hms-input`'s, which is what keeps the heights identical. */
+.hms-combobox__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--hms-font-sans);
+  font-size: var(--hms-text-base);
+  color: var(--hms-fg);
+  padding: 0.5625rem 0;
+}
+
+.hms-combobox__input::placeholder {
+  color: var(--hms-fg-subtle);
+}
+
+.hms-combobox__input:disabled {
+  color: var(--hms-fg-muted);
+  cursor: not-allowed;
+}
+
+.hms-combobox__clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--hms-radius-sm);
+  color: var(--hms-fg-muted);
+  cursor: pointer;
+}
+
+.hms-combobox__clear:hover {
+  background: var(--hms-surface-2);
+  color: var(--hms-fg);
+}
+
+.hms-combobox__clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hms-ring) 45%, transparent);
+}
+
+/* --------------------------------------------------------------------------
  * Card
  * ------------------------------------------------------------------------ */
 .hms-card {
@@ -569,6 +659,28 @@
 
 .hms-card__body {
   padding: 1.25rem;
+}
+
+/* Where a card-scoped action lives once the form above it is filled — "Add another
+   prescription", "Add another test". Left-aligned on purpose: it continues the list it
+   sits under rather than terminating the card the way a dialog's right-aligned Save does.
+   Wraps, so several actions never push each other off a narrow screen. */
+.hms-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--hms-border);
+  background: var(--hms-surface-2);
+  border-bottom-left-radius: var(--hms-radius-lg);
+  border-bottom-right-radius: var(--hms-radius-lg);
+}
+
+/* Pushes everything after it to the right edge — a hint or a count on the left, the
+   action on the right, without the card inventing its own flex wrapper. */
+.hms-card__footer-spacer {
+  margin-left: auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -1021,6 +1133,12 @@
   align-items: center;
   gap: 0.5rem;
   white-space: nowrap;
+}
+
+/* The shared Select fills its container by default, which is right in a form and wrong in a
+   toolbar row: here it must be exactly as wide as the two digits it holds. */
+.hms-pagination__size-select {
+  width: auto;
 }
 
 .hms-pagination__pages {

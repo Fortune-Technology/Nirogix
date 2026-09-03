@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserCheck, X } from "lucide-react";
-import { Badge, DataTable, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
+import { Badge, DataTable, Select, TableAction, TableActions, actionsColumn, type Column } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Referral } from "@hms/types";
 import { formatDateTime } from "@hms/utils";
@@ -166,15 +166,17 @@ function ReferralWorklist() {
       />
       <div className="flex items-center gap-2">
         <span className="text-sm text-fg-muted">Status:</span>
-        <select
-          className="hms-input max-w-[14rem]"
+        <Select
+          aria-label="Referral status"
+          className="max-w-[14rem]"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+          onChange={(v) => setStatus(v || "pending")}
+          options={[
+            { value: "pending", label: "Pending", description: "Waiting for the patient to be checked in" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+        />
       </div>
       <DataTable
         columns={columns}

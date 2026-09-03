@@ -112,6 +112,28 @@ export const LabOrderSchema = z
   })
   .openapi('LabOrder');
 
+// One reopening of a signed consultation (ADR-134). The snapshot itself is never returned —
+// the trail is what a chart shows; the frozen note stays server-side as the preserved original.
+export const EncounterAmendmentSchema = z
+  .object({
+    id: z.string(),
+    status: z.enum(['open', 'completed', 'cancelled']),
+    reason: z.string(),
+    changedFields: z.array(z.string()).nullable(),
+    amendedById: z.string().nullable(),
+    amendedByName: z.string().nullable(),
+    createdAt: z.string(),
+    completedAt: z.string().nullable(),
+  })
+  .openapi('EncounterAmendment');
+
+export const AmendEncounterBody = z
+  .object({
+    // Long enough to be a reason rather than a keystroke; it is permanent and someone reads it.
+    reason: z.string().trim().min(10, 'Say why the signed record is being corrected').max(1000),
+  })
+  .openapi('AmendEncounterRequest');
+
 export const EncounterSchema = z
   .object({
     id: z.string(),
@@ -121,9 +143,12 @@ export const EncounterSchema = z
     patientUhid: z.string(),
     providerId: z.string().nullable(),
     providerName: z.string().nullable(),
-    status: z.string(),
+    status: z.enum(['draft', 'signed', 'amending']),
     version: z.number(),
     signedAt: z.string().nullable(),
+    wasSigned: z.boolean(),
+    amendments: z.array(EncounterAmendmentSchema),
+    openAmendment: EncounterAmendmentSchema.nullable(),
     chiefComplaint: z.string().nullable(),
     subjective: z.string().nullable(),
     objective: z.string().nullable(),

@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '../cn';
 
-type Tone = 'neutral' | 'danger' | 'success';
+type Tone = 'neutral' | 'danger' | 'success' | 'warning';
 
 export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   tone?: Tone;

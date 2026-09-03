@@ -10,13 +10,14 @@ import {
   Button,
   Card,
   DataTable,
+  Select,
   Spinner,
   TableAction,
   TableActions,
   actionsColumn,
   type Column,
 } from "@hms/ui";
-import { PERMISSIONS, ALL_PERMISSIONS } from "@hms/permissions";
+import { PERMISSIONS, ALL_PERMISSIONS, PERMISSION_LABELS, permissionModule } from "@hms/permissions";
 import type { UserDetail, Role } from "@hms/types";
 import { formatDate } from "@hms/utils";
 import * as api from "../../../../lib/api";
@@ -165,15 +166,17 @@ function Detail({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone={user.status === "active" ? "success" : "warning"}>{user.status}</Badge>
           <Can perm={PERMISSIONS.USERS_MANAGE}>
-            <select
-              className="hms-input max-w-[12rem]"
+            <Select
+              aria-label="Account status"
+              className="max-w-[12rem]"
               value={user.status}
               disabled={busy}
-              onChange={(e) => run(() => api.updateUser(id, { status: e.target.value }))}
-            >
-              <option value="active">active</option>
-              <option value="suspended">suspended</option>
-            </select>
+              onChange={(v) => v && run(() => api.updateUser(id, { status: v }))}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "suspended", label: "Suspended", description: "Cannot sign in; the account is kept" },
+              ]}
+            />
           </Can>
         </div>
       </Card>
@@ -192,12 +195,15 @@ function Detail({ id }: { id: string }) {
         <Can perm={PERMISSIONS.RBAC_MANAGE}>
           {assignable.length > 0 && (
             <div className="mt-4 flex items-center gap-2">
-              <select className="hms-input max-w-[16rem]" value={assignKey} onChange={(e) => setAssignKey(e.target.value)}>
-                <option value="">Assign a role…</option>
-                {assignable.map((r) => (
-                  <option key={r.key} value={r.key}>{r.name}</option>
-                ))}
-              </select>
+              <Select
+                aria-label="Role to assign"
+                className="max-w-[16rem]"
+                value={assignKey}
+                onChange={setAssignKey}
+                options={assignable.map((r) => ({ value: r.key, label: r.name, description: r.description || undefined }))}
+                placeholder="Assign a role…"
+                emptyMessage="No role left to assign."
+              />
               <Button size="sm" disabled={!assignKey || busy} onClick={() => run(async () => { await api.assignUserRole(id, assignKey); setAssignKey(""); })}>
                 Assign
               </Button>
@@ -234,16 +240,38 @@ function Detail({ id }: { id: string }) {
         </div>
         <Can perm={PERMISSIONS.RBAC_MANAGE}>
           <div className="flex flex-wrap items-center gap-2">
-            <select className="hms-input max-w-[18rem]" value={ovPerm} onChange={(e) => setOvPerm(e.target.value)}>
-              <option value="">Choose a permission…</option>
-              {ALL_PERMISSIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <select className="hms-input max-w-[8rem]" value={ovEffect} onChange={(e) => setOvEffect(e.target.value as "GRANT" | "DENY")}>
-              <option value="DENY">DENY</option>
-              <option value="GRANT">GRANT</option>
-            </select>
+            <Select
+              aria-label="Permission to override"
+              className="max-w-[22rem]"
+              value={ovPerm}
+              onChange={setOvPerm}
+              // Sorted by module so each heading appears once: the catalog's own order visits
+              // `platform` and `opd` twice, which would split them into two headings apiece.
+              // (`Select` no longer mis-renders when that happens, but two "platform" headings
+              // in one list is still the wrong answer.) Stable within a module, so the catalog's
+              // view-before-manage ordering survives.
+              options={[...ALL_PERMISSIONS]
+                .sort((a, b) => permissionModule(a).localeCompare(permissionModule(b)))
+                .map((p) => ({
+                  value: p,
+                  label: PERMISSION_LABELS[p] ?? p,
+                  description: p,
+                  keywords: p,
+                  group: permissionModule(p),
+                }))}
+              placeholder="Choose a permission…"
+              emptyMessage="No permission matches."
+            />
+            <Select
+              aria-label="Override effect"
+              className="max-w-[10rem]"
+              value={ovEffect}
+              onChange={(v) => setOvEffect((v || "DENY") as "GRANT" | "DENY")}
+              options={[
+                { value: "DENY", label: "DENY", description: "Always wins over a role grant" },
+                { value: "GRANT", label: "GRANT", description: "Adds a permission the roles do not give" },
+              ]}
+            />
             <Button size="sm" disabled={!ovPerm || busy} onClick={() => run(async () => { await api.addUserOverride(id, { permission: ovPerm, effect: ovEffect }); setOvPerm(""); })}>
               Add override
             </Button>

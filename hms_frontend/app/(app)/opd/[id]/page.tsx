@@ -1,10 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Mic, MicOff, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Spinner } from "@hms/ui";
+import { ArrowLeft, FilePenLine, Mic, MicOff, Plus, Printer, Send, Sparkles, Trash2 } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Combobox,
+  ConfirmDialog,
+  Dialog,
+  Field,
+  Select,
+  Spinner,
+  type ComboboxOption,
+} from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type {
   Department,
@@ -100,6 +112,13 @@ type RxRow = {
 };
 type LabRow = { id: string | null; testId: string | null; testName: string; testCode: string; priority: string; status: string };
 
+/** What a confirmation is currently being asked about. `null` = no dialog open. */
+type Pending =
+  | { kind: "sign" }
+  | { kind: "amend-cancel" }
+  | { kind: "rx"; index: number; name: string }
+  | { kind: "lab"; index: number; name: string }
+  | { kind: "dx"; index: number; name: string };
 
 // SOAP is the standard clinical note, but only to someone who was taught it — the four labels say
 // nothing to a receptionist, a new junior, or the non-clinical staff who read these notes back.
@@ -112,9 +131,92 @@ const SOAP_HINT = {
   plan: "What happens next — tests, medicines, advice, when to review, when to come back sooner",
 } as const;
 
-function numOrNull(s: string): number | null {
-  const n = Number(s);
-  return s.trim() === "" || Number.isNaN(n) ? null : n;
+/** What an amendment's `changedFields` are called on screen. */
+const FIELD_LABEL: Record<string, string> = {
+  chiefComplaint: "Chief complaint",
+  subjective: "Subjective",
+  objective: "Objective",
+  assessment: "Assessment",
+  plan: "Plan",
+  diagnoses: "Diagnoses",
+  prescriptions: "Prescriptions",
+  labOrders: "Lab orders",
+};
+
+// Suggestions, not a closed list: these are what a doctor types dozens of times a day, and the
+// one they need next is always the one an enumeration would have left out. Free text still wins.
+const ROUTE_SUGGESTIONS: ComboboxOption[] = [
+  { value: "oral", label: "Oral", description: "By mouth" },
+  { value: "iv", label: "IV", description: "Intravenous" },
+  { value: "im", label: "IM", description: "Intramuscular" },
+  { value: "sc", label: "SC", description: "Subcutaneous" },
+  { value: "topical", label: "Topical" },
+  { value: "inhalation", label: "Inhalation" },
+  { value: "sublingual", label: "Sublingual" },
+  { value: "rectal", label: "Rectal" },
+  { value: "ophthalmic", label: "Ophthalmic", description: "Eye" },
+  { value: "otic", label: "Otic", description: "Ear" },
+  { value: "nasal", label: "Nasal" },
+];
+
+const FREQUENCY_SUGGESTIONS: ComboboxOption[] = [
+  { value: "1-0-0", label: "1-0-0", description: "Morning only", keywords: "od once daily" },
+  { value: "0-0-1", label: "0-0-1", description: "Night only", keywords: "hs bedtime" },
+  { value: "1-0-1", label: "1-0-1", description: "Morning and night", keywords: "bd twice" },
+  { value: "1-1-1", label: "1-1-1", description: "Three times a day", keywords: "tds tid thrice" },
+  { value: "1-1-1-1", label: "1-1-1-1", description: "Four times a day", keywords: "qid" },
+  { value: "OD", label: "OD", description: "Once daily" },
+  { value: "BD", label: "BD", description: "Twice daily" },
+  { value: "TDS", label: "TDS", description: "Three times daily" },
+  { value: "QID", label: "QID", description: "Four times daily" },
+  { value: "HS", label: "HS", description: "At bedtime" },
+  { value: "SOS", label: "SOS", description: "When required" },
+  { value: "STAT", label: "STAT", description: "Immediately, once" },
+];
+
+/**
+ * Everything the doctor can change, as one comparable value.
+ *
+ * This is what "unsaved changes" means on this screen — compared against the same shape taken
+ * from the server's last answer. Deriving it from the form state rather than tracking a dirty
+ * flag per field means a value typed and then typed back is correctly *not* a change.
+ */
+function formSnapshot(parts: {
+  chiefComplaint: string;
+  soap: { subjective: string; objective: string; assessment: string; plan: string };
+  vitals: VitalsDraft;
+  dx: DxRow[];
+  rx: RxRow[];
+  lab: LabRow[];
+}): string {
+  return JSON.stringify({
+    chiefComplaint: parts.chiefComplaint.trim(),
+    soap: {
+      subjective: parts.soap.subjective.trim(),
+      objective: parts.soap.objective.trim(),
+      assessment: parts.soap.assessment.trim(),
+      plan: parts.soap.plan.trim(),
+    },
+    vitals: toVitalsPayload(parts.vitals),
+    dx: parts.dx,
+    rx: parts.rx.map((p) => ({
+      id: p.id,
+      drugId: p.drugId,
+      drugName: p.drugName.trim(),
+      dose: p.dose.trim(),
+      frequency: p.frequency.trim(),
+      duration: p.duration.trim(),
+      route: p.route.trim(),
+      instructions: p.instructions.trim(),
+    })),
+    lab: parts.lab.map((l) => ({
+      id: l.id,
+      testId: l.testId,
+      testName: l.testName.trim(),
+      testCode: l.testCode.trim(),
+      priority: l.priority,
+    })),
+  });
 }
 
 function Consultation({ visitId }: { visitId: string }) {
@@ -123,6 +225,7 @@ function Consultation({ visitId }: { visitId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [amending, setAmending] = useState(false);
 
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [soap, setSoap] = useState({ subjective: "", objective: "", assessment: "", plan: "" });
@@ -136,17 +239,28 @@ function Consultation({ visitId }: { visitId: string }) {
 
   const [icdQuery, setIcdQuery] = useState("");
   const [icdResults, setIcdResults] = useState<Icd10Code[]>([]);
+  const [icdSearching, setIcdSearching] = useState(false);
+
+  // The content of the last server answer, for "are there unsaved changes?".
+  const [savedSnapshot, setSavedSnapshot] = useState("");
+  // What a confirmation is being asked about, and the reason text for an amendment.
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [amendPromptOpen, setAmendPromptOpen] = useState(false);
+  const [amendReason, setAmendReason] = useState("");
+  const [amendError, setAmendError] = useState<string | null>(null);
 
   // Masters for the pickers: prescriptions link to the drug master, orders to the test
   // master — that link is what prices the lab order and pre-matches the pharmacy dispense.
   const [drugs, setDrugs] = useState<Drug[]>([]);
   const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [mastersLoading, setMastersLoading] = useState(true);
   const [history, setHistory] = useState<EncounterSummary[] | null>(null);
   // Context for the "fee unpaid" gate: which invoice to send the cashier to.
   const [visit, setVisit] = useState<Visit | null>(null);
 
   // Referral (ADR-068) + AI assist (ADR-070).
   const canRefer = useCan(PERMISSIONS.REFERRAL_CREATE);
+  const canAmend = useCan(PERMISSIONS.EMR_AMEND);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -158,16 +272,26 @@ function Consultation({ visitId }: { visitId: string }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
 
-  const signed = enc?.status === "signed";
+  // `signed` is locked; `amending` is a signed note deliberately reopened (ADR-134) and edits
+  // exactly like a draft. Only the first is read-only.
+  const locked = enc?.status === "signed";
+  const inAmendment = enc?.status === "amending";
+
+  // One request at a time, whatever the button does. `saving` disables the button on the next
+  // render, which is one render too late for a double-click — this closes that window.
+  const busyRef = useRef(false);
 
   const hydrate = useCallback((e: Encounter) => {
-    setEnc(e);
-    setChiefComplaint(e.chiefComplaint ?? "");
-    setSoap({ subjective: e.subjective ?? "", objective: e.objective ?? "", assessment: e.assessment ?? "", plan: e.plan ?? "" });
+    const nextSoap = {
+      subjective: e.subjective ?? "",
+      objective: e.objective ?? "",
+      assessment: e.assessment ?? "",
+      plan: e.plan ?? "",
+    };
     // Seeded from the latest reading on the VISIT — which may be one the front desk or the vitals
     // room took, not one this encounter recorded. Saving an unchanged set writes nothing new.
     const v = e.vitals;
-    setVitals({
+    const nextVitals: VitalsDraft = {
       systolic: v.systolic?.toString() ?? "",
       diastolic: v.diastolic?.toString() ?? "",
       pulse: v.pulse?.toString() ?? "",
@@ -178,32 +302,64 @@ function Consultation({ visitId }: { visitId: string }) {
       heightCm: v.heightCm?.toString() ?? "",
       bloodSugarMgDl: v.bloodSugarMgDl?.toString() ?? "",
       bloodSugarType: v.bloodSugarType ?? "",
-    });
-    setDx(e.diagnoses.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary })));
-    setRx(
-      e.prescriptions.map((p) => ({
-        id: p.id,
-        drugId: p.drugId,
-        drugName: p.drugName,
-        dose: p.dose ?? "",
-        frequency: p.frequency ?? "",
-        duration: p.duration ?? "",
-        route: p.route ?? "",
-        instructions: p.instructions ?? "",
-        status: p.status,
-      })),
-    );
-    setLab(
-      e.labOrders.map((l) => ({
-        id: l.id,
-        testId: l.testId,
-        testName: l.testName,
-        testCode: l.testCode ?? "",
-        priority: l.priority,
-        status: l.status,
-      })),
+    };
+    const nextDx = e.diagnoses.map((d) => ({ icd10Code: d.icd10Code, icd10Term: d.icd10Term, isPrimary: d.isPrimary }));
+    const nextRx = e.prescriptions.map((p) => ({
+      id: p.id,
+      drugId: p.drugId,
+      drugName: p.drugName,
+      dose: p.dose ?? "",
+      frequency: p.frequency ?? "",
+      duration: p.duration ?? "",
+      route: p.route ?? "",
+      instructions: p.instructions ?? "",
+      status: p.status,
+    }));
+    const nextLab = e.labOrders.map((l) => ({
+      id: l.id,
+      testId: l.testId,
+      testName: l.testName,
+      testCode: l.testCode ?? "",
+      priority: l.priority,
+      status: l.status,
+    }));
+
+    setEnc(e);
+    setChiefComplaint(e.chiefComplaint ?? "");
+    setSoap(nextSoap);
+    setVitals(nextVitals);
+    setDx(nextDx);
+    setRx(nextRx);
+    setLab(nextLab);
+    // Taken from the SAME values that were just written into state, so the screen can never
+    // start out claiming unsaved changes it does not have.
+    setSavedSnapshot(
+      formSnapshot({
+        chiefComplaint: e.chiefComplaint ?? "",
+        soap: nextSoap,
+        vitals: nextVitals,
+        dx: nextDx,
+        rx: nextRx,
+        lab: nextLab,
+      }),
     );
   }, []);
+
+  const currentSnapshot = useMemo(
+    () => formSnapshot({ chiefComplaint, soap, vitals, dx, rx, lab }),
+    [chiefComplaint, soap, vitals, dx, rx, lab],
+  );
+  const dirty = enc !== null && !locked && currentSnapshot !== savedSnapshot;
+
+  // A reload or a closed tab is the one navigation the browser lets us interrupt. In-app
+  // navigation is not guarded here; the header states the unsaved count instead, permanently
+  // in view because the header is sticky.
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   useEffect(() => {
     setLoading(true);
@@ -217,9 +373,16 @@ function Consultation({ visitId }: { visitId: string }) {
   }, [visitId, hydrate]);
 
   useEffect(() => {
-    api.listDrugs().then(setDrugs).catch(() => setDrugs([]));
-    api.listLabTests().then(setLabTests).catch(() => setLabTests([]));
+    setMastersLoading(true);
+    Promise.all([
+      api.listDrugs().then(setDrugs).catch(() => setDrugs([])),
+      api.listLabTests().then(setLabTests).catch(() => setLabTests([])),
+    ]).finally(() => setMastersLoading(false));
     api.aiCapabilities().then((c) => setAiEnabled(c.prescriptionDraft)).catch(() => setAiEnabled(false));
+    // Which vitals this hospital records, and whether it runs a separate vitals step at all
+    // (ADR-129 — the doctor holds the read key precisely so this screen can be built from it).
+    // Without it the Vitals card claimed the hospital had configured nothing.
+    api.getWorkflowConfig().then(setWorkflow).catch(() => setWorkflow(null));
   }, []);
 
   useEffect(() => {
@@ -303,8 +466,15 @@ function Consultation({ visitId }: { visitId: string }) {
   }, [enc?.patientId, visitId]);
 
   useEffect(() => {
-    if (!icdQuery.trim()) { setIcdResults([]); return; }
-    const t = setTimeout(() => { api.searchIcd10(icdQuery).then(setIcdResults).catch(() => setIcdResults([])); }, 250);
+    if (!icdQuery.trim()) { setIcdResults([]); setIcdSearching(false); return; }
+    setIcdSearching(true);
+    const t = setTimeout(() => {
+      api
+        .searchIcd10(icdQuery)
+        .then(setIcdResults)
+        .catch(() => setIcdResults([]))
+        .finally(() => setIcdSearching(false));
+    }, 250);
     return () => clearTimeout(t);
   }, [icdQuery]);
 
@@ -346,39 +516,157 @@ function Consultation({ visitId }: { visitId: string }) {
     };
   }
 
-  async function save() {
-    if (!enc) return;
-    setSaving(true); setError(null);
+  // Rows a doctor started and left blank are dropped by `buildBody`, so the screen says so
+  // before the save rather than letting them silently disappear from the saved note.
+  const blankRxCount = rx.filter((p) => !p.drugName.trim()).length;
+  const blankLabCount = lab.filter((l) => !l.testName.trim()).length;
+
+  async function save(): Promise<boolean> {
+    if (!enc || busyRef.current) return false;
+    busyRef.current = true;
+    setSaving(true);
+    setError(null);
     try {
       // Outcome is announced by the shared toast (ADR-026).
       hydrate(await api.saveEncounter(enc.id, buildBody()));
+      return true;
     } catch {
       /* reported by the shared API-feedback layer */
+      return false;
     } finally {
       setSaving(false);
+      busyRef.current = false;
     }
   }
 
   async function sign() {
-    if (!enc) return;
-    if (!window.confirm("Sign this consultation? It will be locked and the visit marked completed.")) return;
-    setSigning(true); setError(null);
+    if (!enc || busyRef.current) return;
+    busyRef.current = true;
+    setSigning(true);
+    setError(null);
     try {
-      await api.saveEncounter(enc.id, buildBody());
-      hydrate(await api.signEncounter(enc.id));
+      // Save first so the signature locks what is on screen, not a stale server copy. A failed
+      // save must abort the signature — signing over it would lock the wrong note.
+      const saved = await api.saveEncounter(enc.id, buildBody());
+      hydrate(await api.signEncounter(saved.id));
     } catch {
       /* reported by the shared API-feedback layer */
     } finally {
       setSigning(false);
+      busyRef.current = false;
     }
   }
 
-  function addDx(c: Icd10Code) {
-    if (dx.some((d) => d.icd10Code === c.code)) return;
-    setDx((prev) => [...prev, { icd10Code: c.code, icd10Term: c.term, isPrimary: prev.length === 0 }]);
+  async function beginAmendment() {
+    if (!enc || busyRef.current) return;
+    const reason = amendReason.trim();
+    if (reason.length < 10) {
+      setAmendError("Say why the signed record is being corrected — at least 10 characters.");
+      return;
+    }
+    busyRef.current = true;
+    setAmending(true);
+    setAmendError(null);
+    try {
+      hydrate(await api.amendEncounter(enc.id, { reason }));
+      setAmendPromptOpen(false);
+      setAmendReason("");
+    } catch {
+      /* reported by the shared API-feedback layer */
+    } finally {
+      setAmending(false);
+      busyRef.current = false;
+    }
+  }
+
+  async function discardAmendment() {
+    if (!enc || busyRef.current) return;
+    busyRef.current = true;
+    setAmending(true);
+    try {
+      hydrate(await api.cancelEncounterAmendment(enc.id));
+    } catch {
+      /* reported by the shared API-feedback layer */
+    } finally {
+      setAmending(false);
+      busyRef.current = false;
+    }
+  }
+
+  function addDx(code: string, term: string) {
+    if (dx.some((d) => d.icd10Code === code)) return;
+    setDx((prev) => [...prev, { icd10Code: code, icd10Term: term, isPrimary: prev.length === 0 }]);
     setIcdQuery("");
     setIcdResults([]);
   }
+
+  /**
+   * Removing a row that the server already holds is a change to the record and confirms;
+   * removing one the doctor added a moment ago and has not saved is not, and a dialog there
+   * would be noise on the way to a corrected line.
+   */
+  function removeRx(index: number) {
+    const row = rx[index];
+    if (row?.id) setPending({ kind: "rx", index, name: row.drugName || "this medicine" });
+    else setRx((prev) => prev.filter((_, j) => j !== index));
+  }
+  function removeLab(index: number) {
+    const row = lab[index];
+    if (row?.id) setPending({ kind: "lab", index, name: row.testName || "this test" });
+    else setLab((prev) => prev.filter((_, j) => j !== index));
+  }
+
+  function confirmPending() {
+    if (!pending) return;
+    switch (pending.kind) {
+      case "sign":
+        setPending(null);
+        void sign();
+        return;
+      case "amend-cancel":
+        setPending(null);
+        void discardAmendment();
+        return;
+      case "rx":
+        setRx((prev) => prev.filter((_, j) => j !== pending.index));
+        break;
+      case "lab":
+        setLab((prev) => prev.filter((_, j) => j !== pending.index));
+        break;
+      case "dx":
+        setDx((prev) => prev.filter((_, j) => j !== pending.index));
+        break;
+    }
+    setPending(null);
+  }
+
+  const drugOptions: ComboboxOption[] = useMemo(
+    () =>
+      drugs.map((d) => ({
+        value: d.id,
+        label: d.name,
+        description: [d.strength, d.form].filter(Boolean).join(" ") || undefined,
+        meta: `${formatPaise(d.unitPricePaise)} · ${d.onHand} in stock`,
+      })),
+    [drugs],
+  );
+
+  const labTestOptions: ComboboxOption[] = useMemo(
+    () =>
+      labTests.map((t) => ({
+        value: t.id,
+        label: t.name,
+        description: t.code ?? undefined,
+        keywords: t.code ?? undefined,
+        meta: formatPaise(t.pricePaise),
+      })),
+    [labTests],
+  );
+
+  const icdOptions: ComboboxOption[] = useMemo(
+    () => icdResults.map((c) => ({ value: c.code, label: c.term, description: c.code, keywords: c.code })),
+    [icdResults],
+  );
 
   if (loading) {
     return (
@@ -412,36 +700,90 @@ function Consultation({ visitId }: { visitId: string }) {
     );
   }
 
-  const disabled = signed;
+  const disabled = locked;
+  const busy = saving || signing || amending;
 
   return (
     <>
       <Link href="/opd" className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
         <ArrowLeft size={15} strokeWidth={2} /> OPD queue
       </Link>
+      {/* Sticky (ADR-128): the doctor fills prescriptions and lab orders well below the fold, and
+          Save must not be something they scroll back up to find. */}
       <PageHeader
+        sticky
         title="Consultation"
         description={`${enc.patientName} · ${enc.patientUhid}${enc.providerName ? ` · ${enc.providerName}` : ""}`}
         actions={
-          signed ? (
-            <div className="flex items-center gap-2">
+          locked ? (
+            <>
               <Badge tone="success">Signed {formatDateTime(enc.signedAt, "")}</Badge>
               <Link href={`/print/prescription/${visitId}`}>
                 <Button variant="secondary">
                   <Printer size={16} strokeWidth={2} /> Print prescription
                 </Button>
               </Link>
-            </div>
+              <Can perm={PERMISSIONS.EMR_AMEND}>
+                <Button
+                  onClick={() => {
+                    setAmendReason("");
+                    setAmendError(null);
+                    setAmendPromptOpen(true);
+                  }}
+                >
+                  <FilePenLine size={16} strokeWidth={2} /> Amend consultation
+                </Button>
+              </Can>
+            </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={save} loading={saving} disabled={signing}>Save</Button>
-              <Button onClick={sign} loading={signing} disabled={saving}>Sign &amp; complete</Button>
-            </div>
+            <>
+              {/* Stated, not implied: the doctor can see at a glance whether the note on screen
+                  is the note on the server, from anywhere on the page. */}
+              <span className="text-xs text-fg-muted">
+                {dirty ? "Unsaved changes" : inAmendment ? "Amendment saved" : "All changes saved"}
+              </span>
+              {inAmendment && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setPending({ kind: "amend-cancel" })}
+                  disabled={busy || dirty}
+                  title={dirty ? "Save or discard your corrections first" : undefined}
+                >
+                  Discard amendment
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => void save()} loading={saving} disabled={signing || amending}>
+                Save
+              </Button>
+              <Button onClick={() => setPending({ kind: "sign" })} loading={signing} disabled={saving || amending}>
+                {inAmendment ? "Sign amendment" : "Sign & complete"}
+              </Button>
+            </>
           )
         }
       />
 
       {error && <Alert tone="danger">{error}</Alert>}
+
+      {/* A reopened note looks exactly like a draft while it is being edited, so the screen has
+          to keep saying which it is, and under whose stated reason. */}
+      {inAmendment && enc.openAmendment && (
+        <Alert tone="warning">
+          <span className="font-medium">This signed consultation is open for amendment.</span>{" "}
+          The note as signed on {formatDateTime(enc.signedAt, "")} is preserved. Reason:{" "}
+          <span className="italic">“{enc.openAmendment.reason}”</span> — {enc.openAmendment.amendedByName ?? "a user"},{" "}
+          {formatDateTime(enc.openAmendment.createdAt, "")}. Signing again records what changed.
+        </Alert>
+      )}
+
+      {locked && !canAmend && (
+        <Alert tone="neutral">
+          This consultation is signed and locked. Correcting a signed record needs the{" "}
+          <span className="font-medium">Amend a signed consultation</span> permission (
+          <span className="font-mono text-xs">emr.encounter.amend</span>), which your role does not hold — ask your
+          administrator, or the clinician who signed it.
+        </Alert>
+      )}
 
       {workflow?.vitalsMode !== "disabled" && (
         <Card header="Vitals">
@@ -476,8 +818,8 @@ function Consultation({ visitId }: { visitId: string }) {
 
       <Card header="Notes (SOAP)">
         <div className="flex flex-col gap-4">
-          <div>
-            <div className="flex items-center justify-between">
+          <div className="hms-field">
+            <div className="flex items-center justify-between gap-2">
               <span className="hms-label">Chief complaint</span>
               {!disabled && <DictationButton onText={(t) => setChiefComplaint((v) => (v ? `${v} ${t}` : t))} />}
             </div>
@@ -489,10 +831,12 @@ function Consultation({ visitId }: { visitId: string }) {
               onChange={(e) => setChiefComplaint(e.target.value)}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* `[&>*]:min-w-0` — a grid track sizes to its longest unbroken content, so one long
+              line of dictated text would otherwise push the page sideways (ADR-127). */}
+          <div className="grid items-start gap-4 sm:grid-cols-2 [&>*]:min-w-0">
             {(["subjective", "objective", "assessment", "plan"] as const).map((k) => (
-              <div key={k}>
-                <div className="flex items-center justify-between">
+              <div key={k} className="hms-field">
+                <div className="flex items-center justify-between gap-2">
                   <span className="hms-label capitalize">{k}</span>
                   {!disabled && <DictationButton onText={(t) => setSoap((s) => ({ ...s, [k]: s[k] ? `${s[k]} ${t}` : t }))} />}
                 </div>
@@ -511,24 +855,21 @@ function Consultation({ visitId }: { visitId: string }) {
 
       <Card header="Diagnoses (ICD-10)">
         {!disabled && (
-          <div className="relative mb-3">
-            <Field placeholder="Search ICD-10 by code or term…" value={icdQuery} onChange={(e) => setIcdQuery(e.target.value)} />
-            {icdResults.length > 0 && (
-              <ul className="absolute z-10 mt-1 w-full rounded-token border border-border bg-surface p-1">
-                {icdResults.map((c) => (
-                  <li key={c.code}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-token px-3 py-2 text-left text-sm hover:bg-surface-2"
-                      onClick={() => addDx(c)}
-                    >
-                      <span className="font-mono text-xs text-brand">{c.code}</span>
-                      <span className="text-fg">{c.term}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="mb-3">
+            {/* Search-and-add: the server searches, so the component must not filter its answer
+                away, and a picked code adds a row rather than binding the field's value. */}
+            <Combobox
+              label="Add a diagnosis"
+              value={icdQuery}
+              onChange={(text) => setIcdQuery(text)}
+              options={icdOptions}
+              onSelect={(o) => addDx(o.value, o.label)}
+              filter={false}
+              allowCustomValue={false}
+              loading={icdSearching}
+              placeholder="Search ICD-10 by code or term — fever, J45, diabetes…"
+              emptyMessage={icdQuery.trim() ? "No ICD-10 code matches that." : "Type to search the ICD-10 list."}
+            />
           </div>
         )}
         {dx.length === 0 ? (
@@ -538,17 +879,22 @@ function Consultation({ visitId }: { visitId: string }) {
             {dx.map((d, i) => (
               <li key={d.icd10Code} className="flex items-center gap-2 text-sm">
                 <span className="font-mono text-xs text-brand">{d.icd10Code}</span>
-                <span className="text-fg">{d.icd10Term}</span>
+                <span className="min-w-0 flex-1 text-fg">{d.icd10Term}</span>
                 <button
                   type="button"
                   disabled={disabled}
                   onClick={() => setDx((prev) => prev.map((x, j) => ({ ...x, isPrimary: j === i })))}
-                  className={`ml-2 rounded-full px-2 py-0.5 text-xs ${d.isPrimary ? "bg-brand text-brand-fg" : "text-fg-muted hover:bg-surface-2"}`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${d.isPrimary ? "bg-brand text-brand-fg" : "text-fg-muted hover:bg-surface-2"}`}
                 >
                   Primary
                 </button>
                 {!disabled && (
-                  <button type="button" className="ml-auto text-fg-subtle hover:text-danger" onClick={() => setDx((prev) => prev.filter((_, j) => j !== i))}>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${d.icd10Term}`}
+                    className="shrink-0 text-fg-subtle hover:text-danger"
+                    onClick={() => setDx((prev) => prev.filter((_, j) => j !== i))}
+                  >
                     <Trash2 size={15} />
                   </button>
                 )}
@@ -559,28 +905,34 @@ function Consultation({ visitId }: { visitId: string }) {
       </Card>
 
       <Card
-        header={
-          <div className="flex items-center justify-between">
-            <span>Prescriptions</span>
-            {!disabled && (
-              <div className="flex items-center gap-1">
-                {aiEnabled && (
-                  <Button variant="ghost" size="sm" onClick={() => void draftWithAi()} loading={aiBusy}>
-                    <Sparkles size={15} /> AI draft
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setRx((p) => [...p, { id: null, drugId: null, drugName: "", dose: "", frequency: "", duration: "", route: "", instructions: "", status: "ordered" }])
-                  }
-                >
-                  <Plus size={15} /> Add
+        header="Prescriptions"
+        // The add action sits at the END of the list it extends (ADR-128 / the card footer):
+        // asking the doctor to reach back up past a half-filled row is what the header did.
+        footer={
+          !disabled ? (
+            <>
+              {blankRxCount > 0 && (
+                <span className="text-xs text-fg-muted">
+                  {blankRxCount} row{blankRxCount > 1 ? "s" : ""} without a medicine — not saved.
+                </span>
+              )}
+              <span className="hms-card__footer-spacer" />
+              {aiEnabled && (
+                <Button variant="ghost" size="sm" onClick={() => void draftWithAi()} loading={aiBusy}>
+                  <Sparkles size={15} /> AI draft
                 </Button>
-              </div>
-            )}
-          </div>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  setRx((p) => [...p, { id: null, drugId: null, drugName: "", dose: "", frequency: "", duration: "", route: "", instructions: "", status: "ordered" }])
+                }
+              >
+                <Plus size={15} /> Add medicine
+              </Button>
+            </>
+          ) : undefined
         }
       >
         {aiNote && (
@@ -588,14 +940,6 @@ function Consultation({ visitId }: { visitId: string }) {
             AI note: {aiNote}. Every drafted line is a suggestion; review, correct and delete freely before saving.
           </Alert>
         )}
-        {/* Pick from the drug master (typing filters the datalist) so the prescription
-            carries drugId — pharmacy then dispenses the exact drug, not a name guess.
-            Free text still works for an unstocked medicine. */}
-        <datalist id="drug-master">
-          {drugs.map((d) => (
-            <option key={d.id} value={d.name}>{`${d.strength ?? ""} ${d.form ?? ""} · ${formatPaise(d.unitPricePaise)} · stock ${d.onHand}`}</option>
-          ))}
-        </datalist>
         {rx.length === 0 ? (
           <p className="text-sm text-fg-subtle">No medications prescribed.</p>
         ) : (
@@ -606,51 +950,86 @@ function Consultation({ visitId }: { visitId: string }) {
               const matched = p.drugId ? drugs.find((d) => d.id === p.drugId) : undefined;
               return (
                 <div key={p.id ?? `new-${i}`} className="rounded-token border border-border p-3">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-                    <div className="col-span-2">
-                      <input
-                        className="hms-input w-full"
-                        placeholder="Drug (pick or type)"
-                        list="drug-master"
-                        value={p.drugName}
-                        disabled={rowLocked}
-                        onChange={(e) => {
-                          const name = e.target.value;
-                          const hit = drugs.find((d) => d.name.toLowerCase() === name.trim().toLowerCase());
-                          setRx((prev) => prev.map((x, j) => (j === i ? { ...x, drugName: name, drugId: hit?.id ?? null } : x)));
-                        }}
-                      />
-                      <p className="mt-0.5 text-xs text-fg-subtle">
-                        {p.status !== "ordered" ? (
-                          <Badge tone={p.status === "dispensed" ? "success" : "neutral"}>{p.status}</Badge>
-                        ) : matched ? (
-                          `In stock: ${matched.onHand} · ${formatPaise(matched.unitPricePaise)}/${matched.unit}`
-                        ) : p.drugName.trim() ? (
-                          "Not in the drug master; pharmacy will match it by hand"
-                        ) : (
-                          ""
-                        )}
-                      </p>
-                    </div>
-                    <input className="hms-input" placeholder="Dose" value={p.dose} disabled={rowLocked} onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, dose: e.target.value } : x)))} />
-                    <input className="hms-input" placeholder="Frequency (1-0-1)" value={p.frequency} disabled={rowLocked} onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, frequency: e.target.value } : x)))} />
-                    <input className="hms-input" placeholder="Route (oral)" value={p.route} disabled={rowLocked} onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, route: e.target.value } : x)))} />
-                    <div className="flex items-center gap-1">
-                      <input className="hms-input" placeholder="Duration (5 days)" value={p.duration} disabled={rowLocked} onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, duration: e.target.value } : x)))} />
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-fg-muted">Medicine {i + 1}</span>
+                    <div className="flex items-center gap-2">
+                      {p.status !== "ordered" && (
+                        <Badge tone={p.status === "dispensed" ? "success" : "neutral"}>{p.status}</Badge>
+                      )}
                       {!rowLocked && (
-                        <button type="button" aria-label="Remove prescription" className="text-fg-subtle hover:text-danger" onClick={() => setRx((prev) => prev.filter((_, j) => j !== i))}>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${p.drugName || `medicine ${i + 1}`}`}
+                          className="text-fg-subtle hover:text-danger"
+                          onClick={() => removeRx(i)}
+                        >
                           <Trash2 size={15} />
                         </button>
                       )}
                     </div>
                   </div>
-                  <input
-                    className="hms-input mt-2 w-full"
-                    placeholder="Instructions (after food…)"
-                    value={p.instructions}
-                    disabled={rowLocked}
-                    onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, instructions: e.target.value } : x)))}
-                  />
+                  {/* `items-start` is what fixes the alignment: without it every control stretches
+                      to the tallest cell, so a field carrying a hint made its neighbours taller
+                      than themselves. Each control now keeps its own height and the labels line up. */}
+                  <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-6 [&>*]:min-w-0">
+                    <div className="lg:col-span-2">
+                      <Combobox
+                        label="Drug"
+                        value={p.drugName}
+                        onChange={(text, option) =>
+                          setRx((prev) => prev.map((x, j) => (j === i ? { ...x, drugName: text, drugId: option?.value ?? null } : x)))
+                        }
+                        options={drugOptions}
+                        loading={mastersLoading}
+                        disabled={rowLocked}
+                        placeholder="Pick from the formulary, or type"
+                        emptyMessage="Not in this hospital's drug master."
+                        customValueHint="Not in the drug master; pharmacy will match it by hand"
+                        hint={matched ? `In stock: ${matched.onHand} · ${formatPaise(matched.unitPricePaise)}/${matched.unit}` : undefined}
+                      />
+                    </div>
+                    <Field
+                      label="Dose"
+                      placeholder="500 mg"
+                      value={p.dose}
+                      disabled={rowLocked}
+                      onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, dose: e.target.value } : x)))}
+                    />
+                    <Combobox
+                      label="Frequency"
+                      value={p.frequency}
+                      onChange={(text) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, frequency: text } : x)))}
+                      options={FREQUENCY_SUGGESTIONS}
+                      disabled={rowLocked}
+                      placeholder="1-0-1"
+                      emptyMessage="No standard schedule matches — type your own."
+                    />
+                    <Combobox
+                      label="Route"
+                      value={p.route}
+                      onChange={(text) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, route: text } : x)))}
+                      options={ROUTE_SUGGESTIONS}
+                      disabled={rowLocked}
+                      placeholder="Oral"
+                      emptyMessage="No standard route matches — type your own."
+                    />
+                    <Field
+                      label="Duration"
+                      placeholder="5 days"
+                      value={p.duration}
+                      disabled={rowLocked}
+                      onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, duration: e.target.value } : x)))}
+                    />
+                    <div className="sm:col-span-2 lg:col-span-6">
+                      <Field
+                        label="Instructions"
+                        placeholder="After food, with plenty of water…"
+                        value={p.instructions}
+                        disabled={rowLocked}
+                        onChange={(e) => setRx((prev) => prev.map((x, j) => (j === i ? { ...x, instructions: e.target.value } : x)))}
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -659,29 +1038,27 @@ function Consultation({ visitId }: { visitId: string }) {
       </Card>
 
       <Card
-        header={
-          <div className="flex items-center justify-between">
-            <span>Lab orders</span>
-            {!disabled && (
+        header="Lab orders"
+        footer={
+          !disabled ? (
+            <>
+              {blankLabCount > 0 && (
+                <span className="text-xs text-fg-muted">
+                  {blankLabCount} row{blankLabCount > 1 ? "s" : ""} without a test — not saved.
+                </span>
+              )}
+              <span className="hms-card__footer-spacer" />
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
                 onClick={() => setLab((l) => [...l, { id: null, testId: null, testName: "", testCode: "", priority: "routine", status: "ordered" }])}
               >
-                <Plus size={15} /> Add
+                <Plus size={15} /> Add test
               </Button>
-            )}
-          </div>
+            </>
+          ) : undefined
         }
       >
-        {/* Pick from the test master so the order carries testId — that is what puts the
-            lab charge on the bill at sample collection. Free text = unpriced until the
-            technician matches it. */}
-        <datalist id="lab-test-master">
-          {labTests.map((t) => (
-            <option key={t.id} value={t.name}>{`${t.code ?? ""} · ${formatPaise(t.pricePaise)}`}</option>
-          ))}
-        </datalist>
         {lab.length === 0 ? (
           <p className="text-sm text-fg-subtle">No lab tests ordered.</p>
         ) : (
@@ -691,47 +1068,70 @@ function Consultation({ visitId }: { visitId: string }) {
               const rowLocked = disabled || l.status !== "ordered";
               const matched = l.testId ? labTests.find((t) => t.id === l.testId) : undefined;
               return (
-                <div key={l.id ?? `new-${i}`} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="col-span-2">
-                    <input
-                      className="hms-input w-full"
-                      placeholder="Test (pick or type)"
-                      list="lab-test-master"
-                      value={l.testName}
-                      disabled={rowLocked}
-                      onChange={(e) => {
-                        const name = e.target.value;
-                        const hit = labTests.find((t) => t.name.toLowerCase() === name.trim().toLowerCase());
-                        setLab((prev) =>
-                          prev.map((x, j) =>
-                            j === i ? { ...x, testName: name, testId: hit?.id ?? null, testCode: hit?.code ?? x.testCode } : x,
-                          ),
-                        );
-                      }}
-                    />
-                    <p className="mt-0.5 text-xs text-fg-subtle">
-                      {l.status !== "ordered" ? (
+                <div key={l.id ?? `new-${i}`} className="rounded-token border border-border p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-fg-muted">Test {i + 1}</span>
+                    <div className="flex items-center gap-2">
+                      {l.status !== "ordered" && (
                         <Badge tone={l.status === "resulted" ? "success" : "brand"}>{l.status}</Badge>
-                      ) : matched ? (
-                        `${formatPaise(matched.pricePaise)} · billed at sample collection`
-                      ) : l.testName.trim() ? (
-                        "Not in the test master; priced when the lab matches it"
-                      ) : (
-                        ""
                       )}
-                    </p>
+                      {!rowLocked && (
+                        <button
+                          type="button"
+                          aria-label={`Remove ${l.testName || `test ${i + 1}`}`}
+                          className="text-fg-subtle hover:text-danger"
+                          onClick={() => removeLab(i)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <input className="hms-input" placeholder="Code" value={l.testCode} disabled={rowLocked} onChange={(e) => setLab((prev) => prev.map((x, j) => (j === i ? { ...x, testCode: e.target.value } : x)))} />
-                  <div className="flex items-center gap-1">
-                    <select className="hms-input" value={l.priority} disabled={rowLocked} onChange={(e) => setLab((prev) => prev.map((x, j) => (j === i ? { ...x, priority: e.target.value } : x)))}>
-                      <option value="routine">Routine</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                    {!rowLocked && (
-                      <button type="button" aria-label="Remove lab order" className="text-fg-subtle hover:text-danger" onClick={() => setLab((prev) => prev.filter((_, j) => j !== i))}>
-                        <Trash2 size={15} />
-                      </button>
-                    )}
+                  <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
+                    <div className="sm:col-span-2">
+                      <Combobox
+                        label="Test"
+                        value={l.testName}
+                        onChange={(text, option) =>
+                          setLab((prev) =>
+                            prev.map((x, j) =>
+                              j === i
+                                ? {
+                                    ...x,
+                                    testName: text,
+                                    testId: option?.value ?? null,
+                                    testCode: option ? (labTests.find((t) => t.id === option.value)?.code ?? "") : x.testCode,
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
+                        options={labTestOptions}
+                        loading={mastersLoading}
+                        disabled={rowLocked}
+                        placeholder="Pick from the test master, or type"
+                        emptyMessage="Not in this hospital's test master."
+                        customValueHint="Not in the test master; priced when the lab matches it"
+                        hint={matched ? `${formatPaise(matched.pricePaise)} · billed at sample collection` : undefined}
+                      />
+                    </div>
+                    <Field
+                      label="Code"
+                      placeholder="CBC"
+                      value={l.testCode}
+                      disabled={rowLocked}
+                      onChange={(e) => setLab((prev) => prev.map((x, j) => (j === i ? { ...x, testCode: e.target.value } : x)))}
+                    />
+                    <Select
+                      label="Priority"
+                      value={l.priority}
+                      onChange={(v) => setLab((prev) => prev.map((x, j) => (j === i ? { ...x, priority: v || "routine" } : x)))}
+                      options={[
+                        { value: "routine", label: "Routine" },
+                        { value: "urgent", label: "Urgent", description: "Ahead of the routine queue" },
+                      ]}
+                      disabled={rowLocked}
+                    />
                   </div>
                 </div>
               );
@@ -739,6 +1139,36 @@ function Consultation({ visitId }: { visitId: string }) {
           </div>
         )}
       </Card>
+
+      {/* The amendment trail: who reopened a signed note, when, why, and what they changed.
+          Rendered whenever there is one, signed or not — it is part of the record. */}
+      {enc.amendments.length > 0 && (
+        <Card header={`Amendments (${enc.amendments.length})`}>
+          <ul className="flex flex-col divide-y divide-border text-sm">
+            {enc.amendments.map((a) => (
+              <li key={a.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={a.status === "completed" ? "success" : a.status === "open" ? "warning" : "neutral"}>
+                    {a.status === "completed" ? "Recorded" : a.status === "open" ? "In progress" : "Discarded"}
+                  </Badge>
+                  <span className="text-fg">{a.amendedByName ?? "Unknown user"}</span>
+                  <span className="text-fg-muted">{formatDateTime(a.completedAt ?? a.createdAt, "")}</span>
+                </div>
+                <p className="text-fg-muted">
+                  <span className="italic">“{a.reason}”</span>
+                </p>
+                {a.status === "completed" && (
+                  <p className="text-xs text-fg-muted">
+                    {a.changedFields && a.changedFields.length > 0
+                      ? `Changed: ${a.changedFields.map((f) => FIELD_LABEL[f] ?? f).join(", ")}`
+                      : "Reopened and re-signed without changing anything."}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {canRefer && (
         <Card header="Refer to a department">
@@ -756,38 +1186,41 @@ function Consultation({ visitId }: { visitId: string }) {
               ))}
             </ul>
           )}
-          <div className="grid gap-3 sm:grid-cols-4">
-            <label className="hms-field">
-              <span className="hms-label">Department</span>
-              <select className="hms-input" value={refDept} onChange={(e) => setRefDept(e.target.value)}>
-                <option value="">Choose…</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="hms-field">
-              <span className="hms-label">Doctor (optional)</span>
-              <select className="hms-input" value={refProvider} onChange={(e) => setRefProvider(e.target.value)}>
-                <option value="">Any</option>
-                {providers.filter((p) => p.isActive).map((p) => (
-                  <option key={p.id} value={p.id}>{p.fullName}</option>
-                ))}
-              </select>
-            </label>
+          <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
+            <Select
+              label="Department"
+              value={refDept}
+              onChange={setRefDept}
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+              placeholder="Choose…"
+              emptyMessage="No active departments."
+            />
+            <Select
+              label="Doctor (optional)"
+              value={refProvider}
+              onChange={setRefProvider}
+              options={providers.filter((p) => p.isActive).map((p) => ({ value: p.id, label: p.fullName }))}
+              placeholder="Any"
+              clearable
+              emptyMessage="No active doctors."
+            />
             <div className="sm:col-span-2">
-              <span className="hms-label">Reason</span>
-              <div className="flex items-center gap-2">
-                <input className="hms-input w-full" placeholder="Why this department…" value={refReason} onChange={(e) => setRefReason(e.target.value)} />
-                <Button size="sm" onClick={() => void refer()} loading={referring} disabled={!refDept || !refReason.trim()}>
-                  <Send size={14} /> Refer
-                </Button>
-              </div>
+              <Field
+                label="Reason"
+                placeholder="Why this department…"
+                value={refReason}
+                onChange={(e) => setRefReason(e.target.value)}
+              />
             </div>
           </div>
           <p className="mt-2 text-xs text-fg-subtle">
             The front desk checks the patient in against the referral. The receiving department opens this same chart.
           </p>
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" onClick={() => void refer()} loading={referring} disabled={!refDept || !refReason.trim()}>
+              <Send size={14} /> Refer
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -822,6 +1255,107 @@ function Consultation({ visitId }: { visitId: string }) {
           </ul>
         )}
       </Card>
+
+      {/* Every confirmation on this page is the one shared dialog (ADR-029) — the browser's own
+          `confirm()` cannot be styled, cannot be themed, and names the origin rather than the act. */}
+      <ConfirmDialog
+        open={pending?.kind === "sign"}
+        tone="default"
+        title={inAmendment ? "Sign this amendment?" : "Sign this consultation?"}
+        description={
+          inAmendment
+            ? "The correction is recorded against the amendment — who made it, when, and which parts of the note changed. The consultation locks again."
+            : "Once signed, the consultation is locked and the visit is marked completed. Correcting it afterwards needs a recorded amendment."
+        }
+        confirmLabel={inAmendment ? "Sign amendment" : "Sign consultation"}
+        busy={signing}
+        onConfirm={confirmPending}
+        onCancel={() => setPending(null)}
+      />
+
+      <ConfirmDialog
+        open={pending?.kind === "amend-cancel"}
+        title="Discard this amendment?"
+        description="The consultation goes back to signed, exactly as it was. The record that it was reopened, and the reason given, is kept."
+        confirmLabel="Discard amendment"
+        busy={amending}
+        onConfirm={confirmPending}
+        onCancel={() => setPending(null)}
+      />
+
+      <ConfirmDialog
+        open={pending?.kind === "rx"}
+        title="Delete prescription?"
+        description={
+          pending?.kind === "rx"
+            ? `${pending.name} will be removed from this consultation when you save. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmPending}
+        onCancel={() => setPending(null)}
+      />
+
+      <ConfirmDialog
+        open={pending?.kind === "lab"}
+        title="Delete lab order?"
+        description={
+          pending?.kind === "lab"
+            ? `${pending.name} will be removed from this consultation when you save. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmPending}
+        onCancel={() => setPending(null)}
+      />
+
+      {/* Not a ConfirmDialog: an amendment asks for something, it does not ask yes or no. */}
+      <Dialog
+        open={amendPromptOpen}
+        onClose={() => setAmendPromptOpen(false)}
+        title="Amend this consultation"
+        size="sm"
+        busy={amending}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAmendPromptOpen(false)} disabled={amending}>
+              Cancel
+            </Button>
+            <Button onClick={() => void beginAmendment()} loading={amending}>
+              Amend consultation
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-fg-muted">
+            The consultation signed on {formatDateTime(enc.signedAt, "")} is preserved exactly as it stands. Your
+            corrections are recorded as an amendment against it — your name, the time, this reason, and which parts of
+            the note you changed. Nothing is overwritten.
+          </p>
+          <div className="hms-field">
+            <label className="hms-label" htmlFor="amend-reason">
+              Reason for the amendment
+            </label>
+            <textarea
+              id="amend-reason"
+              className="hms-input min-h-[90px] w-full"
+              placeholder="Corrected the recorded weight — 72 kg was entered as 7.2 kg."
+              value={amendReason}
+              onChange={(e) => {
+                setAmendReason(e.target.value);
+                if (amendError) setAmendError(null);
+              }}
+              aria-invalid={!!amendError}
+            />
+            {amendError ? (
+              <span className="hms-field__error">{amendError}</span>
+            ) : (
+              <span className="hms-field__hint">Permanent, and read by anyone reviewing this record later.</span>
+            )}
+          </div>
+        </div>
+      </Dialog>
     </>
   );
 }

@@ -1458,9 +1458,21 @@ export interface Encounter {
   patientUhid: string;
   providerId: string | null;
   providerName: string | null;
-  status: string; // draft | signed
+  /**
+   * `draft` → `signed`, and `signed` → `amending` → `signed` for a correction (ADR-134).
+   * `amending` is editable exactly like a draft; it differs in that the note it is
+   * correcting is already preserved in an amendment record.
+   */
+  status: string; // draft | signed | amending
   version: number;
+  /** When the note was LAST signed. A re-signed amendment moves it. */
   signedAt: string | null;
+  /** Whether this consultation has ever been signed — true throughout an amendment. */
+  wasSigned: boolean;
+  /** Every amendment on this encounter, newest first. Empty for a note never reopened. */
+  amendments: EncounterAmendment[];
+  /** The open amendment, when the encounter is being corrected right now. */
+  openAmendment: EncounterAmendment | null;
   chiefComplaint: string | null;
   subjective: string | null;
   objective: string | null;
@@ -1473,6 +1485,31 @@ export interface Encounter {
   diagnoses: Diagnosis[];
   prescriptions: Prescription[];
   labOrders: LabOrder[];
+}
+
+/**
+ * One reopening of a signed consultation (ADR-134) — who, when, why, and what changed.
+ *
+ * `snapshot` is deliberately absent from this shape: the amendment TRAIL is what a chart
+ * shows, and shipping a full frozen copy of every past note into the consultation screen
+ * would send far more clinical data than the screen displays. The snapshot stays server-side
+ * as the preserved original.
+ */
+export interface EncounterAmendment {
+  id: string;
+  status: string; // open | completed | cancelled
+  reason: string;
+  /** Field names that differ between the signed note and the amended one. */
+  changedFields: string[] | null;
+  amendedById: string | null;
+  amendedByName: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface AmendEncounterRequest {
+  /** Why the signed record is being reopened. Recorded permanently against the amendment. */
+  reason: string;
 }
 
 export interface Icd10Code {

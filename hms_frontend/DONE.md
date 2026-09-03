@@ -1492,3 +1492,104 @@ reported `todayQueueAlreadyPresent` for all three hospitals and created nothing.
 
 **This one needs no reset.** The daily refresh carries no marker, so the next staging deploy gives
 `QAHOSP` a live board — and so does every deploy after it.
+
+## 2026-09-03 — The consultation screen, treated as a record rather than a form (ADR-134)
+
+Reported as "the Save button has an issue". It had several, and they were all the same mistake in
+different places: the page was built as a form and a consultation is a record.
+
+**The vitals configuration was never fetched.** `workflow` was declared, read in three places, and
+never assigned — so every hospital saw *This hospital has not configured any vitals to record*,
+whatever it had configured. The doctor holds `platform.workflow.view` precisely so this screen can
+read it (ADR-129); nothing was reading it. One `api.getWorkflowConfig()`.
+
+**Save scrolled out of reach.** The primary action belongs in the `PageHeader` (ADR-128) and it
+still does — but this page's work runs several screens below it. `PageHeader` gains `sticky`, and
+beside Save the header now **states what it knows**: *Unsaved changes* or *All changes saved*,
+computed by comparing the form against the server's last answer rather than a dirty flag, so
+typing something and undoing it correctly reports saved. `beforeunload` covers reload and tab
+close. An in-app navigation guard is **not** done; the header saying so is what covers it.
+
+**A double-click could send two saves.** `loading` disables the button on the next render, which is
+one render too late. An in-flight ref closes the window.
+
+**Signing saved over a failed save.** The old `sign()` saved, then signed, in one `try` — so a
+failed save was followed by an attempt to sign anyway. The signature now proceeds only from the
+save's own result.
+
+**`window.confirm` is gone from the product.** It was the last one. Signing, discarding an
+amendment and deleting a **saved** prescription or lab order all use the shared `ConfirmDialog`.
+Removing a row added ten seconds ago and never saved still just removes it — a dialog there is
+noise, not safety.
+
+**The pickers are the shared `Combobox`.** Drug, lab test and ICD-10 were an `<input list>` +
+`<datalist>` that showed no price, no stock and no code, and could not distinguish a picked drug
+from a matching string. Frequency and route gained suggestion lists on the same control — free text
+still wins, because the schedule a doctor needs next is always the one an enumeration left out.
+
+**Alignment.** The prescription row stretched every control to the tallest cell, so a field carrying
+a hint made its neighbours taller than themselves — which is what the screenshot showed.
+`items-start` plus a label per field fixes it; `[&>*]:min-w-0` stops one long dictated line
+scrolling the page sideways (ADR-127).
+
+**Add moved to the card footer.** *Add medicine* and *Add test* sit at the end of the list they
+extend, not above a row the doctor has not finished, and the footer states how many blank rows will
+not be saved rather than dropping them silently.
+
+**Amendment (ADR-134).** A signed note shows the trail and, with `emr.encounter.amend`, an **Amend
+consultation** action; without it, a panel naming the permission in words and as a key and saying
+who to ask (ADR-126) — not a disabled button. Reopening asks for a reason in a form dialog that
+states what is preserved. While amending, a banner carries the reason, its author and the original
+signing time, and the header offers Save / Sign amendment / Discard amendment.
+
+**Also standardised in this pass** — four master-data pickers that were still native `<select>`:
+service on an invoice, drug at the pharmacy counter, supplier on a stock receipt, test on a lab
+result. All four are bind-to-a-record answers, so they are the searchable `Select`, not
+`Combobox`; free text there would be a worse answer, not a kinder one. Payment method stays a
+`Select` too — small list, but the design system's control rather than the browser's.
+
+**Testing status:** frontend typecheck clean. `window.confirm` / `alert` no longer appear anywhere
+in `hms_frontend`, `admin`, `patient`, `aiportal` or `packages`; no `<datalist>` remains.
+Manual coverage: `testcases.md` EMR-14…EMR-29 and the new AMD-01…AMD-15, plus
+`docs/manual-testing-guide.md` §7.3b–d, §7.4–7.5 and §7.8.
+
+## 2026-09-03 — Every remaining native dropdown, and three vocabularies that were being kept per screen (ADR-135)
+
+ADR-134 converted the four `<select>`s that were master-data pickers. Thirty-three were left, and a
+rule that holds on four screens and not on the other twenty is not a rule.
+
+**Converted here:** patient registration and the patient chart's edit form (gender, blood group,
+status), providers (gender, login account, specialty ×2, department ×2, roster weekday), users
+(role on create; account status, role to assign, permission override, override effect),
+departments (branch, head of department), services (department), referrals (status filter),
+hospital availability (hospital, item type), HFR facility registration (facility), HPR
+professional enrolment (clinician, category), the ABDM verification panel (verify using), the
+external-history card (requesting doctor), and `RegistryMasterSelect` — which is one component and
+therefore around twenty HFR fields at once.
+
+**Two were more than a swap.**
+
+- **The permission-override picker** listed ~200 raw keys with no search. It is now grouped by
+  module, labelled with what the permission *means*, and searchable on the key as well — an
+  administrator looking for "who can take money" does not know it is `billing.payment.collect`.
+- **`RegistryMasterSelect`** kept all three behaviours it exists for and stated them better: a
+  saved code whose list has not arrived leads the options with *"Saved earlier; the registry list
+  is still loading"* instead of disappearing behind a placeholder, and a registry that **failed**
+  now reads differently from one that returned **nothing** and from a search matching nothing.
+
+**Three vocabularies moved to `@hms/utils`.** Gender had been written out four times in four orders
+with four different words for the empty answer; blood group twice; record status once as raw
+column values (*active* / *archived*) shown to a person. The patient portal keeps its own wording
+for the blank gender — *Prefer not to say* is right on a form a patient fills in themselves, where
+*Not specified* is right at a hospital counter — because that is the placeholder, not the list.
+
+**A flourish was reverted during verification.** The shared blood-group list briefly used a
+typographic minus (`AB−`) against the stored `AB-`. Every other surface renders the stored value,
+so the picker would have spelled it differently from the chart beside it.
+
+**Testing status:** monorepo typecheck 13/13, build 8/8, lint 0 errors (warning counts unchanged),
+996 tests across 7 workspaces pass. Verified in the running Portal: zero native `<select>` elements
+on `/patients/new`, `/providers`, `/services`, `/departments`, `/users`, `/referrals`,
+`/laboratory`, `/pharmacy` and the patient chart. The decisive check was the wire, not the markup —
+registering a patient sent `{"bloodGroup":"AB-","gender":"female"}`, and reopening that record
+mapped the stored codes back to *AB-* and *Female*. The test patient was archived afterwards.

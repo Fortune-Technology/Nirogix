@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../cn";
+import { Select } from "../Select";
 
 export interface DataTablePaginationProps {
   page: number;
@@ -56,20 +57,21 @@ export function DataTablePagination({
       </div>
 
       <div className="hms-pagination__controls">
-        <label className="hms-pagination__size">
-          <span>Rows per page</span>
-          <select
-            className="hms-input hms-input--sm"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* The kit's own control, not the browser's — a native `<select>` here would have been
+            the one place in the product that ignored the design tokens on every single table
+            (ADR-112). Not searchable: four numbers do not need a search box. */}
+        <div className="hms-pagination__size">
+          <span aria-hidden>Rows per page</span>
+          <Select
+            value={String(pageSize)}
+            onChange={(v) => v && onPageSizeChange(Number(v))}
+            options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
+            searchable={false}
+            aria-label="Rows per page"
+            className="hms-pagination__size-select"
+            triggerClassName="hms-select__trigger--sm"
+          />
+        </div>
 
         <nav className="hms-pagination__pages" aria-label="Pagination">
           <button

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, toast } from "@hms/ui";
+import { Alert, Badge, Button, Card, Field, PageHeader, Select, Spinner, toast } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch } from "@hms/types";
 import { ArrowLeft, Pencil, Save, Search, Send } from "lucide-react";
@@ -337,25 +337,16 @@ function FacilityRegistration() {
             {current?.facilityId ? <p>Facility ID: {current.facilityId}</p> : null}
           </div>
           {branches.length > 0 ? (
-            <div className="hms-field">
-              <label className="hms-label" htmlFor="reg-branch">
-                Facility
-              </label>
-              <select
-                id="reg-branch"
-                className="hms-input"
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-              >
-                <option value="">Main hospital</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hms-field__hint">Each branch is a separate facility to HFR.</span>
-            </div>
+            <Select
+              id="reg-branch"
+              label="Facility"
+              value={branchId}
+              onChange={setBranchId}
+              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder="Main hospital"
+              hint="Each branch is a separate facility to HFR."
+              clearable
+            />
           ) : null}
         </div>
 

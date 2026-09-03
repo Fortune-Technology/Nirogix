@@ -12,17 +12,16 @@ import {
   Dialog,
   Field,
   PhoneField,
+  Select,
 } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
-import { formatDate, todayApiDate } from "@hms/utils";
+import { BLOOD_GROUP_OPTIONS, formatDate, GENDER_OPTIONS, todayApiDate } from "@hms/utils";
 import type { CreatePatientRequest, DuplicatePatientCandidate } from "@hms/types";
 import type { AbhaPrefill } from "@hms/types";
 import * as api from "../../../../lib/api";
 import { Can, RequirePermission } from "../../../../components/Can";
 import { PageHeader } from "../../../../components/PageHeader";
 import { AbhaVerificationPanel } from "../../../../components/abdm/AbhaVerificationPanel";
-
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 function RegisterForm() {
   const router = useRouter();
@@ -119,28 +118,28 @@ function RegisterForm() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="First name" value={f.firstName} onChange={(e) => set("firstName", e.target.value)} required autoFocus />
             <Field label="Last name" value={f.lastName ?? ""} onChange={(e) => set("lastName", e.target.value)} />
-            <label className="hms-field">
-              <span className="hms-label">Gender</span>
-              <select className="hms-input" value={f.gender ?? ""} onChange={(e) => set("gender", e.target.value)}>
-                <option value="">Not specified</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
+            <Select
+              label="Gender"
+              value={f.gender ?? ""}
+              onChange={(v) => set("gender", v)}
+              options={GENDER_OPTIONS}
+              placeholder="Not specified"
+              clearable
+            />
             <DateField
               label="Date of birth"
               value={f.dateOfBirth ?? null}
               max={todayApiDate()}
               onChange={(v) => set("dateOfBirth", v ?? "")}
             />
-            <label className="hms-field">
-              <span className="hms-label">Blood group</span>
-              <select className="hms-input" value={f.bloodGroup ?? ""} onChange={(e) => set("bloodGroup", e.target.value)}>
-                <option value="">Not recorded</option>
-                {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </label>
+            <Select
+              label="Blood group"
+              value={f.bloodGroup ?? ""}
+              onChange={(v) => set("bloodGroup", v)}
+              options={BLOOD_GROUP_OPTIONS}
+              placeholder="Not recorded"
+              clearable
+            />
             <Field
               label="ABHA number (optional)"
               value={f.abhaNumber ?? ""}

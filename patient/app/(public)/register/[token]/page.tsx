@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Skeleton, Textarea } from "@hms/ui";
+import { Alert, BrandMark, Button, Card, DateField, Field, PhoneField, Select, Skeleton, Textarea } from "@hms/ui";
+import { GENDER_OPTIONS } from "@hms/utils";
 import type { PublicRegistrationContext } from "@hms/types";
 import * as api from "../../../../lib/api";
 
@@ -19,13 +20,6 @@ import * as api from "../../../../lib/api";
  * desk. It does **not** create a patient record, an account, or portal access — the
  * hospital does that after checking who you are (ADR-052).
  */
-
-const GENDERS = [
-  { value: "", label: "Prefer not to say" },
-  { value: "female", label: "Female" },
-  { value: "male", label: "Male" },
-  { value: "other", label: "Other" },
-];
 
 type Form = {
   firstName: string;
@@ -176,23 +170,15 @@ export default function PublicRegistrationPage({ params }: { params: Promise<{ t
               autoComplete="email"
             />
 
-            <div className="hms-field">
-              <label className="hms-label" htmlFor="reg-gender">
-                Gender
-              </label>
-              <select
-                id="reg-gender"
-                className="hms-input"
-                value={form.gender}
-                onChange={(e) => set("gender", e.target.value)}
-              >
-                {GENDERS.map((g) => (
-                  <option key={g.value} value={g.value}>
-                    {g.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              id="reg-gender"
+              label="Gender"
+              value={form.gender}
+              onChange={(v) => set("gender", v)}
+              options={GENDER_OPTIONS}
+              placeholder="Prefer not to say"
+              clearable
+            />
 
             {/* `DateField`, never a native date input — that renders in the browser's own
                 locale, and this form is read by people who expect DD/MM/YYYY (ADR-048). */}

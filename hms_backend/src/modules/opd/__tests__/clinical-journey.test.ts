@@ -52,7 +52,10 @@ async function cleanupTenant(code: string): Promise<void> {
   await pool.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_change');
   for (const table of [
     'payments', 'invoice_line_items', 'dispenses', 'drug_batches', 'drugs',
-    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses', 'encounters',
+    'lab_results', 'lab_orders', 'lab_tests', 'prescriptions', 'diagnoses',
+    // Before 'encounters': the amendment trail is ON DELETE RESTRICT so an encounter cannot
+    // take its own correction history with it (ADR-134).
+    'encounter_amendments', 'encounters',
     'visits', 'invoices', 'appointments', 'patients',
     'practitioner_roles', 'providers', 'departments',
     'user_roles', 'role_permissions', 'roles', 'tenant_entitlements', 'branches', 'users',

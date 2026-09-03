@@ -9,6 +9,19 @@ import { Button } from "../ui/Button";
  * submit this shows a success state without transmitting anywhere. Before launch,
  * wire handleSubmit to a real endpoint or CRM (the TODO below). Field names are
  * stable so that wiring is a drop-in.
+ *
+ * The role field is a **native `<select>` on purpose** — the one left in the monorepo after the
+ * Portal moved to `@hms/ui`'s `Select` (ADR-112). Three reasons, and they are marketing's, not
+ * the Portal's:
+ *
+ * - This form is **uncontrolled**. It has no state per field, submits natively, and leans on the
+ *   browser's `required` to refuse an empty role. `Select` is controlled and its hidden input
+ *   carries no `required`, so swapping it in would quietly remove that validation.
+ * - Marketing is an **independent token scope** (`--mk-*`, ADR-040) with its own `inputClass`.
+ *   The kit's control is styled for the Portal's fields, which this form does not use.
+ * - Five options with no search. There is nothing here the kit's control would do better.
+ *
+ * Consistency is the reason to use the shared control, not a reason to lose form validation.
  */
 
 const inputClass =

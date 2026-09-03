@@ -47,3 +47,17 @@ Only for the few places a brand colour must be used where the design tokens cann
 ## Browser security headers (`src/security.ts`, ADR-082)
 
 `buildContentSecurityPolicy()` + `SECURITY_HEADERS` are the one source of the frontends’ browser policy, consumed from each app’s `proxy.ts`. Two shapes: **nonce mode** (`nonce` + `strict-dynamic`, no `unsafe-inline`) for the four authenticated apps, and **static mode** for `marketing`, whose pages must stay statically rendered. An app passes only its API origin and whether it is in development; it never writes directives of its own. `connectSrc` feeds both `connect-src` and `img-src`, because the API serves tenant logos and report attachments itself — over plain http in development.
+
+## Shared vocabularies (ADR-135)
+
+`GENDER_OPTIONS`, `BLOOD_GROUP_OPTIONS`, `RECORD_STATUS_OPTIONS` — the small closed lists more than
+one screen asks for, as `{ value, label }` pairs a `Select` consumes directly.
+
+They live **here and not in `@hms/ui`** because `ui` depends on `utils`; the reverse would invert
+the dependency graph, and a blood group is not a design-system concern in any case. A list earns a
+place here on its **second** caller. Anything a *hospital* defines for itself — consultation types,
+case types, departments — never belongs here: that comes from the tenant's own configuration.
+
+Label and value are deliberately the same string for blood groups. A typographic minus (`AB−`)
+reads better in isolation and is wrong here: every other surface renders the stored `AB-`, and a
+picker spelling it differently from the chart beside it reads as two answers to one question.

@@ -3118,3 +3118,197 @@ is the wrong trade.
 - Setting `vitalsMode: 'after_checkin'` changes what the seeded hospitals *do*, not what the
   product does: it is configuration, a hospital can change it on its own screen, and the default
   for everyone else is untouched.
+
+## ADR-134 - A signed consultation is corrected by amendment, never by overwrite
+
+**Status:** Accepted · **Date:** 03/09/2026 · **Extends:** ADR-029 (reusable UI), ADR-039 (row actions), ADR-060 (a record displayed wrongly must be correctable), ADR-128 (page actions)
+
+### Context
+
+The consultation screen refused every edit after signing, and the refusal was the whole answer:
+`A signed encounter cannot be edited`. That is right about the record and wrong about the work.
+Real corrections arrive after the signature — a weight entered as 7.2 kg instead of 72, a drug the
+doctor meant to add, a laterality recorded on the wrong side, a diagnosis that reads as the
+opposite of what was said. A doctor who cannot fix any of them either leaves a wrong record
+standing or asks somebody to edit the database.
+
+The alternative nobody should build is the one that looks easiest: let the edit through. That
+silently destroys what was actually signed, which is the one thing a clinical record exists to
+hold. ADR-060 already says a record that can be displayed incorrectly must have a permitted, safe
+way to be corrected — "safe" is the part that had no implementation here.
+
+Three smaller problems sat in the same screen and are fixed in the same change, because they are
+all the consultation being treated as a form rather than as a record:
+
+- **The vitals configuration was never fetched.** `workflow` was declared, read in three places,
+  and never assigned — so every hospital saw *This hospital has not configured any vitals to
+  record*, whatever it had configured. The doctor holds `platform.workflow.view` precisely so this
+  screen can read it (ADR-129); nothing was reading it.
+- **Save scrolled out of reach.** The primary action is in the `PageHeader` (ADR-128), which is
+  correct, but this page's work runs well below the fold: a doctor filling the fourth prescription
+  is several screens away from the button, with no statement anywhere of whether what they are
+  looking at has been saved.
+- **Signing went through `window.confirm`.** The browser's own dialog cannot be themed, ignores
+  the design tokens, announces `localhost:3001 says`, and was the last one left in the product.
+
+### Decision
+
+**1. Reopening a signed note is its own act, with its own record.** `POST /encounters/:id/amend`
+takes a **required reason** and, *before anything becomes editable*, copies the whole signed note
+into `encounter_amendments.snapshot`. The encounter then moves to a third status, `amending`,
+which edits exactly like a draft. `POST /encounters/:id/sign` re-signs it, closes the amendment,
+and stores the **fields that actually differ** between the snapshot and the note as re-signed.
+
+The record afterwards names who, when, why, and what: an append-only row per amendment, never
+deleted (invariant #6), and the note as signed still in it.
+
+**2. It is a separate permission.** `emr.encounter.amend`, not `emr.encounter.write`. Writing a
+note and reopening a closed one are different acts, so a hospital can let every clinician write
+freely and still choose who may reopen. Granted to `doctor` (the service still holds them to an
+encounter that is theirs) and reaching `org_admin` by derivation (ADR-125). Re-signing stays on
+`emr.encounter.write`, because the signature itself has not changed.
+
+**3. An open amendment belongs to whoever opened it.** Not to whoever holds the permission: the
+reason on the record is one person's, and letting a second person edit through it would attribute
+their change to somebody else's stated reason. Editing is refused for anyone but the opener —
+including an administrator, who can open their own amendment instead.
+
+**4. Discarding is allowed only while nothing has changed.** Reopening by mistake must be cheap to
+undo, so cancelling is possible while the encounter's version is still the one the amendment
+recorded. Once a save has landed, the way out is to re-sign — quietly "cancelling" would either
+throw away a real correction or leave the record disagreeing with the trail. The cancelled row is
+kept, because that somebody reopened a signed record is itself worth knowing.
+
+**5. `amending` means "has been signed", everywhere downstream.** The patient's history and the
+pharmacy's pending queue both filtered on `status = 'signed'`, which would have dropped a note
+from the chart and its prescriptions from the counter for the length of a correction. Both now ask
+whether it *has been* signed. `encounter.signed` is published once, by the first signature —
+billing, lab and ABDM consume a consultation being finished, and an amendment is not a second one.
+It has its own audited action instead (`encounter.amend_open` / `amend_sign` / `amend_cancel`).
+
+**6. The screen states what it is.** A reopened note carries a banner naming the reason and its
+author; a signed one carries the amendment trail; a user without the permission is told the
+permission's name and key rather than being shown a dead button (ADR-126). The `PageHeader` gains
+`sticky`, so Save and the saved/unsaved state stay in view for the whole length of the page.
+
+**7. `Combobox` joins the kit, beside `Select`.** `Select` answers *choose one of these*;
+`Combobox` answers *choose one of these, or write your own*, which is the shape every clinical
+master picker actually has — an unstocked medicine and a test the master has never heard of both
+still have to be orderable, and the `drugId` / `testId` link is what the pharmacy and the lab use
+when it exists. It replaces `<input list>` + `<datalist>`, which could not show a price or a stock
+level, could not be styled, and gave no way to tell a picked option from a coincidentally
+identical string. Both share one panel implementation (`useAnchoredPanel`) and one set of styles.
+
+### Consequences
+
+- A signed consultation can be corrected by someone permitted to, and the original survives every
+  correction. What the chart shows afterwards is both: the current note, and the trail of who
+  changed what and why.
+- **A key-order bug was caught by the test that asserts "changed nothing".** One side of the
+  comparison had been through `jsonb`, which stores object keys sorted, so a raw
+  `JSON.stringify` comparison reported every collection as changed on every amendment. The
+  comparison is now canonical on both sides. Array order is still significant — a reordered
+  prescription list is a real difference.
+- Four master-data pickers that were native `<select>` — service on an invoice, drug at the
+  pharmacy counter, supplier on a stock receipt, test on a lab result — are now the shared
+  searchable `Select`. They are bind-to-a-record answers, so they are `Select` and not
+  `Combobox`; free text there would be a worse answer, not a kinder one.
+- `Card` gains a `footer`. A repeatable form's *Add another* belongs at the end of the list it
+  extends, not in the header above a row the user has not finished — this does not contradict
+  ADR-128, which governs the **page's** primary action, and the page's is still top-right.
+- `Alert` gains the `warning` tone `Badge` already had. An alert that could not say "keep this in
+  mind while you work" was a gap in the kit, not a decision.
+- Removing an unsaved row still removes it. Confirmation is for rows the server already holds —
+  a dialog on the way to fixing a line typed ten seconds ago is noise, not safety.
+- Not done here: an in-app navigation guard. `beforeunload` covers reload and tab close; leaving
+  by a link with unsaved changes is caught by the sticky header saying so, not by a prompt.
+
+## ADR-135 - The last native dropdown, and the vocabularies three screens were each keeping
+
+**Status:** Accepted · **Date:** 03/09/2026 · **Extends:** ADR-029 (build once), ADR-112 (`Select` is the one dropdown), ADR-134 (`Combobox`)
+
+### Context
+
+ADR-112 made `Select` the one dropdown, and its own docstring says *reach for it before writing
+another `<select className="hms-input">`*. Thirty-seven of those were still in the tree. ADR-134
+converted the four that were master-data pickers; this finishes the job, because a rule that holds
+on four screens and not on the other twenty is not a rule, it is a preference somebody applied
+once.
+
+The count matters less than what the leftovers were doing. A native `<select>` renders in the
+browser's chrome rather than the design tokens, so it ignores Light/Dark and the tenant's accent;
+on a phone it hands the user an OS wheel; and it cannot show a second line, so a doctor's
+registration number, a permission's plain-English meaning and a user's email were all being
+crammed into one truncated line with a `·` between them. Two were worse than cosmetic:
+
+- **The permission-override picker** listed around two hundred raw dot-hierarchy keys with no
+  search. An administrator looking for "who can take money" does not know it is
+  `billing.payment.collect`.
+- **The ABHA suggested-address field's own hint said "Pick one, or type your own"** — above a
+  native `<select>`, which cannot be typed into. The copy had been describing a control nobody
+  had built.
+
+Three vocabularies were also being kept per screen. Gender was written out four times, in four
+orders, with four different words for the empty answer; blood group twice; record status once in
+raw lower-case column values (*active* / *archived*) shown to a person.
+
+### Decision
+
+**1. Every remaining native `<select>` in the Portal, admin console and patient portal becomes
+`Select`** — thirty-six of the thirty-seven. Small enumerations included: the point of having one
+control is that a three-option status filter and a two-hundred-option permission picker look and
+behave the same, and `Select`'s own `searchable="auto"` already decides where a search box earns
+its place.
+
+**2. Two are deliberately not `Select`.**
+
+- The **ABHA suggested-address** field becomes a `Combobox` (ADR-134), which is what its hint had
+  been promising all along: ABDM's suggestions, with the patient's own address still typeable.
+- The **marketing contact form** keeps its native `<select>`. That form is uncontrolled, submits
+  natively, and leans on the browser's own `required` to refuse an empty role; `Select` is
+  controlled and its hidden input carries no `required`, so the swap would quietly remove a
+  validation. Marketing is also its own token scope (`--mk-*`, ADR-040) with its own input
+  styling. The reasoning is written above the element so it is not "tidied up" later.
+  **Consistency is a reason to adopt the shared control, never a reason to lose form validation.**
+
+**3. Shared vocabularies move to `@hms/utils`** — `GENDER_OPTIONS`, `BLOOD_GROUP_OPTIONS`,
+`RECORD_STATUS_OPTIONS`. In `utils` rather than `ui` because `ui` depends on `utils` and the
+reverse would invert the graph, and because a blood group is not a UI concern in any case. The
+shape is `{ value, label }` — structurally a `SelectOption` without `utils` having to know that
+type exists. A hospital's **own** words — consultation types, case types, departments — stay out:
+those come from that tenant's configuration, not from a constant.
+
+**4. `DataTablePagination` converts too, and it is the one that mattered most.** The design system
+was the last place still writing `<select className="hms-input hms-input--sm">`, on every table in
+the product. A new `.hms-select__trigger--sm` lands it on the same 30px as the page buttons beside
+it.
+
+### Consequences
+
+- Every dropdown in every application now shows a second line where there is one, searches past
+  seven options, follows Light/Dark and the tenant's accent, and opens the same panel. The
+  permission picker is grouped by module and searchable on the key *and* on what the key means.
+- **A flourish was reverted during verification.** `BLOOD_GROUP_OPTIONS` briefly rendered a
+  typographic minus (`AB−`) against the stored `AB-`. It reads better in isolation and was wrong:
+  every other surface renders the stored value, so the picker would have spelled it differently
+  from the chart beside it. Label and value are now the same string.
+- Verified by watching the request rather than by reading the code: registering a patient sent
+  `{"bloodGroup":"AB-","gender":"female"}` — stored codes, not display labels — and reopening the
+  record mapped them back to *AB-* and *Female*.
+- `hms-visually-hidden` markup for required fields disappears from its call sites: `Select`'s
+  `required` prop does it once.
+- **The sweep found a latent bug in `Select` itself, and it took a real caller to expose it.**
+  Group runs were keyed by name. A caller whose options are not sorted by group repeats a name in
+  two non-adjacent runs — the permission catalog's own order visits `platform` and `opd` twice —
+  and React then had two siblings with one key. The failure was not a console warning anyone would
+  notice: the open list rendered stale, duplicated options and **stopped responding to the search
+  box**. Observed in the running app as 47 options for the query "payment", including
+  `platform.tenants.manage`.
+
+  Fixed by keying on position in both `Select` and `Combobox`, with a regression test in each that
+  was confirmed to fail against the old key. The permission picker also sorts by module at the call
+  site, because two "platform" headings in one list is still the wrong answer even once it renders
+  correctly. `Select`'s docstring said the caller controls grouping by ordering the options; that
+  was a documented assumption doing the work of a guarantee, and a duplicate React key is a
+  correctness bug whatever the caller does.
+- Not changed: the `<select>` inside `marketing/components/site/ContactForm.tsx`, per **2** above.

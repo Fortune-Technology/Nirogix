@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
-import { Alert, Button, Card, emptyLabel, Spinner } from "@hms/ui";
+import { Alert, Button, Card, emptyLabel, Select, Spinner } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { PendingPrescription, Drug } from "@hms/types";
 import * as api from "../../../lib/api";
@@ -66,17 +66,26 @@ function DispenseCard({
           </div>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="hms-field">
-            <span className="hms-label">Drug (stock)</span>
-            <select className="hms-input min-w-[13rem]" value={drugId} onChange={(e) => setDrugId(e.target.value)}>
-              <option value="">Select…</option>
-              {drugs.map((d) => (
-                <option key={d.id} value={d.id} disabled={d.onHand <= 0}>
-                  {d.name} ({d.onHand} in stock, {formatPaise(d.unitPricePaise)})
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* The drug master is a large searchable list, so it is the shared Select (ADR-029)
+              rather than a native one: stock and price read as their own column instead of being
+              buried in a line the browser truncates. An out-of-stock drug stays visible and
+              unselectable — a dispenser needs to see that it exists and cannot be given. */}
+          <Select
+            label="Drug (stock)"
+            className="min-w-[13rem]"
+            value={drugId}
+            onChange={setDrugId}
+            options={drugs.map((d) => ({
+              value: d.id,
+              label: d.name,
+              description: d.onHand <= 0 ? "Out of stock" : undefined,
+              meta: `${d.onHand} · ${formatPaise(d.unitPricePaise)}`,
+              disabled: d.onHand <= 0,
+            }))}
+            placeholder="Select…"
+            emptyMessage="No drugs in the master."
+            clearable
+          />
           <label className="hms-field">
             <span className="hms-label">Qty</span>
             <input className="hms-input w-20" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Select } from "@hms/ui";
 import * as api from "../../lib/api";
 
 /**
@@ -136,40 +137,37 @@ export function RegistryMasterSelect({
   // A saved code whose list has not arrived is still the answer — render it rather than lose it.
   const valueMissingFromList = value && !options.some((o) => o.code === value);
 
+  const message = failed
+    ? "The registry did not return this list. Try again shortly — do not submit with it blank."
+    : blockedByParent
+      ? parentHint
+      : !loading && options.length === 0
+        ? "The registry returned no options for this list."
+        : (hint ?? "");
+
   return (
-    <div className="hms-field">
-      <label className="hms-label" htmlFor={fieldId}>
-        {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
-        {required ? <span className="hms-visually-hidden"> (required)</span> : null}
-      </label>
-      <select
-        id={fieldId}
-        className="hms-input"
-        value={value}
-        required={required}
-        disabled={disabled || blockedByParent || loading}
-        aria-invalid={failed || undefined}
-        aria-describedby={`${fieldId}-msg`}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">{loading ? "Loading…" : placeholder}</option>
-        {valueMissingFromList ? <option value={value}>{value}</option> : null}
-        {options.map((o) => (
-          <option key={o.code} value={o.code}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <span id={`${fieldId}-msg`} className={failed ? "hms-field__error" : "hms-field__hint"}>
-        {failed
-          ? "The registry did not return this list. Try again shortly — do not submit with it blank."
-          : blockedByParent
-            ? parentHint
-            : !loading && options.length === 0
-              ? "The registry returned no options for this list."
-              : (hint ?? "")}
-      </span>
-    </div>
+    <Select
+      id={fieldId}
+      label={label}
+      required={required}
+      value={value}
+      onChange={onChange}
+      // The saved code leads the list when its label has not arrived: `Select` shows the
+      // placeholder for a value it cannot find, which would read as "nothing is selected"
+      // over a form that does in fact hold an answer.
+      options={[
+        ...(valueMissingFromList ? [{ value, label: value, description: "Saved earlier; the registry list is still loading" }] : []),
+        ...options.map((o) => ({ value: o.code, label: o.label, description: o.code, keywords: o.code })),
+      ]}
+      disabled={disabled || blockedByParent}
+      loading={loading}
+      placeholder={loading ? "Loading…" : placeholder}
+      // A registry list that came back empty is not the same as one that failed, and neither is
+      // the same as a search matching nothing — the message under the field says which.
+      emptyMessage={failed ? "The registry did not answer." : "No option matches."}
+      error={failed ? message : undefined}
+      hint={failed ? undefined : message}
+      clearable={!required}
+    />
   );
 }

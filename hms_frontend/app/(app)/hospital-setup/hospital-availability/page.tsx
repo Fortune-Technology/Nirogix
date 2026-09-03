@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card } from "@hms/ui";
+import { Alert, Button, Card, Select } from "@hms/ui";
 import { PERMISSIONS } from "@hms/permissions";
 import type { Branch } from "@hms/types";
 import { Check, X } from "lucide-react";
@@ -80,30 +80,21 @@ function AvailabilityManager() {
           from that hospital&apos;s pickers only. Every other hospital, and your existing records, are unaffected.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="hms-field">
-            <span className="hms-label">Hospital</span>
-            <select className="hms-input" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="hms-field">
-            <span className="hms-label">Item type</span>
-            <select
-              className="hms-input"
-              value={itemType}
-              onChange={(e) => setItemType(e.target.value as api.AvailabilityItemType)}
-            >
-              {ITEM_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Neither is clearable: this screen is always looking at ONE hospital and ONE kind
+              of item, so an empty state here would show a table of nothing. */}
+          <Select
+            label="Hospital"
+            value={branchId}
+            onChange={(v) => v && setBranchId(v)}
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            emptyMessage="No hospitals defined."
+          />
+          <Select
+            label="Item type"
+            value={itemType}
+            onChange={(v) => v && setItemType(v as api.AvailabilityItemType)}
+            options={ITEM_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          />
         </div>
       </Card>
 

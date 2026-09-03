@@ -9,6 +9,7 @@ import {
   Card,
   DataTable,
   Field,
+  Select,
   TableActions,
   ToggleAction,
   actionsColumn,
@@ -245,39 +246,28 @@ function DepartmentsTable() {
                   hint="Optional."
                 />
               </div>
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="dept-branch">
-                  Branch
-                </label>
-                <select id="dept-branch" className="hms-input" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-                  <option value="">Organization-wide</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <span className="hms-field__hint">Leave organization-wide unless only one branch runs it.</span>
-              </div>
-              <div className="hms-field">
-                <label className="hms-label" htmlFor="dept-head">
-                  Head of department
-                </label>
-                <select
-                  id="dept-head"
-                  className="hms-input"
-                  value={headProviderId}
-                  onChange={(e) => setHeadProviderId(e.target.value)}
-                >
-                  <option value="">Not assigned</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.fullName}
-                    </option>
-                  ))}
-                </select>
-                <span className="hms-field__hint">Optional. Can be set later.</span>
-              </div>
+              <Select
+                id="dept-branch"
+                label="Branch"
+                value={branchId}
+                onChange={setBranchId}
+                options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                placeholder="Organization-wide"
+                hint="Leave organization-wide unless only one branch runs it."
+                emptyMessage="No branches defined."
+                clearable
+              />
+              <Select
+                id="dept-head"
+                label="Head of department"
+                value={headProviderId}
+                onChange={setHeadProviderId}
+                options={providers.map((p) => ({ value: p.id, label: p.fullName }))}
+                placeholder="Not assigned"
+                hint="Optional. Can be set later."
+                emptyMessage="No doctors on file."
+                clearable
+              />
             </div>
             <div>
               <Button type="submit">Create department</Button>
