@@ -3876,3 +3876,66 @@ would otherwise have been four chances to forget.
 - **None of this unblocks functional testing.** The bridge still holds `services: []`, so ABDM cannot
   call any of these routes. What changed is that when it can, the answers will be correct — and that
   four of them would have been silent.
+
+## ADR-141 - One ABDM check that runs where the system actually runs
+
+**Status:** Accepted · **Date:** 03/09/2026 · **Extends:** ADR-084 (ABDM M1), ADR-109 (callback authentication), ADR-140 (the missing callbacks)
+
+### Context
+
+Asked "which ABDM test can I run on my staging VM?", the honest answer was: none of the useful ones.
+
+`abdm:m2check` and `abdm:m3check` write fictional patients and refuse outside development — correctly,
+and that refusal is the point of them. They prove the _logic_ works. They cannot prove a _deployment_
+does, and they never touch a deployed node. `abdm:check` proves a session issues and a certificate
+fetches, which is M1's foundation and nothing more. `abdm:fidelius-check` proves encryption and
+contacts nothing at all.
+
+So every ABDM script answered an outbound question, and **the question that decides M2 and M3 is
+inbound**. Every M1 flow is a call we make, which is why M1 works from a laptop with no
+infrastructure. Every M2 and M3 flow is a round trip: linking confirmations, discovery, consent
+notifications, records requests and — since ADR-140 — four acknowledgements, all arriving as webhooks
+on the URL registered with NHA. A deployment where those routes 404 does not raise an error. The
+gateway posts, gets something it does not recognise, and the hospital sees a feature that quietly
+does not work.
+
+There was a manual version of this in `BACKLOG.md`: curl `POST /api/v3/hip/patient/share` and expect
+422 rather than 404. It covered one route of sixteen, it predated the JWKS guard so its expected
+status was already wrong, and nobody was going to run it sixteen times.
+
+### Decision
+
+`npm run abdm:staging` checks both directions from wherever it is run: outbound to the gateway, ABHA
+and HFR hosts; the bridge record NHA holds; then every callback route over the public URL, exactly as
+the gateway would call it.
+
+**A 401 is the pass.** The probes send no credentials, so a correctly deployed route refuses them —
+and that one answer proves two things at once: the path is mounted, and the guard from ADR-109 is
+live. The failures carry the meaning:
+
+- `404` — the path is wrong or the build is stale, and the gateway's calls fall into it.
+- `2xx` — the guard is off, which is a complete unauthenticated path to patient data. Reported as the
+  finding it is, not as a passing route.
+- `429` — still a pass. `authLimiter` is mounted _on the route_, so a request that matched no route
+  can never be rate-limited. The limiter allows ten failures per quarter hour and there are sixteen
+  routes, so this is expected rather than a fault.
+
+**A control probe runs first**, against a path deliberately not mounted. A host that answers
+everything — a catch-all, a reverse proxy, a parked page, a login redirect — would otherwise read as
+sixteen passing routes, which is worse than no check at all.
+
+**It writes nothing, anywhere.** No database connection, no patient, no tenant, no registration at
+NHA — the one script in this family that is safe on production as well as staging. It prints the
+client secret as a length and the access token as a fingerprint, so its output can go straight into
+an NHA support ticket.
+
+### Consequences
+
+- First run against `https://api-staging.nirogix.com`: 12 of 16 routes answered 401, the control
+  probe 404'd, and nothing accepted an unauthenticated POST — the guard is enforcing there. The four
+  that 404'd are exactly the four added in ADR-140 hours earlier, which is the right answer for a node
+  running the previous build and is what validated the probe.
+- It also settled a question four days out of date. Staging is **already** India-resident —
+  `151.185.42.182`, reverse DNS `e2e-131-182.ssdcloudindia.net` (E2E Networks) — while `BACKLOG.md`
+  I-6 still described the IONOS US host and a CloudFront block. The row is closed. **A check that can
+  be run beats a note that has to be believed**, and that is the general reason this script exists.

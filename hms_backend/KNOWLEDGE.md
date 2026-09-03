@@ -400,6 +400,23 @@ on their phone. `sendOnShare` does that best-effort (today's share count for tha
 one), so a failed acknowledgement never undoes a profile that is already safely at the desk. A
 one-way implementation looks like it works and leaves the patient's app showing nothing.
 
+## Checking ABDM on a deployed environment (ADR-141)
+
+`npm run abdm:staging` is the **only** ABDM script that runs on staging or production. The others
+each answer a different question: `abdm:m2check`/`abdm:m3check` write fictional patients and refuse
+outside development, `abdm:check` proves two outbound calls, `abdm:fidelius-check` proves encryption
+and contacts nothing. **None of them checks whether ABDM can reach us**, which is the whole of M2 and
+M3.
+
+It probes outbound (gateway, ABHA, HFR), the bridge record, then all 16 callback routes over the
+public URL. **A 401 is the pass** — no credentials are sent, so a correct route refuses them, proving
+the path is mounted and the guard is live in one answer. `404` is a path the gateway falls into;
+`2xx` is an unauthenticated path to patient data and is reported as such; `429` still proves the
+route exists, because the limiter is mounted on the route. A control probe against an unmounted path
+runs first, so a host that answers everything is caught before it reads as sixteen passing routes.
+
+Writes nothing: no database, no patient, no registration at NHA.
+
 ## ABDM inbound callbacks — the half that answers (ADR-140)
 
 **Every ABDM call is answered on a callback, not on the connection that asked.** That single fact

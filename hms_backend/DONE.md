@@ -2816,3 +2816,44 @@ fails if any mounted inbound route lacks `requireAbdmGateway`, rather than namin
 **This does not unblock functional testing.** The bridge still holds `services: []`, so ABDM cannot
 call any of these routes. What changed is that when it can, the answers will be correct — and that
 four of them would have been silence.
+
+---
+
+## One ABDM check that runs on a deployed environment (ADR-141) · 03/09/2026
+
+**`npm run abdm:staging -w hms_backend`** — the check that answers the question the others cannot:
+_can ABDM reach us?_
+
+Every existing ABDM script answers a different question. `abdm:m2check` and `abdm:m3check` write
+fictional patients and correctly refuse outside development — they prove the logic works, never that
+a deployment does. `abdm:check` proves two outbound calls succeed, which is M1's foundation and
+nothing else. `abdm:fidelius-check` proves encryption and contacts nothing. **None of them touches
+the inbound half**, and the inbound half is the whole of M2 and M3: linking confirmations, discovery,
+consent notifications, records requests and the four acknowledgements all arrive as webhooks on the
+URL registered with NHA. A deployment where those routes 404 fails in silence.
+
+It probes all three directions from wherever it is run — outbound to the gateway, ABHA and HFR
+hosts; the bridge record at NHA; then every one of the 16 callback routes over the public URL,
+exactly as the gateway would.
+
+**A 401 is the pass.** The probes send no credentials, so a correctly deployed route refuses them —
+which proves the path is mounted _and_ the JWKS guard is live in one answer. The failures carry the
+meaning: `404` is a path the gateway's calls fall into, and **`2xx` is a complete unauthenticated
+path to patient data** (ADR-109) reported as the finding it is. A `429` also proves the route exists,
+because `authLimiter` is mounted on the route and a request that matched no route can never be
+rate-limited. A control probe against a deliberately unmounted path runs first, so a host that
+answers everything — a catch-all, a proxy, a login page — is caught before its answers are read as
+sixteen passing routes.
+
+**Writes nothing, anywhere.** No database connection, no patient, no tenant, no registration at NHA.
+Safe on staging and on production, unlike every other script in this family.
+
+**First run, against `https://api-staging.nirogix.com`:** 12 of 16 routes answered 401, the control
+probe 404'd, and no route accepted an unauthenticated POST — so the guard is enforcing on staging.
+The four that 404'd are exactly the four added in ADR-140 earlier today, which is the correct answer
+for a node running the previous build, and it is what validated the probe.
+
+**Also confirmed, and it closes a stale backlog row:** staging is already on **India-resident**
+infrastructure — `151.185.42.182`, reverse DNS `e2e-131-182.ssdcloudindia.net` (E2E Networks). The
+IONOS US host is gone. `BACKLOG.md` I-6 had stayed open for four days after the move; it is closed
+now, and this script is what should be run instead of re-reading it.
