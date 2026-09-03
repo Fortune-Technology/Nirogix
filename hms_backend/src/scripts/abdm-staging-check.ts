@@ -1,5 +1,6 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 import {
   ABHA_PATHS,
   GATEWAY_PATHS,
@@ -56,10 +57,25 @@ import {
  * It never prints a secret: the client secret is shown as a length and the access token as a
  * fingerprint, so the output can be pasted into an NHA support ticket or a chat.
  *
- *   npm run abdm:staging -w hms_backend
+ *   npm run abdm:staging -w hms_backend                       (from anywhere in the repo)
  *   npm run abdm:staging -w hms_backend -- --url https://api-staging.nirogix.com
  *   npm run abdm:staging -w hms_backend -- --inbound-only
+ *   npx tsx hms_backend/src/scripts/abdm-staging-check.ts    (no npm exit-code wrapper)
  */
+
+/**
+ * The backend's own `.env`, resolved from THIS FILE rather than from the working directory.
+ *
+ * `import 'dotenv/config'` reads `.env` relative to `process.cwd()`, which is right for every other
+ * script here because they are only ever launched by `npm run -w hms_backend`. This one is typed by
+ * hand on a server, and from the repository root there is no `.env` at all — so the credentials came
+ * back `(not set)` and the provider read `mock`, which looks exactly like a misconfigured node and is
+ * really a wrong directory. A check that misreports its own configuration is worse than no check.
+ */
+loadEnv({ path: join(__dirname, '..', '..', '.env') });
+// Then the working directory, so an override placed beside the invocation still wins nothing it
+// should not: dotenv never replaces a variable that is already set.
+loadEnv();
 
 const GATEWAY = process.env.ABDM_GATEWAY_BASE_URL ?? 'https://dev.abdm.gov.in';
 const ABHA = process.env.ABDM_ABHA_BASE_URL ?? 'https://abhasbx.abdm.gov.in/abha/api';
@@ -395,7 +411,7 @@ async function main(): Promise<void> {
     console.log(
       '  npm will print its own "Lifecycle script failed" wrapper underneath. To see the',
     );
-    console.log('  report without it: npx tsx src/scripts/abdm-staging-check.ts');
+    console.log('  report without it: npx tsx hms_backend/src/scripts/abdm-staging-check.ts');
   }
   console.log('');
   process.exit(failed > 0 ? 1 : 0);

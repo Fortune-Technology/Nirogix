@@ -87,7 +87,14 @@ The application has exactly three environments — **development | staging | pro
 
 ## Shared VM: audit ports first (MANDATORY pre-flight)
 
-The staging VM is **not ours alone** — `/var/www` already hosts other deployments
+> **Read this against the box you are actually on.** The description below is the retired IONOS VM
+> (`74.208.78.255`), which staging left in August 2026. The current staging node — E2E Networks,
+> `151.185.42.182`, `e2e-131-182` — is **dedicated to Nirogix**, so nothing else competes for the six
+> ports (`resources/domains.md` §8a). The audit stays mandatory anyway: it costs one command, it is
+> the only thing standing between a redeploy and an `EADDRINUSE` crash-loop, and the production box
+> may well be shared again.
+
+The old staging VM was **not ours alone** — `/var/www` already hosted other deployments
 (`CSV_Filter_Project`, `Storv_POS_All`, `The-Fortune-Tech`, `rapidrunner`, plus the default
 `html` site), each with its own Node processes, PM2 lists and Nginx server blocks. **Never bind
 a Nirogix port, PM2 name or Nginx server block without auditing what is already taken.** A

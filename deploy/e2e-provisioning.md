@@ -381,9 +381,10 @@ NEXT_PUBLIC_PORTAL_URL=https://portal-staging.nirogix.com
 Do this now: certbot validates over HTTP-01 in Step 10, and propagation is the slowest thing in this
 document.
 
-All six staging `A` records currently point at the retired IONOS box `74.208.78.255`
-(`resources/domains.md` §8a). At **GoDaddy → nirogix.com → DNS**, change each record's value to the
-reserved E2E address:
+**Done for the current node (verified 03/09/2026): all six resolve to `151.185.42.182`, and no record
+in the zone still names the retired IONOS box `74.208.78.255`.** The steps below stay as the runbook
+for the next node — the production one. At **GoDaddy → nirogix.com → DNS**, change each record's
+value to the reserved E2E address:
 
 | Type | Name              | Value      |
 | ---- | ----------------- | ---------- |

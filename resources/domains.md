@@ -196,30 +196,32 @@ Recorded from the live GoDaddy zone so a deploy reads reality, not the placehold
   Nginx upstream each. Written once in `/etc/nirogix/ports.env` and read from nowhere else (§8).
   This node is dedicated to Nirogix, so the numbers match the local defaults exactly.
 
-- **The apex and `www` serve nothing of ours, and never have.** Verified 28/08/2026: with
-  `nirogix.com` / `www.nirogix.com` pointed at the old IONOS box, HTTPS to either presents a
-  certificate for **`storeveu.com`** (`test.admin.storeveu.com`, `test.api.storeveu.com`,
-  `test.shop.storeveu.com`, …) — an unrelated project sharing that box. There is no apex server block
-  on that host; the request falls through to its `default_server`, so **a visitor to the company's
-  main domain gets a full-page browser security warning naming another company.**
+- **The apex and `www` serve nothing of ours.** Re-verified 03/09/2026 — the picture changed with the
+  move, so read the current state, not the 28/08 one. `nirogix.com` and `www.nirogix.com` now resolve
+  to the E2E node (`151.185.42.182`) along with everything else. Over HTTP both return the default
+  **“Welcome to nginx!”** page; over HTTPS the request fails outright, because the Let's Encrypt
+  certificate on that box covers only the six `-staging` names and the apex is not in its SAN list
+  (`BACKLOG.md` **I-7**). The earlier symptom — a certificate for the unrelated **`storeveu.com`**
+  presented from the shared IONOS box — is gone with that box.
 
   This is not a regression from the move. The Nginx template never defined an apex server block for
   staging — `MARKETING_HOST` is `staging.nirogix.com`, so the `www.${MARKETING_HOST}` redirect covers
   `www.staging.nirogix.com`, not the apex. `nirogix.com` has therefore never served the Nirogix
   marketing site from either box.
 
-  **Delete the apex and `www` `A` records until the production node exists** (§9 already says so). A
-  domain that does not resolve is better than one presenting a stranger's certificate. Moving or
-  removing them cannot affect the other projects on the old box: an `A` record governs only the name
-  it belongs to, and `storeveu.com` has its own. `portal.nirogix.com` and `api.nirogix.com` correctly
-  have no `A` record yet, which is the state the apex should match. (`admin-staging` serves; `patient-staging` and `ai-staging` serve once the F-5 change is deployed — PM2 entries uncommented, an Nginx server block per host, and the certificate widened to cover both.)
+  **Either serve the apex or stop resolving it** — the middle state is what exists today. `BACKLOG.md`
+  **I-7** takes the first road (enable the `${MARKETING_HOST}` + `www.${MARKETING_HOST}` blocks with
+  `MARKETING_HOST=nirogix.com` and no `auth_basic`, issue a certificate for both names), because the
+  DLT panel rejects the `NIROGX` SMS header while the company's main domain shows nothing. Until one
+  of the two is done, a visitor to `https://nirogix.com` gets a TLS failure. `portal.nirogix.com` and
+  `api.nirogix.com` correctly have no `A` record yet.
 
 - **Transactional email — `mail.nirogix.com` verified at MSG91** (ADR-016). SPF (`TXT mail` → `v=spf1 include:mailer91.com ~all`), DKIM (`TXT spaceship._domainkey.mail`) and the tracking `CNAME mailer91.mail` → `email.mailer91.com` all show **Verified**; the `MX mail` → `mx1.mailer91.com` (priority 10) is the last to propagate and affects only bounce/return-path, not sending. **Outbound email is deliverable.** DMARC stays the zone default (`_dmarc`, `p=quarantine`), which the `mail` subdomain inherits.
-- **Production `A` records** (`nirogix.com` apex, `portal`, `api`, `admin`, `patient`) point at the prod VM's IP and are **not created yet** — production is a separate box. The apex `@` currently resolves to the staging IP; delete or repoint it when the prod VM exists so `nirogix.com` never serves staging content.
+- **Production `A` records** (`nirogix.com` apex, `portal`, `api`, `admin`, `patient`) point at the prod VM's IP and are **not created yet** — production is a separate box. The apex `@` and `www` currently resolve to the staging IP `151.185.42.182`; repoint both when the prod VM exists so `nirogix.com` never serves staging content.
 
 ## 9. Cutover checklist
 
-1. ~~Add the `A` records for the staging hosts~~ **Done (17/08/2026), but they now point at a retired host.** All six resolve to `74.208.78.255`, the decommissioned IONOS box; **repoint every one at the E2E node's IP** (§8a) before issuing certificates. Production `A` records remain to be added against the prod VM's IP.
+1. ~~Add the `A` records for the staging hosts~~ ~~**and repoint them at the E2E node**~~ **Done — all six resolve to `151.185.42.182` (verified 28/08/2026, re-verified 03/09/2026).** The retired IONOS box `74.208.78.255` is referenced by no record in the zone. Production `A` records remain to be added against the prod VM's IP.
 2. Set the environment matrix above on each host; confirm `CORS_ORIGINS` lists that environment's origins only.
 3. Put Nginx basic auth in front of the staging **UI** hosts — `staging`, `portal-staging`,
    `admin-staging`, `ai-staging` — add the `X-Robots-Tag: noindex` header everywhere, and set

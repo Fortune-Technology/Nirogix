@@ -2892,3 +2892,40 @@ CI, but npm wraps that in "Lifecycle script failed" and the report above it read
 move to India; this described a live registry host for months after it was retired. Both were caught
 by running a check, neither by reading. External contracts drift, and a note has to be believed while
 a check can be run.
+
+---
+
+## 03/09/2026 — Server IP migration audit (IONOS `74.208.78.255` → E2E `151.185.42.182`)
+
+A sweep for anything still tied to the retired IONOS box, across code, environment files, CI, Nginx,
+DNS and the external integrations. The move itself was already complete; what was left was one live
+misconfiguration and four documents describing the old box in the present tense.
+
+**Nothing in application code holds a server address.** The only IPv4 literal anywhere outside the
+documentation was in `hms_backend/.env`, and the ABDM Postman collections (`100.65.201.149`, NHA's
+own sample value). Nginx is entirely `${HOST}` substitution, PM2 reads ports from
+`/etc/nirogix/ports.env`, the deploy workflow connects through `secrets.STAGING_HOST`, and every
+frontend reads its API base URL from configuration (ADR-051).
+
+**`MSG91_API_KEY` held `74.208.78.255` again** — the staging VM's old IP pasted into the wrong
+variable, the same defect this log recorded as fixed on the MSG91 change. A non-empty key selects
+the real provider, so local development was handing MSG91 a garbage authkey instead of staying on
+the log provider. Blanked; `npm run env:check` reports 6 apps in lockstep.
+
+**DNS is fully migrated and was verified against the live zone, not the notes.** All eight
+`nirogix.com` hosts — the six staging names plus the apex and `www` — resolve to `151.185.42.182`
+(reverse DNS `e2e-131-182.ssdcloudindia.net`); no record names the old box. Nameservers are GoDaddy
+(`ns27`/`ns28.domaincontrol.com`), so there is no Cloudflare proxy, WAF or IP allowlist in the
+request path (ADR-045); Cloudflare R2 is object storage authenticated by token, with no IP rule.
+SPF (`v=spf1 include:zoho.in include:mailer91.com ~all`) authorises sender networks, not our host,
+because mail leaves through the MSG91 API rather than an SMTP daemon on the VM — so the move needs
+no SPF, DKIM or DMARC change. The ABDM bridge is registered at NHA against
+`https://api-staging.nirogix.com`, a name, and that name now points at the new node — read back
+read-only with `npm run abdm:bridge`.
+
+**Documentation corrected where it described the old box as current:** `CLAUDE.md` (staging VM
+identity), `resources/domains.md` §8a (the apex bullet, which described a `storeveu.com` certificate
+that no longer exists — the apex now returns the default Nginx page over HTTP and fails TLS, which
+is `BACKLOG.md` I-7) and §9 item 1 (still instructing a repoint that is finished),
+`deploy/e2e-provisioning.md` Step 7 (same), and `deploy/README.md`'s shared-VM pre-flight (the new
+node is dedicated to Nirogix; the port audit stays mandatory because production may be shared).

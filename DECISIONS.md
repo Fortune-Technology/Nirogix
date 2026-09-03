@@ -3979,6 +3979,11 @@ script says which it is and offers the `npx tsx` form that skips the wrapper.
 ### Consequences
 
 - One fewer environment variable, and the two files stay in lockstep (`npm run env:check`).
+- `abdm:staging` loads `hms_backend/.env` **relative to its own file**, not to the working directory.
+  It is the one script here typed by hand on a server, and from the repository root there is no
+  `.env` at all — so it reported `client id (not set)` and `provider mock`, which reads as a
+  misconfigured node and is really a wrong directory. A check that misreports its own configuration
+  is worse than no check.
 - The finding came from running ADR-141's check on the VM rather than from reading anything. That is
   the second stale fact this week that a runnable check caught and a document had preserved — after
   `BACKLOG.md` I-6, which described a US host for four days after the move to India. **The pattern is
