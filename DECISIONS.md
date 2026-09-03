@@ -3939,3 +3939,50 @@ an NHA support ticket.
   `151.185.42.182`, reverse DNS `e2e-131-182.ssdcloudindia.net` (E2E Networks) — while `BACKLOG.md`
   I-6 still described the IONOS US host and a CloudFront block. The row is closed. **A check that can
   be run beats a note that has to be believed**, and that is the general reason this script exists.
+
+## ADR-142 - A retired ABDM host, found because a check could be run
+
+**Status:** Accepted · **Date:** 03/09/2026 · **Extends:** ADR-091 (bridge registration), ADR-141 (the deployed-environment check)
+
+### Context
+
+`facilitysbx.abdm.gov.in` is in NHA's M1 Postman collection as the host for bridge-service
+registration, and it has sat in `.env.example` and in `abdm.constants.ts` ever since. It no longer
+answers. A connection attempt from the staging VM in India times out after three seconds, and the
+same attempt from a developer machine in India times out after fifteen — so this is retirement, not
+a firewall at either end. The M2 and M3 collections, published later, put the same
+`/v1/bridges/MutipleHRPAddUpdateServices` path on the **HFR host** instead, which answers normally.
+
+The registration code was already correct: it posts to `ABDM_HFR_BASE_URL`. What was wrong was
+everything around it. The bridge script printed `registry https://facilitysbx.abdm.gov.in` in its
+banner while registering somewhere else entirely, `abdm.constants.ts` said the call goes to
+`facilitysbx` "NOT the gateway", and `ABDM_FACILITY_REGISTRY_URL` sat in both env files pointing at
+a dead host and read by exactly one line of code — the banner.
+
+None of that would break a deployment. All of it would cost an operator an afternoon, because the
+path is identical on both hosts, so the wrong one produces a **timeout rather than a 404** — the
+least informative failure available.
+
+### Decision
+
+The retired host is named as retired, once, where someone looking for it will be. The constant stays
+in `abdm-bridge.ts` as `RETIRED_FACILITY_REGISTRY` and is printed beside the host actually used, so
+an operator holding NHA's onboarding email can see in one line that the address in it is dead and
+what replaced it. `abdm.constants.ts` says the call goes to the HFR host and why the wrong host
+times out. `ABDM_FACILITY_REGISTRY_URL` is deleted from both env files — nothing reads it, and a
+key that only misinforms is worse than an absent one.
+
+`abdm:staging` also now explains its own non-zero exit. It exits 1 on a finding, which is right for
+CI, but npm wraps that in "Lifecycle script failed" and the report above it reads as a crash. The
+script says which it is and offers the `npx tsx` form that skips the wrapper.
+
+### Consequences
+
+- One fewer environment variable, and the two files stay in lockstep (`npm run env:check`).
+- The finding came from running ADR-141's check on the VM rather than from reading anything. That is
+  the second stale fact this week that a runnable check caught and a document had preserved — after
+  `BACKLOG.md` I-6, which described a US host for four days after the move to India. **The pattern is
+  the point:** external contracts drift, and the only durable defence is a check somebody can run,
+  not a note somebody has to believe.
+- Also confirmed on the VM in the same session: the deploy landed and **all 16 inbound callback
+  routes now answer 401**, up from 12. The four added in ADR-140 are live.

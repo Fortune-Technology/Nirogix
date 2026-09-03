@@ -2857,3 +2857,38 @@ for a node running the previous build, and it is what validated the probe.
 infrastructure — `151.185.42.182`, reverse DNS `e2e-131-182.ssdcloudindia.net` (E2E Networks). The
 IONOS US host is gone. `BACKLOG.md` I-6 had stayed open for four days after the move; it is closed
 now, and this script is what should be run instead of re-reading it.
+
+---
+
+## A retired ABDM host, and 16/16 callbacks live on staging (ADR-142) · 03/09/2026
+
+Running ADR-141's check on the staging VM found two things a document could not have.
+
+**The deploy landed.** All 16 inbound callback routes now answer 401 over the public URL — up from
+12 — so the four callbacks added in ADR-140 are live and guarded. The control probe still 404s and
+nothing accepts an unauthenticated POST.
+
+**`facilitysbx.abdm.gov.in` is gone.** It is in NHA's M1 collection as the bridge-service
+registration host and has sat in `.env.example` and `abdm.constants.ts` since. It now fails to
+connect from the staging VM in India (3s) and from a developer machine in India (15s) — retirement,
+not a firewall at either end. The M2 and M3 collections put the same
+`/v1/bridges/MutipleHRPAddUpdateServices` path on the **HFR host**, which answers normally.
+
+The registration code was already right — it posts to `ABDM_HFR_BASE_URL`. Everything around it was
+not: the bridge script printed `registry https://facilitysbx.abdm.gov.in` while registering
+elsewhere, the constants file said the call goes there "NOT the gateway", and
+`ABDM_FACILITY_REGISTRY_URL` sat in both env files pointing at a dead host, read by one line — the
+banner. None of it would break a deployment; all of it would cost an operator an afternoon, because
+the path is identical on both hosts, so the wrong one **times out rather than 404s**.
+
+Fixed: the retired host is named as retired beside the one actually used, the constants comment says
+where the call goes and why the wrong host hangs, and the dead env key is deleted from both files
+(`npm run env:check` — 6 apps in lockstep).
+
+`abdm:staging` now also explains its own non-zero exit. It exits 1 on a finding, which is correct for
+CI, but npm wraps that in "Lifecycle script failed" and the report above it reads as a crash.
+
+**The pattern, second time this week.** `BACKLOG.md` I-6 described a US host for four days after the
+move to India; this described a live registry host for months after it was retired. Both were caught
+by running a check, neither by reading. External contracts drift, and a note has to be believed while
+a check can be run.

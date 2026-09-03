@@ -401,7 +401,13 @@ export const BRIDGE_ADMIN = {
   updateBridgeUrl: '/api/hiecm/gateway/v3/bridge/url',
   /** GET on the gateway host — what this bridge currently has registered. */
   listBridgeServices: '/api/hiecm/gateway/v3/bridge-services',
-  /** POST on `https://facilitysbx.abdm.gov.in` (sandbox facility registry), NOT the gateway. */
+  /**
+   * POST on the **HFR host** (`ABDM_HFR_BASE_URL`), NOT the gateway and NOT `facilitysbx`.
+   *
+   * The M1 collection used `facilitysbx.abdm.gov.in`; the M2 and M3 collections use the HFR host,
+   * and `facilitysbx` no longer connects from anywhere it was tried (ADR-142). The path below is
+   * the same on both, which is exactly why the wrong host produces a timeout rather than a 404.
+   */
   registerServices: '/v1/bridges/MutipleHRPAddUpdateServices',
 } as const;
 
